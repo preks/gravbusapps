@@ -1,0 +1,19 @@
+1. Component Creation
+Create all components as React components in the src\business-apps folder.
+All folders in src\business-apps folder are products that we have, e.g. crm, irm.
+All folders in src\business-apps\(crm|irm) are either named `detail-screens` or `overview-screens` or `flow-screens`.
+All folders in src\business-apps\(crm|irm)\(detail-screens|overview-screensflow-screens) are names of screens, e.g. LeadDetail.
+All files in src\business-apps\(crm|irm)\(detail-screens|overview-screensflow-screens)\<screenName> are files related to that screen.
+Example of correctly create components:
+- src\business-apps\irm\detail-screens\LeadDetail\LeadDetail.tsx
+- src\business-apps\irm\overview-screens\LeadOverview\LeadOverview.tsx
+- src\business-apps\crm\overview-screens\OpportunityOverview\OpportunityOverview.tsx
+The place where components are exported is: src\business-apps\index.ts
+The place where the exported components are imported into the local development preview is: src\index.map.ts
+Always add a new components in both src\business-apps\index.ts and src\index.map.ts.
+
+2. Component Development
+Use ant-design for React UI components
+Use typescript for type safety
+Use prettier for code styling
+User eslint for linting
