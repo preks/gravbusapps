@@ -29,6 +29,7 @@ import type {
   TimelineActivity,
 } from "./types";
 import { mockDataProps } from "./mockData";
+import { BusinessAppContextProps } from "../../../../common/BusinessAppContext";
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -76,7 +77,7 @@ export interface LeadDetailProps {
   labels?: LeadDetailLabels;
 }
 
-export const LeadDetail: React.FC<LeadDetailProps> = ({
+export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = ({
   lead = mockDataProps.lead,
   statusHistory = mockDataProps.statusHistory,
   activities = mockDataProps.activities,
