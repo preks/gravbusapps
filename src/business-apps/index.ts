@@ -1,3 +1,10 @@
 export { LeadDetail } from "./irm/detail-screens/LeadDetail/LeadDetail";
 export { LeadOverview } from "./irm/overview-screens/LeadOverview/LeadOverview";
 export { OpportunityOverview } from "./crm/overview-screens/OpportunityOverview/OpportunityOverview";
+export { AbsenceManagementHub } from "./hr/absence/overview-screens/AbsenceManagementHub/AbsenceManagementHub";
+export { KPISection } from "./hr/absence/overview-screens/KPISection/KPISection";
+export { AppHeader } from "./hr/absence/overview-screens/AppHeader/AppHeader";
+export { HeroBanner } from "./hr/absence/overview-screens/HeroBanner/HeroBanner";
+export { QuickActions } from "./hr/absence/overview-screens/QuickActions/QuickActions";
+export { InsightsSection } from "./hr/absence/overview-screens/InsightsSection/InsightsSection";
+export { AbsenceOverview } from "./hr/absence/overview-screens/AbsenceOverview/AbsenceOverview";

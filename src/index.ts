@@ -1,1 +1,1 @@
-export { LeadDetail, LeadOverview, OpportunityOverview } from "./business-apps";
+export { LeadDetail, LeadOverview, OpportunityOverview, AbsenceManagementHub } from "./business-apps";
