@@ -1,6 +1,6 @@
 # Module Federation for React Components
 
-This setup allows components in `src/business-apps/index.ts` to be built as separate, versioned chunks that can be:
+This setup allows components in `src/business-apps` to be built as separate, versioned chunks that can be:
 1. Deployed individually to any storage system (like AWS S3, Azure Blob Storage, etc.)
 2. Consumed by other applications, such as a NextJS app
 3. Incrementally built (only changed components are rebuilt)
@@ -12,7 +12,7 @@ This setup allows components in `src/business-apps/index.ts` to be built as sepa
 The Vite configuration has been enhanced with:
 
 1. **Change Detection**: The build process analyzes which components have changed since the last build by:
-   - Extracting components from the `src/business-apps/index.ts` file
+   - Extracting components from the `src/business-apps` directory
    - Calculating a hash for each component's directory
    - Comparing with previous build hashes stored in `component-hashes.json`
 

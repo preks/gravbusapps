@@ -5,12 +5,31 @@ import federation from "@originjs/vite-plugin-federation";
 import { resolve } from "path";
 import fs from "fs";
 import crypto from "crypto";
+import path from "path";
+
+function getAllComponentFiles(dir: string, fileList: { name: string, path: string }[] = []) {
+  const files = fs.readdirSync(dir);
+  files.forEach((file) => {
+    const filePath = path.join(dir, file);
+    const stat = fs.statSync(filePath);
+    if (stat.isDirectory()) {
+      getAllComponentFiles(filePath, fileList);
+    } else if (
+      file.endsWith(".tsx") &&
+      /^[A-Z]/.test(path.basename(file))
+    ) {
+      const relPath = path.relative("./src/business-apps", filePath).replace(/\\/g, "/").replace(/\.tsx$/, "");
+      const compName = path.basename(file, ".tsx");
+      fileList.push({ name: compName, path: relPath });
+    }
+  });
+  return fileList;
+}
 
 // Function to determine which components have changed since last build
 function getChangedComponents() {
   // Path to the business-apps directory
   const businessAppsDir = resolve(__dirname, "src/business-apps");
-
   // Path to the manifest file that stores component hashes
   const manifestPath = resolve(__dirname, "component-hashes.json");
 
@@ -20,20 +39,13 @@ function getChangedComponents() {
     previousHashes = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
   }
 
-  // Get list of components from index.ts
-  const indexContent = fs.readFileSync(
-    resolve(businessAppsDir, "index.ts"),
-    "utf-8"
-  );
-
-  // Extract component names and paths using regex
-  const componentRegex = /export\s+{\s+(\w+)\s+}\s+from\s+['"]([^'"]+)['"];?/g;
+  // Get list of components
+  const componentFiles = getAllComponentFiles(businessAppsDir);
   const components = [];
-  let match;
 
-  while ((match = componentRegex.exec(indexContent)) !== null) {
-    const componentName = match[1];
-    const componentPath = match[2];
+  for (const componentFile of componentFiles) {
+    const componentName = componentFile.name;
+    const componentPath = componentFile.path;
 
     // Create a unique ID for the component that includes path information
     // Convert path to a sanitized ID-friendly format
@@ -108,7 +120,7 @@ function getChangedComponents() {
       }
     }
   }
-
+  
   // Save current hashes for next build
   fs.writeFileSync(manifestPath, JSON.stringify(currentHashes, null, 2));
 
