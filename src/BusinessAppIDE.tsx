@@ -1,8 +1,18 @@
 import type { HTMLAttributes } from "react";
 import { useState, createElement } from "react";
 import { Dropdown, Button } from "antd";
-import { businessAppMap } from "./index.map";
 
+const modules = import.meta.glob('./business-apps/**/[A-Z]*.tsx', { eager: true });
+
+const businessAppMap: Record<string, React.ComponentType<any>> = {};
+for (const path in modules) {
+  // extract component name from file name
+  // and use found component name in businessAppMap with default export
+  const match = path.match(/\/([A-Z][A-Za-z0-9]*)\.tsx$/);
+  if (match) {
+    businessAppMap[match[1]] = (modules[path] as any).default;
+  }
+}
 const Container = ({ children, className }: HTMLAttributes<HTMLDivElement>) => (
   <div className={`flex flex-col ${className || ""}`}>{children}</div>
 );

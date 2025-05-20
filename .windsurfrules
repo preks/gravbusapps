@@ -8,9 +8,6 @@ Example of correctly create components:
 - src\business-apps\irm\detail-screens\LeadDetail\LeadDetail.tsx
 - src\business-apps\irm\overview-screens\LeadOverview\LeadOverview.tsx
 - src\business-apps\crm\overview-screens\OpportunityOverview\OpportunityOverview.tsx
-The place where components are exported is: src\business-apps\index.ts
-The place where the exported components are imported into the local development preview is: src\index.map.ts
-Always add a new components in both src\business-apps\index.ts and src\index.map.ts.
 
 2. Component Development
 Use ant-design for React UI components
