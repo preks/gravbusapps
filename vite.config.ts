@@ -161,6 +161,36 @@ console.log("Changed components:", changedComponents);
 // Version tag for the build (use timestamp or other versioning strategy)
 const version = Date.now().toString();
 
+const serveDevOnlyEnvVars = () => ({
+  name: 'serve-dev-only-env-vars',
+  configureServer(server) {
+    server.middlewares.use((req, res, next) => {
+      if (req.url === '/nw-envs.js') {
+        const filePath = path.resolve(__dirname, 'dev/nw-envs.js');
+        if (fs.existsSync(filePath)) {
+          res.setHeader('Content-Type', 'application/javascript');
+          res.end(fs.readFileSync(filePath));
+          return;
+        }
+      }
+      next();
+    });
+  }
+});
+
+const injectDevOnlyEnvVarsScriptTag = () => ({
+  name: 'inject-dev-only-env-vars-script-tag',
+  transformIndexHtml(html: string, ctx: any) {
+    if (ctx.server) { // Only during dev
+      return html.replace(
+        '<head>',
+        `<head>\n<script src="/nw-envs.js"></script>`
+      );
+    }
+    return html;
+  },
+});
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
@@ -179,6 +209,8 @@ export default defineConfig({
       },
       shared: ["react", "react-dom", "antd"],
     }),
+    serveDevOnlyEnvVars(),
+    injectDevOnlyEnvVarsScriptTag(),
   ],
   build: {
     modulePreload: false,

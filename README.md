@@ -34,11 +34,54 @@ npm run preview
 
 ## Project Structure
 
+- `dev/` - Development files
+  - `nw-envs.js` - Development environment variables
 - `src/` - Source files
-  - `App.jsx` - Main application component
-  - `main.jsx` - Application entry point
-  - `assets/` - Static assets
+  - `business-apps/` - Business applications
+  - `common/` - Common components or utilities
+    - `env/` - Environment variables utilities
+    - `network/` - Network utilities
 - `public/` - Public static files
 - `tailwind.config.js` - Tailwind CSS configuration
 - `postcss.config.js` - PostCSS configuration
 - `vite.config.js` - Vite configuration
+
+## How To
+
+### Query GraphQL Data
+
+Import `graphQLClient` from `src/common/network/graphql/GraphQLClient`.
+
+```typescript
+import { graphQLClient } from "src/common/network/graphql/GraphQLClient";
+```
+
+Use `graphQLClient` to query data.
+
+```typescript
+  const query = `query getManagers($searchRegex: String!, $limit: Int!, $offset: Int!) {
+    EmployeePosition(
+      where: {
+        supervisor: {
+          _or: [
+            { firstName: { _iregex: $searchRegex } }
+            { lastName: { _iregex: $searchRegex } }
+          ]
+        }
+      }
+      distinctOn: supervisorEmployeeId
+      limit: $limit
+      offset: $offset
+    ) {
+      supervisor {
+        employeeId: id
+        firstName
+        lastName
+      }
+    }
+  }
+  `;
+    
+const variables = { searchRegex: "", limit: 5, offset: 0 };
+const data = await graphQLClient.request(accessToken, query, variables);
+```
