@@ -5,3 +5,11 @@ export function getAccessTokenFromAuthorizationHeader(authorizationHeader: strin
         return '';
     }
 }
+
+export function setAccessTokenToAuthorizationHeader(accessToken: string): string {
+    try {
+        return `Bearer ${accessToken}`;
+    } catch {
+        return '';
+    }
+}
