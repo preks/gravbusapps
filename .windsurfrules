@@ -17,6 +17,9 @@ Use typescript for type safety
 Use prettier for code styling
 User eslint for linting
 
+3. Component Publishing
+Use npm run publish:screen -- src/business-apps/**/<ScreenName> to publish a screen
+
 # Project Development
 
 1. Git Commit Message Structure
