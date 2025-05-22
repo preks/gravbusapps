@@ -49,8 +49,6 @@ npm run publish:screen -- crm/detail-screens/OpportunityDetail
 
 ## Project Structure
 
-- `dev/` - Development files
-  - `nw-envs.js` - Development environment variables
 - `src/` - Source files
   - `business-apps/` - Business applications
     - `<product>/` - Product
