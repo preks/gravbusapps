@@ -1,4 +1,5 @@
 import { env } from "../../env/EnvUtils";
+import { setAccessTokenToAuthorizationHeader } from "../HeaderUtils";
 
 export class GraphQLClient {
   private endpoint: string;
@@ -13,7 +14,7 @@ export class GraphQLClient {
     variables?: Record<string, any>
   ): Promise<T> {
     const headers = {
-      'Authorization': `Bearer ${accessToken}`
+      'Authorization': setAccessTokenToAuthorizationHeader(accessToken)
     };
 
     const response = await fetch(this.endpoint, {
