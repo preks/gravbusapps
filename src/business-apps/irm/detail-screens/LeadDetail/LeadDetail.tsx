@@ -32,7 +32,6 @@ import { mockDataProps } from "./mockData";
 import { BusinessAppContextProps } from "../../../../common/BusinessAppContext";
 
 const { Title, Text } = Typography;
-const { TabPane } = Tabs;
 
 export interface LeadDetailProps {
   /**
@@ -183,7 +182,7 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
       >
         {statusHistory.map((status, index) => (
           <React.Fragment key={status.id}>
-            <Col className="p-0 m-0">
+            <Col className="p-0 m-0" key={`status-col-${status.id}`}>
               <div
                 className={`py-2 px-6 bg-black relative text-white text-center font-medium min-w-[100px] flex items-center justify-center h-10 ${
                   status.id === 1 ? "rounded-l-lg" : ""
@@ -196,7 +195,7 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
               </div>
             </Col>
             {index < statusHistory.length - 1 && (
-              <Col className="p-0 flex items-center justify-center m-0 z-[1]">
+              <Col className="p-0 flex items-center justify-center m-0 z-[1]" key={`arrow-col-${status.id}`}>
                 <RiArrowRightLine className="text-black text-base" />
               </Col>
             )}
@@ -303,7 +302,9 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
                           </Text>
                         </div>
                         <div className="mb-2">
-                          <Text>{activity.content}</Text>
+                          <Text>
+                            <span>{activity.content}</span>
+                          </Text>
                         </div>
                         <div className="text-xs text-[#8c8c8c] mb-2">
                           <Text type="secondary">
@@ -332,31 +333,52 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
   };
 
   // Render tasks and reminders
-  const renderTasksAndReminders = () => (
-    <div className="p-4 bg-white rounded-lg border border-[#f0f0f0]">
-      <div className="flex justify-between items-center mb-4 border-b border-[#e8e8e8] pb-2">
-        <Title level={5}>{mergedLabels.tasksAndRemindersTitle}</Title>
-        <Button
-          type="text"
-          size="small"
-          icon={<RiAddLine />}
-          className="text-[#1677ff]"
+  const renderTasksAndReminders = () => {
+    const taskItems = [
+      {
+        label: mergedLabels.activeTabLabel,
+        key: "active",
+        children: activeTasks.length > 0 ? (
+          <div>
+            {activeTasks.map((task) => renderTaskCard(task))}
+          </div>
+        ) : (
+          <Text>No active tasks.</Text>
+        ),
+      },
+      {
+        label: mergedLabels.completedTabLabel,
+        key: "completed",
+        children: completedTasks.length > 0 ? (
+          <div>
+            {completedTasks.map((task) => renderTaskCard(task))}
+          </div>
+        ) : (
+          <Text>No completed tasks.</Text>
+        ),
+      },
+    ];
+
+    return (
+      <div className="p-4 bg-white rounded-lg border border-[#f0f0f0]">
+        <div className="flex justify-between items-center mb-4 border-b border-[#e8e8e8] pb-2">
+          <Title level={5}>{mergedLabels.tasksAndRemindersTitle}</Title>
+          <Button
+            type="text"
+            size="small"
+            icon={<RiAddLine />}
+            className="text-[#1677ff]"
+          />
+        </div>
+        <Tabs
+          activeKey={activeTaskTab}
+          onChange={setActiveTaskTab}
+          className="mt-4"
+          items={taskItems}
         />
       </div>
-      <Tabs
-        activeKey={activeTaskTab}
-        onChange={setActiveTaskTab}
-        className="mt-4"
-      >
-        <TabPane tab={mergedLabels.activeTabLabel} key="active">
-          {activeTasks.map((task) => renderTaskCard(task))}
-        </TabPane>
-        <TabPane tab={mergedLabels.completedTabLabel} key="completed">
-          {completedTasks.map((task) => renderTaskCard(task))}
-        </TabPane>
-      </Tabs>
-    </div>
-  );
+    );
+  };
 
   // Render individual task card
   const renderTaskCard = (task: LeadTask) => {
@@ -404,7 +426,7 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
             type="text"
             size="small"
             icon={<RiEditLine />}
-            className="text-[#8c8c8c] mt-[-6px] mr-[-6px] hover:text-[#1677ff] hover:bg-[rgba(22,119,255,0.1)]"
+            className="text-[#8c8c8c] mt-[-6px] mr-[-6px] hover:text-[#1677ff] hover:bg-[rgba(0,0,0,0.05)]"
           />
         </div>
         <div className="mt-3">
@@ -453,7 +475,7 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
       <Col span={6}>
         <Card
           className="rounded-xl overflow-hidden h-full !bg-[#f0f7ff] shadow-none"
-          bordered={false}
+          variant="borderless"
         >
           <div className="relative flex flex-col pt-5 px-5 pb-3">
             <div className="relative w-full flex justify-between mb-4">
@@ -562,35 +584,44 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
             activeKey={activeMainTab}
             onChange={setActiveMainTab}
             className="mb-4"
-          >
-            <TabPane tab="Overview" key="overview">
-              <div className="w-full">
-                {/* Status history */}
-                {renderStatusHistory()}
-                <Divider />
-                {/* Activity & Tasks section */}
-                <Row gutter={24} className="content-row">
-                  <Col span={18}>{renderActivityTimeline()}</Col>
-                  <Col span={6}>{renderTasksAndReminders()}</Col>
-                </Row>
-              </div>
-            </TabPane>
-            <TabPane tab={mergedLabels.companyTabLabel} key="company">
-              {companyContent || (
-                <div className="empty-content">
-                  {mergedLabels.noCompanyInfoMessage ||
-                    "No company information available"}
-                </div>
-              )}
-            </TabPane>
-            <TabPane tab={mergedLabels.documentsTabLabel} key="documents">
-              {documentsContent || (
-                <div className="empty-content">
-                  {mergedLabels.noDocumentsMessage || "No documents available"}
-                </div>
-              )}
-            </TabPane>
-          </Tabs>
+            items={[
+              {
+                label: mergedLabels.overviewTabLabel,
+                key: "overview",
+                children: (
+                  <div className="w-full">
+                    {/* Status history */}
+                    {renderStatusHistory()}
+                    <Divider />
+                    {/* Activity & Tasks section */}
+                    <Row gutter={24} className="content-row">
+                      <Col span={18}>{renderActivityTimeline()}</Col>
+                      <Col span={6}>{renderTasksAndReminders()}</Col>
+                    </Row>
+                  </div>
+                ),
+              },
+              {
+                label: mergedLabels.companyTabLabel,
+                key: "company",
+                children: companyContent || (
+                  <div className="empty-content">
+                    {mergedLabels.noCompanyInfoMessage ||
+                      "No company information available"}
+                  </div>
+                ),
+              },
+              {
+                label: mergedLabels.documentsTabLabel,
+                key: "documents",
+                children: documentsContent || (
+                  <div className="empty-content">
+                    {mergedLabels.noDocumentsMessage || "No documents available"}
+                  </div>
+                ),
+              },
+            ]}
+          />
         </Card>
       </Col>
     </Row>

@@ -27,10 +27,25 @@ npm run dev
 npm run build
 ```
 
-### Preview Production Build
+### Publish a Single Screen to Dev
+
+**Usage:**
+
 ```bash
-npm run preview
+npm run publish:screen -- <product>/<path-to-screen>/<screen-name>
 ```
+
+**Examples:**
+
+```bash
+# Publish the LeadOverview screen from the IRM product
+# (Ensure .env is configured with AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_SAS_TOKEN)
+npm run publish:screen -- irm/overview-screens/LeadOverview
+
+# Publish the OpportunityDetail screen from the CRM product
+npm run publish:screen -- crm/detail-screens/OpportunityDetail
+```
+
 
 ## Project Structure
 
@@ -38,6 +53,10 @@ npm run preview
   - `nw-envs.js` - Development environment variables
 - `src/` - Source files
   - `business-apps/` - Business applications
+    - `<product>/` - Product
+      - `<category>/` - Category
+        - `<screen-name>/` - Screen name
+          - `index.ts` - Screen component
   - `common/` - Common components or utilities
     - `env/` - Environment variables utilities
     - `network/` - Network utilities
@@ -45,6 +64,8 @@ npm run preview
 - `tailwind.config.js` - Tailwind CSS configuration
 - `postcss.config.js` - PostCSS configuration
 - `vite.config.js` - Vite configuration
+- `scripts/` - Script files
+  
 
 ## How To
 
