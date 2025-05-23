@@ -6,6 +6,7 @@ import fs from 'fs'; // For synchronous file system operations
 import { readFile, rename as fsRename } from 'fs/promises'; // For asynchronous file system operations in the plugin
 import crypto from 'crypto';
 import path from 'path';
+import dotenv from 'dotenv';
 
 // Function to get dynamic entries for Vite build using synchronous fs methods
 function getDynamicEntries(projectRootDir: string): Record<string, string> {
@@ -209,36 +210,6 @@ if (globalThis.__APP_BUILD_INFO__) {
     },
   };
 
-  const serveDevOnlyEnvVars = () => ({
-    name: 'serve-dev-only-env-vars',
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        if (req.url === '/nw-envs.js') {
-          const filePath = path.resolve(__dirname, 'dev/nw-envs.js');
-          if (fs.existsSync(filePath)) {
-            res.setHeader('Content-Type', 'application/javascript');
-            res.end(fs.readFileSync(filePath));
-            return;
-          }
-        }
-        next();
-      });
-    }
-  });
-  
-  const injectDevOnlyEnvVarsScriptTag = () => ({
-    name: 'inject-dev-only-env-vars-script-tag',
-    transformIndexHtml(html: string, ctx: any) {
-      if (ctx.server) { // Only during dev
-        return html.replace(
-          '<head>',
-          `<head>\n<script src="/nw-envs.js"></script>`
-        );
-      }
-      return html;
-    },
-  });
-
   // Get all possible entries using our flexible pattern finder
   const allPossibleEntries = getDynamicEntries(projectRootDir);
   
@@ -265,14 +236,30 @@ if (globalThis.__APP_BUILD_INFO__) {
     console.log('[vite.config.ts] Generated entries for multi-build:', dynamicEntries);
   }
 
+  const extraPlugins: PluginOption[] = [
+    // Add dotenv plugin only for development mode
+    ...(mode === 'development' ? [{
+      name: 'dotenv',
+      config() {
+        dotenv.config({ path: '.env' });
+        return {
+          define: {
+            'process.env': {
+              ...dotenv.config({ path: '.env' }).parsed
+            }
+          }
+        };
+      }
+    }] : [])
+  ];
+
   return {
     plugins: [
       react(),
       tailwindCSS(),
       prependBuildInfoBannerPlugin, // Use the updated banner plugin
       sha256ContentHashPlugin(shouldHashFilesForDeployment),
-      serveDevOnlyEnvVars(),
-      injectDevOnlyEnvVarsScriptTag(),
+      ...extraPlugins,
     ].filter(Boolean),
     define: {
       // This replaces process.env.NODE_ENV with the current mode in the build output
