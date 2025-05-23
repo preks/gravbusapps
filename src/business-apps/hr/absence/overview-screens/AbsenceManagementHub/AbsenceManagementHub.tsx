@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { AbsenceOverview } from '../AbsenceOverview/AbsenceOverview';
 import { AppHeader } from '../AppHeader/AppHeader';
 import { HeroBanner } from '../HeroBanner/HeroBanner';
 import { KPISection } from '../KPISection';
+import { AbsenceReports } from '../AbsenceReports/AbsenceReports';
 import { QuickActions } from '../QuickActions/QuickActions';
 import { AbsenceList } from '../AbsenceList/AbsenceList';
 import CalendarList from '../CalendarList/CalendarList';
 
 export const AbsenceManagementHub = () => {
-  const [activeSection, setActiveSection] = useState<string | null>(null)
+  const [activeSection, setActiveSection] = useState<string | null>("Dashboard")
 
   const handleSectionChange = (section: string) => {
     setActiveSection(section)
@@ -30,7 +31,7 @@ export const AbsenceManagementHub = () => {
       case "Team Calendar":
         return <CalendarList />
       case "Absence Reports":
-        return <div>Reports Content</div>
+        return <AbsenceReports />
       default:
         return (
           <>

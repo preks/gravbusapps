@@ -4,13 +4,13 @@ import { Table, Input, Button, Tag, Select } from 'antd'
 import {
   RiSearchLine,
   RiFilterLine,
-  RiDownloadLine,
   RiAddLine,
   RiSortAsc,
   RiUserLine,
   RiFileListLine,
   RiCheckLine,
-  RiCloseLine
+  RiCloseLine,
+  RiDownloadLine
 } from '@remixicon/react'
 
 // Action Button Component
@@ -264,7 +264,18 @@ export const AbsenceList = () => {
   const [sortDirection, setSortDirection] = useState("asc")
 
   type AbsenceType = "Sick Leave" | "Vacation" | "Special Leave" | "Work Leave";
-  type AbsenceStatus = "approved" | "pending" | "rejected";
+  type AbsenceStatus = string;
+
+  interface Absence {
+    id: number;
+    group: string;
+    type: string;
+    startDate: Date;
+    endDate: Date;
+    requester: string;
+    department: string;
+    status: AbsenceStatus;
+  }
 
   const typeColors: Record<AbsenceType, string> = {
     "Sick Leave": "#FF4D4F",
@@ -280,30 +291,57 @@ export const AbsenceList = () => {
   }
 
   const handleFilter = () => {
-    // Add filter logic here
-  }
+    let filtered = absences;
+
+    // Apply search filter
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
+      filtered = filtered.filter(absence =>
+        absence.requester.toLowerCase().includes(searchLower) ||
+        absence.group.toLowerCase().includes(searchLower) ||
+        absence.type.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(absence => absence.status === statusFilter);
+    }
+
+    // Apply type filter
+    if (typeFilter !== "all") {
+      filtered = filtered.filter(absence => absence.group === typeFilter);
+    }
+
+    // Apply sorting
+    if (sortBy === "date") {
+      filtered = filtered.sort((a, b) => {
+        const dateA = new Date(a.startDate);
+        const dateB = new Date(b.startDate);
+        return sortDirection === "asc" ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
+      });
+    }
+
+    setFilteredAbsences(filtered);
+  };
 
   const handleExport = () => {
-    // Add export logic here
-  }
+    // Export logic
+  };
 
   const handleAddAbsence = () => {
-    // Add add absence logic here
-  }
+    // Add absence logic
+  };
 
   const handleSort = () => {
-    // Add sort logic here
-  }
+    setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    handleFilter();
+  };
 
   // Filter absences based on search term
   useEffect(() => {
-    const filtered = absences.filter((absence) =>
-      absence.requester.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      absence.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      absence.group.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    setFilteredAbsences(filtered)
-  }, [searchQuery])
+    handleFilter();
+  }, [searchQuery, statusFilter, typeFilter, sortBy, sortDirection]);
 
   // Sort absences
   useEffect(() => {
@@ -349,6 +387,15 @@ export const AbsenceList = () => {
         </Button>
         <Button
           type="default"
+          onClick={() => {
+            // Navigate to reports page
+          }}
+          icon={<RiFileListLine />}
+        >
+          Reports
+        </Button>
+        <Button
+          type="primary"
           onClick={handleAddAbsence}
           icon={<RiAddLine />}
         >
@@ -396,6 +443,13 @@ export const AbsenceList = () => {
         dataSource={filteredAbsences}
         columns={[
           {
+            title: '',
+            key: 'actions',
+            render: (_, record: any) => (
+              <ActionButton status={record.status} />
+            ),
+          },
+          {
             title: 'Group',
             dataIndex: 'group',
             key: 'group',
@@ -411,33 +465,32 @@ export const AbsenceList = () => {
             ),
           },
           {
-            title: 'Start Date',
+            title: 'Dates',
             dataIndex: 'startDate',
-            key: 'startDate',
-            render: (date: Date) => format(date, 'MMM d, yyyy'),
-          },
-          {
-            title: 'End Date',
-            dataIndex: 'endDate',
-            key: 'endDate',
-            render: (date: Date) => format(date, 'MMM d, yyyy'),
+            key: 'dates',
+            render: (startDate: Date, record: Absence) => (
+              <div className="text-sm">
+                <span className="font-medium">{format(startDate, 'MMM d')}</span>
+                <span className="text-gray-400"> - </span>
+                <span>{format(record.endDate, 'MMM d, yyyy')}</span>
+              </div>
+            ),
           },
           {
             title: 'Requester',
             dataIndex: 'requester',
             key: 'requester',
-            render: (name: string) => (
-              <div className="flex items-center gap-2">
-                <RiUserLine />
-                {name}
+            render: (name: string, record: Absence) => (
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  {name}
+                </div>
+                <span className="text-xs text-gray-500 mt-1">
+                  {record.department}
+                </span>
               </div>
             ),
-          },
-          {
-            title: 'Department',
-            dataIndex: 'department',
-            key: 'department',
-          },
+          },          
           {
             title: 'Status',
             dataIndex: 'status',
@@ -447,14 +500,7 @@ export const AbsenceList = () => {
                 {status}
               </Tag>
             ),
-          },
-          {
-            title: 'Actions',
-            key: 'actions',
-            render: (_, record: any) => (
-              <ActionButton status={record.status} />
-            ),
-          },
+          }
         ]}
       />
     </div>
