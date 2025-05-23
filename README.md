@@ -106,3 +106,43 @@ Use `graphQLClient` to query data.
 const variables = { searchRegex: "", limit: 5, offset: 0 };
 const data = await graphQLClient.request(accessToken, query, variables);
 ```
+
+### Query Catalog Data
+
+Import `catalogManagerClient` from `src/common/network/catalogs/CatalogManagerClient`.
+
+```typescript
+import { catalogManagerClient } from "src/common/network/catalogs/CatalogManagerClient";
+```
+
+Use `catalogManagerClient` to query data.
+
+```typescript
+const data = await catalogManagerClient.getCatalogEntriesList(accessToken, { catalogIdentifier: 'AbsenceType', version: 'v1' });
+```
+
+```typescript
+const data = await catalogManagerClient.getCatalogs(accessToken);
+```
+
+### Query Flow Registry Data
+
+Import `flowRegistryClient` from `src/common/network/flows/FlowRegistryClient`.
+
+```typescript
+import { flowRegistryClient } from "src/common/network/flows/FlowRegistryClient";
+```
+
+Use `flowRegistryClient` to query data.
+
+```typescript
+const data = await flowRegistryClient.getPermissionFlowItemsV1(accessToken, { contexts: ['employeeEntity', 'expenseItems'] });
+```
+
+```typescript
+const data = await flowRegistryClient.getPermissionFlowItemsV2(accessToken, { contexts: [{ contextName: 'employeeEntity', mainContextDataId: 'id1' }, { contextName: 'expenseItems', mainContextDataId: 'id2' }] });
+```
+
+```typescript
+const data = await flowRegistryClient.getMainContextData(accessToken, { contextNames: ['employeeEntity', 'expenseItems'] });
+```
