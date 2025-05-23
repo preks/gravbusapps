@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { axios } from '../requests/axiosClient';
-import { useAuth } from '../providers/auth-provider';
-import { env } from '../utils/env-vars.utils';
+import { env } from '../env/EnvUtils';
+import { useRestClient } from '../network/rest/useRestClient';
 
 interface PermissionRequest {
   domain: string;
@@ -19,26 +18,17 @@ interface PermissionResponse {
 }
 
 /**
- * Add Environment variable:
- * 
-#PERMISSIONS
-NEXT_PUBLIC_PERMISSIONS_API=https://newwork-dev.newwork.com/authorization/api/v1
-
- * 
- */
-
-/**
  * Custom hook for checking permissions
  * @param permissionRequests Array of permission requests to check
  * @returns Object containing loading state, permission check result, and any error
  */
-export const usePermissionCheck = (permissionRequests: PermissionRequest[]) => {
+export const usePermissionCheck = (accessToken: string, permissionRequests: PermissionRequest[]) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [hasPermission, setHasPermission] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
-  
-  // Get authentication token from the auth provider
-  const { kc } = useAuth();
+
+  const permissionsApiUrl = env('NEXT_PUBLIC_PERMISSIONS_API') ?? "";
+  const restClient = useRestClient(permissionsApiUrl);
   
   // Use a ref to track if we've already attempted the permission check
   const checkAttempted = useRef<boolean>(false);
@@ -61,25 +51,20 @@ export const usePermissionCheck = (permissionRequests: PermissionRequest[]) => {
 
       try {
         setLoading(true);
-        
-        // Get the permissions API URL from environment variables
-        //const permissionsApiUrl = env('NEXT_PUBLIC_PERMISSIONS_API');
-        
-        const permissionsApiUrl = 'https://newwork-dev.newwork.com/authorization/api/v1';
-
+                
         // Use the correct API endpoint
-        const response = await axios.post(
-          `${permissionsApiUrl}/permissions/bulk-check`,
+        const response = await restClient.post(
+          `/permissions/bulk-check`,
           permissionRequests,
           {
             headers: {
-              Authorization: `Bearer ${kc?.token}`
+              Authorization: `Bearer ${accessToken}`
             }
           }
         );
 
         // Check if all permissions are granted
-        const allPermissionsGranted = response.data.every((result: PermissionResponse) => {
+        const allPermissionsGranted = response.every((result: PermissionResponse) => {
           // Check each requested permission in the response
           const requestedPermissions = permissionRequests.find(
             req => req.domain === result.domain && req.resource === result.resource && req.resourceId === result.resourceId

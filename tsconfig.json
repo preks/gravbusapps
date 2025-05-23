@@ -29,7 +29,9 @@
       "@/components/*": ["src/components/*"],
       "@/business-apps/*": ["src/business-apps/*"],
       "@/assets/*": ["src/assets/*"],
-      "@/hooks/*": ["src/hooks/*"]
+      "@/hooks/*": ["src/hooks/*"],
+      "@/modules/*": ["src/modules/*"],
+      "@/common/*": ["src/common/*"]
     }
   },
   "include": ["src", "index.tsx"],

@@ -69,10 +69,10 @@ npm run publish:screen -- crm/detail-screens/OpportunityDetail
 
 ### Query GraphQL Data
 
-Import `useGraphqlClient` from `src/common/network/graphql/useGraphQLClient`.
+Import `useGraphqlClient` from `@/common/network/graphql/useGraphQLClient`.
 
 ```typescript
-import { useGraphqlClient } from "src/common/network/graphql/useGraphQLClient";
+import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
 ```
 
 Use `useGraphqlClient` to query data.
@@ -108,10 +108,10 @@ const data = await client.request(query, variables);
 
 ### Query Catalog Data
 
-Import `useCatalogManagerClient` from `src/common/network/catalogs/useCatalogManagerClient`.
+Import `useCatalogManagerClient` from `@/common/network/catalogs/useCatalogManagerClient`.
 
 ```typescript
-import { useCatalogManagerClient } from "src/common/network/catalogs/useCatalogManagerClient";
+import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
 ```
 
 Use `useCatalogManagerClient` to query data.
@@ -127,10 +127,10 @@ const data = await client.getCatalogs();
 
 ### Query Flow Registry Data
 
-Import `useFlowRegistryClient` from `src/common/network/flows/useFlowRegistryClient`.
+Import `useFlowRegistryClient` from `@/common/network/flows/useFlowRegistryClient`.
 
 ```typescript
-import { useFlowRegistryClient } from "src/common/network/flows/useFlowRegistryClient";
+import { useFlowRegistryClient } from "@/common/network/flows/useFlowRegistryClient";
 ```
 
 Use `useFlowRegistryClient` to query data.

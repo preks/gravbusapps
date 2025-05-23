@@ -1,6 +1,0 @@
-export { default as EmployeeAvatar } from './EmployeeAvatar';
-export { EmployeeAvatarPicture } from './EmployeeAvatarPicture';
-export { EmployeeAvatarPlaceholder } from './EmployeeAvatarPlaceholder';
-export { EmployeeAvatarStatus } from './EmployeeAvatarStatus';
-export { OnlineStatus, AvailabilityLocation } from './types';
-export { getRandomOnlineStatus, getRandomAvailabilityLocation } from './utils';

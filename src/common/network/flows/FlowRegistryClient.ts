@@ -1,6 +1,7 @@
 import { RestClient, type RequestOptions } from '../rest/RestClient';
 import { env } from '../../env/EnvUtils';
 import { GetPermissionFlowItemsV1Params, GetPermissionFlowItemsV2Body, GetMainContextDataBody, GetPermissionFlowItemsResponse, GetMainContextDataResponse } from '../../types/FlowRegistryTypes';
+import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils';
 
 export class FlowRegistryClient extends RestClient {
   
@@ -8,8 +9,15 @@ export class FlowRegistryClient extends RestClient {
     super(env('NEXT_PUBLIC_FLOW_REGISTRY_SERVICE_API') ?? '');
   }
 
+  setAccessToken(accessToken: string) {
+      if (!this.headers) {
+        this.headers = {};
+      }
+  
+      this.headers["Authorization"] = setAccessTokenToAuthorizationHeader(accessToken);
+  }
+
   public async getPermissionFlowItemsV1(
-    accessToken: string,
     params: GetPermissionFlowItemsV1Params,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<GetPermissionFlowItemsResponse> {
@@ -21,7 +29,6 @@ export class FlowRegistryClient extends RestClient {
 
     return this.get<GetPermissionFlowItemsResponse>(
       '/permissions/flow-items',
-      accessToken,
       {
         ...options,
         params: queryParams,
@@ -30,14 +37,12 @@ export class FlowRegistryClient extends RestClient {
   }
 
   public async getPermissionFlowItemsV2(
-    accessToken: string,
     body: GetPermissionFlowItemsV2Body,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<GetPermissionFlowItemsResponse> {
     
     return this.post<GetPermissionFlowItemsResponse>(
       '/permissions/flow-items/by-contexts',
-      accessToken,
       {
         ...body,
       },
@@ -46,14 +51,12 @@ export class FlowRegistryClient extends RestClient {
   }
 
   public async getMainContextData(
-    accessToken: string,
     body: GetMainContextDataBody,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<GetMainContextDataResponse> {
 
     return this.post<GetMainContextDataResponse>(
       '/contexts/main-context-data',
-      accessToken,
       {
         ...body,
       },

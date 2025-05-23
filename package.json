@@ -12,11 +12,13 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@newwork/gravity-ui-catalog": "7.6.3",
+    "@newwork/gravity-ui-catalog": "7.8.5",
     "@remixicon/react": "^4.6.0",
     "antd": "^5.25.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-icons": "^4.6.0",
+    "react-i18next": "15.5.1"
   },
   "devDependencies": {
     "@azure/storage-blob": "^12.27.0",
