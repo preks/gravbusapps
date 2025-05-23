@@ -5,6 +5,7 @@ import { HeroBanner } from '../HeroBanner/HeroBanner';
 import { KPISection } from '../KPISection';
 import { QuickActions } from '../QuickActions/QuickActions';
 import { AbsenceList } from '../AbsenceList/AbsenceList';
+import CalendarList from '../CalendarList/CalendarList';
 
 export const AbsenceManagementHub = () => {
   const [activeSection, setActiveSection] = useState<string | null>(null)
@@ -27,7 +28,7 @@ export const AbsenceManagementHub = () => {
           </>
         )
       case "Team Calendar":
-        return <div>Calendar Content</div>
+        return <CalendarList />
       case "Absence Reports":
         return <div>Reports Content</div>
       default:
