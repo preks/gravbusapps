@@ -268,13 +268,7 @@ if (globalThis.__APP_BUILD_INFO__) {
     },
     resolve: {
       alias: {
-        '@': resolve(__dirname, 'src'),
-        '@/components': resolve(__dirname, 'src/components'),
-        '@/business-apps': resolve(__dirname, 'src/business-apps'),
-        '@/assets': resolve(__dirname, 'src/assets'),
-        '@/hooks': resolve(__dirname, 'src/hooks'),
-        '@/modules': resolve(__dirname, 'src/modules'),
-        '@/common': resolve(__dirname, 'src/common')
+        '@': resolve(__dirname, 'src')
       },
     },
     build: {
