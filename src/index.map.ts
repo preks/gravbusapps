@@ -1,3 +1,3 @@
-import { LeadDetail, LeadOverview, OpportunityOverview, AbsenceManagementHub } from "./business-apps";
+import { LeadDetail, LeadOverview, OpportunityOverview, AbsenceManagementHub, KanbanBoard } from "./business-apps";
 
-export const businessAppMap = { LeadDetail, LeadOverview, OpportunityOverview, AbsenceManagementHub };
+export const businessAppMap = { LeadDetail, LeadOverview, OpportunityOverview, AbsenceManagementHub, KanbanBoard };

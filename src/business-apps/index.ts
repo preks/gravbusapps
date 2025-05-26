@@ -8,3 +8,4 @@ export { HeroBanner } from "./hr/absence/overview-screens/HeroBanner/HeroBanner"
 export { QuickActions } from "./hr/absence/overview-screens/QuickActions/QuickActions";
 export { InsightsSection } from "./hr/absence/overview-screens/InsightsSection/InsightsSection";
 export { AbsenceOverview } from "./hr/absence/overview-screens/AbsenceOverview/AbsenceOverview";
+export { KanbanBoard } from "./irm/kanban-board/KanbanBoard";

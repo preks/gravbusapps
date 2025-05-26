@@ -27,18 +27,123 @@ npm run dev
 npm run build
 ```
 
-### Preview Production Build
+### Publish a Single Screen to Dev
+
+**Usage:**
+
 ```bash
-npm run preview
+npm run publish:screen -- <product>/<path-to-screen>/<screen-name>
 ```
+
+**Examples:**
+
+```bash
+# Publish the LeadOverview screen from the IRM product
+# (Ensure .env is configured with AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_SAS_TOKEN)
+npm run publish:screen -- irm/overview-screens/LeadOverview
+
+# Publish the OpportunityDetail screen from the CRM product
+npm run publish:screen -- crm/detail-screens/OpportunityDetail
+```
+
 
 ## Project Structure
 
 - `src/` - Source files
-  - `App.jsx` - Main application component
-  - `main.jsx` - Application entry point
-  - `assets/` - Static assets
+  - `business-apps/` - Business applications
+    - `<product>/` - Product
+      - `<category>/` - Category
+        - `<screen-name>/` - Screen name
+          - `index.ts` - Screen component
+  - `common/` - Common components or utilities
+    - `env/` - Environment variables utilities
+    - `network/` - Network utilities
 - `public/` - Public static files
 - `tailwind.config.js` - Tailwind CSS configuration
 - `postcss.config.js` - PostCSS configuration
 - `vite.config.js` - Vite configuration
+- `scripts/` - Script files
+  
+
+## How To
+
+### Query GraphQL Data
+
+Import `useGraphqlClient` from `@/common/network/graphql/useGraphQLClient`.
+
+```typescript
+import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
+```
+
+Use `useGraphqlClient` to query data.
+
+```typescript
+  const client = useGraphqlClient(accessToken);
+  const query = `query getManagers($searchRegex: String!, $limit: Int!, $offset: Int!) {
+    EmployeePosition(
+      where: {
+        supervisor: {
+          _or: [
+            { firstName: { _iregex: $searchRegex } }
+            { lastName: { _iregex: $searchRegex } }
+          ]
+        }
+      }
+      distinctOn: supervisorEmployeeId
+      limit: $limit
+      offset: $offset
+    ) {
+      supervisor {
+        employeeId: id
+        firstName
+        lastName
+      }
+    }
+  }
+  `;
+    
+const variables = { searchRegex: "", limit: 5, offset: 0 };
+const data = await client.request(query, variables);
+```
+
+### Query Catalog Data
+
+Import `useCatalogManagerClient` from `@/common/network/catalogs/useCatalogManagerClient`.
+
+```typescript
+import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+```
+
+Use `useCatalogManagerClient` to query data.
+
+```typescript
+const client = useCatalogManagerClient(accessToken);
+const data = await client.getCatalogEntriesList({ catalogIdentifier: 'AbsenceType', version: 'v1' });
+```
+
+```typescript
+const data = await client.getCatalogs();
+```
+
+### Query Flow Registry Data
+
+Import `useFlowRegistryClient` from `@/common/network/flows/useFlowRegistryClient`.
+
+```typescript
+import { useFlowRegistryClient } from "@/common/network/flows/useFlowRegistryClient";
+```
+
+Use `useFlowRegistryClient` to query data.
+
+```typescript
+const client = useFlowRegistryClient(accessToken);
+const data = await client.getPermissionFlowItemsV1({ contexts: ['employeeEntity', 'expenseItems'] });
+```
+
+```typescript
+const data = await client.getPermissionFlowItemsV2({ contexts: [{ contextName: 'employeeEntity', mainContextDataId: 'id1' }, { contextName: 'expenseItems', mainContextDataId: 'id2' }] });
+```
+
+```typescript
+const data = await client.getMainContextData({ contextNames: ['employeeEntity', 'expenseItems'] });
+```
