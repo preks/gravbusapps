@@ -285,14 +285,12 @@ if (globalThis.__APP_BUILD_INFO__) {
       },
       minify: isProduction ? 'esbuild' : false, // Ensure minification for production
       rollupOptions: {
-        external: ['react', 'react-dom', 'antd', 'react/jsx-runtime', 'react-icons', 'react-i18next'],
+        external: ['react', 'react-dom', 'antd', 'react/jsx-runtime'],
         output: {
           globals: {
             'react': 'React',
             'react-dom': 'ReactDOM',
-            'antd': 'antd',
-            'react-icons': 'reactIcons',
-            'react-i18next': 'reactI18next'
+            'antd': 'antd'
           },
           // entryFileNames will now always output a predictable name;
           // the sha256ContentHashPlugin will handle renaming for deployment builds.
