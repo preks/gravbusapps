@@ -1,5 +1,5 @@
-declare const process: { env: { [key: string]: string | undefined } };
 declare const window: { [key: string]: any };
+declare const process: { env: { [key: string]: string | undefined } };
 
 export const WINDOW_ENV_KEY: any = 'nw-envs';
 
@@ -9,7 +9,9 @@ export function env(key: string): string | undefined {
             throw new Error(`Environment variable '${key}' is not public and cannot be accessed in the browser.`);
         }
 
-        return window[WINDOW_ENV_KEY][key];
+        if (window[WINDOW_ENV_KEY][key]) {
+            return window[WINDOW_ENV_KEY][key];
+        }
     }
 
     return process.env[key];
