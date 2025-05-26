@@ -69,15 +69,16 @@ npm run publish:screen -- crm/detail-screens/OpportunityDetail
 
 ### Query GraphQL Data
 
-Import `graphQLClient` from `src/common/network/graphql/GraphQLClient`.
+Import `useGraphqlClient` from `@/common/network/graphql/useGraphQLClient`.
 
 ```typescript
-import { graphQLClient } from "src/common/network/graphql/GraphQLClient";
+import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
 ```
 
-Use `graphQLClient` to query data.
+Use `useGraphqlClient` to query data.
 
 ```typescript
+  const client = useGraphqlClient(accessToken);
   const query = `query getManagers($searchRegex: String!, $limit: Int!, $offset: Int!) {
     EmployeePosition(
       where: {
@@ -102,45 +103,47 @@ Use `graphQLClient` to query data.
   `;
     
 const variables = { searchRegex: "", limit: 5, offset: 0 };
-const data = await graphQLClient.request(accessToken, query, variables);
+const data = await client.request(query, variables);
 ```
 
 ### Query Catalog Data
 
-Import `catalogManagerClient` from `src/common/network/catalogs/CatalogManagerClient`.
+Import `useCatalogManagerClient` from `@/common/network/catalogs/useCatalogManagerClient`.
 
 ```typescript
-import { catalogManagerClient } from "src/common/network/catalogs/CatalogManagerClient";
+import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
 ```
 
-Use `catalogManagerClient` to query data.
+Use `useCatalogManagerClient` to query data.
 
 ```typescript
-const data = await catalogManagerClient.getCatalogEntriesList(accessToken, { catalogIdentifier: 'AbsenceType', version: 'v1' });
+const client = useCatalogManagerClient(accessToken);
+const data = await client.getCatalogEntriesList({ catalogIdentifier: 'AbsenceType', version: 'v1' });
 ```
 
 ```typescript
-const data = await catalogManagerClient.getCatalogs(accessToken);
+const data = await client.getCatalogs();
 ```
 
 ### Query Flow Registry Data
 
-Import `flowRegistryClient` from `src/common/network/flows/FlowRegistryClient`.
+Import `useFlowRegistryClient` from `@/common/network/flows/useFlowRegistryClient`.
 
 ```typescript
-import { flowRegistryClient } from "src/common/network/flows/FlowRegistryClient";
+import { useFlowRegistryClient } from "@/common/network/flows/useFlowRegistryClient";
 ```
 
-Use `flowRegistryClient` to query data.
+Use `useFlowRegistryClient` to query data.
 
 ```typescript
-const data = await flowRegistryClient.getPermissionFlowItemsV1(accessToken, { contexts: ['employeeEntity', 'expenseItems'] });
-```
-
-```typescript
-const data = await flowRegistryClient.getPermissionFlowItemsV2(accessToken, { contexts: [{ contextName: 'employeeEntity', mainContextDataId: 'id1' }, { contextName: 'expenseItems', mainContextDataId: 'id2' }] });
+const client = useFlowRegistryClient(accessToken);
+const data = await client.getPermissionFlowItemsV1({ contexts: ['employeeEntity', 'expenseItems'] });
 ```
 
 ```typescript
-const data = await flowRegistryClient.getMainContextData(accessToken, { contextNames: ['employeeEntity', 'expenseItems'] });
+const data = await client.getPermissionFlowItemsV2({ contexts: [{ contextName: 'employeeEntity', mainContextDataId: 'id1' }, { contextName: 'expenseItems', mainContextDataId: 'id2' }] });
+```
+
+```typescript
+const data = await client.getMainContextData({ contextNames: ['employeeEntity', 'expenseItems'] });
 ```

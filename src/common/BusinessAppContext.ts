@@ -20,10 +20,10 @@ export interface UserInfoProps {
         name: string;
       };
     };
-  }
-  
-  export interface BusinessAppContextProps {
-    accessToken?: string;
-    userInfo?: UserInfoProps;
-    additionalData?: { [k: string]: any };
+}
+
+export interface BusinessAppContextProps {
+  accessToken: string;
+  userInfo?: UserInfoProps;
+  additionalData?: { [k: string]: any };
 }

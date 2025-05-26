@@ -1,5 +1,3 @@
-import { setAccessTokenToAuthorizationHeader } from "../HeaderUtils";
-
 export enum HttpMethod {
   GET = 'GET',
   POST = 'POST',
@@ -20,16 +18,17 @@ export type RequestOptionsWithBody = RequestOptions & {
 };
 
 export class RestClient {
+  protected headers: Record<string, string> = {};
   private baseUrl: string;
 
-  constructor(baseUrl: string) {
+  constructor(baseUrl: string, headers: Record<string, string> = {}) {
     this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    this.headers = headers;
   }
 
   private async request<T = any>(
     method: HttpMethod,
     path: string,
-    accessToken: string,
     options: RequestOptionsWithBody = {}
   ): Promise<T> {
     const url = new URL(this.baseUrl + path);
@@ -45,7 +44,7 @@ export class RestClient {
 
     const headers = {
       'Content-Type': 'application/json',
-      'Authorization': setAccessTokenToAuthorizationHeader(accessToken),
+      ...this.headers,
       ...(options.headers || {}),
     };
 
@@ -89,56 +88,51 @@ export class RestClient {
 
   public async get<T = any>(
     path: string,
-    accessToken: string,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<T> {
-    return this.request<T>(HttpMethod.GET, path, accessToken, options);
+
+    return this.request<T>(HttpMethod.GET, path, options);
   }
 
   public async post<T = any>(
     path: string,
-    accessToken: string,
     body?: any,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<T> {
-    return this.request<T>(HttpMethod.POST, path, accessToken, { ...options, body });
+    return this.request<T>(HttpMethod.POST, path, { ...options, body });
   }
 
   public async put<T = any>(
     path: string,
-    accessToken: string,
     body?: any,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<T> {
-    return this.request<T>(HttpMethod.PUT, path, accessToken, { ...options, body });
+    return this.request<T>(HttpMethod.PUT, path, { ...options, body });
   }
 
   public async patch<T = any>(
     path: string,
-    accessToken: string,
     body?: any,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<T> {
-    return this.request<T>(HttpMethod.PATCH, path, accessToken, { ...options, body });
+    return this.request<T>(HttpMethod.PATCH, path, { ...options, body });
   }
 
   public async delete<T = any>(
     path: string,
-    accessToken: string,
     options: RequestOptions = {}
   ): Promise<T> {
-    return this.request<T>(HttpMethod.DELETE, path, accessToken, options);
+    return this.request<T>(HttpMethod.DELETE, path, options);
   }
 
   public async head(
     path: string,
-    accessToken: string,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<Headers> {
     const response = await fetch(this.baseUrl + path, {
       method: HttpMethod.HEAD,
       headers: {
-        'Authorization': setAccessTokenToAuthorizationHeader(accessToken),
+        ...this.headers,
         ...(options.headers || {}),
       },
       credentials: 'include',
@@ -149,13 +143,12 @@ export class RestClient {
 
   public async options(
     path: string,
-    accessToken: string,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<Response> {
     return fetch(this.baseUrl + path, {
       method: HttpMethod.OPTIONS,
       headers: {
-        'Authorization': setAccessTokenToAuthorizationHeader(accessToken),
+        ...this.headers,
         ...(options.headers || {}),
       },
       credentials: 'include',

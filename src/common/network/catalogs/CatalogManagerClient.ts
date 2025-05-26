@@ -1,5 +1,6 @@
 import { env } from '../../env/EnvUtils';
 import { GetCatalogEntriesParams, GetCatalogEntriesResponse, GetCatalogsParams, GetCatalogsResponse } from '../../types/CatalogTypes';
+import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils';
 import { RestClient, type RequestOptions } from '../rest/RestClient';
 
 const BASE_PATH = 'api/v1/catalogs';
@@ -14,7 +15,7 @@ export class CatalogManagerClient extends RestClient {
 
     url += BASE_PATH;
 
-    super(url);
+    super(url, {});
   }
 
   private replacePathParams(path: string, params: Record<string, string | number> = {}): string {
@@ -24,8 +25,15 @@ export class CatalogManagerClient extends RestClient {
     );
   }
 
+  setAccessToken(accessToken: string) {
+    if (!this.headers) {
+      this.headers = {};
+    }
+
+    this.headers["Authorization"] = setAccessTokenToAuthorizationHeader(accessToken);
+  }
+
   public async getCatalogEntriesList(
-    accessToken: string,
     pathParams: GetCatalogEntriesParams,
     params: GetCatalogsParams = {},
     options: Omit<RequestOptions, 'body'> = {}
@@ -48,7 +56,6 @@ export class CatalogManagerClient extends RestClient {
 
     return this.get<GetCatalogEntriesResponse>(
       path,
-      accessToken,
       {
         ...options,
         params: queryParams,
@@ -57,7 +64,6 @@ export class CatalogManagerClient extends RestClient {
   }
 
   public async getCatalogs(
-    accessToken: string,
     params: GetCatalogsParams = {},
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<GetCatalogsResponse> {
@@ -74,7 +80,6 @@ export class CatalogManagerClient extends RestClient {
 
     return this.get<GetCatalogsResponse>(
       '',
-      accessToken,
       {
         ...options,
         params: queryParams,

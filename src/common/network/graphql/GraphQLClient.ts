@@ -3,19 +3,24 @@ import { setAccessTokenToAuthorizationHeader } from "../HeaderUtils";
 
 export class GraphQLClient {
   private endpoint: string;
+  private headers: Record<string, string> = {};
 
-  constructor(endpoint: string) {
+  constructor(endpoint: string, headers: Record<string, string> = {}) {
     this.endpoint = endpoint;
+    this.headers = headers;
   }
 
-  async request<T = any>(
-    accessToken: string,
-    query: string,
+  setAccessToken(accessToken: string) {
+    if (!this.headers) {
+      this.headers = {};
+    }
+
+    this.headers["Authorization"] = setAccessTokenToAuthorizationHeader(accessToken);
+  }
+  
+  async request<T = any>(query: string,
     variables?: Record<string, any>
   ): Promise<T> {
-    const headers = {
-      'Authorization': setAccessTokenToAuthorizationHeader(accessToken)
-    };
 
     const response = await fetch(this.endpoint, {
       method: 'POST',
@@ -23,7 +28,7 @@ export class GraphQLClient {
       mode: 'cors',
       headers: {
         'Content-Type': 'application/json',
-        ...headers,
+        ...this.headers,
       },
       body: JSON.stringify({
         query,

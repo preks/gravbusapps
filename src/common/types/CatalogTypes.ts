@@ -32,8 +32,10 @@ export type GetCatalogEntriesParams = {
 };
 
 export type GetCatalogsParams = {
-  returnTotalRecords?: boolean,
-  localeCode?: string,
+  returnTotalRecords?: boolean;
+  localeCode?: string;
+  code?: string;
+  searchCriteria?: string;
   limit?: number;
   offset?: number;
 };

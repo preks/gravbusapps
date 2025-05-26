@@ -268,7 +268,7 @@ if (globalThis.__APP_BUILD_INFO__) {
     },
     resolve: {
       alias: {
-        '@': resolve(projectRootDir, 'src'),
+        '@': resolve(__dirname, 'src')
       },
     },
     build: {
@@ -290,7 +290,7 @@ if (globalThis.__APP_BUILD_INFO__) {
           globals: {
             'react': 'React',
             'react-dom': 'ReactDOM',
-            'antd': 'antd',
+            'antd': 'antd'
           },
           // entryFileNames will now always output a predictable name;
           // the sha256ContentHashPlugin will handle renaming for deployment builds.
