@@ -1,0 +1,17 @@
+/* Custom scrollbar styling */
+.scrollbar-hide {
+  -ms-overflow-style: none; 
+  scrollbar-width: none;  
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  
+}
+
+.overflow-x-auto, .overflow-y-auto {
+  scroll-behavior: smooth;
+}
+
+.card {
+  overflow: hidden;
+}

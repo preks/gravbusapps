@@ -13,14 +13,14 @@ import {
   Space,
 } from "antd";
 import {
-  RiEditLine,
-  RiArrowRightLine,
-  RiCheckLine,
-  RiFilterLine,
-  RiSearchLine,
-  RiAddLine,
-  RiSendPlaneLine,
-} from "@remixicon/react";
+  EditOutlined,
+  ArrowRightOutlined,
+  CheckOutlined,
+  FilterOutlined,
+  SearchOutlined,
+  PlusOutlined,
+  SendOutlined,
+} from "@ant-design/icons";
 import { LeadRating } from "./types";
 import type {
   LeadDetailLabels,
@@ -190,13 +190,13 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
               >
                 {status.name}
                 {status.id === statusHistory.length && (
-                  <RiCheckLine className="ml-2 text-white" />
+                  <CheckOutlined className="ml-2 text-white" />
                 )}
               </div>
             </Col>
             {index < statusHistory.length - 1 && (
               <Col className="p-0 flex items-center justify-center m-0 z-[1]" key={`arrow-col-${status.id}`}>
-                <RiArrowRightLine className="text-black text-base" />
+                <ArrowRightOutlined className="text-black text-base" />
               </Col>
             )}
           </React.Fragment>
@@ -223,8 +223,8 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
         <div className="flex justify-between items-center mb-4 border-b border-[#f0f0f0] pb-2">
           <Title level={5}>{mergedLabels.activityTimelineTitle}</Title>
           <Space className="flex gap-2">
-            <Button type="text" size="small" icon={<RiFilterLine />} />
-            <Button type="text" size="small" icon={<RiSearchLine />} />
+            <Button type="text" size="small" icon={<FilterOutlined />} />
+            <Button type="text" size="small" icon={<SearchOutlined />} />
           </Space>
         </div>
 
@@ -234,8 +234,8 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
             className="border-none shadow-none flex-grow"
           />
           <div className="flex gap-1 pr-2">
-            <Button type="text" icon={<RiAddLine />} />
-            <Button type="text" icon={<RiSendPlaneLine />} />
+            <Button type="text" icon={<PlusOutlined />} />
+            <Button type="text" icon={<SendOutlined />} />
           </div>
         </div>
 
@@ -366,7 +366,7 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
           <Button
             type="text"
             size="small"
-            icon={<RiAddLine />}
+            icon={<PlusOutlined />}
             className="text-[#1677ff]"
           />
         </div>
@@ -425,7 +425,7 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
           <Button
             type="text"
             size="small"
-            icon={<RiEditLine />}
+            icon={<EditOutlined />}
             className="text-[#8c8c8c] mt-[-6px] mr-[-6px] hover:text-[#1677ff] hover:bg-[rgba(0,0,0,0.05)]"
           />
         </div>
@@ -489,7 +489,7 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
               </Avatar>
               <Button
                 type="text"
-                icon={<RiEditLine size={16} />}
+                icon={<EditOutlined style={{ fontSize: '16px' }} />}
                 className="bg-white rounded-full w-7 h-7 flex items-center justify-center text-[#666] transition-all duration-300 shadow-sm hover:bg-[rgba(0,0,0,0.05)] hover:text-[#333]"
               />
             </div>

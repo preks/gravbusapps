@@ -22,16 +22,11 @@
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    
-    /* Path Aliases */
+
+    /* Path Alias */
     "baseUrl": ".",
     "paths": {
-      "@/components/*": ["src/components/*"],
-      "@/business-apps/*": ["src/business-apps/*"],
-      "@/assets/*": ["src/assets/*"],
-      "@/hooks/*": ["src/hooks/*"],
-      "@/modules/*": ["src/modules/*"],
-      "@/common/*": ["src/common/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src", "index.tsx"],
