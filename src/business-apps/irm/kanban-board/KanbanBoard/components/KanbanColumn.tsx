@@ -3,7 +3,12 @@ import { CSS } from "@dnd-kit/utilities";
 import { useKanbanStore } from "../lib/kanban-store";
 import { OpportunityCard } from "./OpportunityCard";
 import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
-import { calculateColumnStats, currentUser, type Opportunity, type Stage } from "../lib/data";
+import {
+  calculateColumnStats,
+  currentUser,
+  type Opportunity,
+  type Stage,
+} from "../lib/data";
 import { formatCurrency } from "../lib/utils";
 
 interface KanbanColumnProps {
@@ -12,16 +17,18 @@ interface KanbanColumnProps {
 }
 
 export function KanbanColumn({ stage, opportunities }: KanbanColumnProps) {
-  const { setEditingStage, deleteStage, setIsAddingOpportunity } = useKanbanStore();
+  const { setEditingStage, deleteStage, setIsAddingOpportunity } =
+    useKanbanStore();
   const isSalesManager = currentUser.role === "sales_manager";
 
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-    id: stage.id,
-    data: {
-      type: "stage",
-      stage,
-    },
-  });
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({
+      id: stage.id,
+      data: {
+        type: "stage",
+        stage,
+      },
+    });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -59,23 +66,26 @@ export function KanbanColumn({ stage, opportunities }: KanbanColumnProps) {
                 className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                 onClick={handleEdit}
               >
-                <EditOutlined style={{ fontSize: '12px' }} />
+                <EditOutlined style={{ fontSize: "12px" }} />
               </button>
               <button
                 className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                 onClick={handleDelete}
               >
-                <DeleteOutlined style={{ fontSize: '12px' }} />
+                <DeleteOutlined style={{ fontSize: "12px" }} />
               </button>
             </div>
           )}
         </div>
         <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 pt-1">
           <div>
-            <span className="font-medium">{formatCurrency(stats.weightedValue)}</span>
+            <span className="font-medium">
+              {formatCurrency(stats.weightedValue)}
+            </span>
           </div>
           <div>
-            <span className="font-medium">{stats.count}</span> {stats.count === 1 ? "deal" : "deals"}
+            <span className="font-medium">{stats.count}</span>{" "}
+            {stats.count === 1 ? "deal" : "deals"}
           </div>
         </div>
       </div>
@@ -84,12 +94,12 @@ export function KanbanColumn({ stage, opportunities }: KanbanColumnProps) {
           {opportunities.map((opportunity) => (
             <OpportunityCard key={opportunity.id} opportunity={opportunity} />
           ))}
-          
+
           <button
             onClick={handleAddCard}
             className="w-full mt-2 py-2 px-3 border border-dashed border-gray-300 rounded flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-400 dark:border-gray-700 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600"
           >
-            <PlusOutlined style={{ marginRight: '4px' }} />
+            <PlusOutlined style={{ marginRight: "4px" }} />
             Add Card
           </button>
         </div>
@@ -97,3 +107,5 @@ export function KanbanColumn({ stage, opportunities }: KanbanColumnProps) {
     </div>
   );
 }
+
+export default KanbanColumn;

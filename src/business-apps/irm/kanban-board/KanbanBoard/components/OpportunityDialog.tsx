@@ -176,3 +176,5 @@ export function OpportunityDialog() {
     </Modal>
   );
 }
+
+export default OpportunityDialog;

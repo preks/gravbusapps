@@ -163,3 +163,5 @@ export function StageDialog() {
     </div>
   );
 }
+
+export default StageDialog;

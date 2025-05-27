@@ -108,3 +108,5 @@ export function PipelineSelector() {
     </div>
   );
 }
+
+export default PipelineSelector;

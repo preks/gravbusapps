@@ -116,18 +116,24 @@ async function main() {
     console.log(`ℹ️  Output directory ${buildOutputDir} does not exist, no need to delete.`);
   }
 
-  const viteBuildCommand = [
-    `PROJECT_ROOT_DIR="${projectRootDir}"`,
-    `VITE_GIT_USER="${process.env.VITE_GIT_USER || execSync('git config user.name').toString().trim()}"`, 
-    `VITE_PUBLISH_TIME="${new Date().toISOString()}"`, 
-    `TARGET_ENTRY_FILE=${sourceEntryFile}`, 
-    `TARGET_ENTRY_KEY=${viteEntryKey}`, 
-    'vite build'
-  ].join(' ');
+  // For Windows compatibility, set environment variables in the options object
+  const envVars = {
+    PROJECT_ROOT_DIR: projectRootDir,
+    VITE_GIT_USER: process.env.VITE_GIT_USER || execSync('git config user.name').toString().trim(),
+    VITE_PUBLISH_TIME: new Date().toISOString(),
+    TARGET_ENTRY_FILE: sourceEntryFile,
+    TARGET_ENTRY_KEY: viteEntryKey
+  };
   
-  console.log(`   Executing: ${viteBuildCommand}`);
+  const viteBuildCommand = 'vite build';
+  
+  console.log(`   Executing: ${viteBuildCommand} with environment variables:`, envVars);
   try {
-    execSync(viteBuildCommand, { stdio: 'inherit', cwd: projectRootDir });
+    execSync(viteBuildCommand, { 
+      stdio: 'inherit', 
+      cwd: projectRootDir,
+      env: { ...process.env, ...envVars } 
+    });
     console.log('✅ Screen built successfully.');
   } catch (error) { 
     console.error('❌ Build failed:', error.message);
