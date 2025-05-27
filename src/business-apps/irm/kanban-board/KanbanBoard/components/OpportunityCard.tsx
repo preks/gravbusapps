@@ -118,3 +118,5 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
     </div>
   );
 }
+
+export default OpportunityCard;

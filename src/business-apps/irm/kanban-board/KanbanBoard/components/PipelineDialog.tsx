@@ -84,3 +84,5 @@ export function PipelineDialog() {
     </Modal>
   );
 }
+
+export default PipelineDialog;
