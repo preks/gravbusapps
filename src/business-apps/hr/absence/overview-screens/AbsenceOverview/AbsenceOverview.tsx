@@ -1,89 +1,210 @@
 import { Card } from 'antd';
 import { RiTimer2Line, RiCheckboxCircleLine, RiGroupLine, RiCalendarLine } from "@remixicon/react"
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useEffect, useState } from 'react'
 
+interface Absence {
+  startDate: string;
+  endDate: string;
+  status: string;
+  type: {
+    value: string;
+    code: string;
+    id: string;
+    objectValue: string;
+    translations: {
+      localeCode: string;
+      value: string;
+    }[];
+  };
+}
 
-const statusCards = [
-  {
-    title: "Pending Requests",
-    count: 3,
-    icon: <RiTimer2Line className="h-5 w-5 text-amber-400" />,
-    change: {
-      type: "increase",
-      value: 2,
-      text: "2 more",
-    },
-  },
-  {
-    title: "Approved Absences",
-    count: 5,
-    icon: <RiCheckboxCircleLine className="h-5 w-5 text-emerald-400" />,
-    change: {
-      type: "decrease",
-      value: 1,
-      text: "1 fewer",
-    },
-  },
-  {
-    title: "Team Members Away",
-    count: 2,
-    icon: <RiGroupLine className="h-5 w-5 text-violet-400" />,
-    change: {
-      type: "increase",
-      value: 1,
-      text: "1 more",
-    },
-  },
-  {
-    title: "Upcoming Absences",
-    count: 4,
-    icon: <RiCalendarLine className="h-5 w-5 text-sky-400" />,
-    change: {
-      type: "nochange",
-      value: 0,
-      text: "No change",
-    },
-  },
-]
+interface StatusCard {
+  title: string;
+  icon: React.ReactNode;
+  count: number;
+  change: {
+    type: string;
+    text: string;
+  };
+}
+
+interface AbsenceOverviewResponse {
+  allAbsencesFromToday: Absence[];
+  membersAway: Absence[];
+  pendingRequests: {
+    aggregate: {
+      sum: {
+        effectiveDays: number;
+      };
+    };
+  };
+  approvedAbsences: {
+    aggregate: {
+      sum: {
+        effectiveDays: number;
+      };
+    };
+  };
+}
 
 export const AbsenceOverview = () => {
+  const graphQLClient = useGraphqlClient('')
+
+  const [statusCards, setStatusCards] = useState<StatusCard[]>([
+    {
+      title: "Pending Requests",
+      count: 0,
+      icon: <RiTimer2Line className="h-5 w-5 text-amber-400" />,
+      change: {
+        type: "increase",
+        text: "No change",
+      },
+    },
+    {
+      title: "Approved Absences",
+      count: 0,
+      icon: <RiCheckboxCircleLine className="h-5 w-5 text-emerald-400" />,
+      change: {
+        type: "decrease",
+        text: "No change",
+      },
+    },
+    {
+      title: "Team Members Away",
+      count: 0,
+      icon: <RiGroupLine className="h-5 w-5 text-violet-400" />,
+      change: {
+        type: "increase",
+        text: "No change",
+      },
+    },
+    {
+      title: "Upcoming Absences",
+      count: 0,
+      icon: <RiCalendarLine className="h-5 w-5 text-sky-400" />,
+      change: {
+        type: "nochange",
+        text: "No change",
+      },
+    }
+  ])
+
+  useEffect(() => {
+    const fetchAndSetAbsenceData = async () => {
+      try {
+        const todayDate = new Date().toISOString().split('T')[0];
+        const currentYear = new Date().getFullYear();
+        const lastDayOfYear = new Date(currentYear, 11, 31).toISOString().split('T')[0];
+        
+        const query = `
+          query GetAbsenceOverview {
+            allAbsencesFromToday: EmployeeAbsence(orderBy: {startDate: ASC}, limit: 5, where: {status: {_in: ["PENDING", "APPROVED"]}, startDate: {_gte: "${todayDate}"}, endDate: {_lte: "${lastDayOfYear}"}, isDeleted: {_eq: false}}) {
+              startDate
+              endDate
+              status
+              type {
+                value
+                code
+                id
+                objectValue
+                translations {
+                  localeCode
+                  value
+                }
+              }
+            }
+            membersAway: EmployeeAbsence(orderBy: {startDate: ASC}, where: {status: {_in: ["PENDING", "APPROVED"]}, startDate: {_eq: "${todayDate}"}, isDeleted: {_eq: false}}) {
+              startDate
+              endDate
+              status
+              type {
+                value
+                code
+                id
+                objectValue
+                translations {
+                  localeCode
+                  value
+                }
+              }
+            }
+            approvedAbsences: EmployeeAbsenceAggregate(where: {isDeleted: {_eq: false}, status: {_in: ["APPROVED"]}, startDate: {_eq: "${todayDate}"}}) {
+              aggregate {
+                sum {
+                  effectiveDays
+                }
+              }
+            }
+            pendingRequests: EmployeeAbsenceAggregate(where: {isDeleted: {_eq: false}, status: {_in: ["PENDING"]}, startDate: {_eq: "${todayDate}"}}) {
+              aggregate {
+                sum {
+                  effectiveDays
+                }
+              }
+            }
+          }
+        `
+        
+        const result = await graphQLClient.request<AbsenceOverviewResponse>(query)
+
+        const pendingRequests = result.pendingRequests.aggregate.sum.effectiveDays || 0
+        const membersAwayCount = result.membersAway.length
+        const upcomingAbsences = result.allAbsencesFromToday.length
+        const approvedAbsences = result.approvedAbsences.aggregate.sum.effectiveDays || 0
+
+        setStatusCards(prevCards => prevCards.map((card, index) => {
+          const newCount = [pendingRequests, approvedAbsences, membersAwayCount, upcomingAbsences][index]
+          return {
+            ...card,
+            count: newCount,
+          }
+        }))
+      } catch (error) {
+        console.error('Error fetching absence data:', error)
+      }
+    }
+
+    fetchAndSetAbsenceData()
+  }, [graphQLClient])
+
+
   return (
     <div className="grid grid-cols-4 gap-4">
       {statusCards.map((card, index) => (
         <Card key={index} className="hover:shadow-md transition-shadow">
           <div className="p-4 flex flex-col">
-              <span className="text-xs text-muted-foreground mb-1">{card.title}</span>
+            <span className="text-xs text-muted-foreground mb-1">{card.title}</span>
 
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-2xl font-bold">{card.count}</span>
-                {card.icon}
-              </div>
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-2xl font-bold">{card.count}</span>
+              {card.icon}
+            </div>
 
-              <div
-                className={`text-xs flex items-center gap-1 ${
-                  card.change.type === "increase"
-                    ? "text-emerald-500"
-                    : card.change.type === "decrease"
-                      ? "text-rose-500"
-                      : "text-gray-400"
-                }`}
-              >
-                {card.change.type === "increase" && (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 8.293a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                )}
-                {card.change.type === "decrease" && (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                )}
-                {card.change.text}
-              </div>
+            <div
+              className={`text-xs flex items-center gap-1 ${
+                card.change.type === "increase"
+                  ? "text-emerald-500"
+                  : card.change.type === "decrease"
+                    ? "text-rose-500"
+                    : "text-gray-400"
+              }`}
+            >
+              {card.change.type === "increase" && (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 8.293a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
+              {card.change.type === "decrease" && (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
+              {card.change.text}
+            </div>
           </div>
         </Card>
       ))}
     </div>
   )
 }
-
-  

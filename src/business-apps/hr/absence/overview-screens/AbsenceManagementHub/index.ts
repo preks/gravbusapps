@@ -1,1 +1,4 @@
-export { AbsenceManagementHub } from './AbsenceManagementHub';
+export { default } from './AbsenceManagementHub'; 
+
+
+  

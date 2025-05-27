@@ -63,4 +63,6 @@ export const AbsenceManagementHub = () => {
       </main>
     </div>
   );
-};
+}
+
+export default AbsenceManagementHub;
