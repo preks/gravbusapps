@@ -69,6 +69,53 @@ async function uploadDirectory(buildOutputDir, azureDestinationPath) {
   console.log('✅ All files uploaded successfully.');
 }
 
+async function publishMainCss() {
+  console.log('🚀 Publishing main CSS file: assets/main.css');
+  const projectRootDir = path.resolve(__dirname, '..');
+  console.log(`   Project Root Dir: ${projectRootDir}`);
+  
+  // Paths
+  const sourceDir = path.join(projectRootDir, 'dist', 'assets');
+  const sourceCssPath = path.join(sourceDir, 'main.css');
+  const azureDestination = 'assets';
+  
+  // Check if the CSS file exists
+  if (!fs.existsSync(sourceCssPath)) {
+    console.error(`❌ Error: Main CSS file not found at ${sourceCssPath}. Did you run 'npm run build' first?`);
+    process.exit(1);
+  }
+  
+  console.log(`   Source CSS File: ${sourceCssPath}`);
+  console.log(`   Azure Destination: ${azureDestination}`);
+  
+  // Create a temporary directory with just the main.css file to use with uploadDirectory
+  const tempDir = path.join(projectRootDir, 'temp_upload_dir');
+  try {
+    // Create temp directory if it doesn't exist
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    
+    // Copy the CSS file to the temp directory
+    fs.copyFileSync(sourceCssPath, path.join(tempDir, 'main.css'));
+    
+    // Upload using the existing uploadDirectory function
+    await uploadDirectory(tempDir, azureDestination);
+    
+    // Clean up temp directory
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    
+    console.log('✅ Main CSS file published successfully to Azure!');
+  } catch (error) {
+    // Clean up temp directory if it exists
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+    console.error('❌ Error during publishing:', error);
+    process.exit(1);
+  }
+}
+
 async function main() {
   const screenPathArg = process.argv[2];
   if (!screenPathArg) {
@@ -76,7 +123,13 @@ async function main() {
     console.log('Usage: npm run publish:screen -- <product>/[path/to/]/<ScreenName>');
     console.log('Example: npm run publish:screen -- irm/overview-screens/LeadOverview');
     console.log('Example: npm run publish:screen -- .debug/DebugView');
+    console.log('Example: npm run publish:screen -- assets/main.css (to publish the main CSS file)');
     process.exit(1);
+  }
+
+  // Special case for publishing main.css
+  if (screenPathArg === 'assets/main.css') {
+    return publishMainCss();
   }
 
   const screenPathParts = screenPathArg.split('/');
@@ -84,6 +137,7 @@ async function main() {
     console.error('Error: Invalid screen path format. Expected at least <product>/<ScreenName>');
     console.log('Example: npm run publish:screen -- irm/overview-screens/LeadOverview');
     console.log('Example: npm run publish:screen -- .debug/DebugView');
+    console.log('Example: npm run publish:screen -- assets/main.css (to publish the main CSS file)');
     process.exit(1);
   }
 
