@@ -1,508 +1,186 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { format } from "date-fns"
-import { Table, Input, Button, Tag, Select } from 'antd'
-import {
-  RiSearchLine,
-  RiFilterLine,
-  RiAddLine,
-  RiSortAsc,
-  RiUserLine,
-  RiFileListLine,
-  RiCheckLine,
-  RiCloseLine,
-  RiDownloadLine
-} from '@remixicon/react'
+import { Table, Spin } from 'antd'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-// Action Button Component
-function ActionButton({ status }: { status: string }) {
-  const [isOpen, setIsOpen] = useState(false)
-  const buttonRef = useRef<HTMLButtonElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  // Close the menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        menuRef.current &&
-        buttonRef.current &&
-        !menuRef.current.contains(event.target as Node) &&
-        !buttonRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false)
+interface EmployeeAbsence {
+  id: string
+  employee: {
+    id: string
+    lastName: string
+    firstName: string
+    pictureThumbnail: string
+    employeePosition: {
+      organizationalUnit: {
+        name: string
       }
     }
+  }
+  type: {
+    objectValue: string
+    translations: {
+      localeCode: string
+      value: string
+    }[]
+    id: string
+    value: string
+    parentEntryId: string
+  }
+  startDate: string
+  endDate: string
+  calendarDays: number
+  effectiveDays: number
+  status: string
+}
 
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
+
+const GET_EMPLOYEE_ABSENCES = `
+  query GetEmployeeAbsences {
+    EmployeeAbsence {
+      id
+      startDate
+      endDate
+      employee {
+        id
+        lastName
+        firstName
+        pictureThumbnail
+        employeePosition {
+          organizationalUnit {
+            name
+          }
+        }
+      }
+      type {
+        objectValue
+        translations {
+          localeCode
+          value
+        }
+        id
+        value
+        parentEntryId
+      }
+      calendarDays
+      effectiveDays
+      status
     }
-  }, [])
+  }
+`
 
-  return (
-    <div className="relative">
-      <button
-        ref={buttonRef}
-        onClick={(e) => {
-          e.stopPropagation()
-          setIsOpen(!isOpen)
-        }}
-        className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
-      >
-        <RiFileListLine className="h-4 w-4 text-sky-400" />
-      </button>
 
-      {isOpen && (
-        <div
-          ref={menuRef}
-          className="absolute left-0 top-full mt-1 z-50 w-48 rounded-md border border-gray-200 bg-white shadow-lg"
-        >
-          <div className="py-1">
-            {status === "pending" && (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    // Handle approve action
-                    setIsOpen(false)
-                  }}
-                  className="flex w-full items-center px-3 py-2 text-sm text-left hover:bg-gray-50"
-                >
-                  <RiCheckLine className="mr-2 h-4 w-4 text-emerald-500" />
-                  Approve
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    // Handle reject action
-                    setIsOpen(false)
-                  }}
-                  className="flex w-full items-center px-3 py-2 text-sm text-left hover:bg-gray-50"
-                >
-                  <RiCloseLine className="mr-2 h-4 w-4 text-rose-500" />
-                  Reject
-                </button>
-                <div className="border-t my-1"></div>
-              </>
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                // Handle view profile action
-                setIsOpen(false)
-              }}
-              className="flex w-full items-center px-3 py-2 text-sm text-left hover:bg-gray-50"
-            >
-              <RiUserLine className="mr-2 h-4 w-4 text-gray-500" />
-              View Profile
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Sample data for absences with more detailed information
-const absences = [
-  {
-    id: 1,
-    group: "Sick Leave",
-    type: "Personal Illness",
-    startDate: new Date(2025, 4, 12),
-    endDate: new Date(2025, 4, 14),
-    requester: "Sarah Chen",
-    department: "Design",
-    status: "approved",
-  },
-  {
-    id: 2,
-    group: "Vacation",
-    type: "Annual Leave",
-    startDate: new Date(2025, 4, 25),
-    endDate: new Date(2025, 4, 27),
-    requester: "Emma Wilson",
-    department: "Marketing",
-    status: "approved",
-  },
-  {
-    id: 3,
-    group: "Special Leave",
-    type: "Family Event",
-    startDate: new Date(2025, 4, 18),
-    endDate: new Date(2025, 4, 20),
-    requester: "Michael Rodriguez",
-    department: "Product",
-    status: "approved",
-  },
-  {
-    id: 4,
-    group: "Work Leave",
-    type: "Conference",
-    startDate: new Date(2025, 4, 20),
-    endDate: new Date(2025, 4, 22),
-    requester: "Alex Johnson",
-    department: "Engineering",
-    status: "approved",
-  },
-  {
-    id: 5,
-    group: "Vacation",
-    type: "Summer Holiday",
-    startDate: new Date(2025, 4, 13),
-    endDate: new Date(2025, 4, 13),
-    requester: "James Smith",
-    department: "Sales",
-    status: "approved",
-  },
-  {
-    id: 6,
-    group: "Sick Leave",
-    type: "Doctor Appointment",
-    startDate: new Date(2025, 4, 15),
-    endDate: new Date(2025, 4, 15),
-    requester: "Taylor Smith",
-    department: "Sales",
-    status: "pending",
-  },
-  {
-    id: 7,
-    group: "Work Leave",
-    type: "Training",
-    startDate: new Date(2025, 4, 28),
-    endDate: new Date(2025, 4, 30),
-    requester: "Jordan Lee",
-    department: "Finance",
-    status: "pending",
-  },
-  {
-    id: 8,
-    group: "Special Leave",
-    type: "Bereavement",
-    startDate: new Date(2025, 5, 2),
-    endDate: new Date(2025, 5, 6),
-    requester: "Casey Wilson",
-    department: "HR",
-    status: "pending",
-  },
-  {
-    id: 9,
-    group: "Vacation",
-    type: "Personal Time",
-    startDate: new Date(2025, 5, 10),
-    endDate: new Date(2025, 5, 14),
-    requester: "Alex Johnson",
-    department: "Engineering",
-    status: "pending",
-  },
-  {
-    id: 10,
-    group: "Sick Leave",
-    type: "Family Care",
-    startDate: new Date(2025, 5, 8),
-    endDate: new Date(2025, 5, 9),
-    requester: "Sarah Chen",
-    department: "Design",
-    status: "approved",
-  },
-]
-
-// Calculate the number of days between two dates (inclusive)
-const calculateDays = (startDate: Date, endDate: Date) => {
-  const diffTime = endDate.getTime() - startDate.getTime()
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
-  return diffDays
-}
-
-// Format date range as a string
-const formatDateRange = (startDate: Date, endDate: Date) => {
+const formatDateRange = (startDate: Date, endDate: Date): string => {
   if (startDate.getTime() === endDate.getTime()) {
     return format(startDate, "MMM d, yyyy")
   }
   return `${format(startDate, "MMM d")} - ${format(endDate, "MMM d, yyyy")}`
 }
 
-// Get color for absence group
-const getGroupColor = (group: string) => {
-  type GroupColorMap = {
-    'Sick Leave': string;
-    Vacation: string;
-    'Special Leave': string;
-    'Work Leave': string;
-  }
-  
-  const colors: GroupColorMap = {
-    "Sick Leave": "bg-red-100 text-red-600",
-    "Vacation": "bg-green-100 text-green-600",
-    "Special Leave": "bg-purple-100 text-purple-600",
-    "Work Leave": "bg-blue-100 text-blue-600",
-  }
-  return colors[group as keyof GroupColorMap] || "bg-gray-100 text-gray-600"
-}
+export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+  const graphQLClient = useGraphqlClient(accessToken)
+  const catalogClient = useCatalogManagerClient(accessToken)
+  const [absences, setAbsences] = useState<EmployeeAbsence[]>([])
+  const [absenceTypes, setAbsenceTypes] = useState<{ [key: string]: string }>({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-// Get color for status
-const getStatusColor = (status: 'approved' | 'pending' | 'rejected' | string) => {
-  type StatusColorMap = {
-    approved: string;
-    pending: string;
-    rejected: string;
-  }
-  
-  const colors: StatusColorMap = {
-    approved: "bg-green-100 text-green-600",
-    pending: "bg-yellow-100 text-yellow-600",
-    rejected: "bg-red-100 text-red-600",
-  }
-  return colors[status as keyof StatusColorMap] || "bg-gray-100 text-gray-600"
-}
-
-export const AbsenceList = () => {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [typeFilter, setTypeFilter] = useState("all")
-  const [filteredAbsences, setFilteredAbsences] = useState(absences)
-  const [sortBy, setSortBy] = useState("date")
-  const [sortDirection, setSortDirection] = useState("asc")
-
-  type AbsenceType = "Sick Leave" | "Vacation" | "Special Leave" | "Work Leave";
-  type AbsenceStatus = string;
-
-  interface Absence {
-    id: number;
-    group: string;
-    type: string;
-    startDate: Date;
-    endDate: Date;
-    requester: string;
-    department: string;
-    status: AbsenceStatus;
-  }
-
-  const typeColors: Record<AbsenceType, string> = {
-    "Sick Leave": "#FF4D4F",
-    Vacation: "#1890FF",
-    "Special Leave": "#2FC25B",
-    "Work Leave": "#FADB14",
-  }
-
-  const statusColors: Record<AbsenceStatus, string> = {
-    approved: "#1890FF",
-    pending: "#FF4D4F",
-    rejected: "#2FC25B",
-  }
-
-  const handleFilter = () => {
-    let filtered = absences;
-
-    // Apply search filter
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      filtered = filtered.filter(absence =>
-        absence.requester.toLowerCase().includes(searchLower) ||
-        absence.group.toLowerCase().includes(searchLower) ||
-        absence.type.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Apply status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(absence => absence.status === statusFilter);
-    }
-
-    // Apply type filter
-    if (typeFilter !== "all") {
-      filtered = filtered.filter(absence => absence.group === typeFilter);
-    }
-
-    // Apply sorting
-    if (sortBy === "date") {
-      filtered = filtered.sort((a, b) => {
-        const dateA = new Date(a.startDate);
-        const dateB = new Date(b.startDate);
-        return sortDirection === "asc" ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
-      });
-    }
-
-    setFilteredAbsences(filtered);
-  };
-
-  const handleExport = () => {
-    // Export logic
-  };
-
-  const handleAddAbsence = () => {
-    // Add absence logic
-  };
-
-  const handleSort = () => {
-    setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    handleFilter();
-  };
-
-  // Filter absences based on search term
   useEffect(() => {
-    handleFilter();
-  }, [searchQuery, statusFilter, typeFilter, sortBy, sortDirection]);
+    const fetchAbsences = async () => {
+      try {
+        
+        const catalogData = await catalogClient.getCatalogEntriesList({ catalogIdentifier: 'AbsenceGroup', version: 'v1' })
+        const typesMap: { [key: string]: string } = {}
+        catalogData.data.forEach((entry: any) => {
+          typesMap[entry.id] = entry.value
+        })
+        setAbsenceTypes(typesMap)
 
-  // Sort absences
-  useEffect(() => {
-    const sorted = [...filteredAbsences].sort((a, b) => {
-      if (sortBy === "date") {
-        return sortDirection === "asc"
-          ? new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-          : new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+        
+        const result = await graphQLClient.request<{ EmployeeAbsence: EmployeeAbsence[] }>(GET_EMPLOYEE_ABSENCES)
+        setAbsences(result.EmployeeAbsence)
+      } catch (err) {
+        setError('Failed to fetch absences')
+        console.error('Error fetching absences:', err)
+      } finally {
+        setLoading(false)
       }
-      if (sortBy === "requester") {
-        return sortDirection === "asc"
-          ? a.requester.localeCompare(b.requester)
-          : b.requester.localeCompare(a.requester)
-      }
-      return 0
-    })
-    setFilteredAbsences(sorted)
-  }, [sortBy, sortDirection])
+    }
+
+    fetchAbsences()
+  }, [graphQLClient, catalogClient])
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return <div className="text-red-500">{error}</div>
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <Input
-          placeholder="Search absences..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-64"
-          prefix={<RiSearchLine />}
-        />
-        <Button
-          type="default"
-          onClick={handleFilter}
-          icon={<RiFilterLine />}
-        >
-          Filter
-        </Button>
-        <Button
-          type="default"
-          onClick={handleExport}
-          icon={<RiDownloadLine />}
-        >
-          Export
-        </Button>
-        <Button
-          type="default"
-          onClick={() => {
-            // Navigate to reports page
-          }}
-          icon={<RiFileListLine />}
-        >
-          Reports
-        </Button>
-        <Button
-          type="primary"
-          onClick={handleAddAbsence}
-          icon={<RiAddLine />}
-        >
-          Add Absence
-        </Button>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <Select
-          value={statusFilter}
-          onChange={(value) => setStatusFilter(value)}
-          placeholder="Status"
-          style={{ width: 120 }}
-        >
-          <Select.Option value="all">All Statuses</Select.Option>
-          <Select.Option value="approved">Approved</Select.Option>
-          <Select.Option value="pending">Pending</Select.Option>
-          <Select.Option value="rejected">Rejected</Select.Option>
-        </Select>
-        <Select
-          value={typeFilter}
-          onChange={(value) => setTypeFilter(value)}
-          placeholder="Type"
-          style={{ width: 120 }}
-        >
-          <Select.Option value="all">All Groups</Select.Option>
-          <Select.Option value="sick">Sick Leave</Select.Option>
-          <Select.Option value="vacation">Vacation</Select.Option>
-          <Select.Option value="special">Special Leave</Select.Option>
-          <Select.Option value="work">Work Leave</Select.Option>
-        </Select>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <Button
-          type="default"
-          onClick={handleSort}
-          icon={<RiSortAsc />}
-        >
-          Sort by Date
-        </Button>
-      </div>
-
+    <div className="p-4">
       <Table
-        dataSource={filteredAbsences}
+        dataSource={absences}
         columns={[
-          {
-            title: '',
-            key: 'actions',
-            render: (_, record: any) => (
-              <ActionButton status={record.status} />
-            ),
-          },
           {
             title: 'Group',
             dataIndex: 'group',
             key: 'group',
+            render: (_: any, record: EmployeeAbsence) => {
+              const parentId = record.type.parentEntryId
+              return absenceTypes[parentId] || record.type.value
+            },
           },
           {
             title: 'Type',
             dataIndex: 'type',
             key: 'type',
-            render: (value: AbsenceType) => (
-              <Tag color={typeColors[value]}>
-                {value}
-              </Tag>
-            ),
+            render: (_: any, record: EmployeeAbsence) => {
+              return record.type.value
+            },
           },
           {
             title: 'Dates',
             dataIndex: 'startDate',
             key: 'dates',
-            render: (startDate: Date, record: Absence) => (
+            render: (_: any, record: EmployeeAbsence) => (
               <div className="text-sm">
-                <span className="font-medium">{format(startDate, 'MMM d')}</span>
-                <span className="text-gray-400"> - </span>
-                <span>{format(record.endDate, 'MMM d, yyyy')}</span>
+                {formatDateRange(new Date(record.startDate), new Date(record.endDate))}
               </div>
             ),
           },
           {
+            title: 'Days',
+            dataIndex: 'calendarDays',
+            key: 'days',
+          },
+          {
             title: 'Requester',
             dataIndex: 'requester',
+            render: (_: any, record: EmployeeAbsence) => {
+              return record.employee.firstName + ' ' + record.employee.lastName
+            },
             key: 'requester',
-            render: (name: string, record: Absence) => (
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2">
-                  {name}
-                </div>
-                <span className="text-xs text-gray-500 mt-1">
-                  {record.department}
-                </span>
-              </div>
-            ),
-          },          
+          },
           {
             title: 'Status',
             dataIndex: 'status',
+            render: (_: any, record: EmployeeAbsence) => {
+             return record.status.charAt(0).toUpperCase() + record.status.slice(1).toLowerCase();
+            },
             key: 'status',
-            render: (status: AbsenceStatus) => (
-              <Tag color={statusColors[status]}>
-                {status}
-              </Tag>
-            ),
           }
         ]}
+        rowKey="id"
+        pagination={{ pageSize: 10 }}
+        bordered
       />
     </div>
-  );
-};
+  )
+}

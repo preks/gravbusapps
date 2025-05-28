@@ -7,8 +7,11 @@ import { AbsenceReports } from '../AbsenceReports/AbsenceReports';
 import { QuickActions } from '../QuickActions/QuickActions';
 import { AbsenceList } from '../AbsenceList/AbsenceList';
 import CalendarList from '../CalendarList/CalendarList';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
-export const AbsenceManagementHub = () => {
+interface AbsenceManagementHubProps extends BusinessAppContextProps {}
+
+export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ accessToken }) => {
   const [activeSection, setActiveSection] = useState<string | null>("Dashboard")
 
   const handleSectionChange = (section: string) => {
@@ -18,7 +21,7 @@ export const AbsenceManagementHub = () => {
   const renderContent = () => {
     switch (activeSection) {
       case "Absence List":
-        return <AbsenceList />
+        return <AbsenceList accessToken={accessToken} />
       case "Dashboard":
         return (
           <>
