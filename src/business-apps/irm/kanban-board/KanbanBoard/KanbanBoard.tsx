@@ -11,7 +11,6 @@ import { PipelineDialog } from "./components/PipelineDialog";
 import { PipelineSelector } from "./components/PipelineSelector";
 import { currentUser } from "./lib/data";
 import type { Opportunity } from "./lib/data";
-import "./kanban-styles.css";
 
 export function KanbanBoard() {
   const { selectedPipelineId, stages, opportunities, moveOpportunity, setIsAddingStage, reorderStages } = useKanbanStore();

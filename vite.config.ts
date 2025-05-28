@@ -281,10 +281,22 @@ if (globalThis.__APP_BUILD_INFO__) {
         entry: dynamicEntries,
         name: 'GravityBusinessApps', // Name for UMD global, less critical for CJS
         formats: ['cjs'],
-        // fileName is handled by rollupOptions.output.entryFileNames
+        cssFileName: 'main'
       },
       minify: isProduction ? 'esbuild' : false, // Ensure minification for production
+      // Enable CSS processing
+      css: {
+        devSourcemap: true,
+      },
+      // Enable CSS code splitting so component CSS stays with the component
+      cssCodeSplit: true,
       rollupOptions: {
+        // Include all CSS files from the project along with component entries
+        input: {
+          main: resolve(projectRootDir, 'src/index.css'),
+          ...dynamicEntries
+        },
+
         external: ['react', 'react-dom', 'antd', 'react/jsx-runtime'],
         output: {
           globals: {
@@ -294,10 +306,16 @@ if (globalThis.__APP_BUILD_INFO__) {
           },
           // entryFileNames will now always output a predictable name;
           // the sha256ContentHashPlugin will handle renaming for deployment builds.
-          entryFileNames: (chunkInfo) => `${chunkInfo.name}/index.js`,
+          entryFileNames: (chunkInfo) => {
+            // Handle CSS entry point differently from component entries
+            if (chunkInfo.name === 'main') {
+              return 'main.js'; // This won't actually be used since it's CSS
+            }
+            return `${chunkInfo.name}/index.js`;
+          },
           // For non-entry chunks and assets, use Vite's hashing only for deployment builds.
           chunkFileNames: shouldHashFilesForDeployment ? `_chunks/[name]-[hash].js` : `_chunks/[name].js`,
-          assetFileNames: shouldHashFilesForDeployment ? `assets/[name]-[hash][extname]` : `assets/[name][extname]`, // Corrected assetFileNames
+          assetFileNames: shouldHashFilesForDeployment ? `assets/[name]-[hash][extname]` : `assets/[name][extname]`,
           exports: 'named', // Address mixed export warnings
         },
       },

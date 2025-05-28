@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@import "./business-apps/irm/kanban-board/KanbanBoard/kanban-styles.css";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
