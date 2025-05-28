@@ -35,10 +35,12 @@ interface EmployeeAbsence {
   status: string
 }
 
-
 const GET_EMPLOYEE_ABSENCES = `
-  query GetEmployeeAbsences {
-    EmployeeAbsence {
+  query GetEmployeeAbsences($page: Int!, $limit: Int!) {
+    EmployeeAbsence(
+      offset: $page
+      limit: $limit
+    ) {
       id
       startDate
       endDate
@@ -67,9 +69,11 @@ const GET_EMPLOYEE_ABSENCES = `
       effectiveDays
       status
     }
+    total: EmployeeAbsence {
+      id
+    }
   }
 `
-
 
 const formatDateRange = (startDate: Date, endDate: Date): string => {
   if (startDate.getTime() === endDate.getTime()) {
@@ -83,35 +87,41 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken }) 
   const catalogClient = useCatalogManagerClient(accessToken)
   const [absences, setAbsences] = useState<EmployeeAbsence[]>([])
   const [absenceTypes, setAbsenceTypes] = useState<{ [key: string]: string }>({})
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const itemsPerPage = 10
+  const [loadingPage, setLoadingPage] = useState(false)
+
+  const fetchAbsences = async () => {
+    try {
+      setLoadingPage(true)
+      const catalogData = await catalogClient.getCatalogEntriesList({ catalogIdentifier: 'AbsenceGroup', version: 'v1' })
+      const typesMap: { [key: string]: string } = {}
+      catalogData.data.forEach((entry: any) => {
+        typesMap[entry.id] = entry.value
+      })
+      setAbsenceTypes(typesMap)
+
+      const result = await graphQLClient.request<{ EmployeeAbsence: EmployeeAbsence[], totalAbsences: EmployeeAbsence[], total: EmployeeAbsence[] }>(
+        GET_EMPLOYEE_ABSENCES,
+        { page: (currentPage - 1) * itemsPerPage, limit: itemsPerPage }
+      )
+      setAbsences(result.EmployeeAbsence)
+      setTotal(result.total.length)
+    } catch (err) {
+      setError('Failed to fetch absences')
+      console.error('Error fetching absences:', err)
+    } finally {
+      setLoadingPage(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchAbsences = async () => {
-      try {
-        
-        const catalogData = await catalogClient.getCatalogEntriesList({ catalogIdentifier: 'AbsenceGroup', version: 'v1' })
-        const typesMap: { [key: string]: string } = {}
-        catalogData.data.forEach((entry: any) => {
-          typesMap[entry.id] = entry.value
-        })
-        setAbsenceTypes(typesMap)
-
-        
-        const result = await graphQLClient.request<{ EmployeeAbsence: EmployeeAbsence[] }>(GET_EMPLOYEE_ABSENCES)
-        setAbsences(result.EmployeeAbsence)
-      } catch (err) {
-        setError('Failed to fetch absences')
-        console.error('Error fetching absences:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchAbsences()
-  }, [graphQLClient, catalogClient])
+  }, [graphQLClient, catalogClient, currentPage])
 
-  if (loading) {
+  if (loadingPage) {
     return (
       <div className="flex justify-center items-center h-64">
         <Spin size="large" />
@@ -172,13 +182,23 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken }) 
             title: 'Status',
             dataIndex: 'status',
             render: (_: any, record: EmployeeAbsence) => {
-             return record.status.charAt(0).toUpperCase() + record.status.slice(1).toLowerCase();
+              if (!record.status) return '';
+              return record.status.charAt(0).toUpperCase() + record.status.slice(1).toLowerCase();
             },
             key: 'status',
           }
         ]}
         rowKey="id"
-        pagination={{ pageSize: 10 }}
+        pagination={{
+          pageSize: itemsPerPage,
+          current: currentPage,
+          onChange: (page: number) => {
+            setCurrentPage(page)
+            fetchAbsences()
+          },
+          showSizeChanger: false,
+          total: total
+        }}
         bordered
       />
     </div>
