@@ -297,12 +297,16 @@ if (globalThis.__APP_BUILD_INFO__) {
           ...dynamicEntries
         },
 
-        external: ['react', 'react-dom', 'antd', 'react/jsx-runtime'],
+        external: ['react', 'react-dom', 'antd', 'react/jsx-runtime', '@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities', 'zustand'],
         output: {
           globals: {
             'react': 'React',
             'react-dom': 'ReactDOM',
-            'antd': 'antd'
+            'antd': 'antd',
+            "@dnd-kit/core": "DNDKitCore",
+            "@dnd-kit/sortable": "DNDKitSortable",
+            "@dnd-kit/utilities": "DNDKitUtilities",
+            "zustand": "zustand"
           },
           // entryFileNames will now always output a predictable name;
           // the sha256ContentHashPlugin will handle renaming for deployment builds.
