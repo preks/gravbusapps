@@ -2,6 +2,8 @@
 @import "tw-animate-css";
 
 @import "./business-apps/irm/kanban-board/KanbanBoard/kanban-styles.css";
+@import "./business-apps/crm/overview-screens/CompanyOverview/styles/CompanyOverview.css";
+@import "./business-apps/crm/detail-screens/CompanyDetail/styles/CompanyDetail.css";
 
 @custom-variant dark (&:is(.dark *));
 
