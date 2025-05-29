@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AbsenceOverview } from '../AbsenceOverview/AbsenceOverview';
 import { AppHeader } from '../AppHeader/AppHeader';
 import { HeroBanner } from '../HeroBanner/HeroBanner';
-import { KPISection } from '../KPISection';
+import KPISection from '../KPISection';
 import { AbsenceReports } from '../AbsenceReports/AbsenceReports';
 import { QuickActions } from '../QuickActions/QuickActions';
 import { AbsenceList } from '../AbsenceList/AbsenceList';
@@ -27,7 +27,7 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
           <>
             <AbsenceOverview />
             <div className="mt-8">
-              <KPISection />
+              <KPISection accessToken={accessToken}/>
             </div>
           </>
         )
@@ -40,7 +40,7 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
           <>
             <AbsenceOverview />
             <div className="mt-8">
-              <KPISection />
+              <KPISection accessToken={accessToken} />
             </div>
           </>
         )

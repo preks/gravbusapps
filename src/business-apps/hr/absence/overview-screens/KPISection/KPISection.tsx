@@ -1,278 +1,498 @@
-import React from 'react'
-import { useState } from "react"
-import { Card, Typography } from 'antd'
-import { RiBarChartLine, RiPieChartLine, RiUserLine } from '@remixicon/react'
+import React, { useEffect, useState } from "react";
+import { Card, Typography, Tooltip } from "antd";
 import {
+  BarChart,
   Bar,
-  BarChart as RechartsBarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart as RechartsPieChart,
-  ResponsiveContainer,
-  Tooltip as RechartsTooltip,
   XAxis,
   YAxis,
-} from "recharts"
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { RiBarChartLine, RiPieChart2Line, RiMedalLine } from "@remixicon/react";
+import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
+import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { CatalogEntry } from "@/common/types/CatalogTypes";
 
-const { Title } = Typography
+const { Title } = Typography;
 
-const absenceData = [
-  { month: "Jan", "Sick Leave": 12, Vacation: 8, "Special Leave": 3, "Work Leave": 5 },
-  { month: "Feb", "Sick Leave": 15, Vacation: 10, "Special Leave": 2, "Work Leave": 7 },
-  { month: "Mar", "Sick Leave": 10, Vacation: 12, "Special Leave": 4, "Work Leave": 6 },
-  { month: "Apr", "Sick Leave": 8, Vacation: 15, "Special Leave": 5, "Work Leave": 4 },
-  { month: "May", "Sick Leave": 9, Vacation: 18, "Special Leave": 3, "Work Leave": 8 },
-]
-
-const absenceDistribution = [
-  { name: "Sick Leave", value: 33, count: 54, color: "#fb7185" }, // rose-400
-  { name: "Vacation", value: 38, count: 63, color: "#34d399" }, // emerald-400
-  { name: "Special Leave", value: 10, count: 17, color: "#a78bfa" }, // violet-400
-  { name: "Work Leave", value: 19, count: 30, color: "#38bdf8" }, // sky-400
-]
-
-const topAbsentees = [
-  {
-    name: "Alex Morgan",
-    department: "Marketing",
-    total: 14,
-    breakdown: [
-      { type: "Sick Leave", days: 5, color: "#fb7185" },
-      { type: "Vacation", days: 7, color: "#34d399" },
-      { type: "Special Leave", days: 0, color: "#a78bfa" },
-      { type: "Work Leave", days: 2, color: "#38bdf8" },
-    ],
-  },
-  {
-    name: "Jamie Chen",
-    department: "Engineering",
-    total: 12,
-    breakdown: [
-      { type: "Sick Leave", days: 2, color: "#fb7185" },
-      { type: "Vacation", days: 8, color: "#34d399" },
-      { type: "Special Leave", days: 1, color: "#a78bfa" },
-      { type: "Work Leave", days: 1, color: "#38bdf8" },
-    ],
-  },
-  {
-    name: "Taylor Smith",
-    department: "Sales",
-    total: 11,
-    breakdown: [
-      { type: "Sick Leave", days: 6, color: "#fb7185" },
-      { type: "Vacation", days: 3, color: "#34d399" },
-      { type: "Special Leave", days: 0, color: "#a78bfa" },
-      { type: "Work Leave", days: 2, color: "#38bdf8" },
-    ],
-  },
-  {
-    name: "Jordan Lee",
-    department: "Finance",
-    total: 10,
-    breakdown: [
-      { type: "Sick Leave", days: 1, color: "#fb7185" },
-      { type: "Vacation", days: 7, color: "#34d399" },
-      { type: "Special Leave", days: 2, color: "#a78bfa" },
-      { type: "Work Leave", days: 0, color: "#38bdf8" },
-    ],
-  },
-  {
-    name: "Casey Wilson",
-    department: "HR",
-    total: 9,
-    breakdown: [
-      { type: "Sick Leave", days: 3, color: "#fb7185" },
-      { type: "Vacation", days: 5, color: "#34d399" },
-      { type: "Special Leave", days: 1, color: "#a78bfa" },
-      { type: "Work Leave", days: 0, color: "#38bdf8" },
-    ],
-  },
-]
-
-// Custom tooltip formatter for the pie chart
-const pieTooltipFormatter = (value, name, props) => {
-  const entry = absenceDistribution.find((item) => item.name === name)
-  if (entry) {
-    return [`${entry.count} days (${entry.value}%)`, name]
-  }
-  return [value, name]
+interface EmployeeAbsence {
+  id: string;
+  employee: {
+    id: string;
+    lastName: string;
+    firstName: string;
+    pictureThumbnail: string;
+    employeePosition: {
+      organizationalUnit: {
+        name: string;
+      };
+    };
+  };
+  type: {
+    objectValue: string;
+    translations: {
+      localeCode: string;
+      value: string;
+    }[];
+    id: string;
+    value: string;
+    parentEntryId: string;
+    groupName?: string;
+  };
+  startDate: string;
+  endDate: string;
+  calendarDays: number;
+  effectiveDays: number;
+  status: string;
 }
 
-// AbsenteeDots component with real-time tooltip
-function AbsenteeDots({ employee }) {
-  const [activeTooltip, setActiveTooltip] = useState(null)
-  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 })
-
-  const handleMouseEnter = (index, event) => {
-    const rect = event.currentTarget.getBoundingClientRect()
-    setTooltipPosition({
-      x: rect.left + rect.width / 2,
-      y: rect.top,
-    })
-    setActiveTooltip(index)
+const GET_EMPLOYEE_ABSENCES = `
+  query GetEmployeeAbsences($page: Int!, $limit: Int!) {
+    EmployeeAbsence(
+      offset: $page
+      limit: $limit
+    ) {
+      id
+      startDate
+      endDate
+      employee {
+        id
+        lastName
+        firstName
+        pictureThumbnail
+        employeePosition {
+          organizationalUnit {
+            name
+          }
+        }
+      }
+      type {
+        objectValue
+        translations {
+          localeCode
+          value
+        }
+        id
+        value
+        parentEntryId
+      }
+      calendarDays
+      effectiveDays
+      status
+    }
   }
+`;
 
-  const handleMouseLeave = () => {
-    setActiveTooltip(null)
-  }
+const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [absences, setAbsences] = useState<EmployeeAbsence[]>([]);
+  const [absenceGroups, setAbsenceGroups] = useState<{
+    [typeId: string]: string;
+  }>({});
+  const [organizedAbsences, setOrganizedAbsences] = useState<{
+    [month: string]: { [type: string]: number };
+  }>({});
 
-  return (
-    <div className="relative">
-      <div className="flex items-center gap-1">
-        {employee.breakdown.map((item, index) => (
-          <div
-            key={index}
-            className="h-2 w-2 rounded-full cursor-help transition-opacity duration-200"
-            style={{
-              backgroundColor: item.color,
-              opacity: item.days > 0 ? 1 : 0.3,
-            }}
-            onMouseEnter={(e) => handleMouseEnter(index, e)}
-            onMouseLeave={handleMouseLeave}
-          ></div>
-        ))}
-      </div>
+  const graphQLClient = useGraphqlClient(accessToken);
+  const catalogClient = useCatalogManagerClient(accessToken);
 
-      {activeTooltip !== null && (
-        <div
-          className="fixed z-50 bg-white px-2 py-1 text-xs border rounded shadow-sm pointer-events-none transform -translate-x-1/2 -translate-y-full"
-          style={{
-            left: `${tooltipPosition.x}px`,
-            top: `${tooltipPosition.y - 8}px`,
-            transition: "opacity 0.2s ease, transform 0.2s ease",
-          }}
-        >
-          {employee.breakdown[activeTooltip].type}: {employee.breakdown[activeTooltip].days} days
-        </div>
-      )}
-    </div>
-  )
-}
+  const getMonthName = (date: string): string => {
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    return monthNames[new Date(date).getMonth()];
+  };
 
-const kpis = [
-  {
-    title: "Absence Trends",
-    icon: <RiBarChartLine className="h-4 w-4" />,
-    description: "Monthly absence days by group",
-    kpiValue: "164",
-    kpiLabel: "Total Absence Days",
-    content: (
-      <ResponsiveContainer width="100%" height={180}>
-        <RechartsBarChart data={absenceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="month" fontSize={10} tickMargin={5} />
-          <YAxis fontSize={10} tickMargin={5} />
-          <RechartsTooltip />
-          <Bar dataKey="Sick Leave" stackId="a" fill="#fb7185" />
-          <Bar dataKey="Vacation" stackId="a" fill="#34d399" />
-          <Bar dataKey="Special Leave" stackId="a" fill="#a78bfa" />
-          <Bar dataKey="Work Leave" stackId="a" fill="#38bdf8" />
-        </RechartsBarChart>
-      </ResponsiveContainer>
-    ),
-  },
-  {
-    title: "Absence Distribution",
-    icon: <RiPieChartLine className="h-4 w-4" />,
-    description: "Breakdown by absence group",
-    kpiValue: "32.8%",
-    kpiLabel: "Vacation Share",
-    content: (
-      <div>
-        <ResponsiveContainer width="100%" height={140}>
-          <RechartsPieChart>
-            <Pie
-              data={absenceDistribution}
-              cx="50%"
-              cy="50%"
-              innerRadius={35}
-              outerRadius={60}
-              paddingAngle={2}
-              dataKey="value"
-              nameKey="name"
-              label={false}
-              labelLine={false}
-            >
-              {absenceDistribution.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Pie>
-            <RechartsTooltip
-              formatter={pieTooltipFormatter}
-            />
-          </RechartsPieChart>
-        </ResponsiveContainer>
-      </div>
-    ),
-  },
-  {
-    title: "Top Absentees",
-    icon: <RiUserLine className="h-4 w-4" />,
-    description: "Employees with most absence days",
-    kpiValue: "14",
-    kpiLabel: "Max Absence Days",
-    content: (
-      <div className="space-y-2 mt-2">
-        {topAbsentees.map((employee, index) => (
-          <div key={index} className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">{employee.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {employee.department} • {employee.total} days
-            </p>
-          </div>
-          <AbsenteeDots employee={employee} />
-        </div>
-        ))}
-      </div>
-    ),
-  },
-]
+  useEffect(() => {
+    const fetchAbsences = async () => {
+      try {
+        setLoading(true);
+        const catalogData = await catalogClient.getCatalogEntriesList({
+          catalogIdentifier: "AbsenceGroup",
+          version: "v1",
+        });
+        const groupsMap: { [key: string]: string } = {};
+        catalogData.data.forEach((entry: CatalogEntry) => {
+          groupsMap[entry.id] = entry.value;
+        });
+        setAbsenceGroups(groupsMap);
 
-export const KPISection = () => {
+        const result = await graphQLClient.request<{
+          EmployeeAbsence: EmployeeAbsence[];
+        }>(GET_EMPLOYEE_ABSENCES, { page: 0, limit: 100 });
+
+        const enrichedAbsences = result.EmployeeAbsence.map((absence) => ({
+          ...absence,
+          type: {
+            ...absence.type,
+            groupName: groupsMap[absence.type.parentEntryId] || "Unknown",
+          },
+        }));
+        setAbsences(enrichedAbsences);
+
+        const grouped: { [month: string]: { [type: string]: number } } = {};
+        enrichedAbsences.forEach((absence) => {
+          const month = getMonthName(absence.startDate);
+          const type = absence.type.groupName || "Unknown";
+          if (!grouped[month]) grouped[month] = {};
+          if (!grouped[month][type]) grouped[month][type] = 0;
+          grouped[month][type] += 1;
+        });
+        setOrganizedAbsences(grouped);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to fetch data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAbsences();
+  }, [accessToken]);
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  let months = Object.keys(organizedAbsences);
+  months = months.sort((a, b) => monthNames.indexOf(a) - monthNames.indexOf(b));
+
+  const uniqueGroups = new Set<string>();
+  months.forEach((month) => {
+    Object.keys(organizedAbsences[month]).forEach((group) => {
+      uniqueGroups.add(group);
+    });
+  });
+  const barChartData = months.map((month) => {
+    const monthData: any = { month };
+    uniqueGroups.forEach((group) => {
+      monthData[group] = organizedAbsences[month][group] || 0;
+    });
+    return monthData;
+  });
+
+  const pieDataMap: { [group: string]: number } = {};
+  absences.forEach((absence) => {
+    const group = absence.type.groupName || "Unknown";
+    if (!pieDataMap[group]) pieDataMap[group] = 0;
+    pieDataMap[group] += absence.effectiveDays;
+  });
+  const pieChartData = Object.keys(pieDataMap).map((group) => ({
+    name: group,
+    value: pieDataMap[group],
+  }));
+
+  const colorPalette = [
+    "#fb7185",
+    "#34d399",
+    "#a78bfa",
+    "#38bdf8",
+    "#fbbf24",
+    "#8b5cf6",
+  ];
+  const groupColors: { [key: string]: string } = {};
+  Array.from(uniqueGroups).forEach((group, index) => {
+    groupColors[group] = colorPalette[index % colorPalette.length];
+  });
+  pieChartData.forEach((item, index) => {
+    groupColors[item.name] = colorPalette[index % colorPalette.length];
+  });
+
+  const totalAbsenceDays = absences.reduce(
+    (sum, absence) => sum + absence.effectiveDays,
+    0
+  );
+  const vacationDays = pieDataMap["Vacation"] || 0;
+  const vacationShare = ((vacationDays / totalAbsenceDays) * 100).toFixed(1);
+  const maxAbsenceDays = Math.max(...absences.map((abs) => abs.effectiveDays));
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {kpis.map((kpi, index) => (
-        <Card key={index} className="hover:shadow-md transition-shadow">
-          <div className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <Title level={5} className="text-sm font-medium">{kpi.title}</Title>
-              <p className="text-xs text-muted-foreground">{kpi.description}</p>
-            </div>
-            <div className="flex-shrink-0">
-              {React.cloneElement(kpi.icon, { className: 'h-6 w-6 text-gray-500' })}
-            </div>
-          </div>
-          <div className="p-4">
-            <div className="mb-3">
-              <div className="text-2xl font-bold">{kpi.kpiValue}</div>
-              <p className="text-xs text-muted-foreground">{kpi.kpiLabel}</p>
-            </div>
-            <div className="h-[200px]">
-            {React.isValidElement(kpi.content) ? (
-              <div className="flex flex-col h-full">
-                {kpi.content}
-                {kpi.title === "Absence Distribution" && (
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    {absenceDistribution.map((entry, index) => (
-                      <div key={index} className="flex items-center gap-1">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                        <div className="text-xs">
-                          {entry.name} {entry.value}%
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div>{kpi.content}</div>
-            )}
-          </div>
-          </div>
-        </Card>
-      ))}
+      <Card className="hover:shadow-md transition-shadow">
+        <div className="flex flex-row items-center justify-between pb-2">
+  <div>
+    <Title level={5} className="text-sm font-medium">Absence Trends</Title>
+    <p className="text-xs text-muted-foreground">Monthly absence days by group</p>
+    <div className="text-2xl font-bold pt-2 text-left">{totalAbsenceDays}</div>
+    <div className="text-xs text-muted-foreground text-left pb-3">Total Absence Days</div>
+  </div>
+  <RiBarChartLine className="h-6 w-6 text-gray-500 ml-2" />
+</div>
+        <div className="p-4 h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={barChartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis />
+              <RechartsTooltip
+  content={({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div style={{ background: 'white', borderRadius: 8, boxShadow: '0 2px 8px #0001', padding: 12, fontSize: 13 }}>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>{label}</div>
+          {payload.map((entry, idx) => (
+  typeof entry.value === 'number' && entry.value > 0 && (
+    <div key={entry.dataKey} style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
+      <span style={{ width: 12, height: 12, background: entry.color, display: 'inline-block', borderRadius: 3, marginRight: 6 }} />
+      <span>{entry.dataKey}: {entry.value} days</span>
     </div>
   )
-}
+))}
+        </div>
+      );
+    }
+    return null;
+  }}
+/>
+              <Legend />
+              {Array.from(uniqueGroups).map((group) => (
+                <Bar
+                  key={group}
+                  dataKey={group}
+                  fill={groupColors[group]}
+                  stackId="a"
+                />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        
+      </Card>
+
+      <Card className="hover:shadow-md transition-shadow">
+        <div className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <Title level={5} className="text-sm font-medium">
+              Absence Distribution
+            </Title>
+            <p className="text-xs text-muted-foreground">
+              Total absence days by group
+            </p>
+          </div>
+          <RiPieChart2Line className="h-6 w-6 text-gray-500" />
+        </div>
+        <div className="text-2xl font-bold pt-2 text-left">
+          {vacationShare}%
+        </div>
+        <div className="text-xs text-muted-foreground text-left pb-3">
+          Vacation Share
+        </div>
+        <div className="p-4 h-[200px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={pieChartData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+              >
+                {pieChartData.map((entry, index) => (
+                  <Cell key={index} fill={groupColors[entry.name]} />
+                ))}
+              </Pie>
+              <RechartsTooltip
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length > 0) {
+                    const entry = payload[0];
+                    const group = entry.name;
+                    const value = entry.value;
+                    const percent =
+                      totalAbsenceDays > 0
+                        ? Math.round((Number(value) / totalAbsenceDays) * 100)
+                        : 0;
+                    return (
+                      <div
+                        style={{
+                          background: "white",
+                          borderRadius: 8,
+                          boxShadow: "0 2px 8px #0001",
+                          padding: 12,
+                          fontSize: 13,
+                        }}
+                      >
+                        <span style={{ fontWeight: 600 }}>{group}:</span>{" "}
+                        {value} days ({percent}%)
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 12,
+              marginTop: 8,
+              justifyContent: "center",
+            }}
+          >
+            {pieChartData.map((entry) => {
+              const percent =
+                totalAbsenceDays > 0
+                  ? Math.round((Number(entry.value) / totalAbsenceDays) * 100)
+                  : 0;
+              return (
+                <span
+                  key={entry.name}
+                  style={{ display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <span
+                    style={{
+                      width: 14,
+                      height: 14,
+                      background: groupColors[entry.name],
+                      display: "inline-block",
+                      borderRadius: 3,
+                      marginRight: 4,
+                    }}
+                  />
+                  <span>
+                    {entry.name}: {percent}%
+                  </span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+
+      <Card className="hover:shadow-md transition-shadow flex flex-col justify-between text-left min-h-[370px]">
+        <div className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <Title level={5} className="text-sm font-medium">
+              Top Absentees
+            </Title>
+            <p className="text-xs text-muted-foreground">
+              Employees with most absence days
+            </p>
+          </div>
+          <span className="text-xl">
+            <RiMedalLine className="h-6 w-6 text-gray-500 rotate-90" />
+          </span>
+        </div>
+        <div className="text-2xl font-bold pt-2">{maxAbsenceDays}</div>
+        <div className="text-xs text-muted-foreground pb-3">
+          Max Absence Days
+        </div>
+
+        <div className="space-y-2">
+          {(() => {
+            const employeeMap: {
+              [id: string]: {
+                name: string;
+                department: string;
+                total: number;
+                colorIdx: number;
+                absences: EmployeeAbsence[];
+              };
+            } = {};
+            absences.forEach((abs) => {
+              const id = abs.employee.id;
+              if (!employeeMap[id]) {
+                employeeMap[id] = {
+                  name: `${abs.employee.firstName} ${abs.employee.lastName}`,
+                  department:
+                    abs.employee.employeePosition?.organizationalUnit?.name ||
+                    "",
+                  total: 0,
+                  colorIdx: Object.keys(employeeMap).length,
+                  absences: [],
+                };
+              }
+              employeeMap[id].total += abs.effectiveDays;
+              employeeMap[id].absences.push(abs);
+            });
+
+            const top = Object.values(employeeMap)
+              .sort((a, b) => b.total - a.total)
+              .slice(0, 5);
+
+            return top.map((emp, idx) => (
+              <div
+                key={emp.name + idx}
+                className="flex flex-row items-center justify-between"
+              >
+                <div>
+                  <div className="text-sm font-medium leading-tight">
+                    {emp.name}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {emp.department} &bull; {emp.total} days
+                  </div>
+                </div>
+                <div className="flex flex-row gap-2 pr-1">
+                  {[
+                    { color: "#fb7185", group: "Sick Leave" },
+                    { color: "#34d399", group: "Vacation" },
+                    { color: "#a78bfa", group: "Special Leave" },
+                    { color: "#38bdf8", group: "Work Leave" },
+                  ].map(({ color, group }, i) => {
+                    const days = emp.absences
+                      .filter((a) => a.type.groupName === group)
+                      .reduce((sum, a) => sum + a.effectiveDays, 0);
+                    return (
+                      <Tooltip
+                        key={i}
+                        title={`${group}: ${days} days`}
+                        placement="top"
+                      >
+                        <span
+                          className="inline-block w-3 h-3 rounded-full"
+                          style={{
+                            backgroundColor: color,
+                            opacity: 0.85,
+                            cursor: "pointer",
+                          }}
+                        />
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+export default KPISection;

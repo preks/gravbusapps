@@ -1,1 +1,1 @@
-export { KPISection } from "./KPISection"
+export {default} from "./KPISection"
