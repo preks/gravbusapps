@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { AbsenceOverview } from '../AbsenceOverview/AbsenceOverview';
-import { AppHeader } from '../AppHeader/AppHeader';
-import { HeroBanner } from '../HeroBanner/HeroBanner';
-import KPISection from '../KPISection';
-import { AbsenceReports } from '../AbsenceReports/AbsenceReports';
-import { QuickActions } from '../QuickActions/QuickActions';
-import { AbsenceList } from '../AbsenceList/AbsenceList';
-import CalendarList from '../CalendarList/CalendarList';
+import { AbsenceOverview } from '../components/AbsenceOverview/AbsenceOverview';
+import { AppHeader } from '../components/AppHeader/AppHeader';
+import { HeroBanner } from '../components/HeroBanner/HeroBanner';
+import KPISection from '../components/KPISection/KPISection';
+import { AbsenceReports } from '../components/AbsenceReports/AbsenceReports';
+import { QuickActions } from '../components/QuickActions/QuickActions';
+import { AbsenceList } from '../components/AbsenceList/AbsenceList';
+import CalendarList from '../components/CalendarList/CalendarList';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface AbsenceManagementHubProps extends BusinessAppContextProps {}
