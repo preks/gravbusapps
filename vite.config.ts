@@ -287,6 +287,22 @@ if (globalThis.__APP_BUILD_INFO__) {
     }
   };
   
+  // Custom plugin to wrap each chunk in an IIFE
+  const wrapInIIFEPlugin = {
+    name: 'wrap-in-iife',
+    renderChunk(code: string, chunk: any) {
+      // Only transform JavaScript files
+      if (!chunk.fileName.endsWith('.js')) return code;
+      
+      // Skip if already wrapped
+      if (code.startsWith('(function()') || code.startsWith('(function(')) {
+        return code;
+      }
+      
+      return `(function() {\n${code}\n})();`;
+    }
+  };
+
   // Create wrapped versions of all entries
   const wrappedEntries: Record<string, string> = {};
   Object.keys(dynamicEntries).forEach((entryKey) => {
@@ -325,7 +341,8 @@ export default wrapWithUiCatalog(OriginalComponent);
       // Virtual module plugin for the wrapped entries
       virtualModulePlugin,
       prependBuildInfoBannerPlugin, // Use the updated banner plugin
-      sha256ContentHashPlugin(shouldHashFilesForDeployment),
+      wrapInIIFEPlugin,
+      ...(shouldHashFilesForDeployment ? [sha256ContentHashPlugin(shouldHashFilesForDeployment)] : []),
       ...extraPlugins,
     ].filter(Boolean),
     define: {
