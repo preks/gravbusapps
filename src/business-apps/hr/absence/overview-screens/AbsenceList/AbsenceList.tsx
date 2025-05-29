@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { format } from "date-fns"
-import { Table, Spin } from 'antd'
+import { Table, Spin, Input, Select } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -83,6 +83,10 @@ const formatDateRange = (startDate: Date, endDate: Date): string => {
 }
 
 export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+  const { Option } = Select;
+  const [searchText, setSearchText] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState<string | undefined>(undefined);
+  const [selectedGroup, setSelectedGroup] = useState<string | undefined>(undefined);
   const graphQLClient = useGraphqlClient(accessToken)
   const catalogClient = useCatalogManagerClient(accessToken)
   const [absences, setAbsences] = useState<EmployeeAbsence[]>([])
@@ -133,18 +137,79 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken }) 
     return <div className="text-red-500">{error}</div>
   }
 
+ 
+  const allStatuses = Array.from(new Set(absences.map(a => a.status?.toLowerCase()).filter(Boolean))).sort();
+  const allGroups = Array.from(new Set(absences.map(a => {
+    const parentId = a.type.parentEntryId;
+    return absenceTypes[parentId] || a.type.value;
+  }).filter(Boolean))).sort();
+
+ 
+  const filteredAbsences = absences.filter(a => {
+
+    const requester = (a.employee.firstName + ' ' + a.employee.lastName).toLowerCase();
+    const matchesSearch = !searchText || requester.includes(searchText.toLowerCase());
+    const matchesStatus = !selectedStatus || a.status?.toLowerCase() === selectedStatus;
+    const groupName = absenceTypes[a.type.parentEntryId] || a.type.value;
+    const matchesGroup = !selectedGroup || groupName === selectedGroup;
+    return matchesSearch && matchesStatus && matchesGroup;
+  });
+
   return (
     <div className="p-4">
+
+      <div className="flex flex-col md:flex-row gap-2 mb-4 items-start md:items-end">
+        <Input.Search
+          placeholder="Search by requester"
+          allowClear
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
+          className="w-full md:w-64"
+        />
+        <Select
+          placeholder="Filter by status"
+          allowClear
+          className="w-full md:w-48"
+          value={selectedStatus}
+          onChange={value => setSelectedStatus(value)}
+        >
+          <Option value={undefined}>All Statuses</Option>
+          {allStatuses.map(status => (
+            <Option key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</Option>
+          ))}
+        </Select>
+        <Select
+          placeholder="Filter by group"
+          allowClear
+          className="w-full md:w-48"
+          value={selectedGroup}
+          onChange={value => setSelectedGroup(value)}
+        >
+          <Option value={undefined}>All Groups</Option>
+          {allGroups.map(group => (
+            <Option key={group} value={group}>{group}</Option>
+          ))}
+        </Select>
+      </div>
       <Table
-        dataSource={absences}
+        dataSource={filteredAbsences}
         columns={[
           {
             title: 'Group',
             dataIndex: 'group',
             key: 'group',
             render: (_: any, record: EmployeeAbsence) => {
-              const parentId = record.type.parentEntryId
-              return absenceTypes[parentId] || record.type.value
+              const parentId = record.type.parentEntryId;
+              const groupName = absenceTypes[parentId] || record.type.value;
+
+              const classMap: { [key: string]: string } = {
+                'Sick Leave': 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal bg-pink-100 text-pink-800 hover:bg-pink-200',
+                'Vacation': 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal bg-emerald-100 text-emerald-800 hover:bg-emerald-200',
+                'Special Leave': 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal bg-violet-100 text-violet-800 hover:bg-violet-200',
+                'Work Leave': 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal bg-amber-100 text-amber-800 hover:bg-amber-200',
+              };
+              const tagClass = classMap[groupName] || 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal bg-gray-100 text-gray-800';
+              return <span className={tagClass}>{groupName}</span>;
             },
           },
           {
@@ -183,7 +248,14 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken }) 
             dataIndex: 'status',
             render: (_: any, record: EmployeeAbsence) => {
               if (!record.status) return '';
-              return record.status.charAt(0).toUpperCase() + record.status.slice(1).toLowerCase();
+              const status = record.status.toLowerCase();
+              const statusClassMap: { [key: string]: string } = {
+                approved: 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal capitalize bg-green-100 text-green-800 hover:bg-green-200',
+                pending: 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal capitalize bg-yellow-100 text-yellow-800 hover:bg-yellow-200',
+                rejected: 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal capitalize bg-red-100 text-red-800 hover:bg-red-200',
+              };
+              const tagClass = statusClassMap[status] || 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal capitalize bg-gray-100 text-gray-800';
+              return <span className={tagClass}>{status}</span>;
             },
             key: 'status',
           }
