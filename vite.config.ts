@@ -389,7 +389,7 @@ export default wrapWithUiCatalog(OriginalComponent);
   
         // Only keep React-related packages as external
         // All other imports will be bundled into the main file
-        external: ['react', 'react-dom', 'antd', 'react/jsx-runtime', '@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities', 'zustand', 'react-i18next', 'react-icons', 'clsx', 'tailwind-merge', '@newwork/gravity-ui-catalog'],
+        external: ['react', 'react-dom', 'antd', 'react/jsx-runtime', '@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities', 'zustand', 'react-i18next', 'react-icons', 'clsx', 'tailwind-merge', '@newwork/gravity-ui-catalog', '@remixicon/react'],
         output: {
           globals: {
             'react': 'React',
@@ -403,7 +403,8 @@ export default wrapWithUiCatalog(OriginalComponent);
             "@dnd-kit/sortable": "DNDKitSortable",
             "@dnd-kit/utilities": "DNDKitUtilities",
             "zustand": "zustand",
-            "@newwork/gravity-ui-catalog": "GravityUICatalog"
+            "@newwork/gravity-ui-catalog": "GravityUICatalog",
+            "@remixicon/react": "remixIconReact"
           },
           // entryFileNames will now always output a predictable name;
           // the sha256ContentHashPlugin will handle renaming for deployment builds.
