@@ -2,10 +2,11 @@
 
 1. Component Creation
 Create all components as React components in the src\business-apps folder.
-All folders in src\business-apps folder are products that we have, e.g. crm, irm.
-All folders in src\business-apps\(crm|irm|hr) are either named `detail-screens` or `overview-screens` or `flow-screens`.
-All folders in src\business-apps\(crm|irm|hr)\(detail-screens|overview-screensflow-screens) are names of screens, e.g. LeadDetail.
-All files in src\business-apps\(crm|irm|hr)\(detail-screens|overview-screensflow-screens)\<screenName> are files related to that screen.
+Each component should extend its props from the `BusinessAppContextProps` interface.
+
+All folders in src\business-apps folder are products that we have, e.g. crm, irm etc.
+All folders in src\business-apps\<product> are either named `components`, `modules`, `hooks`, `libs`, `utils`, `overview-screens`, `detail-screens`, `flow-screens` or contain the name of the component.
+All files in src\business-apps\<product>\<screenName> are files related to that screen where one `.tsx` with the name of screen is located and an `index.ts` file with a named export of the component and a default export of the component.
 Example of correctly create components:
 - src\business-apps\irm\detail-screens\LeadDetail\LeadDetail.tsx
 - src\business-apps\irm\overview-screens\LeadOverview\LeadOverview.tsx

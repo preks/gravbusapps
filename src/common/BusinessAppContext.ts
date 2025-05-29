@@ -26,4 +26,5 @@ export interface BusinessAppContextProps {
   accessToken: string;
   userInfo?: UserInfoProps;
   additionalData?: { [k: string]: any };
+  activeStructureId?: string;
 }

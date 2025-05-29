@@ -12,6 +12,12 @@ This project is a modern React application built with the following technologies
 
 ## Getting Started
 
+### Windsurf Setup
+
+1. Install Windsurf from [here](https://www.windsurf.io/)
+2. Follow description from https://newwork.atlassian.net/wiki/spaces/CORE/pages/4474601491/Windsurf+Development+Workspace+Setup+Guide
+3. To allow local requests like GraphQL, see https://newwork.atlassian.net/wiki/spaces/PSM/pages/4513234959/How+to+allow+Queries+to+execute+locally
+
 ### Installation
 ```bash
 npm install

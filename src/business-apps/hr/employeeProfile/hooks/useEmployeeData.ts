@@ -1,0 +1,631 @@
+import { useEffect, useState } from 'react';
+import { useGraphqlClient } from '../../../../common/network/graphql/useGraphQLClient';
+
+/**
+ * GraphQL query to fetch employee data including:
+ * - Personal information
+ * - Employment details
+ * - Feedback
+ * - Absence entitlements
+ * - Performance goals
+ */
+export const GET_EMPLOYEE_DATA = /*sql*/`
+  query GetEmployeeData($employeeId: uuid!, $structureId: uuid, $hasStructureId: Boolean!) {
+    EmployeePosition(where: {
+      employeeId: {_eq: $employeeId}
+    }) {
+      id
+      organizationalUnitId
+      organizationalUnit {
+        name
+      }
+      supervisor {
+        firstName
+        lastName
+        id
+        pictureThumbnail
+        employeePosition{
+          jobPosition{
+            name
+          }
+        }
+      }
+      jobPosition {
+        name
+      }
+      jobPositionId
+      siteLocation {
+        name
+        id
+      }
+      companyId
+      company {
+        name
+      }
+      siteLocationId
+      costCenterId
+      costCenter {
+        id
+        name
+      }
+      # Matrix teams data
+      matrixUnitEmployees(where: {structureId: {_eq: $structureId}}) @include(if: $hasStructureId) {
+        structureId
+        matrixUnit {
+          id
+          name
+        }
+      }
+      # Capabilities data
+      employeeCapabilities(where: {structureId: {_eq: $structureId}}) @include(if: $hasStructureId) {
+        structureId
+        capability {
+          id
+          name
+        }
+      }
+      employee {
+        id
+        code
+        fullName
+        displayName
+        workspace
+        version
+        pictureThumbnail
+        additionalProperties
+        # Skills data
+        skills(where: {isDeleted: {_eq: false}}) {
+          level
+          skill {
+            id
+            name
+          }
+        }
+        salutation {
+          value
+          id
+        }
+        maritalStatus {
+          id
+          value
+        }
+        gender {
+          value
+          id
+        }
+        academicTitleRef
+        firstName
+        preferredName
+        birthDate
+        birthName
+        lastName
+        jobHistories {
+          activeFrom
+          activeTo
+          company
+          exitDate
+          hireDate
+          jobPosition
+          locality
+        }
+        addresses {
+          id
+          version
+          addressLine
+          postalCode
+          locality
+          type
+        }
+        relationship {
+          isEmergencyContact
+          type {
+            id
+            value
+          }
+          firstName
+          lastName
+          birthDate
+          phoneNumber
+          email
+        }
+        communication {
+          id
+          version
+          channelRef
+          value
+          purpose
+          type {
+            value
+          }
+          channel {
+            value
+            code
+            additionalValue1
+          }
+        }
+        workingCondition {
+          id
+          version
+          regionRef
+          probationEnd
+          contractType {
+            value
+            id
+          }
+          employmentType {
+            value
+            id
+          }
+          region {
+            value
+            id
+          }
+          remote {
+            id
+            value
+          }
+          hireDate
+          vacationDays
+          exitDate
+        }
+        workingHours {
+          id
+          version
+          weeklyHours
+          fullTimeEquivalent
+          mondayHours
+          remote {
+            id
+            value
+          }
+          thursdayHours
+          wednesdayHours
+          tuesdayHours
+          fridayHours
+          saturdayHours
+          sundayHours
+          weeklyDays
+        }
+        # Second skills field removed to avoid inconsistent arguments
+        workPermit {
+          type {
+            value
+          }
+        }
+        bankAccounts {
+          iban
+          bankName
+          accountHolder
+        }
+        taxDetails {
+          taxNumber
+          taxBracketRef
+          taxIdentificationNumber
+          socialSecurityNumber
+          taxableChurchAffiliationRef
+          childTaxAllowance
+          healthInsuranceName
+          healthInsuranceTypeRef
+        }
+      }
+    }
+
+    Subordinates: EmployeePosition(where: {supervisorEmployeeId: {_eq: $employeeId}}) {
+      employee {
+        id
+        firstName
+        lastName
+        pictureThumbnail
+        picture
+      }
+      jobPosition {
+        name
+      }
+    }
+    
+    EmployeeFeedback(where: {
+      isDeleted: {_eq: false}, 
+      employeeId: {_eq: $employeeId}
+    }) {
+      feedback
+      feedbackDate
+      senderEmployeeId
+      senderEmployee {
+        firstName
+        lastName
+        employeePosition {
+          employee {
+            pictureThumbnail
+            picture
+          }
+        }
+      }
+    }
+    EmployeeAbsenceEntitlement(where: {
+      isDeleted: {_eq: false}, 
+      employeeId: {_eq: $employeeId}
+    }) {
+      employeeId
+      type {
+        value
+      }
+      available
+      pending
+      total
+      approved
+    }
+    EmployeePerformanceGoal(where: {
+      isDeleted: {_eq: false}, 
+      employeeId: {_eq: $employeeId}
+    }, orderBy: {progressPercent: DESC}) {
+      dueDate
+      completionDate
+      startDate
+      status
+      title
+      progressPercent
+    }
+  }
+`;
+
+/**
+ * Hook to fetch employee data using the project's GraphQL client
+ * @param employeeId - The ID of the employee to fetch
+ * @param structureId - The ID of the organizational structure
+ * @param skipRequest - Whether to skip the request (optional)
+ */
+export const useEmployeeData = (accessToken: string, activeStructureId: string, employeeId: string, skipRequest = false) => {
+  const client = useGraphqlClient(accessToken);
+  const structureId = activeStructureId;
+  
+  const [data, setData] = useState<EmployeeData | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Define fetchData outside useEffect to make it available for refetch
+  const fetchData = async () => {
+    if (skipRequest || !employeeId) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const variables = {
+        employeeId,
+        structureId: structureId ?? '',
+        hasStructureId: !!structureId
+      };
+
+      const result = await client.request<EmployeeData>(GET_EMPLOYEE_DATA, variables);
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to fetch employee data'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [accessToken, employeeId, structureId, skipRequest, client]);
+
+  // Extract data from the result
+  const employeePosition = data?.EmployeePosition?.[0];
+  const subordinates = data?.Subordinates ?? [];
+  let employee = null;
+
+  if (employeePosition?.employee) {
+    const enhancedEmployeePosition = {
+      ...employeePosition,
+      subordinates
+    };
+    
+    employee = {
+      ...employeePosition.employee,
+      employeePosition: enhancedEmployeePosition
+    };
+  }
+
+  return {
+    employeeData: data,
+    employee,
+    employeePosition,
+    feedback: data?.EmployeeFeedback || [],
+    absenceEntitlements: data?.EmployeeAbsenceEntitlement || [],
+    performanceGoals: data?.EmployeePerformanceGoal || [],
+    loading: isLoading,
+    error,
+    refetch: fetchData // Now fetchData is properly defined and available
+  };
+};
+
+/**
+ * Types for employee data response
+ */
+export interface EmployeeData {
+  EmployeePosition: EmployeePosition[];
+  Subordinates: {
+    employee: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      pictureThumbnail: string;
+      picture: string;
+    };
+    jobPosition: {
+      name: string;
+    };
+  }[];
+  EmployeeFeedback: EmployeeFeedback[];
+  EmployeeAbsenceEntitlement: EmployeeAbsenceEntitlement[];
+  EmployeePerformanceGoal: EmployeePerformanceGoal[];
+}
+
+interface Skill {
+  id: string;
+  name: string;
+}
+
+interface EmployeeSkill {
+  level: string | null;
+  skill: Skill;
+}
+
+export interface Employee {
+  id: string;
+  code: string;
+  workspace: string;
+  version: number;
+  pictureThumbnail: string;
+  skills: EmployeeSkill[];
+  additionalProperties: {
+    email: string;
+    phone: string;
+    mobile: string;
+    userId?: string;
+  };
+  salutation: CodeValue;
+  maritalStatus: CodeValue;
+  gender: CodeValue;
+  academicTitleRef: string;
+  firstName: string;
+  preferredName: string;
+  birthDate: string;
+  birthName: string;
+  lastName: string;
+  ethnicity: CodeValue;
+  birthPlace: CodeValue;
+  nationality: CodeValue;
+  language: CodeValue;
+  jobHistories: JobHistory[];
+  addresses: Address[];
+  relationship: Relationship[];
+  communication: Communication[];
+  workingCondition: WorkingCondition[];
+  workingHours: WorkingHours[];
+  workPermit: WorkPermit;
+  bankAccounts: BankAccount[];
+  taxDetails: TaxDetail[];
+  fullTimeEquivalent: number;
+  employeePosition?: EmployeePosition;
+}
+
+interface EmployeePosition {
+  organizationalUnitId: string;
+  organizationalUnit: {
+    name: string;
+  };
+  supervisor: {
+    firstName: string;
+    lastName: string;
+    id: string;
+    pictureThumbnail?: string;
+    employeePosition?: {
+      jobPosition?: {
+        name: string;
+      };
+    };
+  };
+  jobPosition: {
+    name: string;
+  };
+  jobPositionId: string;
+  siteLocation: {
+    name: string;
+    id: string;
+  };
+  companyId: string;
+  company: {
+    name: string;
+  };
+  siteLocationId: string;
+  costCenterId: string;
+  costCenter: {
+    id: string;
+    name: string;
+  };
+  employee: Employee;
+  employeeId: string;
+  subordinates: {
+    employee: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      pictureThumbnail: string;
+      picture: string;
+    };
+    jobPosition: {
+      name: string;
+    };
+  }[];
+  matrixUnitEmployees: {
+    matrixUnit: {
+      id: string;
+      name: string;
+    };
+  }[];
+  employeeCapabilities: {
+    capability: {
+      id: string;
+      name: string;
+    };
+  }[];
+}
+
+interface CodeValue {
+  id: string;
+  value: string;
+  translations?: {
+    localeCode: string;
+    value: string;
+  }[];
+}
+
+interface JobHistory {
+  activeFrom: string;
+  activeTo: string;
+  company: string;
+  country: CodeValue;
+  exitDate: string;
+  hireDate: string;
+  jobPosition: string;
+  locality: string;
+  region: CodeValue;
+}
+
+interface Address {
+  id: string;
+  version: number;
+  addressLine: string[];
+  postalCode: string;
+  locality: string;
+  region: CodeValue;
+  country: CodeValue;
+  type: string;
+}
+
+interface Relationship {
+  isEmergencyContact: boolean;
+  type: CodeValue;
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  phoneNumber: string;
+  email: string;
+}
+
+interface Communication {
+  id: string;
+  version: number;
+  channelRef: string;
+  value: string;
+  purpose: string;
+  type: {
+    value: string;
+  };
+  channel: {
+    value: string;
+    code: string;
+    additionalValue1: string;
+  };
+}
+
+interface WorkingCondition {
+  id: string;
+  version: number;
+  regionRef: string;
+  probationEnd: string;
+  contractType: CodeValue;
+  employmentType: CodeValue;
+  region: CodeValue;
+  remote: CodeValue;
+  hireDate: string;
+  vacationDays: number;
+  exitDate: string;
+}
+
+interface WorkingHours {
+  id: string;
+  version: number;
+  weeklyHours: number;
+  fullTimeEquivalent: number;
+  mondayHours: number;
+  remote: CodeValue;
+  thursdayHours: number;
+  wednesdayHours: number;
+  tuesdayHours: number;
+  fridayHours: number;
+  saturdayHours: number;
+  sundayHours: number;
+  weeklyDays: number;
+}
+
+interface Skill {
+  skill: {
+    name: string;
+    id: string;
+  };
+}
+
+interface WorkPermit {
+  type: {
+    value: string;
+  };
+}
+
+interface BankAccount {
+  iban: string;
+  bankName: string;
+  accountHolder: string;
+}
+
+interface TaxDetail {
+  taxNumber: string;
+  taxBracketRef: string;
+  taxIdentificationNumber: string;
+  socialSecurityNumber: string;
+  taxableChurchAffiliationRef: string;
+  childTaxAllowance: number;
+  healthInsuranceName: string;
+  healthInsuranceTypeRef: string;
+}
+
+export interface EmployeeFeedback {
+  feedback: string;
+  feedbackDate: string;
+  senderEmployeeId: string;
+  senderEmployee: {
+    firstName: string;
+    lastName: string;
+    employeePosition: {
+      employee: {
+        pictureThumbnail: string;
+        picture: string;
+      };
+    };
+  };
+}
+
+export interface EmployeeAbsenceEntitlement {
+  employeeId: string;
+  type: {
+    value: string;
+    translations: {
+      localeCode: string;
+      value: string;
+    }[];
+  };
+  available: number;
+  pending: number;
+  total: number;
+  approved: number;
+}
+
+export interface EmployeePerformanceGoal {
+  dueDate: string;
+  completionDate: string;
+  startDate: string;
+  status: string;
+  title: string;
+  progressPercent: number;
+}
