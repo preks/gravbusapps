@@ -170,23 +170,15 @@ async function main() {
     console.log(`ℹ️  Output directory ${buildOutputDir} does not exist, no need to delete.`);
   }
 
-  // For Windows compatibility, set environment variables in the options object
-  const envVars = {
-    PROJECT_ROOT_DIR: projectRootDir,
-    VITE_GIT_USER: process.env.VITE_GIT_USER || execSync('git config user.name').toString().trim(),
-    VITE_PUBLISH_TIME: new Date().toISOString(),
-    TARGET_ENTRY_FILE: sourceEntryFile,
-    TARGET_ENTRY_KEY: viteEntryKey
-  };
+  // Use cross-env compatible approach for Windows
+  const viteBuildCommand = `cross-env PROJECT_ROOT_DIR="${projectRootDir.replace(/\\/g, '/')}" VITE_GIT_USER="${process.env.VITE_GIT_USER || execSync('git config user.name').toString().trim()}" VITE_PUBLISH_TIME="${new Date().toISOString()}" TARGET_ENTRY_FILE=${sourceEntryFile} TARGET_ENTRY_KEY=${viteEntryKey} vite build`;
   
-  const viteBuildCommand = 'vite build';
-  
-  console.log(`   Executing: ${viteBuildCommand} with environment variables:`, envVars);
+  console.log(`   Executing: ${viteBuildCommand} with environment variables`);
   try {
     execSync(viteBuildCommand, { 
       stdio: 'inherit', 
       cwd: projectRootDir,
-      env: { ...process.env, ...envVars } 
+      env: { ...process.env } 
     });
     console.log('✅ Screen built successfully.');
   } catch (error) { 

@@ -253,10 +253,77 @@ if (globalThis.__APP_BUILD_INFO__) {
     }] : [])
   ];
 
+  // Virtual module for wrapping components
+  const virtualModulePlugin = {
+    name: 'virtual-module-plugin',
+    resolveId(id) {
+      if (id === 'virtual:wrapped-entries') {
+        return id;
+      }
+      return null;
+    },
+    load(id) {
+      if (id === 'virtual:wrapped-entries') {
+        // Generate a module that re-exports all the wrapped components
+        let code = `import { wrapWithUiCatalog } from './common/wrapWithUiCatalog';
+`;
+        
+        // For each entry in our dynamic entries, create an import and export
+        Object.keys(dynamicEntries).forEach((entryKey) => {
+          const entryPath = dynamicEntries[entryKey];
+          const relativePath = path.relative(projectRootDir, entryPath).replace(/\\/g, '/');
+          // Use a unique variable name for each import based on entryKey
+          const cleanEntryKey = entryKey.replace(/[^a-zA-Z0-9]/g, '_');
+          code += `import ${cleanEntryKey}Original from './${relativePath}';
+`;
+          code += `export const ${cleanEntryKey} = wrapWithUiCatalog(${cleanEntryKey}Original);
+`;
+        });
+        
+        console.log('[UiCatalogWrapper] Created virtual module with wrapped components');
+        return code;
+      }
+      return null;
+    }
+  };
+  
+  // Create wrapped versions of all entries
+  const wrappedEntries: Record<string, string> = {};
+  Object.keys(dynamicEntries).forEach((entryKey) => {
+    // Create a virtual entry file that imports the original component, wraps it, and re-exports it
+    const wrappedEntryPath = path.join(projectRootDir, `src/wrapped-entries/${entryKey}.ts`);
+    // Ensure the directory exists
+    const wrappedEntryDir = path.dirname(wrappedEntryPath);
+    if (!fs.existsSync(wrappedEntryDir)) {
+      fs.mkdirSync(wrappedEntryDir, { recursive: true });
+    }
+    
+    // Generate the wrapper module content
+    const originalEntryPath = dynamicEntries[entryKey];
+    const relativeEntryPath = path.relative(path.dirname(wrappedEntryPath), originalEntryPath).replace(/\\/g, '/');
+    
+    const wrapperContent = `// Auto-generated wrapper file
+import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';
+import OriginalComponent from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
+
+// Re-export wrapped component
+export default wrapWithUiCatalog(OriginalComponent);
+`;
+    
+    // Write the wrapper file
+    fs.writeFileSync(wrappedEntryPath, wrapperContent, 'utf8');
+    console.log(`[UiCatalogWrapper] Created wrapper for: ${entryKey}`);
+    
+    // Replace the original entry with our wrapped version
+    wrappedEntries[entryKey] = wrappedEntryPath;
+  });
+
   return {
     plugins: [
       react(),
       tailwindCSS(),
+      // Virtual module plugin for the wrapped entries
+      virtualModulePlugin,
       prependBuildInfoBannerPlugin, // Use the updated banner plugin
       sha256ContentHashPlugin(shouldHashFilesForDeployment),
       ...extraPlugins,
@@ -268,7 +335,13 @@ if (globalThis.__APP_BUILD_INFO__) {
     },
     resolve: {
       alias: {
-        '@': resolve(__dirname, 'src')
+        '@': resolve(__dirname, 'src'),
+        '@/components': resolve(__dirname, 'src/components'),
+        '@/business-apps': resolve(__dirname, 'src/business-apps'),
+        '@/assets': resolve(__dirname, 'src/assets'),
+        '@/hooks': resolve(__dirname, 'src/hooks'),
+        '@/modules': resolve(__dirname, 'src/modules'),
+        '@/common': resolve(__dirname, 'src/common')
       },
     },
     build: {
@@ -278,7 +351,7 @@ if (globalThis.__APP_BUILD_INFO__) {
       // false for 'npm run publish:screen' (single-screen, script handles specific sub-dir deletion)
       emptyOutDir: isBuildCommand && !isSingleBuild,
       lib: {
-        entry: dynamicEntries,
+        entry: wrappedEntries, // Use the wrapped entries instead of the original ones
         name: 'GravityBusinessApps', // Name for UMD global, less critical for CJS
         formats: ['cjs'],
         cssFileName: 'main'
@@ -294,19 +367,26 @@ if (globalThis.__APP_BUILD_INFO__) {
         // Include all CSS files from the project along with component entries
         input: {
           main: resolve(projectRootDir, 'src/index.css'),
-          ...dynamicEntries
+          ...wrappedEntries
         },
-
-        external: ['react', 'react-dom', 'antd', 'react/jsx-runtime', '@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities', 'zustand'],
+  
+        // Only keep React-related packages as external
+        // All other imports will be bundled into the main file
+        external: ['react', 'react-dom', 'antd', 'react/jsx-runtime', '@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities', 'zustand', 'react-i18next', 'react-icons', 'clsx', 'tailwind-merge', '@newwork/gravity-ui-catalog'],
         output: {
           globals: {
             'react': 'React',
             'react-dom': 'ReactDOM',
             'antd': 'antd',
+            'react-i18next': 'reactI18next',
+            'react-icons': 'reactIcons',
+            'clsx': 'clsx',
+            'tailwind-merge': 'tailwindMerge',
             "@dnd-kit/core": "DNDKitCore",
             "@dnd-kit/sortable": "DNDKitSortable",
             "@dnd-kit/utilities": "DNDKitUtilities",
-            "zustand": "zustand"
+            "zustand": "zustand",
+            "@newwork/gravity-ui-catalog": "GravityUICatalog"
           },
           // entryFileNames will now always output a predictable name;
           // the sha256ContentHashPlugin will handle renaming for deployment builds.
@@ -317,6 +397,7 @@ if (globalThis.__APP_BUILD_INFO__) {
             }
             return `${chunkInfo.name}/index.js`;
           },
+  
           // For non-entry chunks and assets, use Vite's hashing only for deployment builds.
           chunkFileNames: shouldHashFilesForDeployment ? `_chunks/[name]-[hash].js` : `_chunks/[name].js`,
           assetFileNames: shouldHashFilesForDeployment ? `assets/[name]-[hash][extname]` : `assets/[name][extname]`,
