@@ -17,6 +17,7 @@ for (const path in modules) {
   }
   const match = path.match(/\/([A-Z][A-Za-z0-9]*)\.tsx$/);
   if (match) {
+    console.log('match[1]', match[1], path)
     businessAppMap[match[1]] = (props) => createElement(UiCatalogProvider, undefined, createElement((modules[path] as any).default, props));
   }
 }
