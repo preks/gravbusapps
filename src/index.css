@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 
 @import "./business-apps/irm/kanban-board/KanbanBoard/kanban-styles.css";
+@import "@newwork/gravity-ui-catalog/dist/assets/style.css";
 
 @custom-variant dark (&:is(.dark *));
 

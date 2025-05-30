@@ -32,7 +32,7 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
           </>
         )
       case "Team Calendar":
-        return <CalendarList />
+        return <CalendarList accessToken={accessToken} />
       case "Absence Reports":
         return <AbsenceReports />
       default:
