@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { CalendarTimeline, TimelineEvent} from '@newwork/gravity-ui-catalog';
+import { CalendarTimeline, TimelineEvent } from '@newwork/gravity-ui-catalog';
 
 interface EmployeeAbsence {
   id: string
@@ -31,10 +31,11 @@ interface EmployeeAbsence {
 }
 
 const ABSENCE_QUERY = `
-    query GetEmployeeAbsences($page: Int!, $limit: Int!) {
+  query GetEmployeeAbsences($page: Int!, $limit: Int!, $orgUnitId: uuid) {
     EmployeeAbsence(
       offset: $page
       limit: $limit
+      where: {employee: {employeePosition: {organizationalUnitId: {_eq: $orgUnitId}}}}
     ) {
       id
       startDate
@@ -63,33 +64,45 @@ const ABSENCE_QUERY = `
   }
 `
 
-
-const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const graphQLClient = useGraphqlClient(accessToken)
   const catalogClient = useCatalogManagerClient(accessToken)
   const [employeeAbsences, setEmployeeAbsences] = useState<EmployeeAbsence[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    if (!userInfo?.employeeDetails?.organizationalUnit?.id) {
+      console.error('User organization unit not found')
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
     try {
-
       const { EmployeeAbsence } = await graphQLClient.request<{ EmployeeAbsence: EmployeeAbsence[] }>(
         ABSENCE_QUERY,
-        { page: 0, limit: 10 }
-      );
+        {
+          page: 0,
+          limit: 200,
+          orgUnitId: userInfo.employeeDetails.organizationalUnit.id
+        }
+      )
 
-      setEmployeeAbsences(EmployeeAbsence);
-      
-      console.log('Fetched employee absences:', EmployeeAbsence);
-      
+      setEmployeeAbsences(EmployeeAbsence)
+      console.log('Fetched employee absences:', EmployeeAbsence)
     } catch (err) {
-      console.error('Error fetching data:', err);
+      console.error('Error fetching data:', err)
+      setError(err instanceof Error ? err : new Error('Failed to fetch absences'))
+    } finally {
+      setIsLoading(false)
     }
-  };
+  }, [userInfo, graphQLClient])
 
   useEffect(() => {
     fetchData();
   }, [graphQLClient, catalogClient]);
-
 
   const typeColorMap = new Map<string, string>();
   const typeIconMap = new Map<string, string>();
@@ -188,6 +201,24 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
       .join('')
       .toUpperCase();
   };
+
+
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 text-red-600 bg-red-50 rounded">
+        Error loading absences: {error.message}
+      </div>
+    );
+  }
 
   return (
     <div>

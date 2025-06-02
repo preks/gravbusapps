@@ -156,7 +156,7 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken }) 
   });
 
   return (
-    <div className="p-4">
+    <div className="p-4 max-w-full overflow-x-auto">
 
       <div className="flex flex-col md:flex-row gap-2 mb-4 items-start md:items-end">
         <Input.Search
@@ -238,9 +238,16 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken }) 
           {
             title: 'Requester',
             dataIndex: 'requester',
-            render: (_: any, record: EmployeeAbsence) => {
-              return record.employee.firstName + ' ' + record.employee.lastName
-            },
+            render: (_: any, record: EmployeeAbsence) => (
+              <div className="flex items-start">
+                <div className="flex flex-col">
+                  <span className="font-medium">{record.employee.firstName} {record.employee.lastName}</span>
+                  <span className="text-xs text-gray-500">
+                    {record.employee.employeePosition?.organizationalUnit?.name || 'No Department'}
+                  </span>
+                </div>
+              </div>
+            ),
             key: 'requester',
           },
           {

@@ -11,7 +11,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface AbsenceManagementHubProps extends BusinessAppContextProps {}
 
-export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ accessToken }) => {
+export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ accessToken, userInfo }) => {
   const [activeSection, setActiveSection] = useState<string | null>("Dashboard")
 
   const handleSectionChange = (section: string) => {
@@ -32,7 +32,7 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
           </>
         )
       case "Team Calendar":
-        return <CalendarList accessToken={accessToken} />
+        return <CalendarList accessToken={accessToken} userInfo={userInfo}/>
       case "Absence Reports":
         return <AbsenceReports />
       default:
