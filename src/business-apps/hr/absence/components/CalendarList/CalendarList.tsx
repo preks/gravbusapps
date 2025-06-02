@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { CalendarTimeline} from '@newwork/gravity-ui-catalog';
+import { CalendarTimeline, TimelineEvent} from '@newwork/gravity-ui-catalog';
 
 interface EmployeeAbsence {
   id: string
@@ -10,7 +10,7 @@ interface EmployeeAbsence {
     id: string
     lastName: string
     firstName: string
-    picture: string
+    pictureThumbnail: string
     employeePosition: {
       organizationalUnit: {
         name: string
@@ -19,10 +19,6 @@ interface EmployeeAbsence {
   }
   type: {
     objectValue: string
-    translations: {
-      localeCode: string
-      value: string
-    }[]
     id: string
     value: string
     parentEntryId: string
@@ -47,7 +43,7 @@ const ABSENCE_QUERY = `
         id
         lastName
         firstName
-        picture
+        pictureThumbnail
         employeePosition {
           organizationalUnit {
             name
@@ -56,10 +52,6 @@ const ABSENCE_QUERY = `
       }
       type {
         objectValue
-        translations {
-          localeCode
-          value
-        }
         id
         value
         parentEntryId
@@ -76,49 +68,61 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const graphQLClient = useGraphqlClient(accessToken)
   const catalogClient = useCatalogManagerClient(accessToken)
   const [employeeAbsences, setEmployeeAbsences] = useState<EmployeeAbsence[]>([])
-  const [absenceGroups, setAbsenceGroups] = useState<{ [key: string]: string }>({})
 
-  const fetchEmployeeAbsences = async () => {
+  const fetchData = async () => {
     try {
-      const result = await graphQLClient.request<{ EmployeeAbsence: EmployeeAbsence[]}>(
+
+      const { EmployeeAbsence } = await graphQLClient.request<{ EmployeeAbsence: EmployeeAbsence[] }>(
         ABSENCE_QUERY,
-        { page: 0, limit: 15 }
-      )
-      setEmployeeAbsences(result.EmployeeAbsence)
-      console.log(employeeAbsences)
-    } catch (err) {
-      console.error('Error fetching absences:', err)
-    }
-  }
+        { page: 0, limit: 10 }
+      );
 
-  const fetchAbsenceGroups = async () => {
-    try {
-      const result = await catalogClient.getCatalogEntriesList({ catalogIdentifier: 'AbsenceGroup', version: 'v1' })
-      setAbsenceGroups(result.data.reduce((acc: { [key: string]: string }, entry: any) => {
-        acc[entry.id] = entry.value
-        return acc
-      }, {}))
+      setEmployeeAbsences(EmployeeAbsence);
+      
+      console.log('Fetched employee absences:', EmployeeAbsence);
+      
     } catch (err) {
-      console.error('Error fetching absence groups:', err)
+      console.error('Error fetching data:', err);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchEmployeeAbsences()
-    fetchAbsenceGroups()
-  }, [graphQLClient,catalogClient])
+    fetchData();
+  }, [graphQLClient, catalogClient]);
 
-  const legendItems = Object.entries(absenceGroups).map(([id, label]) => {
-    const colorMap: Record<string, string> = {
-      'Sick Leave': '#fb7185',
-      'Vacation': '#34d399',   
-      'Special Leave': '#a78bfa',
-      'Work Leave': '#fbbf24' 
-    };
-    return { label, color: colorMap[label] || '#9ca3af' };
+
+  const typeColorMap = new Map<string, string>();
+  const typeIconMap = new Map<string, string>();
+  
+  employeeAbsences.forEach(absence => {
+    try {
+      const typeInfo = typeof absence.type.objectValue === 'string' 
+        ? JSON.parse(absence.type.objectValue)
+        : absence.type.objectValue;
+        
+      if (typeInfo?.color) {
+        const color = String(typeInfo.color);
+        const hexColor = color.startsWith('#') ? color : `#${color}`;
+        typeColorMap.set(absence.type.value, hexColor);
+      }
+      
+      if (typeInfo?.icon) {
+        typeIconMap.set(absence.type.value, String(typeInfo.icon));
+      }
+    } catch (e) {
+      console.warn(`Failed to process objectValue for type ${absence.type.value}:`, e);
+    }
   });
 
+  const uniqueAbsenceTypes = Array.from(typeColorMap.keys());
+ 
+  const legendItems = uniqueAbsenceTypes.map(type => ({
+    label: type,
+    color: typeColorMap.get(type) || '#9ca3af',
+    icon: typeIconMap.get(type)
+  }));
 
+  console.log("legendItems", legendItems);
   const employeesById = new Map();
   employeeAbsences.forEach(absence => {
     const empId = absence.employee.id;
@@ -130,6 +134,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
         id: empId,
         name: empName,
         department: dept,
+        picture: absence.employee.pictureThumbnail,
         absences: []
       });
     }
@@ -143,7 +148,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
  
   const timelineItems = Array.from(employeesById.values());
 
-  const timelineEvents = [];
+  const timelineEvents: TimelineEvent[] = [];
   
 
   const eventIdSet = new Set();
@@ -155,16 +160,22 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
     if (!eventIdSet.has(eventId)) {
       eventIdSet.add(eventId);
       
+      const absenceType = absence.type.value;
+      const typeInfo = typeof absence.type.objectValue === 'string' 
+        ? JSON.parse(absence.type.objectValue)
+        : absence.type.objectValue;
+      const eventIcon = typeInfo?.icon || '';
+      
       timelineEvents.push({
         id: eventId,
         itemId: absence.employee.id,
-        title: absence.type.translations[0]?.value || absence.type.value,
+        title: absenceType,
         startDate: new Date(absence.startDate).toISOString(),
         endDate: new Date(absence.endDate).toISOString(),
-        color: legendItems.find(item => item.label === absence.type.value)?.color || '#9ca3af',
+        color: typeColorMap.get(absenceType) || '#9ca3af',
         status: absence.status,
-        type: absence.type.value,
-        note: absence.type.value
+        type: eventIcon,
+        note: absenceType
       });
     }
   });
@@ -186,11 +197,27 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
         legendItems={legendItems}
         itemDetailLabel='Department'
         renderItemContent={(item) => (
-          <div className="flex items-center gap-2 p-1 w-full">
-            <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
-              {getInitials(item.name)}
+          <div className="flex items-center gap-2 p-1 w-full hover:bg-gray-50 rounded">
+            <div className="w-6 h-6 rounded-full bg-gray-100 flex-shrink-0 overflow-hidden">
+              {item.picture ? (
+                <img 
+                  src={`data:image/gif;base64,${item.picture}`} 
+                  alt={item.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+              ) : null}
+              <div className={`w-full h-full flex items-center justify-center text-xs text-gray-600 ${item.picture ? 'hidden' : ''}`}>
+                {getInitials(item.name)}
+              </div>
             </div>
-            <span className="truncate flex-grow">{item.name}</span>
+            <div className="flex-grow min-w-0">
+              <div className="truncate font-medium">{item.name}</div>
+              <div className="text-xs text-gray-500 truncate">{item.department}</div>
+            </div>
           </div>
         )}
       />
