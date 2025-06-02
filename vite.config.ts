@@ -485,6 +485,15 @@ export default wrapWithUiCatalog(OriginalComponent);
           "@radix-ui/react-tooltip",
           "class-variance-authority",
           "lucide-react",
+          "@radix-ui/react-avatar",
+          "@radix-ui/react-checkbox",
+          "@radix-ui/react-dialog",
+          "@radix-ui/react-label",
+          "@radix-ui/react-progress",
+          "@radix-ui/react-slot",
+          "@radix-ui/react-tabs",
+          "@tanstack/react-table",
+          "react-router-dom"
         ],
         output: {
           globals: {
@@ -509,6 +518,15 @@ export default wrapWithUiCatalog(OriginalComponent);
             "@radix-ui/react-tooltip": "RadixTooltip",
             "class-variance-authority": "classVarianceAuthority",
             "lucide-react": "lucideReact",
+            "@radix-ui/react-avatar": "RadixAvatar",
+            "@radix-ui/react-checkbox": "RadixCheckbox",
+            "@radix-ui/react-dialog": "RadixDialog",
+            "@radix-ui/react-label": "RadixLabel",
+            "@radix-ui/react-progress": "RadixProgress",
+            "@radix-ui/react-slot": "RadixSlot",
+            "@radix-ui/react-tabs": "RadixTabs",
+            "@tanstack/react-table": "TanstackTable",
+            "react-router-dom": "reactRouterDom"
           },
           // entryFileNames will now always output a predictable name;
           // the sha256ContentHashPlugin will handle renaming for deployment builds.

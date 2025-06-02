@@ -9,6 +9,13 @@ const modules = import.meta.glob('./business-apps/**/[A-Z]*.tsx', { eager: true 
 
 const businessAppMap: Record<string, React.ComponentType<BusinessAppContextProps>> = {};
 for (const path in modules) {
+  // Skip components in special folders that shouldn't appear in the dropdown
+  if (path.includes('/opportunity-tabs/') || 
+      path.includes('/oportunity-tabs/') || 
+      path.includes('/opportunity-components/')) {
+    continue;
+  }
+  
   // extract component name from file name
   // and use found component name in businessAppMap with default export
   const excludedDirs = ['/components/', '/modules/', '/hooks/', '/lib/', '/utils/'];
@@ -21,6 +28,7 @@ for (const path in modules) {
     businessAppMap[match[1]] = (props) => createElement(UiCatalogProvider, undefined, createElement((modules[path] as any).default, props));
   }
 }
+
 const Container = ({ children, className }: HTMLAttributes<HTMLDivElement>) => (
   <div className={`flex flex-col ${className || ""}`}>{children}</div>
 );
