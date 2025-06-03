@@ -177,7 +177,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
               {/* Add Button: match design, no frame, no background, icon left, label right */}
               {addButton && (
                 <button
-                  className="flex flex-row justify-center items-center bg-black/[0.04] px-3 py-0 h-8 rounded gap-1"
+                  className="flex flex-row justify-center items-center px-3 py-0 h-8 rounded gap-1"
                   onClick={addButton.onClick}
                   data-testid={addButton['data-testid']}
                   type="button"

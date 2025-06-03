@@ -28,6 +28,7 @@ export interface PageLayoutProps {
   headerLabel: string;
   pageHeaderCenter?: React.ReactNode;
   pageHeaderRight?: React.ReactNode;
+  pageController?: React.ReactNode;
   contentHeader?: React.ReactNode;
   contentContainer?: React.ReactNode;
   className?: string;
@@ -39,6 +40,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
   headerLabel,
   pageHeaderCenter,
   pageHeaderRight,
+  pageController,
   contentHeader,
   contentContainer,
   className = '',
@@ -62,20 +64,25 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
       className={`page-layout w-full h-full flex flex-col bg-white rounded-xl shadow-md overflow-hidden ${className}`.trim()}
       style={{ minHeight: '0', minWidth: '0' }}
     >
-      <header className="h-24 p-2 px-4 flex items-center box-border border-b border-gray-200 relative">
-        <div className="flex items-center min-w-0 flex-none">
-          <span className={iconClasses}>{headerIcon}</span>
-          <span className={labelClasses}>{headerLabel}</span>
+      <header className="flex flex-col box-border border-b border-gray-200 relative">
+        <div className="h-24 p-2 px-4 flex items-center">
+          <div className="flex items-center min-w-0 flex-none">
+            <span className={iconClasses}>{headerIcon}</span>
+            <span className={labelClasses}>{headerLabel}</span>
+          </div>
+          {pageHeaderCenter && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="pointer-events-auto">{pageHeaderCenter}</div>
+            </div>
+          )}
+          {pageHeaderRight && (
+            <div className="flex items-center min-w-0 flex-none justify-end">
+              {pageHeaderRight}
+            </div>
+          )}
         </div>
-        {pageHeaderCenter && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="pointer-events-auto">{pageHeaderCenter}</div>
-          </div>
-        )}
-        {pageHeaderRight && (
-          <div className="flex items-center min-w-0 flex-none justify-end">
-            {pageHeaderRight}
-          </div>
+        {pageController && (
+          <div className="flex justify-center py-2">{pageController}</div>
         )}
       </header>
       <div className="flex flex-col flex-1 min-h-0">
