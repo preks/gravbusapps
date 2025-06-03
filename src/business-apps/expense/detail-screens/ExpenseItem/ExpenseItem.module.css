@@ -8,7 +8,7 @@
   border: none;
   border-radius: 0;
   padding: 8px 10px;
-  height: 56px;
+  min-height: 60px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -22,7 +22,7 @@
   border: none;
   border-radius: 0;
   padding: 8px 40px 8px 10px; /* Extra padding on right for calendar icon */
-  height: 56px;
+  min-height: 60px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -40,6 +40,7 @@
   letter-spacing: 0px;
   margin-bottom: 4px;
   position: relative;
+  padding-right: 15px;
 }
 
 /* Switch label styles */
@@ -56,21 +57,26 @@
   font-family: 'Roboto', sans-serif;
 }
 
+.antCardHead {
+  border-bottom: 0px;
+}
+
 /* Required field asterisk */
 .requiredAsterisk {
   color: #aaa;
   margin-left: 2px;
-  display: inline;
-  position: static;
+  position: absolute;
+  right: 0;
+  top: 0;
 }
 
 /* Input field styles */
 .formFieldInput {
   width: 100%;
   height: 16px;
-  background: transparent;
-  border: none;
-  box-shadow: none;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   padding: 0;
   font-family: 'Roboto', sans-serif;
   font-size: 14px;
@@ -81,6 +87,27 @@
   opacity: 1;
 }
 
+/* Custom InputField styling to match our guidelines */
+.customInputField {
+  background: #f5f5f5;
+  border: none;
+  border-radius: 0;
+  min-height: 60px;
+}
+
+.customInputField label {
+  color: #707070;
+  font-size: 12px;
+  padding-right: 15px;
+  position: relative;
+}
+
+.customInputField input {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
 /* Dropdown style for Select components */
 .dropdownStyle {
   border-radius: 0;
@@ -89,6 +116,10 @@
 /* Common margin utilities */
 .marginBottom16 {
   margin-bottom: 16px;
+}
+
+.marginBottom0 {
+  margin-bottom: 0;
 }
 
 .marginTop16 {
@@ -111,12 +142,14 @@
   justify-content: center;
   color: #707070;
   font-size: 16px;
+  pointer-events: none; /* Ensure the icon doesn't interfere with clicks */
 }
 
 /* Switch container styles */
 .switchContainer {
   display: flex;
   align-items: center;
+  margin-bottom: 16px;
 }
 
 /* Switch label styles */
@@ -129,6 +162,11 @@
 /* Card styles */
 .card {
   margin-bottom: 16px;
+}
+
+/* Continue button */
+.continueButton {
+  margin-top: 16px;
 }
 
 /* Main container */
@@ -149,8 +187,8 @@
 
 .headerTitle {
   margin: 0;
+  flex-grow: 1;
   text-align: center;
-  flex: 1;
   font-family: 'Roboto', sans-serif;
 }
 
@@ -163,6 +201,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.submitButton {
+  width: 50%;
+}
+
+.deleteButton {
+  color: #f5222d;
+}
+
+.deleteButton:hover {
+  color: #cf1322;
+  background-color: rgba(245, 34, 45, 0.1);
 }
 
 /* Upload styles */

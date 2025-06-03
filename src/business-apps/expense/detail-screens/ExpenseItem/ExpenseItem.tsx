@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from "react";
 import styles from "./ExpenseItem.module.css";
+import { useTranslation } from "react-i18next";
+import {
+  Button,
+  DateInputField,
+  Input,
+  InputField,
+  SelectField,
+  Switch,
+} from "@newwork/gravity-ui-catalog";
 import {
   Form,
-  Input,
-  DatePicker,
-  Select,
-  Button,
   Upload,
-  Switch,
   Card,
   Typography,
   Divider,
@@ -21,6 +25,7 @@ import {
   PlusOutlined,
   ArrowLeftOutlined,
   CloseOutlined,
+  PlusCircleOutlined,
 } from "@ant-design/icons";
 import {
   ExpenseItemProps,
@@ -43,9 +48,9 @@ import {
 const DEFAULT_EMPLOYEE_ID = "86a8317d-34ef-4e04-951b-b0bb9754dea0";
 
 const { Title } = Typography;
-const { Option } = Select;
 
 const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
+  const { t } = useTranslation();
   // Create a simple GraphQL client for API calls
   const graphqlClient = {
     query: async ({ query, variables }: { query: string; variables?: any }) => {
@@ -84,8 +89,8 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
   ]);
 
   // Employee rule ID is managed by the API customFieldsSoloData
-  const [employeeRule,setEmployeeRuleId]= useState<string | null>(null)
-  const [firstRunVariable,setFirstRunVariable]= useState<boolean>(false)
+  const [employeeRule, setEmployeeRuleId] = useState<string | null>(null);
+  const [firstRunVariable, setFirstRunVariable] = useState<boolean>(false);
   const [expenseClasses, setExpenseClasses] = useState<ExpenseGroup[]>([]);
   const [expenseTypes, setExpenseTypes] = useState<{
     [classId: string]: ExpenseType[];
@@ -197,11 +202,11 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
   // Handle form submission
   const handleSubmit = async () => {
     try {
-      const values = await form.validateFields();
+      await form.validateFields();
       setLoading(true);
 
       // Upload file if exists
-      const fileData = await handleFileUpload();
+      await handleFileUpload();
 
       // // Create expense item
       // const createItemResponse = await graphqlClient.mutate({
@@ -336,9 +341,9 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
     <div style={{ textAlign: "center", padding: "20px" }}>
       {renderUpload()}
       <Button
-        type="link"
+        variant="ghost"
         onClick={() => setCurrentStep("form")}
-        style={{ marginTop: "20px" }}
+        className={styles.continueButton}
       >
         Continue without receipt
       </Button>
@@ -374,22 +379,21 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
       )}
 
       <div className={styles.marginBottom16}>
-        <div className={styles.relativePosition}>
+        <div>
           <Form.Item
             name="title"
             rules={[{ required: true, message: "Please enter a title" }]}
-            className={styles.marginBottom0}
-            noStyle
           >
-            <div className={styles.formFieldContainer}>
-              <div className={styles.formFieldLabel}>
-                Title<span className={styles.requiredAsterisk}>*</span>
-              </div>
-              <Input 
-                placeholder="Vendor name here, it's a free text field" 
-                className={styles.formFieldInput}
-              />
-            </div>
+            <InputField
+              label={t("create_expense_type_item.current_title_label", "Title")}
+              name="title"
+              placeholder={t(
+                "create_expense_type_item.current_title_placeholder",
+                "Enter Title"
+              )}
+              onChange={(field) => form.setFieldsValue({ title: field.value })}
+              required={true}
+            />
           </Form.Item>
         </div>
       </div>
@@ -400,131 +404,137 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
             name="date"
             rules={[{ required: true, message: "Please select a date" }]}
             style={{ marginBottom: 0 }}
-            noStyle
           >
             <div className={styles.relativePosition}>
-              <div className={styles.dateFieldContainer}>
-                <div className={styles.formFieldLabel}>
-                  Date<span className={styles.requiredAsterisk}>*</span>
-                </div>
-                <DatePicker 
-                  className={styles.formFieldInput} 
-                  placeholder="Select date"
+              <div>
+                <DateInputField
+                  label={t(
+                    "create_expense_item.change_expense_item_container.current_date_label",
+                    "Date"
+                  )}
+                  name="formFieldDate"
                   format="DD.MM.YYYY"
-                  allowClear={false}
-                  suffixIcon={null}
-                  mode="date"
-                  onPanelChange={(value, mode) => {
-                    if (mode === 'date') {
-                      form.setFieldsValue({ date: value });
-                    }
+                  placeholder={t(
+                    "create_expense_item.change_expense_item_container.current_date_placeholder",
+                    "Select Date"
+                  )}
+                  onChange={(value) => {
+                    form.setFieldsValue({ date: value });
                   }}
                 />
-              </div>
-              <div className={styles.calendarIcon}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="3" y="4" width="18" height="18" rx="2" stroke="#000000" strokeWidth="2"/>
-                  <path d="M16 2V6" stroke="#000000" strokeWidth="2" strokeLinecap="round"/>
-                  <path d="M8 2V6" stroke="#000000" strokeWidth="2" strokeLinecap="round"/>
-                  <path d="M3 10H21" stroke="#000000" strokeWidth="2"/>
-                </svg>
               </div>
             </div>
           </Form.Item>
         </div>
       </div>
 
-      <div
-        style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}
-      >
+      <div style={{ marginBottom: "16px" }}>
         <Switch
-          checked={multiPosition}
-          onChange={(checked) => setMultiPosition(checked)}
+          label={t(
+            "create_expense_type_item.multi_position_item",
+            "Multi Position Item"
+          )}
+          name="switchfield"
+          value={multiPosition}
+          onChange={(checked) => {
+            setMultiPosition(checked.value as boolean);
+          }}
         />
-        <span className={styles.switchLabel}>Multi Position Item</span>
       </div>
 
       {positions.map((position, index) => (
         <Card
-          key={position.id}
+          key={index}
+          headStyle={{ borderBottom: 0 }}
           title={`Position ${index + 1}`}
           className={styles.positionCard}
           extra={
             positions.length > 1 && (
               <Button
-                icon={<DeleteOutlined />}
+                variant="ghost"
                 onClick={() => handleRemovePosition(position.id)}
-                type="text"
-                danger
-              />
+                className={styles.deleteButton}
+              >
+                <DeleteOutlined />
+              </Button>
             )
           }
         >
           <div className={styles.marginBottom16}>
             <div className={styles.relativePosition}>
-              <div className={styles.formFieldContainer}>
-                <div className={styles.formFieldLabel}>
-                  Expense Group<span className={styles.requiredAsterisk}>*</span>
-                </div>
-                <Select
-                  placeholder="Select Expense Group"
-                  value={position.expenseGroup}
-                  onChange={(value) => handleExpenseClassChange(value, index)}
-                  className={styles.formFieldInput}
-                  bordered={false}
-                  dropdownClassName={styles.dropdownStyle}
-                >
-                  {expenseClasses.map((group) => (
-                    <Option key={group.id} value={group.id}>
-                      {group.name}
-                    </Option>
-                  ))}
-                </Select>
-              </div>
+              <SelectField
+                allowClear
+                name="group"
+                data={expenseClasses}
+                onChange={(value) => {
+                  handleExpenseClassChange(value.value as string, index);
+                }}
+                label={t(
+                  "create_expense_item.change_expense_item_container.current_expense_group_label",
+                  "Expense Group"
+                )}
+                placeholder={t(
+                  "create_expense_item.change_expense_item_container.current_expense_group_placeholder",
+                  "Select Expense Group"
+                )}
+              />
+            </div>
+          </div>
+
+          <div className={styles.marginBottom16}>
+            <div>
+              <SelectField
+                allowClear
+                label={t(
+                  "create_expense_item.change_expense_item_container.current_expense_type_label",
+                  "Expense Type"
+                )}
+                name="expenseType"
+                data={
+                  position.expenseGroup
+                    ? expenseTypes[position.expenseGroup]?.map((type) => ({
+                        id: type.id,
+                        name: type.name,
+                      }))
+                    : []
+                }
+                onChange={(value: any) => {
+                  const updatedPositions = [...positions];
+                  updatedPositions[index].expenseType = value.value as string;
+                  setPositions(updatedPositions);
+                }}
+                placeholder={t(
+                  "create_expense_item.change_expense_item_container.current_expense_type_placeholder",
+                  "Select Expense Type"
+                )}
+                disabled={!position.expenseGroup}
+                value={position.expenseType}
+              />
             </div>
           </div>
 
           <div className={styles.marginBottom16}>
             <div className={styles.relativePosition}>
-              <div className={styles.formFieldContainer}>
-                <div className={styles.formFieldLabel}>
-                  Expense Type<span className={styles.requiredAsterisk}>*</span>
-                </div>
-                <Select
-                  placeholder="Select Expense Type"
-                  value={position.expenseType}
-                  onChange={(value) => {
-                    const updatedPositions = [...positions];
-                    updatedPositions[index].expenseType = value;
-                    setPositions(updatedPositions);
-                  }}
-                  className={styles.formFieldInput}
-                  bordered={false}
-                  dropdownClassName={styles.dropdownStyle}
-                  disabled={!position.expenseGroup}
-                >
-                  {position.expenseGroup &&
-                    expenseTypes[position.expenseGroup]?.map((type) => (
-                      <Option key={type.id} value={type.id}>
-                        {type.name}
-                      </Option>
-                    ))}
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.marginBottom16}>
-            <div className={styles.relativePosition}>
-              <div className={styles.formFieldContainer}>
-                <div className={styles.formFieldLabel}>
-                  Amount<span className={styles.requiredAsterisk}>*</span>
-                </div>
-                <Input
-                  type="number"
+              <div>
+                <InputField
+                  label={t(
+                    "create_expense_item.change_expense_item_container.current_amount_label",
+                    "Amount"
+                  )}
+                  name="amount"
                   value={position.amount}
-                  onChange={(e) => handleAmountChange(parseFloat(e.target.value) || 0, index)}
-                  className={styles.formFieldInput}
+                  placeholder={t(
+                    "create_expense_item.change_expense_item_container.current_amount_placeholder",
+                    "Enter Amount"
+                  )}
+                  onChange={(field) => {
+                    const value =
+                      typeof field.value === "string"
+                        ? field.value
+                        : String(field.value);
+                    handleAmountChange(parseFloat(value) || 0, index);
+                  }}
+                  required={true}
                 />
               </div>
             </div>
@@ -532,56 +542,67 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
 
           <div className={styles.marginBottom16}>
             <div className={styles.relativePosition}>
-              <div className={styles.formFieldContainer}>
-                <div className={styles.formFieldLabel}>
-                  Cost Center<span className={styles.requiredAsterisk}>*</span>
-                </div>
-                <Select
-                  placeholder="Select Cost Center"
-                  value={position.costCenter}
-                  onChange={(value) => {
-                    const updatedPositions = [...positions];
-                    updatedPositions[index].costCenter = value;
-                    setPositions(updatedPositions);
-                  }}
-                  className={styles.formFieldInput}
-                  bordered={false}
-                  dropdownClassName={styles.dropdownStyle}
-                >
-                  {costCenters.map((center) => (
-                    <Option key={center.id} value={center.id}>
-                      {center.name}
-                    </Option>
-                  ))}
-                </Select>
-              </div>
+              <SelectField
+                allowClear
+                name="costCenter"
+                data={costCenters.map((center) => ({
+                  id: center.id,
+                  name: center.name,
+                }))}
+                onChange={(value: any) => {
+                  const updatedPositions = [...positions];
+                  updatedPositions[index].costCenter = value.value as string;
+                  setPositions(updatedPositions);
+                }}
+                label={t(
+                  "create_expense_request.expense_request_container.current_cost_center_label",
+                  "Cost Center"
+                )}
+                placeholder={t(
+                  "create_expense_request.expense_request_container.current_cost_center_placeholder",
+                  "Select Cost Center"
+                )}
+                value={position.costCenter}
+              />
             </div>
           </div>
 
           <div className={styles.marginBottom16}>
             <div className={styles.relativePosition}>
-              <div className={styles.formFieldContainer}>
-                <div className={styles.formFieldLabel}>
-                  Expense Type Custom Field
-                </div>
-                <Select
-                  placeholder="Select Custom Field Value"
-                  value={position.customField}
-                  onChange={(value) => {
-                    const updatedPositions = [...positions];
-                    updatedPositions[index].customField = value;
-                    setPositions(updatedPositions);
-                  }}
-                  className={styles.formFieldInput}
-                  bordered={false}
-                  dropdownClassName={styles.dropdownStyle}
-                  allowClear
-                >
-                  <Option value="option1">Option 1</Option>
-                  <Option value="option2">Option 2</Option>
-                  <Option value="option3">Option 3</Option>
-                </Select>
-              </div>
+              <SelectField
+                allowClear
+                name="customField"
+                data={[
+                  { id: "option1", name: "Option 1" },
+                  { id: "option2", name: "Option 2" },
+                  { id: "option3", name: "Option 3" },
+                ]}
+                onChange={(value: any) => {
+                  const updatedPositions = [...positions];
+                  updatedPositions[index].customField = value.value as string;
+                  setPositions(updatedPositions);
+                }}
+                placeholder="Select Custom Field Value"
+                value={position.customField}
+              />
+            </div>
+          </div>
+
+          <div className={styles.marginBottom16}>
+            <div style={{ marginBottom: "16px" }}>
+              <Switch
+                label={t(
+                  "create_expense_item.is_reimbursable",
+                  "Is Reimbursable"
+                )}
+                name={"isReimbursable"+index}
+                value={position.isReimbursable}
+                onChange={(checked) => {
+                  const updatedPositions = [...positions];
+                  updatedPositions[index].isReimbursable = checked.value as boolean;
+                  setPositions(updatedPositions);
+                }}
+              />
             </div>
           </div>
 
@@ -589,10 +610,12 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
             <Form.Item>
               <div className={styles.switchContainer}>
                 <Switch
+                  name="isReimbursable"
                   checked={position.isReimbursable}
                   onChange={(checked) => {
                     const updatedPositions = [...positions];
-                    updatedPositions[index].isReimbursable = checked;
+                    updatedPositions[index].isReimbursable =
+                      checked as unknown as boolean;
                     setPositions(updatedPositions);
                   }}
                 />
@@ -605,29 +628,35 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
 
       {multiPosition && (
         <Button
-          type="dashed"
+          variant="ghost"
           onClick={handleAddPosition}
-          block
-          icon={<PlusOutlined />}
-          className={styles.marginBottom16}
         >
-          Add Position
+          <PlusCircleOutlined style={{ width: '17px', height: '17px' }}/> Add Position
         </Button>
       )}
 
-      <Row gutter={16} className={styles.marginTop16}>
+      <Row
+        gutter={16}
+        className={styles.marginTop16 + " " + styles.marginBottom16}
+      >
         <Col span={12}>
-          <Form.Item noStyle className={styles.marginBottom0}>
-            <div className={styles.formFieldContainer}>
-              <div className={styles.formFieldLabel}>
-                Amount
-              </div>
-              <Input
-                value={calculateTotal().toFixed(2)}
-                disabled
-                className={styles.formFieldInput}
-              />
-            </div>
+          <Form.Item className={styles.marginBottom0}>
+            <InputField
+              label={t(
+                "create_expense_item.change_expense_item_container.current_amount_label",
+                "Amount"
+              )}
+              name="amount"
+              value={calculateTotal().toFixed(2)}
+              placeholder={t(
+                "create_expense_item.change_expense_item_container.current_amount_placeholder",
+                "Enter Amount"
+              )}
+              onChange={() => {
+                console.log("changed");
+              }}
+              required={true}
+            />
           </Form.Item>
         </Col>
         <Col span={12}>
@@ -635,57 +664,62 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
             name="currency"
             rules={[{ required: true, message: "Please select a currency" }]}
             className={styles.marginBottom0}
-            noStyle
           >
-            <div className={styles.formFieldContainer}>
-              <div className={styles.formFieldLabel}>
-                Currency<span className={styles.requiredAsterisk}>*</span>
-              </div>
-              <Select
-                placeholder="Select Currency"
-                className={styles.formFieldInput}
-                bordered={false}
-                dropdownStyle={{ borderRadius: 0 }}
-              >
-                {currencies.map((currency) => (
-                  <Option key={currency.id} value={currency.id}>
-                    {currency.code}
-                  </Option>
-                ))}
-              </Select>
-            </div>
+            <SelectField
+              allowClear
+              label={t(
+                "create_expense_item.change_expense_item_container.current_currency_label",
+                "Currency"
+              )}
+              name="currency"
+              data={currencies}
+              onChange={(value: any) => {
+                form.setFieldsValue({ currency: value.value });
+              }}
+              placeholder={t(
+                "create_expense_item.change_expense_item_container.current_currency_placeholder",
+                "Select Currency"
+              )}
+            />
           </Form.Item>
         </Col>
       </Row>
 
-      <Form.Item 
-        name="expenseRequestId" 
-        className={`${styles.marginBottom16} ${styles.marginTop16}`}
-        noStyle
+      <Form.Item
+        name="expenseRequestId"
+        className={`${styles.marginBottom16} `}
       >
-        <div className={styles.formFieldContainer}>
-          <div className={styles.formFieldLabel}>
-            Add to Expense Request
-          </div>
-          <Select 
-            placeholder="None" 
-            allowClear 
-            className={styles.formFieldInput}
-            bordered={false}
-            dropdownStyle={{ borderRadius: 0 }}
-          >
-            <Option value="none">None</Option>
-            {expenseRequests.map((request) => (
-              <Option key={request.id} value={request.id}>
-                {request.title || request.code}
-              </Option>
-            ))}
-          </Select>
-        </div>
+        <SelectField
+          allowClear
+          name="expenseRequestId"
+          data={[
+            { id: "none", name: "None" },
+            ...expenseRequests.map((request) => ({
+              id: request.id,
+              name: request.title || request.code,
+            })),
+          ]}
+          onChange={(value: any) => {
+            form.setFieldsValue({ expenseRequestId: value.value });
+          }}
+          label={t(
+            "create_expense_type_item.current_request",
+            "Add Expense Request"
+          )}
+          placeholder={t(
+            "create_expense_item.change_expense_item_container.current_request_placeholder",
+            "Select Request"
+          )}
+        />
       </Form.Item>
 
       <Form.Item>
-        <Button type="primary" onClick={handleSubmit} loading={loading} block>
+        <Button
+          variant="primary"
+          onClick={handleSubmit}
+          loading={loading}
+          className={styles.submitButton}
+        >
           Submit
         </Button>
       </Form.Item>
@@ -697,15 +731,19 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
       <div className={styles.headerContainer}>
         {currentStep === "form" && (
           <Button
-            icon={<ArrowLeftOutlined />}
-            type="text"
+            variant="ghost"
             onClick={() => setCurrentStep("start")}
-          />
+            className={styles.button}
+          >
+            <ArrowLeftOutlined />
+          </Button>
         )}
         <Title level={4} className={styles.headerTitle}>
           New Expense Item
         </Title>
-        <Button icon={<CloseOutlined />} type="text" />
+        <Button variant="ghost" className={styles.button}>
+          <CloseOutlined />
+        </Button>
       </div>
       <Divider className={styles.headerDivider} />
 
