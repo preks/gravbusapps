@@ -65,16 +65,16 @@ export function EmployeeCard({ employee }: Readonly<{ employee: Employee }>) {
     window.location.href = profileUrl;
   }, [profileUrl]);
   return (
-    <div className="relative group employee-card-wrapper bg-white rounded-lg shadow-md border border-gray-100 h-auto w-full transition overflow-hidden">
+    <div className="gba:relative gba:group employee-card-wrapper gba:bg-white gba:rounded-lg gba:shadow-md gba:border gba:border-gray-100 gba:h-auto gba:w-full gba:transition gba:overflow-hidden">
       {/* The card itself - fixed height for consistency */}
       <div
-        className="flex flex-col p-4 transition-all duration-300 group-hover:blur-sm group-focus-within:blur-sm"
+        className="gba:flex gba:flex-col gba:p-4 gba:transition-all gba:duration-300 gba:group-hover:blur-sm gba:group-focus-within:blur-sm"
         style={{ color: 'inherit' }}
       >
         {/* Header with avatar and name */}
-        <div className="flex mb-3">
+        <div className="gba:flex gba:mb-3">
           {/* Profile Picture */}
-          <div className="mr-3">
+          <div className="gba:mr-3">
             <EmployeeAvatar
               profilePicture={employee.profilePicture}
               firstName={employee.firstName}
@@ -86,9 +86,9 @@ export function EmployeeCard({ employee }: Readonly<{ employee: Employee }>) {
           </div>
 
           {/* Name, job title, and org unit */}
-          <div className="flex flex-col justify-center min-w-0">
+          <div className="gba:flex gba:flex-col gba:justify-center gba:min-w-0">
             <div
-              className="font-semibold truncate w-full"
+              className="gba:font-semibold gba:truncate gba:w-full"
               style={{
                 fontSize: 'clamp(1rem, 2vw, 1.125rem)',
                 lineHeight: 1.2,
@@ -104,15 +104,15 @@ export function EmployeeCard({ employee }: Readonly<{ employee: Employee }>) {
             </div>
             
             {/* Job Position */}
-            <div className="flex items-center mt-1 text-xs">
-              <PiOfficeChairBold className="text-gray-500 mr-1.5" size={14} />
-              <span className="truncate" title={employee.jobTitle}>{employee.jobTitle}</span>
+            <div className="gba:flex gba:items-center gba:mt-1 gba:text-xs">
+              <PiOfficeChairBold className="gba:text-gray-500 gba:mr-1.5" size={14} />
+              <span className="gba:truncate" title={employee.jobTitle}>{employee.jobTitle}</span>
             </div>
             
             {/* Organizational Unit */}
-            <div className="flex items-center mt-1 text-xs">
-              <PiBuildingsBold className="text-gray-500 mr-1.5" size={14} />
-              <span className="truncate" title={employee.organizationalUnit}>{employee.organizationalUnit}</span>
+            <div className="gba:flex gba:items-center gba:mt-1 gba:text-xs">
+              <PiBuildingsBold className="gba:text-gray-500 gba:mr-1.5" size={14} />
+              <span className="gba:truncate" title={employee.organizationalUnit}>{employee.organizationalUnit}</span>
             </div>
           </div>
         </div>
@@ -144,11 +144,11 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
   onVideoCall,
   onProfile,
 }) => (
-  <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm opacity-0 group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 z-20">
-    <div className="flex gap-4">
+  <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-black/30 gba:backdrop-blur-sm gba:opacity-0 gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto gba:transition-all gba:duration-300 gba:z-20">
+    <div className="gba:flex gba:gap-4">
       <button
         aria-label="Chat"
-        className="bg-white/80 hover:bg-blue-100 rounded-full p-2 shadow-md transition"
+        className="gba:bg-white/80 gba:hover:bg-blue-100 gba:rounded-full gba:p-2 gba:shadow-md gba:transition"
         onClick={onChat}
         tabIndex={0}
         type="button"
@@ -157,7 +157,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
       </button>
       <button
         aria-label="Call"
-        className="bg-white/80 hover:bg-blue-100 rounded-full p-2 shadow-md transition"
+        className="gba:bg-white/80 gba:hover:bg-blue-100 gba:rounded-full gba:p-2 gba:shadow-md gba:transition"
         onClick={onCall}
         tabIndex={0}
         type="button"
@@ -166,7 +166,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
       </button>
       <button
         aria-label="Video Call"
-        className="bg-white/80 hover:bg-blue-100 rounded-full p-2 shadow-md transition"
+        className="gba:bg-white/80 gba:hover:bg-blue-100 gba:rounded-full gba:p-2 gba:shadow-md gba:transition"
         onClick={onVideoCall}
         tabIndex={0}
         type="button"
@@ -175,7 +175,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
       </button>
       <button
         aria-label="Go to Profile"
-        className="bg-white/80 hover:bg-blue-100 rounded-full p-2 shadow-md transition"
+        className="gba:bg-white/80 gba:hover:bg-blue-100 gba:rounded-full gba:p-2 gba:shadow-md gba:transition"
         onClick={onProfile}
         tabIndex={0}
         type="button"

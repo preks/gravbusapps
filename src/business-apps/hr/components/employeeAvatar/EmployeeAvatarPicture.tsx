@@ -18,13 +18,13 @@ interface EmployeeAvatarPictureProps {
  */
 export function EmployeeAvatarPicture({ profilePicture, size, employeeId }: EmployeeAvatarPictureProps) {
   return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-      <div className="w-full h-full rounded-full overflow-hidden [&_.controls]:hidden flex items-center justify-center">
+    <div className="gba:relative gba:flex gba:items-center gba:justify-center" style={{ width: size, height: size }}>
+      <div className="gba:w-full gba:h-full gba:rounded-full gba:overflow-hidden gba:[&_.controls]:hidden gba:flex gba:items-center gba:justify-center">
         {profilePicture ? (
           <img 
             src={`data:image/gif;base64,${profilePicture}`} 
             alt="Profile"
-            className="w-full h-full object-cover"
+            className="gba:w-full gba:h-full gba:object-cover"
             style={{
               minWidth: '100%',
               minHeight: '100%',

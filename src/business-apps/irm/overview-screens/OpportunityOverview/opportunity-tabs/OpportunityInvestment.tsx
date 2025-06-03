@@ -31,34 +31,34 @@ export function OpportunityInvestment({ investment, opportunityId }: Opportunity
   }
 
   return (
-    <div className="space-y-6">
+    <div className="gba:space-y-6">
       {/* Add button to create new opportunity */}
-      <div className="flex justify-end">
+      <div className="gba:flex gba:justify-end">
         <Button 
           variant="outline" 
           size="sm" 
           onClick={() => setIsCreateModalOpen(true)} 
-          className="border-gray-300"
+          className="gba:border-gray-300"
         >
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="gba:mr-2 gba:h-4 gba:w-4" />
           Create New Opportunity
         </Button>
       </div>
       
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="gba:grid gba:gap-6 gba:md:grid-cols-2">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Investment Overview</CardTitle>
+          <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
+            <CardTitle className="gba:text-sm gba:font-medium">Investment Overview</CardTitle>
             <Badge className={getStageBadgeColor(investment.stage)}>{investment.stage}</Badge>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="gba:space-y-4">
               <div>
-                <div className="mb-1 text-sm font-medium">Type</div>
+                <div className="gba:mb-1 gba:text-sm gba:font-medium">Type</div>
                 <div>{investment.type}</div>
               </div>
               <div>
-                <div className="mb-1 text-sm font-medium">Amount</div>
+                <div className="gba:mb-1 gba:text-sm gba:font-medium">Amount</div>
                 <div>
                   {new Intl.NumberFormat("en-US", {
                     style: "currency",
@@ -68,20 +68,20 @@ export function OpportunityInvestment({ investment, opportunityId }: Opportunity
                 </div>
               </div>
               <div>
-                <div className="mb-1 text-sm font-medium">Entry Date</div>
+                <div className="gba:mb-1 gba:text-sm gba:font-medium">Entry Date</div>
                 <div>{investment.entryDate ? new Date(investment.entryDate).toLocaleDateString() : "N/A"}</div>
               </div>
               {investment.actualExitDate && (
                 <div>
-                  <div className="mb-1 text-sm font-medium">Exit Date</div>
+                  <div className="gba:mb-1 gba:text-sm gba:font-medium">Exit Date</div>
                   <div>{new Date(investment.actualExitDate).toLocaleDateString()}</div>
                 </div>
               )}
-              <div className="pt-2">
+              <div className="gba:pt-2">
                 <Link to={`/investments/${investment.id}`}>
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button variant="outline" size="sm" className="gba:w-full">
                     View Investment Details
-                    <ArrowUpRight className="ml-2 h-4 w-4" />
+                    <ArrowUpRight className="gba:ml-2 gba:h-4 gba:w-4" />
                   </Button>
                 </Link>
               </div>
@@ -91,40 +91,40 @@ export function OpportunityInvestment({ investment, opportunityId }: Opportunity
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Performance</CardTitle>
+            <CardTitle className="gba:text-sm gba:font-medium">Performance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="gba:space-y-4">
               {investment.irr !== undefined && (
                 <div>
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-sm font-medium">IRR</span>
-                    <span className="text-sm font-medium">{investment.irr.toFixed(1)}%</span>
+                  <div className="gba:mb-1 gba:flex gba:items-center gba:justify-between">
+                    <span className="gba:text-sm gba:font-medium">IRR</span>
+                    <span className="gba:text-sm gba:font-medium">{investment.irr.toFixed(1)}%</span>
                   </div>
-                  <Progress value={Math.min(investment.irr * 5, 100)} className="h-2" />
+                  <Progress value={Math.min(investment.irr * 5, 100)} className="gba:h-2" />
                 </div>
               )}
               {investment.roi !== undefined && (
                 <div>
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-sm font-medium">ROI</span>
-                    <span className="text-sm font-medium">{investment.roi.toFixed(1)}%</span>
+                  <div className="gba:mb-1 gba:flex gba:items-center gba:justify-between">
+                    <span className="gba:text-sm gba:font-medium">ROI</span>
+                    <span className="gba:text-sm gba:font-medium">{investment.roi.toFixed(1)}%</span>
                   </div>
-                  <Progress value={Math.min(investment.roi, 100)} className="h-2" />
+                  <Progress value={Math.min(investment.roi, 100)} className="gba:h-2" />
                 </div>
               )}
               {investment.multiple !== undefined && (
                 <div>
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-sm font-medium">Multiple</span>
-                    <span className="text-sm font-medium">{investment.multiple.toFixed(2)}x</span>
+                  <div className="gba:mb-1 gba:flex gba:items-center gba:justify-between">
+                    <span className="gba:text-sm gba:font-medium">Multiple</span>
+                    <span className="gba:text-sm gba:font-medium">{investment.multiple.toFixed(2)}x</span>
                   </div>
-                  <Progress value={Math.min(investment.multiple * 20, 100)} className="h-2" />
+                  <Progress value={Math.min(investment.multiple * 20, 100)} className="gba:h-2" />
                 </div>
               )}
               {investment.holdingPeriod !== undefined && (
                 <div>
-                  <div className="mb-1 text-sm font-medium">Holding Period</div>
+                  <div className="gba:mb-1 gba:text-sm gba:font-medium">Holding Period</div>
                   <div>{investment.holdingPeriod} months</div>
                 </div>
               )}

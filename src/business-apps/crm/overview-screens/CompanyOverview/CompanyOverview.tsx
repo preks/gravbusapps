@@ -479,8 +479,8 @@ const CompanyOverview: React.FC = () => {
       })),
       onFilter: (value, record) => record.accountOwner.name.indexOf(value as string) === 0,
       render: (accountOwner) => (
-        <div className="account-owner">
-          <div className="avatar-container">
+        <div className="gba:account-owner">
+          <div className="gba:avatar-container">
             <Avatar 
               src={accountOwner.avatar} 
               size="small"
@@ -553,7 +553,7 @@ const CompanyOverview: React.FC = () => {
       title: '',
       key: 'action',
       render: () => (
-        <EllipsisOutlined className="action-icon" />
+        <EllipsisOutlined className="gba:action-icon" />
       ),
     },
   ];
@@ -580,9 +580,9 @@ const CompanyOverview: React.FC = () => {
 
   return (
     <div>
-      <div className="company-header">
+      <div className="gba:company-header">
         <div>
-          <Title level={3} className="company-header-title">Companies</Title>
+          <Title level={3} className="gba:company-header-title">Companies</Title>
           <Text type="secondary">Manage your investment companies and their information.</Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsCreatingCompany(true)}>
@@ -590,74 +590,74 @@ const CompanyOverview: React.FC = () => {
         </Button>
       </div>
 
-      <Row gutter={[16, 16]} className="stats-cards">
+      <Row gutter={[16, 16]} className="gba:stats-cards">
         <Col span={6}>
           <Card>
-            <div className="card-content">
+            <div className="gba:card-content">
               <div>
-                <div className="card-metric">Total Companies</div>
-                <div className="card-value">342</div>
-                <div className="card-change">+5.4% from last month</div>
+                <div className="gba:card-metric">Total Companies</div>
+                <div className="gba:card-value">342</div>
+                <div className="gba:card-change">+5.4% from last month</div>
               </div>
-              <div className="card-icon-container blue-icon-bg">
-                <BankOutlined className="blue-icon" />
+              <div className="gba:card-icon-container gba:blue-icon-bg">
+                <BankOutlined className="gba:blue-icon" />
               </div>
             </div>
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <div className="card-content">
+            <div className="gba:card-content">
               <div>
-                <div className="card-metric">Active Opportunities</div>
-                <div className="card-value">64</div>
-                <div className="card-change">+2.3% from last month</div>
+                <div className="gba:card-metric">Active Opportunities</div>
+                <div className="gba:card-value">64</div>
+                <div className="gba:card-change">+2.3% from last month</div>
               </div>
-              <div className="card-icon-container green-icon-bg">
-                <AreaChartOutlined className="green-icon" />
+              <div className="gba:card-icon-container gba:green-icon-bg">
+                <AreaChartOutlined className="gba:green-icon" />
               </div>
             </div>
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <div className="card-content">
+            <div className="gba:card-content">
               <div>
-                <div className="card-metric">Total Portfolio Value</div>
-                <div className="card-value">$1.2M</div>
-                <div className="card-change">+6.8% from last month</div>
+                <div className="gba:card-metric">Total Portfolio Value</div>
+                <div className="gba:card-value">$1.2M</div>
+                <div className="gba:card-change">+6.8% from last month</div>
               </div>
-              <div className="card-icon-container light-blue-icon-bg">
-                <DollarOutlined className="blue-icon" />
+              <div className="gba:card-icon-container gba:light-blue-icon-bg">
+                <DollarOutlined className="gba:blue-icon" />
               </div>
             </div>
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <div className="card-content">
+            <div className="gba:card-content">
               <div>
-                <div className="card-metric">Total Contacts</div>
-                <div className="card-value">528</div>
-                <div className="card-change">+7.2% from last month</div>
+                <div className="gba:card-metric">Total Contacts</div>
+                <div className="gba:card-value">528</div>
+                <div className="gba:card-change">+7.2% from last month</div>
               </div>
-              <div className="card-icon-container purple-icon-bg">
-                <TeamOutlined className="purple-icon" />
+              <div className="gba:card-icon-container gba:purple-icon-bg">
+                <TeamOutlined className="gba:purple-icon" />
               </div>
             </div>
           </Card>
         </Col>
       </Row>
 
-      <div className="search-filter-container">
+      <div className="gba:search-filter-container">
         <Input
           placeholder="Search companies..."
           prefix={<SearchOutlined />}
           onChange={handleSearch}
-          className="search-input"
+          className="gba:search-input"
         />
-        <div className="filter-wrapper">
-          <Button icon={<FilterOutlined />} className="filter-dropdown">
+        <div className="gba:filter-wrapper">
+          <Button icon={<FilterOutlined />} className="gba:filter-dropdown">
             Filter
           </Button>
         </div>
@@ -675,10 +675,10 @@ const CompanyOverview: React.FC = () => {
           style={{ cursor: 'pointer' }}
         />
       ) : (
-        <div className="empty-state">
-          <BankOutlined className="empty-state-icon" />
-          <h2 className="empty-state-title">No companies found</h2>
-          <p className="empty-state-description">There are no companies matching your search criteria or no companies have been added yet.</p>
+        <div className="gba:empty-state">
+          <BankOutlined className="gba:empty-state-icon" />
+          <h2 className="gba:empty-state-title">No companies found</h2>
+          <p className="gba:empty-state-description">There are no companies matching your search criteria or no companies have been added yet.</p>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => {/* Handle navigation to create company */}}>
             Add Company
           </Button>

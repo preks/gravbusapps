@@ -119,46 +119,46 @@ export default function OpportunityTypeConfig() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="gba:space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="gba:grid gba:w-full gba:grid-cols-2">
           <TabsTrigger value="types">Opportunity Types</TabsTrigger>
           <TabsTrigger value="stages">Stages & Requirements</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="types" className="space-y-4">
-          <div className="flex justify-between">
-            <h2 className="text-xl font-bold">Opportunity Types</h2>
+        <TabsContent value="types" className="gba:space-y-4">
+          <div className="gba:flex gba:justify-between">
+            <h2 className="gba:text-xl gba:font-bold">Opportunity Types</h2>
             <Button size="sm">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="gba:mr-2 gba:h-4 gba:w-4" />
               Add Type
             </Button>
           </div>
 
           <Card>
-            <CardContent className="p-0">
+            <CardContent className="gba:p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Stages</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead className="gba:w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {types.map((type) => (
                     <TableRow key={type.id}>
-                      <TableCell className="font-medium">{type.name}</TableCell>
+                      <TableCell className="gba:font-medium">{type.name}</TableCell>
                       <TableCell>{type.description}</TableCell>
                       <TableCell>{type.stages.length}</TableCell>
                       <TableCell>
-                        <div className="flex space-x-2">
+                        <div className="gba:flex gba:space-x-2">
                           <Button variant="ghost" size="icon" onClick={() => handleEditType(type)}>
-                            <Edit className="h-4 w-4" />
+                            <Edit className="gba:h-4 gba:w-4" />
                           </Button>
                           <Button variant="ghost" size="icon">
-                            <Trash className="h-4 w-4" />
+                            <Trash className="gba:h-4 gba:w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -170,11 +170,11 @@ export default function OpportunityTypeConfig() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="stages" className="space-y-4">
-          <div className="flex justify-between">
-            <h2 className="text-xl font-bold">Stages & Requirements</h2>
+        <TabsContent value="stages" className="gba:space-y-4">
+          <div className="gba:flex gba:justify-between">
+            <h2 className="gba:text-xl gba:font-bold">Stages & Requirements</h2>
             <Select>
-              <SelectTrigger className="w-[250px]">
+              <SelectTrigger className="gba:w-[250px]">
                 <SelectValue placeholder="Select opportunity type" />
               </SelectTrigger>
               <SelectContent>
@@ -188,12 +188,12 @@ export default function OpportunityTypeConfig() {
           </div>
 
           {types.map((type) => (
-            <Card key={type.id} className="mb-6">
+            <Card key={type.id} className="gba:mb-6">
               <CardHeader>
                 <CardTitle>{type.name}</CardTitle>
                 <CardDescription>{type.description}</CardDescription>
               </CardHeader>
-              <CardContent className="p-0">
+              <CardContent className="gba:p-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -201,7 +201,7 @@ export default function OpportunityTypeConfig() {
                       <TableHead>Stage</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Requirements</TableHead>
-                      <TableHead className="w-[120px]">Actions</TableHead>
+                      <TableHead className="gba:w-[120px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -211,22 +211,22 @@ export default function OpportunityTypeConfig() {
                         <TableRow key={stage.id}>
                           <TableCell>{stage.order}</TableCell>
                           <TableCell>
-                            <div className="flex items-center space-x-2">
-                              <div className={`h-3 w-3 rounded-full ${getStageBgColorClass(stage.color)}`}></div>
-                              <span className="font-medium">{stage.name}</span>
+                            <div className="gba:flex gba:items-center gba:space-x-2">
+                              <div className={`gba:h-3 gba:w-3 gba:rounded-full ${getStageBgColorClass(stage.color)}`}></div>
+                              <span className="gba:font-medium">{stage.name}</span>
                             </div>
                           </TableCell>
                           <TableCell>{stage.description}</TableCell>
                           <TableCell>{stage.requirements?.length || 0}</TableCell>
                           <TableCell>
-                            <div className="flex space-x-1">
+                            <div className="gba:flex gba:space-x-1">
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleMoveStage(type.id, stage.id, "up")}
                                 disabled={stage.order === 1}
                               >
-                                <ChevronUp className="h-4 w-4" />
+                                <ChevronUp className="gba:h-4 gba:w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
@@ -234,10 +234,10 @@ export default function OpportunityTypeConfig() {
                                 onClick={() => handleMoveStage(type.id, stage.id, "down")}
                                 disabled={stage.order === type.stages.length}
                               >
-                                <ChevronDown className="h-4 w-4" />
+                                <ChevronDown className="gba:h-4 gba:w-4" />
                               </Button>
                               <Button variant="ghost" size="icon" onClick={() => handleEditStage(type, stage)}>
-                                <Edit className="h-4 w-4" />
+                                <Edit className="gba:h-4 gba:w-4" />
                               </Button>
                             </div>
                           </TableCell>
@@ -246,9 +246,9 @@ export default function OpportunityTypeConfig() {
                   </TableBody>
                 </Table>
               </CardContent>
-              <CardFooter className="flex justify-end p-4">
+              <CardFooter className="gba:flex gba:justify-end gba:p-4">
                 <Button size="sm">
-                  <Plus className="mr-2 h-4 w-4" />
+                  <Plus className="gba:mr-2 gba:h-4 gba:w-4" />
                   Add Stage
                 </Button>
               </CardFooter>
@@ -259,33 +259,33 @@ export default function OpportunityTypeConfig() {
 
       {/* Type Edit Dialog */}
       <Dialog open={isTypeDialogOpen} onOpenChange={setIsTypeDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="gba:sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Opportunity Type</DialogTitle>
             <DialogDescription>Update the details for this opportunity type.</DialogDescription>
           </DialogHeader>
           {selectedType && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
+            <div className="gba:grid gba:gap-4 gba:py-4">
+              <div className="gba:grid gba:grid-cols-4 gba:items-center gba:gap-4">
+                <Label htmlFor="name" className="gba:text-right">
                   Name
                 </Label>
                 <Input
                   id="name"
                   value={selectedType.name}
                   onChange={(e) => setSelectedType({ ...selectedType, name: e.target.value })}
-                  className="col-span-3"
+                  className="gba:col-span-3"
                 />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="description" className="text-right">
+              <div className="gba:grid gba:grid-cols-4 gba:items-center gba:gap-4">
+                <Label htmlFor="description" className="gba:text-right">
                   Description
                 </Label>
                 <Input
                   id="description"
                   value={selectedType.description}
                   onChange={(e) => setSelectedType({ ...selectedType, description: e.target.value })}
-                  className="col-span-3"
+                  className="gba:col-span-3"
                 />
               </div>
             </div>
@@ -301,44 +301,44 @@ export default function OpportunityTypeConfig() {
 
       {/* Stage Edit Dialog */}
       <Dialog open={isStageDialogOpen} onOpenChange={setIsStageDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="gba:sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Stage</DialogTitle>
             <DialogDescription>Update the details and requirements for this stage.</DialogDescription>
           </DialogHeader>
           {selectedStage && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="stageName" className="text-right">
+            <div className="gba:grid gba:gap-4 gba:py-4">
+              <div className="gba:grid gba:grid-cols-4 gba:items-center gba:gap-4">
+                <Label htmlFor="stageName" className="gba:text-right">
                   Name
                 </Label>
                 <Input
                   id="stageName"
                   value={selectedStage.name}
                   onChange={(e) => setSelectedStage({ ...selectedStage, name: e.target.value })}
-                  className="col-span-3"
+                  className="gba:col-span-3"
                 />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="stageDescription" className="text-right">
+              <div className="gba:grid gba:grid-cols-4 gba:items-center gba:gap-4">
+                <Label htmlFor="stageDescription" className="gba:text-right">
                   Description
                 </Label>
                 <Input
                   id="stageDescription"
                   value={selectedStage.description}
                   onChange={(e) => setSelectedStage({ ...selectedStage, description: e.target.value })}
-                  className="col-span-3"
+                  className="gba:col-span-3"
                 />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="stageColor" className="text-right">
+              <div className="gba:grid gba:grid-cols-4 gba:items-center gba:gap-4">
+                <Label htmlFor="stageColor" className="gba:text-right">
                   Color
                 </Label>
                 <Select
                   value={selectedStage.color}
                   onValueChange={(value) => setSelectedStage({ ...selectedStage, color: value })}
                 >
-                  <SelectTrigger id="stageColor" className="col-span-3">
+                  <SelectTrigger id="stageColor" className="gba:col-span-3">
                     <SelectValue placeholder="Select a color" />
                   </SelectTrigger>
                   <SelectContent>
@@ -354,19 +354,19 @@ export default function OpportunityTypeConfig() {
                 </Select>
               </div>
 
-              <div className="mt-4">
-                <h4 className="mb-2 font-medium">Requirements</h4>
+              <div className="gba:mt-4">
+                <h4 className="gba:mb-2 gba:font-medium">Requirements</h4>
                 {selectedStage.requirements && selectedStage.requirements.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="gba:space-y-2">
                     {selectedStage.requirements.map((req, index) => (
-                      <div key={req.id} className="rounded-md border p-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{req.description}</span>
+                      <div key={req.id} className="gba:rounded-md gba:border gba:p-3">
+                        <div className="gba:flex gba:items-center gba:justify-between">
+                          <span className="gba:text-sm gba:font-medium">{req.description}</span>
                           <Button variant="ghost" size="icon">
-                            <Trash className="h-4 w-4" />
+                            <Trash className="gba:h-4 gba:w-4" />
                           </Button>
                         </div>
-                        <div className="mt-1 text-xs text-muted-foreground">
+                        <div className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
                           Type: {req.type}
                           {req.documentTypes && `, Document types: ${req.documentTypes.join(", ")}`}
                           {req.activityTypes && `, Activity types: ${req.activityTypes.join(", ")}`}
@@ -376,10 +376,10 @@ export default function OpportunityTypeConfig() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No requirements for this stage.</p>
+                  <p className="gba:text-sm gba:text-muted-foreground">No requirements for this stage.</p>
                 )}
-                <Button size="sm" className="mt-2">
-                  <Plus className="mr-2 h-4 w-4" />
+                <Button size="sm" className="gba:mt-2">
+                  <Plus className="gba:mr-2 gba:h-4 gba:w-4" />
                   Add Requirement
                 </Button>
               </div>

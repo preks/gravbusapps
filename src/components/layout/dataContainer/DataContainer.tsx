@@ -115,13 +115,11 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
   }, []);
 
   return (
-    <div className={cn(
-      'flex flex-row h-full w-full bg-gray-100',
-      className
+    <div className={cn("gba:flex gba:flex-row gba:h-full gba:w-full gba:bg-gray-100", className
     )}>
       {/* Filter Sidebar - left column, visible if open */}
       {showDataFilter && (
-        <div className="flex flex-col w-[336px] min-h-0 border-r border-gray-100 bg-white z-0">
+        <div className="gba:flex gba:flex-col gba:w-[336px] gba:min-h-0 gba:border-r gba:border-gray-100 gba:bg-white gba:z-0">
           <DataFilter
             show={showDataFilter}
             onClose={handleCloseDataFilter}
@@ -130,7 +128,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
         </div>
       )}
       {/* Main Content - center column */}
-      <div className="flex flex-col flex-1 min-h-0 bg-white">
+      <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:bg-white">
           {CustomDataController ? (
             <CustomDataController
               showDataFilter={showDataFilter}
@@ -146,20 +144,18 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
               {...dataControllerProps}
             />
           )}
-        <div className={cn("flex-1 min-h-0 overflow-auto p-4", {
-          'bg-gray-50': contentBackground === 'gray',
-          'bg-white': contentBackground === 'white'
+        <div className={cn("gba:flex-1 gba:min-h-0 gba:overflow-auto gba:p-4", {
+          'gba:bg-gray-50': contentBackground === 'gray',
+          'gba:bg-white': contentBackground === 'white'
         })}>
           {dataBody}
         </div>
       </div>
       {/* Details Sidebar - right column or floating, only if present */}
       {dataDetails && (
-        <div className={cn(
-          "flex flex-col w-[336px] min-h-0 border-l border-gray-100 bg-white",
-          {
-            "z-0": !floatingDetails,
-            "z-10 absolute right-0 top-0 bottom-0 shadow-lg": floatingDetails
+        <div className={cn("gba:flex gba:flex-col gba:w-[336px] gba:min-h-0 gba:border-l gba:border-gray-100 gba:bg-white", {
+            "gba:z-0": !floatingDetails,
+            "gba:z-10 gba:absolute gba:right-0 gba:top-0 gba:bottom-0 gba:shadow-lg": floatingDetails
           }
         )}>
           <DetailsDefault

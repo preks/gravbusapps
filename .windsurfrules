@@ -16,7 +16,11 @@ Example of correctly create components:
 Use ant-design for React UI components
 Use typescript for type safety
 Use prettier for code styling
-User eslint for linting
+Use eslint for linting
+
+Always prefix CSS all classes with the `gba:` prefix.
+
+Do not install other packages for UI themes, icons, etc unless absolutely necessary or I request them.
 
 3. Component Publishing
 Use npm run publish:screen -- src/business-apps/**/<ScreenName> to publish a screen
