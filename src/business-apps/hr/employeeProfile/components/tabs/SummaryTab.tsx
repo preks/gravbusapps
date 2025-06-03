@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData';
-import { Card, Badge } from '@newwork/gravity-ui-catalog';
+import { Card } from '@newwork/gravity-ui-catalog';
 import { formatPhoneNumber, getEmployeeFullName } from '../../utils/formatters';
 import { ProfileSection } from '../ProfileSection';
 import Avatar from '@/business-apps/hr/components/employeeAvatar/EmployeeAvatar';
@@ -28,50 +28,10 @@ interface SummaryTabProps {
  * Summary Tab Component
  * Displays an overview of the employee's information
  */
-// Mock data for job information
-const mockJobData = {
-  jobProfile: {
-    id: 'JP001',
-    title: 'Software Engineer',
-    level: 'Mid',
-    family: 'Engineering',
-    function: 'Software Development',
-    description: 'Develops and maintains software applications'
-  },
-  jobFamily: {
-    id: 'JF001',
-    name: 'Engineering',
-    description: 'Technical roles focused on software development and infrastructure'
-  },
-  jobFunction: {
-    id: 'JFN001',
-    name: 'Software Development',
-    description: 'Development of software applications and systems'
-  },
-  jobLevel: {
-    id: 'JL002',
-    name: 'Mid',
-    order: 2,
-    description: 'Mid-level positions requiring moderate experience'
-  }
-};
+// Job information is retrieved from employee.employeePosition
 
-// Mock data for availability & schedule
-const mockAvailabilityData = {
-  status: 'available', // 'available', 'busy', 'away', 'offline', 'doNotDisturb'
-  schedule: {
-    monday: { start: '09:00', end: '17:30' },
-    tuesday: { start: '09:00', end: '17:30' },
-    wednesday: { start: '09:00', end: '17:30' },
-    thursday: { start: '09:00', end: '17:30' },
-    friday: { start: '09:00', end: '16:00' },
-    saturday: { start: '', end: '' },
-    sunday: { start: '', end: '' }
-  },
-  workingHours: 38.5,
-  timezone: 'Europe/Berlin',
-  outOfOffice: null
-};
+// Employee availability & schedule information comes from employee data
+// Specific schedule information should be retrieved from the API
 
 const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) => {
   const { t } = useTranslation('lowcoder');
@@ -331,42 +291,48 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                 <PiBriefcase className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
                   <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Profile</div>
-                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.jobPosition?.name ?? mockJobData.jobProfile.title}</div>
+                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.jobPosition?.name ?? t('employee_profile.left_side_bar.not_assigned')}</div>
                 </div>
               </div>
               
-              <div className="gba:flex gba:items-center">
-                <PiStack className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
-                <div>
-                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Family</div>
-                  <div className="gba:text-sm gba:text-gray-600">{mockJobData.jobFamily.name}</div>
-                </div>
-              </div>
-              
-              <div className="gba:flex gba:items-center">
-                <PiFunction className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
-                <div>
-                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Function</div>
-                  <div className="gba:text-sm gba:text-gray-600">{mockJobData.jobFunction.name}</div>
-                </div>
-              </div>
-              
-              <div className="gba:flex gba:items-center">
-                <PiListNumbers className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
-                <div>
-                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Level</div>
-                  <div className="gba:flex gba:items-center">
-                    <span className="gba:text-sm gba:text-gray-600 gba:mr-2">{mockJobData.jobLevel.name}</span>
-                    <Badge className="gba:bg-blue-100 gba:text-blue-800 gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full">{mockJobData.jobLevel.name}</Badge>
+              {/* Optional Job Family section - only show if data is available */}
+              {employee.employeePosition?.jobPosition?.name && (
+                <div className="gba:flex gba:items-center">
+                  <PiStack className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                  <div>
+                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Family</div>
+                    <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.organizationalUnit?.name || t('employee_profile.left_side_bar.not_assigned')}</div>
                   </div>
                 </div>
-              </div>
+              )}
+              
+              {/* Optional Job Function section - only show if data is available */}
+              {employee.employeePosition?.jobPosition?.name && (
+                <div className="gba:flex gba:items-center">
+                  <PiFunction className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                  <div>
+                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Function</div>
+                    <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.jobPosition?.name || t('employee_profile.left_side_bar.not_assigned')}</div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Optional Job Level section - only show if data is available */}
+              {employee.employeePosition?.jobPosition?.name && (
+                <div className="gba:flex gba:items-center">
+                  <PiListNumbers className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                  <div>
+                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Level</div>
+                    <div className="gba:text-sm gba:text-gray-600">{t('employee_profile.left_side_bar.not_assigned')}</div>
+                  </div>
+                </div>
+              )}
               
               <div className="gba:flex gba:items-center">
                 <PiBuildings className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
                   <div className="gba:text-sm gba:font-medium gba:text-gray-900">Department</div>
-                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.organizationalUnit?.name ?? 'Engineering'}</div>
+                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.organizationalUnit?.name || t('employee_profile.left_side_bar.not_assigned')}</div>
                 </div>
               </div>
               
@@ -374,7 +340,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                 <PiCurrencyDollar className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
                   <div className="gba:text-sm gba:font-medium gba:text-gray-900">Cost Center</div>
-                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.costCenter?.name ?? 'CC-1001 Engineering'}</div>
+                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.costCenter?.name || t('employee_profile.left_side_bar.not_assigned')}</div>
                 </div>
               </div>
             </div>
@@ -385,47 +351,52 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
           <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
             <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
-            {t('employee_profile.summary_layout.availability_schedule_title', 'Availability & Schedule')}
+            {t('employee_profile.summary_layout.availability_container.title')}
           </h3>
           <Card className="gba:p-4">
             <div className="gba:space-y-4">
-              <div className="gba:flex gba:items-center gba:justify-between">
-                <div className="gba:text-sm gba:font-medium">Current Status</div>
-                <Badge className="gba:bg-green-100 gba:text-green-800 gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full gba:flex gba:items-center">
-                  <PiClock className="gba:h-3 gba:w-3 gba:mr-1" />
-                  {mockAvailabilityData.status === 'available' ? 'Available' : 'Busy'}
-                </Badge>
-              </div>
-              
-              <div>
-                <h4 className="gba:text-sm gba:font-medium gba:text-gray-600 gba:mb-2">Working Hours</h4>
-                <div className="gba:space-y-2">
-                  {Object.entries(mockAvailabilityData.schedule).map(([day, hours]) => (
-                    hours.start && (
-                      <div key={day} className="gba:flex gba:justify-between gba:text-sm">
-                        <span className="gba:capitalize">{day}</span>
-                        <span className="gba:text-gray-600">
-                          {hours.start} - {hours.end}
-                        </span>
-                      </div>
-                    )
-                  ))}
+              {/* Status display */}
+              <div className="gba:flex gba:items-center">
+                <div className="gba:relative gba:mr-3">
+                  <div className="gba:h-5 gba:w-5 gba:rounded-full gba:bg-green-500"></div>
+                </div>
+                <div>
+                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Current Status</div>
+                  <div className="gba:text-sm gba:text-gray-600">Available</div>
                 </div>
               </div>
               
+              {/* Weekly schedule */}
+              <div className="gba:grid gba:grid-cols-7 gba:gap-1 gba:items-center">
+                {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => {
+                  // Use actual working hours from employee data
+                  const hoursKey = `${day}Hours` as keyof typeof employee.workingHours[0];
+                  const dayHours = employee.workingHours?.[0]?.[hoursKey] as number;
+                  const isWorkDay = dayHours > 0;
+                  return (
+                    <div key={day} className="gba:text-center">
+                      <div className="gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase">{day.slice(0, 3)}</div>
+                      <div className={`gba:h-2 gba:rounded-full gba:mt-1 ${isWorkDay ? 'gba:bg-blue-500' : 'gba:bg-gray-200'}`}></div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Timezone */}
               <div className="gba:flex gba:items-center">
                 <PiClock className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
                   <div className="gba:text-sm gba:font-medium gba:text-gray-900">Timezone</div>
-                  <div className="gba:text-sm gba:text-gray-600">{mockAvailabilityData.timezone}</div>
+                  <div className="gba:text-sm gba:text-gray-600">Europe/Berlin</div>
                 </div>
               </div>
               
+              {/* Working hours */}
               <div className="gba:flex gba:items-center">
                 <PiCalendarCheck className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
                   <div className="gba:text-sm gba:font-medium gba:text-gray-900">Weekly Hours</div>
-                  <div className="gba:text-sm gba:text-gray-600">{mockAvailabilityData.workingHours} hours/week</div>
+                  <div className="gba:text-sm gba:text-gray-600">{employee.workingHours?.[0]?.fullTimeEquivalent ? `${employee.workingHours[0].fullTimeEquivalent} hours/week` : 'Not specified'}</div>
                 </div>
               </div>
             </div>

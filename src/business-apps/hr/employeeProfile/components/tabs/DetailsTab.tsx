@@ -86,7 +86,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
       },
       {
         label: t('employee_profile.details_layout.address_container.address_line'),
-        value: primaryAddress.addressLine?.join(', ') ?? ''
+        value: primaryAddress.addressLine?.filter(line => line?.trim())?.join(', ') ?? ''
       }
     ].filter(item => item.value);
   };
