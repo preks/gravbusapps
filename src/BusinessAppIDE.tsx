@@ -1,6 +1,6 @@
 import { UiCatalogProvider } from '@newwork/gravity-ui-catalog';
 import type { HTMLAttributes } from "react";
-import { useState, createElement } from "react";
+import { useState, createElement, useEffect } from "react";
 import { Dropdown, Button } from "antd";
 import TextArea from "antd/es/input/TextArea";
 import { BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
@@ -61,12 +61,33 @@ export interface BusinessAppIDEProps {
 
 export function BusinessAppIDE(props: BusinessAppIDEProps) {
   const { packageName, packageVersion } = props;
-  const [currentCompName, setCurrentCompName] = useState<keyof typeof businessAppMap>(
-    Object.keys(businessAppMap)[0] as keyof typeof businessAppMap
-  );
+  
+  // Helper function to get app name from URL or default
+  const getInitialApp = (): keyof typeof businessAppMap => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const appFromUrl = urlParams.get('app');
+      
+      if (appFromUrl && appFromUrl in businessAppMap) {
+        return appFromUrl as keyof typeof businessAppMap;
+      }
+    }
+    return Object.keys(businessAppMap)[0] as keyof typeof businessAppMap;
+  };
+
+  const [currentAppName, setCurrentAppName] = useState<keyof typeof businessAppMap>(getInitialApp());
   const [userInfo, setUserInfo] = useState<string>("");
   const [userInfoError, setUserInfoError] = useState<string>("");
   const [accessToken, setAccessToken] = useState<string>("");
+  
+  // Update URL when app changes
+  const updateAppInUrl = (appName: string) => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('app', appName);
+      window.history.pushState({}, '', url.toString());
+    }
+  };
   
   const validateUserInfo = (value: string): void => {
     if (!value) {
@@ -82,11 +103,19 @@ export function BusinessAppIDE(props: BusinessAppIDEProps) {
     }
   };
 
-  const dropdownItems = Object.keys(businessAppMap).map((comp) => ({
-    key: comp,
-    label: comp,
-    onClick: () => setCurrentCompName(comp as keyof typeof businessAppMap),
+  const dropdownItems = Object.keys(businessAppMap).map((app) => ({
+    key: app,
+    label: app,
+    onClick: () => {
+      setCurrentAppName(app as keyof typeof businessAppMap);
+      updateAppInUrl(app);
+    },
   }));
+  
+  // Initialize URL with current app on first render
+  useEffect(() => {
+    updateAppInUrl(currentAppName);
+  }, []);
 
   return (
     <Container>
@@ -102,7 +131,7 @@ export function BusinessAppIDE(props: BusinessAppIDEProps) {
           <div className="gba:flex gba:items-center">
             <span className="gba:mr-2 gba:font-bold">Business App:</span>
             <Dropdown menu={{ items: dropdownItems }} arrow>
-              <Button>{currentCompName}</Button>
+              <Button>{currentAppName}</Button>
             </Dropdown>
           </div>
           <div className="gba:flex gba:items-center gba:flex-col">
@@ -135,9 +164,9 @@ export function BusinessAppIDE(props: BusinessAppIDEProps) {
       </Header>
       <Main>
         <Content>
-          {currentCompName && (
+          {currentAppName && (
             <div className="gba:p-4 gba:w-full gba:h-full gba:overflow-auto">
-              {createElement(businessAppMap[currentCompName], {
+              {createElement(businessAppMap[currentAppName], {
                 userInfo: userInfo?.length > 2 ? ((): UserInfoProps | undefined => {
                   try {
                     return JSON.parse(userInfo);
