@@ -1,0 +1,167 @@
+.company-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.company-header-title {
+  margin: 0;
+}
+
+.stats-cards {
+  margin-bottom: 24px;
+}
+
+.card-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-metric {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+}
+
+.card-value {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.card-change {
+  color: #52c41a;
+  font-size: 12px;
+}
+
+.card-icon-container {
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.blue-icon-bg {
+  background-color: #f0f5ff;
+}
+
+.green-icon-bg {
+  background-color: #f6ffed;
+}
+
+.light-blue-icon-bg {
+  background-color: #e6f7ff;
+}
+
+.purple-icon-bg {
+  background-color: #f9f0ff;
+}
+
+.blue-icon {
+  font-size: 20px;
+  color: #1890ff;
+}
+
+.green-icon {
+  font-size: 20px;
+  color: #52c41a;
+}
+
+.purple-icon {
+  font-size: 20px;
+  color: #722ed1;
+}
+
+.search-filter-container {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.search-input {
+  width: 300px;
+}
+
+.action-icon {
+  font-size: 20px;
+}
+
+/* New styles for company overview specific elements */
+.account-owner {
+  display: flex;
+  align-items: center;
+}
+
+.avatar-container {
+  margin-right: 8px;
+}
+
+.avatar-image {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 0;
+}
+
+.empty-state-icon {
+  font-size: 64px;
+  color: #d9d9d9;
+  margin-bottom: 24px;
+}
+
+.empty-state-title {
+  font-size: 24px;
+  color: rgba(0, 0, 0, 0.85);
+  margin-bottom: 16px;
+}
+
+.empty-state-description {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.45);
+  margin-bottom: 24px;
+}
+
+.filter-wrapper {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-dropdown {
+  min-width: 120px;
+}
+
+/* Table column styles */
+.company-name-column a {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.main-contact-column a {
+  color: #1890ff;
+}
+
+.website-column a {
+  color: #1890ff;
+}
+
+/* Size indicator styles */
+.size-enterprise {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.size-midmarket {
+  color: #722ed1;
+  font-weight: 500;
+}
+
+.size-smb {
+  color: #52c41a;
+  font-weight: 500;
+}

@@ -1,0 +1,314 @@
+/* CompanyDetail styles */
+.company-detail-container {
+  padding: 24px;
+  background-color: #f5f7fa;
+  min-height: 100vh;
+}
+
+.back-link {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  color: #1890ff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.back-link:hover {
+  color: #40a9ff;
+}
+
+.back-icon {
+  margin-right: 8px;
+}
+
+.company-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  background-color: white;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.company-header-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.company-logo {
+  width: 64px;
+  height: 64px;
+  background-color: #f0f2f5;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-right: 16px;
+  font-size: 24px;
+  color: #1890ff;
+}
+
+.company-name-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.company-name {
+  margin-bottom: 4px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.company-industry {
+  color: rgba(0, 0, 0, 0.45);
+  margin-bottom: 0;
+}
+
+.edit-button {
+  margin-left: auto;
+}
+
+.card-container {
+  margin-bottom: 24px;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  background-color: white;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.section-title-icon {
+  margin-right: 8px;
+  font-size: 18px;
+}
+
+.company-info-row {
+  margin-bottom: 16px;
+}
+
+.company-info-label {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.company-info-value {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.tag-container {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.link-icon {
+  margin-right: 4px;
+}
+
+.external-link {
+  display: flex;
+  align-items: center;
+  margin-right: 16px;
+  color: #1890ff;
+}
+
+.fact-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding-left: 24px;
+  position: relative;
+}
+
+.fact-icon {
+  position: absolute;
+  left: 0;
+  top: 3px;
+  color: #1890ff;
+}
+
+.metrics-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.metric-item {
+  flex: 1;
+  text-align: center;
+}
+
+.metric-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+  margin-bottom: 4px;
+}
+
+.revenue-metric {
+  color: #52c41a;
+}
+
+.funding-metric {
+  color: #1890ff;
+}
+
+.valuation-metric {
+  color: #722ed1;
+}
+
+.metric-label {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.key-people-section {
+  margin-top: 24px;
+}
+
+.people-group {
+  margin-bottom: 24px;
+}
+
+.people-group-title {
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.person-card {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.person-avatar {
+  margin-right: 12px;
+}
+
+.person-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.person-name {
+  font-weight: 500;
+  margin-bottom: 0;
+}
+
+.person-title {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.contact-section {
+  padding: 24px;
+}
+
+.contact-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.contact-info {
+  margin-bottom: 8px;
+}
+
+.contact-name {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.contact-position {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  margin-bottom: 8px;
+}
+
+.contact-link {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  color: #1890ff;
+}
+
+.contact-link-icon {
+  margin-right: 8px;
+}
+
+.timeline-container {
+  padding: 0 24px 24px;
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.account-info-section {
+  padding: 24px;
+}
+
+.account-info-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.account-info-item {
+  margin-bottom: 16px;
+}
+
+.account-info-label {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.account-info-value {
+  font-size: 14px;
+}
+
+.tab-content {
+  padding: 16px 0;
+}
+
+.legal-info-section {
+  padding: 24px;
+}
+
+.legal-info-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.geo-presence-section {
+  padding: 24px;
+}
+
+.geo-presence-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.icon-wrapper {
+  margin-right: 8px;
+}

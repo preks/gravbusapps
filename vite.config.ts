@@ -1,16 +1,16 @@
-import { resolve } from 'path';
-import { defineConfig, loadEnv, type PluginOption } from 'vite';
-import react from '@vitejs/plugin-react';
-import tailwindCSS from '@tailwindcss/vite';
-import fs from 'fs'; // For synchronous file system operations
-import { readFile, rename as fsRename } from 'fs/promises'; // For asynchronous file system operations in the plugin
-import crypto from 'crypto';
-import path from 'path';
-import dotenv from 'dotenv';
+import { resolve } from "path";
+import { defineConfig, loadEnv, type PluginOption } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindCSS from "@tailwindcss/vite";
+import fs from "fs"; // For synchronous file system operations
+import { readFile, rename as fsRename } from "fs/promises"; // For asynchronous file system operations in the plugin
+import crypto from "crypto";
+import path from "path";
+import dotenv from "dotenv";
 
 // Function to get dynamic entries for Vite build using synchronous fs methods
 function getDynamicEntries(projectRootDir: string): Record<string, string> {
-  const businessAppsDir = path.join(projectRootDir, 'src', 'business-apps');
+  const businessAppsDir = path.join(projectRootDir, "src", "business-apps");
   const entries: Record<string, string> = {};
 
   if (!fs.existsSync(businessAppsDir)) {
@@ -18,48 +18,61 @@ function getDynamicEntries(projectRootDir: string): Record<string, string> {
   }
 
   // Get all products (top-level directories) that don't start with '.' and aren't 'node_modules'
-  const products = fs.readdirSync(businessAppsDir).filter(product =>
-    fs.statSync(path.join(businessAppsDir, product)).isDirectory() && 
-    !product.startsWith('.') && 
-    product !== 'node_modules'
-  );
+  const products = fs
+    .readdirSync(businessAppsDir)
+    .filter(
+      (product) =>
+        fs.statSync(path.join(businessAppsDir, product)).isDirectory() &&
+        !product.startsWith(".") &&
+        product !== "node_modules"
+    );
 
   // Function to recursively find index.ts files in a directory
-  function findIndexFiles(dir: string, product: string, pathParts: string[] = []) {
+  function findIndexFiles(
+    dir: string,
+    product: string,
+    pathParts: string[] = []
+  ) {
     const items = fs.readdirSync(dir);
-    
+
     for (const item of items) {
       const itemPath = path.join(dir, item);
       const stats = fs.statSync(itemPath);
-      
+
       if (stats.isDirectory()) {
         // Continue recursion for directories
         findIndexFiles(itemPath, product, [...pathParts, item]);
-      } else if (item === 'index.ts' && stats.isFile()) {
+      } else if (item === "index.ts" && stats.isFile()) {
         // Found an index.ts file
         // The screen name is the directory containing the index.ts file
         const screenName = path.basename(dir);
         // Remove the screenName from pathParts as it will be added separately
-        const intermediatePath = pathParts.slice(0, -1).join('/');
+        const intermediatePath = pathParts.slice(0, -1).join("/");
         // Create the entry key with the pattern product/intermediate-path/screenName
-        const entryKey = intermediatePath ? `${product}/${intermediatePath}/${screenName}` : `${product}/${screenName}`;
+        const entryKey = intermediatePath
+          ? `${product}/${intermediatePath}/${screenName}`
+          : `${product}/${screenName}`;
         entries[entryKey] = itemPath;
       }
     }
   }
 
   // Process each product directory
-  products.forEach(product => {
+  products.forEach((product) => {
     const productPath = path.join(businessAppsDir, product);
     findIndexFiles(productPath, product);
   });
-  
+
   return entries;
 }
 
 // Helper function for SHA256
 function getSha256(data: Buffer): string {
-  return crypto.createHash('sha256').update(data).digest('hex').substring(0, 16); // 16-char hash
+  return crypto
+    .createHash("sha256")
+    .update(data)
+    .digest("hex")
+    .substring(0, 16); // 16-char hash
 }
 
 // Custom plugin for SHA256 content hashing
@@ -68,12 +81,14 @@ function sha256ContentHashPlugin(shouldApply: boolean) {
     return null;
   }
   return {
-    name: 'sha256-content-hash',
+    name: "sha256-content-hash",
     async writeBundle(options: any, bundle: any) {
-      console.log('[sha256-plugin] Processing bundle for SHA256 content hashing...');
+      console.log(
+        "[sha256-plugin] Processing bundle for SHA256 content hashing..."
+      );
       const outputDir = options.dir;
       if (!outputDir) {
-        console.error('[sha256-plugin] Output directory not found in options.');
+        console.error("[sha256-plugin] Output directory not found in options.");
         return;
       }
 
@@ -82,19 +97,26 @@ function sha256ContentHashPlugin(shouldApply: boolean) {
 
       for (const originalChunkFileName in bundle) {
         const chunk = bundle[originalChunkFileName];
-        if (chunk.type === 'chunk' && chunk.isEntry && chunk.facadeModuleId && chunk.fileName.endsWith('.js')) {
+        if (
+          chunk.type === "chunk" &&
+          chunk.isEntry &&
+          chunk.facadeModuleId &&
+          chunk.fileName.endsWith(".js")
+        ) {
           const originalFilePath = path.join(outputDir, chunk.fileName);
           try {
             const fileContent = await readFile(originalFilePath); // Using readFile from 'fs/promises'
             const hash = getSha256(fileContent);
             const dirName = path.dirname(chunk.fileName);
-            const baseName = path.basename(chunk.fileName, '.js');
+            const baseName = path.basename(chunk.fileName, ".js");
             const newChunkFileName = `${dirName}/${baseName}-${hash}.js`;
             const newFilePath = path.join(outputDir, newChunkFileName);
 
             if (originalFilePath !== newFilePath) {
               await fsRename(originalFilePath, newFilePath); // Using fsRename from 'fs/promises'
-              console.log(`[sha256-plugin] Renamed: ${chunk.fileName} -> ${newChunkFileName}`);
+              console.log(
+                `[sha256-plugin] Renamed: ${chunk.fileName} -> ${newChunkFileName}`
+              );
               chunk.fileName = newChunkFileName;
               newBundleEntries[newChunkFileName] = chunk;
               oldKeys.push(originalChunkFileName);
@@ -102,14 +124,17 @@ function sha256ContentHashPlugin(shouldApply: boolean) {
               newBundleEntries[originalChunkFileName] = chunk;
             }
           } catch (error) {
-            console.error(`[sha256-plugin] Error processing file ${originalFilePath}:`, error);
+            console.error(
+              `[sha256-plugin] Error processing file ${originalFilePath}:`,
+              error
+            );
             newBundleEntries[originalChunkFileName] = chunk;
           }
         } else {
           newBundleEntries[originalChunkFileName] = chunk;
         }
       }
-      oldKeys.forEach(key => delete bundle[key]);
+      oldKeys.forEach((key) => delete bundle[key]);
       Object.assign(bundle, newBundleEntries);
     },
   };
@@ -121,9 +146,11 @@ export default defineConfig(({ command, mode }) => {
   const projectRootDirFromEnv = process.env.PROJECT_ROOT_DIR;
   let projectRootDir;
 
-  if (command === 'build') {
+  if (command === "build") {
     if (!projectRootDirFromEnv) {
-      console.error('[vite.config.ts] FATAL ERROR: PROJECT_ROOT_DIR environment variable must be set by the calling script for "build" commands.');
+      console.error(
+        '[vite.config.ts] FATAL ERROR: PROJECT_ROOT_DIR environment variable must be set by the calling script for "build" commands.'
+      );
       process.exit(1);
     }
     projectRootDir = projectRootDirFromEnv;
@@ -131,31 +158,42 @@ export default defineConfig(({ command, mode }) => {
     // For 'serve' or other commands, default to process.cwd() if PROJECT_ROOT_DIR is not set.
     projectRootDir = projectRootDirFromEnv || process.cwd();
   }
-  console.log(`[vite.config.ts] Running in mode: "${mode}", command: "${command}"`);
-  console.log(`[vite.config.ts] Using project root directory: ${projectRootDir}`);
+  console.log(
+    `[vite.config.ts] Running in mode: "${mode}", command: "${command}"`
+  );
+  console.log(
+    `[vite.config.ts] Using project root directory: ${projectRootDir}`
+  );
 
   // Load environment variables using the determined projectRootDir
-  const env = loadEnv(mode, projectRootDir, '');
-  
+  const env = loadEnv(mode, projectRootDir, "");
+
   // --- Original logic for TARGET_ENTRY_KEY and TARGET_ENTRY_FILE ---
   const targetEntryKey = env.TARGET_ENTRY_KEY; // e.g., 'irm/detail-screens/LeadDetail'
   const targetEntryFile = env.TARGET_ENTRY_FILE; // e.g., 'src/business-apps/irm/detail-screens/LeadDetail/index.ts'
   // --- End of original logic ---
 
   let dynamicEntries = {};
-  const isProduction = mode === 'production';
-  const shouldHashFilesForDeployment = isProduction && env.VITE_BUILD_FOR_DEPLOYMENT === 'true';
-  const isBuildCommand = command === 'build';
+  const isProduction = mode === "production";
+  const shouldHashFilesForDeployment =
+    isProduction && env.VITE_BUILD_FOR_DEPLOYMENT === "true";
+  const isBuildCommand = command === "build";
   const isSingleBuild = targetEntryKey && targetEntryFile;
 
   if (isBuildCommand && isSingleBuild) {
-    console.log(`[vite.config.ts] Single build detected for: ${targetEntryKey}`);
+    console.log(
+      `[vite.config.ts] Single build detected for: ${targetEntryKey}`
+    );
   }
 
   // Define content for the __APP_BUILD_INFO__ banner
-  const gitUserForBanner = env.VITE_GIT_USER || 'N/A';
-  const publishTimeForBanner = env.VITE_PUBLISH_TIME || new Date().toISOString();
-  const appBuildInfoObject = { gitUser: gitUserForBanner, publishTime: publishTimeForBanner };
+  const gitUserForBanner = env.VITE_GIT_USER || "N/A";
+  const publishTimeForBanner =
+    env.VITE_PUBLISH_TIME || new Date().toISOString();
+  const appBuildInfoObject = {
+    gitUser: gitUserForBanner,
+    publishTime: publishTimeForBanner,
+  };
   const appBuildInfoStringForBanner = JSON.stringify(appBuildInfoObject);
 
   // This is the banner string structure you want, with the problematic console.log commented out
@@ -199,11 +237,20 @@ if (globalThis.__APP_BUILD_INFO__) {
 
   // Updated banner plugin to use the injectedBannerString
   const prependBuildInfoBannerPlugin = {
-    name: 'prepend-custom-build-info-banner',
+    name: "prepend-custom-build-info-banner",
     renderChunk(code: string, chunk: any) {
       // isProduction is from the outer closure
-      if (!shouldHashFilesForDeployment && isProduction && chunk.isEntry && chunk.facadeModuleId?.endsWith('index.ts') && chunk.name !== 'index' && chunk.exports.length > 0) {
-        console.log(`[vite.config.ts prependBannerPlugin] Prepending build info banner to: ${chunk.name}`);
+      if (
+        !shouldHashFilesForDeployment &&
+        isProduction &&
+        chunk.isEntry &&
+        chunk.facadeModuleId?.endsWith("index.ts") &&
+        chunk.name !== "index" &&
+        chunk.exports.length > 0
+      ) {
+        console.log(
+          `[vite.config.ts prependBannerPlugin] Prepending build info banner to: ${chunk.name}`
+        );
         return injectedBannerString + code;
       }
       return null;
@@ -212,108 +259,148 @@ if (globalThis.__APP_BUILD_INFO__) {
 
   // Get all possible entries using our flexible pattern finder
   const allPossibleEntries = getDynamicEntries(projectRootDir);
-  
+
   if (isBuildCommand && isSingleBuild) {
     // Single build mode - use only the specified entry
     dynamicEntries[targetEntryKey] = resolve(projectRootDir, targetEntryFile);
-    console.log(`[vite.config.ts] Single build: Targeting entry: ${targetEntryKey}`);
-  } else if (command === 'serve') {
+    console.log(
+      `[vite.config.ts] Single build: Targeting entry: ${targetEntryKey}`
+    );
+  } else if (command === "serve") {
     // Development server mode
     if (targetEntryKey && targetEntryFile) {
       // If a specific entry is requested, use only that one
       dynamicEntries[targetEntryKey] = resolve(projectRootDir, targetEntryFile);
-      console.log(`[vite.config.ts] Dev server targeting specific entry: ${targetEntryKey}`);
+      console.log(
+        `[vite.config.ts] Dev server targeting specific entry: ${targetEntryKey}`
+      );
     } else {
       // Otherwise, use all discovered entries for development
       dynamicEntries = allPossibleEntries;
-      console.log('[vite.config.ts] Dev server using all discovered entries:');
+      console.log("[vite.config.ts] Dev server using all discovered entries:");
       console.log(dynamicEntries);
     }
   } else {
     // Multi-build mode (default build) - use all discovered entries
     dynamicEntries = allPossibleEntries;
-    console.log('[vite.config.ts] Multi-build: Generating all entries.');
-    console.log('[vite.config.ts] Generated entries for multi-build:', dynamicEntries);
+    console.log("[vite.config.ts] Multi-build: Generating all entries.");
+    console.log(
+      "[vite.config.ts] Generated entries for multi-build:",
+      dynamicEntries
+    );
   }
 
   const extraPlugins: PluginOption[] = [
     // Add dotenv plugin only for development mode
-    ...(mode === 'development' ? [{
-      name: 'dotenv',
-      config() {
-        dotenv.config({ path: '.env' });
-        return {
-          define: {
-            'process.env': {
-              ...dotenv.config({ path: '.env' }).parsed
-            }
-          }
-        };
-      }
-    }] : [])
+    ...(mode === "development"
+      ? [
+          {
+            name: "dotenv",
+            config() {
+              dotenv.config({ path: ".env" });
+              return {
+                define: {
+                  "process.env": {
+                    ...dotenv.config({ path: ".env" }).parsed,
+                  },
+                },
+              };
+            },
+          },
+        ]
+      : []),
   ];
 
   // Virtual module for wrapping components
   const virtualModulePlugin = {
-    name: 'virtual-module-plugin',
+    name: "virtual-module-plugin",
     resolveId(id) {
-      if (id === 'virtual:wrapped-entries') {
+      if (id === "virtual:wrapped-entries") {
         return id;
       }
       return null;
     },
     load(id) {
-      if (id === 'virtual:wrapped-entries') {
+      if (id === "virtual:wrapped-entries") {
         // Generate a module that re-exports all the wrapped components
         let code = `import { wrapWithUiCatalog } from './common/wrapWithUiCatalog';
 `;
-        
+
         // For each entry in our dynamic entries, create an import and export
         Object.keys(dynamicEntries).forEach((entryKey) => {
           const entryPath = dynamicEntries[entryKey];
-          const relativePath = path.relative(projectRootDir, entryPath).replace(/\\/g, '/');
+          const relativePath = path
+            .relative(projectRootDir, entryPath)
+            .replace(/\\/g, "/");
           // Use a unique variable name for each import based on entryKey
-          const cleanEntryKey = entryKey.replace(/[^a-zA-Z0-9]/g, '_');
+          const cleanEntryKey = entryKey.replace(/[^a-zA-Z0-9]/g, "_");
           code += `import ${cleanEntryKey}Original from './${relativePath}';
 `;
           code += `export const ${cleanEntryKey} = wrapWithUiCatalog(${cleanEntryKey}Original);
 `;
         });
-        
-        console.log('[UiCatalogWrapper] Created virtual module with wrapped components');
+
+        console.log(
+          "[UiCatalogWrapper] Created virtual module with wrapped components"
+        );
         return code;
       }
       return null;
-    }
+    },
   };
-  
+
+  // Custom plugin to wrap each chunk in an IIFE
+  const wrapInIIFEPlugin = {
+    name: "wrap-in-iife",
+    renderChunk(code: string, chunk: any) {
+      // Only transform JavaScript files
+      if (!chunk.fileName.endsWith(".js")) return code;
+
+      // Skip if already wrapped
+      if (code.startsWith("(function()") || code.startsWith("(function(")) {
+        return code;
+      }
+
+      return `(function() {\n${code}\n})();`;
+    },
+  };
+
   // Create wrapped versions of all entries
   const wrappedEntries: Record<string, string> = {};
   Object.keys(dynamicEntries).forEach((entryKey) => {
     // Create a virtual entry file that imports the original component, wraps it, and re-exports it
-    const wrappedEntryPath = path.join(projectRootDir, `src/wrapped-entries/${entryKey}.ts`);
+    const wrappedEntryPath = path.join(
+      projectRootDir,
+      `src/wrapped-entries/${entryKey}.ts`
+    );
     // Ensure the directory exists
     const wrappedEntryDir = path.dirname(wrappedEntryPath);
     if (!fs.existsSync(wrappedEntryDir)) {
       fs.mkdirSync(wrappedEntryDir, { recursive: true });
     }
-    
+
     // Generate the wrapper module content
     const originalEntryPath = dynamicEntries[entryKey];
-    const relativeEntryPath = path.relative(path.dirname(wrappedEntryPath), originalEntryPath).replace(/\\/g, '/');
-    
+    const relativeEntryPath = path
+      .relative(path.dirname(wrappedEntryPath), originalEntryPath)
+      .replace(/\\/g, "/");
+
     const wrapperContent = `// Auto-generated wrapper file
 import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';
-import OriginalComponent from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
+import OriginalComponent from '${
+      relativeEntryPath.startsWith(".")
+        ? relativeEntryPath
+        : "./" + relativeEntryPath
+    }';
 
 // Re-export wrapped component
 export default wrapWithUiCatalog(OriginalComponent);
 `;
-    
+
     // Write the wrapper file
-    fs.writeFileSync(wrappedEntryPath, wrapperContent, 'utf8');
+    fs.writeFileSync(wrappedEntryPath, wrapperContent, "utf8");
     console.log(`[UiCatalogWrapper] Created wrapper for: ${entryKey}`);
-    
+
     // Replace the original entry with our wrapped version
     wrappedEntries[entryKey] = wrappedEntryPath;
   });
@@ -325,38 +412,41 @@ export default wrapWithUiCatalog(OriginalComponent);
       // Virtual module plugin for the wrapped entries
       virtualModulePlugin,
       prependBuildInfoBannerPlugin, // Use the updated banner plugin
-      sha256ContentHashPlugin(shouldHashFilesForDeployment),
+      wrapInIIFEPlugin,
+      ...(shouldHashFilesForDeployment
+        ? [sha256ContentHashPlugin(shouldHashFilesForDeployment)]
+        : []),
       ...extraPlugins,
     ].filter(Boolean),
     define: {
       // This replaces process.env.NODE_ENV with the current mode in the build output
-      'process.env.NODE_ENV': JSON.stringify(mode),
+      "process.env.NODE_ENV": JSON.stringify(mode),
       // globalThis.__APP_BUILD_INFO__ is handled by the prependBannerPlugin, so no need to define it here.
     },
     resolve: {
       alias: {
-        '@': resolve(__dirname, 'src'),
-        '@/components': resolve(__dirname, 'src/components'),
-        '@/business-apps': resolve(__dirname, 'src/business-apps'),
-        '@/assets': resolve(__dirname, 'src/assets'),
-        '@/hooks': resolve(__dirname, 'src/hooks'),
-        '@/modules': resolve(__dirname, 'src/modules'),
-        '@/common': resolve(__dirname, 'src/common')
+        "@": resolve(__dirname, "src"),
+        "@/components": resolve(__dirname, "src/components"),
+        "@/business-apps": resolve(__dirname, "src/business-apps"),
+        "@/assets": resolve(__dirname, "src/assets"),
+        "@/hooks": resolve(__dirname, "src/hooks"),
+        "@/modules": resolve(__dirname, "src/modules"),
+        "@/common": resolve(__dirname, "src/common"),
       },
     },
     build: {
-      outDir: resolve(projectRootDir, 'dist'),
-      // emptyOutDir behavior: 
+      outDir: resolve(projectRootDir, "dist"),
+      // emptyOutDir behavior:
       // true for 'npm run build' (multi-screen, full clean)
       // false for 'npm run publish:screen' (single-screen, script handles specific sub-dir deletion)
       emptyOutDir: isBuildCommand && !isSingleBuild,
       lib: {
         entry: wrappedEntries, // Use the wrapped entries instead of the original ones
-        name: 'GravityBusinessApps', // Name for UMD global, less critical for CJS
-        formats: ['cjs'],
-        cssFileName: 'main'
+        name: "GravityBusinessApps", // Name for UMD global, less critical for CJS
+        formats: ["cjs"],
+        cssFileName: "main",
       },
-      minify: isProduction ? 'esbuild' : false, // Ensure minification for production
+      minify: isProduction ? "esbuild" : false, // Ensure minification for production
       // Enable CSS processing
       css: {
         devSourcemap: true,
@@ -366,45 +456,99 @@ export default wrapWithUiCatalog(OriginalComponent);
       rollupOptions: {
         // Include all CSS files from the project along with component entries
         input: {
-          main: resolve(projectRootDir, 'src/index.css'),
-          ...wrappedEntries
+          main: resolve(projectRootDir, "src/index.css"),
+          ...wrappedEntries,
         },
-  
+
         // Only keep React-related packages as external
         // All other imports will be bundled into the main file
-        external: ['react', 'react-dom', 'antd', 'react/jsx-runtime', '@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities', 'zustand', 'react-i18next', 'react-icons', 'clsx', 'tailwind-merge', '@newwork/gravity-ui-catalog'],
+        external: [
+          "react",
+          "react-dom",
+          "antd",
+          "react/jsx-runtime",
+          "@dnd-kit/core",
+          "@dnd-kit/sortable",
+          "@dnd-kit/utilities",
+          "zustand",
+          "react-i18next",
+          "react-icons",
+          "clsx",
+          "tailwind-merge",
+          "@newwork/gravity-ui-catalog",
+          "@remixicon/react",
+          "@radix-ui/react-dropdown-menu",
+          "@radix-ui/react-select",
+          "@radix-ui/react-separator",
+          "@radix-ui/react-switch",
+          "@radix-ui/react-toast",
+          "@radix-ui/react-tooltip",
+          "class-variance-authority",
+          "lucide-react",
+          "@radix-ui/react-avatar",
+          "@radix-ui/react-checkbox",
+          "@radix-ui/react-dialog",
+          "@radix-ui/react-label",
+          "@radix-ui/react-progress",
+          "@radix-ui/react-slot",
+          "@radix-ui/react-tabs",
+          "@tanstack/react-table",
+          "react-router-dom"
+        ],
         output: {
           globals: {
-            'react': 'React',
-            'react-dom': 'ReactDOM',
-            'antd': 'antd',
-            'react-i18next': 'reactI18next',
-            'react-icons': 'reactIcons',
-            'clsx': 'clsx',
-            'tailwind-merge': 'tailwindMerge',
+            react: "React",
+            "react-dom": "ReactDOM",
+            antd: "antd",
+            "react-i18next": "reactI18next",
+            "react-icons": "reactIcons",
+            clsx: "clsx",
+            "tailwind-merge": "tailwindMerge",
             "@dnd-kit/core": "DNDKitCore",
             "@dnd-kit/sortable": "DNDKitSortable",
             "@dnd-kit/utilities": "DNDKitUtilities",
-            "zustand": "zustand",
-            "@newwork/gravity-ui-catalog": "GravityUICatalog"
+            zustand: "zustand",
+            "@newwork/gravity-ui-catalog": "GravityUICatalog",
+            "@remixicon/react": "remixIconReact",
+            "@radix-ui/react-dropdown-menu": "RadixDropdownMenu",
+            "@radix-ui/react-select": "RadixSelect",
+            "@radix-ui/react-separator": "RadixSeparator",
+            "@radix-ui/react-switch": "RadixSwitch",
+            "@radix-ui/react-toast": "RadixToast",
+            "@radix-ui/react-tooltip": "RadixTooltip",
+            "class-variance-authority": "classVarianceAuthority",
+            "lucide-react": "lucideReact",
+            "@radix-ui/react-avatar": "RadixAvatar",
+            "@radix-ui/react-checkbox": "RadixCheckbox",
+            "@radix-ui/react-dialog": "RadixDialog",
+            "@radix-ui/react-label": "RadixLabel",
+            "@radix-ui/react-progress": "RadixProgress",
+            "@radix-ui/react-slot": "RadixSlot",
+            "@radix-ui/react-tabs": "RadixTabs",
+            "@tanstack/react-table": "TanstackTable",
+            "react-router-dom": "reactRouterDom"
           },
           // entryFileNames will now always output a predictable name;
           // the sha256ContentHashPlugin will handle renaming for deployment builds.
           entryFileNames: (chunkInfo) => {
             // Handle CSS entry point differently from component entries
-            if (chunkInfo.name === 'main') {
-              return 'main.js'; // This won't actually be used since it's CSS
+            if (chunkInfo.name === "main") {
+              return "main.js"; // This won't actually be used since it's CSS
             }
             return `${chunkInfo.name}/index.js`;
           },
-  
+
           // For non-entry chunks and assets, use Vite's hashing only for deployment builds.
-          chunkFileNames: shouldHashFilesForDeployment ? `_chunks/[name]-[hash].js` : `_chunks/[name].js`,
-          assetFileNames: shouldHashFilesForDeployment ? `assets/[name]-[hash][extname]` : `assets/[name][extname]`,
-          exports: 'named', // Address mixed export warnings
+          chunkFileNames: shouldHashFilesForDeployment
+            ? `_chunks/[name]-[hash].js`
+            : `_chunks/[name].js`,
+          assetFileNames: shouldHashFilesForDeployment
+            ? `assets/[name]-[hash][extname]`
+            : `assets/[name][extname]`,
+          exports: "named", // Address mixed export warnings
         },
       },
     },
-    base: './'
+    base: "./",
   };
 });
