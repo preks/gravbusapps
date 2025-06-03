@@ -442,189 +442,327 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
         />
       </div>
 
-      {positions.map((position, index) => (
-        <Card
-          key={index}
-          headStyle={{ borderBottom: 0 }}
-          title={`Position ${index + 1}`}
-          className={styles.positionCard}
-          extra={
-            positions.length > 1 && (
-              <Button
-                variant="ghost"
-                onClick={() => handleRemovePosition(position.id)}
-                className={styles.deleteButton}
-              >
-                <DeleteOutlined />
-              </Button>
-            )
-          }
-        >
-          <div className={styles.marginBottom16}>
-            <div className={styles.relativePosition}>
-              <SelectField
-                allowClear
-                name="group"
-                data={expenseClasses}
-                onChange={(value) => {
-                  handleExpenseClassChange(value.value as string, index);
-                }}
-                label={t(
-                  "create_expense_item.change_expense_item_container.current_expense_group_label",
-                  "Expense Group"
-                )}
-                placeholder={t(
-                  "create_expense_item.change_expense_item_container.current_expense_group_placeholder",
-                  "Select Expense Group"
-                )}
-              />
-            </div>
-          </div>
-
-          <div className={styles.marginBottom16}>
-            <div>
-              <SelectField
-                allowClear
-                label={t(
-                  "create_expense_item.change_expense_item_container.current_expense_type_label",
-                  "Expense Type"
-                )}
-                name="expenseType"
-                data={
-                  position.expenseGroup
-                    ? expenseTypes[position.expenseGroup]?.map((type) => ({
-                        id: type.id,
-                        name: type.name,
-                      }))
-                    : []
-                }
-                onChange={(value: any) => {
-                  const updatedPositions = [...positions];
-                  updatedPositions[index].expenseType = value.value as string;
-                  setPositions(updatedPositions);
-                }}
-                placeholder={t(
-                  "create_expense_item.change_expense_item_container.current_expense_type_placeholder",
-                  "Select Expense Type"
-                )}
-                disabled={!position.expenseGroup}
-                value={position.expenseType}
-              />
-            </div>
-          </div>
-
-          <div className={styles.marginBottom16}>
-            <div className={styles.relativePosition}>
-              <div>
-                <InputField
-                  label={t(
-                    "create_expense_item.change_expense_item_container.current_amount_label",
-                    "Amount"
-                  )}
-                  name="amount"
-                  value={position.amount}
-                  placeholder={t(
-                    "create_expense_item.change_expense_item_container.current_amount_placeholder",
-                    "Enter Amount"
-                  )}
-                  onChange={(field) => {
-                    const value =
-                      typeof field.value === "string"
-                        ? field.value
-                        : String(field.value);
-                    handleAmountChange(parseFloat(value) || 0, index);
+      {multiPosition ? (
+        // Display positions as cards when multi-position is on
+        positions.map((position, index) => (
+          <Card
+            key={index}
+            headStyle={{ borderBottom: 0 }}
+            title={`Position ${index + 1}`}
+            className={styles.positionCard}
+            extra={
+              positions.length > 1 && (
+                <Button
+                  variant="ghost"
+                  onClick={() => handleRemovePosition(position.id)}
+                  className={styles.deleteButton}
+                >
+                  <DeleteOutlined />
+                </Button>
+              )
+            }
+          >
+            <div className={styles.marginBottom16}>
+              <div className={styles.relativePosition}>
+                <SelectField
+                  allowClear
+                  name="group"
+                  data={expenseClasses}
+                  onChange={(value) => {
+                    handleExpenseClassChange(value.value as string, index);
                   }}
-                  required={true}
+                  label={t(
+                    "create_expense_item.change_expense_item_container.current_expense_group_label",
+                    "Expense Group"
+                  )}
+                  placeholder={t(
+                    "create_expense_item.change_expense_item_container.current_expense_group_placeholder",
+                    "Select Expense Group"
+                  )}
                 />
               </div>
             </div>
-          </div>
 
-          <div className={styles.marginBottom16}>
-            <div className={styles.relativePosition}>
-              <SelectField
-                allowClear
-                name="costCenter"
-                data={costCenters.map((center) => ({
-                  id: center.id,
-                  name: center.name,
-                }))}
-                onChange={(value: any) => {
-                  const updatedPositions = [...positions];
-                  updatedPositions[index].costCenter = value.value as string;
-                  setPositions(updatedPositions);
-                }}
-                label={t(
-                  "create_expense_request.expense_request_container.current_cost_center_label",
-                  "Cost Center"
-                )}
-                placeholder={t(
-                  "create_expense_request.expense_request_container.current_cost_center_placeholder",
-                  "Select Cost Center"
-                )}
-                value={position.costCenter}
-              />
+            <div className={styles.marginBottom16}>
+              <div>
+                <SelectField
+                  allowClear
+                  label={t(
+                    "create_expense_item.change_expense_item_container.current_expense_type_label",
+                    "Expense Type"
+                  )}
+                  name="expenseType"
+                  data={
+                    position.expenseGroup
+                      ? expenseTypes[position.expenseGroup]?.map((type) => ({
+                          id: type.id,
+                          name: type.name,
+                        }))
+                      : []
+                  }
+                  onChange={(value: any) => {
+                    const updatedPositions = [...positions];
+                    updatedPositions[index].expenseType = value.value as string;
+                    setPositions(updatedPositions);
+                  }}
+                  placeholder={t(
+                    "create_expense_item.change_expense_item_container.current_expense_type_placeholder",
+                    "Select Expense Type"
+                  )}
+                  disabled={!position.expenseGroup}
+                  value={position.expenseType}
+                />
+              </div>
             </div>
-          </div>
 
-          <div className={styles.marginBottom16}>
-            <div className={styles.relativePosition}>
-              <SelectField
-                allowClear
-                name="customField"
-                data={[
-                  { id: "option1", name: "Option 1" },
-                  { id: "option2", name: "Option 2" },
-                  { id: "option3", name: "Option 3" },
-                ]}
-                onChange={(value: any) => {
-                  const updatedPositions = [...positions];
-                  updatedPositions[index].customField = value.value as string;
-                  setPositions(updatedPositions);
-                }}
-                placeholder="Select Custom Field Value"
-                value={position.customField}
-              />
+            <div className={styles.marginBottom16}>
+              <div className={styles.relativePosition}>
+                <div>
+                  <InputField
+                    label={t(
+                      "create_expense_item.change_expense_item_container.current_amount_label",
+                      "Amount"
+                    )}
+                    name="amount"
+                    value={position.amount}
+                    placeholder={t(
+                      "create_expense_item.change_expense_item_container.current_amount_placeholder",
+                      "Enter Amount"
+                    )}
+                    onChange={(field) => {
+                      const value =
+                        typeof field.value === "string"
+                          ? field.value
+                          : String(field.value);
+                      handleAmountChange(parseFloat(value) || 0, index);
+                    }}
+                    required={true}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div className={styles.marginBottom16}>
-            <div style={{ marginBottom: "16px" }}>
-              <Switch
-                label={t(
-                  "create_expense_item.is_reimbursable",
-                  "Is Reimbursable"
-                )}
-                name={"isReimbursable"+index}
-                value={position.isReimbursable}
-                onChange={(checked) => {
-                  const updatedPositions = [...positions];
-                  updatedPositions[index].isReimbursable = checked.value as boolean;
-                  setPositions(updatedPositions);
-                }}
-              />
+            <div className={styles.marginBottom16}>
+              <div className={styles.relativePosition}>
+                <SelectField
+                  allowClear
+                  name="costCenter"
+                  data={costCenters.map((center) => ({
+                    id: center.id,
+                    name: center.name,
+                  }))}
+                  onChange={(value: any) => {
+                    const updatedPositions = [...positions];
+                    updatedPositions[index].costCenter = value.value as string;
+                    setPositions(updatedPositions);
+                  }}
+                  label={t(
+                    "create_expense_request.expense_request_container.current_cost_center_label",
+                    "Cost Center"
+                  )}
+                  placeholder={t(
+                    "create_expense_request.expense_request_container.current_cost_center_placeholder",
+                    "Select Cost Center"
+                  )}
+                  value={position.costCenter}
+                />
+              </div>
             </div>
-          </div>
 
-          {multiPosition && index > 0 && (
-            <Form.Item>
-              <div className={styles.switchContainer}>
+            <div className={styles.marginBottom16}>
+              <div className={styles.relativePosition}>
+                <SelectField
+                  allowClear
+                  name="customField"
+                  data={[
+                    { id: "option1", name: "Option 1" },
+                    { id: "option2", name: "Option 2" },
+                    { id: "option3", name: "Option 3" },
+                  ]}
+                  onChange={(value: any) => {
+                    const updatedPositions = [...positions];
+                    updatedPositions[index].customField = value.value as string;
+                    setPositions(updatedPositions);
+                  }}
+                  placeholder="Select Custom Field Value"
+                  value={position.customField}
+                />
+              </div>
+            </div>
+
+            <div className={styles.marginBottom16}>
+              <div style={{ marginBottom: "16px" }}>
                 <Switch
-                  name="isReimbursable"
-                  checked={position.isReimbursable}
+                  label={t(
+                    "create_expense_item.is_reimbursable",
+                    "Is Reimbursable"
+                  )}
+                  name={"isReimbursable"+index}
+                  value={position.isReimbursable}
                   onChange={(checked) => {
                     const updatedPositions = [...positions];
-                    updatedPositions[index].isReimbursable =
-                      checked as unknown as boolean;
+                    updatedPositions[index].isReimbursable = checked.value as boolean;
                     setPositions(updatedPositions);
                   }}
                 />
-                <span className={styles.switchLabel}>Is reimbursable</span>
               </div>
-            </Form.Item>
-          )}
-        </Card>
-      ))}
+            </div>
+          </Card>
+        ))
+      ) : (
+        // Display position fields directly when multi-position is off
+        <div className={styles.singlePositionContainer}>
+          {positions.map((position, index) => (
+            <React.Fragment key={index}>
+              <div className={styles.marginBottom16}>
+                <div className={styles.relativePosition}>
+                  <SelectField
+                    allowClear
+                    name="group"
+                    data={expenseClasses}
+                    onChange={(value) => {
+                      handleExpenseClassChange(value.value as string, index);
+                    }}
+                    label={t(
+                      "create_expense_item.change_expense_item_container.current_expense_group_label",
+                      "Expense Group"
+                    )}
+                    placeholder={t(
+                      "create_expense_item.change_expense_item_container.current_expense_group_placeholder",
+                      "Select Expense Group"
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.marginBottom16}>
+                <div>
+                  <SelectField
+                    allowClear
+                    label={t(
+                      "create_expense_item.change_expense_item_container.current_expense_type_label",
+                      "Expense Type"
+                    )}
+                    name="expenseType"
+                    data={
+                      position.expenseGroup
+                        ? expenseTypes[position.expenseGroup]?.map((type) => ({
+                            id: type.id,
+                            name: type.name,
+                          }))
+                        : []
+                    }
+                    onChange={(value: any) => {
+                      const updatedPositions = [...positions];
+                      updatedPositions[index].expenseType = value.value as string;
+                      setPositions(updatedPositions);
+                    }}
+                    placeholder={t(
+                      "create_expense_item.change_expense_item_container.current_expense_type_placeholder",
+                      "Select Expense Type"
+                    )}
+                    disabled={!position.expenseGroup}
+                    value={position.expenseType}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.marginBottom16}>
+                <div className={styles.relativePosition}>
+                  <div>
+                    <InputField
+                      label={t(
+                        "create_expense_item.change_expense_item_container.current_amount_label",
+                        "Amount"
+                      )}
+                      name="amount"
+                      value={position.amount}
+                      placeholder={t(
+                        "create_expense_item.change_expense_item_container.current_amount_placeholder",
+                        "Enter Amount"
+                      )}
+                      onChange={(field) => {
+                        const value =
+                          typeof field.value === "string"
+                            ? field.value
+                            : String(field.value);
+                        handleAmountChange(parseFloat(value) || 0, index);
+                      }}
+                      required={true}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.marginBottom16}>
+                <div className={styles.relativePosition}>
+                  <SelectField
+                    allowClear
+                    name="costCenter"
+                    data={costCenters.map((center) => ({
+                      id: center.id,
+                      name: center.name,
+                    }))}
+                    onChange={(value: any) => {
+                      const updatedPositions = [...positions];
+                      updatedPositions[index].costCenter = value.value as string;
+                      setPositions(updatedPositions);
+                    }}
+                    label={t(
+                      "create_expense_request.expense_request_container.current_cost_center_label",
+                      "Cost Center"
+                    )}
+                    placeholder={t(
+                      "create_expense_request.expense_request_container.current_cost_center_placeholder",
+                      "Select Cost Center"
+                    )}
+                    value={position.costCenter}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.marginBottom16}>
+                <div className={styles.relativePosition}>
+                  <SelectField
+                    allowClear
+                    name="customField"
+                    data={[
+                      { id: "option1", name: "Option 1" },
+                      { id: "option2", name: "Option 2" },
+                      { id: "option3", name: "Option 3" },
+                    ]}
+                    onChange={(value: any) => {
+                      const updatedPositions = [...positions];
+                      updatedPositions[index].customField = value.value as string;
+                      setPositions(updatedPositions);
+                    }}
+                    placeholder="Select Custom Field Value"
+                    value={position.customField}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.marginBottom16}>
+                <div style={{ marginBottom: "16px" }}>
+                  <Switch
+                    label={t(
+                      "create_expense_item.is_reimbursable",
+                      "Is Reimbursable"
+                    )}
+                    name={"isReimbursable"+index}
+                    value={position.isReimbursable}
+                    onChange={(checked) => {
+                      const updatedPositions = [...positions];
+                      updatedPositions[index].isReimbursable = checked.value as boolean;
+                      setPositions(updatedPositions);
+                    }}
+                  />
+                </div>
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
 
       {multiPosition && (
         <Button

@@ -61,6 +61,11 @@
   border-bottom: 0px;
 }
 
+.singlePositionContainer {
+  margin-bottom: 16px;
+  font-family: 'Roboto', sans-serif;
+}
+
 /* Required field asterisk */
 .requiredAsterisk {
   color: #aaa;
