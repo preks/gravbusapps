@@ -88,16 +88,16 @@ export default function CreateInvestmentModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
-          <PlusCircle className="mr-2 h-4 w-4" />
+        <Button variant="outline" className="gba:border-gray-300 gba:hover:bg-gray-50">
+          <PlusCircle className="gba:mr-2 gba:h-4 gba:w-4" />
           Create Investment from Opportunity
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] p-0 fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-md shadow-lg">
-        <div className="p-4 pb-2">
+      <DialogContent className="gba:sm:max-w-[600px] gba:p-0 gba:fixed gba:top-1/2 gba:left-1/2 gba:transform -translate-x-1/2 -translate-y-1/2 gba:bg-white gba:rounded-md gba:shadow-lg">
+        <div className="gba:p-4 gba:pb-2">
           <DialogHeader>
-            <DialogTitle className="text-lg font-medium">Create Investment from Opportunity</DialogTitle>
-            <DialogDescription className="text-sm text-gray-500">
+            <DialogTitle className="gba:text-lg gba:font-medium">Create Investment from Opportunity</DialogTitle>
+            <DialogDescription className="gba:text-sm gba:text-gray-500">
               Create a new investment based on this opportunity. The investment will be automatically linked to this
               opportunity.
             </DialogDescription>
@@ -105,22 +105,22 @@ export default function CreateInvestmentModal({
         </div>
         
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4 px-5">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
+          <div className="gba:grid gba:gap-4 gba:py-4 gba:px-5">
+            <div className="gba:grid gba:grid-cols-4 gba:items-center gba:gap-4">
+              <Label htmlFor="name" className="gba:text-right">
                 Name
               </Label>
-              <Input id="name" name="name" defaultValue={opportunityName} className="col-span-3 border-gray-300" required />
+              <Input id="name" name="name" defaultValue={opportunityName} className="gba:col-span-3 gba:border-gray-300" required />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="type" className="text-right">
+            <div className="gba:grid gba:grid-cols-4 gba:items-center gba:gap-4">
+              <Label htmlFor="type" className="gba:text-right">
                 Type
               </Label>
               <Select name="type" defaultValue="Venture Capital" required>
-                <SelectTrigger className="col-span-3 border-gray-300">
+                <SelectTrigger className="gba:col-span-3 gba:border-gray-300">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
-                <SelectContent className="z-50 bg-white border border-gray-300 rounded shadow-md">
+                <SelectContent className="gba:z-50 gba:bg-white gba:border gba:border-gray-300 gba:rounded gba:shadow-md">
                   <SelectItem value="Strategic Investment">Strategic Investment</SelectItem>
                   <SelectItem value="Majority Stake">Majority Stake</SelectItem>
                   <SelectItem value="Minority Stake">Minority Stake</SelectItem>
@@ -132,23 +132,23 @@ export default function CreateInvestmentModal({
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="stage" className="text-right">
+            <div className="gba:grid gba:grid-cols-4 gba:items-center gba:gap-4">
+              <Label htmlFor="stage" className="gba:text-right">
                 Stage
               </Label>
               <Select name="stage" defaultValue="Pipeline" required>
-                <SelectTrigger className="col-span-3 border-gray-300">
+                <SelectTrigger className="gba:col-span-3 gba:border-gray-300">
                   <SelectValue placeholder="Select stage" />
                 </SelectTrigger>
-                <SelectContent className="z-50 bg-white border border-gray-300 rounded shadow-md">
+                <SelectContent className="gba:z-50 gba:bg-white gba:border gba:border-gray-300 gba:rounded gba:shadow-md">
                   <SelectItem value="Pipeline">Pipeline</SelectItem>
                   <SelectItem value="Hold">Hold</SelectItem>
                   <SelectItem value="Exit">Exit</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="amount" className="text-right">
+            <div className="gba:grid gba:grid-cols-4 gba:items-center gba:gap-4">
+              <Label htmlFor="amount" className="gba:text-right">
                 Amount
               </Label>
               <Input
@@ -156,19 +156,19 @@ export default function CreateInvestmentModal({
                 name="amount"
                 type="number"
                 defaultValue={opportunityValue || "0"}
-                className="col-span-3 border-gray-300"
+                className="gba:col-span-3 gba:border-gray-300"
                 required
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="currency" className="text-right">
+            <div className="gba:grid gba:grid-cols-4 gba:items-center gba:gap-4">
+              <Label htmlFor="currency" className="gba:text-right">
                 Currency
               </Label>
               <Select name="currency" defaultValue={opportunityCurrency || "USD"} required>
-                <SelectTrigger className="col-span-3 border-gray-300">
+                <SelectTrigger className="gba:col-span-3 gba:border-gray-300">
                   <SelectValue placeholder="Select currency" />
                 </SelectTrigger>
-                <SelectContent className="z-50 bg-white border border-gray-300 rounded shadow-md">
+                <SelectContent className="gba:z-50 gba:bg-white gba:border gba:border-gray-300 gba:rounded gba:shadow-md">
                   <SelectItem value="USD">USD</SelectItem>
                   <SelectItem value="EUR">EUR</SelectItem>
                   <SelectItem value="GBP">GBP</SelectItem>
@@ -177,25 +177,25 @@ export default function CreateInvestmentModal({
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="sector" className="text-right">
+            <div className="gba:grid gba:grid-cols-4 gba:items-center gba:gap-4">
+              <Label htmlFor="sector" className="gba:text-right">
                 Sector
               </Label>
-              <Input id="sector" name="sector" className="col-span-3 border-gray-300" />
+              <Input id="sector" name="sector" className="gba:col-span-3 gba:border-gray-300" />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="description" className="text-right">
+            <div className="gba:grid gba:grid-cols-4 gba:items-center gba:gap-4">
+              <Label htmlFor="description" className="gba:text-right">
                 Description
               </Label>
-              <Textarea id="description" name="description" className="col-span-3 border-gray-300" />
+              <Textarea id="description" name="description" className="gba:col-span-3 gba:border-gray-300" />
             </div>
             <input type="hidden" name="companyId" value={companyId || ""} />
           </div>
-          <DialogFooter className="flex justify-end gap-2 p-4 border-t border-gray-200">
-            <Button type="button" variant="outline" className="border-gray-300 px-4" onClick={() => setOpen(false)}>
+          <DialogFooter className="gba:flex gba:justify-end gba:gap-2 gba:p-4 gba:border-t gba:border-gray-200">
+            <Button type="button" variant="outline" className="gba:border-gray-300 gba:px-4" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-black hover:bg-gray-800 text-white px-4" disabled={isSubmitting}>
+            <Button type="submit" className="gba:bg-black gba:hover:bg-gray-800 gba:text-white gba:px-4" disabled={isSubmitting}>
               {isSubmitting ? "Creating..." : "Create Investment"}
             </Button>
           </DialogFooter>

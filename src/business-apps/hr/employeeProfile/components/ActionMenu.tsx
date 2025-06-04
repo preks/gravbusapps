@@ -281,16 +281,16 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   const actions = getActions();
 
   return (
-    <div className="relative inline-block text-left">
+    <div className="gba:relative gba:inline-block gba:text-left">
       <div>
         <button
           type="button"
-          className="inline-flex justify-center w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75"
+          className="gba:inline-flex gba:justify-center gba:w-full gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:text-white gba:bg-blue-600 gba:rounded-md gba:hover:bg-blue-700 gba:focus:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-white/75"
           onClick={toggleDropdown}
         >
           {t('employee_profile:actions.menu_label')}
           <svg
-            className="-mr-1 ml-2 h-5 w-5"
+            className="gba:-mr-1 gba:ml-2 gba:h-5 gba:w-5"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 20 20"
             fill="currentColor"
@@ -308,25 +308,25 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
       {isOpen && (
         <>
           <div 
-            className="fixed inset-0 z-10" 
+            className="gba:fixed gba:inset-0 gba:z-10" 
             onClick={closeDropdown}
           ></div>
           <div
-            className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20 max-h-96 overflow-y-auto"
+            className="gba:absolute gba:right-0 gba:mt-2 gba:w-56 gba:rounded-md gba:shadow-lg gba:bg-white gba:ring-1 gba:ring-black/50 gba:z-20 gba:max-h-96 gba:overflow-y-auto"
           >
-            <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+            <div className="gba:py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
               {actions.map((action) => (
                 action.isHeader ? (
                   <div 
                     key={action.id}
-                    className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50"
+                    className="gba:px-4 gba:py-2 gba:text-xs gba:font-bold gba:text-gray-500 gba:uppercase gba:tracking-wider gba:bg-gray-50"
                   >
                     {action.label}
                   </div>
                 ) : (
                   <button
                     key={action.id}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    className="gba:block gba:w-full gba:text-left gba:px-4 gba:py-2 gba:text-sm gba:text-gray-700 gba:hover:bg-gray-100 gba:hover:text-gray-900"
                     role="menuitem"
                     onClick={() => handleAction(action.id)}
                   >

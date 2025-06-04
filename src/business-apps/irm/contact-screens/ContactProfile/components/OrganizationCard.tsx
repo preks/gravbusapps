@@ -3,50 +3,50 @@ import { Card, CardContent, CardHeader, CardTitle } from "../common/components/u
 
 export function OrganizationCard() {
   return (
-    <Card className="rounded-xl shadow-sm border-gray-300">
-      <CardHeader className="border-b border-gray-300 pb-3">
+    <Card className="gba:rounded-xl gba:shadow-sm gba:border-gray-300">
+      <CardHeader className="gba:border-b gba:border-gray-300 gba:pb-3">
         <CardTitle>Organization</CardTitle>
       </CardHeader>
-      <CardContent className="pt-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
+      <CardContent className="gba:pt-4">
+        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
+          <div className="gba:space-y-4">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Account</p>
-              <a href="#" className="text-lg font-medium text-primary hover:underline">
+              <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">Account</p>
+              <a href="#" className="gba:text-lg gba:font-medium gba:text-primary hover:underline">
                 Acme Corporation
               </a>
             </div>
 
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Owner</p>
-              <p className="font-medium">Sarah Johnson</p>
+              <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">Owner</p>
+              <p className="gba:font-medium">Sarah Johnson</p>
             </div>
 
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Academic Title</p>
+              <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">Academic Title</p>
               <p>MSc. Computer Science</p>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="gba:space-y-4">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Source Systems</p>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary" className="bg-orange-100 text-orange-800 hover:bg-orange-200 border-0">
+              <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">Source Systems</p>
+              <div className="gba:flex gba:flex-wrap gba:gap-2">
+                <Badge variant="secondary" className="gba:bg-orange-100 gba:text-orange-800 gba:hover:bg-orange-200 gba:border-0">
                   CRM
                 </Badge>
-                <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-0">
+                <Badge variant="secondary" className="gba:bg-blue-100 gba:text-blue-800 gba:hover:bg-blue-200 gba:border-0">
                   IMS
                 </Badge>
-                <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200 border-0">
+                <Badge variant="secondary" className="gba:bg-green-100 gba:text-green-800 gba:hover:bg-green-200 gba:border-0">
                   Marketing
                 </Badge>
               </div>
             </div>
 
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Last Contacted</p>
-              <p className="font-medium text-blue-700">3 days ago</p>
+              <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">Last Contacted</p>
+              <p className="gba:font-medium gba:text-blue-700">3 days ago</p>
             </div>
           </div>
         </div>

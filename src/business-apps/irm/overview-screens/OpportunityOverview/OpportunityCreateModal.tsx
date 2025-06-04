@@ -63,41 +63,41 @@ export default function OpportunityCreateModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPortal>
-        <DialogOverlay className="bg-black/50" />
-        <DialogContent className="sm:max-w-[600px] p-0 fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-md shadow-lg">
-          <div className="p-4 pb-2">
+        <DialogOverlay className="gba:bg-black/50" />
+        <DialogContent className="gba:sm:max-w-[600px] gba:p-0 gba:fixed gba:top-1/2 gba:left-1/2 gba:transform -translate-x-1/2 -translate-y-1/2 gba:bg-white gba:rounded-md gba:shadow-lg">
+          <div className="gba:p-4 gba:pb-2">
             <div>
-              <h3 className="text-lg font-medium">Create New Opportunity</h3>
-              <p className="text-sm text-gray-500">Add a new sales opportunity to your pipeline.</p>
+              <h3 className="gba:text-lg gba:font-medium">Create New Opportunity</h3>
+              <p className="gba:text-sm gba:text-gray-500">Add a new sales opportunity to your pipeline.</p>
             </div>
           </div>
           
           <form onSubmit={handleSubmit}>
-            <Tabs defaultValue="basic" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 border-b border-gray-200 bg-gray-50">
+            <Tabs defaultValue="basic" className="gba:w-full">
+              <TabsList className="gba:grid gba:w-full gba:grid-cols-2 gba:border-b gba:border-gray-200 gba:bg-gray-50">
                 <TabsTrigger 
                   value="basic" 
-                  className="data-[state=active]:bg-white data-[state=active]:border-b-0 rounded-none py-2 px-1 text-sm font-medium data-[state=active]:font-semibold"
+                  className="gba:data-[state=active]:bg-white gba:data-[state=active]:border-b-0 gba:rounded-none gba:py-2 gba:px-1 gba:text-sm gba:font-medium gba:data-[state=active]:font-semibold"
                 >
                   Basic Info
                 </TabsTrigger>
                 <TabsTrigger 
                   value="details" 
-                  className="data-[state=active]:bg-white data-[state=active]:border-b-0 rounded-none py-2 px-1 text-sm font-medium data-[state=active]:font-semibold"
+                  className="gba:data-[state=active]:bg-white gba:data-[state=active]:border-b-0 gba:rounded-none gba:py-2 gba:px-1 gba:text-sm gba:font-medium gba:data-[state=active]:font-semibold"
                 >
                   Details
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value="basic" className="space-y-4 py-4 px-5 bg-white">
-                <div className="grid grid-cols-5 items-center gap-3">
-                  <Label htmlFor="name" className="text-right col-span-1">
+              <TabsContent value="basic" className="gba:space-y-4 gba:py-4 gba:px-5 gba:bg-white">
+                <div className="gba:grid gba:grid-cols-5 gba:items-center gba:gap-3">
+                  <Label htmlFor="name" className="gba:text-right gba:col-span-1">
                     Name
                   </Label>
-                  <Input id="name" name="name" placeholder="Opportunity name" className="col-span-4 border-gray-300" required />
+                  <Input id="name" name="name" placeholder="Opportunity name" className="gba:col-span-4 gba:border-gray-300" required />
                 </div>
                 
-                <div className="grid grid-cols-5 items-center gap-3">
-                  <Label htmlFor="type" className="text-right col-span-1">
+                <div className="gba:grid gba:grid-cols-5 gba:items-center gba:gap-3">
+                  <Label htmlFor="type" className="gba:text-right gba:col-span-1">
                     Type
                   </Label>
                   <Select
@@ -106,25 +106,25 @@ export default function OpportunityCreateModal({
                     onValueChange={(value) => setType(value as "incoming" | "outgoing")}
                     required
                   >
-                    <SelectTrigger className="col-span-4 border-gray-300">
+                    <SelectTrigger className="gba:col-span-4 gba:border-gray-300">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
-                    <SelectContent className="z-50 bg-white border border-gray-300 rounded shadow-md w-full">
+                    <SelectContent className="gba:z-50 gba:bg-white gba:border gba:border-gray-300 gba:rounded gba:shadow-md gba:w-full">
                       <SelectItem value="incoming">Incoming</SelectItem>
                       <SelectItem value="outgoing">Outgoing</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 
-                <div className="grid grid-cols-5 items-center gap-3">
-                  <Label htmlFor="companyId" className="text-right col-span-1">
+                <div className="gba:grid gba:grid-cols-5 gba:items-center gba:gap-3">
+                  <Label htmlFor="companyId" className="gba:text-right gba:col-span-1">
                     Company
                   </Label>
                   <Select name="companyId">
-                    <SelectTrigger className="col-span-4 border-gray-300">
+                    <SelectTrigger className="gba:col-span-4 gba:border-gray-300">
                       <SelectValue placeholder="Select company" />
                     </SelectTrigger>
-                    <SelectContent className="z-50 bg-white border border-gray-300 rounded shadow-md w-full">
+                    <SelectContent className="gba:z-50 gba:bg-white gba:border gba:border-gray-300 gba:rounded gba:shadow-md gba:w-full">
                       {companies?.map((company) => (
                         <SelectItem key={company?.id} value={company?.id}>
                           {company?.name}
@@ -134,15 +134,15 @@ export default function OpportunityCreateModal({
                   </Select>
                 </div>
                 
-                <div className="grid grid-cols-5 items-center gap-3">
-                  <Label htmlFor="pipelineId" className="text-right col-span-1">
+                <div className="gba:grid gba:grid-cols-5 gba:items-center gba:gap-3">
+                  <Label htmlFor="pipelineId" className="gba:text-right gba:col-span-1">
                     Pipeline
                   </Label>
                   <Select name="pipelineId" required>
-                    <SelectTrigger className="col-span-4 border-gray-300">
+                    <SelectTrigger className="gba:col-span-4 gba:border-gray-300">
                       <SelectValue placeholder="Select pipeline" />
                     </SelectTrigger>
-                    <SelectContent className="z-50 bg-white border border-gray-300 rounded shadow-md w-full">
+                    <SelectContent className="gba:z-50 gba:bg-white gba:border gba:border-gray-300 gba:rounded gba:shadow-md gba:w-full">
                       {pipelines?.map((pipeline) => (
                         <SelectItem key={pipeline?.id} value={pipeline?.id}>
                           {pipeline?.name}
@@ -152,15 +152,15 @@ export default function OpportunityCreateModal({
                   </Select>
                 </div>
                 
-                <div className="grid grid-cols-5 items-center gap-3">
-                  <Label htmlFor="investmentId" className="text-right col-span-1">
+                <div className="gba:grid gba:grid-cols-5 gba:items-center gba:gap-3">
+                  <Label htmlFor="investmentId" className="gba:text-right gba:col-span-1">
                     Investment
                   </Label>
                   <Select name="investmentId">
-                    <SelectTrigger className="col-span-4 border-gray-300">
+                    <SelectTrigger className="gba:col-span-4 gba:border-gray-300">
                       <SelectValue placeholder="Select investment (optional)" />
                     </SelectTrigger>
-                    <SelectContent className="z-50 bg-white border border-gray-300 rounded shadow-md w-full">
+                    <SelectContent className="gba:z-50 gba:bg-white gba:border gba:border-gray-300 gba:rounded gba:shadow-md gba:w-full">
                       <SelectItem value="none">None</SelectItem>
                       {investments?.map((investment) => (
                         <SelectItem key={investment?.id} value={investment?.id}>
@@ -172,23 +172,23 @@ export default function OpportunityCreateModal({
                 </div>
               </TabsContent>
               
-              <TabsContent value="details" className="space-y-4 py-4 px-5 bg-white">
-                <div className="grid grid-cols-5 items-center gap-3">
-                  <Label htmlFor="value" className="text-right col-span-1">
+              <TabsContent value="details" className="gba:space-y-4 gba:py-4 gba:px-5 gba:bg-white">
+                <div className="gba:grid gba:grid-cols-5 gba:items-center gba:gap-3">
+                  <Label htmlFor="value" className="gba:text-right gba:col-span-1">
                     Value
                   </Label>
-                  <Input id="value" name="value" placeholder="Opportunity value" className="col-span-4 border-gray-300" />
+                  <Input id="value" name="value" placeholder="Opportunity value" className="gba:col-span-4 gba:border-gray-300" />
                 </div>
                 
-                <div className="grid grid-cols-5 items-center gap-3">
-                  <Label htmlFor="currency" className="text-right col-span-1">
+                <div className="gba:grid gba:grid-cols-5 gba:items-center gba:gap-3">
+                  <Label htmlFor="currency" className="gba:text-right gba:col-span-1">
                     Currency
                   </Label>
                   <Select name="currency" defaultValue="USD">
-                    <SelectTrigger className="col-span-4 border-gray-300">
+                    <SelectTrigger className="gba:col-span-4 gba:border-gray-300">
                       <SelectValue placeholder="Select currency" />
                     </SelectTrigger>
-                    <SelectContent className="z-50 bg-white border border-gray-300 rounded shadow-md w-full">
+                    <SelectContent className="gba:z-50 gba:bg-white gba:border gba:border-gray-300 gba:rounded gba:shadow-md gba:w-full">
                       <SelectItem value="USD">USD</SelectItem>
                       <SelectItem value="EUR">EUR</SelectItem>
                       <SelectItem value="GBP">GBP</SelectItem>
@@ -198,29 +198,29 @@ export default function OpportunityCreateModal({
                   </Select>
                 </div>
                 
-                <div className="grid grid-cols-5 items-center gap-3">
-                  <Label htmlFor="description" className="text-right col-span-1">
+                <div className="gba:grid gba:grid-cols-5 gba:items-center gba:gap-3">
+                  <Label htmlFor="description" className="gba:text-right gba:col-span-1">
                     Description
                   </Label>
                   <Textarea
                     id="description"
                     name="description"
                     placeholder="Opportunity description"
-                    className="col-span-4 border-gray-300"
+                    className="gba:col-span-4 gba:border-gray-300"
                   />
                 </div>
                 
                 {type === "incoming" && (
                   <>
-                    <div className="grid grid-cols-5 items-center gap-3">
-                      <Label htmlFor="investmentType" className="text-right col-span-1">
+                    <div className="gba:grid gba:grid-cols-5 gba:items-center gba:gap-3">
+                      <Label htmlFor="investmentType" className="gba:text-right gba:col-span-1">
                         Investment Type
                       </Label>
                       <Select name="investmentType" defaultValue="equity">
-                        <SelectTrigger className="col-span-4 border-gray-300">
+                        <SelectTrigger className="gba:col-span-4 gba:border-gray-300">
                           <SelectValue placeholder="Select investment type" />
                         </SelectTrigger>
-                        <SelectContent className="z-50 bg-white border border-gray-300 rounded shadow-md w-full">
+                        <SelectContent className="gba:z-50 gba:bg-white gba:border gba:border-gray-300 gba:rounded gba:shadow-md gba:w-full">
                           <SelectItem value="equity">Equity</SelectItem>
                           <SelectItem value="debt">Debt</SelectItem>
                           <SelectItem value="convertible">Convertible</SelectItem>
@@ -228,25 +228,25 @@ export default function OpportunityCreateModal({
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="grid grid-cols-5 items-center gap-3">
-                      <Label htmlFor="targetROI" className="text-right col-span-1">
+                    <div className="gba:grid gba:grid-cols-5 gba:items-center gba:gap-3">
+                      <Label htmlFor="targetROI" className="gba:text-right gba:col-span-1">
                         Target ROI
                       </Label>
-                      <Input id="targetROI" name="targetROI" placeholder="Target ROI" className="col-span-4 border-gray-300" />
+                      <Input id="targetROI" name="targetROI" placeholder="Target ROI" className="gba:col-span-4 gba:border-gray-300" />
                     </div>
                   </>
                 )}
                 {type === "outgoing" && (
                   <>
-                    <div className="grid grid-cols-5 items-center gap-3">
-                      <Label htmlFor="assetType" className="text-right col-span-1">
+                    <div className="gba:grid gba:grid-cols-5 gba:items-center gba:gap-3">
+                      <Label htmlFor="assetType" className="gba:text-right gba:col-span-1">
                         Asset Type
                       </Label>
                       <Select name="assetType" defaultValue="property">
-                        <SelectTrigger className="col-span-4 border-gray-300">
+                        <SelectTrigger className="gba:col-span-4 gba:border-gray-300">
                           <SelectValue placeholder="Select asset type" />
                         </SelectTrigger>
-                        <SelectContent className="z-50 bg-white border border-gray-300 rounded shadow-md w-full">
+                        <SelectContent className="gba:z-50 gba:bg-white gba:border gba:border-gray-300 gba:rounded gba:shadow-md gba:w-full">
                           <SelectItem value="property">Property</SelectItem>
                           <SelectItem value="business">Business</SelectItem>
                           <SelectItem value="equipment">Equipment</SelectItem>
@@ -254,22 +254,22 @@ export default function OpportunityCreateModal({
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="grid grid-cols-5 items-center gap-3">
-                      <Label htmlFor="askingPrice" className="text-right col-span-1">
+                    <div className="gba:grid gba:grid-cols-5 gba:items-center gba:gap-3">
+                      <Label htmlFor="askingPrice" className="gba:text-right gba:col-span-1">
                         Asking Price
                       </Label>
-                      <Input id="askingPrice" name="askingPrice" placeholder="Asking price" className="col-span-4 border-gray-300" />
+                      <Input id="askingPrice" name="askingPrice" placeholder="Asking price" className="gba:col-span-4 gba:border-gray-300" />
                     </div>
                   </>
                 )}
               </TabsContent>
             </Tabs>
             
-            <div className="flex justify-end gap-2 p-4 border-t border-gray-200">
-              <Button type="button" variant="outline" className="border-gray-300 px-4" onClick={() => onOpenChange(false)}>
+            <div className="gba:flex gba:justify-end gba:gap-2 gba:p-4 gba:border-t gba:border-gray-200">
+              <Button type="button" variant="outline" className="gba:border-gray-300 gba:px-4" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-black hover:bg-gray-800 text-white px-4" disabled={isSubmitting}>
+              <Button type="submit" className="gba:bg-black gba:hover:bg-gray-800 gba:text-white gba:px-4" disabled={isSubmitting}>
                 Create Opportunity
               </Button>
             </div>

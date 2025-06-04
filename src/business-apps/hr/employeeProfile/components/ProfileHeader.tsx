@@ -81,18 +81,18 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
   linkTo 
 }) => {
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-shrink-0 text-gray-500">
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <div className="gba:shrink-0 gba:text-gray-500">
         {icon}
       </div>
-      <div className="flex-grow">
-        <div className="text-xs text-gray-500">{label}</div>
+      <div className="gba:grow">
+        <div className="gba:text-xs gba:text-gray-500">{label}</div>
         {linkTo ? (
-          <a href={linkTo} className="text-sm text-blue-600 hover:underline">
+          <a href={linkTo} className="gba:text-sm gba:text-blue-600 gba:hover:underline">
             {value}
           </a>
         ) : (
-          <div className="text-sm text-gray-700">{value}</div>
+          <div className="gba:text-sm gba:text-gray-700">{value}</div>
         )}
       </div>
     </div>
@@ -179,16 +179,16 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
   }, [employee.id]);
 
   return (
-    <div className="w-full relative overflow-hidden">
-      <div className="relative px-4 pb-4 mt-4 flex flex-col md:flex-row md:items-end">
-        <div className="md:mr-8 flex flex-col items-center">
+    <div className="gba:w-full gba:relative gba:overflow-hidden">
+      <div className="gba:relative gba:px-4 gba:pb-4 gba:mt-4 gba:flex gba:flex-col gba:md:flex-row gba:md:items-end">
+        <div className="gba:md:mr-8 gba:flex gba:flex-col gba:items-center">
  
-          <div className="flex flex-col items-center">
-            <div className="flex-shrink-0 mb-4 z-10">
-              <div className="relative">
-                <div className="relative">
+          <div className="gba:flex gba:flex-col gba:items-center">
+            <div className="gba:shrink-0 gba:mb-4 gba:z-10">
+              <div className="gba:relative">
+                <div className="gba:relative">
                   {/* Use the EmployeeAvatar component */}
-                  <div className="relative">
+                  <div className="gba:relative">
                     <EmployeeAvatar
                       profilePicture={employee.pictureThumbnail}
                       firstName={employee.firstName}
@@ -202,15 +202,15 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                     {hasPermissionToEditPicture && (
                       <button 
                         type="button"
-                        className="absolute inset-0 flex items-center justify-center bg-transparent hover:bg-black hover:bg-opacity-50 rounded-full cursor-pointer transition-colors duration-200"
+                        className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-transparent gba:hover:bg-black/50 gba:rounded-full gba:cursor-pointer gba:transition-colors gba:duration-200"
                         onClick={handleEditPicture}
                         onMouseEnter={() => setIsHovering(true)}
                         onMouseLeave={() => setIsHovering(false)}
                         aria-label={t('employee_profile.actions.edit_picture', 'Edit profile picture')}
                       >
                         {isHovering && (
-                          <span className="bg-white text-black rounded-full p-2 hover:bg-gray-200">
-                            <PiPencilSimple className="h-5 w-5" />
+                          <span className="gba:bg-white gba:text-black gba:rounded-full gba:p-2 gba:hover:bg-gray-200">
+                            <PiPencilSimple className="gba:h-5 gba:w-5" />
                           </span>
                         )}
                       </button>
@@ -221,52 +221,52 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
 
                 
                 {/* Communication Actions - Always visible */}
-                <div className="mt-3 flex justify-center gap-3">
+                <div className="gba:mt-3 gba:flex gba:justify-center gba:gap-3">
                   <button 
                     onClick={handleChat}
-                    className="bg-gray-100 hover:bg-blue-100 rounded-full p-2.5 shadow-sm transition-colors"
+                    className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
                     title="Chat" /* TO-DO: ADD TRANSLATION */
                     aria-label="Chat"
                     disabled={!employee.additionalProperties?.userId}
                   >
-                    <PiChat className="h-5 w-5" />
+                    <PiChat className="gba:h-5 gba:w-5" />
                   </button>
                   <button 
                     onClick={handleCall}
-                    className="bg-gray-100 hover:bg-blue-100 rounded-full p-2.5 shadow-sm transition-colors"
+                    className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
                     title="Call" /* TO-DO: ADD TRANSLATION */
                     aria-label="Call"
                     disabled={!employee.additionalProperties?.userId}
                   >
-                    <PiPhone className="h-5 w-5" />
+                    <PiPhone className="gba:h-5 gba:w-5" />
                   </button>
                   <button 
                     onClick={handleVideoCall}
-                    className="bg-gray-100 hover:bg-blue-100 rounded-full p-2.5 shadow-sm transition-colors"
+                    className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
                     title="Video Call" /* TO-DO: ADD TRANSLATION */
                     aria-label="Video Call"
                     disabled={!employee.additionalProperties?.userId}
                   >
-                    <PiVideoCamera className="h-5 w-5" />
+                    <PiVideoCamera className="gba:h-5 gba:w-5" />
                   </button>
                 </div>
               </div>
             </div>
             
             {/* Profile Info */}
-            <div className="flex-grow text-center">
-              <h1 className="text-xl font-bold mb-1 text-gray-800">
+            <div className="gba:grow gba:text-center">
+              <h1 className="gba:text-xl gba:font-bold gba:mb-1 gba:text-gray-800">
                 {getEmployeeFullName(employee)}
               </h1>
-              <p className="text-gray-600 mb-4 text-sm">
+              <p className="gba:text-gray-600 gba:mb-4 gba:text-sm">
                 {employee.employeePosition?.jobPosition?.name ?? t('employee_profile.left_side_bar.not_assigned')}
               </p>
               
               {/* Profile Info Grid */}
-              <div className="grid grid-cols-1 gap-4 w-full mt-3 text-left">
+              <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:w-full gba:mt-3 gba:text-left">
                 {/* Organization */}
                 <ProfileInfoItem 
-                  icon={<PiBuildings className="h-4 w-4" />}
+                  icon={<PiBuildings className="gba:h-4 gba:w-4" />}
                   label={t('employee_profile.profile_icon_list.org_title')}
                   value={employee.employeePosition?.organizationalUnit?.name ?? t('employee_profile.left_side_bar.not_assigned')}
                   linkTo={employee.employeePosition?.organizationalUnitId ? `/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}` : undefined}
@@ -274,7 +274,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                 
                 {/* Manager */}
                 <ProfileInfoItem 
-                  icon={<PiUser className="h-4 w-4" />}
+                  icon={<PiUser className="gba:h-4 gba:w-4" />}
                   label={t('employee_profile.profile_icon_list.manager_title')}
                   value={
                     employee.employeePosition?.supervisor?.id && employee.employeePosition.supervisor.id !== employee.id
@@ -290,7 +290,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                 
                 {/* Location */}
                 <ProfileInfoItem 
-                  icon={<PiMapPin className="h-4 w-4" />}
+                  icon={<PiMapPin className="gba:h-4 gba:w-4" />}
                   label={t('employee_profile.profile_icon_list.location_title')}
                   value={employee.employeePosition?.siteLocation?.name ?? t('employee_profile.left_side_bar.not_assigned')}
                   //linkTo={employee.employeePosition?.siteLocation?.id ? `/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}` : undefined}
@@ -298,7 +298,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                 
                 {/* Cost Center */}
                 <ProfileInfoItem 
-                  icon={<PiCurrencyDollar className="h-4 w-4" />}
+                  icon={<PiCurrencyDollar className="gba:h-4 gba:w-4" />}
                   label={t('employee_profile.profile_icon_list.cost_center_title', 'Cost Center')}
                   value={employee.employeePosition?.costCenter?.name ?? t('employee_profile.left_side_bar.not_assigned')}
                   linkTo={employee.employeePosition?.costCenter?.id ? `/orgchart/active/finance?costCenterDataId=${employee.employeePosition.costCenter.id}` : undefined}
@@ -306,7 +306,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                 
                 {/* Hire Date */}
                 <ProfileInfoItem 
-                  icon={<PiCalendar className="h-4 w-4" />}
+                  icon={<PiCalendar className="gba:h-4 gba:w-4" />}
                   label={t('employee_profile.profile_icon_list.since_title')}
                   value={
                     employee.workingCondition[0]?.hireDate
@@ -318,15 +318,15 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
 
               {/* Teams Section - if available */}
               {employee.employeePosition?.matrixUnitEmployees && employee.employeePosition.matrixUnitEmployees.length > 0 && (
-                <div className="mt-6">
-                  <h3 className="text-sm font-semibold mb-2 text-gray-700">
+                <div className="gba:mt-6">
+                  <h3 className="gba:text-sm gba:font-semibold gba:mb-2 gba:text-gray-700">
                     {t('employee_profile.profile_icon_list.teams_title', 'Teams')}
                   </h3>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="gba:flex gba:flex-wrap gba:gap-2">
                     {employee.employeePosition.matrixUnitEmployees.map((teamItem: MatrixUnitEmployee) => (
                       <span 
                         key={teamItem.matrixUnit.id} 
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                        className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-blue-100 gba:text-blue-800"
                       >
                         {teamItem.matrixUnit.name}
                       </span>
@@ -337,15 +337,15 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
 
               {/* Capabilities Section - if available */}
               {employee.employeePosition?.employeeCapabilities && employee.employeePosition.employeeCapabilities.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-sm font-semibold mb-2 text-gray-700">
+                <div className="gba:mt-4">
+                  <h3 className="gba:text-sm gba:font-semibold gba:mb-2 gba:text-gray-700">
                     {t('employee_profile.profile_icon_list.capabilities_title', 'Capabilities')}
                   </h3>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="gba:flex gba:flex-wrap gba:gap-2">
                     {employee.employeePosition.employeeCapabilities.map((capItem: EmployeeCapability) => (
                       <span 
                         key={capItem.capability.id} 
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                        className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-green-100 gba:text-green-800"
                       >
                         {capItem.capability.name}
                       </span>
@@ -356,19 +356,19 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
               
               {/* Skills Section - if available */}
               {employee.skills?.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-sm font-semibold mb-2 text-gray-700">
+                <div className="gba:mt-4">
+                  <h3 className="gba:text-sm gba:font-semibold gba:mb-2 gba:text-gray-700">
                     {t('employee_profile.profile_icon_list.skills_title', 'Skills')}
                   </h3>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="gba:flex gba:flex-wrap gba:gap-2">
                     {employee.skills.map((skillItem: EmployeeSkill) => (
                       <span 
                         key={skillItem.skill.id} 
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${skillItem.level === 'Advanced' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}
+                        className={`gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium ${skillItem.level === 'Advanced'          ? 'gba:bg-purple-100 gba:text-purple-800' : 'gba:bg-gray-100 gba:text-gray-800'}`}
                       >
                         {skillItem.skill.name}
                         {skillItem.level === 'Advanced' && (
-                          <span className="ml-1 text-xs font-semibold">★</span>
+                          <span className="gba:ml-1 gba:text-xs gba:font-semibold">★</span>
                         )}
                       </span>
                     ))}
@@ -377,13 +377,13 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
               )}
               
               {/* Contact Info */}
-              <div className="mt-4 flex flex-col gap-2">
+              <div className="gba:mt-4 gba:flex gba:flex-col gba:gap-2">
                 {getBusinessEmail() && (
                   <a 
                     href={`mailto:${getBusinessEmail()}`}
-                    className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors text-sm"
+                    className="gba:inline-flex gba:items-center gba:text-blue-600 gba:hover:text-blue-800 gba:transition-colors gba:text-sm"
                   >
-                    <PiEnvelopeSimple className="mr-2 h-4 w-4" />
+                    <PiEnvelopeSimple className="gba:mr-2 gba:h-4 gba:w-4" />
                     {getBusinessEmail()}
                   </a>
                 )}
@@ -391,9 +391,9 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                 {getBusinessPhone() && (
                   <a 
                     href={`tel:${getBusinessPhone()}`}
-                    className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors text-sm"
+                    className="gba:inline-flex gba:items-center gba:text-blue-600 gba:hover:text-blue-800 gba:transition-colors gba:text-sm"
                   >
-                    <PiPhone className="mr-2 h-4 w-4" />
+                    <PiPhone className="gba:mr-2 gba:h-4 gba:w-4" />
                     {getBusinessPhone()}
                   </a>
                 )}

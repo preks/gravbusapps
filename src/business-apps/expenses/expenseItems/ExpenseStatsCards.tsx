@@ -369,74 +369,74 @@ const ExpenseStatsCards: React.FC<ExpenseStatsProps> = ({
   }, [employeeId]);
 
   if (loading) {
-    return <div className="text-center py-4">Loading statistics...</div>;
+    return <div className="gba:text-center gba:py-4">Loading statistics...</div>;
   }
 
   if (error) {
-    return <div className="text-red-500 py-2">{error}</div>;
+    return <div className="gba:text-red-500 gba:py-2">{error}</div>;
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <Card className="bg-white shadow-sm">
-        <div className="flex justify-between items-center">
+    <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4 gba:gap-4 gba:mb-6">
+      <Card className="gba:bg-white gba:shadow-sm">
+        <div className="gba:flex gba:justify-between gba:items-center">
           <div>
-            <div className="text-sm text-gray-500">Total Expenses ({new Date().getFullYear()})</div>
-            <div className="text-2xl font-bold">{formatCurrency(stats.currentYearAmount)} €</div>
-            <div className={`text-sm ${stats.previousYearChange > 0 ? 'text-green-500' : stats.previousYearChange < 0 ? 'text-red-500' : 'text-gray-500'}`}>
+            <div className="gba:text-sm gba:text-gray-500">Total Expenses ({new Date().getFullYear()})</div>
+            <div className="gba:text-2xl gba:font-bold">{formatCurrency(stats.currentYearAmount)} €</div>
+            <div className={`gba:text-sm ${stats.previousYearChange > 0 ? 'gba:text-green-500' : stats.previousYearChange < 0      ? 'gba:text-red-500' : 'gba:text-gray-500'}`}>
               {stats.previousYearChange > 0 ? '+' : ''}{stats.previousYearChange.toFixed(1)}% vs last year
             </div>
           </div>
-          <div className="text-blue-500 p-2 bg-blue-50 rounded-full">
+          <div className="gba:text-blue-500 gba:p-2 gba:bg-blue-50 gba:rounded-full">
             <RiMoneyEuroCircleLine size={24} />
           </div>
         </div>
       </Card>
 
-      <Card className="bg-white shadow-sm">
-        <div className="flex justify-between items-center">
+      <Card className="gba:bg-white gba:shadow-sm">
+        <div className="gba:flex gba:justify-between gba:items-center">
           <div>
-            <div className="text-sm text-gray-500">Current Month ({stats.currentMonthName})</div>
-            <div className="text-2xl font-bold">{formatCurrency(stats.currentMonthAmount)} €</div>
-            <div className={`text-sm ${stats.previousMonthChange > 0 ? 'text-green-500' : stats.previousMonthChange < 0 ? 'text-red-500' : 'text-gray-500'}`}>
+            <div className="gba:text-sm gba:text-gray-500">Current Month ({stats.currentMonthName})</div>
+            <div className="gba:text-2xl gba:font-bold">{formatCurrency(stats.currentMonthAmount)} €</div>
+            <div className={`gba:text-sm ${stats.previousMonthChange > 0 ? 'gba:text-green-500' : stats.previousMonthChange < 0          ? 'gba:text-red-500' : 'gba:text-gray-500'}`}>
               {stats.previousMonthChange > 0 ? '+' : ''}{stats.previousMonthChange.toFixed(1)}% vs previous month
             </div>
           </div>
-          <div className="text-blue-500 p-2 bg-blue-50 rounded-full">
+          <div className="gba:text-blue-500 gba:p-2 gba:bg-blue-50 gba:rounded-full">
             <RiCalendarLine size={24} />
           </div>
         </div>
       </Card>
 
       <Card 
-        className={`shadow-sm cursor-pointer hover:shadow-md transition-all duration-200 ${pendingReimbursementFilterActive ? 'bg-orange-100 ring-2 ring-orange-400' : 'bg-white'}`}
+        className={`gba:shadow-sm gba:cursor-pointer gba:hover:shadow-md gba:transition-all gba:duration-200 ${pendingReimbursementFilterActive          ? 'gba:bg-orange-100 gba:ring-2 gba:ring-orange-400' : 'gba:bg-white'}`}
         onClick={onFilterPendingReimbursement}
       >
-        <div className="flex justify-between items-center">
+        <div className="gba:flex gba:justify-between gba:items-center">
           <div>
-            <div className="text-sm text-gray-500">Pending Reimbursement</div>
-            <div className="text-2xl font-bold">{formatCurrency(stats.pendingAmount)} €</div>
-            <div className="text-gray-500 text-sm">{stats.pendingCount} items pending</div>
+            <div className="gba:text-sm gba:text-gray-500">Pending Reimbursement</div>
+            <div className="gba:text-2xl gba:font-bold">{formatCurrency(stats.pendingAmount)} €</div>
+            <div className="gba:text-gray-500 gba:text-sm">{stats.pendingCount} items pending</div>
           </div>
-          <div className="text-orange-500 p-2 bg-orange-50 rounded-full">
+          <div className="gba:text-orange-500 gba:p-2 gba:bg-orange-50 gba:rounded-full">
             <RiFileListLine size={24} />
           </div>
         </div>
       </Card>
 
       <Card 
-        className={`shadow-sm cursor-pointer hover:shadow-md transition-all duration-200 ${missingReceiptsFilterActive ? 'bg-red-100 ring-2 ring-red-400' : 'bg-white'}`}
+        className={`gba:shadow-sm gba:cursor-pointer gba:hover:shadow-md gba:transition-all gba:duration-200 ${missingReceiptsFilterActive          ? 'gba:bg-red-100 gba:ring-2 gba:ring-red-400' : 'gba:bg-white'}`}
         onClick={onFilterMissingReceipts}
       >
-        <div className="flex justify-between items-center">
+        <div className="gba:flex gba:justify-between gba:items-center">
           <div>
-            <div className="text-sm text-gray-500">Missing Receipts</div>
-            <div className="text-2xl font-bold">{stats.missingReceipts}</div>
-            <div className="text-gray-500 text-sm">
+            <div className="gba:text-sm gba:text-gray-500">Missing Receipts</div>
+            <div className="gba:text-2xl gba:font-bold">{stats.missingReceipts}</div>
+            <div className="gba:text-gray-500 gba:text-sm">
               {stats.missingReceipts > 0 ? 'Action required' : 'All receipts submitted'}
             </div>
           </div>
-          <div className="text-red-500 p-2 bg-red-50 rounded-full">
+          <div className="gba:text-red-500 gba:p-2 gba:bg-red-50 gba:rounded-full">
             <RiFileTextLine size={24} />
           </div>
         </div>

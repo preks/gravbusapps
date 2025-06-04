@@ -40,15 +40,15 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   }, []);
 
   return (
-    <div className="absences-tab space-y-8">
+    <div className="gba:absences-tab gba:space-y-8">
       {/* Entitlements Section */}
       <div>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-medium">
+        <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+          <h2 className="gba:text-xl gba:font-medium">
             {t('hr_absences.absences')}
           </h2>
           <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
             onClick={() => {
               // Navigate to absences page
               window.location.href = '/platform/landing_screen/srn_absenceLandingScreen';
@@ -59,50 +59,50 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         </div>
 
         {uniqueAbsenceEntitlements.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
+          <div className="gba:text-center gba:text-gray-500 gba:py-8">
             <p>{t('employee_profile:absences.entitlements.no_entitlements')}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className="gba:overflow-x-auto">
+            <table className="gba:min-w-full gba:divide-y gba:divide-gray-200">
+              <thead className="gba:bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
                     {t('hr_absences.absences')}
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
                     {t('initiate_advance_payment.total')}
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
                     {t('expense_request_overview.side_bar.payment_status')}
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
                     {t('manager_expense_landing_page.upcoming_approved_badge')}
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
                     {t('hr_absences.available')}
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="gba:bg-white gba:divide-y gba:divide-gray-200">
                 {uniqueAbsenceEntitlements.map((entitlement) => (
                   <tr key={`${entitlement.type?.value ?? 'unknown'}-${entitlement.total}`}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                    <td className="gba:px-6 gba:py-4 gba:whitespace-nowrap">
+                      <div className="gba:text-sm gba:font-medium gba:text-gray-900">
                         {getTypeTranslation(entitlement)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{entitlement.total}</div>
+                    <td className="gba:px-6 gba:py-4 gba:whitespace-nowrap">
+                      <div className="gba:text-sm gba:text-gray-900">{entitlement.total}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{entitlement.pending}</div>
+                    <td className="gba:px-6 gba:py-4 gba:whitespace-nowrap">
+                      <div className="gba:text-sm gba:text-gray-900">{entitlement.pending}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{entitlement.approved}</div>
+                    <td className="gba:px-6 gba:py-4 gba:whitespace-nowrap">
+                      <div className="gba:text-sm gba:text-gray-900">{entitlement.approved}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{entitlement.available}</div>
+                    <td className="gba:px-6 gba:py-4 gba:whitespace-nowrap">
+                      <div className="gba:text-sm gba:text-gray-900">{entitlement.available}</div>
                     </td>
                   </tr>
                 ))}
@@ -114,26 +114,26 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
       {/* Request Absence Section */}
       <div>
-        <h2 className="text-xl font-medium mb-4">
+        <h2 className="gba:text-xl gba:font-medium gba:mb-4">
           {t('hr_absences.create_absence.title')}
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="p-4 hover:shadow-md transition-shadow">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
+          <Card className="gba:p-4 gba:hover:shadow-md gba:transition-shadow">
+            <div className="gba:flex gba:flex-col gba:items-center gba:text-center">
+              <div className="gba:w-16 gba:h-16 gba:flex gba:items-center gba:justify-center gba:bg-blue-100 gba:text-blue-600 gba:rounded-full gba:mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-8 gba:w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-medium mb-2">
+              <h3 className="gba:text-lg gba:font-medium gba:mb-2">
                 {t('absence_module.vacation_request')}
               </h3>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="gba:text-sm gba:text-gray-500 gba:mb-4">
                 {t('hr_absences.create_absence.reason')}
               </p>
               <button 
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                className="gba:w-full gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
                 onClick={() => {
                   // Trigger flow to request vacation
                   if (typeof window !== 'undefined' && window.dispatchEvent) {
@@ -156,21 +156,21 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             </div>
           </Card>
           
-          <Card className="p-4 hover:shadow-md transition-shadow">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 flex items-center justify-center bg-red-100 text-red-600 rounded-full mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <Card className="gba:p-4 gba:hover:shadow-md gba:transition-shadow">
+            <div className="gba:flex gba:flex-col gba:items-center gba:text-center">
+              <div className="gba:w-16 gba:h-16 gba:flex gba:items-center gba:justify-center gba:bg-red-100 gba:text-red-600 gba:rounded-full gba:mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-8 gba:w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-medium mb-2">
+              <h3 className="gba:text-lg gba:font-medium gba:mb-2">
                 {t('absence_module.sick_leave_request')}
               </h3>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="gba:text-sm gba:text-gray-500 gba:mb-4">
                 {t('hr_absences.create_absence.reason')}
               </p>
               <button 
-                className="w-full px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                className="gba:w-full gba:px-4 gba:py-2 gba:bg-red-600 gba:text-white gba:rounded gba:hover:bg-red-700 gba:transition-colors"
                 onClick={() => {
                   // Trigger flow to report sick leave
                   if (typeof window !== 'undefined' && window.dispatchEvent) {
@@ -193,21 +193,21 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             </div>
           </Card>
           
-          <Card className="p-4 hover:shadow-md transition-shadow">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 flex items-center justify-center bg-purple-100 text-purple-600 rounded-full mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <Card className="gba:p-4 gba:hover:shadow-md gba:transition-shadow">
+            <div className="gba:flex gba:flex-col gba:items-center gba:text-center">
+              <div className="gba:w-16 gba:h-16 gba:flex gba:items-center gba:justify-center gba:bg-purple-100 gba:text-purple-600 gba:rounded-full gba:mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-8 gba:w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </div>
-              <h3 className="text-lg font-medium mb-2">
+              <h3 className="gba:text-lg gba:font-medium gba:mb-2">
                 {t('absence_module.special_leave_request')}
               </h3>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="gba:text-sm gba:text-gray-500 gba:mb-4">
                 {t('hr_absences.create_absence.reason')}
               </p>
               <button 
-                className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+                className="gba:w-full gba:px-4 gba:py-2 gba:bg-purple-600 gba:text-white gba:rounded gba:hover:bg-purple-700 gba:transition-colors"
                 onClick={() => {
                   // Trigger flow to request special leave
                   if (typeof window !== 'undefined' && window.dispatchEvent) {

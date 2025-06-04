@@ -35,29 +35,29 @@ export default function OpportunitiesKPI({ opportunities }: OpportunitiesKPIProp
       : 0
 
   return (
-    <div className="grid gap-4 md:grid-cols-4">
+    <div className="gba:grid gba:gap-4 gba:md:grid-cols-4">
       <Card>
-        <CardContent className="p-6">
-          <div className="text-sm font-medium text-muted-foreground">Total Opportunities</div>
-          <div className="text-2xl font-bold">{totalOpportunities}</div>
+        <CardContent className="gba:p-6">
+          <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Total Opportunities</div>
+          <div className="gba:text-2xl gba:font-bold">{totalOpportunities}</div>
         </CardContent>
       </Card>
       <Card>
-        <CardContent className="p-6">
-          <div className="text-sm font-medium text-muted-foreground">Active Opportunities</div>
-          <div className="text-2xl font-bold">{activeOpportunities}</div>
+        <CardContent className="gba:p-6">
+          <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Active Opportunities</div>
+          <div className="gba:text-2xl gba:font-bold">{activeOpportunities}</div>
         </CardContent>
       </Card>
       <Card>
-        <CardContent className="p-6">
-          <div className="text-sm font-medium text-muted-foreground">Total Value</div>
-          <div className="text-2xl font-bold">$ {totalValue != undefined ? totalValue.toLocaleString() : 0}</div>
+        <CardContent className="gba:p-6">
+          <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Total Value</div>
+          <div className="gba:text-2xl gba:font-bold">$ {totalValue != undefined ? totalValue.toLocaleString() : 0}</div>
         </CardContent>
       </Card>
       <Card>
-        <CardContent className="p-6">
-          <div className="text-sm font-medium text-muted-foreground">Win Rate</div>
-          <div className="text-2xl font-bold">{winRate}%</div>
+        <CardContent className="gba:p-6">
+          <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Win Rate</div>
+          <div className="gba:text-2xl gba:font-bold">{winRate}%</div>
         </CardContent>
       </Card>
     </div>

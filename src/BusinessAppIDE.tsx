@@ -1,6 +1,6 @@
 import { UiCatalogProvider } from '@newwork/gravity-ui-catalog';
 import type { HTMLAttributes } from "react";
-import { useState, createElement } from "react";
+import { useState, createElement, useEffect } from "react";
 import { Dropdown, Button } from "antd";
 import TextArea from "antd/es/input/TextArea";
 import { BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
@@ -30,21 +30,21 @@ for (const path in modules) {
 }
 
 const Container = ({ children, className }: HTMLAttributes<HTMLDivElement>) => (
-  <div className={`flex flex-col ${className || ""}`}>{children}</div>
+  <div className={`gba:flex gba:flex-col ${className || ""}`}>{children}</div>
 );
 
 const Header = ({ children, className }: HTMLAttributes<HTMLDivElement>) => (
-  <div className={`h-12 border-b border-[#e1e3eb] pl-6 ${className || ""}`}>
+  <div className={`gba:h-12 gba:border-b gba:border-[#e1e3eb] gba:pl-6 ${className || ""}`}>
     {children}
   </div>
 );
 
 const Main = ({ children, className }: HTMLAttributes<HTMLDivElement>) => (
-  <div className={`flex flex-col ${className || ""}`}>{children}</div>
+  <div className={`gba:flex gba:flex-col ${className || ""}`}>{children}</div>
 );
 
 const Content = ({ children, className }: HTMLAttributes<HTMLDivElement>) => (
-  <div className={`flex-1 h-[calc(100vh-48px)] ${className || ""}`}>
+  <div className={`gba:flex-1 gba:h-[calc(100vh-48px)] ${className || ""}`}>
     {children}
   </div>
 );
@@ -61,12 +61,33 @@ export interface BusinessAppIDEProps {
 
 export function BusinessAppIDE(props: BusinessAppIDEProps) {
   const { packageName, packageVersion } = props;
-  const [currentCompName, setCurrentCompName] = useState<keyof typeof businessAppMap>(
-    Object.keys(businessAppMap)[0] as keyof typeof businessAppMap
-  );
+  
+  // Helper function to get app name from URL or default
+  const getInitialApp = (): keyof typeof businessAppMap => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const appFromUrl = urlParams.get('app');
+      
+      if (appFromUrl && appFromUrl in businessAppMap) {
+        return appFromUrl as keyof typeof businessAppMap;
+      }
+    }
+    return Object.keys(businessAppMap)[0] as keyof typeof businessAppMap;
+  };
+
+  const [currentAppName, setCurrentAppName] = useState<keyof typeof businessAppMap>(getInitialApp());
   const [userInfo, setUserInfo] = useState<string>("");
   const [userInfoError, setUserInfoError] = useState<string>("");
   const [accessToken, setAccessToken] = useState<string>("");
+  
+  // Update URL when app changes
+  const updateAppInUrl = (appName: string) => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('app', appName);
+      window.history.pushState({}, '', url.toString());
+    }
+  };
   
   const validateUserInfo = (value: string): void => {
     if (!value) {
@@ -82,33 +103,41 @@ export function BusinessAppIDE(props: BusinessAppIDEProps) {
     }
   };
 
-  const dropdownItems = Object.keys(businessAppMap).map((comp) => ({
-    key: comp,
-    label: comp,
-    onClick: () => setCurrentCompName(comp as keyof typeof businessAppMap),
+  const dropdownItems = Object.keys(businessAppMap).map((app) => ({
+    key: app,
+    label: app,
+    onClick: () => {
+      setCurrentAppName(app as keyof typeof businessAppMap);
+      updateAppInUrl(app);
+    },
   }));
+  
+  // Initialize URL with current app on first render
+  useEffect(() => {
+    updateAppInUrl(currentAppName);
+  }, []);
 
   return (
     <Container>
-      <Header className="h-16 flex items-center justify-between">
-        <div className="pkg-name leading-[48px] flex-1">
-          <span className="text-sm font-bold">{packageName}</span>
-          <span className="ml-1 text-xs text-[#333]">
+      <Header className="gba:h-16 gba:flex gba:items-center gba:justify-between">
+        <div className="gba:pkg-name gba:leading-[48px] gba:flex-1">
+          <span className="gba:text-sm gba:font-bold">{packageName}</span>
+          <span className="gba:ml-1 gba:text-xs gba:text-[#333]">
             {" "}
             - Version: {packageVersion}
           </span>
         </div>
-        <div className="flex items-center space-x-4 pr-6">
-          <div className="flex items-center">
-            <span className="mr-2 font-bold">Business App:</span>
+        <div className="gba:flex gba:items-center gba:space-x-4 gba:pr-6">
+          <div className="gba:flex gba:items-center">
+            <span className="gba:mr-2 gba:font-bold">Business App:</span>
             <Dropdown menu={{ items: dropdownItems }} arrow>
-              <Button>{currentCompName}</Button>
+              <Button>{currentAppName}</Button>
             </Dropdown>
           </div>
-          <div className="flex items-center flex-col">
-            <div className="flex items-center">
-              <span className="mr-2 font-bold whitespace-nowrap">User Info:</span>
-              <div className="flex flex-col">
+          <div className="gba:flex gba:items-center gba:flex-col">
+            <div className="gba:flex gba:items-center">
+              <span className="gba:mr-2 gba:font-bold gba:whitespace-nowrap">User Info:</span>
+              <div className="gba:flex gba:flex-col">
                 <TextArea
                   placeholder="Enter user info in JSON format"
                   style={{ minWidth: "200px", maxWidth: "250px", minHeight: "50px", maxHeight: "100px", resize: "none" }}
@@ -122,8 +151,8 @@ export function BusinessAppIDE(props: BusinessAppIDEProps) {
               </div>
             </div>
           </div>
-          <div className="flex items-center">
-            <span className="mr-2 font-bold whitespace-nowrap">Access Token:</span>
+          <div className="gba:flex gba:items-center">
+            <span className="gba:mr-2 gba:font-bold gba:whitespace-nowrap">Access Token:</span>
             <TextArea
               placeholder="Enter your access token"
               style={{ minWidth: "400px", maxWidth: "450px", minHeight: "50px", maxHeight: "100px", resize: "none" }}
@@ -135,9 +164,9 @@ export function BusinessAppIDE(props: BusinessAppIDEProps) {
       </Header>
       <Main>
         <Content>
-          {currentCompName && (
-            <div className="p-4 w-full h-full overflow-auto">
-              {createElement(businessAppMap[currentCompName], {
+          {currentAppName && (
+            <div className="gba:p-4 gba:w-full gba:h-full gba:overflow-auto">
+              {createElement(businessAppMap[currentAppName], {
                 userInfo: userInfo?.length > 2 ? ((): UserInfoProps | undefined => {
                   try {
                     return JSON.parse(userInfo);

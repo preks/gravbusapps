@@ -36,11 +36,11 @@ export function OpportunityDecisions({ decisions, opportunityId, stageRequiremen
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "approved":
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />
+        return <CheckCircle2 className="gba:h-4 gba:w-4 gba:text-green-500" />
       case "rejected":
-        return <XCircle className="h-4 w-4 text-red-500" />
+        return <XCircle className="gba:h-4 gba:w-4 gba:text-red-500" />
       case "pending":
-        return <Clock className="h-4 w-4 text-yellow-500" />
+        return <Clock className="gba:h-4 gba:w-4 gba:text-yellow-500" />
       default:
         return null
     }
@@ -74,21 +74,21 @@ export function OpportunityDecisions({ decisions, opportunityId, stageRequiremen
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between">
         <CardTitle>Decisions</CardTitle>
         <Button size="sm">
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="gba:mr-2 gba:h-4 gba:w-4" />
           Add Decision
         </Button>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <div className="gba:mb-4 gba:flex gba:flex-col gba:gap-2 gba:sm:flex-row">
+          <div className="gba:relative gba:flex-1">
+            <Search className="gba:absolute gba:left-2.5 gba:top-2.5 gba:h-4 gba:w-4 gba:text-muted-foreground" />
             <Input
               type="search"
               placeholder="Search decisions..."
-              className="pl-8"
+              className="gba:pl-8"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -96,7 +96,7 @@ export function OpportunityDecisions({ decisions, opportunityId, stageRequiremen
         </div>
 
         {filteredDecisions.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground">
+          <div className="gba:py-12 gba:text-center gba:text-muted-foreground">
             No decisions found. Try adjusting your search or add a new decision.
           </div>
         ) : (
@@ -104,26 +104,26 @@ export function OpportunityDecisions({ decisions, opportunityId, stageRequiremen
             <TableHeader>
               <TableRow>
                 <TableHead>Title</TableHead>
-                <TableHead className="hidden md:table-cell">Description</TableHead>
+                <TableHead className="gba:hidden gba:md:table-cell">Description</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Decision Maker</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead className="gba:w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredDecisions.map((decision) => (
                 <TableRow key={decision.id}>
-                  <TableCell className="font-medium">{decision.title}</TableCell>
-                  <TableCell className="hidden max-w-xs truncate md:table-cell">{decision.description}</TableCell>
+                  <TableCell className="gba:font-medium">{decision.title}</TableCell>
+                  <TableCell className="gba:hidden gba:max-w-xs gba:truncate gba:md:table-cell">{decision.description}</TableCell>
                   <TableCell>
                     <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(
+                      className={`gba:inline-flex gba:items-center gba:rounded-full gba:px-2.5 gba:py-0.5 gba:text-xs gba:font-medium ${getStatusColor(
                         decision.status,
                       )}`}
                     >
                       {getStatusIcon(decision.status)}
-                      <span className="ml-1">{getStatusText(decision.status)}</span>
+                      <span className="gba:ml-1">{getStatusText(decision.status)}</span>
                     </span>
                   </TableCell>
                   <TableCell>{decision.decisionMaker}</TableCell>
@@ -136,38 +136,38 @@ export function OpportunityDecisions({ decisions, opportunityId, stageRequiremen
                         </Button>
                       </DialogTrigger>
                       {selectedDecision && (
-                        <DialogContent className="sm:max-w-md">
+                        <DialogContent className="gba:sm:max-w-md">
                           <DialogHeader>
                             <DialogTitle>{selectedDecision.title}</DialogTitle>
                             <DialogDescription>Decision details and notes</DialogDescription>
                           </DialogHeader>
-                          <div className="grid gap-4 py-4">
+                          <div className="gba:grid gba:gap-4 gba:py-4">
                             <div>
-                              <h4 className="mb-1 text-sm font-medium">Description</h4>
+                              <h4 className="gba:mb-1 gba:text-sm gba:font-medium">Description</h4>
                               <p>{selectedDecision.description}</p>
                             </div>
                             <div>
-                              <h4 className="mb-1 text-sm font-medium">Status</h4>
+                              <h4 className="gba:mb-1 gba:text-sm gba:font-medium">Status</h4>
                               <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(
+                                className={`gba:inline-flex gba:items-center gba:rounded-full gba:px-2.5 gba:py-0.5 gba:text-xs gba:font-medium ${getStatusColor(
                                   selectedDecision.status,
                                 )}`}
                               >
                                 {getStatusIcon(selectedDecision.status)}
-                                <span className="ml-1">{getStatusText(selectedDecision.status)}</span>
+                                <span className="gba:ml-1">{getStatusText(selectedDecision.status)}</span>
                               </span>
                             </div>
                             <div>
-                              <h4 className="mb-1 text-sm font-medium">Decision Maker</h4>
+                              <h4 className="gba:mb-1 gba:text-sm gba:font-medium">Decision Maker</h4>
                               <p>{selectedDecision.decisionMaker}</p>
                             </div>
                             <div>
-                              <h4 className="mb-1 text-sm font-medium">Date</h4>
+                              <h4 className="gba:mb-1 gba:text-sm gba:font-medium">Date</h4>
                               <p>{new Date(selectedDecision.date).toLocaleDateString()}</p>
                             </div>
                             {selectedDecision.notes && (
                               <div>
-                                <h4 className="mb-1 text-sm font-medium">Notes</h4>
+                                <h4 className="gba:mb-1 gba:text-sm gba:font-medium">Notes</h4>
                                 <p>{selectedDecision.notes}</p>
                               </div>
                             )}

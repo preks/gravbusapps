@@ -86,21 +86,21 @@ export const EmploymentHistory: FC<EmploymentHistoryProps> = ({
       title: "Revenue Impact",
       value: "$12.5M",
       change: "+45%",
-      icon: <TrendingUp className="h-5 w-5 text-blue-500" />,
+      icon: <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-500" />,
       description: "Cumulative revenue impact from product launches",
     },
     {
       title: "Team Leadership",
       value: "32",
       change: "+8",
-      icon: <Users2 className="h-5 w-5 text-indigo-500" />,
+      icon: <Users2 className="gba:h-5 gba:w-5 gba:text-indigo-500" />,
       description: "Team members managed across projects",
     },
     {
       title: "Product Launches",
       value: "14",
       change: "+3",
-      icon: <BarChart3 className="h-5 w-5 text-purple-500" />,
+      icon: <BarChart3 className="gba:h-5 gba:w-5 gba:text-purple-500" />,
       description: "Successful product launches led",
     },
   ]
@@ -108,24 +108,24 @@ export const EmploymentHistory: FC<EmploymentHistoryProps> = ({
   const displayedEmploymentHistory = employmentExpanded ? employmentHistory : employmentHistory.slice(0, 3)
 
   return (
-    <Card className="rounded-xl shadow-sm md:col-span-2 border-gray-300">
-      <CardHeader className="flex flex-row items-center justify-between border-b border-gray-300 pb-3">
+    <Card className="gba:rounded-xl gba:shadow-sm gba:md:col-span-2 gba:border-gray-300">
+      <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:border-b gba:border-gray-300 gba:pb-3">
         <CardTitle>Employment History</CardTitle>
-        <a href="#" className="text-sm text-blue-700 hover:underline">
+        <a href="#" className="gba:text-sm gba:text-blue-700 gba:hover:underline">
           View on LinkedIn
         </a>
       </CardHeader>
-      <CardContent className="space-y-8 pt-4">
+      <CardContent className="gba:space-y-8 gba:pt-4">
         {/* AI-Generated Career Summary */}
-        <div className="relative p-[2px] rounded-lg bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500">
-          <div className="bg-gradient-to-r from-blue-50 to-sky-50 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="bg-gradient-to-r from-blue-500 to-purple-500 p-1.5 rounded-full">
-                <Lightbulb className="h-4 w-4 text-white" />
+        <div className="gba:relative gba:p-[2px] gba:rounded-lg gba:bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500">
+          <div className="gba:bg-gradient-to-r from-blue-50 to-sky-50 gba:rounded-lg gba:p-4">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+              <div className="gba:bg-gradient-to-r from-blue-500 to-purple-500 gba:p-1.5 gba:rounded-full">
+                <Lightbulb className="gba:h-4 gba:w-4 gba:text-white" />
               </div>
-              <h3 className="font-medium text-blue-800">AI-Generated Career Summary</h3>
+              <h3 className="gba:font-medium gba:text-blue-800">AI-Generated Career Summary</h3>
             </div>
-            <p className="text-sm text-blue-900 mb-4">
+            <p className="gba:text-sm gba:text-blue-900 gba:mb-4">
               Emily Parker has over 10 years of progressive experience in product management, with a strong focus on
               enterprise software solutions. Her career shows consistent growth from analytical roles to strategic
               leadership positions, demonstrating expertise in product development, team leadership, and revenue
@@ -133,20 +133,20 @@ export const EmploymentHistory: FC<EmploymentHistoryProps> = ({
             </p>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-3 gba:mt-2">
               {careerKPIs.map((kpi, index) => (
-                <div key={index} className="bg-white rounded-lg p-3 shadow-sm border border-gray-300">
-                  <div className="flex justify-between items-start">
+                <div key={index} className="gba:bg-white gba:rounded-lg gba:p-3 gba:shadow-sm gba:border gba:border-gray-300">
+                  <div className="gba:flex gba:justify-between gba:items-start">
                     <div>
-                      <p className="text-xs text-muted-foreground">{kpi.title}</p>
-                      <div className="flex items-baseline gap-1">
-                        <p className="text-xl font-bold">{kpi.value}</p>
-                        <span className="text-xs font-medium text-green-600">{kpi.change}</span>
+                      <p className="gba:text-xs gba:text-muted-foreground">{kpi.title}</p>
+                      <div className="gba:flex gba:items-baseline gba:gap-1">
+                        <p className="gba:text-xl gba:font-bold">{kpi.value}</p>
+                        <span className="gba:text-xs gba:font-medium gba:text-green-600">{kpi.change}</span>
                       </div>
                     </div>
-                    <div className="p-2 rounded-full bg-blue-50">{kpi.icon}</div>
+                    <div className="gba:p-2 gba:rounded-full gba:bg-blue-50">{kpi.icon}</div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">{kpi.description}</p>
+                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{kpi.description}</p>
                 </div>
               ))}
             </div>
@@ -154,42 +154,42 @@ export const EmploymentHistory: FC<EmploymentHistoryProps> = ({
         </div>
 
         {/* Timeline */}
-        <div className="relative pl-20">
+        <div className="gba:relative gba:pl-20">
           {/* Timeline line */}
-          <div className="absolute left-[31px] top-0 bottom-0 w-[1px] border-l-2 border-dotted border-blue-300"></div>
+          <div className="gba:absolute gba:left-[31px] gba:top-0 gba:bottom-0 gba:w-[1px] gba:border-l-2 gba:border-dotted gba:border-blue-300"></div>
 
           {displayedEmploymentHistory.map((job) => (
-            <div key={job.id} className="mb-12 last:mb-0 relative">
+            <div key={job.id} className="gba:mb-12 last:mb-0 gba:relative">
               {/* Company icon - positioned absolutely */}
-              <div className="absolute left-[-65px] top-0">
-                <div className="rounded-full p-2 h-8 w-8 flex items-center justify-center bg-blue-100 text-blue-600">
-                  <Building className="h-4 w-4" />
+              <div className="gba:absolute gba:left-[-65px] gba:top-0">
+                <div className="gba:rounded-full gba:p-2 gba:h-8 gba:w-8 gba:flex gba:items-center gba:justify-center gba:bg-blue-100 gba:text-blue-600">
+                  <Building className="gba:h-4 gba:w-4" />
                 </div>
               </div>
 
               {/* Job content */}
-              <div className="flex-1">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2">
-                  <h3 className="font-semibold text-lg">{job.position}</h3>
-                  <div className="text-sm text-muted-foreground">
+              <div className="gba:flex-1">
+                <div className="gba:flex gba:flex-col gba:sm:flex-row gba:sm:items-center gba:justify-between gba:mb-2">
+                  <h3 className="gba:font-semibold gba:text-lg">{job.position}</h3>
+                  <div className="gba:text-sm gba:text-muted-foreground">
                     {job.startDate} — {job.endDate}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="font-medium">{job.company}</span>
-                  <span className="text-muted-foreground">•</span>
-                  <span className="text-sm text-muted-foreground">{job.duration}</span>
+                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+                  <span className="gba:font-medium">{job.company}</span>
+                  <span className="gba:text-muted-foreground">•</span>
+                  <span className="gba:text-sm gba:text-muted-foreground">{job.duration}</span>
                 </div>
 
-                <p className="text-sm mb-4">{job.description}</p>
+                <p className="gba:text-sm gba:mb-4">{job.description}</p>
 
                 {job.achievements.length > 0 && (
-                  <div className="bg-blue-50 rounded-lg p-3 mt-2 border border-blue-100">
-                    <h4 className="text-sm font-medium text-blue-800 mb-2">Key Achievements</h4>
-                    <ul className="list-disc pl-5 space-y-1">
+                  <div className="gba:bg-blue-50 gba:rounded-lg gba:p-3 gba:mt-2 gba:border gba:border-blue-100">
+                    <h4 className="gba:text-sm gba:font-medium gba:text-blue-800 gba:mb-2">Key Achievements</h4>
+                    <ul className="gba:list-disc gba:pl-5 gba:space-y-1">
                       {job.achievements.map((achievement, i) => (
-                        <li key={i} className="text-sm text-blue-900">
+                        <li key={i} className="gba:text-sm gba:text-blue-900">
                           {achievement}
                         </li>
                       ))}
@@ -202,12 +202,12 @@ export const EmploymentHistory: FC<EmploymentHistoryProps> = ({
 
           {/* More/Less button */}
           {employmentHistory.length > 3 && (
-            <div className="text-center mt-6">
+            <div className="gba:text-center gba:mt-6">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setEmploymentExpanded(!employmentExpanded)}
-                className="rounded-md text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+                className="gba:rounded-md gba:text-blue-700 gba:hover:text-blue-800 gba:hover:bg-blue-50"
               >
                 {employmentExpanded ? "Show Less" : "Show More"}
               </Button>

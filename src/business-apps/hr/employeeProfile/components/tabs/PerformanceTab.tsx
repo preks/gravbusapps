@@ -77,15 +77,15 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   const formattedFeedback = formatFeedback();
 
   return (
-    <div className="performance-tab space-y-8">
+    <div className="gba:performance-tab gba:space-y-8">
       {/* Goals Section */}
       <div>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-medium">
+        <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+          <h2 className="gba:text-xl gba:font-medium">
             Set New Goal
           </h2>
           <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
             onClick={() => {
               // Trigger flow to add a goal
               if (typeof window !== 'undefined' && window.dispatchEvent) {
@@ -108,47 +108,47 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
         </div>
 
         {employeePerformanceGoal.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
+          <div className="gba:text-center gba:text-gray-500 gba:py-8">
             <p>{t('filter_component.no_results')}</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="gba:space-y-4">
             {employeePerformanceGoal.map((goal) => {
               const statusInfo = getStatusInfo(goal.status);
               
               return (
                 <Card key={`goal-${goal.title ?? ''}-${goal.status ?? ''}`} bordered>
-                  <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">{goal.title}</h3>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-2 md:mt-0 ${statusInfo.color}`}>
+                  <div className="gba:flex gba:flex-col gba:md:flex-row gba:md:items-center gba:justify-between gba:mb-4">
+                    <h3 className="gba:text-lg gba:font-medium">{goal.title}</h3>
+                    <span className={`gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:mt-2 gba:md:mt-0 ${statusInfo.color}`}>
                       {statusInfo.label}
                     </span>
                   </div>
                   
-                  <div className="mb-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div className="gba:mb-4">
+                    <div className="gba:w-full gba:bg-gray-200 gba:rounded-full gba:h-2.5">
                       <div 
-                        className="bg-blue-600 h-2.5 rounded-full" 
+                        className="gba:bg-blue-600 gba:h-2.5 gba:rounded-full" 
                         style={{ width: `${goal.progressPercent}%` }}
                       ></div>
                     </div>
-                    <div className="flex justify-between mt-1 text-sm text-gray-600">
+                    <div className="gba:flex gba:justify-between gba:mt-1 gba:text-sm gba:text-gray-600">
                       <span>progress</span>
                       <span>{goal.progressPercent}%</span>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:text-sm">
                     <div>
-                      <span className="block text-gray-500">start_date</span>
+                      <span className="gba:block gba:text-gray-500">start_date</span>
                       <span>{dayjs(goal.startDate).format('MMM D, YYYY')}</span>
                     </div>
                     <div>
-                      <span className="block text-gray-500">due_date</span>
+                      <span className="gba:block gba:text-gray-500">due_date</span>
                       <span>{dayjs(goal.dueDate).format('MMM D, YYYY')}</span>
                     </div>
                     <div>
-                      <span className="block text-gray-500">completion_date</span>
+                      <span className="gba:block gba:text-gray-500">completion_date</span>
                       <span>{goal.completionDate ? dayjs(goal.completionDate).format('MMM D, YYYY') : '-'}</span>
                     </div>
                   </div>
@@ -161,12 +161,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
 
       {/* Feedback Section */}
       <div>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-medium">
+        <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+          <h2 className="gba:text-xl gba:font-medium">
             {t('employee_profile.summary_layout.skills_section.feedback_generic_module_title')}
           </h2>
           <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
             onClick={() => {
               // Trigger flow to give feedback
               if (typeof window !== 'undefined' && window.dispatchEvent) {
@@ -189,35 +189,35 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
         </div>
 
         {formattedFeedback.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
+          <div className="gba:text-center gba:text-gray-500 gba:py-8">
             <p>{t('employee_profile.summary_layout.skills_section.feedback_generic_module_no_data')}</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="gba:space-y-4">
             {formattedFeedback.map((feedback) => {
               // TypeScript safety - this should never happen due to our filter(Boolean) above
               if (!feedback) return null;
               
               return (
-                <Card key={`feedback-${feedback.sender ?? ''}-${feedback.date ?? ''}`} className="p-4">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0 mr-4">
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+                <Card key={`feedback-${feedback.sender ?? ''}-${feedback.date ?? ''}`} className="gba:p-4">
+                  <div className="gba:flex gba:items-start">
+                    <div className="gba:shrink-0 gba:mr-4">
+                      <div className="gba:w-10 gba:h-10 gba:rounded-full gba:overflow-hidden gba:bg-gray-200">
                         {feedback.avatar && (
                           <img 
                             src={feedback.avatar} 
                             alt={feedback.sender}
-                            className="w-full h-full object-cover"
+                            className="gba:w-full gba:h-full gba:object-cover"
                           />
                         )}
                       </div>
                     </div>
-                    <div className="flex-grow">
-                      <div className="flex justify-between items-start">
-                        <h4 className="font-medium">{feedback.sender}</h4>
-                        <span className="text-sm text-gray-500">{feedback.date}</span>
+                    <div className="gba:grow">
+                      <div className="gba:flex gba:justify-between gba:items-start">
+                        <h4 className="gba:font-medium">{feedback.sender}</h4>
+                        <span className="gba:text-sm gba:text-gray-500">{feedback.date}</span>
                       </div>
-                      <p className="mt-1 text-gray-700">{feedback.content}</p>
+                      <p className="gba:mt-1 gba:text-gray-700">{feedback.content}</p>
                     </div>
                   </div>
                 </Card>

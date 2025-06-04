@@ -120,14 +120,14 @@ export function DataFolders<F, T>({
   // If there are no folders, show the empty message
   if (folders.length === 0) {
     return (
-      <div className={`flex justify-center items-center p-6 ${className}`}>
-        <div className="text-gray-400 text-center text-base">{emptyMessage}</div>
+      <div className={`gba:flex gba:justify-center gba:items-center gba:p-6 ${className}`}>
+        <div className="gba:text-gray-400 gba:text-center gba:text-base">{emptyMessage}</div>
       </div>
     );
   }
 
   return (
-    <div className={`flex flex-col gap-4 w-full ${className}`}>
+    <div className={`gba:flex gba:flex-col gba:gap-4 gba:w-full ${className}`}>
       {folders.map((folder, idx) => {
         const isOpen = openFolders.includes(idx);
         const items = getFolderItems(folder);
@@ -135,20 +135,20 @@ export function DataFolders<F, T>({
         return (
           <div
             key={getFolderKey(folder)}
-            className="flex flex-col border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm"
+            className="gba:flex gba:flex-col gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden gba:bg-white gba:shadow-sm"
           >
             <button
-              className="flex justify-between items-center p-4 bg-gray-50 font-semibold cursor-pointer border-none w-full text-left hover:bg-gray-100"
+              className="gba:flex gba:justify-between gba:items-center gba:p-4 gba:bg-gray-50 gba:font-semibold gba:cursor-pointer gba:border-none gba:w-full gba:text-left gba:hover:bg-gray-100"
               onClick={() => toggleFolder(idx)}
               type="button"
             >
               <span>{getFolderName(folder)}</span>
-              <span className={`inline-block transition-transform duration-200 ease ${isOpen ? 'rotate-90' : ''}`}>▶</span>
+              <span className={`gba:inline-block gba:transition-transform gba:duration-200 gba:ease ${isOpen ? 'rotate-90' : ''}`}>▶</span>
             </button>
             {isOpen && (
-              <div className="p-4 border-t border-gray-200">
+              <div className="gba:p-4 gba:border-t gba:border-gray-200">
                 {items.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 -mb-2">
+                  <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6 gba:-mb-2">
                     {items.map(item => (
                       <React.Fragment key={getItemKey(item)}>
                         {renderItem(item, folder)}
@@ -156,7 +156,7 @@ export function DataFolders<F, T>({
                     ))}
                   </div>
                 ) : (
-                  <div className="p-4 text-center text-gray-500 italic">{emptyFolderMessage}</div>
+                  <div className="gba:p-4 gba:text-center gba:text-gray-500 gba:italic">{emptyFolderMessage}</div>
                 )}
               </div>
             )}
