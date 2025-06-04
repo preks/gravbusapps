@@ -36,10 +36,11 @@ interface EmployeeAbsence {
 }
 
 const GET_EMPLOYEE_ABSENCES = `
-  query GetEmployeeAbsences($page: Int!, $limit: Int!) {
+  query GetEmployeeAbsences($page: Int!, $limit: Int!, $orgUnitId: uuid!) {
     EmployeeAbsence(
       offset: $page
       limit: $limit
+      where: {employee: {employeePosition: {organizationalUnitId: {_eq: $orgUnitId}}}}
     ) {
       id
       startDate
@@ -82,7 +83,12 @@ const formatDateRange = (startDate: Date, endDate: Date): string => {
   return `${format(startDate, "MMM d")} - ${format(endDate, "MMM d, yyyy")}`
 }
 
-export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
+  if (!userInfo?.employeeDetails?.organizationalUnit?.id) {
+    return <div className="p-4 text-red-500">Organization unit information is not available</div>;
+  }
+  
+  const orgUnitId = userInfo.employeeDetails.organizationalUnit.id;
   const { Option } = Select;
   const [searchText, setSearchText] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string | undefined>(undefined);
@@ -99,17 +105,22 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken }) 
 
   const fetchAbsences = async () => {
     try {
-      setLoadingPage(true)
-      const catalogData = await catalogClient.getCatalogEntriesList({ catalogIdentifier: 'AbsenceGroup', version: 'v1' })
-      const typesMap: { [key: string]: string } = {}
+      setLoadingPage(true);
+      
+      const catalogData = await catalogClient.getCatalogEntriesList({ catalogIdentifier: 'AbsenceGroup', version: 'v1' });
+      const typesMap: { [key: string]: string } = {};
       catalogData.data.forEach((entry: any) => {
-        typesMap[entry.id] = entry.value
-      })
-      setAbsenceTypes(typesMap)
+        typesMap[entry.id] = entry.value;
+      });
+      setAbsenceTypes(typesMap);
 
       const result = await graphQLClient.request<{ EmployeeAbsence: EmployeeAbsence[], totalAbsences: EmployeeAbsence[], total: EmployeeAbsence[] }>(
         GET_EMPLOYEE_ABSENCES,
-        { page: (currentPage - 1) * itemsPerPage, limit: itemsPerPage }
+        { 
+          page: (currentPage - 1) * itemsPerPage, 
+          limit: itemsPerPage,
+          orgUnitId
+        }
       )
       setAbsences(result.EmployeeAbsence)
       setTotal(result.total.length)

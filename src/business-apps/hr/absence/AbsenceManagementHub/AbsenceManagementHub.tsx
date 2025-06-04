@@ -21,7 +21,7 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
   const renderContent = () => {
     switch (activeSection) {
       case "Absence List":
-        return <AbsenceList accessToken={accessToken} />
+        return <AbsenceList accessToken={accessToken} userInfo={userInfo} />
       case "Dashboard":
         return (
           <>
@@ -34,7 +34,7 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
       case "Team Calendar":
         return <CalendarList accessToken={accessToken} userInfo={userInfo}/>
       case "Absence Reports":
-        return <AbsenceReports />
+        return <AbsenceReports accessToken={accessToken} userInfo={userInfo} />
       default:
         return (
           <>

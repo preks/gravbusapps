@@ -91,7 +91,6 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       )
 
       setEmployeeAbsences(EmployeeAbsence)
-      console.log('Fetched employee absences:', EmployeeAbsence)
     } catch (err) {
       console.error('Error fetching data:', err)
       setError(err instanceof Error ? err : new Error('Failed to fetch absences'))
@@ -135,7 +134,6 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
     icon: typeIconMap.get(type)
   }));
 
-  console.log("legendItems", legendItems);
   const employeesById = new Map();
   employeeAbsences.forEach(absence => {
     const empId = absence.employee.id;
@@ -225,6 +223,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       <CalendarTimeline
         items={timelineItems}
         events={timelineEvents}
+        title={"Team Availability Calendar"}
         legendItems={legendItems}
         itemDetailLabel='Department'
         renderItemContent={(item) => (
