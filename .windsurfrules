@@ -3,7 +3,7 @@
 1. Component Creation
 Create all components as React components in the src\business-apps folder.
 Each component should extend its props from the `BusinessAppContextProps` interface.
-
+Always prefix all tailwind CSS classes with the `gba:` prefix.
 All folders in src\business-apps folder are products that we have, e.g. crm, irm etc.
 All folders in src\business-apps\<product> are either named `components`, `modules`, `hooks`, `libs`, `utils`, `overview-screens`, `detail-screens`, `flow-screens` or contain the name of the component.
 All files in src\business-apps\<product>\<screenName> are files related to that screen where one `.tsx` with the name of screen is located and an `index.ts` file with a named export of the component and a default export of the component.

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import styles from "./ExpenseItem.module.css";
 import { useTranslation } from "react-i18next";
+import { BusinessAppContextProps } from '../../../../common/BusinessAppContext';
+import { ExpenseItemProvider, useExpenseItem } from './ExpenseItemContext';
 import {
   Button,
   DateInputField,
-  Input,
   InputField,
   SelectField,
   Switch,
@@ -14,306 +15,51 @@ import {
   Upload,
   Card,
   Typography,
-  Divider,
-  message,
   Row,
   Col,
+  Divider,
 } from "antd";
 import {
   UploadOutlined,
   DeleteOutlined,
-  PlusOutlined,
+  PlusCircleOutlined,
   ArrowLeftOutlined,
   CloseOutlined,
-  PlusCircleOutlined,
 } from "@ant-design/icons";
 import {
   ExpenseItemProps,
-  ExpensePosition,
-  ExpenseGroup,
-  ExpenseType,
-  CostCenter,
-  Currency,
 } from "./types";
-import {
-  GET_EXPENSE_CLASSES,
-  GET_COST_CENTERS,
-  GET_CURRENCIES,
-  GET_EXPENSE_REQUESTS,
-  GET_EXPENSE_TYPES,
-  fetchEmployeeRule,
-} from "./ExpenseItemQueries";
-
-// Default employee ID in case userInfo is undefined
-const DEFAULT_EMPLOYEE_ID = "86a8317d-34ef-4e04-951b-b0bb9754dea0";
 
 const { Title } = Typography;
 
-const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
+const ExpenseItemContent: React.FC = () => {
   const { t } = useTranslation();
-  // Create a simple GraphQL client for API calls
-  const graphqlClient = {
-    query: async ({ query, variables }: { query: string; variables?: any }) => {
-      const response = await fetch(
-        "https://newwork-dev.newwork.com/v1/graphql",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            query,
-            variables,
-          }),
-        }
-      );
-      return response.json();
-    },
-  };
-  // Component states
-  const [form] = Form.useForm();
-  const [currentStep, setCurrentStep] = useState<"start" | "form">("start");
-  const [loading, setLoading] = useState<boolean>(false);
-  const [fileList, setFileList] = useState<any[]>([]);
-  const [positions, setPositions] = useState<ExpensePosition[]>([
-    {
-      id: "",
-      expenseGroup: "",
-      expenseType: "",
-      amount: 0,
-      costCenter: "",
-      customField: "",
-      isReimbursable: false,
-    },
-  ]);
-
-  // Employee rule ID is managed by the API customFieldsSoloData
-  const [employeeRule, setEmployeeRuleId] = useState<string | null>(null);
-  const [firstRunVariable, setFirstRunVariable] = useState<boolean>(false);
-  const [expenseClasses, setExpenseClasses] = useState<ExpenseGroup[]>([]);
-  const [expenseTypes, setExpenseTypes] = useState<{
-    [classId: string]: ExpenseType[];
-  }>({});
-  const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
-  const [currencies, setCurrencies] = useState<Currency[]>([]);
-  const [expenseRequests, setExpenseRequests] = useState<any[]>([]);
-  const [multiPosition, setMultiPosition] = useState<boolean>(false);
-
-  // Fetch initial data
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        // Fetch employee rule
-        const currentDate = new Date().toISOString();
-        const employeeIdValue =
-          userInfo?.employeeDetails?.employeeId || DEFAULT_EMPLOYEE_ID;
-
-        // Use the fetchEmployeeRule function from the queries file
-        const employeeRuleData = await fetchEmployeeRule(
-          employeeIdValue,
-          currentDate,
-          accessToken
-        );
-
-        if (employeeRuleData) {
-          setEmployeeRuleId(employeeRuleData.expenseRuleId);
-          console.log("Employee rule data:", employeeRuleData);
-        }
-
-        // Fetch expense classes
-        const classesResponse = await graphqlClient.query({
-          query: GET_EXPENSE_CLASSES,
-        });
-        setExpenseClasses(classesResponse.data.ExpenseClass);
-
-        // Fetch cost centers
-        const costCentersResponse = await graphqlClient.query({
-          query: GET_COST_CENTERS,
-        });
-        setCostCenters(costCentersResponse.data.CostCenter);
-
-        // Fetch currencies
-        const currenciesResponse = await graphqlClient.query({
-          query: GET_CURRENCIES,
-        });
-        setCurrencies(currenciesResponse.data.Currency);
-
-        // Fetch expense requests
-        const employeeId =
-          userInfo?.id ||
-          userInfo?.employeeDetails?.employeeId ||
-          DEFAULT_EMPLOYEE_ID;
-        const requestsResponse = await graphqlClient.query({
-          query: GET_EXPENSE_REQUESTS,
-          variables: { employeeId },
-        });
-        setExpenseRequests(requestsResponse.data.ExpenseRequest || []);
-      } catch (error) {
-        console.error("Error fetching initial data:", error);
-        message.error("Failed to load expense data");
-      }
-    };
-
-    fetchInitialData();
-  }, [graphqlClient]);
-
-  // Fetch expense types when expense class changes
-  const fetchExpenseTypes = async (classId: string) => {
-    try {
-      const response = await graphqlClient.query({
-        query: GET_EXPENSE_TYPES,
-        variables: { classId },
-      });
-
-      setExpenseTypes((prev) => ({
-        ...prev,
-        [classId]: response.data.ExpenseType,
-      }));
-
-      return response.data.ExpenseType;
-    } catch (error) {
-      console.error("Error fetching expense types:", error);
-      message.error("Failed to load expense types");
-      return [];
-    }
-  };
-
-  // Calculate total amount
-  const calculateTotal = (): number => {
-    return positions.reduce(
-      (total, position) => total + (position.amount || 0),
-      0
-    );
-  };
-
-  // Handle file upload
-  const handleFileUpload = async () => {
-    if (fileList.length === 0) return null;
-
-    try {
-    } catch (error) {
-      console.error("Error uploading file:", error);
-      message.error("Failed to upload receipt");
-      return null;
-    }
-  };
-
-  // Handle form submission
-  const handleSubmit = async () => {
-    try {
-      await form.validateFields();
-      setLoading(true);
-
-      // Upload file if exists
-      await handleFileUpload();
-
-      // // Create expense item
-      // const createItemResponse = await graphqlClient.mutate({
-      //   mutation: CREATE_EXPENSE_ITEM,
-      //   variables: {
-      //     title: values.title,
-      //     date: values.date.toISOString(),
-      //     totalAmount: calculateTotal(),
-      //     currencyRef: values.currency,
-      //     employeeId: userInfo?.id || userInfo?.employeeDetails?.employeeId || DEFAULT_EMPLOYEE_ID,
-      //     attachmentUrl: fileData?.url || null,
-      //     fileName: fileData?.fileName || null,
-      //     expenseRequestId: values.expenseRequestId || null
-      //   }
-      // });
-
-      // const expenseItemId = createItemResponse.data.insert_ExpenseItem_one.id;
-
-      // Create expense positions
-      // for (const position of positions) {
-      //   await graphqlClient.mutate({
-      //     mutation: CREATE_EXPENSE_POSITION,
-      //     variables: {
-      //       expenseItemId,
-      //       expenseClassId: position.expenseGroup,
-      //       expenseTypeId: position.expenseType,
-      //       amount: position.amount,
-      //       costCenterId: position.costCenter,
-      //       customField: position.customField,
-      //       isReimbursable: position.isReimbursable
-      //     }
-      //   });
-      // }
-
-      message.success("Expense item created successfully");
-      // Reset form and state
-      form.resetFields();
-      setFileList([]);
-      setPositions([
-        {
-          id: "",
-          expenseGroup: "",
-          expenseType: "",
-          amount: 0,
-          costCenter: "",
-          customField: "",
-          isReimbursable: false,
-        },
-      ]);
-      setCurrentStep("start");
-    } catch (error) {
-      console.error("Error submitting form:", error);
-      message.error("Failed to create expense item");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle expense class change
-  const handleExpenseClassChange = async (
-    value: string,
-    positionIndex: number
-  ) => {
-    // Update the position
-    const updatedPositions = [...positions];
-    updatedPositions[positionIndex].expenseGroup = value;
-    updatedPositions[positionIndex].expenseType = ""; // Reset expense type
-    setPositions(updatedPositions);
-
-    // Fetch expense types if not already loaded
-    if (!expenseTypes[value]) {
-      await fetchExpenseTypes(value);
-    }
-  };
-
-  // Handle adding a new position
-  const handleAddPosition = () => {
-    setPositions([
-      ...positions,
-      {
-        id: "",
-        expenseGroup: "",
-        expenseType: "",
-        amount: 0,
-        costCenter: "",
-        customField: "",
-        isReimbursable: false,
-      },
-    ]);
-  };
-
-  // Handle removing a position
-  const handleRemovePosition = (positionId: string) => {
-    if (positions.length === 1) {
-      message.warning("At least one position is required");
-      return;
-    }
-
-    setPositions(positions.filter((position) => position.id !== positionId));
-  };
-
-  // Handle amount change
-  const handleAmountChange = (value: number, positionIndex: number) => {
-    const updatedPositions = [...positions];
-    updatedPositions[positionIndex].amount = value;
-    setPositions(updatedPositions);
-  };
+  
+  // Get all states and functions from context
+  const {
+    form,
+    currentStep,
+    setCurrentStep,
+    fileList,
+    setFileList,
+    positions,
+    setPositions,
+    expenseClasses,
+    expenseRequests,
+    loading,
+    expenseTypes,
+    costCenters,
+    multiPosition,
+    setMultiPosition,
+    handleFileUpload,
+    handleSubmit,
+    handleExpenseClassChange,
+    handleAddPosition,
+    handleRemovePosition,
+    handleAmountChange,
+    calculateTotal,
+    currencies
+  } = useExpenseItem();
 
   // Render upload component
   const renderUpload = () => (
@@ -597,11 +343,12 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
                     "create_expense_item.is_reimbursable",
                     "Is Reimbursable"
                   )}
-                  name={"isReimbursable"+index}
+                  name={"isReimbursable" + index}
                   value={position.isReimbursable}
                   onChange={(checked) => {
                     const updatedPositions = [...positions];
-                    updatedPositions[index].isReimbursable = checked.value as boolean;
+                    updatedPositions[index].isReimbursable =
+                      checked.value as boolean;
                     setPositions(updatedPositions);
                   }}
                 />
@@ -654,7 +401,8 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
                     }
                     onChange={(value: any) => {
                       const updatedPositions = [...positions];
-                      updatedPositions[index].expenseType = value.value as string;
+                      updatedPositions[index].expenseType =
+                        value.value as string;
                       setPositions(updatedPositions);
                     }}
                     placeholder={t(
@@ -705,7 +453,8 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
                     }))}
                     onChange={(value: any) => {
                       const updatedPositions = [...positions];
-                      updatedPositions[index].costCenter = value.value as string;
+                      updatedPositions[index].costCenter =
+                        value.value as string;
                       setPositions(updatedPositions);
                     }}
                     label={t(
@@ -733,7 +482,8 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
                     ]}
                     onChange={(value: any) => {
                       const updatedPositions = [...positions];
-                      updatedPositions[index].customField = value.value as string;
+                      updatedPositions[index].customField =
+                        value.value as string;
                       setPositions(updatedPositions);
                     }}
                     placeholder="Select Custom Field Value"
@@ -749,11 +499,12 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
                       "create_expense_item.is_reimbursable",
                       "Is Reimbursable"
                     )}
-                    name={"isReimbursable"+index}
+                    name={"isReimbursable" + index}
                     value={position.isReimbursable}
                     onChange={(checked) => {
                       const updatedPositions = [...positions];
-                      updatedPositions[index].isReimbursable = checked.value as boolean;
+                      updatedPositions[index].isReimbursable =
+                        checked.value as boolean;
                       setPositions(updatedPositions);
                     }}
                   />
@@ -765,11 +516,9 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
       )}
 
       {multiPosition && (
-        <Button
-          variant="ghost"
-          onClick={handleAddPosition}
-        >
-          <PlusCircleOutlined style={{ width: '17px', height: '17px' }}/> Add Position
+        <Button variant="ghost" onClick={handleAddPosition}>
+          <PlusCircleOutlined style={{ width: "17px", height: "17px" }} /> Add
+          Position
         </Button>
       )}
 
@@ -887,6 +636,15 @@ const ExpenseItem: React.FC<ExpenseItemProps> = ({ accessToken, userInfo }) => {
 
       {currentStep === "start" ? renderStartScreen() : renderFormScreen()}
     </div>
+  );
+};
+
+// Wrapper component that provides the context
+const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ accessToken, userInfo, additionalData }) => {
+  return (
+    <ExpenseItemProvider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}>
+      <ExpenseItemContent />
+    </ExpenseItemProvider>
   );
 };
 
