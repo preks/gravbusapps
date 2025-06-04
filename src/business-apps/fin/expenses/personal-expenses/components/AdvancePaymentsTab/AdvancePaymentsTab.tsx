@@ -5,7 +5,7 @@ import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { useGetAdvancePayments, AdvancePayment } from '../../hooks/useGetAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../utils';
 import Pill from '@/components/pill';
-import { DollarOutlined, CloseOutlined } from '@ant-design/icons';
+import { DollarOutlined } from '@ant-design/icons';
 import { PiLightning } from 'react-icons/pi';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
 import AdvancePaymentStatistics from './AdvancePaymentStatistics';
@@ -230,10 +230,10 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
         dataBody={renderDataBody()}
         contentBackground="white"
         dataDetails={selectedItem ? {
-          title: `${selectedItem.expensePlan.title}`,
+          title: selectedItem.expensePlan?.title ?? 'Advance Payment Details',
           icon: <DollarOutlined />,
           content: renderAdvancePaymentDetails,
-
+          onClose: handleCloseDetails
         } : undefined}
       />
       {items.length > 0 && (

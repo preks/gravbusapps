@@ -37,9 +37,10 @@ export interface ExpenseItem {
 }
 
 export interface ExpenseFilter {
-  status?: string;
+  status?: string | string[];
   expenseDateStart?: string;
   expenseDateEnd?: string;
+  expenseClass?: { value: string };
   totalAmountMin?: number;
   totalAmountMax?: number;
 }
@@ -106,6 +107,9 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
       variables.totalAmountMax = filter.totalAmountMax;
     }
     
+    // We don't have a direct expenseClass filter in the GraphQL query
+    // We'll do client-side filtering for the expense class after fetching
+    
     return variables;
   };
 
@@ -135,8 +139,15 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
     }));
   };
   
-  // Function to fetch items with search, pagination, and filtering
-  const fetchItems = async (searchTerm: string = '%', page: number = 1, pageSize: number = 10, filter?: ExpenseFilter) => {
+  /**
+   * Function to fetch expense items with search, pagination, and filtering
+   */
+  const fetchItems = async (
+    searchTerm = '%', 
+    page = 1, 
+    pageSize = 10,
+    filter?: ExpenseFilter
+  ): Promise<void> => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
     const accessToken = context?.accessToken;
 
@@ -158,7 +169,7 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
 
     setIsLoading(true);
     setError(null);
-    
+
     try {
       // Build query variables with helper function
       const variables = buildQueryVariables(employeeId, searchTerm, page, pageSize, filter);
@@ -190,7 +201,19 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
       setTotalCount(count);
       
       // Map the items using helper function
-      const mappedItems = mapResponseToItems(result.data);
+      let mappedItems = mapResponseToItems(result.data);
+      
+      // Apply client-side filtering for expenseClass
+      if (filter?.expenseClass && filter.expenseClass.value) {
+        console.log('Applying client-side filtering for expenseClass:', filter.expenseClass.value);
+        mappedItems = mappedItems.filter(item => 
+          item.expenseClass?.value === filter.expenseClass?.value
+        );
+        console.log('After filtering:', mappedItems.length, 'items remain');
+        
+        // Update total count based on filtered results
+        setTotalCount(mappedItems.length);
+      }
       
       setItems(mappedItems);
     } catch (err) {

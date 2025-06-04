@@ -1,6 +1,5 @@
 import React from 'react';
 import { Descriptions, Button, Divider } from 'antd';
-import { CloseOutlined } from '@ant-design/icons';
 import { AdvancePayment } from '../../hooks/useGetAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../utils';
 import Pill from '@/components/pill';
@@ -13,13 +12,7 @@ interface AdvancePaymentDetailsProps {
 const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment, onClose }) => {
   return (
     <div className="gba:relative">
-      <Button 
-        type="text" 
-        icon={<CloseOutlined />} 
-        onClick={onClose} 
-        className="gba:absolute gba:top-2 gba:right-2 gba:z-10" 
-        aria-label="Close details" 
-      />
+      {/* The close button was removed from here as it's handled by the DataContainer header */}
       <Descriptions bordered column={1}>
         <Descriptions.Item label="Code">{payment.code}</Descriptions.Item>
         <Descriptions.Item label="Description">{payment.description ?? 'No description'}</Descriptions.Item>

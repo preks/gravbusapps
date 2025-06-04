@@ -1,6 +1,5 @@
 import React from 'react';
 import { Button, Descriptions, Divider } from 'antd';
-import { CloseOutlined } from '@ant-design/icons';
 import { ExpenseRequest } from '../../hooks/useGetExpenseRequests';
 import Pill from '@/components/pill';
 import { getExpenseRequestStatusDisplay } from '../../utils';
@@ -22,14 +21,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
 
   return (
     <div className="gba:relative">
-      <Button 
-        type="text" 
-        icon={<CloseOutlined />} 
-        onClick={onClose} 
-        className="gba:absolute gba:top-2 gba:right-2 gba:z-10" 
-        aria-label="Close details"
-      />
-      
+      {/* The close button was removed from here as it's handled by the DataContainer header */}
       <Descriptions title="Expense Request Details" bordered column={1}>
         <Descriptions.Item label="Title">{request.title}</Descriptions.Item>
         <Descriptions.Item label="Request Number">{request.code}</Descriptions.Item>

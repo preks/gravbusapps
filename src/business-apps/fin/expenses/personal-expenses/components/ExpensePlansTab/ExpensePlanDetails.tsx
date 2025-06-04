@@ -1,6 +1,5 @@
 import React from 'react';
 import { Descriptions, Divider, Button } from 'antd';
-import { CloseOutlined } from '@ant-design/icons';
 import Pill from '@/components/pill/Pill';
 import { getExpensePlanStatusDisplay } from '../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -18,13 +17,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
 
   return (
     <div className="gba:p-4 gba:relative">
-      <Button 
-        type="text" 
-        icon={<CloseOutlined />} 
-        onClick={onClose} 
-        className="gba:absolute gba:top-2 gba:right-2 gba:z-10" 
-        aria-label="Close details"
-      />
+      {/* The close button was removed from here as it's handled by the DataContainer header */}
       <Descriptions bordered column={1}>
         <Descriptions.Item label="Title">{selectedItem.title}</Descriptions.Item>
         <Descriptions.Item label="Code">{selectedItem.code}</Descriptions.Item>
