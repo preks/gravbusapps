@@ -1,3 +1,3 @@
-import { LeadDetail, LeadOverview, OpportunityOverview, ProfileOverview } from "./business-apps";
+import { LeadDetail, LeadOverview, OpportunityOverview, ContactsOverview } from "./business-apps";
 
-export const businessAppMap = { LeadDetail, LeadOverview, OpportunityOverview, ProfileOverview };
+export const businessAppMap = { LeadDetail, LeadOverview, OpportunityOverview, ContactsOverview };
