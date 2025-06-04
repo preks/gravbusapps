@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { Employee } from '../../hooks/useEmployeeData';
 import { Card } from '@newwork/gravity-ui-catalog';
@@ -25,7 +24,6 @@ interface Document {
  * Displays documents related to the employee
  */
 const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee }) => {
-  const { t } = useTranslation('lowcoder');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,11 +105,11 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee }) => {
         
         <div className="gba:mt-2 gba:text-sm gba:text-gray-500">
           <div className="gba:flex gba:justify-between">
-            <span>{t('employee_profile.document_layout.document_table.upload_date')}</span>
+            <span>Upload Date</span>
             <span>{dayjs(document.uploadDate).format('MMM D, YYYY')}</span>
           </div>
           <div className="gba:flex gba:justify-between gba:mt-1">
-            <span>{t('employee_profile.document_layout.document_table.document_type')}</span>
+            <span>Size</span>
             <span>{document.size}</span>
           </div>
         </div>
@@ -124,7 +122,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee }) => {
               alert(`Downloading ${document.title}`);
             }}
           >
-            {t('employee_profile.document_layout.document_table.download_document')}
+            Download Document
           </button>
         </div>
       </Card>
@@ -153,7 +151,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee }) => {
   if (documents.length === 0) {
     return (
       <div className="gba:text-center gba:text-gray-500 gba:py-8">
-        <p>{t('employee_profile.document_layout.document_table.document_not_found')}</p>
+        <p>No documents found.</p>
       </div>
     );
   }
@@ -162,7 +160,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee }) => {
     <div className="gba:documents-tab">
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
         <h2 className="gba:text-xl gba:font-medium">
-          {t('employee_profile.document_layout.title')}
+          Documents
         </h2>
         <button 
           className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
@@ -183,7 +181,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee }) => {
             }
           }}
         >
-          {t('employee_profile.employee_tabs.flows_button.upload_document')}
+          Upload Document
         </button>
       </div>
       
@@ -194,7 +192,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee }) => {
         gap={16}
         loading={loading}
         error={error}
-        emptyMessage={t('employee_profile.document_layout.document_table.document_not_found')}
+        emptyMessage="No documents found."
       />
     </div>
   );

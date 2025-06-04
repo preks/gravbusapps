@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeData';
 import { Card } from '@newwork/gravity-ui-catalog';
 
@@ -18,7 +17,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee, 
   employeeAbsenceEntitlement 
 }) => {
-  const { t } = useTranslation('lowcoder');
 
   // Function to get the translated type value
   const getTypeTranslation = (entitlement: EmployeeAbsenceEntitlement) => {
@@ -45,7 +43,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       <div>
         <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
           <h2 className="gba:text-xl gba:font-medium">
-            {t('hr_absences.absences')}
+            Absence Entitlements
           </h2>
           <button 
             className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
@@ -54,13 +52,13 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
               window.location.href = '/platform/landing_screen/srn_absenceLandingScreen';
             }}
           >
-            {t('employee_profile.employee_tabs.flows_button.go_to_absences')}
+            Go to Absences
           </button>
         </div>
 
         {uniqueAbsenceEntitlements.length === 0 ? (
           <div className="gba:text-center gba:text-gray-500 gba:py-8">
-            <p>{t('employee_profile:absences.entitlements.no_entitlements')}</p>
+            <p>No absence entitlements found.</p>
           </div>
         ) : (
           <div className="gba:overflow-x-auto">
@@ -68,19 +66,19 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
               <thead className="gba:bg-gray-50">
                 <tr>
                   <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {t('hr_absences.absences')}
+                    Type
                   </th>
                   <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {t('initiate_advance_payment.total')}
+                    Total Entitled
                   </th>
                   <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {t('expense_request_overview.side_bar.payment_status')}
+                    Taken
                   </th>
                   <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {t('manager_expense_landing_page.upcoming_approved_badge')}
+                    Pending Approval
                   </th>
                   <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {t('hr_absences.available')}
+                    Available
                   </th>
                 </tr>
               </thead>
@@ -115,7 +113,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       {/* Request Absence Section */}
       <div>
         <h2 className="gba:text-xl gba:font-medium gba:mb-4">
-          {t('hr_absences.create_absence.title')}
+          Request Absence
         </h2>
         
         <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
@@ -127,10 +125,10 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 </svg>
               </div>
               <h3 className="gba:text-lg gba:font-medium gba:mb-2">
-                {t('absence_module.vacation_request')}
+                Request Vacation
               </h3>
               <p className="gba:text-sm gba:text-gray-500 gba:mb-4">
-                {t('hr_absences.create_absence.reason')}
+                Submit a new vacation request.
               </p>
               <button 
                 className="gba:w-full gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
@@ -151,7 +149,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                   }
                 }}
               >
-                {t('hr_absences.create_absence.submit')}
+                Submit Request
               </button>
             </div>
           </Card>
@@ -164,10 +162,10 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 </svg>
               </div>
               <h3 className="gba:text-lg gba:font-medium gba:mb-2">
-                {t('absence_module.sick_leave_request')}
+                Report Sick Leave
               </h3>
               <p className="gba:text-sm gba:text-gray-500 gba:mb-4">
-                {t('hr_absences.create_absence.reason')}
+                Report an instance of sick leave.
               </p>
               <button 
                 className="gba:w-full gba:px-4 gba:py-2 gba:bg-red-600 gba:text-white gba:rounded gba:hover:bg-red-700 gba:transition-colors"
@@ -188,7 +186,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                   }
                 }}
               >
-                {t('hr_absences.create_absence.submit')}
+                Submit Report
               </button>
             </div>
           </Card>
@@ -201,10 +199,10 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 </svg>
               </div>
               <h3 className="gba:text-lg gba:font-medium gba:mb-2">
-                {t('absence_module.special_leave_request')}
+                Request Special Leave
               </h3>
               <p className="gba:text-sm gba:text-gray-500 gba:mb-4">
-                {t('hr_absences.create_absence.reason')}
+                Request special leave for specific circumstances.
               </p>
               <button 
                 className="gba:w-full gba:px-4 gba:py-2 gba:bg-purple-600 gba:text-white gba:rounded gba:hover:bg-purple-700 gba:transition-colors"
@@ -225,7 +223,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                   }
                 }}
               >
-                {t('hr_absences.create_absence.submit')}
+                Submit Request
               </button>
             </div>
           </Card>

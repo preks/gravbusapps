@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useEmployeeData } from './hooks/useEmployeeData';
 import ProfileHeader from './components/ProfileHeader';
 import { ScreenBody, Spinner, notification, Tabs } from '@newwork/gravity-ui-catalog';
@@ -20,28 +19,27 @@ import { BusinessAppContextProps } from '../../../common/BusinessAppContext';
  * Employee Profile Module
  * Displays detailed information about an employee
  */
-  /**
-   * Displays detailed information about an employee.
-   *
-   * The component fetches the employee data using the `useEmployeeData` hook and displays the data in a tabbed interface.
-   * The tabs are:
-   * - Summary: displays the employee's basic information and a summary of their performance and absences.
-   * - Details: displays the employee's detailed information.
-   * - Employment: displays the employee's employment history.
-   * - Documents: displays the employee's documents.
-   * - Performance: displays the employee's performance feedback and goals.
-   * - Absences: displays the employee's absences and entitlements.
-   *
-   * The component also handles loading and error states by displaying a spinner or an error message.
-   *
-   * @param {string} employeeId - the ID of the employee to display.
-   */
+/**
+ * Displays detailed information about an employee.
+ *
+ * The component fetches the employee data using the `useEmployeeData` hook and displays the data in a tabbed interface.
+ * The tabs are:
+ * - Summary: displays the employee's basic information and a summary of their performance and absences.
+ * - Details: displays the employee's detailed information.
+ * - Employment: displays the employee's employment history.
+ * - Documents: displays the employee's documents.
+ * - Performance: displays the employee's performance feedback and goals.
+ * - Absences: displays the employee's absences and entitlements.
+ *
+ * The component also handles loading and error states by displaying a spinner or an error message.
+ *
+ * @param {string} employeeId - the ID of the employee to display.
+ */
 export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({ 
   userInfo,
   accessToken,
   activeStructureId
 }) => {
-  const { t } = useTranslation('lowcoder');
   
   // Define tab keys
   const TAB_KEYS = {
@@ -55,6 +53,8 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
   
   // Initialize active tab from URL hash or default to summary
   const [activeTab, setActiveTab] = useState(TAB_KEYS.summary);
+  // Use employee ID from URL query parameter or default to user info
+  const [employeeId, setEmployeeId] = useState(userInfo?.employeeDetails?.employeeId ?? '');
   
   // Update the URL hash when the active tab changes
   useEffect(() => {
@@ -82,6 +82,12 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
         setActiveTab(TAB_KEYS.summary);
         window.location.hash = TAB_KEYS.summary;
       }
+
+      // Set employee ID from URL query parameter
+      const employeeIdParam = new URLSearchParams(window.location.search).get('id');
+      if (employeeIdParam) {
+        setEmployeeId(employeeIdParam);
+      }
     }
   }, []);
   
@@ -89,7 +95,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
   const { loading, error, employee, feedback, absenceEntitlements, performanceGoals } = useEmployeeData(
     accessToken,
     activeStructureId ?? '',
-    userInfo?.employeeDetails?.employeeId ?? ''
+    employeeId
   );
 
   // We can add additional initialization logic here if needed in the future
@@ -99,6 +105,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
         <Spinner size="large" />
+        <p>Loading...</p>
       </div>
     );
   }
@@ -107,13 +114,13 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
   if (error) {
     // Show error notification
     notification.error({
-      message: t('common.error'),
-      description: t('employee_profile.error_loading_data')
+      message: "Error",
+      description: "Error loading employee data."
     });
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-red-600">
-        <p className="gba:text-xl gba:font-medium">{t('common.error')}</p>
-        <p>{t('employee_profile.error_loading_data')}</p>
+        <p className="gba:text-xl gba:font-medium">Error</p>
+        <p>Error loading employee data.</p>
       </div>
     );
   }
@@ -122,8 +129,8 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
   if (!employee) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-gray-600">
-        <p className="gba:text-xl gba:font-medium">{t('common.not_found')}</p>
-        <p>{t('employee_profile.employee_not_found')}</p>
+        <p className="gba:text-xl gba:font-medium">Not Found</p>
+        <p>Employee not found.</p>
       </div>
     );
   }
@@ -132,7 +139,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
   const getTabItems = () => [
     {
       key: TAB_KEYS.summary,
-      label: t('employee_profile.employee_tabs.summary'),
+      label: "Summary",
       children: (
         <SummaryTab 
           employee={employee} 
@@ -142,7 +149,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
     },
     {
       key: TAB_KEYS.details,
-      label: t('employee_profile.employee_tabs.details'),
+      label: "Details",
       children: (
         <DetailsTab 
           employee={employee}
@@ -151,7 +158,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
     },
     {
       key: TAB_KEYS.employment,
-      label: t('employee_profile.employee_tabs.employment'),
+      label: "Employment",
       children: (
         <EmploymentTab 
           employee={employee}
@@ -160,7 +167,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
     },
     {
       key: TAB_KEYS.documents,
-      label: t('employee_profile.employee_tabs.documents'),
+      label: "Documents",
       children: (
         <DocumentsTab 
           employee={employee}
@@ -169,7 +176,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
     },
     {
       key: TAB_KEYS.performance,
-      label: t('employee_profile.employee_tabs.performance_feedback'),
+      label: "Performance & Feedback",
       children: (
         <PerformanceTab 
           employee={employee}
@@ -180,7 +187,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
     },
     {
       key: TAB_KEYS.absences,
-      label: t('hr_absences.absences'),
+      label: "Absences",
       children: (
         <AbsencesTab 
           employee={employee}

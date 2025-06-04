@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useGraphqlClient } from '../../../../common/network/graphql/useGraphQLClient';
 
 /**
@@ -282,20 +282,21 @@ export const useEmployeeData = (accessToken: string, activeStructureId: string, 
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Define fetchData outside useEffect to make it available for refetch
-  const fetchData = async () => {
-    if (skipRequest || !employeeId) return;
+  const fetchData = useCallback(async () => {
+    if (skipRequest || !accessToken || !employeeId) {
+      setData(null);
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
 
     try {
-      setIsLoading(true);
-      setError(null);
-
       const variables = {
         employeeId,
         structureId: structureId ?? '',
         hasStructureId: !!structureId
       };
-
       const result = await client.request<EmployeeData>(GET_EMPLOYEE_DATA, variables);
       setData(result);
     } catch (err) {
@@ -303,11 +304,11 @@ export const useEmployeeData = (accessToken: string, activeStructureId: string, 
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [accessToken, client, employeeId, structureId, skipRequest, setData, setIsLoading, setError]); // Added state setters to dependencies as they are used, though stable
 
   useEffect(() => {
     fetchData();
-  }, [accessToken, employeeId, structureId, skipRequest, client]);
+  }, [fetchData]);
 
   // Extract data from the result
   const employeePosition = data?.EmployeePosition?.[0];
@@ -335,7 +336,7 @@ export const useEmployeeData = (accessToken: string, activeStructureId: string, 
     performanceGoals: data?.EmployeePerformanceGoal || [],
     loading: isLoading,
     error,
-    refetch: fetchData // Now fetchData is properly defined and available
+    refetch: fetchData
   };
 };
 

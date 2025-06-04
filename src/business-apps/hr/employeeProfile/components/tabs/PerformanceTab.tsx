@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { Employee, EmployeeFeedback, EmployeePerformanceGoal } from '../../hooks/useEmployeeData';
 import { Card } from '@newwork/gravity-ui-catalog';
@@ -21,29 +20,28 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   employeeFeedback,
   employeePerformanceGoal 
 }) => {
-  const { t } = useTranslation('lowcoder');
 
   // Map status to display values and styles
   const getStatusInfo = (status: string) => {
     const statusMap: Record<string, { label: string, color: string }> = {
       'ON_TRACK': { 
-        label: 'on_track', 
+        label: 'On Track', 
         color: 'bg-green-100 text-green-800' 
       },
       'AT_RISK': { 
-        label: 'at_risk', 
+        label: 'At Risk', 
         color: 'bg-yellow-100 text-yellow-800' 
       },
       'OFF_TRACK': { 
-        label: 'off_track', 
+        label: 'Off Track', 
         color: 'bg-red-100 text-red-800' 
       },
       'COMPLETED': { 
-        label: 'completed', 
+        label: 'Completed', 
         color: 'bg-blue-100 text-blue-800' 
       },
       'NOT_ACHIEVED': { 
-        label: 'not_achieved', 
+        label: 'Not Achieved', 
         color: 'bg-gray-100 text-gray-800' 
       }
     };
@@ -66,7 +64,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
         id: feedback.senderEmployeeId || '',
         content: feedback.feedback || '',
         date: feedback.feedbackDate ? dayjs(feedback.feedbackDate).format('MMM D, YYYY') : '',
-        sender: `${firstName} ${lastName}`.trim() || t('employee_profile.unknown_sender'),
+        sender: `${firstName} ${lastName}`.trim() || "Unknown Sender",
         avatar: pictureThumbnail
           ? `data:image/jpeg;base64,${pictureThumbnail}`
           : '/assets/default-avatar.png'
@@ -103,13 +101,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
               }
             }}
           >
-            {t('new_goal.set_new_goal')}
+            Set New Goal
           </button>
         </div>
 
         {employeePerformanceGoal.length === 0 ? (
           <div className="gba:text-center gba:text-gray-500 gba:py-8">
-            <p>{t('filter_component.no_results')}</p>
+            <p>No goals found.</p>
           </div>
         ) : (
           <div className="gba:space-y-4">
@@ -140,15 +138,15 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                   
                   <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:text-sm">
                     <div>
-                      <span className="gba:block gba:text-gray-500">start_date</span>
+                      <span className="gba:block gba:text-gray-500">Start Date</span>
                       <span>{dayjs(goal.startDate).format('MMM D, YYYY')}</span>
                     </div>
                     <div>
-                      <span className="gba:block gba:text-gray-500">due_date</span>
+                      <span className="gba:block gba:text-gray-500">Due Date</span>
                       <span>{dayjs(goal.dueDate).format('MMM D, YYYY')}</span>
                     </div>
                     <div>
-                      <span className="gba:block gba:text-gray-500">completion_date</span>
+                      <span className="gba:block gba:text-gray-500">Completion Date</span>
                       <span>{goal.completionDate ? dayjs(goal.completionDate).format('MMM D, YYYY') : '-'}</span>
                     </div>
                   </div>
@@ -163,7 +161,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       <div>
         <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
           <h2 className="gba:text-xl gba:font-medium">
-            {t('employee_profile.summary_layout.skills_section.feedback_generic_module_title')}
+            Feedback
           </h2>
           <button 
             className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
@@ -184,13 +182,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
               }
             }}
           >
-            {t('employee_profile.employee_tabs.flows_button.other_profile_options.give_feedback')}
+            Give Feedback
           </button>
         </div>
 
         {formattedFeedback.length === 0 ? (
           <div className="gba:text-center gba:text-gray-500 gba:py-8">
-            <p>{t('employee_profile.summary_layout.skills_section.feedback_generic_module_no_data')}</p>
+            <p>No feedback data available.</p>
           </div>
         ) : (
           <div className="gba:space-y-4">

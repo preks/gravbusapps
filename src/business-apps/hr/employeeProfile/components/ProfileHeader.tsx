@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { 
   PiEnvelopeSimple, 
@@ -104,19 +103,20 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
   employee, 
   availabilityStatus = 'available' // Default to available if not provided
 }) => {
-  const { t } = useTranslation('lowcoder');
   const [isHovering, setIsHovering] = useState(false);
   //const { openModal } = useProcessExecutorModalContext();
   const { openModal } = { openModal: (args: any) => {} };
 
-  const { hasPermission: hasPermissionToEditPicture } = usePermissionCheck(accessToken, [
+  const { hasPermission: hasPermissionToEditPicture } = { hasPermission: false };
+
+  /* const { hasPermission: hasPermissionToEditPicture } = usePermissionCheck(accessToken, [
     {
       domain: 'employee',
       resource: 'employee',
       resourceId: employee.id,
       permissions: ['update']
     }
-  ]);
+  ]); */
 
   // We don't need the status info anymore as EmployeeAvatar handles it
   
@@ -206,7 +206,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                         onClick={handleEditPicture}
                         onMouseEnter={() => setIsHovering(true)}
                         onMouseLeave={() => setIsHovering(false)}
-                        aria-label={t('employee_profile.actions.edit_picture', 'Edit profile picture')}
+                        aria-label={"Edit profile picture"}
                       >
                         {isHovering && (
                           <span className="gba:bg-white gba:text-black gba:rounded-full gba:p-2 gba:hover:bg-gray-200">
@@ -259,7 +259,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                 {getEmployeeFullName(employee)}
               </h1>
               <p className="gba:text-gray-600 gba:mb-4 gba:text-sm">
-                {employee.employeePosition?.jobPosition?.name ?? t('employee_profile.left_side_bar.not_assigned')}
+                {employee.employeePosition?.jobPosition?.name ?? "Not assigned"}
               </p>
               
               {/* Profile Info Grid */}
@@ -267,47 +267,47 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                 {/* Organization */}
                 <ProfileInfoItem 
                   icon={<PiBuildings className="gba:h-4 gba:w-4" />}
-                  label={t('employee_profile.profile_icon_list.org_title')}
-                  value={employee.employeePosition?.organizationalUnit?.name ?? t('employee_profile.left_side_bar.not_assigned')}
+                  label={"Organization"}
+                  value={employee.employeePosition?.organizationalUnit?.name ?? "Not assigned"}
                   linkTo={employee.employeePosition?.organizationalUnitId ? `/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}` : undefined}
                 />
                 
                 {/* Manager */}
                 <ProfileInfoItem 
                   icon={<PiUser className="gba:h-4 gba:w-4" />}
-                  label={t('employee_profile.profile_icon_list.manager_title')}
+                  label={"Manager"}
                   value={
                     employee.employeePosition?.supervisor?.id && employee.employeePosition.supervisor.id !== employee.id
-                      ? `${employee.employeePosition.supervisor.firstName ?? ''} ${employee.employeePosition.supervisor.lastName ?? ''}`.trim() ?? t('employee_profile.left_side_bar.not_assigned')
-                      : t('employee_profile.left_side_bar.no_manager')
+                      ? `${employee.employeePosition.supervisor.firstName ?? ''} ${employee.employeePosition.supervisor.lastName ?? ''}`.trim() ?? "Not assigned"
+                      : "No manager"
                   }
                   linkTo={
                     employee.employeePosition?.supervisor?.id && employee.employeePosition.supervisor.id !== employee.id
-                      ? `/platform/employee-profile/${employee.employeePosition.supervisor.id}`
+                      ? `/platform/employee-profile?id=${employee.employeePosition.supervisor.id}`
                       : undefined
                   }
                 />
                 
-                {/* Location */}
+                {/* Job Position */}
                 <ProfileInfoItem 
                   icon={<PiMapPin className="gba:h-4 gba:w-4" />}
-                  label={t('employee_profile.profile_icon_list.location_title')}
-                  value={employee.employeePosition?.siteLocation?.name ?? t('employee_profile.left_side_bar.not_assigned')}
+                  label={"Job Position"}
+                  value={employee.employeePosition?.jobPosition?.name ?? "Not assigned"}
                   //linkTo={employee.employeePosition?.siteLocation?.id ? `/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}` : undefined}
                 />
                 
                 {/* Cost Center */}
                 <ProfileInfoItem 
                   icon={<PiCurrencyDollar className="gba:h-4 gba:w-4" />}
-                  label={t('employee_profile.profile_icon_list.cost_center_title', 'Cost Center')}
-                  value={employee.employeePosition?.costCenter?.name ?? t('employee_profile.left_side_bar.not_assigned')}
+                  label={"Cost Center"}
+                  value={employee.employeePosition?.costCenter?.name ?? "Not assigned"}
                   linkTo={employee.employeePosition?.costCenter?.id ? `/orgchart/active/finance?costCenterDataId=${employee.employeePosition.costCenter.id}` : undefined}
                 />
                 
                 {/* Hire Date */}
                 <ProfileInfoItem 
                   icon={<PiCalendar className="gba:h-4 gba:w-4" />}
-                  label={t('employee_profile.profile_icon_list.since_title')}
+                  label={"Hire Date"}
                   value={
                     employee.workingCondition[0]?.hireDate
                       ? `${dayjs(employee.workingCondition[0].hireDate).format('MMM D, YYYY')} - ${calculateTimeSince()}`
@@ -320,7 +320,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
               {employee.employeePosition?.matrixUnitEmployees && employee.employeePosition.matrixUnitEmployees.length > 0 && (
                 <div className="gba:mt-6">
                   <h3 className="gba:text-sm gba:font-semibold gba:mb-2 gba:text-gray-700">
-                    {t('employee_profile.profile_icon_list.teams_title', 'Teams')}
+                    {"Teams"}
                   </h3>
                   <div className="gba:flex gba:flex-wrap gba:gap-2">
                     {employee.employeePosition.matrixUnitEmployees.map((teamItem: MatrixUnitEmployee) => (
@@ -339,7 +339,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
               {employee.employeePosition?.employeeCapabilities && employee.employeePosition.employeeCapabilities.length > 0 && (
                 <div className="gba:mt-4">
                   <h3 className="gba:text-sm gba:font-semibold gba:mb-2 gba:text-gray-700">
-                    {t('employee_profile.profile_icon_list.capabilities_title', 'Capabilities')}
+                    {"Capabilities"}
                   </h3>
                   <div className="gba:flex gba:flex-wrap gba:gap-2">
                     {employee.employeePosition.employeeCapabilities.map((capItem: EmployeeCapability) => (
@@ -358,7 +358,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
               {employee.skills?.length > 0 && (
                 <div className="gba:mt-4">
                   <h3 className="gba:text-sm gba:font-semibold gba:mb-2 gba:text-gray-700">
-                    {t('employee_profile.profile_icon_list.skills_title', 'Skills')}
+                    {"Skills"}
                   </h3>
                   <div className="gba:flex gba:flex-wrap gba:gap-2">
                     {employee.skills.map((skillItem: EmployeeSkill) => (

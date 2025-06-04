@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { Employee } from '../../hooks/useEmployeeData';
 import { formatPhoneNumber } from '../../utils/formatters';
@@ -16,52 +15,51 @@ interface DetailsTabProps {
  * Displays detailed personal information about the employee
  */
 const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
-  const { t } = useTranslation('lowcoder');
 
   // Prepare personal data
   const personalData = [
     {
-      label: t('employee_profile.details_layout.personal_information_container.salutation'),
+      label: "Salutation",
       value: employee.salutation?.value ?? ''
     },
     {
-      label: t('employee_profile.details_layout.personal_information_container.academic_titles'),
+      label: "Academic Titles",
       value: employee.academicTitleRef ?? ''
     },
     {
-      label: t('employee_profile.details_layout.personal_information_container.first_name'),
+      label: "First Name",
       value: employee.firstName ?? ''
     },
     {
-      label: t('employee_profile.details_layout.personal_information_container.last_name'),
+      label: "Last Name",
       value: employee.lastName ?? ''
     },
     {
-      label: t('employee_profile.details_layout.personal_information_container.preferred_name'),
+      label: "Preferred Name",
       value: employee.preferredName ?? ''
     },
     {
-      label: t('employee_profile.details_layout.personal_information_container.birth_name'),
+      label: "Birth Name",
       value: employee.birthName ?? ''
     },
     {
-      label: t('employee_profile.details_layout.personal_information_container.date_of_birth'),
+      label: "Date of Birth",
       value: employee.birthDate ? dayjs(employee.birthDate).format('MMM D, YYYY') : ''
     },
     {
-      label: t('employee_profile.details_layout.personal_information_container.place_of_birth'),
-      value: employee.birthPlace ?? ''
+      label: "Place of Birth",
+      value: employee.birthPlace?.value ?? ''
     },
     {
-      label: t('employee_profile.details_layout.personal_information_container.nationality'),
+      label: "Nationality",
       value: employee.nationality?.value ?? ''
     },
     {
-      label: t('employee_profile.details_layout.personal_information_container.gender'),
+      label: "Gender",
       value: employee.gender?.value ?? ''
     },
     {
-      label: t('employee_profile.details_layout.personal_information_container.marital_status'),
+      label: "Marital Status",
       value: employee.maritalStatus?.value ?? ''
     }
   ].filter(item => item.value);
@@ -73,19 +71,19 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
 
     return [
       {
-        label: t('employee_profile.details_layout.address_container.postal_code'),
+        label: "Postal Code",
         value: primaryAddress.postalCode ?? ''
       },
       {
-        label: t('employee_profile.details_layout.address_container.city'),
+        label: "City",
         value: primaryAddress.locality ?? ''
       },
       {
-        label: t('employee_profile.details_layout.address_container.country'),
+        label: "Country",
         value: primaryAddress.country?.value ?? ''
       },
       {
-        label: t('employee_profile.details_layout.address_container.address_line'),
+        label: "Address Line",
         value: primaryAddress.addressLine?.filter(line => line?.trim())?.join(', ') ?? ''
       }
     ].filter(item => item.value);
@@ -100,15 +98,15 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
 
     return [
       {
-        label: t('employee_profile.details_layout.address_container.bank_name'),
+        label: "Bank Name",
         value: primaryBankAccount.bankName ?? ''
       },
       {
-        label: t('employee_profile.details_layout.address_container.account_holder'),
+        label: "Account Holder",
         value: primaryBankAccount.accountHolder ?? ''
       },
       {
-        label: t('employee_profile.details_layout.address_container.iban'),
+        label: "IBAN",
         value: primaryBankAccount.iban ?? ''
       }
     ].filter(item => item.value);
@@ -129,15 +127,15 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
 
     return [
       {
-        label: t('employee_profile.details_layout.communication_container.private_phone'),
+        label: "Private Phone",
         value: privatePhone?.value ? formatPhoneNumber(privatePhone.value) : ''
       },
       {
-        label: t('employee_profile.details_layout.communication_container.private_mobile'),
+        label: "Private Mobile",
         value: privateMobile?.value ? formatPhoneNumber(privateMobile.value) : ''
       },
       {
-        label: t('employee_profile.details_layout.communication_container.private_email'),
+        label: "Private Email",
         value: privateEmail?.value ?? ''
       }
     ].filter(item => item.value);
@@ -152,11 +150,11 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
 
     return [
       {
-        label: t('employee_profile.details_layout.communication_container.contact_name'),
+        label: "Contact Name",
         value: `${emergencyContact.firstName ?? ''} ${emergencyContact.lastName ?? ''}`
       },
       {
-        label: t('employee_profile.details_layout.communication_container.phone_number'),
+        label: "Phone Number",
         value: emergencyContact.phoneNumber ? formatPhoneNumber(emergencyContact.phoneNumber) : ''
       }
     ].filter(item => item.value);
@@ -171,31 +169,31 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
 
     return [
       {
-        label: t('employee_profile.details_layout.payroll_container.tax_class'),
+        label: "Tax Class",
         value: taxDetails.taxBracketRef ?? ''
       },
       {
-        label: t('employee_profile.details_layout.payroll_container.social_insurance_no'),
+        label: "Social Insurance No.",
         value: taxDetails.socialSecurityNumber ?? ''
       },
       {
-        label: t('employee_profile.details_layout.payroll_container.tax_identification_no'),
+        label: "Tax Identification No.",
         value: taxDetails.taxIdentificationNumber ?? ''
       },
       {
-        label: t('employee_profile.details_layout.payroll_container.health_insurance_provider'),
+        label: "Health Insurance Provider",
         value: taxDetails.healthInsuranceName ?? ''
       },
       {
-        label: t('employee_profile.details_layout.payroll_container.confession'),
+        label: "Confession",
         value: taxDetails.taxableChurchAffiliationRef ?? ''
       },
       {
-        label: t('employee_profile.details_layout.payroll_container.type_of_health_insurance'),
+        label: "Type of Health Insurance",
         value: taxDetails.healthInsuranceTypeRef ?? ''
       },
       {
-        label: t('employee_profile.details_layout.payroll_container.child_tax_allowance'),
+        label: "Child Tax Allowance",
         value: taxDetails.childTaxAllowance?.toString() ?? ''
       }
     ].filter(item => item.value);
@@ -207,7 +205,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
     <div className="gba:details-tab gba:space-y-6">
       {/* Personal Data Section */}
       <ProfileSection 
-        title={t('employee_profile.summary_layout.public_profile_container.personal_data_title')}
+        title="Personal Data"
         data={personalData}
         columns={2}
       />
@@ -215,7 +213,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
       {/* Address Section */}
       {addressData.length > 0 && (
         <ProfileSection 
-          title={t('employee_profile.details_layout.address_container.address_text')}
+          title="Address"
           data={addressData}
           columns={1}
         />
@@ -224,7 +222,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
       {/* Bank Account Section */}
       {bankAccountData.length > 0 && (
         <ProfileSection 
-          title={t('employee_profile.details_layout.address_container.bank_account_text')}
+          title="Bank Account"
           data={bankAccountData}
           columns={1}
         />
@@ -233,7 +231,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
       {/* Private Communication Section */}
       {privateCommunicationData.length > 0 && (
         <ProfileSection 
-          title={t('employee_profile.details_layout.communication_container.communication_text')}
+          title="Private Communication"
           data={privateCommunicationData}
           columns={1}
         />
@@ -242,7 +240,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
       {/* Emergency Contact Section */}
       {emergencyContactData.length > 0 && (
         <ProfileSection 
-          title={t('employee_profile.details_layout.communication_container.emergency_contact')}
+          title="Emergency Contact"
           data={emergencyContactData}
           columns={1}
         />
@@ -251,7 +249,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
       {/* Payroll Data Section */}
       {payrollData.length > 0 && (
         <ProfileSection 
-          title={t('employee_profile:details.payroll.title')}
+          title="Payroll"
           data={payrollData}
           columns={2}
         />

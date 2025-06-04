@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData';
 import { Card } from '@newwork/gravity-ui-catalog';
@@ -34,7 +33,6 @@ interface SummaryTabProps {
 // Specific schedule information should be retrieved from the API
 
 const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) => {
-  const { t } = useTranslation('lowcoder');
 
   // Get business communication channels
   const getBusinessCommunication = () => {
@@ -60,67 +58,67 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
   // Prepare public profile data
   const publicProfileData = [
     {
-      label: t('employee_profile.details_layout.personal_information_container.first_name'),
+      label: "Full Name",
       value: getEmployeeFullName(employee)
     },
     {
-      label: t('employee_profile.details_layout.personal_information_container.preferred_name'),
+      label: "Preferred Name",
       value: employee.preferredName ?? ''
     },
     {
-      label: t('employee_profile.employement_layout.employment_profile_container.job_position_input'),
-      value: employee.employeePosition?.jobPosition?.name ?? t('employee_profile.left_side_bar.not_assigned')
+      label: "Job Position",
+      value: employee.employeePosition?.jobPosition?.name ?? "Not assigned"
     },
     {
-      label: t('employee_profile.employement_layout.employment_profile_container.organizational_unit_input'),
-      value: employee.employeePosition?.organizationalUnit?.name ?? t('employee_profile.left_side_bar.not_assigned')
+      label: "Organizational Unit",
+      value: employee.employeePosition?.organizationalUnit?.name ?? "Not assigned"
     },
     {
-      label: t('employee_profile.employement_layout.working_conditions_container.hire_date_input'),
+      label: "Hire Date",
       value: employee.workingCondition[0]?.hireDate
         ? dayjs(employee.workingCondition[0].hireDate).format('DD.MM.YYYY')
         : ''
     },
     {
-      label: t('employee_profile.details_layout.personal_information_container.languages'),
+      label: "Languages",
       value: employee.language?.value ?? ''
     },
     {
-      label: t('employee_profile.summary_layout.public_profile_container.business_mail_text'),
+      label: "Business Email",
       value: businessComms.email
     },
     {
-      label: t('employee_profile.summary_layout.public_profile_container.business_phone'),
+      label: "Business Phone",
       value: businessComms.phone
     },
     {
-      label: t('employee_profile.summary_layout.public_profile_container.business_mobile'),
+      label: "Business Mobile",
       value: businessComms.mobile
     },
     {
-      label: t('employee_profile.summary_layout.public_profile_container.manager'),
+      label: "Manager",
       value: employee.employeePosition?.supervisor?.id && employee.employeePosition.supervisor.id !== employee.id
-        ? `${employee.employeePosition.supervisor.firstName ?? ''} ${employee.employeePosition.supervisor.lastName ?? ''}`.trim() ?? t('employee_profile.left_side_bar.not_assigned')
+        ? `${employee.employeePosition.supervisor.firstName ?? ''} ${employee.employeePosition.supervisor.lastName ?? ''}`.trim() ?? "Not assigned"
         : '-'
     },
     {
-      label: t('employee_profile.employement_layout.employment_profile_container.location_input'),
-      value: employee.employeePosition?.siteLocation?.name ?? t('employee_profile.left_side_bar.not_assigned')
+      label: "Location",
+      value: employee.employeePosition?.siteLocation?.name ?? "Not assigned"
     },
     {
-      label: t('employee_profile.employement_layout.employment_profile_container.workspace_input'),
+      label: "Workspace",
       value: employee.workspace ?? ''
     },
     {
-      label: t('employee_profile.summary_layout.public_profile_container.business_email'),
+      label: "Business Email",
       value: businessComms.email
     },
     {
-      label: t('employee_profile.summary_layout.public_profile_container.business_phone'),
+      label: "Business Phone",
       value: businessComms.phone
     },
     {
-      label: t('employee_profile.summary_layout.public_profile_container.business_mobile'),
+      label: "Business Mobile",
       value: businessComms.mobile
     }
   ].filter(item => item.value);
@@ -132,8 +130,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
     const attributes = [];
     for (const [key, value] of Object.entries(employee.additionalProperties)) {
       if (key !== 'imported') {
-        // Try to get a translated label for the key, or use the key itself if no translation exists
-        const translatedKey = t(`employee_profile.additional_attributes.${key.toLowerCase()}`, key);
+        // Try to get a hardcoded label for the key, or use the key itself if no label exists
+        const translatedKey = key.charAt(0).toUpperCase() + key.slice(1);
         attributes.push({ 
           key: translatedKey, 
           value: value === null || value === undefined ? '' : String(value)
@@ -161,14 +159,14 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
         id: feedback.senderEmployeeId ?? '',
         content: feedback.feedback ?? '',
         date: feedback.feedbackDate ? dayjs(feedback.feedbackDate).format('MMM D, YYYY') : '',
-        sender: `${firstName} ${lastName}`.trim() || t('employee_profile:unknown_sender'),
+        sender: `${firstName} ${lastName}`.trim() || 'Unknown Sender',
         avatar: pictureThumbnail
           ? `data:image/jpeg;base64,${pictureThumbnail}`
           : '/assets/default-avatar.png'
       };
     }).filter(Boolean);
   };
-
+  
   const formattedFeedback = formatFeedback();
 
   // Map real team members from GraphQL data
@@ -192,15 +190,15 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
           <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
             <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
-            {t('employee_profile.summary_layout.organization_chart')}
+            Organization Chart
           </h3>
-          <Card className="gba:p-4 gba:overflow-hidden">
-            <div className="gba:flex gba:flex-col gba:items-center gba:space-y-6" style={{ height: '580px', maxHeight: '580px', overflowY: 'auto', overflowX: 'hidden' }}>
+          <Card className="gba:p-4 gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center">
+            <div className="gba:flex gba:flex-col gba:items-center gba:space-y-6" style={{ maxHeight: '580px', overflowY: 'auto', overflowX: 'hidden' }}>
             {/* Supervisor */}
             {employee.employeePosition?.supervisor && employee.employeePosition.supervisor.id !== employee.id && (
               <div className="gba:flex gba:flex-col gba:items-center">
                 <a 
-                  href={`/platform/employee-profile/${employee.employeePosition.supervisor.id}`}
+                  href={`/platform/employee-profile?id=${employee.employeePosition.supervisor.id}`}
                   className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
                   title={`View ${employee.employeePosition.supervisor.firstName} ${employee.employeePosition.supervisor.lastName}'s profile`}
                 >
@@ -250,7 +248,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                 {subordinates.map((member) => (
                   <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
                     <a 
-                      href={`/platform/employee-profile/${member.id}`}
+                      href={`/platform/employee-profile?id=${member.id}`}
                       className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
                       title={`View ${member.firstName} ${member.lastName}'s profile`}
                     >
@@ -283,7 +281,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
           <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
             <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
-            {t('employee_profile.summary_layout.job_information_title', 'Job Information')}
+            Job Information
           </h3>
           <Card className="gba:p-4">
             <div className="gba:space-y-4">
@@ -291,7 +289,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                 <PiBriefcase className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
                   <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Profile</div>
-                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.jobPosition?.name ?? t('employee_profile.left_side_bar.not_assigned')}</div>
+                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.jobPosition?.name ?? "Not assigned"}</div>
                 </div>
               </div>
               
@@ -301,7 +299,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                   <PiStack className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                   <div>
                     <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Family</div>
-                    <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.organizationalUnit?.name || t('employee_profile.left_side_bar.not_assigned')}</div>
+                    <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.organizationalUnit?.name || "Not assigned"}</div>
                   </div>
                 </div>
               )}
@@ -312,7 +310,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                   <PiFunction className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                   <div>
                     <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Function</div>
-                    <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.jobPosition?.name || t('employee_profile.left_side_bar.not_assigned')}</div>
+                    <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.jobPosition?.name || "Not assigned"}</div>
                   </div>
                 </div>
               )}
@@ -323,7 +321,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                   <PiListNumbers className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                   <div>
                     <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Level</div>
-                    <div className="gba:text-sm gba:text-gray-600">{t('employee_profile.left_side_bar.not_assigned')}</div>
+                    <div className="gba:text-sm gba:text-gray-600">{"Not assigned"}</div>
                   </div>
                 </div>
               )}
@@ -332,7 +330,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                 <PiBuildings className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
                   <div className="gba:text-sm gba:font-medium gba:text-gray-900">Department</div>
-                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.organizationalUnit?.name || t('employee_profile.left_side_bar.not_assigned')}</div>
+                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.organizationalUnit?.name || "Not assigned"}</div>
                 </div>
               </div>
               
@@ -340,7 +338,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                 <PiCurrencyDollar className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
                   <div className="gba:text-sm gba:font-medium gba:text-gray-900">Cost Center</div>
-                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.costCenter?.name || t('employee_profile.left_side_bar.not_assigned')}</div>
+                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.costCenter?.name || "Not assigned"}</div>
                 </div>
               </div>
             </div>
@@ -351,7 +349,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
           <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
             <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
-            {t('employee_profile.summary_layout.availability_container.title')}
+            Availability & Schedule
           </h3>
           <Card className="gba:p-4">
             <div className="gba:space-y-4">
@@ -407,7 +405,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
         {additionalAttributes.length > 0 && (
           <div className="gba:lg:col-span-1 gba:xl:col-span-1">
             <ProfileSection 
-              title={t('employee_profile.additional_container.additional_title')}
+              title="Additional Attributes"
               data={additionalAttributes.map(attr => ({
                 label: attr.key,
                 value: attr.value
@@ -422,7 +420,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
         <div className="gba:mb-8 gba:mt-6">
           <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
             <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
-            {t('employee_profile.summary_layout.skills_section.feedback_generic_module_title')}
+            Feedback
           </h3>
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
             {formattedFeedback.map((feedback) => {
@@ -460,7 +458,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
 
       {formattedFeedback.length === 0 && (
         <div className="gba:mt-6 gba:text-center gba:text-gray-500">
-          {t('employee_profile.summary_layout.skills_section.feedback_generic_module_no_data')}
+          No feedback data available.
         </div>
       )}
     </div>
