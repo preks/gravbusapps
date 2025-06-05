@@ -58,6 +58,7 @@ const stringToColor = (str: string): string => {
 interface CompanyDetailProps {
   companyId?: string;
   onBack?: () => void;
+  accessToken: string;
 }
 
 const emptyCompanyData = {
@@ -101,7 +102,7 @@ const emptyCompanyData = {
   geographicPresence: ''
 };
 
-const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, onBack }) => {
+const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, onBack, accessToken }) => {
   // State for edit mode
   const [isEditing, setIsEditing] = useState<boolean>(!_companyId);
   const [editedData, setEditedData] = useState<any>(!_companyId ? emptyCompanyData : null);
@@ -691,8 +692,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
             <div className="gba:key-people-section">
               <div className="gba:people-group">
                 <div className="gba:people-group-title">Founders</div>
-                {console.log('RENDER founders:', companyData.keyPeople.founders) || true}
-{companyData.keyPeople.founders.length === 0 ? (
+  {companyData.keyPeople.founders.length === 0 ? (
   <Text type="secondary">No founders available</Text>
 ) : (
   companyData.keyPeople.founders.map((person, index) => (
