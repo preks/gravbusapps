@@ -5,8 +5,6 @@ Create all components as React components in the src\business-apps folder.
 Each component should extend its props from the `BusinessAppContextProps` interface.
 Whenever an access token is required, use it from the `BusinessAppContextProps` interface.
 Whenever an user, an user info or an employee ID is required, use it from the `BusinessAppContextProps` interface.
-Whenever an access token is required, use it from the `BusinessAppContextProps` interface.
-Whenever an user, an user info or an employee ID is required, use it from the `BusinessAppContextProps` interface.
 
 All folders in src\business-apps folder are products that we have, e.g. crm, irm etc.
 All folders in src\business-apps\<product> are either named `components`, `modules`, `hooks`, `libs`, `utils`, `overview-screens`, `detail-screens`, `flow-screens` or contain the name of the component.
@@ -18,13 +16,7 @@ Example of correctly create components:
 
 2. Component Dependencies
 Use react for UI components
-2. Component Dependencies
-Use react for UI components
 Use ant-design for React UI components
-Use @dnd-kit for drag and drop
-Use zustand for state management in React
-Use react-dom for working with the DOM
-Use react-router-dom for routing
 Use @dnd-kit for drag and drop
 Use zustand for state management in React
 Use react-dom for working with the DOM
@@ -50,15 +42,6 @@ Use npm run publish:screen -- **/<ScreenFolder> to publish a screen
 
 # Project Development
 
-1. Code Style
-Use prettier for code styling
-Use eslint for linting
-
-Simplify the code as much as possible and keep it clean
-Remove unused code
-
-2. Git Workflow
-Use the Conventional Commits specification for git commit messages
 1. Code Style
 Use prettier for code styling
 Use eslint for linting
