@@ -1,7 +1,7 @@
 import { RestClient, type RequestOptions } from "../rest/RestClient";
 import { env } from "../../env/EnvUtils";
 import { setAccessTokenToAuthorizationHeader } from "../HeaderUtils";
-import { FilePathParams, FileQueryParams } from "@/common/types/FileTypes";
+import { FilePathParams, FileQueryParams } from "../../types/FileTypes";
 
 export class FileClient extends RestClient {
   constructor() {
@@ -37,7 +37,7 @@ export class FileClient extends RestClient {
     
     // Only add defined properties from params
     Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined) {
+      if (value !== undefined && value !== null) {
         queryParams[key] = value;
       }
     });
@@ -57,9 +57,6 @@ export class FileClient extends RestClient {
       ...(options.headers || {}),
     };
     
-    console.log(`FileClient: Fetching file from ${url.toString()}`);
-    console.log('FileClient: Using headers:', headers);
-    
     try {
       // Make the request directly to get the binary data
       const response = await fetch(url.toString(), {
@@ -68,22 +65,14 @@ export class FileClient extends RestClient {
         credentials: 'include',
       });
       
-      console.log(`FileClient: Response status: ${response.status}`);
-      console.log(`FileClient: Response headers:`, Object.fromEntries(response.headers.entries()));
-      
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Could not read error response');
         console.error(`FileClient: Error response body: ${errorText}`);
         throw new Error(`File request failed: ${response.status} - ${response.statusText}\nDetails: ${errorText}`);
       }
       
-      // Get content type to verify we're getting the expected response
-      const contentType = response.headers.get('content-type');
-      console.log(`FileClient: Content-Type of response: ${contentType}`);
-      
       // Return the response as a blob
       const blob = await response.blob();
-      console.log(`FileClient: Blob received - size: ${blob.size}, type: ${blob.type}`);
       return blob;
     } catch (error) {
       console.error('FileClient: Error fetching file:', error);
