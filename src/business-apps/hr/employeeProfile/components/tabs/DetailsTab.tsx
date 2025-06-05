@@ -1,20 +1,46 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import dayjs from 'dayjs';
 import { Employee } from '../../hooks/useEmployeeData';
 import { formatPhoneNumber } from '../../utils/formatters';
 import { ProfileSection } from '../ProfileSection';
+import { useGetAcademicTitles } from '../../../hooks/useGetAcademicTitles';
 
 interface DetailsTabProps {
   employee: Employee;
+  accessToken: string;
 }
 
 /**
  * Details Tab Component
  * Displays detailed personal information about the employee
  */
-const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
+const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
+  // Fetch academic titles from catalog
+  const { titles: academicTitles, loading: loadingTitles } = useGetAcademicTitles(accessToken);
+
+  // Find the academic titles that match the employee's title references
+  const academicTitleName = useMemo(() => {
+    if (!employee.academicTitleRef || !Array.isArray(employee.academicTitleRef) || 
+        employee.academicTitleRef.length === 0 || loadingTitles || academicTitles.length === 0) {
+      // Return the raw academicTitleRef if it's a string, or join them if it's an array
+      return Array.isArray(employee.academicTitleRef) 
+        ? employee.academicTitleRef.join(', ') 
+        : (employee.academicTitleRef || '');
+    }
+    
+    // Find all matching titles by ID in the academicTitles array
+    const matchingTitles = employee.academicTitleRef.map(titleRef => {
+      const match = academicTitles.find(
+        (title) => title.id === titleRef || title.id.includes(titleRef)
+      );
+      return match ? match.value : titleRef;
+    });
+    
+    // Join all titles with a comma
+    return matchingTitles.join(', ');
+  }, [employee.academicTitleRef, academicTitles, loadingTitles]);
 
   // Prepare personal data
   const personalData = [
@@ -24,7 +50,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
     },
     {
       label: "Academic Titles",
-      value: employee.academicTitleRef ?? ''
+      value: academicTitleName
     },
     {
       label: "First Name",

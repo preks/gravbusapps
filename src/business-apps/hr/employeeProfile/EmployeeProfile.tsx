@@ -84,7 +84,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
       }
 
       // Set employee ID from URL query parameter
-      const employeeIdParam = new URLSearchParams(window.location.search).get('id');
+      const employeeIdParam = new URLSearchParams(window.location.search).get('employeeId') ?? new URLSearchParams(window.location.search).get('id');
       if (employeeIdParam) {
         setEmployeeId(employeeIdParam);
       }
@@ -153,6 +153,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
       children: (
         <DetailsTab 
           employee={employee}
+          accessToken={accessToken}
         />
       )
     },

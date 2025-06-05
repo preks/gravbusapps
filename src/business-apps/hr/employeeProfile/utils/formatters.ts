@@ -32,9 +32,13 @@ export const formatPhoneNumber = (phoneNumber: string): string => {
 export const getEmployeeFullName = (employee: Employee): string => {
   if (!employee) return '';
   
-  const parts = [];
+  // If displayName is available, use it directly
+  if (employee.displayName) {
+    return employee.displayName;
+  }
   
-  // Removed salutation as requested
+  // Fallback to constructing name from parts if displayName is not available
+  const parts = [];
   
   if (employee.academicTitleRef) {
     parts.push(employee.academicTitleRef);

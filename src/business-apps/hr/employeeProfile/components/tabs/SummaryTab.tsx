@@ -177,6 +177,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
       id: member.employee?.id,
       firstName: member.employee?.firstName,
       lastName: member.employee?.lastName,
+      displayName: member.employee?.displayName || `${member.employee?.firstName || ''} ${member.employee?.lastName || ''}`.trim(),
       profilePicture: member.employee?.pictureThumbnail,
       position: member.jobPosition?.name ?? '',
     }));
@@ -198,9 +199,9 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
             {employee.employeePosition?.supervisor && employee.employeePosition.supervisor.id !== employee.id && (
               <div className="gba:flex gba:flex-col gba:items-center">
                 <a 
-                  href={`/platform/employee-profile?id=${employee.employeePosition.supervisor.id}`}
+                  href={`/platform/employee-profile?employeeId=${employee.employeePosition.supervisor.id}`}
                   className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
-                  title={`View ${employee.employeePosition.supervisor.firstName} ${employee.employeePosition.supervisor.lastName}'s profile`}
+                  title={`View ${employee.employeePosition.supervisor.displayName}'s profile`}
                 >
                   <Avatar
                     profilePicture={employee.employeePosition.supervisor.pictureThumbnail}
@@ -211,7 +212,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                   />
                   <div className="gba:mt-2 gba:text-center">
                     <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
-                      {employee.employeePosition.supervisor.firstName} {employee.employeePosition.supervisor.lastName}
+                      {employee.employeePosition.supervisor.displayName}
                     </div>
                     <div className="gba:text-xs gba:text-gray-500">
                       {employee.employeePosition?.supervisor?.employeePosition?.jobPosition?.name ?? ''}
@@ -234,7 +235,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
               </div>
               <div className="gba:mt-2 gba:text-center">
                 <div className="gba:font-medium gba:text-sm">
-                  {employee.firstName} {employee.lastName}
+                  {employee.displayName}
                 </div>
                 <div className="gba:text-xs gba:text-gray-500">
                   {employee.employeePosition?.jobPosition?.name || ''}
@@ -248,9 +249,9 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                 {subordinates.map((member) => (
                   <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
                     <a 
-                      href={`/platform/employee-profile?id=${member.id}`}
+                      href={`/platform/employee-profile?employeeId=${member.id}`}
                       className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
-                      title={`View ${member.firstName} ${member.lastName}'s profile`}
+                      title={`View ${member.displayName}'s profile`}
                     >
                       <Avatar
                         profilePicture={member.profilePicture}
@@ -261,7 +262,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                       />
                       <div className="gba:mt-2 gba:text-center gba:w-full">
                         <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
-                          {member.firstName} {member.lastName}
+                          {member.displayName}
                         </div>
                         <div className="gba:text-xs gba:text-gray-500 gba:truncate gba:w-full gba:text-center gba:px-1">
                           {member.position}
@@ -325,22 +326,6 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                   </div>
                 </div>
               )}
-              
-              <div className="gba:flex gba:items-center">
-                <PiBuildings className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
-                <div>
-                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Department</div>
-                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.organizationalUnit?.name || "Not assigned"}</div>
-                </div>
-              </div>
-              
-              <div className="gba:flex gba:items-center">
-                <PiCurrencyDollar className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
-                <div>
-                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Cost Center</div>
-                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.costCenter?.name || "Not assigned"}</div>
-                </div>
-              </div>
             </div>
           </Card>
         </div>

@@ -22,6 +22,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/`
       supervisor {
         firstName
         lastName
+        displayName
         id
         pictureThumbnail
         employeePosition{
@@ -394,6 +395,7 @@ export interface Employee {
   birthDate: string;
   birthName: string;
   lastName: string;
+  displayName: string;
   ethnicity: CodeValue;
   birthPlace: CodeValue;
   nationality: CodeValue;
@@ -420,6 +422,7 @@ interface EmployeePosition {
     firstName: string;
     lastName: string;
     id: string;
+    displayName: string;
     pictureThumbnail?: string;
     employeePosition?: {
       jobPosition?: {

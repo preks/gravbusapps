@@ -18,7 +18,6 @@ import EmployeeAvatar from '../../components/employeeAvatar/EmployeeAvatar';
 import { OnlineStatus } from '../../components/employeeAvatar/types';
 import { Employee } from '../hooks/useEmployeeData';
 import { formatPhoneNumber, getEmployeeFullName } from '../utils/formatters';
-import { usePermissionCheck } from '../../../../common/permission/usePermissionCheck';
 import { BusinessAppContextProps } from '../../../../common/BusinessAppContext';
 //import { useProcessExecutorModalContext } from 'sdks/process-executor-sdk';
 
@@ -99,7 +98,6 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
 };
 
 const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({ 
-  accessToken,
   employee, 
   availabilityStatus = 'available' // Default to available if not provided
 }) => {
@@ -108,17 +106,6 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
   const { openModal } = { openModal: (args: any) => {} };
 
   const { hasPermission: hasPermissionToEditPicture } = { hasPermission: false };
-
-  /* const { hasPermission: hasPermissionToEditPicture } = usePermissionCheck(accessToken, [
-    {
-      domain: 'employee',
-      resource: 'employee',
-      resourceId: employee.id,
-      permissions: ['update']
-    }
-  ]); */
-
-  // We don't need the status info anymore as EmployeeAvatar handles it
   
   const calculateTimeSince = () => {
     if (!employee.workingCondition[0]?.hireDate) return '';
@@ -278,12 +265,12 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                   label={"Manager"}
                   value={
                     employee.employeePosition?.supervisor?.id && employee.employeePosition.supervisor.id !== employee.id
-                      ? `${employee.employeePosition.supervisor.firstName ?? ''} ${employee.employeePosition.supervisor.lastName ?? ''}`.trim() ?? "Not assigned"
+                      ? employee.employeePosition.supervisor.displayName || `${employee.employeePosition.supervisor.firstName ?? ''} ${employee.employeePosition.supervisor.lastName ?? ''}`.trim() || "Not assigned"
                       : "No manager"
                   }
                   linkTo={
                     employee.employeePosition?.supervisor?.id && employee.employeePosition.supervisor.id !== employee.id
-                      ? `/platform/employee-profile?id=${employee.employeePosition.supervisor.id}`
+                      ? `/platform/employee-profile?employeeId=${employee.employeePosition.supervisor.id}`
                       : undefined
                   }
                 />

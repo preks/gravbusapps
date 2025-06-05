@@ -1,7 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Employee } from '../hooks/useEmployeeData';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Menu, Button, Divider } from '@newwork/gravity-ui-catalog';
+import { PiDotsThreeOutlineVertical } from 'react-icons/pi';
+import { Employee } from '../interfaces/employee.interface';
+import { useNavigate } from 'react-router-dom';
 
 interface ActionMenuProps {
   employee: Employee;
@@ -23,6 +26,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   isLoggedUser 
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
   
   // Toggle dropdown
   const toggleDropdown = () => {
@@ -218,7 +222,9 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
           window.location.href = '/platform/landing_screen/srn_absenceLandingScreen';
           break;
         case 'goToManagerProfile':
-          window.location.href = `/platform/employee-profile/${employee.employeePosition.supervisor.id}`;
+          // Use React Router navigation instead of direct browser navigation
+          // This prevents UI flashing when navigating between profiles
+          navigate(`/platform/employee-profile?employeeId=${employee.employeePosition.supervisor.id}`);
           break;
         case 'goToTeamAvailability':
           window.location.href = '/platform/landing_screen/srn_teamAvailability';
