@@ -1,19 +1,16 @@
-import { Card, CardContent } from "./common/ui/card";
-import { Dialog, DialogContent, DialogPortal, DialogOverlay } from "./common/ui/dialog"
+import { Card, Row, Col } from 'antd';
+import { 
+  TeamOutlined,
+  ApartmentOutlined,
+  DollarOutlined,
+  TrophyOutlined
+} from "@ant-design/icons";
 
 interface OpportunitiesKPIProps {
   opportunities: any[]
 }
 
 export default function OpportunitiesKPI({ opportunities }: OpportunitiesKPIProps) {
-  <Dialog>
-  <DialogPortal>   
-    <DialogOverlay /> 
-    <DialogContent>  
-      ...
-    </DialogContent>
-  </DialogPortal>
-</Dialog>
   const totalOpportunities = opportunities?.length
 
   const activeOpportunities = opportunities?.filter(
@@ -35,31 +32,74 @@ export default function OpportunitiesKPI({ opportunities }: OpportunitiesKPIProp
       : 0
 
   return (
-    <div className="gba:grid gba:gap-4 gba:md:grid-cols-4">
-      <Card>
-        <CardContent className="gba:p-6">
-          <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Total Opportunities</div>
-          <div className="gba:text-2xl gba:font-bold">{totalOpportunities}</div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="gba:p-6">
-          <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Active Opportunities</div>
-          <div className="gba:text-2xl gba:font-bold">{activeOpportunities}</div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="gba:p-6">
-          <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Total Value</div>
-          <div className="gba:text-2xl gba:font-bold">$ {totalValue != undefined ? totalValue.toLocaleString() : 0}</div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="gba:p-6">
-          <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Win Rate</div>
-          <div className="gba:text-2xl gba:font-bold">{winRate}%</div>
-        </CardContent>
-      </Card>
-    </div>
+    <Row gutter={[16, 16]} className="gba:stats-cards">
+      <Col xs={24} sm={12} md={6}>
+        <Card className="gba:border-gray-300">
+          <div className="gba:p-4">
+            <div className="gba:flex gba:justify-between">
+              <div>
+                <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Total Opportunities</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-blue-500">{totalOpportunities}</div>
+                <div className="gba:text-xs gba:text-gray-500">All registered opportunities</div>
+              </div>
+              <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:rounded-full gba:bg-blue-100">
+                <TeamOutlined style={{ color: '#1890ff', fontSize: '20px' }} />
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      
+      <Col xs={24} sm={12} md={6}>
+        <Card className="gba:border-gray-300">
+          <div className="gba:p-4">
+            <div className="gba:flex gba:justify-between">
+              <div>
+                <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Active Opportunities</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-green-500">{activeOpportunities}</div>
+                <div className="gba:text-xs gba:text-gray-500">Not yet closed</div>
+              </div>
+              <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:rounded-full gba:bg-green-100">
+                <ApartmentOutlined style={{ color: '#52c41a', fontSize: '20px' }} />
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      
+      <Col xs={24} sm={12} md={6}>
+        <Card className="gba:border-gray-300">
+          <div className="gba:p-4">
+            <div className="gba:flex gba:justify-between">
+              <div>
+                <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Total Value</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-purple-500">$ {totalValue != undefined ? totalValue.toLocaleString() : 0}</div>
+                <div className="gba:text-xs gba:text-gray-500">Total value of all opportunities</div>
+              </div>
+              <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:rounded-full gba:bg-purple-100">
+                <DollarOutlined style={{ color: '#722ed1', fontSize: '20px' }} />
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+      
+      <Col xs={24} sm={12} md={6}>
+        <Card className="gba:border-gray-300">
+          <div className="gba:p-4">
+            <div className="gba:flex gba:justify-between">
+              <div>
+                <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Win Rate</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-orange-500">{winRate}%</div>
+                <div className="gba:text-xs gba:text-gray-500">Percentage of won opportunities</div>
+              </div>
+              <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:rounded-full gba:bg-orange-100">
+                <TrophyOutlined style={{ color: '#fa8c16', fontSize: '20px' }} />
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Col>
+    </Row>
   )
 }

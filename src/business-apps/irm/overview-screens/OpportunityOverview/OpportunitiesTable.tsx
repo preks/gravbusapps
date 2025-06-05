@@ -14,14 +14,29 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ArrowUpDown, ChevronDown, MoreHorizontal, Plus, ArrowRight, ArrowLeft } from "lucide-react"
+import { 
+  ArrowUpDown, 
+  ChevronDown, 
+  MoreHorizontal, 
+  Plus, 
+  ArrowRight, 
+  ArrowLeft,
+  DollarSign,
+  BarChart,
+  FileText,
+  Layers,
+  Briefcase,
+  PieChart,
+  TrendingUp,
+  Target
+} from "lucide-react"
 import { Button } from "./common/ui/button"
 import { Checkbox } from "./common/ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
-  DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuContent,
   DropdownMenuTrigger,
 } from "./common/ui/dropdown-menu"
 import { Input } from "./common/ui/input"
@@ -173,7 +188,7 @@ export default function OpportunitiesTable({
                 
                 handleOpportunityClick(id);
               }}
-              className="gba:text-left hover:underline gba:cursor-pointer gba:border-none gba:bg-transparent gba:p-0 gba:m-0"
+              className="gba:text-left gba:hover:underline gba:cursor-pointer gba:border-none gba:bg-transparent gba:p-0 gba:m-0"
             >
               {String(name)}
             </button>
@@ -300,35 +315,63 @@ export default function OpportunitiesTable({
   return (
     <div className="gba:w-full">
       <div className="gba:flex gba:flex-col">
-        <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+        <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white gba:mb-6">
           <h1 className="gba:text-2xl gba:font-bold">Opportunities</h1>
           <p className="gba:text-gray-500">Manage your sales opportunities</p>
         </div>
         
         <div className="gba:grid gba:grid-cols-4 gba:gap-4 gba:mb-6">
-          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg">
-            <h3 className="gba:text-sm gba:text-gray-500">Total Opportunities</h3>
-            <p className="gba:text-2xl gba:font-bold">{data.length}</p>
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <Briefcase className="gba:h-5 gba:w-5 gba:text-blue-500" />
+              </div>
+              <div>
+                <div className="gba:text-sm gba:text-gray-500">Total Opportunities</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-blue-500">{data.length}</div>
+              </div>
+            </div>
           </div>
-          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg">
-            <h3 className="gba:text-sm gba:text-gray-500">Active Opportunities</h3>
-            <p className="gba:text-2xl gba:font-bold">{data.filter(opp => opp.stageName !== "Closed Won" && opp.stageName !== "Closed Lost").length}</p>
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <TrendingUp className="gba:h-5 gba:w-5 gba:text-green-500" />
+              </div>
+              <div>
+                <div className="gba:text-sm gba:text-gray-500">Active Opportunities</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-green-500">{data.filter(opp => opp.stageName !== "Closed Won" && opp.stageName !== "Closed Lost").length}</div>
+              </div>
+            </div>
           </div>
-          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg">
-            <h3 className="gba:text-sm gba:text-gray-500">Total Value</h3>
-            <p className="gba:text-2xl gba:font-bold">${data.reduce((sum, opp) => {
-              const numValue = typeof opp.value === 'string' ? parseFloat(opp.value) || 0 : (opp.value || 0);
-              return sum + numValue;
-            }, 0).toLocaleString()}</p>
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-orange-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <DollarSign className="gba:h-5 gba:w-5 gba:text-orange-500" />
+              </div>
+              <div>
+                <div className="gba:text-sm gba:text-gray-500">Total Value</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-orange-500">${data.reduce((sum, opp) => {
+                  const numValue = typeof opp.value === 'string' ? parseFloat(opp.value) || 0 : (opp.value || 0);
+                  return sum + numValue;
+                }, 0).toLocaleString()}</div>
+              </div>
+            </div>
           </div>
-          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg">
-            <h3 className="gba:text-sm gba:text-gray-500">Win Rate</h3>
-            <p className="gba:text-2xl gba:font-bold">
-              {data.length ? Math.round(
-                (data.filter(opp => opp.stageName === "Closed Won").length / 
-                (data.filter(opp => opp.stageName === "Closed Won" || opp.stageName === "Closed Lost").length || 1)) * 100
-              ) : 0}%
-            </p>
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-purple-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <Target className="gba:h-5 gba:w-5 gba:text-purple-500" />
+              </div>
+              <div>
+                <div className="gba:text-sm gba:text-gray-500">Win Rate</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-purple-500">
+                  {data.length ? Math.round(
+                    (data.filter(opp => opp.stageName === "Closed Won").length / 
+                    (data.filter(opp => opp.stageName === "Closed Won" || opp.stageName === "Closed Lost").length || 1)) * 100
+                  ) : 0}%
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

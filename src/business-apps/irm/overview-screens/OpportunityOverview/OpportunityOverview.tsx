@@ -92,9 +92,6 @@ const sampleStages = [
     <div className="gba:space-y-6">
       <Card className="gba:border-gray-300 gba:rounded">
         <CardContent className="gba:p-6">
-          <h2 className="gba:text-xl gba:font-semibold gba:mb-4 gba:border-b gba:border-gray-300 gba:pb-4">
-            Opportunities
-          </h2>
           <OpportunitiesTable 
             isStandalone={isStandalone}
             onSelectOpportunity={handleOpportunitySelect}

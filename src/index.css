@@ -6,6 +6,8 @@
 @import "./business-apps/crm/overview-screens/CompanyOverview/styles/CompanyOverview.css";
 @import "./business-apps/crm/detail-screens/CompanyDetail/styles/CompanyDetail.css";
 
+@config "../tailwind.config.js";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -113,4 +115,11 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.552 0.016 285.938);
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }

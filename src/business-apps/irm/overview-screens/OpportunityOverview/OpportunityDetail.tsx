@@ -318,17 +318,17 @@ export default function OpportunityDetail({
             
             let stageStyle = '';
             if (isActive) {
-              stageStyle = 'bg-blue-100 text-blue-800 border border-blue-200';
+              stageStyle = 'gba:bg-blue-100 gba:text-blue-800 gba:border gba:border-blue-200';
             } else if (isPast) {
-              stageStyle = 'bg-gray-100 text-gray-600 border border-gray-200';
+              stageStyle = 'gba:bg-gray-100 gba:text-gray-600 gba:border gba:border-gray-200';
             } else {
-              stageStyle = 'bg-white text-gray-400 border border-gray-200 border-dashed';
+              stageStyle = 'gba:bg-white gba:text-gray-400 gba:border gba:border-gray-200 gba:border-dashed';
             }
             
             return (
               <div key={stage.id} className="gba:flex gba:items-center">
                 <div 
-                  className={`gba:flex gba:items-center gba:justify-center gba:px-3 gba:py-1 gba:text-xs gba:rounded-md gba:whitespace-nowrap ${stageStyle}`}
+                  className={`gba:flex gba:items-center gba:justify-center gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:rounded-md gba:whitespace-nowrap ${stageStyle}`}
                   style={{ minWidth: '85px' }}
                 >
                   {isPast && (
