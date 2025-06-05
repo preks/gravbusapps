@@ -16,6 +16,7 @@ import {
   CostCenter,
   CustomField,
 } from "../../types";
+import { getCatalogValue } from "../../utils/windowUtils";
 
 interface MultiPositionComponentProps {
   positions: ExpensePosition[];
@@ -79,7 +80,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                 name="expenseGroup"
                 data={expenseGroups.map((group) => ({
                   id: group.id,
-                  name: group.value,
+                  name: getCatalogValue(group),
                 }))}
                 onChange={(value: any) => {
                   handleExpenseGroupChange(value.value as string, index);

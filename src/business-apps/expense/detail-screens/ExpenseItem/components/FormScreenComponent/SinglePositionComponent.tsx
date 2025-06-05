@@ -9,6 +9,7 @@ import {
   CostCenter,
   CustomField,
 } from "../../types";
+import { getCatalogValue } from "../../utils/windowUtils";
 
 interface SinglePositionComponentProps {
   positions: ExpensePosition[];
@@ -58,7 +59,7 @@ export const SinglePositionComponent: React.FC<
                   expenseGroups
                     ? expenseGroups.map((group) => ({
                         id: group.id,
-                        name: group.value,
+                        name: getCatalogValue(group),
                       }))
                     : []
                 }

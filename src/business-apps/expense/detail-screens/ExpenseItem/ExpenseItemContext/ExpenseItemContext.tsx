@@ -17,6 +17,11 @@ import {
   ExpenseGroup,
   CustomField,
 } from "../types";
+
+import {
+  getCurrentActiveUserLocale,
+  getCatalogValue
+} from "../utils/windowUtils";
 import {
   getNewTypes,
   getCustomFields,
@@ -25,9 +30,13 @@ import {
   fetchExpenseRuleGeneralData,
   getStructureCostCenter,
 } from "../ExpenseItemQueries";
+import { DEFAULT_EMPLOYEE_ID, DEFAULT_EXPENSE_SOURCE, DEFAULT_EXPENSE_STATUS, DEFAULT_POSITION } from "./constants";
+import { createGraphQLClient } from "../services/graphqlClient";
+import { transformCurrencies } from "../utils/currencyUtils";
+import { formatDateToISOString, formatDateToDDMMYYYY } from "../utils/dateUtils";
+import { prepareExpenseRequestsList } from "../utils/expenseRequestUtils";
+import { calculateTotalAmount } from "../utils/calculationUtils";
 
-// Default employee ID in case userInfo is undefined
-const DEFAULT_EMPLOYEE_ID = "86a8317d-34ef-4e04-951b-b0bb9754dea0";
 
 interface ExpenseItemContextProps {
   // Form and UI states
@@ -101,15 +110,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [multiPosition, setMultiPosition] = useState<boolean>(false);
   // Data states
   const [positions, setPositions] = useState<ExpensePosition[]>([
-    {
-      id: "",
-      expenseGroup: "",
-      expenseType: "",
-      amount: 0,
-      costCenter: "",
-      customField: "",
-      isReimbursable: false,
-    },
+    DEFAULT_POSITION,
   ]);
   const [expenseGroups, setExpenseGroups] = useState<ExpenseGroup[]>([]);
   const [expenseTypes, setExpenseTypes] = useState<{
@@ -133,28 +134,14 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [generalDataResponse, setGeneralDataResponse] = useState<any>(null);
   const [catalogueDataResponse, setCatalogueDataResponse] = useState<any>(null);
   const [structureCostCenter, setStructureCostCenter] = useState<any>(null);
-  const [expenseRequestByCurrency, setExpenseRequestByCurrency] = useState<any>(null);
+  const [expenseRequestByCurrency, setExpenseRequestByCurrency] =
+    useState<any>(null);
 
   // GraphQL client - using useMemo to prevent recreation on every render
-  const graphqlClient = useMemo(() => ({
-    query: async ({ query, variables }: { query: string; variables?: any }) => {
-      const response = await fetch(
-        "https://newwork-dev.newwork.com/v1/graphql",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            query,
-            variables,
-          }),
-        }
-      );
-      return response.json();
-    },
-  }), [accessToken]);
+  const graphqlClient = useMemo(
+    () => createGraphQLClient(accessToken),
+    [accessToken]
+  );
 
   // Fetch initial data
   useEffect(() => {
@@ -163,7 +150,13 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         // Fetch employee rule
         const currentDate = new Date().toISOString();
         const employeeIdValue =
-          userInfo?.employeeDetails?.employeeId || DEFAULT_EMPLOYEE_ID;
+          additionalData?.mdi_employeeId ||
+          (additionalData?.psi_taskPayload &&
+            additionalData.psi_taskPayload.initialParameters
+              .employeeId) ||
+          "" ||
+          userInfo?.employeeDetails?.employeeId ||
+          DEFAULT_EMPLOYEE_ID;
 
         const employeeRuleData = await fetchEmployeeRule(
           employeeIdValue,
@@ -179,7 +172,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           query: fetchExpenseRuleGeneralData,
           variables: {
             expenseRuleId: employeeRuleId,
-            activeUserLocale: "en-US",
+            activeUserLocale: getCurrentActiveUserLocale(),
             objectFilter: { useInExpense: true },
           },
         });
@@ -190,7 +183,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             variables: {
               employeeId: employeeIdValue,
               expenseRuleId: employeeRuleId,
-              activeUserLocale: "en-US",
+              activeUserLocale: getCurrentActiveUserLocale(),
               objectFilter: { useInExpense: true },
             },
           });
@@ -207,17 +200,29 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
               variables: {
                 structureId:
                   (catalogueData?.data.EmployeePosition[0] &&
-                    catalogueData?.data.EmployeePosition[0]
-                      .structureId) ||
+                    catalogueData?.data.EmployeePosition[0].structureId) ||
                   "",
               },
             });
             setStructureCostCenter(costCenterData);
-            addRequests();
+            setCostCenters(costCenterData?.data.userCostCenters || []);
+
+            // Sort and set currencies with priority
+            if (catalogueData?.data?.currency) {
+              try {
+                const finalCurrencies = transformCurrencies(catalogueData.data.currency);
+                console.log(finalCurrencies,"currencies")
+                setCurrencies(finalCurrencies);
+              } catch (error) {
+                console.error("Error transforming currencies:", error);
+              }
+            }
+
+            // addRequests is now called right after setCatalogueDataResponse
             // changeDisplayedColumn.run(); most likely not needed anymore
             setFirstRunVariable(true);
 
-            // if (additionalData && 
+            // if (additionalData &&
             //   additionalData.psi_taskPayload?.initialParameters?.expenseId
             // ) {
             //   await graphqlClient.query({
@@ -230,7 +235,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             //         (additionalData.psi_taskPayload &&
             //           additionalData.psi_taskPayload.expenseRequest &&
             //           additionalData.psi_taskPayload.expenseRequest.id),
-            //           activeUserLocale: "en-US",
+            //           activeUserLocale: getCurrentActiveUserLocale(),
             //     },
             //   });
             // }
@@ -255,18 +260,39 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
   useEffect(() => {
     const uniqueExpenseGroupRefs = [
-      ...new Set((typeof employeeRuleId === "object" || !generalDataResponse || !catalogueDataResponse )? [] : generalDataResponse.data.ExpenseRuleGeneralExpense.map((item:any) => item.expenseGroupRef))
+      ...new Set(
+        typeof employeeRuleId === "object" ||
+        !generalDataResponse ||
+        !catalogueDataResponse
+          ? []
+          : generalDataResponse.data.ExpenseRuleGeneralExpense.map(
+              (item: any) => item.expenseGroupRef
+            )
+      ),
     ];
-    
-    const matchingItems = catalogueDataResponse ? catalogueDataResponse.data.expenseGroup.filter((item:any) => 
-      uniqueExpenseGroupRefs.includes(item.id)
-    ) : [];
+
+    const matchingItems = catalogueDataResponse
+      ? catalogueDataResponse.data.expenseGroup.filter((item: any) =>
+          uniqueExpenseGroupRefs.includes(item.id)
+        )
+      : [];
     setExpenseGroups(matchingItems);
   }, [generalDataResponse, catalogueDataResponse]);
+
+  // Call addRequests whenever catalogueDataResponse changes
+  useEffect(() => {
+    if (catalogueDataResponse) {
+      addRequests();
+    }
+  }, [catalogueDataResponse]);
 
   // This variable is used for future AI-based expense type suggestions
   // Currently not actively used but kept for future implementation
   const aiGroupsAndTypes = useMemo(() => {
+    // Format today's date for logging/debugging purposes
+    const today = formatDateToDDMMYYYY(new Date().toISOString());
+    console.debug(`Loading expense types data on ${today}`);
+    
     return typeof employeeRuleId === "object"
       ? []
       : generalDataResponse?.data.ExpenseRuleGeneralExpense.map(
@@ -274,24 +300,12 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             expenseCode: item.code,
             expenseLabel: item.name,
             expenseGroupCode: item.expenseGroup.code,
-            expenseGroupLabel: item.expenseGroup.value,
+            expenseGroupLabel: getCatalogValue(item.expenseGroup),
           })
         );
   }, [generalDataResponse, employeeRuleId]);
 
   const addRequests = () => {
-    function mapItemFunction(item: any) {
-      const date = new Date(item.createdAt);
-      const day = String(date.getDate()).padStart(2, "0");
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const year = date.getFullYear();
-      const formattedDate = `${day}.${month}.${year}`;
-      const newTitle = `${formattedDate} - ${item.title}`;
-      return {
-        id: item.id,
-        title: newTitle,
-      };
-    }
     if (catalogueDataResponse?.data.ExpenseRequest) {
       let itemsWithCurrency = [];
       if (expenseRequestByCurrency && expenseRequestByCurrency.data) {
@@ -302,26 +316,20 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         }
       }
 
-      const sortedItems = [
+      const allExpenseRequests = [
         ...itemsWithCurrency,
         ...catalogueDataResponse?.data.ExpenseRequest,
-      ].sort(
-        (a: any, b: any) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ];
+      
+      const formattedRequests = prepareExpenseRequestsList(
+        allExpenseRequests,
+        t("create_expense_type_item.none", "None")
       );
-      const modifiedItems = sortedItems.map((item: any) =>
-        mapItemFunction(item)
-      );
-      setExpenseRequests(
-        [
-          {
-            id: "0",
-            title: t("create_expense_type_item.none", "None"),
-          },
-        ].concat(modifiedItems)
-      );
+      
+      setExpenseRequests(formattedRequests);
     }
   };
+
   const fetchExpenseTypes = async (groupId: string) => {
     try {
       // Check if employeeRuleId is valid
@@ -329,17 +337,17 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         console.error("Invalid employeeRuleId for fetching expense types");
         return [];
       }
-      
+
       // Get all current expense group IDs from the positions
       const expenseGroupIds = positions
-        .map(position => position.expenseGroup)
-        .filter(id => id && id.length > 0);
-      
+        .map((position) => position.expenseGroup)
+        .filter((id) => id && id.length > 0);
+
       // Add the current groupId if it's not already in the list
       if (groupId && !expenseGroupIds.includes(groupId)) {
         expenseGroupIds.push(groupId);
       }
-      
+
       // If there are no expense groups selected, return empty array
       if (expenseGroupIds.length === 0) {
         return [];
@@ -347,38 +355,42 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
       const response = await graphqlClient.query({
         query: getNewTypes,
-        variables: { 
+        variables: {
           expenseRuleId: employeeRuleId,
-          objectFilter: {"useInExpense": true},
-          expenseGroupId: expenseGroupIds // Pass array of all expense group IDs
+          objectFilter: { useInExpense: true },
+          expenseGroupId: expenseGroupIds, // Pass array of all expense group IDs
         },
       });
 
-      console.log('Expense types response:', response);
-      
+
       // Check if response has the expected structure
       if (!response?.data?.ExpenseRuleGeneralExpense) {
-        console.error('Invalid response structure for expense types');
+        console.error("Invalid response structure for expense types");
         return [];
       }
 
       // Map the response to the expected format
-      const expenseTypesList = response.data.ExpenseRuleGeneralExpense.map((item: any) => ({
-        id: item.id,
-        name: item.name,
-        code: item.code,
-        classId: item.expenseGroupRef,
-        reimbursable: item.reimbursable
-      }));
+      const expenseTypesList = response.data.ExpenseRuleGeneralExpense.map(
+        (item: any) => ({
+          id: item.id,
+          name: item.name,
+          code: item.code,
+          classId: item.expenseGroupRef,
+          reimbursable: item.reimbursable,
+        })
+      );
 
       // Group expense types by their classId (expenseGroupRef)
-      const expenseTypesByGroup = expenseTypesList.reduce((acc: { [key: string]: ExpenseType[] }, item: ExpenseType) => {
-        if (!acc[item.classId]) {
-          acc[item.classId] = [];
-        }
-        acc[item.classId].push(item);
-        return acc;
-      }, {});
+      const expenseTypesByGroup = expenseTypesList.reduce(
+        (acc: { [key: string]: ExpenseType[] }, item: ExpenseType) => {
+          if (!acc[item.classId]) {
+            acc[item.classId] = [];
+          }
+          acc[item.classId].push(item);
+          return acc;
+        },
+        {}
+      );
 
       // Update the state with all expense types organized by group
       setExpenseTypes(expenseTypesByGroup);
@@ -386,72 +398,77 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       return expenseTypesList;
     } catch (error) {
       console.error("Error fetching expense types:", error);
-      message.error(t("expense_item.error_message", "Failed to load expense types"));
+      message.error(
+        t("expense_item.error_message", "Failed to load expense types")
+      );
       return [];
     }
   };
-  
+
   const fetchCustomFields = async (expenseTypeIds: string[]) => {
     try {
       // If no expense type IDs provided, return empty array
       if (!expenseTypeIds || expenseTypeIds.length === 0) {
         return [];
       }
-      
+
       const response = await graphqlClient.query({
         query: getCustomFields,
-        variables: { 
-          expenseRuleGeneralId: expenseTypeIds
+        variables: {
+          expenseRuleGeneralId: expenseTypeIds,
         },
       });
-      
-      console.log('Custom fields response:', response);
-      
+
+
       // Check if response has the expected structure
       if (!response?.data?.ExpenseRuleOtherInfo) {
-        console.error('Invalid response structure for custom fields');
+        console.error("Invalid response structure for custom fields");
         return [];
       }
-      
+
       // Map the response to the expected format
-      const customFieldsList = response.data.ExpenseRuleOtherInfo.map((item: any) => ({
-        id: item.id,
-        infoValue: item.infoValue,
-        mandatory: item.mandatory,
-        source: item.source,
-        expenseRuleGeneralExpenseId: item.expenseRuleGeneralExpenseId,
-        expenseGroupRef: item.expenseRuleGeneralExpense?.expenseGroupRef
-      }));
-      
+      const customFieldsList = response.data.ExpenseRuleOtherInfo.map(
+        (item: any) => ({
+          id: item.id,
+          infoValue: item.infoValue,
+          mandatory: item.mandatory,
+          source: item.source,
+          expenseRuleGeneralExpenseId: item.expenseRuleGeneralExpenseId,
+          expenseGroupRef: item.expenseRuleGeneralExpense?.expenseGroupRef,
+        })
+      );
+
       // Group custom fields by their expenseRuleGeneralExpenseId
-      const customFieldsByType = customFieldsList.reduce((acc: { [key: string]: CustomField[] }, item: CustomField) => {
-        if (!acc[item.expenseRuleGeneralExpenseId]) {
-          acc[item.expenseRuleGeneralExpenseId] = [];
-        }
-        acc[item.expenseRuleGeneralExpenseId].push(item);
-        return acc;
-      }, {});
-      
+      const customFieldsByType = customFieldsList.reduce(
+        (acc: { [key: string]: CustomField[] }, item: CustomField) => {
+          if (!acc[item.expenseRuleGeneralExpenseId]) {
+            acc[item.expenseRuleGeneralExpenseId] = [];
+          }
+          acc[item.expenseRuleGeneralExpenseId].push(item);
+          return acc;
+        },
+        {}
+      );
+
       // Update the state with all custom fields organized by expense type ID
-      setCustomFields(prev => ({
+      setCustomFields((prev) => ({
         ...prev,
-        ...customFieldsByType
+        ...customFieldsByType,
       }));
-      
+
       return customFieldsList;
     } catch (error) {
       console.error("Error fetching custom fields:", error);
-      message.error(t("expense_item.error_message", "Failed to load custom fields"));
+      message.error(
+        t("expense_item.error_message", "Failed to load custom fields")
+      );
       return [];
     }
   };
 
-  // Calculate total amount
-  const calculateTotal = (): number => {
-    return positions.reduce(
-      (total, position) => total + (position.amount || 0),
-      0
-    );
+  // Calculate total amount from all positions
+  const calculateTotal = () => {
+    return calculateTotalAmount(positions);
   };
 
   // Handle file upload
@@ -478,17 +495,68 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       // Get form values
       const values = form.getFieldsValue();
 
-      // Upload file if present
-      let fileId = null;
-      if (fileList.length > 0) {
-        fileId = await handleFileUpload();
-      }
+      // Format the expense positions with custom fields
+      const formattedPositions = positions.map((position, index) => {
+        // Prepare custom fields array if a custom field exists
+        const customFieldsArray = [];
+        if (
+          position.expenseType &&
+          customFields[position.expenseType] &&
+          position.customField
+        ) {
+          const customFieldData = customFields[position.expenseType][0];
+          if (customFieldData) {
+            customFieldsArray.push({
+              id: customFieldData.id,
+              infoValue: customFieldData.infoValue,
+              mandatory: customFieldData.mandatory || false,
+              value: position.customField,
+            });
+          }
+        }
 
-      // Prepare data for submission
+        return {
+          expenseGroupRef: position.expenseGroup,
+          expenseTypeRef: position.expenseType,
+          totalAmount: position.amount || 0,
+          positionOrder: index,
+          expenseRuleGeneralExpense: position.expenseType,
+          costCenter: position.costCenter,
+          reimbursable: position.isReimbursable,
+          additionalProperties: {
+            customFields: customFieldsArray,
+          },
+          source: DEFAULT_EXPENSE_SOURCE,
+          expenseRule: employeeRuleId as string,
+        };
+      });
+
+      // Prepare data for submission in the required format
       const submitData = {
-        ...values,
-        positions,
-        fileId,
+        expenseItem: {
+          title: values.title,
+          expenseDate: values.date
+            ? formatDateToISOString(values.date)
+            : formatDateToISOString(new Date()),
+          totalAmount: calculateTotal(),
+          source: DEFAULT_EXPENSE_SOURCE,
+          currencyRef: values.currency || "EUR",
+          costCenter: positions[0]?.costCenter || "",
+          reimbursable: positions[0]?.isReimbursable || false,
+          expenseClassRef: "ExpenseClass:v1:EXPENSE",
+          status: DEFAULT_EXPENSE_STATUS,
+          multiplePositions: multiPosition,
+          expenseRequest: values.expenseRequest || "",
+          employee: generalDataResponse?.data?.Employee?.[0]?.id || "",
+          expenseRule: employeeRuleId as string,
+        },
+        event: "pse_submit",
+        expensePositions: {
+          expensePositions: formattedPositions,
+        },
+        expenseItemFiles: {
+          expenseFiles: [],
+        },
       };
 
       console.log("Submitting data:", submitData);
@@ -502,15 +570,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       // Reset form and state
       form.resetFields();
       setPositions([
-        {
-          id: "",
-          expenseGroup: "",
-          expenseType: "",
-          amount: 0,
-          costCenter: "",
-          customField: "",
-          isReimbursable: false,
-        },
+        DEFAULT_POSITION,
       ]);
       setFileList([]);
       setCurrentStep("start");
@@ -542,7 +602,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
       // Check if we already have expense types for this group
       const hasExpenseTypesForGroup = Object.keys(expenseTypes).includes(value);
-      
+
       // If we don't have expense types for this group or we want to refresh them,
       // fetch all expense types for all selected groups
       if (!hasExpenseTypesForGroup) {
@@ -550,10 +610,16 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       }
     } catch (error) {
       console.error("Error handling expense group change:", error);
-      message.error(t("expense_item.error_message", "Failed to update expense types. Please try again."));
+      message.error(
+        t(
+          "expense_item.error_message",
+          "Failed to update expense types. Please try again."
+        )
+      );
     }
   };
-  
+
+  // Handle expense type change
   const handleExpenseTypeChange = async (
     value: string,
     positionIndex: number
@@ -564,28 +630,33 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       updatedPositions[positionIndex].expenseType = value;
       updatedPositions[positionIndex].customField = ""; // Reset custom field when expense type changes
       setPositions(updatedPositions);
-      
+
       // Check if we already have custom fields for this expense type
       const hasCustomFieldsForType = Object.keys(customFields).includes(value);
-      
+
       // If we don't have custom fields for this type or we want to refresh them,
       // fetch custom fields for all selected expense types
       if (!hasCustomFieldsForType && value) {
         // Get all current expense type IDs from the positions
         const expenseTypeIds = positions
-          .map(position => position.expenseType)
-          .filter(id => id && id.length > 0);
-        
+          .map((position) => position.expenseType)
+          .filter((id) => id && id.length > 0);
+
         // Add the current type ID if it's not already in the list
         if (!expenseTypeIds.includes(value)) {
           expenseTypeIds.push(value);
         }
-        
+
         await fetchCustomFields(expenseTypeIds);
       }
     } catch (error) {
       console.error("Error handling expense type change:", error);
-      message.error(t("expense_item.error_message", "Failed to update custom fields. Please try again."));
+      message.error(
+        t(
+          "expense_item.error_message",
+          "Failed to update custom fields. Please try again."
+        )
+      );
     }
   };
 
@@ -593,15 +664,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const handleAddPosition = () => {
     setPositions([
       ...positions,
-      {
-        id: "",
-        expenseGroup: "",
-        expenseType: "",
-        amount: 0,
-        costCenter: "",
-        customField: "",
-        isReimbursable: false,
-      },
+      DEFAULT_POSITION,
     ]);
   };
 

@@ -227,7 +227,14 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                 "Currency"
               )}
               name="currency"
-              data={currencies}
+              isDataSorted={false}
+              data={currencies.map((currency) => {
+                return {
+                  id: currency.id,
+                  name: currency.code,
+                  value: currency.code
+                };
+              })}
               onChange={(value: any) => {
                 form.setFieldsValue({ currency: value.value });
               }}
