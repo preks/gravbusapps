@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Button, Typography, Space, Tag, Spin, message, Alert } from 'antd';
+import { Calendar, Button, Typography, Space, Tag, Spin, message, Alert, Drawer } from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
@@ -7,6 +7,9 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetExpenseItems, ExpenseItem } from '../../hooks/useGetExpenseItems';
 import { useGetExpensePlans, ExpensePlan } from '../../hooks/useGetExpensePlans';
 import { useGetExpenseRequests, ExpenseRequest } from '../../hooks/useGetExpenseRequests';
+import ExpenseItemDetails from '../ExpenseItemsTab/ExpenseItemDetails';
+import ExpensePlanDetails from '../ExpensePlansTab/ExpensePlanDetails';
+import ExpenseRequestDetails from '../ExpenseRequestsTab/ExpenseRequestDetails';
 
 interface CalendarExpenseItem {
   id: string;
@@ -56,6 +59,62 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
   } = useGetExpenseRequests(props);
   const [calendarRequestItems, setCalendarRequestItems] = useState<CalendarExpenseItem[]>([]);
   const [requestsError, setRequestsError] = useState<string | null>(null);
+
+  const [activeFilters, setActiveFilters] = useState<{
+    expense: boolean;
+    plan: boolean;
+    request: boolean;
+  }>({
+    expense: true,
+    plan: true,
+    request: true,
+  });
+
+  const [selectedItemForDetails, setSelectedItemForDetails] = useState<ExpenseItem | null>(null);
+  const [selectedPlanForDetails, setSelectedPlanForDetails] = useState<ExpensePlan | null>(null);
+  const [selectedRequestForDetails, setSelectedRequestForDetails] = useState<ExpenseRequest | null>(null);
+  const [isDetailsDrawerVisible, setIsDetailsDrawerVisible] = useState<boolean>(false);
+
+  const handleCalendarItemClick = (item: CalendarExpenseItem) => {
+    if (item.type === 'expense') {
+      const fullExpenseItem = rawExpenseItems?.find(ei => ei.id === item.id);
+      if (fullExpenseItem) {
+        setSelectedItemForDetails(fullExpenseItem);
+        setSelectedPlanForDetails(null); // Clear plan details if any
+        setSelectedRequestForDetails(null); // Clear request details if any
+        setIsDetailsDrawerVisible(true);
+      }
+    } else if (item.type === 'plan') {
+      const fullExpensePlan = rawExpensePlans?.find(ep => ep.id === item.id);
+      if (fullExpensePlan) {
+        setSelectedPlanForDetails(fullExpensePlan);
+        setSelectedItemForDetails(null); // Clear item details if any
+        setSelectedRequestForDetails(null); // Clear request details if any
+        setIsDetailsDrawerVisible(true);
+      }
+    } else if (item.type === 'request') {
+      const fullExpenseRequest = rawExpenseRequests?.find(er => er.id === item.id);
+      if (fullExpenseRequest) {
+        setSelectedRequestForDetails(fullExpenseRequest);
+        setSelectedItemForDetails(null); // Clear item details if any
+        setSelectedPlanForDetails(null); // Clear plan details if any
+        setIsDetailsDrawerVisible(true);
+      }
+    }
+  };
+
+  const handleCloseDrawer = () => {
+    setIsDetailsDrawerVisible(false);
+    setSelectedItemForDetails(null); // Clear selected item when closing
+    setSelectedPlanForDetails(null); // Clear selected plan when closing
+  };
+
+  const toggleFilter = (filterType: 'expense' | 'plan' | 'request') => {
+    setActiveFilters(prevFilters => ({
+      ...prevFilters,
+      [filterType]: !prevFilters[filterType],
+    }));
+  };
 
   useEffect(() => {
     fetchExpenseHookItems().catch(err => {
@@ -196,7 +255,13 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
   };
 
   const dateCellRender = (value: Dayjs) => {
-    const itemsForDate = [...calendarItems, ...calendarPlanItems, ...calendarRequestItems].filter(
+    const allAvailableItems = [
+      ...(activeFilters.expense ? calendarItems : []),
+      ...(activeFilters.plan ? calendarPlanItems : []),
+      ...(activeFilters.request ? calendarRequestItems : []),
+    ];
+
+    const itemsForDate = allAvailableItems.filter(
       (item: CalendarExpenseItem) => {
         if (item.endDate && (item.type === 'plan' || item.type === 'request')) { // Multi-day plan or request
           // Ensure value is between or equal to expenseDate and endDate
@@ -215,7 +280,19 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
     return (
       <ul className="gba-events-list" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
         {itemsForDate.map((item: CalendarExpenseItem) => (
-          <li key={item.id} className="gba-event-item-card" style={{ marginBottom: '4px', padding: '4px', border: '1px solid #f0f0f0', borderRadius: '4px', backgroundColor: item.type === 'plan' ? '#e6f7ff' : item.type === 'request' ? '#e6fffb' : '#fafafa' }}>
+          <li 
+            key={item.id} 
+            className="gba-event-item-card" 
+            style={{
+              marginBottom: '4px', 
+              padding: '4px', 
+              border: '1px solid #f0f0f0', 
+              borderRadius: '4px', 
+              backgroundColor: item.type === 'plan' ? '#e6f7ff' : item.type === 'request' ? '#e6fffb' : '#fafafa',
+              cursor: (item.type === 'expense' || item.type === 'plan' || item.type === 'request') ? 'pointer' : 'default',
+            }}
+            onClick={() => handleCalendarItemClick(item)}
+          >
             <div style={{ fontSize: '0.8em', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</div>
             {(item.type === 'expense' || !item.endDate || value.isSame(item.expenseDate, 'day')) && (
               <div style={{ fontSize: '0.75em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -234,17 +311,44 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: '8px', padding: '0 8px' }}>
         <Typography.Title level={3} style={{ margin: 0 }}>Expense Calendar</Typography.Title>
         <Space direction="horizontal" wrap>
-          <Space align="center">
+          <Space
+            align="center"
+            onClick={() => toggleFilter('expense')}
+            style={{
+              cursor: 'pointer',
+              opacity: activeFilters.expense ? 1 : 0.5,
+              padding: '4px 8px',
+              borderRadius: '4px',
+            }}
+          >
             <div style={{ width: '14px', height: '14px', backgroundColor: '#fafafa', border: '1px solid #d9d9d9', borderRadius: '2px' }} />
-            <Typography.Text>Expense Items</Typography.Text>
+            <Typography.Text>Items</Typography.Text>
           </Space>
-          <Space align="center">
+          <Space
+            align="center"
+            onClick={() => toggleFilter('plan')}
+            style={{
+              cursor: 'pointer',
+              opacity: activeFilters.plan ? 1 : 0.5,
+              padding: '4px 8px',
+              borderRadius: '4px',
+            }}
+          >
             <div style={{ width: '14px', height: '14px', backgroundColor: '#e6f7ff', border: '1px solid #d9d9d9', borderRadius: '2px' }} />
-            <Typography.Text>Expense Plans</Typography.Text>
+            <Typography.Text>Plans</Typography.Text>
           </Space>
-          <Space align="center">
+          <Space
+            align="center"
+            onClick={() => toggleFilter('request')}
+            style={{
+              cursor: 'pointer',
+              opacity: activeFilters.request ? 1 : 0.5,
+              padding: '4px 8px',
+              borderRadius: '4px',
+            }}
+          >
             <div style={{ width: '14px', height: '14px', backgroundColor: '#e6fffb', border: '1px solid #d9d9d9', borderRadius: '2px' }} />
-            <Typography.Text>Expense Requests</Typography.Text>
+            <Typography.Text>Requests</Typography.Text>
           </Space>
         </Space>
       </div>
@@ -269,6 +373,41 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
           }}
         />
       )}
+      <Drawer
+        title={
+          selectedItemForDetails ? "Expense Item Details" :
+          selectedPlanForDetails ? "Expense Plan Details" :
+          selectedRequestForDetails ? "Expense Request Details" :
+          "Details"
+        }
+        placement="right"
+        width={500}
+        onClose={handleCloseDrawer}
+        open={isDetailsDrawerVisible}
+        destroyOnClose
+      >
+        {selectedItemForDetails && (
+          <ExpenseItemDetails 
+            selectedItem={selectedItemForDetails} 
+            onClose={handleCloseDrawer} 
+            {...props} 
+          />
+        )}
+        {selectedPlanForDetails && (
+          <ExpensePlanDetails 
+            selectedItem={selectedPlanForDetails} 
+            onClose={handleCloseDrawer} 
+            {...props} 
+          />
+        )}
+        {selectedRequestForDetails && (
+          <ExpenseRequestDetails 
+            request={selectedRequestForDetails} 
+            onClose={handleCloseDrawer} 
+            {...props} // Pass other context props if needed by ExpenseRequestDetails
+          />
+        )}
+      </Drawer>
     </div>
   );
 };
