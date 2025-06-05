@@ -3,7 +3,6 @@ import { Tabs } from '@newwork/gravity-ui-catalog';
 import { WalletOutlined, CalendarOutlined } from '@ant-design/icons';
 import { PiGauge, PiReceipt, PiPath, PiHandCoins, PiMoney } from 'react-icons/pi';
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'; // Adjusted import path
-import { useLocation, useNavigate } from 'react-router-dom';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 // Import tab components (placeholders for now, will be created next)
@@ -17,25 +16,11 @@ import ExpenseCalendarTab from './components/ExpenseCalendarTab';
 export interface PersonalExpensesProps extends BusinessAppContextProps {}
 
 const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
-  const location = useLocation();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [contentHeader, setContentHeader] = useState<ReactNode | null>(null);
 
-  useEffect(() => {
-    const hash = location.hash.replace('#', '');
-    if (hash && ['dashboard', 'expense-items', 'expense-plans', 'advance-payments', 'expense-requests', 'calendar'].includes(hash)) {
-      setActiveTab(hash);
-    } else {
-      // Default to 'dashboard' if hash is invalid or not present
-      setActiveTab('dashboard');
-      navigate('#dashboard', { replace: true });
-    }
-  }, [location.hash, navigate]);
-
   const handleTabChange = (key: string) => {
     setActiveTab(key);
-    navigate(`#${key}`);
   };
 
   const tabItems = [

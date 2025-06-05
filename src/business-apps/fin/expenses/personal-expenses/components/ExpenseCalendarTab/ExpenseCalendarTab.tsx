@@ -231,6 +231,23 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
 
   return (
     <div className="gba-expense-calendar-tab">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: '8px', padding: '0 8px' }}>
+        <Typography.Title level={3} style={{ margin: 0 }}>Expense Calendar</Typography.Title>
+        <Space direction="horizontal" wrap>
+          <Space align="center">
+            <div style={{ width: '14px', height: '14px', backgroundColor: '#fafafa', border: '1px solid #d9d9d9', borderRadius: '2px' }} />
+            <Typography.Text>Expense Items</Typography.Text>
+          </Space>
+          <Space align="center">
+            <div style={{ width: '14px', height: '14px', backgroundColor: '#e6f7ff', border: '1px solid #d9d9d9', borderRadius: '2px' }} />
+            <Typography.Text>Expense Plans</Typography.Text>
+          </Space>
+          <Space align="center">
+            <div style={{ width: '14px', height: '14px', backgroundColor: '#e6fffb', border: '1px solid #d9d9d9', borderRadius: '2px' }} />
+            <Typography.Text>Expense Requests</Typography.Text>
+          </Space>
+        </Space>
+      </div>
       {(isLoadingExpenses || isLoadingPlans || isLoadingRequests) && <div style={{ textAlign: 'center', padding: '20px' }}><Spin tip="Loading data..." size="large" /></div>}
       {(expensesError || plansError || requestsError) && <div style={{ textAlign: 'center', padding: '20px' }}><Alert message={`Error: ${(expensesError || '') + (plansError || '') + (requestsError || '')}`} type="error" /></div>}
       {!(isLoadingExpenses || isLoadingPlans || isLoadingRequests) && !(expensesError || plansError || requestsError) && (
