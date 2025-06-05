@@ -73,6 +73,7 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
       code
       title
       description
+      status
       expenseDate
       totalAmount
       reimbursableAmount
