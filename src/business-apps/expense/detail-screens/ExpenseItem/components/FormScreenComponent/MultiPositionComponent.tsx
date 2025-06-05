@@ -9,25 +9,41 @@ import {
 import { Card } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import styles from "../../ExpenseItem.module.css";
-import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter } from "../../types";
+import {
+  ExpensePosition,
+  ExpenseGroup,
+  ExpenseType,
+  CostCenter,
+  CustomField,
+} from "../../types";
 
 interface MultiPositionComponentProps {
   positions: ExpensePosition[];
   setPositions: (positions: ExpensePosition[]) => void;
-  expenseClasses: ExpenseGroup[];
+  expenseGroups: ExpenseGroup[];
   expenseTypes: { [classId: string]: ExpenseType[] };
+  customFields: { [expenseTypeId: string]: CustomField[] };
   costCenters: CostCenter[];
-  handleExpenseClassChange: (value: string, positionIndex: number) => Promise<void>;
+  handleExpenseGroupChange: (
+    value: string,
+    positionIndex: number
+  ) => Promise<void>;
+  handleExpenseTypeChange: (
+    value: string,
+    positionIndex: number
+  ) => Promise<void>;
   handleRemovePosition: (positionId: string) => void;
 }
 
 export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
   positions,
   setPositions,
-  expenseClasses,
+  expenseGroups,
   expenseTypes,
+  customFields,
   costCenters,
-  handleExpenseClassChange,
+  handleExpenseGroupChange,
+  handleExpenseTypeChange,
   handleRemovePosition,
 }) => {
   const { t } = useTranslation();
@@ -57,22 +73,22 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
               <SelectField
                 allowClear
                 label={t(
-                  "create_expense_item.change_expense_item_container.current_expense_class_label",
-                  "Expense Class"
+                  "create_expense_item.change_expense_item_container.current_expense_group_label",
+                  "Expense Group"
                 )}
                 name="expenseGroup"
-                data={expenseClasses.map((group) => ({
+                data={expenseGroups.map((group) => ({
                   id: group.id,
-                  name: group.name,
+                  name: group.value,
                 }))}
                 onChange={(value: any) => {
-                  handleExpenseClassChange(value.value as string, index);
+                  handleExpenseGroupChange(value.value as string, index);
                 }}
                 placeholder={t(
-                  "create_expense_item.change_expense_item_container.current_expense_class_placeholder",
-                  "Select Expense Class"
+                  "create_expense_item.change_expense_item_container.current_expense_group_placeholder",
+                  "Select Expense Group"
                 )}
-                value={position.expenseGroup}
+                value={position.expenseGroup || undefined}
                 required={true}
               />
             </div>
@@ -96,20 +112,52 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                     : []
                 }
                 onChange={(value: any) => {
-                  const updatedPositions = [...positions];
-                  updatedPositions[index].expenseType = value.value as string;
-                  setPositions(updatedPositions);
+                  handleExpenseTypeChange(value?.value || "", index);
                 }}
                 placeholder={t(
                   "create_expense_item.change_expense_item_container.current_expense_type_placeholder",
                   "Select Expense Type"
                 )}
                 disabled={!position.expenseGroup}
-                value={position.expenseType}
+                value={position.expenseType || undefined}
               />
             </div>
           </div>
-
+          {position.expenseType &&
+            customFields[position.expenseType] &&
+            customFields[position.expenseType].length > 0 && (
+              <div className={`${styles.marginBottom16} gba:marginBottom16`}>
+                <div
+                  className={`${styles.relativePosition} gba:relativePosition`}
+                >
+                  <InputField
+                    name="customField"
+                    label={
+                      customFields[position.expenseType][0]?.infoValue ||
+                      t(
+                        "create_expense_item.change_expense_item_container.custom_field_label",
+                        "Custom Field"
+                      )
+                    }
+                    onChange={(field) => {
+                      const updatedPositions = [...positions];
+                      updatedPositions[index].customField =
+                        field.value as string;
+                      setPositions(updatedPositions);
+                    }}
+                    placeholder={t(
+                      "create_expense_item.change_expense_item_container.custom_field_placeholder",
+                      "Enter custom field value"
+                    )}
+                    value={position.customField || ""}
+                    required={
+                      customFields[position.expenseType][0]?.mandatory || false
+                    }
+                    disabled={!position.expenseType}
+                  />
+                </div>
+              </div>
+            )}
           <div className={`${styles.marginBottom16} gba:marginBottom16`}>
             <div className={`${styles.relativePosition} gba:relativePosition`}>
               <InputField
@@ -146,8 +194,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                 }))}
                 onChange={(value: any) => {
                   const updatedPositions = [...positions];
-                  updatedPositions[index].costCenter =
-                    value.value as string;
+                  updatedPositions[index].costCenter = value.value as string;
                   setPositions(updatedPositions);
                 }}
                 label={t(
@@ -158,29 +205,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                   "create_expense_request.expense_request_container.current_cost_center_placeholder",
                   "Select Cost Center"
                 )}
-                value={position.costCenter}
-              />
-            </div>
-          </div>
-
-          <div className={`${styles.marginBottom16} gba:marginBottom16`}>
-            <div className={`${styles.relativePosition} gba:relativePosition`}>
-              <SelectField
-                allowClear
-                name="customField"
-                data={[
-                  { id: "option1", name: "Option 1" },
-                  { id: "option2", name: "Option 2" },
-                  { id: "option3", name: "Option 3" },
-                ]}
-                onChange={(value: any) => {
-                  const updatedPositions = [...positions];
-                  updatedPositions[index].customField =
-                    value.value as string;
-                  setPositions(updatedPositions);
-                }}
-                placeholder="Select Custom Field Value"
-                value={position.customField}
+                value={position.costCenter || undefined}
               />
             </div>
           </div>

@@ -16,7 +16,7 @@ import {
   PlusCircleOutlined,
 } from "@ant-design/icons";
 import styles from "../../ExpenseItem.module.css";
-import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency } from "../../types";
+import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from "../../types";
 import UploadComponent from "../UploadComponent";
 import SinglePositionComponent from "./SinglePositionComponent";
 import MultiPositionComponent from "./MultiPositionComponent";
@@ -27,15 +27,17 @@ interface FormScreenComponentProps {
   setFileList: (files: any[]) => void;
   positions: ExpensePosition[];
   setPositions: (positions: ExpensePosition[]) => void;
-  expenseClasses: ExpenseGroup[];
+  expenseGroups: ExpenseGroup[];
   expenseTypes: { [classId: string]: ExpenseType[] };
+  customFields: { [expenseTypeId: string]: CustomField[] };
   costCenters: CostCenter[];
   currencies: Currency[];
   expenseRequests: any[];
   multiPosition: boolean;
   setMultiPosition: (isMulti: boolean) => void;
   handleSubmit: () => Promise<void>;
-  handleExpenseClassChange: (value: string, positionIndex: number) => Promise<void>;
+  handleExpenseGroupChange: (value: string, positionIndex: number) => Promise<void>;
+  handleExpenseTypeChange: (value: string, positionIndex: number) => Promise<void>;
   handleAddPosition: () => void;
   handleRemovePosition: (positionId: string) => void;
   loading: boolean;
@@ -48,15 +50,17 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   setFileList,
   positions,
   setPositions,
-  expenseClasses,
+  expenseGroups,
   expenseTypes,
+  customFields,
   costCenters,
   currencies,
   expenseRequests,
   multiPosition,
   setMultiPosition,
   handleSubmit,
-  handleExpenseClassChange,
+  handleExpenseGroupChange,
+  handleExpenseTypeChange,
   handleAddPosition,
   handleRemovePosition,
   loading,
@@ -138,7 +142,17 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
               )}
               name="multiPosition"
               value={multiPosition}
-              onChange={(checked) => setMultiPosition(checked.value as boolean)}
+              onChange={(checked) => {
+                const newMultiPositionValue = checked.value as boolean;
+                
+                // If switching from multi to single position, keep only the first position
+                if (!newMultiPositionValue && positions.length > 1) {
+                  const firstPosition = positions[0];
+                  setPositions([firstPosition]);
+                }
+                
+                setMultiPosition(newMultiPositionValue);
+              }}
             />
           </div>
         </div>
@@ -148,19 +162,23 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <SinglePositionComponent
           positions={positions}
           setPositions={setPositions}
-          expenseClasses={expenseClasses}
+          expenseGroups={expenseGroups}
           expenseTypes={expenseTypes}
+          customFields={customFields}
           costCenters={costCenters}
-          handleExpenseClassChange={handleExpenseClassChange}
+          handleExpenseGroupChange={handleExpenseGroupChange}
+          handleExpenseTypeChange={handleExpenseTypeChange}
         />
       ) : (
         <MultiPositionComponent
           positions={positions}
           setPositions={setPositions}
-          expenseClasses={expenseClasses}
+          expenseGroups={expenseGroups}
           expenseTypes={expenseTypes}
+          customFields={customFields}
           costCenters={costCenters}
-          handleExpenseClassChange={handleExpenseClassChange}
+          handleExpenseGroupChange={handleExpenseGroupChange}
+          handleExpenseTypeChange={handleExpenseTypeChange}
           handleRemovePosition={handleRemovePosition}
         />
       )}

@@ -24,16 +24,17 @@ const ExpenseItemContent: React.FC = () => {
     setFileList,
     positions,
     setPositions,
-    expenseClasses,
+    expenseGroups,
     expenseRequests,
     loading,
     expenseTypes,
+    customFields,
     costCenters,
     multiPosition,
     setMultiPosition,
-    handleFileUpload,
     handleSubmit,
-    handleExpenseClassChange,
+    handleExpenseGroupChange,
+    handleExpenseTypeChange,
     handleAddPosition,
     handleRemovePosition,
     calculateTotal,
@@ -74,15 +75,17 @@ const ExpenseItemContent: React.FC = () => {
           setFileList={setFileList}
           positions={positions}
           setPositions={setPositions}
-          expenseClasses={expenseClasses}
+          expenseGroups={expenseGroups}
           expenseTypes={expenseTypes}
+          customFields={customFields}
           costCenters={costCenters}
           currencies={currencies}
           expenseRequests={expenseRequests}
           multiPosition={multiPosition}
           setMultiPosition={setMultiPosition}
           handleSubmit={handleSubmit}
-          handleExpenseClassChange={handleExpenseClassChange}
+          handleExpenseGroupChange={handleExpenseGroupChange}
+          handleExpenseTypeChange={handleExpenseTypeChange}
           handleAddPosition={handleAddPosition}
           handleRemovePosition={handleRemovePosition}
           loading={loading}

@@ -28,7 +28,14 @@ export interface ExpenseItemData {
 
 export interface ExpenseGroup {
   id: string;
-  name: string;
+  value: string;
+  translations?: Array<{
+    localeCode: string;
+    value: string;
+  }>;
+  catalog?: {
+    defaultLocale: string;
+  };
   code?: string;
 }
 
@@ -37,6 +44,15 @@ export interface ExpenseType {
   name: string;
   classId: string;
   code?: string;
+}
+
+export interface CustomField {
+  id: string;
+  infoValue: string;
+  mandatory: boolean;
+  source: string;
+  expenseRuleGeneralExpenseId: string;
+  expenseGroupRef?: string;
 }
 
 export interface CostCenter {
