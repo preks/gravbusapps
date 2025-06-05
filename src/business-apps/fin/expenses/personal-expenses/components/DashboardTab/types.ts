@@ -25,4 +25,5 @@ export interface DashboardStats {
   upcomingTrips?: number;
   expensesByType?: Record<string, number>;
   recentActivity?: RecentActivity[];
+  expenseItemsWithoutReceipts?: number;
 }

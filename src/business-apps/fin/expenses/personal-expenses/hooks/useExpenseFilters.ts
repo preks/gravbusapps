@@ -26,6 +26,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
   // Define these as constants for stable references
   const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
   const EXPENSE_TYPE_OPTIONS = ['expense', 'trip'];
+  const OTHER_OPTIONS = ['noreceiptfilter'];
   
   // Helper function to format status display names
   
@@ -64,6 +65,13 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
           selected: selectedFilters.includes(id) 
         };
       })
+    },
+    {
+      id: 'other',
+      title: 'Other',
+      filters: [
+        { id: 'noreceiptfilter', label: 'No receipt', selected: selectedFilters.includes('noreceiptfilter') },
+      ]
     }
   ], [selectedFilters]);
   
@@ -75,6 +83,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
       'last180days': 'Last 180 days',
       'expense': 'Expense',
       'trip': 'Trip',
+      'noreceiptfilter': 'No receipt',
     };
     
     // Add all status options
@@ -141,6 +150,10 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     const statuses = statusFilters.map(f => f.toUpperCase());
     
     const expenseTypes = selectedFilters.filter(f => EXPENSE_TYPE_OPTIONS.includes(f));
+    const otherFilters = selectedFilters.filter(f => OTHER_OPTIONS.includes(f));
+    
+    // Check if no receipt filter is selected
+    const hasNoReceiptFilter = otherFilters.includes('noreceiptfilter');
     
     // Process status filters
     if (statuses.length > 0) {
@@ -181,9 +194,14 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
       }
     }
     
+    // Process the No receipt filter
+    if (hasNoReceiptFilter) {
+      filter.noReceipt = true;
+    }
+    
     console.log('getFilters returning:', filter);
     return filter;
-  }, [selectedFilters, TIME_PERIOD_OPTIONS, EXPENSE_TYPE_OPTIONS]);
+  }, [selectedFilters, TIME_PERIOD_OPTIONS, EXPENSE_TYPE_OPTIONS, OTHER_OPTIONS]);
   
   return {
     search,

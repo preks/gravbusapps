@@ -43,6 +43,7 @@ export interface ExpenseFilter {
   expenseClass?: { value: string };
   totalAmountMin?: number;
   totalAmountMax?: number;
+  noReceipt?: boolean;
 }
 
 export interface ExpenseItemsResult {
@@ -174,6 +175,12 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
       // Build query variables with helper function
       const variables = buildQueryVariables(employeeId, searchTerm, page, pageSize, filter);
       
+      // Debug the filter for no receipt items
+      if (filter?.noReceipt) {
+        console.log('No Receipt filter is active!');
+      }
+      console.log('Query variables:', JSON.stringify(variables));
+      
       const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
         method: 'POST',
         headers: {
@@ -209,9 +216,50 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
         mappedItems = mappedItems.filter(item => 
           item.expenseClass?.value === filter.expenseClass?.value
         );
-        console.log('After filtering:', mappedItems.length, 'items remain');
+        console.log('After filtering by expense class:', mappedItems.length, 'items remain');
+      }
+      
+      // Apply client-side filtering for items with no receipts
+      if (filter?.noReceipt) {
+        console.log('Applying client-side filtering for items without receipts');
         
-        // Update total count based on filtered results
+        // Detailed inspection of the first few items
+        console.log('DATA INSPECTION:');
+        mappedItems.slice(0, 3).forEach(item => {
+          console.log(`Item ${item.id} - expenseItemFile:`, 
+            item.expenseItemFile, 
+            'type:', typeof item.expenseItemFile, 
+            'is array:', Array.isArray(item.expenseItemFile), 
+            'length:', item.expenseItemFile?.length);
+        });
+        
+        // Log counts before filtering
+        const withAttachments = mappedItems.filter(item => {
+          const hasAttachment = Array.isArray(item.expenseItemFile) && item.expenseItemFile.length > 0;
+          if (hasAttachment) console.log(`Item ${item.id} HAS attachments:`, item.expenseItemFile);
+          return hasAttachment;
+        }).length;
+        
+        const withoutAttachments = mappedItems.filter(item => {
+          const hasNoAttachment = !Array.isArray(item.expenseItemFile) || item.expenseItemFile.length === 0;
+          if (hasNoAttachment) console.log(`Item ${item.id} has NO attachments:`, item.expenseItemFile);
+          return hasNoAttachment;
+        }).length;
+        
+        console.log(`Before filtering: ${withAttachments} items with attachments, ${withoutAttachments} without attachments`);
+        
+        // Apply the filter with stronger type checking
+        mappedItems = mappedItems.filter(item => {
+          // More robust check for no attachments
+          const hasNoAttachments = !Array.isArray(item.expenseItemFile) || item.expenseItemFile.length === 0;
+          return hasNoAttachments;
+        });
+        
+        console.log('After filtering for no receipts:', mappedItems.length, 'items remain');
+      }
+      
+      // Update total count based on filtered results if any client-side filtering was applied
+      if (filter?.expenseClass || filter?.noReceipt) {
         setTotalCount(mappedItems.length);
       }
       

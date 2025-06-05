@@ -50,7 +50,6 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
-        type: {_neq: null}, // Changed tripType to type
         startDate: {_gt: "2025-06-02"}
       }
     ) {
@@ -74,7 +73,9 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       status
       updatedAt
       totalAmount
-      expenseType
+      expenseClass {
+        value
+      }
       expenseDate
     }
     
@@ -119,7 +120,23 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       }
     ) {
       totalAmount
-      expenseType
+      expenseClass {
+        value
+      }
+    }
+    
+    # Items without receipts
+    itemsWithoutReceipts: ExpenseItemAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
+        _not: { expenseItemFile: {} }
+      }
+    ) {
+      aggregate {
+        count
+      }
     }
   }
 `;

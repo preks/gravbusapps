@@ -1,5 +1,5 @@
 import React from 'react';
-import { Row, Col, Card, Typography, Progress, Statistic, Segmented, Empty, Spin, Alert } from 'antd';
+import { Row, Col, Card, Typography, Statistic, Segmented, Empty, Spin, Alert, Progress } from 'antd';
 import { formatCurrency } from '../utils/formatters';
 import { DashboardStats, ExpenseType } from '../types';
 
@@ -71,25 +71,48 @@ export const SpendingOverview: React.FC<SpendingOverviewProps> = ({
         <Col xs={24} lg={12}>
           <Card title="Expense Distribution" bordered={false}>
             {expenseTypes.length > 0 ? (
-              <>
-                {expenseTypes.slice(0, 5).map((item, index) => {
-                  const percentage = (item.amount / totalExpenses) * 100;
-                  return (
-                    <div key={item.type} style={{ marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <Text>{item.type}</Text>
-                        <Text>{formatCurrency(item.amount)}</Text>
-                      </div>
-                      <Progress 
-                        percent={percentage} 
-                        showInfo={false} 
-                        strokeColor={['#108ee9', '#87d068', '#722ed1', '#fa8c16', '#f5222d'][index % 5]} 
-                        style={{ height: '8px' }}
-                      />
+              <div>
+                <Row gutter={[16, 0]}>
+                  <Col span={12} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <div style={{ position: 'relative', width: 120, height: 120 }}>
+                      {expenseTypes.slice(0, 5).map((item, index) => {
+                        const percentage = (item.amount / totalExpenses) * 100;
+                        // Create a staggered circle effect
+                        return (
+                          <div key={item.type} style={{ position: 'absolute', top: 0, left: 0 }}>
+                            <Progress 
+                              type="circle" 
+                              percent={percentage} 
+                              width={120 - index * 10} // Decreasing size
+                              strokeWidth={12}
+                              strokeColor={['#1890ff', '#52c41a', '#722ed1', '#fa8c16', '#f5222d'][index % 5]}
+                              format={() => ''} // No label inside
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </>
+                  </Col>
+                  <Col span={12}>
+                    {expenseTypes.slice(0, 5).map((item, index) => {
+                      const percentage = Math.round((item.amount / totalExpenses) * 100);
+                      return (
+                        <div key={item.type} style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
+                          <div style={{ 
+                            width: 12, 
+                            height: 12, 
+                            backgroundColor: ['#1890ff', '#52c41a', '#722ed1', '#fa8c16', '#f5222d'][index % 5],
+                            marginRight: 8
+                          }}></div>
+                          <Text style={{ marginRight: 'auto' }}>{item.type}</Text>
+                          <Text strong>{percentage}%</Text>
+                          <Text type="secondary" style={{ marginLeft: 8 }}>{formatCurrency(item.amount)}</Text>
+                        </div>
+                      );
+                    })}
+                  </Col>
+                </Row>
+              </div>
             ) : (
               <Empty description="No expense data available" />
             )}

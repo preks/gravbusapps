@@ -11,6 +11,7 @@ import { getExpenseItemStatusDisplay, ExpenseStatus } from '../../utils';
 import ExpenseItemDetails from './ExpenseItemDetails';
 import ExpenseItemStatistics from './ExpenseItemStatistics';
 import { useExpenseFilters } from '../../hooks/useExpenseFilters';
+// No longer using React Router for tab navigation
 
 const { Text } = Typography;
 
@@ -24,6 +25,8 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     accessToken: props.accessToken,
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
+  
+  // No longer using location for navigation
   
   // Use our simplified expense filters hook
   const {
@@ -58,6 +61,96 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     };
   }, []);
   
+  // Check sessionStorage for filter only once when the component mounts
+  useEffect(() => {
+    // First check sessionStorage for filter
+    const storedFilter = sessionStorage.getItem('expenseItemsFilter');
+    
+    if (storedFilter) {
+      console.log('Found filter in sessionStorage:', storedFilter);
+      
+      // Clear existing filters first
+      selectedFilters.forEach(f => removeFilter(f));
+      
+      // Add the filter from sessionStorage
+      addFilter(storedFilter);
+      
+      // Create filter object for the API
+      const filter: ExpenseFilter = {};
+      
+      // Handle specific filters
+      if (storedFilter === 'noreceiptfilter') {
+        filter.noReceipt = true;
+        console.log('Setting noReceipt filter to true');
+      }
+      
+      // Apply the filter directly
+      console.log('Applying filter to fetchItems:', filter);
+      fetchItems(search, 1, pageSize, filter);
+      
+      // Clear the sessionStorage after using it
+      sessionStorage.removeItem('expenseItemsFilter');
+    }
+  // Only run this effect once when the component mounts
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
+  // Listen for the global API filter changes
+  useEffect(() => {
+    // Check the global API for filter changes
+    const checkGlobalFilter = () => {
+      const apiFilter = window.tabNavigationAPI?.filter;
+      if (apiFilter && !selectedFilters.includes(apiFilter)) {
+        console.log('Applying filter from global API:', apiFilter);
+        
+        // Clear existing filters first
+        selectedFilters.forEach(f => removeFilter(f));
+        
+        // Add the filter from global API
+        addFilter(apiFilter);
+        
+        // Create filter object for the API
+        const filter: ExpenseFilter = {};
+        
+        // Handle specific filters
+        if (apiFilter === 'noreceiptfilter') {
+          filter.noReceipt = true;
+          console.log('Setting noReceipt filter to true from global API');
+        }
+        
+        // Apply the filter directly
+        console.log('Applying filter to fetchItems from global API:', filter);
+        fetchItems(search, 1, pageSize, filter);
+        
+        // Clear the filter from the global API after using it
+        if (window.tabNavigationAPI) {
+          window.tabNavigationAPI.filter = undefined;
+        }
+      }
+    };
+    
+    // Check immediately
+    checkGlobalFilter();
+    
+    // Set up a MutationObserver to detect when this tab becomes active
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        // When DOM changes (e.g., tab becomes visible), check for filter
+        if (mutation.type === 'attributes') {
+          checkGlobalFilter();
+        }
+      });
+    });
+    
+    // Start observing the document
+    observer.observe(document.body, { attributes: true, childList: true, subtree: true });
+    
+    // Clean up
+    return () => {
+      observer.disconnect();
+    };
+  }, [addFilter, removeFilter, fetchItems, search, pageSize, selectedFilters]);
+  
   // Create a memoized search change handler
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
@@ -70,6 +163,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   // Define constants for filter options to avoid TypeScript errors
   const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
   const EXPENSE_TYPE_OPTIONS = ['expense', 'trip'];
+  const OTHER_OPTIONS = ['noreceiptfilter'];
 
   // Handle filter changes
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
@@ -113,12 +207,19 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     const statuses = statusFilters.map(f => f.toUpperCase());
     
     const expenseTypes = newSelectedFilters.filter(f => EXPENSE_TYPE_OPTIONS.includes(f));
+    const otherFilters = newSelectedFilters.filter(f => OTHER_OPTIONS.includes(f));
     
     // Process status filters
     if (statuses.length > 0) {
       // Use all selected statuses, not just the first one
       filter.status = statuses;
       console.log('Applying multiple status filters:', statuses);
+    }
+    
+    // Process Other filters (No receipt)
+    if (otherFilters.includes('noreceiptfilter')) {
+      filter.noReceipt = true;
+      console.log('Adding No Receipt filter');
     }
     
     // Process time period filters
@@ -165,14 +266,48 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     // Add logic to create a new expense item
     console.log('Adding new expense item');
   }, []);
+  
+  // Handle clicking on missing receipts card
+  const handleMissingReceiptsClick = useCallback(() => {
+    const isNoReceiptFilterActive = selectedFilters.includes('noreceiptfilter');
+    let filter: ExpenseFilter = {};
+    
+    if (isNoReceiptFilterActive) {
+      // If filter is already active, remove it
+      removeFilter('noreceiptfilter');
+      console.log('Removing Missing Receipts filter');
+      
+      // Apply with no filters
+      setCurrentPage(1); // Reset to first page
+      fetchItems(search, 1, pageSize, filter);
+    } else {
+      // Clear existing filters first to avoid multiple filters
+      selectedFilters.forEach(f => removeFilter(f));
+      
+      // Add the no receipt filter
+      addFilter('noreceiptfilter');
+      filter.noReceipt = true;
+      console.log('Applying Missing Receipts filter');
+      
+      // Apply the filter directly
+      setCurrentPage(1); // Reset to first page
+      fetchItems(search, 1, pageSize, filter);
+    }
+  }, [addFilter, removeFilter, fetchItems, search, pageSize, selectedFilters, setCurrentPage]);
 
   // Statistics are now handled by the ExpenseItemStatistics component
 
   // Memoize the content header to prevent unnecessary re-renders
   // Use allItems for statistics instead of filtered items
   const contentHeader = useMemo(() => {
-    return allItems && allItems.length > 0 ? <ExpenseItemStatistics items={allItems} /> : null;
-  }, [allItems]);
+    const isNoReceiptFilterActive = selectedFilters.includes('noreceiptfilter');
+    return allItems && allItems.length > 0 ? 
+      <ExpenseItemStatistics 
+        items={allItems} 
+        onMissingReceiptsClick={handleMissingReceiptsClick} 
+        isNoReceiptFilterActive={isNoReceiptFilterActive} 
+      /> : null;
+  }, [allItems, selectedFilters, handleMissingReceiptsClick]);
 
   // Update the content header only when it changes and when allItems is loaded
   const onContentHeaderChange = props.onContentHeaderChange;
@@ -512,6 +647,13 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
             if (expenseTypes.length > 0) {
               const selectedType = expenseTypes[0];
               filter.expenseClass = { value: selectedType === 'expense' ? 'Expense' : 'Trip' };
+            }
+            
+            // Process Other filters (No receipt)
+            const otherFilters = newFilters.filter(f => OTHER_OPTIONS.includes(f));
+            if (otherFilters.includes('noreceiptfilter')) {
+              filter.noReceipt = true;
+              console.log('Preserving No Receipt filter');
             }
             
             console.log('Fetching with remaining filters:', filter);

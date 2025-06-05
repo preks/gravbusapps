@@ -16,24 +16,24 @@ interface SummaryStatisticsProps {
 export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isLoading, error }) => {
   if (isLoading) {
     return (
-      <Card className="gba:summary-stats-card">
+      <div className="gba:summary-stats">
         <div style={{ display: 'flex', justifyContent: 'center', padding: '24px' }}>
           <Spin size="large" />
         </div>
-      </Card>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Card className="gba:summary-stats-card">
+      <div className="gba:summary-stats">
         <Alert
           message="Error loading statistics"
           description={error.message}
           type="error"
           showIcon
         />
-      </Card>
+      </div>
     );
   }
   
@@ -45,10 +45,9 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
   const isPositiveChange = percentChange >= 0;
 
   return (
-    <Card title="Summary Statistics" className="gba:summary-stats-card">
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} md={6}>
-          <Card bordered={false}>
+    <Row gutter={[16, 16]} className="gba:summary-stats">
+      <Col xs={24} sm={12} md={6}>
+        <Card bordered={true}>
             <Statistic
               title="Current Month Expenses"
               value={currentTotal}
@@ -69,7 +68,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card bordered={false}>
+          <Card bordered={true}>
             <Statistic
               title="Pending Payouts"
               value={stats?.pendingPayouts || 0}
@@ -82,7 +81,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card bordered={false}>
+          <Card bordered={true}>
             <Statistic
               title="Flagged Items"
               value={stats?.flaggedItems || 0}
@@ -93,7 +92,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card bordered={false}>
+          <Card bordered={true}>
             <Statistic
               title="Upcoming Trips"
               value={stats?.upcomingTrips || 0}
@@ -104,7 +103,6 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
           </Card>
         </Col>
       </Row>
-    </Card>
   );
 };
 

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, Button, List, Space, Typography, Tag, Divider, Empty, Spin, Alert } from 'antd';
-import { EyeOutlined, CalendarOutlined, DollarCircleOutlined } from '@ant-design/icons';
+import { Card, Button, List, Space, Typography, Tag, Empty, Spin, Alert } from 'antd';
+import { EyeOutlined, DollarCircleOutlined } from '@ant-design/icons';
 import { DashboardStats, RecentActivity } from '../types';
 import { formatCurrency, getStatusColor } from '../utils/formatters';
 
@@ -40,36 +40,39 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
   
   return (
     <Card 
-      title="Action Feed" 
+      title="Action Feed"
       className="gba:action-feed-card"
+      size="small"
+      bodyStyle={{ padding: '6px 8px' }}
+      headStyle={{ paddingTop: '6px', paddingBottom: '6px', fontSize: '14px' }}
       extra={
-        <Button type="link" icon={<EyeOutlined />}>View All</Button>
+        <Button type="link" icon={<EyeOutlined />} size="small" style={{ fontSize: '12px', height: '22px', padding: '0 4px' }}>View All</Button>
       }
     >
       {recentActivity.length > 0 ? (
         <List
+          size="small"
           itemLayout="horizontal"
           dataSource={recentActivity}
+          split={false}
           renderItem={(item: RecentActivity) => (
-            <List.Item>
-              <List.Item.Meta
-                title={
-                  <Space>
-                    <Text strong>{item.title}</Text>
-                    <Tag color={getStatusColor(item.status)}>{item.status}</Tag>
-                  </Space>
-                }
-                description={
-                  <Space direction="vertical">
-                    <Space>
-                      <CalendarOutlined /> {item.updatedAt}
-                      <Divider type="vertical" />
-                      <DollarCircleOutlined /> {formatCurrency(Number(item.totalAmount))}
-                    </Space>
-                    {item.expenseType && <Tag color="blue">{item.expenseType}</Tag>}
-                  </Space>
-                }
-              />
+            <List.Item style={{ padding: '4px 0' }}>
+              <Space size={4} style={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
+                <Text strong style={{ fontSize: '13px' }}>{item.title}</Text>
+                <Space size={4}>
+                  <Tag color={getStatusColor(item.status)} style={{ margin: 0, padding: '0 4px', fontSize: '11px', lineHeight: '16px' }}>
+                    {item.status}
+                  </Tag>
+                  {item.expenseType && 
+                    <Tag color="blue" style={{ margin: 0, padding: '0 4px', fontSize: '11px', lineHeight: '16px' }}>
+                      {item.expenseType}
+                    </Tag>
+                  }
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    <DollarCircleOutlined /> {formatCurrency(Number(item.totalAmount))}
+                  </Text>
+                </Space>
+              </Space>
             </List.Item>
           )}
         />

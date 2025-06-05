@@ -1,4 +1,17 @@
 import React, { useEffect, useState, ReactNode } from 'react';
+
+// Create a global API for tab navigation
+interface TabNavigationState {
+  setActiveTab: (tabKey: string) => void;
+  filter?: string;
+}
+
+// Declare variable in global window object
+declare global {
+  interface Window {
+    tabNavigationAPI?: TabNavigationState;
+  }
+}
 import { Tabs } from '@newwork/gravity-ui-catalog';
 import { WalletOutlined, CalendarOutlined } from '@ant-design/icons';
 import { PiGauge, PiReceipt, PiPath, PiHandCoins, PiMoney } from 'react-icons/pi';
@@ -18,6 +31,29 @@ export interface PersonalExpensesProps extends BusinessAppContextProps {}
 const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [contentHeader, setContentHeader] = useState<ReactNode | null>(null);
+  const [pendingFilter, setPendingFilter] = useState<string | undefined>(undefined);
+
+  // Expose the tab navigation API to the global window object
+  useEffect(() => {
+    window.tabNavigationAPI = {
+      setActiveTab: (tabKey: string) => {
+        console.log('Global API: Switching to tab', tabKey);
+        setActiveTab(tabKey);
+      },
+      filter: undefined
+    };
+    
+    return () => {
+      window.tabNavigationAPI = undefined;
+    };
+  }, []);
+  
+  // Handle filter updates in the API
+  useEffect(() => {
+    if (window.tabNavigationAPI) {
+      window.tabNavigationAPI.filter = pendingFilter;
+    }
+  }, [pendingFilter]);
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);

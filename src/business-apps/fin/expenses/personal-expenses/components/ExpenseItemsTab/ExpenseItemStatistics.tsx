@@ -5,9 +5,15 @@ const { Text } = Typography;
 
 interface ExpenseItemStatisticsProps {
   items: any[];
+  onMissingReceiptsClick?: () => void;
+  isNoReceiptFilterActive?: boolean;
 }
 
-const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({ items }) => {
+const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({ 
+  items, 
+  onMissingReceiptsClick,
+  isNoReceiptFilterActive = false
+}) => {
   // Calculate summary statistics
   const totalExpenses = useMemo(() => items?.reduce((sum: number, item) => sum + (item.reimbursableAmount ?? 0), 0) ?? 0, [items]);
   
@@ -17,7 +23,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({ items }) 
     item.status.toLowerCase() === 'in progress'
   ).reduce((sum: number, item) => sum + (item.reimbursableAmount ?? 0), 0) ?? 0, [items]);
   
-  const missingReceipts = useMemo(() => items?.filter(item => !item.additionalProperties?.hasAttachment).length ?? 0, [items]);
+  const missingReceipts = useMemo(() => items?.filter(item => !item.expenseItemFile || item.expenseItemFile.length === 0).length ?? 0, [items]);
 
   // Get unique categories/types for the counter
   const categoriesCount = useMemo(() => {
@@ -56,12 +62,24 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({ items }) 
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Card>
+            <Card 
+              style={{ 
+                cursor: onMissingReceiptsClick ? 'pointer' : 'default',
+                borderColor: isNoReceiptFilterActive ? '#1890ff' : undefined,
+                boxShadow: isNoReceiptFilterActive ? '0 0 0 2px rgba(24,144,255,0.2)' : undefined
+              }}
+              onClick={onMissingReceiptsClick}
+              className={isNoReceiptFilterActive ? 'gba:bg-blue-50' : ''}
+              hoverable={!!onMissingReceiptsClick}
+            >
               <Statistic 
                 title="Missing Receipts" 
                 value={missingReceipts} 
+                valueStyle={{ color: isNoReceiptFilterActive ? '#1890ff' : undefined }}
               />
-              <Text type="secondary">Action required</Text>
+              <Text type="secondary">
+                {isNoReceiptFilterActive ? 'Filter active' : 'Action required'}
+              </Text>
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>

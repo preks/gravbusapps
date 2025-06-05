@@ -24,6 +24,7 @@ export interface ExpenseDashboard {
     expenseDate?: string;
   }>;
   expensesByType: Record<string, number>;
+  expenseItemsWithoutReceipts: number;
 }
 
 export interface ExpenseDashboardDataView {
@@ -86,7 +87,7 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
         // Process expenses by type to create a summary object
         const expenseTypes: Record<string, number> = {};
         data?.expensesByType?.forEach((item: any) => {
-          const type = item.expenseType || 'Other';
+          const type = item.expenseClass?.value || 'Other';
           if (!expenseTypes[type]) {
             expenseTypes[type] = 0;
           }
@@ -111,10 +112,11 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
             status: item.status ?? 'Unknown',
             updatedAt: item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : 'N/A',
             totalAmount: item.totalAmount ?? 0,
-            expenseType: item.expenseType ?? 'General',
+            expenseType: item.expenseClass?.value ?? 'General',
             expenseDate: item.expenseDate ? new Date(item.expenseDate).toLocaleDateString() : 'N/A',
           })) ?? [],
           expensesByType: expenseTypes,
+          expenseItemsWithoutReceipts: data?.itemsWithoutReceipts?.aggregate?.count ?? 0,
         };
         
         setStats(expenseDashboard);
