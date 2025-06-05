@@ -20,13 +20,13 @@ export function OpportunityInvestment({ investment, opportunityId }: Opportunity
   const getStageBadgeColor = (stage: string) => {
     switch (stage) {
       case "Pipeline":
-        return "bg-blue-100 text-blue-800"
+        return "gba:bg-blue-100 gba:text-blue-800"
       case "Hold":
-        return "bg-green-100 text-green-800"
+        return "gba:bg-green-100 gba:text-green-800"
       case "Exit":
-        return "bg-purple-100 text-purple-800"
+        return "gba:bg-purple-100 gba:text-purple-800"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "gba:bg-gray-100 gba:text-gray-800"
     }
   }
 
