@@ -38,6 +38,7 @@ export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
       description
       startDate
       endDate
+      planDate
       totalAmount
       advancePaymentPaidAmount
       advancePaymentTotalAmount
@@ -77,6 +78,7 @@ export const GET_EXPENSE_PLAN_BY_ID = `
       description
       startDate
       endDate
+      planDate
       totalAmount
       advancePaymentPaidAmount
       advancePaymentTotalAmount

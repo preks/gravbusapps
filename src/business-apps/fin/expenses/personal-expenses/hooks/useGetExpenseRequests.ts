@@ -13,6 +13,7 @@ export interface ExpenseRequest {
   description: string;
   startDate: string | null;
   endDate: string | null;
+  requestDate: string | null;
   totalAmount: number;
   currencyRef: string;
   costCenter: {

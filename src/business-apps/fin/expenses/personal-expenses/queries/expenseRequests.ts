@@ -24,6 +24,7 @@ export const GET_EXPENSE_REQUESTS_BY_EMPLOYEE = `
       description
       startDate
       endDate
+      requestDate
       totalAmount
       currencyRef
       costCenter {
@@ -52,6 +53,7 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
       description
       startDate
       endDate
+      requestDate
       totalAmount
       currencyRef
       costCenter {
