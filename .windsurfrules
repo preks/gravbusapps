@@ -33,7 +33,7 @@ Always prefix all CSS classes with the `gba:` prefix.
 
 Whenever an input field is used to provide search by an user, use the existing `DebouncedInput` component to provide debounced search.
 
-When tab components are used, provide a unique hash for each tab to allow direct navigation to the tab via URLs.
+When tab components are used, provide a unique tab key for each tab and use this in a URL query parameter.
 
 Everytime data querying with GraphQL is needed, use the newwork-graphql-mcp plugin.
 

@@ -61,51 +61,86 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             <p>No absence entitlements found.</p>
           </div>
         ) : (
-          <div className="gba:overflow-x-auto">
-            <table className="gba:min-w-full gba:divide-y gba:divide-gray-200">
-              <thead className="gba:bg-gray-50">
-                <tr>
-                  <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    Type
-                  </th>
-                  <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    Total Entitled
-                  </th>
-                  <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    Taken
-                  </th>
-                  <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    Pending Approval
-                  </th>
-                  <th scope="col" className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    Available
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="gba:bg-white gba:divide-y gba:divide-gray-200">
-                {uniqueAbsenceEntitlements.map((entitlement) => (
-                  <tr key={`${entitlement.type?.value ?? 'unknown'}-${entitlement.total}`}>
-                    <td className="gba:px-6 gba:py-4 gba:whitespace-nowrap">
-                      <div className="gba:text-sm gba:font-medium gba:text-gray-900">
-                        {getTypeTranslation(entitlement)}
+          <div className="gba:grid gba:grid-cols-1 gba:gap-6">
+            {uniqueAbsenceEntitlements.map((entitlement) => {
+              const typeName = getTypeTranslation(entitlement);
+              const total = entitlement.total || 0;
+              const used = total - (entitlement.available || 0);
+              const pending = entitlement.pending || 0;
+              const pendingPercent = total > 0 ? (pending / total) * 100 : 0;
+              const usedPercent = total > 0 ? (used / total) * 100 : 0;
+              const is365DayType = total === 365;
+              
+              if (is365DayType) {
+                // Special display for 365-day entitlements (like sick days)
+                return (
+                  <Card 
+                    key={`${entitlement.type?.value ?? 'unknown'}-${entitlement.total}`}
+                    className="gba:p-6 gba:hover:shadow-md gba:transition-shadow"
+                  >
+                    <div className="gba:mb-3 gba:flex gba:justify-between gba:items-center">
+                      <div className="gba:text-lg gba:font-medium">{typeName}</div>
+                      <div className="gba:text-2xl gba:font-bold">
+                        {used} <span className="gba:text-sm gba:font-normal gba:text-gray-500">days reported in {new Date().getFullYear()}</span>
                       </div>
-                    </td>
-                    <td className="gba:px-6 gba:py-4 gba:whitespace-nowrap">
-                      <div className="gba:text-sm gba:text-gray-900">{entitlement.total}</div>
-                    </td>
-                    <td className="gba:px-6 gba:py-4 gba:whitespace-nowrap">
-                      <div className="gba:text-sm gba:text-gray-900">{entitlement.pending}</div>
-                    </td>
-                    <td className="gba:px-6 gba:py-4 gba:whitespace-nowrap">
-                      <div className="gba:text-sm gba:text-gray-900">{entitlement.approved}</div>
-                    </td>
-                    <td className="gba:px-6 gba:py-4 gba:whitespace-nowrap">
-                      <div className="gba:text-sm gba:text-gray-900">{entitlement.available}</div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    
+                    <div className="gba:flex gba:gap-1">
+                      {/* Create dots to represent used days */}
+                      {Array(used).fill(0).map((_, index) => (
+                        <div 
+                          key={index}
+                          className="gba:w-8 gba:h-2 gba:bg-purple-500 gba:rounded-full"
+                        ></div>
+                      ))}
+                    </div>
+                  </Card>
+                );
+              }
+              
+              // Regular display for normal entitlements (like vacation days)
+              return (
+                <Card 
+                  key={`${entitlement.type?.value ?? 'unknown'}-${entitlement.total}`}
+                  className="gba:p-6 gba:hover:shadow-md gba:transition-shadow"
+                >
+                  <div className="gba:mb-2 gba:flex gba:justify-between gba:items-center">
+                    <div className="gba:text-lg gba:font-medium">{typeName}</div>
+                    <div className="gba:text-sm gba:text-gray-500">
+                      {used}/{total} days used
+                      {pending > 0 && (
+                        <span className="gba:ml-2 gba:text-amber-500">{pending} days pending</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="gba:w-full gba:relative gba:h-3 gba:bg-gray-100 gba:rounded">
+                    {/* Used days bar */}
+                    <div 
+                      className="gba:absolute gba:left-0 gba:top-0 gba:h-full gba:bg-green-500 gba:rounded-l"
+                      style={{ width: `${usedPercent}%` }}
+                    ></div>
+                    
+                    {/* Pending days bar */}
+                    {pending > 0 && (
+                      <div 
+                        className="gba:absolute gba:h-full gba:bg-amber-500"
+                        style={{ 
+                          width: `${pendingPercent}%`,
+                          left: `${usedPercent}%`
+                        }}
+                      ></div>
+                    )}
+                  </div>
+                  
+                  <div className="gba:mt-2 gba:flex gba:justify-between gba:items-center gba:text-xs gba:text-gray-500">
+                    <div>Used: {used} days</div>
+                    {pending > 0 && <div className="gba:text-amber-500">Pending: {pending} days</div>}
+                    <div>Available: {entitlement.available || 0} days</div>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
@@ -117,7 +152,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         </h2>
         
         <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
-          <Card className="gba:p-4 gba:hover:shadow-md gba:transition-shadow">
+          <Card className="gba:p-6 gba:hover:shadow-md gba:transition-shadow">
             <div className="gba:flex gba:flex-col gba:items-center gba:text-center">
               <div className="gba:w-16 gba:h-16 gba:flex gba:items-center gba:justify-center gba:bg-blue-100 gba:text-blue-600 gba:rounded-full gba:mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-8 gba:w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -154,7 +189,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             </div>
           </Card>
           
-          <Card className="gba:p-4 gba:hover:shadow-md gba:transition-shadow">
+          <Card className="gba:p-6 gba:hover:shadow-md gba:transition-shadow">
             <div className="gba:flex gba:flex-col gba:items-center gba:text-center">
               <div className="gba:w-16 gba:h-16 gba:flex gba:items-center gba:justify-center gba:bg-red-100 gba:text-red-600 gba:rounded-full gba:mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-8 gba:w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -191,7 +226,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             </div>
           </Card>
           
-          <Card className="gba:p-4 gba:hover:shadow-md gba:transition-shadow">
+          <Card className="gba:p-6 gba:hover:shadow-md gba:transition-shadow">
             <div className="gba:flex gba:flex-col gba:items-center gba:text-center">
               <div className="gba:w-16 gba:h-16 gba:flex gba:items-center gba:justify-center gba:bg-purple-100 gba:text-purple-600 gba:rounded-full gba:mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-8 gba:w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
