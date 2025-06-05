@@ -16,8 +16,8 @@ export function ContactProfile() {
   const [expandedBio, setExpandedBio] = useState(false)
   
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="gba:max-w-7xl gba:mx-auto gba:space-y-6">
+      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
         <ProfileHeader />
         
         <ActivityStream 
@@ -25,7 +25,7 @@ export function ContactProfile() {
           setActivitiesExpanded={setActivitiesExpanded}
         />
         
-        <div className="flex flex-col gap-6">
+        <div className="gba:flex gba:flex-col gba:gap-6">
           <OrganizationCard />
           <BioCard 
             expandedBio={expandedBio}

@@ -54,7 +54,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       key: 'name',
       render: (_: any, record: Employee) => (
         <div 
-          className="flex items-center"
+          className="gba:flex gba:items-center"
           onClick={() => handleRowClick(record)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -67,7 +67,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
           style={{ cursor: 'pointer' }}
           aria-pressed={selectedEmployeeId === record.id}
         >
-          <div className="flex items-center gap-3">
+          <div className="gba:flex gba:items-center gba:gap-3">
             <EmployeeAvatar
               profilePicture={record.profilePicture}
               firstName={record.firstName}
@@ -131,8 +131,8 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   // Show error message if there's an error
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center p-8">
-        <div className="text-red-500 mb-4">{t('common.error_occurred', 'An error occurred')}</div>
+      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8">
+        <div className="gba:text-red-500 gba:mb-4">{t('common.error_occurred', 'An error occurred')}</div>
         <Button variant="primary" onClick={retry}>
           {t('common.retry', 'Retry')}
         </Button>

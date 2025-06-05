@@ -206,26 +206,26 @@ export default function OpportunityDetail({
   }
 
   if (loading) {
-    return <div className="flex flex-col gap-6 p-6">Loading opportunity details...</div>
+    return <div className="gba:flex gba:flex-col gba:gap-6 gba:p-6">Loading opportunity details...</div>
   }
   
   if (error) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <div className="gba:flex gba:flex-col gba:gap-6 gba:p-6">
         <Button variant="ghost" size="sm" onClick={handleBackClick}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeft className="gba:mr-2 gba:h-4 gba:w-4" />
           Back to Opportunities
         </Button>
-        <div className="text-red-500">{error}</div>
+        <div className="gba:text-red-500">{error}</div>
       </div>
     )
   }
   
   if (!opportunity) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <div className="gba:flex gba:flex-col gba:gap-6 gba:p-6">
         <Button variant="ghost" size="sm" onClick={handleBackClick}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeft className="gba:mr-2 gba:h-4 gba:w-4" />
           Back to Opportunities
         </Button>
         <div>No opportunity data available</div>
@@ -248,11 +248,11 @@ export default function OpportunityDetail({
   };
 
   return (
-    <div className="w-full">
-      <div className="flex flex-col space-y-4 mb-6">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" className="text-gray-600" onClick={handleBackClick}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
+    <div className="gba:w-full">
+      <div className="gba:flex gba:flex-col gba:space-y-4 gba:mb-6">
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <Button variant="ghost" size="sm" className="gba:text-gray-600" onClick={handleBackClick}>
+            <ArrowLeft className="gba:mr-2 gba:h-4 gba:w-4" />
             Back to Opportunities
           </Button>
           
@@ -268,42 +268,42 @@ export default function OpportunityDetail({
         </div>
         
         <div>
-          <h1 className="text-2xl font-semibold">{opportunity.name}</h1>
-          <div className="flex items-center mt-2 text-gray-500 space-x-4">
-            <div className="flex items-center">
-              <Building2 className="h-4 w-4 mr-1" />
+          <h1 className="gba:text-2xl gba:font-semibold">{opportunity.name}</h1>
+          <div className="gba:flex gba:items-center gba:mt-2 gba:text-gray-500 gba:space-x-4">
+            <div className="gba:flex gba:items-center">
+              <Building2 className="gba:h-4 gba:w-4 gba:mr-1" />
               <span>{opportunity.companyName}</span>
             </div>
-            <div className="flex items-center">
-              <DollarSign className="h-4 w-4 mr-1" />
+            <div className="gba:flex gba:items-center">
+              <DollarSign className="gba:h-4 gba:w-4 gba:mr-1" />
               <span>{opportunity.currency} {opportunity.value}</span>
             </div>
-            <div className="flex items-center">
-              <Calendar className="h-4 w-4 mr-1" />
+            <div className="gba:flex gba:items-center">
+              <Calendar className="gba:h-4 gba:w-4 gba:mr-1" />
               <span>Expected close: {formatDate(opportunity.expectedCloseDate)}</span>
             </div>
-            <div className="flex items-center">
-              <User2 className="h-4 w-4 mr-1" />
+            <div className="gba:flex gba:items-center">
+              <User2 className="gba:h-4 gba:w-4 gba:mr-1" />
               <span>Owner: {opportunity.ownerId || "Unassigned"}</span>
             </div>
           </div>
           
-          <div className="flex space-x-2 mt-2">
-            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
+          <div className="gba:flex gba:space-x-2 gba:mt-2">
+            <span className="gba:inline-flex gba:items-center gba:rounded-full gba:px-2.5 gba:py-0.5 gba:text-xs gba:font-medium gba:bg-blue-100 gba:text-blue-800">
               {opportunity.stageName || "No Stage"}
             </span>
-            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
+            <span className="gba:inline-flex gba:items-center gba:rounded-full gba:px-2.5 gba:py-0.5 gba:text-xs gba:font-medium gba:bg-blue-100 gba:text-blue-800">
               {opportunity.probability || "0%"} probability
             </span>
           </div>
         </div>
       </div>
       
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-medium text-gray-500">Stage Progression</h3>
+      <div className="gba:mb-6">
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+          <h3 className="gba:text-sm gba:font-medium gba:text-gray-500">Stage Progression</h3>
         </div>
-        <div className="flex items-center py-2">
+        <div className="gba:flex gba:items-center gba:py-2">
           {[
             { id: "1", pipelineId: "1", name: "Initial Contact", order: 1, color: "gray", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
             { id: "2", pipelineId: "1", name: "Qualification", order: 2, color: "blue", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
@@ -318,27 +318,26 @@ export default function OpportunityDetail({
             
             let stageStyle = '';
             if (isActive) {
-              stageStyle = 'bg-blue-100 text-blue-800 border border-blue-200';
+              stageStyle = 'gba:bg-blue-100 gba:text-blue-800 gba:border gba:border-blue-200';
             } else if (isPast) {
-              stageStyle = 'bg-gray-100 text-gray-600 border border-gray-200';
+              stageStyle = 'gba:bg-gray-100 gba:text-gray-600 gba:border gba:border-gray-200';
             } else {
-              stageStyle = 'bg-white text-gray-400 border border-gray-200 border-dashed';
+              stageStyle = 'gba:bg-white gba:text-gray-400 gba:border gba:border-gray-200 gba:border-dashed';
             }
             
             return (
-              <div key={stage.id} className="flex items-center">
+              <div key={stage.id} className="gba:flex gba:items-center">
                 <div 
-                  className={`flex items-center justify-center px-3 py-1 text-xs rounded-md 
-                    whitespace-nowrap ${stageStyle}`}
+                  className={`gba:flex gba:items-center gba:justify-center gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:rounded-md gba:whitespace-nowrap ${stageStyle}`}
                   style={{ minWidth: '85px' }}
                 >
                   {isPast && (
-                    <span className="mr-1 w-4 h-4 rounded-full bg-gray-200 border border-gray-300 flex items-center justify-center"></span>
+                    <span className="gba:mr-1 gba:w-4 gba:h-4 gba:rounded-full gba:bg-gray-200 gba:border gba:border-gray-300 gba:flex gba:items-center gba:justify-center"></span>
                   )}
                   {stage.name}
                 </div>
                 {!isLast && (
-                  <div className="w-5 h-px bg-gray-200 mx-1" />
+                  <div className="gba:w-5 gba:h-px gba:bg-gray-200 gba:mx-1" />
                 )}
               </div>
             );
@@ -346,107 +345,107 @@ export default function OpportunityDetail({
         </div>
       </div>
       
-      <Tabs defaultValue="activities" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="flex border-b border-gray-200 p-0 m-0 bg-gray-100 justify-start">
+      <Tabs defaultValue="activities" value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
+        <TabsList className="gba:flex gba:border-b gba:border-gray-200 gba:p-0 gba:m-0 gba:bg-gray-100 gba:justify-start">
           <TabsTrigger 
             value="overview"
-            className="py-2 px-4 text-sm text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 rounded-none"
+            className="gba:py-2 gba:px-4 gba:text-sm gba:text-gray-500 gba:data-[state=active]:bg-white gba:data-[state=active]:text-gray-900 gba:rounded-none"
           >
             Overview
           </TabsTrigger>
           <TabsTrigger 
             value="activities"
-            className="py-2 px-4 text-sm text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 rounded-none"
+            className="gba:py-2 gba:px-4 gba:text-sm gba:text-gray-500 gba:data-[state=active]:bg-white gba:data-[state=active]:text-gray-900 gba:rounded-none"
           >
             Activities
           </TabsTrigger>
           <TabsTrigger 
             value="tasks"
-            className="py-2 px-4 text-sm text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 rounded-none"
+            className="gba:py-2 gba:px-4 gba:text-sm gba:text-gray-500 gba:data-[state=active]:bg-white gba:data-[state=active]:text-gray-900 gba:rounded-none"
           >
             Tasks
           </TabsTrigger>
           <TabsTrigger 
             value="documents"
-            className="py-2 px-4 text-sm text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 rounded-none"
+            className="gba:py-2 gba:px-4 gba:text-sm gba:text-gray-500 gba:data-[state=active]:bg-white gba:data-[state=active]:text-gray-900 gba:rounded-none"
           >
             Documents
           </TabsTrigger>
           <TabsTrigger 
             value="decisions"
-            className="py-2 px-4 text-sm text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 rounded-none"
+            className="gba:py-2 gba:px-4 gba:text-sm gba:text-gray-500 gba:data-[state=active]:bg-white gba:data-[state=active]:text-gray-900 gba:rounded-none"
           >
             Decisions
           </TabsTrigger>
           {hasInvestment && opportunity.investment && (
             <TabsTrigger 
               value="investment"
-              className="py-2 px-4 text-sm text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 rounded-none"
+              className="gba:py-2 gba:px-4 gba:text-sm gba:text-gray-500 gba:data-[state=active]:bg-white gba:data-[state=active]:text-gray-900 gba:rounded-none"
             >
               Investment
             </TabsTrigger>
           )}
         </TabsList>
         
-        <div className="mt-6">
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="border-gray-300">
-                <CardContent className="p-4">
-                  <h3 className="text-lg font-medium mb-4">Description</h3>
+        <div className="gba:mt-6">
+          <TabsContent value="overview" className="gba:space-y-6">
+            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
+              <Card className="gba:border-gray-300">
+                <CardContent className="gba:p-4">
+                  <h3 className="gba:text-lg gba:font-medium gba:mb-4">Description</h3>
                   <p>{opportunity.description}</p>
                 </CardContent>
               </Card>
               
-              <Card className="border-gray-300">
-                <CardContent className="p-4">
-                  <h3 className="text-lg font-medium mb-4">Key Contacts</h3>
-                  <p className="text-gray-500">No contacts associated with this opportunity</p>
+              <Card className="gba:border-gray-300">
+                <CardContent className="gba:p-4">
+                  <h3 className="gba:text-lg gba:font-medium gba:mb-4">Key Contacts</h3>
+                  <p className="gba:text-gray-500">No contacts associated with this opportunity</p>
                 </CardContent>
               </Card>
               
-              <Card className="border-gray-300">
-                <CardContent className="p-4">
-                  <h3 className="text-lg font-medium mb-4">Opportunity Details</h3>
-                  <div className="space-y-2">
+              <Card className="gba:border-gray-300">
+                <CardContent className="gba:p-4">
+                  <h3 className="gba:text-lg gba:font-medium gba:mb-4">Opportunity Details</h3>
+                  <div className="gba:space-y-2">
                     <div>
-                      <p className="text-sm text-gray-500">Value</p>
+                      <p className="gba:text-sm gba:text-gray-500">Value</p>
                       <p>{opportunity.value}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Expected Close Date</p>
+                      <p className="gba:text-sm gba:text-gray-500">Expected Close Date</p>
                       <p>{formatDate(opportunity.expectedCloseDate)}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Owner</p>
+                      <p className="gba:text-sm gba:text-gray-500">Owner</p>
                       <p>{opportunity.ownerId || "Unassigned"}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Created</p>
+                      <p className="gba:text-sm gba:text-gray-500">Created</p>
                       <p>{formatDate(opportunity.createdAt)}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Last Updated</p>
+                      <p className="gba:text-sm gba:text-gray-500">Last Updated</p>
                       <p>{formatDate(opportunity.updatedAt)}</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
               
-              <Card className="border-gray-300">
-                <CardContent className="p-4">
-                  <h3 className="text-lg font-medium mb-4">Probability</h3>
-                  <div className="space-y-4">
-                    <div className="text-center text-4xl font-bold">
+              <Card className="gba:border-gray-300">
+                <CardContent className="gba:p-4">
+                  <h3 className="gba:text-lg gba:font-medium gba:mb-4">Probability</h3>
+                  <div className="gba:space-y-4">
+                    <div className="gba:text-center gba:text-4xl gba:font-bold">
                       {opportunity.probability || "0"}
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div className="gba:w-full gba:bg-gray-200 gba:rounded-full gba:h-2.5">
                       <div 
-                        className="bg-gray-900 h-2.5 rounded-full" 
+                        className="gba:bg-gray-900 gba:h-2.5 gba:rounded-full" 
                         style={{ width: `${opportunity.probability || 0}%` }}
                       ></div>
                     </div>
-                    <div className="flex justify-between text-xs text-gray-500">
+                    <div className="gba:flex gba:justify-between gba:text-xs gba:text-gray-500">
                       <span>Low</span>
                       <span>Medium</span>
                       <span>High</span>
@@ -457,11 +456,11 @@ export default function OpportunityDetail({
             </div>
           </TabsContent>
           
-          <TabsContent value="activities" className="space-y-4">
+          <TabsContent value="activities" className="gba:space-y-4">
             <OpportunityActivities activities={opportunity.activities || []} opportunityId={opportunity.id} />
           </TabsContent>
           
-          <TabsContent value="tasks" className="space-y-4">
+          <TabsContent value="tasks" className="gba:space-y-4">
             <OpportunityTasks
               tasks={opportunity.tasks || []}
               opportunityId={opportunity.id}
@@ -469,7 +468,7 @@ export default function OpportunityDetail({
             />
           </TabsContent>
           
-          <TabsContent value="documents" className="space-y-4">
+          <TabsContent value="documents" className="gba:space-y-4">
             <OpportunityDocuments
               documents={opportunity.documents || []}
               opportunityId={opportunity.id}
@@ -477,7 +476,7 @@ export default function OpportunityDetail({
             />
           </TabsContent>
           
-          <TabsContent value="decisions" className="space-y-4">
+          <TabsContent value="decisions" className="gba:space-y-4">
             <OpportunityDecisions
               decisions={opportunity.decisions || []}
               opportunityId={opportunity.id}
@@ -486,7 +485,7 @@ export default function OpportunityDetail({
           </TabsContent>
           
           {hasInvestment && opportunity.investment && (
-            <TabsContent value="investment" className="space-y-4">
+            <TabsContent value="investment" className="gba:space-y-4">
               <OpportunityInvestment investment={opportunity.investment} opportunityId={opportunity.id} />
             </TabsContent>
           )}

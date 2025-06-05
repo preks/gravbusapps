@@ -99,10 +99,10 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
   }, [loadMore]);
 
   return (
-    <div className="w-full h-screen flex flex-row relative bg-white">
+    <div className="gba:w-full gba:h-screen gba:flex gba:flex-row gba:relative gba:bg-white">
       <PageLayout
         variant="default"
-        headerIcon={<PiBriefcase size={24} className="text-primary" />}
+        headerIcon={<PiBriefcase size={24} className="gba:text-primary" />}
         headerLabel={t('job_position.list_title', 'Job Position List')}
         contentContainer={
           <DataContainer

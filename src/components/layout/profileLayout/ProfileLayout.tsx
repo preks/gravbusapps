@@ -37,32 +37,30 @@ export const ProfileLayout: React.FC<Readonly<ProfileLayoutProps>> = ({
 
   return (
     <div
-      className={`profile-layout w-full h-full flex ${
-        isTopHeader ? 'flex-col' : 'flex-row'
-      } bg-white rounded-xl shadow-md overflow-hidden ${className}`.trim()}
+      className={`profile-layout gba:w-full gba:h-full gba:flex ${
+        isTopHeader ? 'gba:flex-col' : 'gba:flex-row'
+      } gba:bg-white gba:rounded-xl gba:shadow-md gba:overflow-hidden ${className}`.trim()}
       style={{ minHeight: '0', minWidth: '0' }}
     >
       {/* Header section - either top or left */}
       <header
-        className={cn(
-          'bg-white border-gray-200 overflow-visible',
-          isTopHeader
-            ? 'w-full border-b flex flex-col' // Removed fixed height to accommodate varying content heights
-            : 'w-64 h-full p-4 border-r flex flex-col'
+        className={cn("gba:bg-white gba:border-gray-200 gba:overflow-visible", isTopHeader
+            ? 'gba:w-full gba:border-b gba:flex gba:flex-col' // Removed fixed height to accommodate varying content heights
+            : 'gba:w-64 gba:h-full gba:p-4 gba:border-r gba:flex gba:flex-col'
         )}
       >
         {headerContent}
       </header>
 
       {/* Content section - always a column layout */}
-      <div className={`flex flex-col flex-1 min-h-0 ${isTopHeader ? '' : 'w-full'}`}>
+      <div className={`gba:flex gba:flex-col gba:flex-1 gba:min-h-0 ${isTopHeader ? '' : 'gba:w-full'}`}>
         {/* Content header - always above content container */}
         {contentHeader && (
-          <div className="py-3 px-4 border-b border-gray-200 bg-white">{contentHeader}</div>
+          <div className="gba:py-3 gba:px-4 gba:border-b gba:border-gray-200 gba:bg-white">{contentHeader}</div>
         )}
         
         {/* Main content container */}
-        <div className="bg-gray-100 flex-1 min-h-0 p-4 overflow-auto">{contentContainer}</div>
+        <div className="gba:bg-gray-100 gba:flex-1 gba:min-h-0 gba:p-4 gba:overflow-auto">{contentContainer}</div>
       </div>
     </div>
   );

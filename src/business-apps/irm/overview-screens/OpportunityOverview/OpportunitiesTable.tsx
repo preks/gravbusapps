@@ -14,14 +14,29 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ArrowUpDown, ChevronDown, MoreHorizontal, Plus, ArrowRight, ArrowLeft } from "lucide-react"
+import { 
+  ArrowUpDown, 
+  ChevronDown, 
+  MoreHorizontal, 
+  Plus, 
+  ArrowRight, 
+  ArrowLeft,
+  DollarSign,
+  BarChart,
+  FileText,
+  Layers,
+  Briefcase,
+  PieChart,
+  TrendingUp,
+  Target
+} from "lucide-react"
 import { Button } from "./common/ui/button"
 import { Checkbox } from "./common/ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
-  DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuContent,
   DropdownMenuTrigger,
 } from "./common/ui/dropdown-menu"
 import { Input } from "./common/ui/input"
@@ -131,16 +146,16 @@ export default function OpportunitiesTable({
       cell: ({ row }) => {
         const type = row.getValue("type") as "incoming" | "outgoing"
         return (
-          <div className="flex items-center">
+          <div className="gba:flex gba:items-center">
             {type === "incoming" ? (
-              <div className="flex items-center" title="Incoming">
-                <ArrowLeft className="h-5 w-5 text-red-500" />
-                <span className="sr-only">Incoming</span>
+              <div className="gba:flex gba:items-center" title="Incoming">
+                <ArrowLeft className="gba:h-5 gba:w-5 gba:text-red-500" />
+                <span className="gba:sr-only">Incoming</span>
               </div>
             ) : (
-              <div className="flex items-center" title="Outgoing">
-                <ArrowRight className="h-5 w-5 text-green-500" />
-                <span className="sr-only">Outgoing</span>
+              <div className="gba:flex gba:items-center" title="Outgoing">
+                <ArrowRight className="gba:h-5 gba:w-5 gba:text-green-500" />
+                <span className="gba:sr-only">Outgoing</span>
               </div>
             )}
           </div>
@@ -153,7 +168,7 @@ export default function OpportunitiesTable({
         return (
           <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
             Name
-            <ArrowUpDown className="ml-2 h-4 w-4" />
+            <ArrowUpDown className="gba:ml-2 gba:h-4 gba:w-4" />
           </Button>
         )
       },
@@ -162,7 +177,7 @@ export default function OpportunitiesTable({
         const name = row.getValue("name");
         
         return (
-          <div className="font-medium">
+          <div className="gba:font-medium">
             <button
               type="button"
               onClick={(e) => {
@@ -173,7 +188,7 @@ export default function OpportunitiesTable({
                 
                 handleOpportunityClick(id);
               }}
-              className="text-left hover:underline cursor-pointer border-none bg-transparent p-0 m-0"
+              className="gba:text-left gba:hover:underline gba:cursor-pointer gba:border-none gba:bg-transparent gba:p-0 gba:m-0"
             >
               {String(name)}
             </button>
@@ -192,7 +207,7 @@ export default function OpportunitiesTable({
         return (
           <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
             Value
-            <ArrowUpDown className="ml-2 h-4 w-4" />
+            <ArrowUpDown className="gba:ml-2 gba:h-4 gba:w-4" />
           </Button>
         )
       },
@@ -200,7 +215,7 @@ export default function OpportunitiesTable({
         const value = row.getValue("value") as string
         const currency = row.original.currency || "USD"
 
-        return <div className="font-medium">{value ? `${currency} ${value}` : "—"}</div>
+        return <div className="gba:font-medium">{value ? `${currency} ${value}` : "—"}</div>
       },
     },
     {
@@ -222,7 +237,7 @@ export default function OpportunitiesTable({
         return (
           <div>
             <CustomLink to={`/investments/${investmentId}`}>
-              <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80">
+              <Badge variant="secondary" className="gba:cursor-pointer gba:hover:bg-secondary/80">
                 {investmentName}
               </Badge>
             </CustomLink>
@@ -246,20 +261,20 @@ export default function OpportunitiesTable({
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-transparent focus:bg-transparent focus:ring-0 focus:ring-offset-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
+              <Button variant="ghost" className="gba:h-8 gba:w-8 gba:p-0 gba:hover:bg-transparent gba:focus:bg-transparent gba:focus:ring-0 gba:focus:ring-offset-0">
+                <span className="gba:sr-only">Open menu</span>
+                <MoreHorizontal className="gba:h-4 gba:w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-white border border-gray-300 shadow-md w-[150px]">
-              <div className="px-2 py-1.5 text-sm font-semibold">Actions</div>
-              <DropdownMenuItem className="cursor-pointer focus:bg-gray-100" onClick={() => navigate(`/opportunities/${opportunity.id}`)}>
+            <DropdownMenuContent align="end" className="gba:bg-white gba:border gba:border-gray-300 gba:shadow-md gba:w-[150px]">
+              <div className="gba:px-2 gba:py-1.5 gba:text-sm gba:font-semibold">Actions</div>
+              <DropdownMenuItem className="gba:cursor-pointer gba:focus:bg-gray-100" onClick={() => navigate(`/opportunities/${opportunity.id}`)}>
                 View Details
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer focus:bg-gray-100">
+              <DropdownMenuItem className="gba:cursor-pointer gba:focus:bg-gray-100">
                 Edit
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer focus:bg-gray-100">
+              <DropdownMenuItem className="gba:cursor-pointer gba:focus:bg-gray-100">
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -298,57 +313,85 @@ export default function OpportunitiesTable({
   }
 
   return (
-    <div className="w-full">
-      <div className="flex flex-col">
-        <div className="p-4 border border-gray-300 rounded-lg bg-white">
-          <h1 className="text-2xl font-bold">Opportunities</h1>
-          <p className="text-gray-500">Manage your sales opportunities</p>
+    <div className="gba:w-full">
+      <div className="gba:flex gba:flex-col">
+        <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white gba:mb-6">
+          <h1 className="gba:text-2xl gba:font-bold">Opportunities</h1>
+          <p className="gba:text-gray-500">Manage your sales opportunities</p>
         </div>
         
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="p-4 border border-gray-300 rounded-lg">
-            <h3 className="text-sm text-gray-500">Total Opportunities</h3>
-            <p className="text-2xl font-bold">{data.length}</p>
+        <div className="gba:grid gba:grid-cols-4 gba:gap-4 gba:mb-6">
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <Briefcase className="gba:h-5 gba:w-5 gba:text-blue-500" />
+              </div>
+              <div>
+                <div className="gba:text-sm gba:text-gray-500">Total Opportunities</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-blue-500">{data.length}</div>
+              </div>
+            </div>
           </div>
-          <div className="p-4 border border-gray-300 rounded-lg">
-            <h3 className="text-sm text-gray-500">Active Opportunities</h3>
-            <p className="text-2xl font-bold">{data.filter(opp => opp.stageName !== "Closed Won" && opp.stageName !== "Closed Lost").length}</p>
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <TrendingUp className="gba:h-5 gba:w-5 gba:text-green-500" />
+              </div>
+              <div>
+                <div className="gba:text-sm gba:text-gray-500">Active Opportunities</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-green-500">{data.filter(opp => opp.stageName !== "Closed Won" && opp.stageName !== "Closed Lost").length}</div>
+              </div>
+            </div>
           </div>
-          <div className="p-4 border border-gray-300 rounded-lg">
-            <h3 className="text-sm text-gray-500">Total Value</h3>
-            <p className="text-2xl font-bold">${data.reduce((sum, opp) => {
-              const numValue = typeof opp.value === 'string' ? parseFloat(opp.value) || 0 : (opp.value || 0);
-              return sum + numValue;
-            }, 0).toLocaleString()}</p>
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-orange-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <DollarSign className="gba:h-5 gba:w-5 gba:text-orange-500" />
+              </div>
+              <div>
+                <div className="gba:text-sm gba:text-gray-500">Total Value</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-orange-500">${data.reduce((sum, opp) => {
+                  const numValue = typeof opp.value === 'string' ? parseFloat(opp.value) || 0 : (opp.value || 0);
+                  return sum + numValue;
+                }, 0).toLocaleString()}</div>
+              </div>
+            </div>
           </div>
-          <div className="p-4 border border-gray-300 rounded-lg">
-            <h3 className="text-sm text-gray-500">Win Rate</h3>
-            <p className="text-2xl font-bold">
-              {data.length ? Math.round(
-                (data.filter(opp => opp.stageName === "Closed Won").length / 
-                (data.filter(opp => opp.stageName === "Closed Won" || opp.stageName === "Closed Lost").length || 1)) * 100
-              ) : 0}%
-            </p>
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-purple-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <Target className="gba:h-5 gba:w-5 gba:text-purple-500" />
+              </div>
+              <div>
+                <div className="gba:text-sm gba:text-gray-500">Win Rate</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-purple-500">
+                  {data.length ? Math.round(
+                    (data.filter(opp => opp.stageName === "Closed Won").length / 
+                    (data.filter(opp => opp.stageName === "Closed Won" || opp.stageName === "Closed Lost").length || 1)) * 100
+                  ) : 0}%
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between py-4">
-          <div className="flex items-center gap-3">
+        <div className="gba:flex gba:items-center gba:justify-between gba:py-4">
+          <div className="gba:flex gba:items-center gba:gap-3">
             <Input
               placeholder="Filter opportunities..."
               value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
               onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
-              className="max-w-sm border-gray-300"
+              className="gba:max-w-sm gba:border-gray-300"
             />
-            <div className="relative">
+            <div className="gba:relative">
               <Select
                 value={(table.getColumn("investmentId")?.getFilterValue() as string) ?? ""}
                 onValueChange={(value) => table.getColumn("investmentId")?.setFilterValue(value === "all" ? "" : value)}
               >
-                <SelectTrigger className="w-[200px] border-gray-300">
+                <SelectTrigger className="gba:w-[200px] gba:border-gray-300">
                   <SelectValue placeholder="Filter for..." />
                 </SelectTrigger>
-                <SelectContent sideOffset={4} className="bg-white w-[240px] border border-gray-300 shadow-md">
+                <SelectContent sideOffset={4} className="gba:bg-white gba:w-[240px] gba:border gba:border-gray-300 gba:shadow-md">
                   <SelectItem value="all">All Investments</SelectItem>
                   {investments.map((investment) => (
                     <SelectItem key={investment.id} value={investment.id}>
@@ -358,25 +401,25 @@ export default function OpportunitiesTable({
                 </SelectContent>
               </Select>
             </div>
-            <div className="relative">
+            <div className="gba:relative">
               <Select
                 value={(table.getColumn("type")?.getFilterValue() as string) ?? ""}
                 onValueChange={(value) => table.getColumn("type")?.setFilterValue(value === "all" ? "" : value)}
               >
-                <SelectTrigger className="w-[160px] border-gray-300">
+                <SelectTrigger className="gba:w-[160px] gba:border-gray-300">
                   <SelectValue placeholder="Filter by..." />
                 </SelectTrigger>
-                <SelectContent sideOffset={4} className="bg-white w-[200px] border border-gray-300 shadow-md">
+                <SelectContent sideOffset={4} className="gba:bg-white gba:w-[200px] gba:border gba:border-gray-300 gba:shadow-md">
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="incoming">
-                    <div className="flex items-center">
-                      <ArrowLeft className="mr-2 h-4 w-4 text-red-500" />
+                    <div className="gba:flex gba:items-center">
+                      <ArrowLeft className="gba:mr-2 gba:h-4 gba:w-4 gba:text-red-500" />
                       Incoming
                     </div>
                   </SelectItem>
                   <SelectItem value="outgoing">
-                    <div className="flex items-center">
-                      <ArrowRight className="mr-2 h-4 w-4 text-green-500" />
+                    <div className="gba:flex gba:items-center">
+                      <ArrowRight className="gba:mr-2 gba:h-4 gba:w-4 gba:text-green-500" />
                       Outgoing
                     </div>
                   </SelectItem>
@@ -384,19 +427,19 @@ export default function OpportunitiesTable({
               </Select>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsCreateModalOpen(true)} className="ml-auto border-gray-300">
-              <Plus className="mr-2 h-4 w-4" />
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsCreateModalOpen(true)} className="gba:ml-auto gba:border-gray-300">
+              <Plus className="gba:mr-2 gba:h-4 gba:w-4" />
               New Opportunity
             </Button>
-            <div className="relative">
+            <div className="gba:relative">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="border-gray-300">
-                    Columns <ChevronDown className="ml-2 h-4 w-4" />
+                  <Button variant="outline" className="gba:border-gray-300">
+                    Columns <ChevronDown className="gba:ml-2 gba:h-4 gba:w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-white border border-gray-300 shadow-md w-[200px]">
+                <DropdownMenuContent align="end" className="gba:bg-white gba:border gba:border-gray-300 gba:shadow-md gba:w-[200px]">
                   {table
                     .getAllColumns()
                     .filter((column) => column.getCanHide())
@@ -404,7 +447,7 @@ export default function OpportunitiesTable({
                       return (
                         <DropdownMenuCheckboxItem
                           key={column.id}
-                          className="capitalize"
+                          className="gba:capitalize"
                           checked={column.getIsVisible()}
                           onCheckedChange={(value) => column.toggleVisibility(!!value)}
                         >
@@ -418,11 +461,11 @@ export default function OpportunitiesTable({
           </div>
         </div>
         
-        <div className="rounded-md border border-gray-300">
+        <div className="gba:rounded-md gba:border gba:border-gray-300">
           <Table>
-            <TableHeader className="border-b border-gray-300">
+            <TableHeader className="gba:border-b gba:border-gray-300">
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="border-b border-gray-300">
+                <TableRow key={headerGroup.id} className="gba:border-b gba:border-gray-300">
                   {headerGroup.headers.map((header) => {
                     return (
                       <TableHead key={header.id}>
@@ -436,15 +479,15 @@ export default function OpportunitiesTable({
             <TableBody>
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="border-b border-gray-300">
+                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="gba:border-b gba:border-gray-300">
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : (
-                <TableRow className="border-b border-gray-300">
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableRow className="gba:border-b gba:border-gray-300">
+                  <TableCell colSpan={columns.length} className="gba:h-24 gba:text-center">
                     No opportunities found.
                   </TableCell>
                 </TableRow>
@@ -452,18 +495,18 @@ export default function OpportunitiesTable({
             </TableBody>
           </Table>
         </div>
-        <div className="flex items-center justify-end space-x-2 py-4">
-          <div className="flex-1 text-sm text-muted-foreground">
+        <div className="gba:flex gba:items-center gba:justify-end gba:space-x-2 gba:py-4">
+          <div className="gba:flex-1 gba:text-sm gba:text-muted-foreground">
             {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s)
             selected.
           </div>
-          <div className="space-x-2">
+          <div className="gba:space-x-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
-              className="border-gray-300"
+              className="gba:border-gray-300"
             >
               Previous
             </Button>
@@ -472,7 +515,7 @@ export default function OpportunitiesTable({
               size="sm" 
               onClick={() => table.nextPage()} 
               disabled={!table.getCanNextPage()}
-              className="border-gray-300"
+              className="gba:border-gray-300"
             >
               Next
             </Button>

@@ -225,23 +225,23 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
   }, [employee.employeePosition]);
 
   return (
-    <div className="summary-tab">
+    <div className="gba:summary-tab">
       {/* Main grid layout for content blocks */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
         {/* Organization Chart Section */}
-        <div className="lg:col-span-1 xl:col-span-1">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center">
-            <span className="w-1 h-6 bg-blue-500 rounded mr-3"></span>
+        <div className="gba:lg:col-span-1 gba:xl:col-span-1">
+          <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
+            <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
             {t('employee_profile.summary_layout.organization_chart')}
           </h3>
-          <Card className="p-4 overflow-hidden">
-            <div className="flex flex-col items-center space-y-6" style={{ height: '580px', maxHeight: '580px', overflowY: 'auto', overflowX: 'hidden' }}>
+          <Card className="gba:p-4 gba:overflow-hidden">
+            <div className="gba:flex gba:flex-col gba:items-center gba:space-y-6" style={{ height: '580px', maxHeight: '580px', overflowY: 'auto', overflowX: 'hidden' }}>
             {/* Supervisor */}
             {employee.employeePosition?.supervisor && employee.employeePosition.supervisor.id !== employee.id && (
-              <div className="flex flex-col items-center">
+              <div className="gba:flex gba:flex-col gba:items-center">
                 <a 
                   href={`/platform/employee-profile/${employee.employeePosition.supervisor.id}`}
-                  className="cursor-pointer transition-transform hover:scale-105 flex flex-col items-center"
+                  className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
                   title={`View ${employee.employeePosition.supervisor.firstName} ${employee.employeePosition.supervisor.lastName}'s profile`}
                 >
                   <Avatar
@@ -251,21 +251,21 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                     employeeId={employee.employeePosition.supervisor.id}
                     size={64}
                   />
-                  <div className="mt-2 text-center">
-                    <div className="font-medium text-sm text-blue-600 hover:underline">
+                  <div className="gba:mt-2 gba:text-center">
+                    <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
                       {employee.employeePosition.supervisor.firstName} {employee.employeePosition.supervisor.lastName}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="gba:text-xs gba:text-gray-500">
                       {employee.employeePosition?.supervisor?.employeePosition?.jobPosition?.name ?? ''}
                     </div>
                   </div>
                 </a>
-                <div className="w-px h-6 bg-gray-200 mx-auto"></div>
+                <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto"></div>
               </div>
             )}
             {/* Current Employee */}
-            <div className="flex flex-col items-center">
-              <div className="ring-2 ring-blue-400 rounded-full p-1">
+            <div className="gba:flex gba:flex-col gba:items-center">
+              <div className="gba:ring-2 gba:ring-blue-400 gba:rounded-full gba:p-1">
                 <Avatar
                   profilePicture={employee.pictureThumbnail}
                   firstName={employee.firstName}
@@ -274,24 +274,24 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                   size={64}
                 />
               </div>
-              <div className="mt-2 text-center">
-                <div className="font-medium text-sm">
+              <div className="gba:mt-2 gba:text-center">
+                <div className="gba:font-medium gba:text-sm">
                   {employee.firstName} {employee.lastName}
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="gba:text-xs gba:text-gray-500">
                   {employee.employeePosition?.jobPosition?.name || ''}
                 </div>
               </div>
-              {subordinates.length > 0 && <div className="w-px h-6 bg-gray-200 mx-auto"></div>}
+              {subordinates.length > 0 && <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto"></div>}
             </div>
             {/* Subordinates */}
             {subordinates.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 w-full mx-auto" style={{ maxWidth: '100%' }}>
+              <div className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-2 gba:w-full gba:mx-auto" style={{ maxWidth: '100%' }}>
                 {subordinates.map((member) => (
-                  <div key={member.id} className="flex justify-center mb-2">
+                  <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
                     <a 
                       href={`/platform/employee-profile/${member.id}`}
-                      className="cursor-pointer transition-transform hover:scale-105 flex flex-col items-center"
+                      className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
                       title={`View ${member.firstName} ${member.lastName}'s profile`}
                     >
                       <Avatar
@@ -301,11 +301,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                         employeeId={member.id}
                         size={56}
                       />
-                      <div className="mt-2 text-center w-full">
-                        <div className="font-medium text-sm text-blue-600 hover:underline">
+                      <div className="gba:mt-2 gba:text-center gba:w-full">
+                        <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
                           {member.firstName} {member.lastName}
                         </div>
-                        <div className="text-xs text-gray-500 truncate w-full text-center px-1">
+                        <div className="gba:text-xs gba:text-gray-500 gba:truncate gba:w-full gba:text-center gba:px-1">
                           {member.position}
                         </div>
                       </div>
@@ -320,61 +320,61 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
 
         
         {/* Job Information Section */}
-        <div className="lg:col-span-1 xl:col-span-1">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center">
-            <span className="w-1 h-6 bg-blue-500 rounded mr-3"></span>
+        <div className="gba:lg:col-span-1 gba:xl:col-span-1">
+          <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
+            <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
             {t('employee_profile.summary_layout.job_information_title', 'Job Information')}
           </h3>
-          <Card className="p-4">
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <PiBriefcase className="h-5 w-5 text-gray-400 mr-3" />
+          <Card className="gba:p-4">
+            <div className="gba:space-y-4">
+              <div className="gba:flex gba:items-center">
+                <PiBriefcase className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
-                  <div className="text-sm font-medium text-gray-900">Job Profile</div>
-                  <div className="text-sm text-gray-600">{employee.employeePosition?.jobPosition?.name ?? mockJobData.jobProfile.title}</div>
+                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Profile</div>
+                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.jobPosition?.name ?? mockJobData.jobProfile.title}</div>
                 </div>
               </div>
               
-              <div className="flex items-center">
-                <PiStack className="h-5 w-5 text-gray-400 mr-3" />
+              <div className="gba:flex gba:items-center">
+                <PiStack className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
-                  <div className="text-sm font-medium text-gray-900">Job Family</div>
-                  <div className="text-sm text-gray-600">{mockJobData.jobFamily.name}</div>
+                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Family</div>
+                  <div className="gba:text-sm gba:text-gray-600">{mockJobData.jobFamily.name}</div>
                 </div>
               </div>
               
-              <div className="flex items-center">
-                <PiFunction className="h-5 w-5 text-gray-400 mr-3" />
+              <div className="gba:flex gba:items-center">
+                <PiFunction className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
-                  <div className="text-sm font-medium text-gray-900">Job Function</div>
-                  <div className="text-sm text-gray-600">{mockJobData.jobFunction.name}</div>
+                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Function</div>
+                  <div className="gba:text-sm gba:text-gray-600">{mockJobData.jobFunction.name}</div>
                 </div>
               </div>
               
-              <div className="flex items-center">
-                <PiListNumbers className="h-5 w-5 text-gray-400 mr-3" />
+              <div className="gba:flex gba:items-center">
+                <PiListNumbers className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
-                  <div className="text-sm font-medium text-gray-900">Job Level</div>
-                  <div className="flex items-center">
-                    <span className="text-sm text-gray-600 mr-2">{mockJobData.jobLevel.name}</span>
-                    <Badge className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">{mockJobData.jobLevel.name}</Badge>
+                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Level</div>
+                  <div className="gba:flex gba:items-center">
+                    <span className="gba:text-sm gba:text-gray-600 gba:mr-2">{mockJobData.jobLevel.name}</span>
+                    <Badge className="gba:bg-blue-100 gba:text-blue-800 gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full">{mockJobData.jobLevel.name}</Badge>
                   </div>
                 </div>
               </div>
               
-              <div className="flex items-center">
-                <PiBuildings className="h-5 w-5 text-gray-400 mr-3" />
+              <div className="gba:flex gba:items-center">
+                <PiBuildings className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
-                  <div className="text-sm font-medium text-gray-900">Department</div>
-                  <div className="text-sm text-gray-600">{employee.employeePosition?.organizationalUnit?.name ?? 'Engineering'}</div>
+                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Department</div>
+                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.organizationalUnit?.name ?? 'Engineering'}</div>
                 </div>
               </div>
               
-              <div className="flex items-center">
-                <PiCurrencyDollar className="h-5 w-5 text-gray-400 mr-3" />
+              <div className="gba:flex gba:items-center">
+                <PiCurrencyDollar className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
-                  <div className="text-sm font-medium text-gray-900">Cost Center</div>
-                  <div className="text-sm text-gray-600">{employee.employeePosition?.costCenter?.name ?? 'CC-1001 Engineering'}</div>
+                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Cost Center</div>
+                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.costCenter?.name ?? 'CC-1001 Engineering'}</div>
                 </div>
               </div>
             </div>
@@ -382,29 +382,29 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
         </div>
         
         {/* Availability & Schedule Section */}
-        <div className="lg:col-span-1 xl:col-span-1">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center">
-            <span className="w-1 h-6 bg-blue-500 rounded mr-3"></span>
+        <div className="gba:lg:col-span-1 gba:xl:col-span-1">
+          <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
+            <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
             {t('employee_profile.summary_layout.availability_schedule_title', 'Availability & Schedule')}
           </h3>
-          <Card className="p-4">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium">Current Status</div>
-                <Badge className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full flex items-center">
-                  <PiClock className="h-3 w-3 mr-1" />
+          <Card className="gba:p-4">
+            <div className="gba:space-y-4">
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <div className="gba:text-sm gba:font-medium">Current Status</div>
+                <Badge className="gba:bg-green-100 gba:text-green-800 gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full gba:flex gba:items-center">
+                  <PiClock className="gba:h-3 gba:w-3 gba:mr-1" />
                   {mockAvailabilityData.status === 'available' ? 'Available' : 'Busy'}
                 </Badge>
               </div>
               
               <div>
-                <h4 className="text-sm font-medium text-gray-600 mb-2">Working Hours</h4>
-                <div className="space-y-2">
+                <h4 className="gba:text-sm gba:font-medium gba:text-gray-600 gba:mb-2">Working Hours</h4>
+                <div className="gba:space-y-2">
                   {Object.entries(mockAvailabilityData.schedule).map(([day, hours]) => (
                     hours.start && (
-                      <div key={day} className="flex justify-between text-sm">
-                        <span className="capitalize">{day}</span>
-                        <span className="text-gray-600">
+                      <div key={day} className="gba:flex gba:justify-between gba:text-sm">
+                        <span className="gba:capitalize">{day}</span>
+                        <span className="gba:text-gray-600">
                           {hours.start} - {hours.end}
                         </span>
                       </div>
@@ -413,19 +413,19 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                 </div>
               </div>
               
-              <div className="flex items-center">
-                <PiClock className="h-5 w-5 text-gray-400 mr-3" />
+              <div className="gba:flex gba:items-center">
+                <PiClock className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
-                  <div className="text-sm font-medium text-gray-900">Timezone</div>
-                  <div className="text-sm text-gray-600">{mockAvailabilityData.timezone}</div>
+                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Timezone</div>
+                  <div className="gba:text-sm gba:text-gray-600">{mockAvailabilityData.timezone}</div>
                 </div>
               </div>
               
-              <div className="flex items-center">
-                <PiCalendarCheck className="h-5 w-5 text-gray-400 mr-3" />
+              <div className="gba:flex gba:items-center">
+                <PiCalendarCheck className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                 <div>
-                  <div className="text-sm font-medium text-gray-900">Weekly Hours</div>
-                  <div className="text-sm text-gray-600">{mockAvailabilityData.workingHours} hours/week</div>
+                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Weekly Hours</div>
+                  <div className="gba:text-sm gba:text-gray-600">{mockAvailabilityData.workingHours} hours/week</div>
                 </div>
               </div>
             </div>
@@ -434,7 +434,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
         
         {/* Additional Attributes Section */}
         {additionalAttributes.length > 0 && (
-          <div className="lg:col-span-1 xl:col-span-1">
+          <div className="gba:lg:col-span-1 gba:xl:col-span-1">
             <ProfileSection 
               title={t('employee_profile.additional_container.additional_title')}
               data={additionalAttributes.map(attr => ({
@@ -448,36 +448,36 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
       </div>
       {/* Feedback Section - Full width */}
       {formattedFeedback.length > 0 && (
-        <div className="mb-8 mt-6">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center">
-            <span className="w-1 h-6 bg-blue-500 rounded mr-3"></span>
+        <div className="gba:mb-8 gba:mt-6">
+          <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
+            <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
             {t('employee_profile.summary_layout.skills_section.feedback_generic_module_title')}
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
             {formattedFeedback.map((feedback) => {
               // TypeScript safety - this should never happen due to our filter(Boolean) above
               if (!feedback) return null;
               
               return (
-                <Card key={feedback.id || `feedback-${feedback.sender}`} className="p-6 hover:shadow-md transition-shadow">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0 mr-5">
-                      <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 border border-gray-100 shadow-sm">
+                <Card key={feedback.id || `feedback-${feedback.sender}`} className="gba:p-6 gba:hover:shadow-md gba:transition-shadow">
+                  <div className="gba:flex gba:items-start">
+                    <div className="gba:shrink-0 gba:mr-5">
+                      <div className="gba:w-12 gba:h-12 gba:rounded-full gba:overflow-hidden gba:bg-gray-200 gba:border gba:border-gray-100 gba:shadow-sm">
                         {feedback.avatar && (
                           <img 
                             src={feedback.avatar} 
                             alt={feedback.sender}
-                            className="w-full h-full object-cover"
+                            className="gba:w-full gba:h-full gba:object-cover"
                           />
                         )}
                       </div>
                     </div>
-                    <div className="flex-grow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-semibold text-gray-800">{feedback.sender}</h4>
-                        <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{feedback.date}</span>
+                    <div className="gba:grow">
+                      <div className="gba:flex gba:justify-between gba:items-start gba:mb-2">
+                        <h4 className="gba:font-semibold gba:text-gray-800">{feedback.sender}</h4>
+                        <span className="gba:text-sm gba:text-gray-500 gba:bg-gray-100 gba:px-2 gba:py-1 gba:rounded-full">{feedback.date}</span>
                       </div>
-                      <p className="text-gray-700 leading-relaxed">{feedback.content}</p>
+                      <p className="gba:text-gray-700 gba:leading-relaxed">{feedback.content}</p>
                     </div>
                   </div>
                 </Card>
@@ -488,7 +488,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
       )}
 
       {formattedFeedback.length === 0 && (
-        <div className="mt-6 text-center text-gray-500">
+        <div className="gba:mt-6 gba:text-center gba:text-gray-500">
           {t('employee_profile.summary_layout.skills_section.feedback_generic_module_no_data')}
         </div>
       )}

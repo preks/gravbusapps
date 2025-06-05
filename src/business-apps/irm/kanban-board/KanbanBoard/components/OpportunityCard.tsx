@@ -57,58 +57,58 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
       {...attributes}
       {...listeners}
       style={style}
-      className={`bg-white dark:bg-gray-800 rounded-md shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col ${
+      className={`gba:bg-white gba:dark:bg-gray-800 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-700 gba:flex gba:flex-col ${
         isDragging ? 'opacity-50' : ''
       }`}
     >
-      <div className="p-3 space-y-2">
+      <div className="gba:p-3 gba:space-y-2">
         <div>
-          <h4 className="font-medium text-sm line-clamp-2">
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center">
+          <h4 className="gba:font-medium gba:text-sm gba:line-clamp-2">
+            <span className="gba:text-sm gba:font-medium gba:text-gray-900 gba:dark:text-gray-100 gba:flex gba:items-center">
               {isRotting && (
-                <ClockCircleOutlined className="mr-1 text-red-500" title={`This opportunity has been in this stage for ${daysInStage} days (threshold: ${rottingDays} days)`} />
+                <ClockCircleOutlined className="gba:mr-1 gba:text-red-500" title={`This opportunity has been in this stage for ${daysInStage} days (threshold: ${rottingDays} days)`} />
               )}
               {opportunity.title}
             </span>
           </h4>
           {opportunity.description && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">{opportunity.description}</p>
+            <p className="gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:line-clamp-2 gba:mt-1">{opportunity.description}</p>
           )}
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <span className="gba:text-sm gba:font-medium gba:text-gray-900 gba:dark:text-gray-100">
             {formatCurrency(opportunity.value)}
           </span>
-          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
             <CalendarOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
             {formattedDate}
           </div>
         </div>
       </div>
-      <div className="p-3 pt-0 flex flex-wrap gap-2 border-t border-gray-100 dark:border-gray-800">
+      <div className="gba:p-3 gba:pt-0 gba:flex gba:flex-wrap gba:gap-2 gba:border-t gba:border-gray-100 gba:dark:border-gray-800">
         {opportunity.company && (
-          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
             <HomeOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
             {opportunity.company}
           </div>
         )}
         {opportunity.contact && (
-          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
             <UserOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
             {opportunity.contact}
           </div>
         )}
         {opportunity.stageEnteredAt && (
-          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400" title="Days in current stage / Rotting threshold">
+          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400" title="Days in current stage / Rotting threshold">
             <ClockCircleOutlined style={{ fontSize: '12px', marginRight: '4px', color: isRotting ? '#f5222d' : undefined }} />
             {daysInStage} / {rottingDays} days
           </div>
         )}
       </div>
       {opportunity.tags && opportunity.tags.length > 0 && (
-        <div className="p-3 pt-0 flex flex-wrap gap-1 border-t border-gray-100 dark:border-gray-800">
+        <div className="gba:p-3 gba:pt-0 gba:flex gba:flex-wrap gba:gap-1 gba:border-t gba:border-gray-100 gba:dark:border-gray-800">
           {opportunity.tags.map((tag) => (
-            <span key={tag} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+            <span key={tag} className="gba:inline-flex gba:items-center gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium gba:bg-gray-100 gba:text-gray-800 gba:dark:bg-gray-700 gba:dark:text-gray-300">
               <TagOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
               {tag}
             </span>

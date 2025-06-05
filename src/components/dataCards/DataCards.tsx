@@ -132,7 +132,7 @@ export function DataCards<T>({
       className={`w-full h-full overflow-y-auto ${className}`.trim()}
     >
       <div 
-        className="p-4 grid justify-center" 
+        className="gba:p-4 gba:grid gba:justify-center" 
         style={{ 
           gridTemplateColumns: `repeat(auto-fill, minmax(${columnMinWidth}px, 1fr))`,
           gridAutoRows: 'min-content',
@@ -140,12 +140,12 @@ export function DataCards<T>({
         }}
       >
         {items.length === 0 && !loading ? (
-          <div className="col-span-full text-center text-gray-400 py-12">
+          <div className="gba:col-span-full gba:text-center gba:text-gray-400 gba:py-12">
             {emptyMessage}
           </div>
         ) : (
           items.map(item => (
-            <div key={getKey(item)} className="flex-shrink-0 transition-transform duration-200 ease-in-out hover:-translate-y-0.5 mb-3">
+            <div key={getKey(item)} className="gba:shrink-0 gba:transition-transform gba:duration-200 gba:ease-in-out hover:-translate-y-0.5 gba:mb-3">
               {renderItem(item)}
             </div>
           ))
@@ -154,21 +154,21 @@ export function DataCards<T>({
       
       <div 
         ref={loaderRef} 
-        className="flex justify-center items-center py-6 min-h-[32px]"
+        className="gba:flex gba:justify-center gba:items-center gba:py-6 gba:min-h-[32px]"
       >
         {loading && (
-          <div className="flex justify-center items-center">
-            <div className="w-6 h-6 border-3 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+          <div className="gba:flex gba:justify-center gba:items-center">
+            <div className="gba:w-6 gba:h-6 gba:border-3 gba:border-gray-200 gba:border-t-blue-500 gba:rounded-full gba:animate-spin"></div>
           </div>
         )}
       </div>
       
       {error && (
-        <div className="text-red-500 mt-4 flex flex-col items-center text-center">
+        <div className="gba:text-red-500 gba:mt-4 gba:flex gba:flex-col gba:items-center gba:text-center">
           <span>{error}</span>
           {onRetry && (
             <button 
-              className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200" 
+              className="gba:mt-2 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded gba:hover:bg-blue-600 gba:transition-colors gba:duration-200" 
               onClick={onRetry}
             >
               Retry
