@@ -17,8 +17,8 @@ import {
 } from "./common/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./common/ui/tabs"
 import { ChevronDown, ChevronUp, Edit, Plus, Trash } from "lucide-react"
-import { opportunityTypes } from "../../../../common/lib/opportunity-stages"
-import type { OpportunityType, OpportunityStage } from "../../../../common/lib/opportunity-stages"
+import { opportunityTypes } from "./lib/opportunity-stages"
+import type { OpportunityType, OpportunityStage } from "./lib/opportunity-stages"
 
 const getStageBgColorClass = (color: string) => {
   switch (color) {
@@ -257,7 +257,6 @@ export default function OpportunityTypeConfig() {
         </TabsContent>
       </Tabs>
 
-      {/* Type Edit Dialog */}
       <Dialog open={isTypeDialogOpen} onOpenChange={setIsTypeDialogOpen}>
         <DialogContent className="gba:sm:max-w-md">
           <DialogHeader>

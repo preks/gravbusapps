@@ -11,8 +11,8 @@ import {
   DialogTitle,
 } from "./common/ui/dialog"
 import { CheckCircle2, AlertCircle, FileText, Calendar, CheckSquare } from "lucide-react"
-import { checkAllRequirementsMet, getStageColorClass, type StageRequirement } from "../../../../common/lib/stage-requirements"
-import type { DetailedOpportunity, Stage } from "../../../../common/lib/db-actions"
+import { checkAllRequirementsMet, getStageColorClass, type StageRequirement } from "./lib/stage-requirements"
+import type { DetailedOpportunity, Stage } from "./lib/db-actions"
 
 interface StageProgressionBarProps {
   opportunity?: DetailedOpportunity
@@ -454,15 +454,15 @@ export default function StageProgressionBar({
               >
                 <button
                   type="button"
-                  className={`flex h-8 items-center rounded-md border px-3 text-xs font-medium transition-colors ${
+                  className={`gba:flex gba:h-8 gba:items-center gba:rounded-md gba:border gba:px-3 gba:text-xs gba:font-medium gba:transition-colors ${
                     isCurrentStage
-                      ? `${getStageColorClass(stage.color || "gray")} border-2`
+                      ? `${getStageColorClass(stage.color || "gray")} gba:border-2`
                       : isPastStage
-                        ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                        ? "gba:bg-muted gba:text-muted-foreground gba:hover:bg-muted/80"
                         : isClickable
-                          ? "border-dashed border-muted-foreground bg-background text-muted-foreground hover:bg-muted/50"
-                          : "border-dashed border-muted-foreground bg-background text-muted-foreground opacity-50"
-                  } ${isClickable ? "cursor-pointer" : "cursor-not-allowed"}`}
+                          ? "gba:border-dashed gba:border-muted-foreground gba:bg-background gba:text-muted-foreground gba:hover:bg-muted/50"
+                          : "gba:border-dashed gba:border-muted-foreground gba:bg-background gba:text-muted-foreground gba:opacity-50"
+                  } ${isClickable ? "gba:cursor-pointer" : "gba:cursor-not-allowed"}`}
                   onClick={() => isClickable && handleStageClick(stage)}
                   disabled={!isClickable}
                 >

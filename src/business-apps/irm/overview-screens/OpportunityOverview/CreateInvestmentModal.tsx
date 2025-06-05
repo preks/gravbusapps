@@ -63,7 +63,6 @@ export default function CreateInvestmentModal({
         throw new Error("Failed to create investment")
       }
 
-      // Use safe navigation
       try {
         if (typeof navigate === 'function') {
           navigate(0)
@@ -73,7 +72,6 @@ export default function CreateInvestmentModal({
           window.location.reload()
         }
       } catch (error) {
-        // If navigation fails, just reload the page
         window.location.reload()
       }
       
