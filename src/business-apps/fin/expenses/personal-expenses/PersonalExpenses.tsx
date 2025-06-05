@@ -95,7 +95,7 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
       key: 'calendar',
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CalendarOutlined style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <CalendarOutlined style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle', marginRight: '-4px' }} />
           <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Calendar</span>
         </div>
       ),
