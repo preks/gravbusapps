@@ -282,6 +282,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
           title: selectedItem.title,
           icon: <FileTextOutlined />,
           content: renderExpensePlanDetails,
+          onClose: handleCloseDetails,
           footer: null // Remove footer close button as it's now in the details component
         } : undefined}
       />

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Typography, Spin, Descriptions, Divider, Card, Image, Upload, Alert } from 'antd';
-import { FileImageOutlined, DownloadOutlined, LoadingOutlined, EditOutlined } from '@ant-design/icons';
+import { FileImageOutlined, LoadingOutlined } from '@ant-design/icons';
 import { FileClient } from '@/common/network/files/FileClient';
 import Pill from '@/components/pill/Pill';
 import { ExpenseItem, useGetExpenseItem } from '../../hooks/useGetExpenseItems';
@@ -14,6 +14,14 @@ export interface ExpenseItemDetailsProps extends BusinessAppContextProps {
   selectedItem: ExpenseItem | null;
   onClose: () => void;
 }
+
+// Custom styles for centering the upload component
+const uploadCenterStyle = {
+  display: 'flex',
+  justifyContent: 'center',
+  marginBottom: '1.5rem',
+  width: '100%'
+};
 
 export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
   selectedItem,
@@ -176,6 +184,8 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
     setPreviewOpen(true);
   }, []);
   
+  // We're not using any DOM manipulation anymore, just proper CSS
+  
   // Render attachment preview section
   const renderAttachmentPreview = useCallback(() => {
     console.log('renderAttachmentPreview called - fileLoading:', fileLoading, 'fileList.length:', fileList.length);
@@ -190,16 +200,41 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
     }
     
     if (fileList.length > 0) {
+      // Calculate a fixed width based on the number of files
+      // Each card is 104px wide, plus potential margin of 8px between them
+      const cardWidth = 104;
+      const cardMargin = 8;
+      
+      // Calculate the total width needed for all cards in a single row
+      // This helps ensure proper centering for any number of files
+      const calculateWidth = () => {
+        if (fileList.length === 0) return 0;
+        if (fileList.length === 1) return cardWidth;
+        return fileList.length * cardWidth + (fileList.length - 1) * cardMargin;
+      };
+      
       return (
         <>
-          <Upload
-            className="gba:inline-block" // Make Upload component inline-block
-            listType="picture-card"
-            fileList={fileList}
-            onPreview={handlePreview}
-            onChange={() => {}} // Required prop but we don't need to handle changes
-            showUploadList={{ showRemoveIcon: false }}
-          />
+          {/* Fixed-width container that's centered with flex */}
+          <div style={{
+            ...uploadCenterStyle,
+            alignItems: 'center'
+          }}>
+            {/* This div has an exact width based on the number of items */}
+            <div style={{ 
+              width: `${calculateWidth()}px`,
+              // The key is setting this inner container to have an exact width
+              // that fits the number of cards we have - then flex-center works properly
+            }}>
+              <Upload
+                listType="picture-card"
+                fileList={fileList}
+                onPreview={handlePreview}
+                onChange={() => {}}
+                showUploadList={{ showRemoveIcon: false }}
+              />
+            </div>
+          </div>
           <Image
             wrapperStyle={{ display: 'none' }}
             preview={{
@@ -243,12 +278,11 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
   
   // Use the detailed item if available, otherwise fall back to the selectedItem
   const displayItem = detailedItem || selectedItem;
-  
   if (!displayItem) return null;
-  
+
   return (
     <div className="gba:p-4">
-      <div className="gba:mb-6 gba:text-center">
+      <div className="gba:mb-0">
         {renderAttachmentPreview()}
       </div>
       

@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import { Table, Button, Typography, Space, Spin, Alert } from 'antd';
-import { FileTextOutlined, FileImageOutlined, CloseOutlined } from '@ant-design/icons';
+import { FileTextOutlined, FileImageOutlined } from '@ant-design/icons';
 import { PiLightning } from 'react-icons/pi';
-import { useGetExpenseItems } from '../../hooks/useGetExpenseItems';
+import { useGetExpenseItems, ExpenseFilter } from '../../hooks/useGetExpenseItems';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getExpenseItemStatusDisplay } from '../../utils';
+import { GET_EXPENSE_ITEMS_BY_EMPLOYEE } from '../../queries/expenseItems';
+import { getExpenseItemStatusDisplay, ExpenseStatus } from '../../utils';
 import ExpenseItemDetails from './ExpenseItemDetails';
 import ExpenseItemStatistics from './ExpenseItemStatistics';
+import { useExpenseFilters } from '../../hooks/useExpenseFilters';
 
 const { Text } = Typography;
 
@@ -23,8 +25,24 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
+  // Use our simplified expense filters hook
+  const {
+    search,
+    setSearch,
+    selectedFilters,
+    filterGroups,
+    filterLabelMap,
+    addFilter,
+    removeFilter,
+    getFilters
+  } = useExpenseFilters();
+  
+  // Get expense items with the filters
+  // Use a single hook call for both filtered items and statistics
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps);
-  const [searchText, setSearchText] = useState<string>('');
+  
+  // State for storing all items for statistics
+  const [allItems, setAllItems] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [selectedItem, setSelectedItem] = useState<any>(null);
@@ -40,17 +58,107 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     };
   }, []);
   
-  // Create a memoized setSearch function to prevent re-renders
+  // Create a memoized search change handler
   const handleSearchChange = useCallback((value: string) => {
-    setSearchText(value);
+    setSearch(value);
     setCurrentPage(1); // Reset to first page on new search
-    fetchItems(value, 1, pageSize);
-  }, [fetchItems, pageSize]);
+    // Apply filters when search changes
+    const filters = getFilters();
+    fetchItems(value, 1, pageSize, filters);
+  }, [fetchItems, pageSize, getFilters]);
   
-  // Create a memoized setFilter function to prevent re-renders
-  const handleFilterChange = useCallback(() => {
-    // This is empty as we're handling filters separately
-  }, []);
+  // Define constants for filter options to avoid TypeScript errors
+  const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
+  const EXPENSE_TYPE_OPTIONS = ['expense', 'trip'];
+
+  // Handle filter changes
+  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
+    // Initialize with the current selected filters
+    let newSelectedFilters: string[] = [...selectedFilters];
+    
+    // Apply the filter change based on selection
+    if (selected) {
+      // Special handling for radio filter types (time period)
+      if (TIME_PERIOD_OPTIONS.includes(filterId)) {
+        // Remove any existing time period filter
+        newSelectedFilters = [...newSelectedFilters.filter(f => !TIME_PERIOD_OPTIONS.includes(f)), filterId];
+      } else if (!newSelectedFilters.includes(filterId)) {
+        // For multi-select filters, just add if not already selected
+        newSelectedFilters.push(filterId);
+      }
+      
+      // Also call the original function to keep state consistent
+      addFilter(filterId);
+    } else {
+      // Remove the filter
+      newSelectedFilters = newSelectedFilters.filter(f => f !== filterId);
+      
+      // Also call the original function to keep state consistent
+      removeFilter(filterId);
+    }
+    
+    setCurrentPage(1); // Reset to first page when filters change
+    
+    // Apply filter immediately without waiting for state update
+    const filter: ExpenseFilter = {};
+    
+    // Extract filters by types using our immediate newSelectedFilters
+    const timePeriod = newSelectedFilters.find(f => TIME_PERIOD_OPTIONS.includes(f)) || null;
+    
+    // Get status filters and convert back to uppercase (as they're stored in ExpenseStatus enum)
+    const statusFilters = newSelectedFilters.filter(f => 
+      Object.values(ExpenseStatus).map(s => s.toLowerCase()).includes(f));
+    
+    // Map the lowercase status filters back to their uppercase enum values
+    const statuses = statusFilters.map(f => f.toUpperCase());
+    
+    const expenseTypes = newSelectedFilters.filter(f => EXPENSE_TYPE_OPTIONS.includes(f));
+    
+    // Process status filters
+    if (statuses.length > 0) {
+      // Use all selected statuses, not just the first one
+      filter.status = statuses;
+      console.log('Applying multiple status filters:', statuses);
+    }
+    
+    // Process time period filters
+    if (timePeriod) {
+      const today = new Date();
+      const endDate = new Date(today).toISOString().split('T')[0]; 
+      
+      // Calculate start date based on selected time period
+      let startDate = new Date(today);
+      if (timePeriod === 'last30days') {
+        startDate.setDate(today.getDate() - 30);
+      } else if (timePeriod === 'last90days') {
+        startDate.setDate(today.getDate() - 90);
+      } else if (timePeriod === 'last180days') {
+        startDate.setDate(today.getDate() - 180);
+      }
+      
+      filter.expenseDateStart = startDate.toISOString().split('T')[0];
+      filter.expenseDateEnd = endDate;
+    }
+    
+    // Process expense type filters
+    if (expenseTypes.length > 0) {
+      // For now, use only the first selected expense type since expenseClass doesn't support multiple values
+      const selectedType = expenseTypes[0];
+      
+      // Map UI expense types to the expected API values
+      if (selectedType === 'expense') {
+        filter.expenseClass = { value: 'Expense' };
+      } else if (selectedType === 'trip') {
+        filter.expenseClass = { value: 'Trip' };
+      }
+    }
+    
+    console.log('Applying immediate filter:', filter, 'from selected filters:', newSelectedFilters);
+    
+    // Apply the updated filters immediately
+    fetchItems(search, 1, pageSize, filter);
+  }, [addFilter, removeFilter, search, pageSize, fetchItems]);
+  
   
   // Handle adding a new expense item
   const handleAddExpenseItem = useCallback(() => {
@@ -61,31 +169,131 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   // Statistics are now handled by the ExpenseItemStatistics component
 
   // Memoize the content header to prevent unnecessary re-renders
+  // Use allItems for statistics instead of filtered items
   const contentHeader = useMemo(() => {
-    return <ExpenseItemStatistics items={items || []} />;
-  }, [items]);
+    return allItems && allItems.length > 0 ? <ExpenseItemStatistics items={allItems} /> : null;
+  }, [allItems]);
 
-  // Update the content header only when it changes
+  // Update the content header only when it changes and when allItems is loaded
   const onContentHeaderChange = props.onContentHeaderChange;
   useEffect(() => {
-    if (onContentHeaderChange) {
-      onContentHeaderChange(contentHeader);
+    // Only update content header when we have items and the callback exists
+    if (onContentHeaderChange && allItems && allItems.length > 0) {
+      // Use a small timeout to ensure proper React rendering cycle
+      const timerId = setTimeout(() => {
+        onContentHeaderChange(contentHeader);
+      }, 0);
+      return () => clearTimeout(timerId);
     }
-  }, [onContentHeaderChange, contentHeader]);
+  }, [onContentHeaderChange, contentHeader, allItems]);
 
 
-  // Handle page change
+
+
+  // Load initial data with filters for the table
+  useEffect(() => {
+    const filters = getFilters();
+    fetchItems(search, currentPage, pageSize, filters);
+  }, []);
+  
+  // Track if we've loaded the all items data for statistics
+  const [hasLoadedAllItems, setHasLoadedAllItems] = useState(false);
+  
+  // One-time effect to fetch all items for statistics without filters
+  useEffect(() => {
+    // Only fetch all items once
+    if (!hasLoadedAllItems) {
+      const fetchAllItemsForStats = async () => {
+        try {
+          console.log('Fetching all expense items for statistics...');
+          // Use GraphQL directly for all-items query to avoid state conflicts
+          const employeeId = contextProps?.userInfo?.employeeDetails?.employeeId;
+          const accessToken = contextProps?.accessToken;
+          
+          if (!employeeId || !accessToken) {
+            console.error('Missing employee ID or access token');
+            return;
+          }
+          
+          const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              query: GET_EXPENSE_ITEMS_BY_EMPLOYEE,
+              variables: {
+                employeeId: employeeId,
+                searchTerm: '%',
+                limit: 1000,
+                offset: 0,
+                status: Object.values(ExpenseStatus), // Include all statuses for statistics
+                expenseDateStart: null,
+                expenseDateEnd: null,
+                totalAmountMin: null,
+                totalAmountMax: null
+                // Note: expenseClass filtering is done on client-side, not in GraphQL
+              },
+            }),
+          });
+  
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+  
+          const result = await response.json();
+          
+          if (result.errors) {
+            throw new Error(result.errors.map((e: any) => e.message).join(', '));
+          }
+          
+          // Map the response data to our format
+          const responseItems = result.data?.ExpenseItem || [];
+          
+          const mappedItems = responseItems.map((item: any) => ({
+            id: item.id,
+            description: item.description,
+            date: item.date,
+            status: item.status,
+            totalAmount: item.totalAmount,
+            reimbursableAmount: item.reimbursableAmount,
+            nonReimbursableAmount: (item.totalAmount ?? 0) - (item.deductibleAmount ?? 0),
+            deductibleAmount: item.deductibleAmount,
+            currencyRef: item.currencyRef,
+            costCenter: item.costCenter,
+            expenseClass: item.expenseClass,
+            additionalProperties: item.additionalProperties,
+            expenseItemFile: item.expenseItemFile,
+            employee: item.employee,
+          }));
+          
+          setAllItems(mappedItems);
+          setHasLoadedAllItems(true);
+          console.log(`Loaded ${mappedItems.length} unfiltered items for statistics`);
+        } catch (error) {
+          console.error('Error fetching statistics data:', error);
+        }
+      };
+      
+      fetchAllItemsForStats();
+    }
+  }, [contextProps?.userInfo?.employeeDetails?.employeeId, contextProps?.accessToken, hasLoadedAllItems]);
+  
+  // Handle pagination changes
   const handlePageChange = useCallback((page: number, pageSize?: number) => {
     setCurrentPage(page);
-    fetchItems(searchText, page, pageSize ?? 10);
-  }, [fetchItems, searchText]);
+    const filters = getFilters();
+    fetchItems(search, page, pageSize || 10, filters);
+  }, [search, fetchItems, getFilters]);
   
   // Handle page size change
   const handlePageSizeChange = useCallback((_: number, size: number) => {
     setPageSize(size);
-    setCurrentPage(1); // Reset to first page when changing page size
-    fetchItems(searchText, 1, size);
-  }, [fetchItems, searchText]);
+    setCurrentPage(1);
+    const filters = getFilters();
+    fetchItems(search, 1, size, filters);
+  }, [search, fetchItems, getFilters]);
 
   // Handle item selection
   const handleSelectItem = useCallback((item: any) => {
@@ -252,30 +460,83 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     <>
       <DataContainer
         dataControllerProps={{
-          search: searchText,
-          filter: [],
+          search: search,
+          filter: selectedFilters,
           setSearch: handleSearchChange,
-          setFilter: handleFilterChange,
+          setFilter: (newFilters) => {
+            // Handle filter removal when X is clicked or filters are cleared
+            const filtersToRemove = selectedFilters.filter(f => !newFilters.includes(f));
+            filtersToRemove.forEach(filterId => removeFilter(filterId));
+            console.log('Filters removed:', filtersToRemove);
+            
+            // Always fetch new data with the remaining filters
+            setCurrentPage(1); // Reset to first page
+            
+            // Build filters based on newFilters (remaining filters)
+            const filter: ExpenseFilter = {};
+            
+            // Extract filters by types using our immediate newFilters
+            const timePeriod = newFilters.find(f => TIME_PERIOD_OPTIONS.includes(f)) || null;
+            
+            // Get status filters and convert back to uppercase
+            const statusFilters = newFilters.filter(f => 
+              Object.values(ExpenseStatus).map(s => s.toLowerCase()).includes(f));
+            const statuses = statusFilters.map(f => f.toUpperCase());
+            
+            // Process status filters
+            if (statuses.length > 0) {
+              filter.status = statuses;
+            }
+            
+            // Process time period filters
+            if (timePeriod) {
+              const today = new Date();
+              const endDate = new Date(today).toISOString().split('T')[0];
+              
+              // Calculate start date based on selected time period
+              let startDate = new Date(today);
+              if (timePeriod === 'last30days') {
+                startDate.setDate(today.getDate() - 30);
+              } else if (timePeriod === 'last90days') {
+                startDate.setDate(today.getDate() - 90);
+              } else if (timePeriod === 'last180days') {
+                startDate.setDate(today.getDate() - 180);
+              }
+              
+              filter.expenseDateStart = startDate.toISOString().split('T')[0];
+              filter.expenseDateEnd = endDate;
+            }
+            
+            // Process expense type filters
+            const expenseTypes = newFilters.filter(f => EXPENSE_TYPE_OPTIONS.includes(f));
+            if (expenseTypes.length > 0) {
+              const selectedType = expenseTypes[0];
+              filter.expenseClass = { value: selectedType === 'expense' ? 'Expense' : 'Trip' };
+            }
+            
+            console.log('Fetching with remaining filters:', filter);
+            fetchItems(search, 1, pageSize, filter);
+          },
           addButton: {
             onClick: handleAddExpenseItem,
             label: 'Add',
             'data-testid': 'add-expense-item-button'
           },
-          listTitle: "My Expense Items"
+          listTitle: "My Expense Items",
+          filterLabelMap: filterLabelMap,
         }}
-        dataFilterProps={{}}
-        hideFilter={true}
+        dataFilterProps={{
+          filterGroups: filterGroups,
+          onFilterChange: handleFilterChange,
+        }}
+        hideFilter={false}
         dataBody={renderDataBody()}
         contentBackground="white"
         dataDetails={selectedItem ? {
           title: selectedItem.title,
           icon: <FileTextOutlined />,
           content: renderExpenseDetails,
-          footer: (
-            <Button type="primary" onClick={handleCloseDetails} icon={<CloseOutlined />}>
-              Close
-            </Button>
-          )
+          onClose: handleCloseDetails
         } : undefined}
       />
       {items.length > 0 && (

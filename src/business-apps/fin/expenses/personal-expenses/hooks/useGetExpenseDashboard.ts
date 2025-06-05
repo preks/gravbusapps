@@ -8,6 +8,10 @@ export interface ExpenseDashboard {
     total: number;
     count: number;
   };
+  lastMonthExpenses: {
+    total: number;
+    count: number;
+  };
   flaggedItems: number;
   upcomingTrips: number;
   recentActivity: Array<{
@@ -16,7 +20,10 @@ export interface ExpenseDashboard {
     status: string;
     updatedAt: string;
     totalAmount: number;
+    expenseType?: string;
+    expenseDate?: string;
   }>;
+  expensesByType: Record<string, number>;
 }
 
 export interface ExpenseDashboardDataView {
@@ -76,11 +83,25 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
         
         const data = result.data;
         
+        // Process expenses by type to create a summary object
+        const expenseTypes: Record<string, number> = {};
+        data?.expensesByType?.forEach((item: any) => {
+          const type = item.expenseType || 'Other';
+          if (!expenseTypes[type]) {
+            expenseTypes[type] = 0;
+          }
+          expenseTypes[type] += item.totalAmount || 0;
+        });
+        
         const expenseDashboard: ExpenseDashboard = {
           pendingPayouts: data?.pendingPayouts?.aggregate?.sum?.totalAmount ?? 0,
           currentMonthExpenses: {
             total: data?.currentMonthExpenses?.aggregate?.sum?.totalAmount ?? 0,
             count: data?.currentMonthExpenses?.aggregate?.count ?? 0,
+          },
+          lastMonthExpenses: {
+            total: data?.lastMonthExpenses?.aggregate?.sum?.totalAmount ?? 0,
+            count: data?.lastMonthExpenses?.aggregate?.count ?? 0,
           },
           flaggedItems: data?.flaggedItems?.aggregate?.count ?? 0,
           upcomingTrips: data?.upcomingTrips?.aggregate?.count ?? 0,
@@ -90,7 +111,10 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
             status: item.status ?? 'Unknown',
             updatedAt: item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : 'N/A',
             totalAmount: item.totalAmount ?? 0,
+            expenseType: item.expenseType ?? 'General',
+            expenseDate: item.expenseDate ? new Date(item.expenseDate).toLocaleDateString() : 'N/A',
           })) ?? [],
+          expensesByType: expenseTypes,
         };
         
         setStats(expenseDashboard);

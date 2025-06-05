@@ -1,9 +1,8 @@
 import React, { useEffect, useState, ReactNode } from 'react';
 import { Tabs } from '@newwork/gravity-ui-catalog';
-import { WalletOutlined } from '@ant-design/icons';
+import { WalletOutlined, CalendarOutlined } from '@ant-design/icons';
 import { PiGauge, PiReceipt, PiPath, PiHandCoins, PiMoney } from 'react-icons/pi';
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'; // Adjusted import path
-import { useLocation, useNavigate } from 'react-router-dom';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 // Import tab components (placeholders for now, will be created next)
@@ -12,29 +11,16 @@ import ExpenseItemsTab from './components/ExpenseItemsTab';
 import ExpensePlansTab from './components/ExpensePlansTab';
 import AdvancePaymentsTab from './components/AdvancePaymentsTab';
 import ExpenseRequestsTab from './components/ExpenseRequestsTab';
+import ExpenseCalendarTab from './components/ExpenseCalendarTab';
 
 export interface PersonalExpensesProps extends BusinessAppContextProps {}
 
 const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
-  const location = useLocation();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [contentHeader, setContentHeader] = useState<ReactNode | null>(null);
 
-  useEffect(() => {
-    const hash = location.hash.replace('#', '');
-    if (hash && ['dashboard', 'expense-items', 'expense-plans', 'advance-payments', 'expense-requests'].includes(hash)) {
-      setActiveTab(hash);
-    } else {
-      // Default to 'dashboard' if hash is invalid or not present
-      setActiveTab('dashboard');
-      navigate('#dashboard', { replace: true });
-    }
-  }, [location.hash, navigate]);
-
   const handleTabChange = (key: string) => {
     setActiveTab(key);
-    navigate(`#${key}`);
   };
 
   const tabItems = [
@@ -104,6 +90,17 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
         onContentHeaderChange={(header: ReactNode) => setContentHeader(header)}
       />,
       renderContentHeader: () => contentHeader,
+    },
+    {
+      key: 'calendar',
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CalendarOutlined style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Calendar</span>
+        </div>
+      ),
+      children: <ExpenseCalendarTab {...props} />,
+      renderContentHeader: () => null, // Assuming no specific header for the calendar tab for now
     },
   ];
 

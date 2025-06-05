@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_ITEMS_BY_EMPLOYEE, GET_EXPENSE_ITEM_BY_ID } from '../queries/expenseItems';
 
@@ -37,9 +37,10 @@ export interface ExpenseItem {
 }
 
 export interface ExpenseFilter {
-  status?: string;
+  status?: string | string[];
   expenseDateStart?: string;
   expenseDateEnd?: string;
+  expenseClass?: { value: string };
   totalAmountMin?: number;
   totalAmountMax?: number;
 }
@@ -73,7 +74,7 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
   /**
    * Helper function to build GraphQL variables for the query
    */
-  const buildQueryVariables = (employeeId: string, searchTerm: string, page: number, pageSize: number, filter?: ExpenseFilter) => {
+  const buildQueryVariables = useCallback((employeeId: string, searchTerm: string, page: number, pageSize: number, filter?: ExpenseFilter) => {
     const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`;
     const offset = (page - 1) * pageSize;
     
@@ -106,13 +107,16 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
       variables.totalAmountMax = filter.totalAmountMax;
     }
     
+    // We don't have a direct expenseClass filter in the GraphQL query
+    // We'll do client-side filtering for the expense class after fetching
+    
     return variables;
-  };
+  }, []);
 
   /**
    * Helper function to map API response to ExpenseItem objects
    */
-  const mapResponseToItems = (data: any): ExpenseItem[] => {
+  const mapResponseToItems = useCallback((data: any): ExpenseItem[] => {
     const fetchedItems = data?.ExpenseItem ?? [];
     return fetchedItems.map((item: any) => ({
       id: item.id,
@@ -133,10 +137,17 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
       expenseItemFile: item.expenseItemFile,
       employee: item.employee,
     }));
-  };
+  }, []);
   
-  // Function to fetch items with search, pagination, and filtering
-  const fetchItems = async (searchTerm: string = '%', page: number = 1, pageSize: number = 10, filter?: ExpenseFilter) => {
+  /**
+   * Function to fetch expense items with search, pagination, and filtering
+   */
+  const fetchItems = useCallback(async (
+    searchTerm = '%', 
+    page = 1, 
+    pageSize = 10,
+    filter?: ExpenseFilter
+  ): Promise<void> => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
     const accessToken = context?.accessToken;
 
@@ -158,7 +169,7 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
 
     setIsLoading(true);
     setError(null);
-    
+
     try {
       // Build query variables with helper function
       const variables = buildQueryVariables(employeeId, searchTerm, page, pageSize, filter);
@@ -190,7 +201,19 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
       setTotalCount(count);
       
       // Map the items using helper function
-      const mappedItems = mapResponseToItems(result.data);
+      let mappedItems = mapResponseToItems(result.data);
+      
+      // Apply client-side filtering for expenseClass
+      if (filter?.expenseClass && filter.expenseClass.value) {
+        console.log('Applying client-side filtering for expenseClass:', filter.expenseClass.value);
+        mappedItems = mappedItems.filter(item => 
+          item.expenseClass?.value === filter.expenseClass?.value
+        );
+        console.log('After filtering:', mappedItems.length, 'items remain');
+        
+        // Update total count based on filtered results
+        setTotalCount(mappedItems.length);
+      }
       
       setItems(mappedItems);
     } catch (err) {
@@ -200,12 +223,12 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, buildQueryVariables, mapResponseToItems]);
 
   // Initial fetch on component mount
   useEffect(() => {
-    fetchItems();
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]); // Only re-run when employeeId or accessToken changes
+    fetchItems(); // Initial fetch on component mount or when employee/token changes (via fetchItems dependencies)
+  }, [fetchItems]); // Only re-run when employeeId or accessToken changes
 
   return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems };
 };

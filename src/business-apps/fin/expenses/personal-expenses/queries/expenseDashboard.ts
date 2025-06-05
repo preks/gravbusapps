@@ -2,7 +2,7 @@
 export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
   query GetExpenseDashboardByEmployee($employeeId: uuid!) {
     # Pending payouts (approved but not paid expense items)
-    pendingPayouts: ExpenseItem_aggregate(
+    pendingPayouts: ExpenseItemAggregate(
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false}, 
@@ -17,7 +17,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
     }
     
     # This month's expenses
-    currentMonthExpenses: ExpenseItem_aggregate(
+    currentMonthExpenses: ExpenseItemAggregate(
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
@@ -33,7 +33,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
     }
     
     # Flagged items (items with issues or requiring attention)
-    flaggedItems: ExpenseItem_aggregate(
+    flaggedItems: ExpenseItemAggregate(
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
@@ -46,11 +46,11 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
     }
     
     # Upcoming trips (future business trips)
-    upcomingTrips: ExpensePlan_aggregate(
+    upcomingTrips: ExpensePlanAggregate(
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
-        tripType: {_neq: null},
+        type: {_neq: null}, // Changed tripType to type
         startDate: {_gt: "2025-06-02"}
       }
     ) {
@@ -66,7 +66,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
         isDeleted: {_eq: false}
       },
       orderBy: {updatedAt: DESC},
-      limit: 5
+      limit: 10
     ) {
       id
       title
@@ -74,6 +74,52 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       status
       updatedAt
       totalAmount
+      expenseType
+      expenseDate
+    }
+    
+    # Last 6 months expense data for charts
+    monthlyExpenses: ExpenseItemAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        createdAt: {_gte: "2024-12-01", _lt: "2025-07-01"}
+      }
+    ) {
+      aggregate {
+        sum {
+          totalAmount
+        }
+        count
+      }
+    }
+    
+    # Last month's expenses (for comparison)
+    lastMonthExpenses: ExpenseItemAggregate(
+      where: {
+        employeeId: {_eq: $employeeId}, 
+        isDeleted: {_eq: false},
+        createdAt: {_gte: "2025-05-01", _lt: "2025-06-01"}
+      }
+    ) {
+      aggregate {
+        sum {
+          totalAmount
+        }
+        count
+      }
+    }
+    
+    # Expenses by type for donut chart
+    expensesByType: ExpenseItem(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        createdAt: {_gte: "2025-01-01"}
+      }
+    ) {
+      totalAmount
+      expenseType
     }
   }
 `;

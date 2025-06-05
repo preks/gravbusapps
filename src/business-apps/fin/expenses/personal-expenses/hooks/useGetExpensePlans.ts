@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_PLANS_BY_EMPLOYEE } from '../queries/expensePlans';
 
@@ -22,6 +22,7 @@ export interface ExpensePlan {
   description: string;
   startDate: string | null;
   endDate: string | null;
+  planDate: string | null;
   totalAmount: number;
   advancePaymentPaidAmount: number;
   advancePaymentTotalAmount: number;
@@ -54,7 +55,7 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
   const [totalCount, setTotalCount] = useState<number>(0);
 
   // Function to fetch items with search and pagination
-  const fetchItems = async (searchTerm: string = '%', page: number = 1, pageSize: number = 10) => {
+  const fetchItems = useCallback(async (searchTerm: string = '%', page: number = 1, pageSize: number = 10) => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
     const accessToken = context?.accessToken;
 
@@ -123,12 +124,12 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, setItems, setIsLoading, setError, setTotalCount]);
 
   // Initial fetch on component mount
   useEffect(() => {
     fetchItems();
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]); // Only re-run when employeeId or accessToken changes
+  }, [fetchItems]); // Only re-run when employeeId or accessToken changes
 
   return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems };
 };

@@ -5,11 +5,12 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
     $limit: Int, 
     $offset: Int, 
     $searchTerm: String,
-    $status: String, 
+    $status: [String], 
     $expenseDateStart: timestamp, 
     $expenseDateEnd: timestamp, 
     $totalAmountMin: numeric, 
-    $totalAmountMax: numeric
+    $totalAmountMax: numeric,
+    $expenseClassValue: String
   ) {
     ExpenseItemAggregate(
       where: {
@@ -25,7 +26,7 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
           {expenseClass: {translations: {value: {_ilike: $searchTerm}}}},
           {costCenter: {name: {_ilike: $searchTerm}}}
         ],
-        status: {_eq: $status},
+        status: {_in: $status},
         expenseDate: {
           _gte: $expenseDateStart,
           _lte: $expenseDateEnd
@@ -57,7 +58,7 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
           {expenseClass: {translations: {value: {_ilike: $searchTerm}}}},
           {costCenter: {name: {_ilike: $searchTerm}}}
         ],
-        status: {_eq: $status},
+        status: {_in: $status},
         expenseDate: {
           _gte: $expenseDateStart,
           _lte: $expenseDateEnd
@@ -72,6 +73,7 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
       code
       title
       description
+      status
       expenseDate
       totalAmount
       reimbursableAmount

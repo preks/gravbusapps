@@ -1,17 +1,12 @@
 // GraphQL query to get expense requests filtered by employee ID with pagination and search
 export const GET_EXPENSE_REQUESTS_BY_EMPLOYEE = `
-  query GetExpenseRequestsByEmployee($employeeId: uuid!, $limit: Int, $offset: Int, $searchTerm: String) {
+  query GetExpenseRequestsByEmployee(
+    $limit: Int,
+    $offset: Int,
+    $where: ExpenseRequestBoolExp
+  ) {
     ExpenseRequestAggregate(
-      where: {
-        employeeId: {_eq: $employeeId}, 
-        isDeleted: {_eq: false},
-        _or: [
-          {title: {_ilike: $searchTerm}},
-          {code: {_ilike: $searchTerm}},
-          {description: {_ilike: $searchTerm}},
-          {status: {_ilike: $searchTerm}}
-        ]
-      }
+      where: $where
     ) {
       aggregate {
         count
@@ -21,16 +16,7 @@ export const GET_EXPENSE_REQUESTS_BY_EMPLOYEE = `
       limit: $limit,
       offset: $offset,
       orderBy: {createdAt: DESC},
-      where: {
-        employeeId: {_eq: $employeeId}, 
-        isDeleted: {_eq: false},
-        _or: [
-          {title: {_ilike: $searchTerm}},
-          {code: {_ilike: $searchTerm}},
-          {description: {_ilike: $searchTerm}},
-          {status: {_ilike: $searchTerm}}
-        ]
-      }
+      where: $where
     ) {
       id
       code
@@ -38,6 +24,7 @@ export const GET_EXPENSE_REQUESTS_BY_EMPLOYEE = `
       description
       startDate
       endDate
+      requestDate
       totalAmount
       currencyRef
       costCenter {
@@ -66,6 +53,7 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
       description
       startDate
       endDate
+      requestDate
       totalAmount
       currencyRef
       costCenter {
