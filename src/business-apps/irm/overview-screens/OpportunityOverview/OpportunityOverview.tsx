@@ -2,11 +2,12 @@
 
 import  { useState } from "react"
 import { Card, CardContent } from "./common/ui/card"
-import type { DetailedOpportunity } from "../../../../common/lib/db-actions"
+import type { DetailedOpportunity } from "./lib/db-actions"
 import  OpportunitiesTable  from "./OpportunitiesTable"
 import  OpportunityDetailContainer  from "./OpportunityDetailContainer"
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-interface OpportunityOverviewComponentProps {
+interface OpportunityOverviewComponentProps extends Pick<BusinessAppContextProps, 'accessToken'> {
   opportunity?: DetailedOpportunity
   pipeline?: any
   stages?: any[]
@@ -57,7 +58,8 @@ const sampleStages = [
   opportunity = sampleOpportunity,
   pipeline = samplePipeline,
   stages = sampleStages,
-  isStandalone = true
+  isStandalone = true,
+  accessToken
 }: OpportunityOverviewComponentProps) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   
@@ -92,12 +94,10 @@ const sampleStages = [
     <div className="gba:space-y-6">
       <Card className="gba:border-gray-300 gba:rounded">
         <CardContent className="gba:p-6">
-          <h2 className="gba:text-xl gba:font-semibold gba:mb-4 gba:border-b gba:border-gray-300 gba:pb-4">
-            Opportunities
-          </h2>
           <OpportunitiesTable 
             isStandalone={isStandalone}
             onSelectOpportunity={handleOpportunitySelect}
+            accessToken={accessToken}
           />
         </CardContent>
       </Card>

@@ -247,7 +247,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             />
           </Tooltip>
         </Header>
-        <Content style={{ overflow: 'initial', background: '#fff', padding: 24, minHeight: 280 }}>
+        <Content style={{ margin: '16px', overflow: 'initial', background: '#fff', padding: 24, minHeight: 280 }}>
           {selectedApp && (
             <div className="gba:w-full gba:h-full gba:overflow-auto">
               {createElement(selectedApp.component, {
