@@ -4,8 +4,8 @@ import { extendTailwindMerge, fromTheme } from 'tailwind-merge'
 const customTwMergeConfig = extendTailwindMerge({
   extend: {
     classGroups: {
-      'bg-image': ['bg-check', 'bg-indeterminate', 'bg-dot'],
-      'font-size': ['text-button'],
+      'bg-image': ['gba:bg-check', 'gba:bg-indeterminate', 'gba:bg-dot'],
+      'font-size': ['gba:text-button'],
       // @ts-ignore
       h: [{ h: [fromTheme('height')] }]
     }

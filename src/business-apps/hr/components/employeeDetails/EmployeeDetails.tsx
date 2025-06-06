@@ -89,63 +89,63 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({ employee, icon
   ));
 
   return (
-    <div className="bg-white h-full overflow-auto">
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">Employee Details</h2>
+    <div className="gba:bg-white gba:h-full gba:overflow-auto">
+      <div className="gba:p-6">
+        <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
+          <h2 className="gba:text-xl gba:font-semibold">Employee Details</h2>
         </div>
 
-        <div className="space-y-6">
-          <div className="flex flex-col items-center mb-4 animate-fade-in">
+        <div className="gba:space-y-6">
+          <div className="gba:flex gba:flex-col gba:items-center gba:mb-4 gba:animate-fade-in">
             {employee.profilePicture ? (
-              <div className="w-24 h-24 rounded-full overflow-hidden">
+              <div className="gba:w-24 gba:h-24 gba:rounded-full gba:overflow-hidden">
                 <img
                   src={`data:image/gif;base64,${employee.profilePicture}`}
                   alt={`${employee.firstName} ${employee.lastName}`}
-                  className="w-full h-full object-cover"
+                  className="gba:w-full gba:h-full gba:object-cover"
                 />
               </div>
             ) : (
-              <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border border-gray-200">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
+              <div className="gba:w-24 gba:h-24 gba:rounded-full gba:bg-gray-200 gba:flex gba:items-center gba:justify-center gba:border gba:border-gray-200">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="gba:text-gray-400">
                   <circle cx="12" cy="8" r="4" />
                   <path d="M16 20v-2a4 4 0 0 0-8 0v2" />
                 </svg>
               </div>
             )}
-            <h3 className="text-lg font-bold mt-3 mb-1 text-center">{employee.firstName} {employee.lastName}</h3>
-            <p className="text-gray-500 text-sm text-center">{employee.jobTitle}</p>
+            <h3 className="gba:text-lg gba:font-bold gba:mt-3 gba:mb-1 gba:text-center">{employee.firstName} {employee.lastName}</h3>
+            <p className="gba:text-gray-500 gba:text-sm gba:text-center">{employee.jobTitle}</p>
           </div>
 
-          <div className="border-t border-gray-200 pt-4">
-            <h4 className="text-sm font-medium text-gray-500 mb-2">Contact Information</h4>
+          <div className="gba:border-t gba:border-gray-200 gba:pt-4">
+            <h4 className="gba:text-sm gba:font-medium gba:text-gray-500 gba:mb-2">Contact Information</h4>
 
-            <div className="space-y-4">
+            <div className="gba:space-y-4">
               {employee.email && (
                 <div>
-                  <div className="text-sm text-gray-500">Email</div>
-                  <div className="font-medium">{employee.email}</div>
+                  <div className="gba:text-sm gba:text-gray-500">Email</div>
+                  <div className="gba:font-medium">{employee.email}</div>
                 </div>
               )}
 
               {employee.organizationalUnit && (
                 <div>
-                  <div className="text-sm text-gray-500">Organizational Unit</div>
-                  <div className="font-medium">{employee.organizationalUnit}</div>
+                  <div className="gba:text-sm gba:text-gray-500">Organizational Unit</div>
+                  <div className="gba:font-medium">{employee.organizationalUnit}</div>
                 </div>
               )}
 
               {employee.employmentType && (
                 <div>
-                  <div className="text-sm text-gray-500">Employment Type</div>
-                  <div className="font-medium">{employee.employmentType}</div>
+                  <div className="gba:text-sm gba:text-gray-500">Employment Type</div>
+                  <div className="gba:font-medium">{employee.employmentType}</div>
                 </div>
               )}
 
               {employee.contractType && (
                 <div>
-                  <div className="text-sm text-gray-500">Contract Type</div>
-                  <div className="font-medium">{employee.contractType}</div>
+                  <div className="gba:text-sm gba:text-gray-500">Contract Type</div>
+                  <div className="gba:font-medium">{employee.contractType}</div>
                 </div>
               )}
             </div>
@@ -154,7 +154,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({ employee, icon
       </div>
       
       {/* Action buttons */}
-      <div className="flex justify-center gap-2 p-4 border-t border-gray-200">
+      <div className="gba:flex gba:justify-center gba:gap-2 gba:p-4 gba:border-t gba:border-gray-200">
         {employee.userId && (
           <>
             <Button 

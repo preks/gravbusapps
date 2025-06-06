@@ -1,0 +1,512 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  Typography, 
+  Button, 
+  Input, 
+  Card, 
+  Row, 
+  Col, 
+  Table, 
+  Spin, 
+  Alert,
+  Empty,
+} from 'antd';
+import CompanyDetail from '../../detail-screens/CompanyDetail/CompanyDetail';
+import { 
+  PlusOutlined, 
+  SearchOutlined, 
+  FilterOutlined,
+  BankOutlined,
+  AreaChartOutlined,
+  DollarOutlined,
+  TeamOutlined,
+  EllipsisOutlined
+} from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { GET_COMPANIES, CompanyData, GetCompaniesResponse } from './graphql/company-queries';
+import './styles/CompanyOverview.css';
+
+const { Title, Text } = Typography;
+
+interface DisplayCompanyData {
+  id: string;
+  name: string;
+  location: string;
+  industry: string;
+  country:string;
+  website:string;
+  numberOfEmployees: string;
+  contact: {
+    firstName: string;
+    lastName: string;
+  }
+  accountOwnerName: string;
+  accountOwnerId?: string;
+  foundationDate?: string;
+  legalForm?: string;
+}
+
+const transformCompanyData = (apiCompany: CompanyData): DisplayCompanyData => {
+  const city = apiCompany.addresses?.[0]?.city;
+  const country = apiCompany.addresses?.[0]?.country?.value;
+  let locationString = '';
+  if (city && country) {
+    locationString = `${city} ${country}`;
+  } else if (city) {
+    locationString = city;
+  } else if (country) {
+    locationString = country;
+  }
+
+  return {
+    id: apiCompany.id,
+    name: apiCompany.name || '',
+    location: locationString,
+    industry: apiCompany.industry?.value || '',
+    legalForm: apiCompany.legalForm?.value,
+    foundationDate: apiCompany.foundationDate,
+    website: apiCompany.website,
+    country: apiCompany.addresses?.[0]?.country?.value || '',
+    accountOwnerName: apiCompany.ownerEmployee 
+      ? `${apiCompany.ownerEmployee.firstName} ${apiCompany.ownerEmployee.lastName}` 
+      : '',
+    accountOwnerId: apiCompany.ownerEmployee?.id,
+    numberOfEmployees: apiCompany.numberOfEmployees?.value || '',
+    contact: {
+      firstName: apiCompany.contact?.firstName || '',
+      lastName: apiCompany.contact?.lastName || '',
+    },
+  };
+};
+
+const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+  const [isCreatingCompany, setIsCreatingCompany] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<DisplayCompanyData | null>(null);
+  
+  const [companiesData, setCompaniesData] = useState<DisplayCompanyData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  
+  const [searchText, setSearchText] = useState<string>('');
+  const [debouncedSearchText, setDebouncedSearchText] = useState<string>('');
+
+  const graphQLClient = useGraphqlClient(accessToken);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchText(searchText);
+      setCurrentPage(1); 
+    }, 500); 
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchText]);
+
+  const fetchCompanies = async (page: number, currentSearchText: string, limit: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const whereCondition: any = {}; 
+      if (currentSearchText.trim()) {
+        const searchTextPattern = { _iregex: currentSearchText.trim() };
+        whereCondition._or = [
+          { name: searchTextPattern },
+          { legalForm: { value: searchTextPattern } }, 
+          { industry: { value: searchTextPattern } },
+          { ownerEmployee: { firstName: searchTextPattern } },
+          { ownerEmployee: { lastName: searchTextPattern } },
+          { addresses: { city: searchTextPattern } },
+          { addresses: { country: { value: searchTextPattern } } },
+          { website:  searchTextPattern  }
+        ];
+      }
+
+      const result = await graphQLClient.request<GetCompaniesResponse>(
+        GET_COMPANIES,
+        {
+          offset: (page - 1) * limit,
+          limit: limit,
+          where: whereCondition,
+        }
+      );
+
+      if (result && result.Account) {
+        const transformedData = result?.Account?.map(transformCompanyData);
+        setCompaniesData(transformedData);
+        setTotalItems(result.AccountAggregate?.aggregate?.count || 0);
+      } else {
+        setError("Received invalid data from API");
+        setCompaniesData([]);
+        setTotalItems(0);
+      }
+    } catch (err) {
+      setError('Failed to fetch companies: ' + (err instanceof Error ? err.message : String(err)));
+      setCompaniesData([]);
+      setTotalItems(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCompanies(currentPage, debouncedSearchText, pageSize);
+  }, [currentPage, debouncedSearchText, graphQLClient, pageSize, accessToken]); 
+
+  const handleCreateCompany = () => {
+    setIsCreatingCompany(true);
+  };
+
+  const handleTableChange = (newPage: number, newPageSize: number) => {
+    setCurrentPage(newPage);
+    setPageSize(newPageSize);
+  };
+
+  const enabledButtonStyle: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '6px 12px',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: '#d1d5db', 
+    borderRadius: '6px',
+    textDecoration: 'none',
+    color: '#1f2937',
+    backgroundColor: '#ffffff',
+    margin: '0 4px',
+    lineHeight: '1.5',
+    minWidth: '80px',
+    textAlign: 'center',
+    cursor: 'pointer',
+  };
+
+  const disabledButtonStyle: React.CSSProperties = {
+    ...enabledButtonStyle, 
+    borderColor: '#e5e7eb', 
+    color: '#9ca3af', 
+    backgroundColor: '#f9fafb', 
+    cursor: 'not-allowed',
+  };
+
+  const itemRender = useCallback((_current: number, type: 'page' | 'prev' | 'next' | 'jump-prev' | 'jump-next', originalElement: React.ReactNode): React.ReactNode => {
+    if (!React.isValidElement(originalElement)) {
+      return originalElement;
+    }
+
+    const props = originalElement.props as { className?: string; children?: React.ReactNode };
+
+    const antIsDisabled = props.className?.includes('ant-pagination-disabled');
+    let styleToApply: React.CSSProperties = {};
+    let newChildren = props.children;
+    let isPrevNextButton = false;
+
+    if (type === 'prev') {
+      const isLogicallyDisabled = currentPage === 1;
+      const finalIsDisabled = isLogicallyDisabled || antIsDisabled; 
+      styleToApply = finalIsDisabled ? disabledButtonStyle : enabledButtonStyle;
+      newChildren = 'Previous';
+      isPrevNextButton = true;
+
+    } else if (type === 'next') {
+      const totalPages = Math.ceil(totalItems / pageSize);
+      const isLogicallyDisabled = totalItems === 0 || currentPage >= totalPages;
+      const finalIsDisabled = isLogicallyDisabled || antIsDisabled;
+      styleToApply = finalIsDisabled ? disabledButtonStyle : enabledButtonStyle;
+      newChildren = 'Next';
+      isPrevNextButton = true;
+
+    } else if (type === 'jump-prev' || type === 'jump-next') {
+      return originalElement;
+    } else if (React.isValidElement(originalElement) && (originalElement.props as { className?: string }).className?.includes('ant-pagination-item')) {
+      return originalElement;
+    } else {
+      return originalElement;
+    }
+
+    if (isPrevNextButton) {
+      const elementToClone = originalElement as React.ReactElement<React.HTMLAttributes<HTMLElement>>;
+
+      const currentClassName = elementToClone.props.className || '';
+      const gbaClassName = type === 'prev' ? 'gba-pagination-prev-btn' : 'gba-pagination-next-btn';
+      let finalClassName = currentClassName.replace('gba-pagination-prev-btn', '').replace('gba-pagination-next-btn', '').trim();
+      finalClassName = `${finalClassName} ${gbaClassName}`.trim();
+      if (styleToApply === disabledButtonStyle && !antIsDisabled) {
+        finalClassName = `${finalClassName} ant-pagination-disabled`.trim();
+      }
+
+      return React.cloneElement(elementToClone, {
+        className: finalClassName,
+        style: styleToApply,
+        children: newChildren,
+      });
+    }
+    
+    return originalElement; 
+  }, [currentPage, totalItems, pageSize, enabledButtonStyle, disabledButtonStyle]);
+
+  const columns: ColumnsType<DisplayCompanyData> = [
+    {
+      title: 'Company Name',
+      dataIndex: 'name',
+      key: 'name',
+      render: (name, record) => (
+        <div style={{ display: 'flex', alignItems: 'center' }} className="gba-company-name-cell">
+          <a 
+            onClick={() => setSelectedCompany(record)} 
+            className="gba-text-primary hover:gba-underline" 
+            style={{ color: 'black' }} 
+          >
+            {name}
+          </a>
+        </div>
+      ),
+    },
+    {
+      title: 'Location',
+      dataIndex: 'location',
+      key: 'location',
+      className: 'gba-location-cell',
+    },
+    {
+      title: 'Industry',
+      dataIndex: 'industry',
+      key: 'industry',
+      className: 'gba-industry-cell',
+    },
+    {
+      title: 'Contact',
+      dataIndex: 'contact',
+      key: 'contact',
+      className: 'gba-contact-cell',
+      render: (contact: { firstName: string; lastName: string }) => {
+        if (contact && (contact.firstName || contact.lastName)) {
+          return `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+        }
+        return '';
+      },
+    },
+    {
+      title: 'Account Owner',
+      dataIndex: 'accountOwnerName', 
+      key: 'accountOwner',
+      className: 'gba-account-owner-cell',
+    },
+    {
+      title: 'Website',
+      dataIndex: 'website',
+      key: 'website',
+      className: 'gba-website-cell',
+      render: (website: string) => {
+        if (website) {
+          const fullUrl = website.startsWith('http://') || website.startsWith('https://') ? website : `http://${website}`;
+          return (
+            <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="gba-text-primary hover:gba-underline">
+              {website}
+            </a>
+          );
+        }
+        return '';
+      },
+    },
+    {
+      title: 'Legal Form',
+      dataIndex: 'legalForm',
+      key: 'legalForm',
+      className: 'gba-legal-form-cell',
+    },
+    {
+      title: 'Foundation Date',
+      dataIndex: 'foundationDate',
+      key: 'foundationDate',
+      className: 'gba-foundation-date-cell',
+      render: (dateString) => dateString ? new Date(dateString).toLocaleDateString() : '',
+    },
+    {
+      title: 'No. of Employees',
+      dataIndex: 'numberOfEmployees',
+      key: 'numberOfEmployees',
+      className: 'gba-number-of-employees-cell',
+      render: (text: string) => text || '',
+    },
+    // {
+    //   title: 'Actions',
+    //   key: 'actions',
+    //   className: 'gba-actions-cell',
+    //   render: (_, record) => {
+    //     const menu = (
+    //       <Menu>
+    //         <Menu.Item key="view" onClick={() => setSelectedCompany(record)}>
+    //           View Details
+    //         </Menu.Item>
+    //         <Menu.Item key="edit">
+    //           Edit
+    //         </Menu.Item>
+    //         <Menu.Item key="delete"  danger>
+    //           Delete
+    //         </Menu.Item>
+    //       </Menu>
+    //     );
+    //     return (
+    //       <Dropdown overlay={menu} trigger={['click']}>
+    //         <Button type="text" icon={<EllipsisOutlined />} />
+    //       </Dropdown>
+    //     );
+    //   },
+    // },
+  ];
+
+  if (selectedCompany) {
+    return (
+      <CompanyDetail 
+        companyId={selectedCompany.id} 
+        onBack={() => setSelectedCompany(null)} 
+        accessToken={accessToken} 
+      />
+    );
+  }
+
+  return (
+    <div style={{ padding: '24px' }} className="gba-company-overview-container">
+      <Row justify="space-between" align="middle" style={{ marginBottom: '24px' }} className="gba-header-row">
+        <Col>
+          <Title level={3} style={{ margin: 0 }} className="gba-page-title">Companies</Title>
+        </Col>
+        <Col>
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />} 
+            onClick={handleCreateCompany}
+            className="gba-create-button"
+          >
+            Create Company
+          </Button>
+        </Col>
+      </Row>
+
+      <Row gutter={16} style={{ marginBottom: '24px' }} className="gba-kpi-row">
+        <Col span={6}>
+          <Card>
+            <div className="gba:card-content">
+              <div>
+                <div className="gba:card-metric">Total Companies</div>
+                <div className="gba:card-value">342</div>
+                <div className="gba:card-change">+5.4% from last month</div>
+              </div>
+              <div className="gba:card-icon-container gba:blue-icon-bg">
+                <BankOutlined className="gba:blue-icon" />
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <div className="gba:card-content">
+              <div>
+                <div className="gba:card-metric">Active Opportunities</div>
+                <div className="gba:card-value">64</div>
+                <div className="gba:card-change">+2.3% from last month</div>
+              </div>
+              <div className="gba:card-icon-container gba:green-icon-bg">
+                <AreaChartOutlined className="gba:green-icon" />
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <div className="gba:card-content">
+              <div>
+                <div className="gba:card-metric">Total Portfolio Value</div>
+                <div className="gba:card-value">$1.2M</div>
+                <div className="gba:card-change">+6.8% from last month</div>
+              </div>
+              <div className="gba:card-icon-container gba:light-blue-icon-bg">
+                <DollarOutlined className="gba:blue-icon" />
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <div className="gba:card-content">
+              <div>
+                <div className="gba:card-metric">Total Contacts</div>
+                <div className="gba:card-value">528</div>
+                <div className="gba:card-change">+7.2% from last month</div>
+              </div>
+              <div className="gba:card-icon-container gba:purple-icon-bg">
+                <TeamOutlined className="gba:purple-icon" />
+              </div>
+            </div>
+          </Card>
+        </Col>
+      </Row>
+
+      <Card className="gba-table-card">
+        <Row justify="space-between" style={{ marginBottom: '16px' }} className="gba-filter-row">
+          <Col span={12}>
+            <Input 
+              placeholder="Search companies (e.g., name, industry)"
+              prefix={<SearchOutlined className="gba-search-icon" />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="gba-search-input"
+            />
+          </Col>
+          <Col>
+            <Button icon={<FilterOutlined />} className="gba-filter-button">Filters</Button> 
+          </Col>
+        </Row>
+
+        {error && <Alert message="Error" description={error} type="error" showIcon style={{ marginBottom: 16 }} className="gba-error-alert"/>}
+
+        <Spin spinning={loading} tip="Loading companies..." className="gba-loading-spin">
+          <Table 
+            key={`company-table-${currentPage}-${pageSize}`} 
+            columns={columns} 
+            dataSource={companiesData} 
+            rowKey="id" 
+            pagination={{
+              current: currentPage,
+              pageSize: pageSize,
+              total: totalItems,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50', '100'],
+              onChange: handleTableChange,
+              className: 'gba-custom-pagination',
+              itemRender: itemRender
+            }}
+            className="gba-company-table"
+            locale={{
+              emptyText: 
+                error ? <Text type="danger">Failed to load companies.</Text> :
+                !loading && companiesData.length === 0 && debouncedSearchText ? 
+                <Empty description={`No companies found matching "${debouncedSearchText}"`} /> : 
+                !loading && companiesData.length === 0 ? 
+                <Empty description="No companies found." /> : 
+                <span>No data</span> 
+            }}
+          />
+        </Spin>
+      </Card>
+
+      {isCreatingCompany && (
+        <div className="gba-modal-placeholder"> 
+          <Card title="Create New Company" style={{ marginTop: 20 }} className="gba-create-modal-card">
+            <p>Company creation form will be here.</p>
+            <Button onClick={() => setIsCreatingCompany(false)} className="gba-cancel-button">Cancel</Button>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default CompanyOverview;

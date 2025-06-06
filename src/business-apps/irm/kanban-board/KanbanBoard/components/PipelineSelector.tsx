@@ -40,32 +40,32 @@ export function PipelineSelector() {
   };
 
   return (
-    <div className="flex items-center gap-2 mb-4">
-      <div className="relative">
+    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
+      <div className="gba:relative">
         <button
           onClick={toggleDropdown}
-          className="flex items-center justify-between w-64 px-4 py-2 text-sm font-medium text-left bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+          className="gba:flex gba:items-center gba:justify-between gba:w-64 gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:text-left gba:bg-white gba:dark:bg-gray-800 gba:border gba:border-gray-300 gba:dark:border-gray-700 gba:rounded-md gba:shadow-sm gba:hover:bg-gray-50 gba:dark:hover:bg-gray-700"
           style={{ minWidth: '240px' }}
         >
-          <div className="flex-1 mr-4">
-            <span className="block font-medium">{selectedPipeline?.name}</span>
-            <span className="block text-xs text-gray-500 dark:text-gray-400">{selectedPipeline?.category}</span>
+          <div className="gba:flex-1 gba:mr-4">
+            <span className="gba:block gba:font-medium">{selectedPipeline?.name}</span>
+            <span className="gba:block gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">{selectedPipeline?.category}</span>
           </div>
           <DownOutlined style={{ fontSize: '14px' }} />
         </button>
 
         {isOpen && (
-          <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700">
-            <ul className="py-1 max-h-60 overflow-auto">
+          <div className="gba:absolute gba:z-10 gba:mt-1 gba:w-full gba:bg-white gba:dark:bg-gray-800 gba:shadow-lg gba:rounded-md gba:border gba:border-gray-200 gba:dark:border-gray-700">
+            <ul className="gba:py-1 gba:max-h-60 gba:overflow-auto">
               {pipelines.map((pipeline: any) => (
                 <li key={pipeline.id}>
                   <button
                     onClick={() => handleSelectPipeline(pipeline.id)}
-                    className={`flex items-center justify-between w-full px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${pipeline.id === selectedPipelineId ? "bg-gray-100 dark:bg-gray-700" : ""}`}
+                    className={`gba:flex gba:items-center gba:justify-between gba:w-full gba:px-4 gba:py-2 gba:text-sm gba:hover:bg-gray-100 gba:dark:hover:bg-gray-700 ${pipeline.id === selectedPipelineId ? "gba:bg-gray-100 gba:dark:bg-gray-700" : ""}`}
                   >
-                    <div className="flex-1 mr-4">
-                      <span className="block font-medium">{pipeline.name}</span>
-                      <span className="block text-xs text-gray-500 dark:text-gray-400">{pipeline.category}</span>
+                    <div className="gba:flex-1 gba:mr-4">
+                      <span className="gba:block gba:font-medium">{pipeline.name}</span>
+                      <span className="gba:block gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">{pipeline.category}</span>
                     </div>
                   </button>
                 </li>
@@ -76,7 +76,7 @@ export function PipelineSelector() {
       </div>
 
       {isSalesManager && (
-        <div className="flex gap-1">
+        <div className="gba:flex gba:gap-1">
           <Tooltip title="Add Pipeline">
             <Button 
               icon={<PlusOutlined />} 

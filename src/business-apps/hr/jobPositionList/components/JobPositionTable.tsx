@@ -66,7 +66,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
       title: t('job_position.status', 'Status'),
       key: 'status',
       render: (position: JobPosition) => (
-        <div className={`px-2 py-1 rounded-full text-xs inline-flex items-center ${position.isVacant ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
+        <div className={`gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:inline-flex gba:items-center ${position.isVacant          ? 'gba:bg-yellow-100 gba:text-yellow-800' : 'gba:bg-green-100 gba:text-green-800'}`}>
           {position.isVacant 
             ? t('job_position.vacant', 'Vacant') 
             : t('job_position.filled', 'Filled')}
@@ -79,17 +79,17 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
       key: 'employee',
       render: (position: JobPosition) => {
         if (position.isVacant) {
-          return <span className="text-gray-400">{t('job_position.no_employee', 'No Employee')}</span>;
+          return <span className="gba:text-gray-400">{t('job_position.no_employee', 'No Employee')}</span>;
         }
         
         return (
-          <div className="flex items-center">
+          <div className="gba:flex gba:items-center">
             {position.employeeProfilePicture && (
               <Avatar
                 src={position.employeeProfilePicture}
                 alt={`${position.employeeFirstName} ${position.employeeLastName}`}
                 size="xs"
-                className="mr-2"
+                className="gba:mr-2"
               />
             )}
             <span>{position.employeeFirstName} {position.employeeLastName}</span>
@@ -102,7 +102,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
       title: t('job_position.actions', 'Actions'),
       key: 'actions',
       render: (position: JobPosition) => (
-        <div className="flex justify-end space-x-2">
+        <div className="gba:flex gba:justify-end gba:space-x-2">
           <Button
             variant="text"
             size="small"
@@ -128,8 +128,8 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
   // If there's an error, show a message with retry button
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center p-8">
-        <p className="text-red-500 mb-4">{t('job_position.error', 'Error loading job positions')}</p>
+      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8">
+        <p className="gba:text-red-500 gba:mb-4">{t('job_position.error', 'Error loading job positions')}</p>
         <Button 
           variant="outlined" 
           onClick={retry}

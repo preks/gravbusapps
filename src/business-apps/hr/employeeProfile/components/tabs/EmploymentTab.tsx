@@ -126,7 +126,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
   const workingHoursData = getWorkingHoursData();
 
   return (
-    <div className="employment-tab space-y-6">
+    <div className="gba:employment-tab gba:space-y-6">
       {/* Organizational Data Section */}
       <ProfileSection 
         title={t('employee_profile.employement_layout.employment_profile_container.employment_profile_subtitle')}

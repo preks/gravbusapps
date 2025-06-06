@@ -46,7 +46,7 @@ function EmployeeAvatar({
   const effectiveStatus = onlineStatus ?? randomStatus;
   
   return (
-    <div className="relative" style={{ width: size, height: size }}>
+    <div className="gba:relative" style={{ width: size, height: size }}>
       {profilePicture ? (
         <EmployeeAvatarPicture 
           profilePicture={profilePicture} 

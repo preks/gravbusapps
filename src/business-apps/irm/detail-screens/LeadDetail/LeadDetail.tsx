@@ -167,7 +167,7 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
         color = "#d9d9d9";
     }
     return (
-      <Text className="lead-rating" style={{ color }}>
+      <Text className="gba:lead-rating" style={{ color }}>
         {rating}
       </Text>
     );
@@ -175,28 +175,28 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
 
   // Render status history
   const renderStatusHistory = () => (
-    <div className="p-0 w-full overflow-x-auto mb-4">
+    <div className="gba:p-0 gba:w-full gba:overflow-x-auto gba:mb-4">
       <Row
         wrap={false}
-        className="flex items-center w-full overflow-x-auto overflow-y-hidden"
+        className="gba:flex gba:items-center gba:w-full gba:overflow-x-auto gba:overflow-y-hidden"
       >
         {statusHistory.map((status, index) => (
           <React.Fragment key={status.id}>
-            <Col className="p-0 m-0" key={`status-col-${status.id}`}>
+            <Col className="gba:p-0 gba:m-0" key={`status-col-${status.id}`}>
               <div
-                className={`py-2 px-6 bg-black relative text-white text-center font-medium min-w-[100px] flex items-center justify-center h-10 ${
+                className={`gba:py-2 gba:px-6 gba:bg-black gba:relative gba:text-white gba:text-center gba:font-medium gba:min-w-[100px] gba:flex gba:items-center gba:justify-center gba:h-10 ${
                   status.id === 1 ? "rounded-l-lg" : ""
                 } ${status.id === statusHistory.length ? "rounded-r-lg" : ""}`}
               >
                 {status.name}
                 {status.id === statusHistory.length && (
-                  <CheckOutlined className="ml-2 text-white" />
+                  <CheckOutlined className="gba:ml-2 gba:text-white" />
                 )}
               </div>
             </Col>
             {index < statusHistory.length - 1 && (
-              <Col className="p-0 flex items-center justify-center m-0 z-[1]" key={`arrow-col-${status.id}`}>
-                <ArrowRightOutlined className="text-black text-base" />
+              <Col className="gba:p-0 gba:flex gba:items-center gba:justify-center gba:m-0 gba:z-[1]" key={`arrow-col-${status.id}`}>
+                <ArrowRightOutlined className="gba:text-black gba:text-base" />
               </Col>
             )}
           </React.Fragment>
@@ -219,37 +219,37 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
       }, {} as { [key: string]: TimelineActivity[] });
 
     return (
-      <div className="p-4 bg-white rounded-lg border border-[#f0f0f0]">
-        <div className="flex justify-between items-center mb-4 border-b border-[#f0f0f0] pb-2">
+      <div className="gba:p-4 gba:bg-white gba:rounded-lg gba:border gba:border-[#f0f0f0]">
+        <div className="gba:flex gba:justify-between gba:items-center gba:mb-4 gba:border-b gba:border-[#f0f0f0] gba:pb-2">
           <Title level={5}>{mergedLabels.activityTimelineTitle}</Title>
-          <Space className="flex gap-2">
+          <Space className="gba:flex gba:gap-2">
             <Button type="text" size="small" icon={<FilterOutlined />} />
             <Button type="text" size="small" icon={<SearchOutlined />} />
           </Space>
         </div>
 
-        <div className="relative mb-6 border border-[#d9d9d9] rounded-md flex items-center">
+        <div className="gba:relative gba:mb-6 gba:border gba:border-[#d9d9d9] gba:rounded-md gba:flex gba:items-center">
           <Input
             placeholder={mergedLabels.activityInputPlaceholder}
-            className="border-none shadow-none flex-grow"
+            className="gba:border-none gba:shadow-none gba:grow"
           />
-          <div className="flex gap-1 pr-2">
+          <div className="gba:flex gba:gap-1 gba:pr-2">
             <Button type="text" icon={<PlusOutlined />} />
             <Button type="text" icon={<SendOutlined />} />
           </div>
         </div>
 
-        <div className="p-0 px-4 max-h-[500px] overflow-y-auto relative">
+        <div className="gba:p-0 gba:px-4 gba:max-h-[500px] gba:overflow-y-auto gba:relative">
           {Object.entries(groupedActivities).map(
             ([date, dateActivities], dateIndex) => (
               <React.Fragment key={date}>
                 {dateIndex === 0 && (
-                  <div className="flex items-center mb-4 relative">
-                    <div className="w-4 h-4 rounded-full bg-[#f0f0f0] mr-2 z-[1]" />
-                    <Text className="font-medium mr-2">
+                  <div className="gba:flex gba:items-center gba:mb-4 gba:relative">
+                    <div className="gba:w-4 gba:h-4 gba:rounded-full gba:bg-[#f0f0f0] gba:mr-2 gba:z-[1]" />
+                    <Text className="gba:font-medium gba:mr-2">
                       {mergedLabels.activityDateText}
                     </Text>
-                    <div className="flex-grow h-px bg-[#f0f0f0]" />
+                    <div className="gba:grow gba:h-px gba:bg-[#f0f0f0]" />
                   </div>
                 )}
 
@@ -275,18 +275,18 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
 
                   return (
                     <div
-                      className="flex relative mb-6 timeline-item"
+                      className="gba:flex gba:relative gba:mb-6 timeline-item"
                       key={activity.id}
                     >
-                      <div className="mr-4 relative z-[1]">
+                      <div className="gba:mr-4 gba:relative gba:z-[1]">
                         <div
-                          className="w-4 h-4 rounded-full flex items-center justify-center"
+                          className="gba:w-4 gba:h-4 gba:rounded-full gba:flex gba:items-center gba:justify-center"
                           style={{ backgroundColor: iconColor }}
                         />
                       </div>
-                      <div className="flex-grow">
-                        <div className="mb-2">
-                          <Text strong className="font-medium text-base">
+                      <div className="gba:grow">
+                        <div className="gba:mb-2">
+                          <Text strong className="gba:font-medium gba:text-base">
                             {activity.type === "email"
                               ? mergedLabels.emailTypeLabel
                               : activity.type === "note"
@@ -301,12 +301,12 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
                                 (activity.type as any).slice(1)}
                           </Text>
                         </div>
-                        <div className="mb-2">
+                        <div className="gba:mb-2">
                           <Text>
                             <span>{activity.content}</span>
                           </Text>
                         </div>
-                        <div className="text-xs text-[#8c8c8c] mb-2">
+                        <div className="gba:text-xs gba:text-[#8c8c8c] gba:mb-2">
                           <Text type="secondary">
                             {activity.date}, {activity.time},{" "}
                             {mergedLabels.activityUserInfo ||
@@ -314,7 +314,7 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
                           </Text>
                         </div>
                         {activity.note && activity.type === "call" && (
-                          <div className="mt-2 p-2 bg-[#f5f5f5] rounded">
+                          <div className="gba:mt-2 gba:p-2 gba:bg-[#f5f5f5] gba:rounded">
                             <Text type="secondary">
                               {mergedLabels.notePrefix} {activity.note}
                             </Text>
@@ -360,20 +360,20 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
     ];
 
     return (
-      <div className="p-4 bg-white rounded-lg border border-[#f0f0f0]">
-        <div className="flex justify-between items-center mb-4 border-b border-[#e8e8e8] pb-2">
+      <div className="gba:p-4 gba:bg-white gba:rounded-lg gba:border gba:border-[#f0f0f0]">
+        <div className="gba:flex gba:justify-between gba:items-center gba:mb-4 gba:border-b gba:border-[#e8e8e8] gba:pb-2">
           <Title level={5}>{mergedLabels.tasksAndRemindersTitle}</Title>
           <Button
             type="text"
             size="small"
             icon={<PlusOutlined />}
-            className="text-[#1677ff]"
+            className="gba:text-[#1677ff]"
           />
         </div>
         <Tabs
           activeKey={activeTaskTab}
           onChange={setActiveTaskTab}
-          className="mt-4"
+          className="gba:mt-4"
           items={taskItems}
         />
       </div>
@@ -393,14 +393,14 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
       if (task.type === "task") {
         return (
           <div
-            className="w-5 h-5 rounded-sm bg-[#1677ff] bg-[length:14px] bg-center bg-no-repeat flex-shrink-0 mt-0.5"
+            className="gba:w-5 gba:h-5 gba:rounded-sm gba:bg-[#1677ff] gba:bg-[length:14px] gba:bg-center gba:bg-no-repeat gba:shrink-0 gba:mt-0.5"
             style={{ backgroundImage: `url("${taskIconUrl}")` }}
           />
         );
       } else {
         return (
           <div
-            className="w-5 h-5 rounded-sm bg-[#faad14] bg-[length:14px] bg-center bg-no-repeat flex-shrink-0 mt-0.5"
+            className="gba:w-5 gba:h-5 gba:rounded-sm gba:bg-[#faad14] gba:bg-[length:14px] gba:bg-center gba:bg-no-repeat gba:shrink-0 gba:mt-0.5"
             style={{ backgroundImage: `url("${reminderIconUrl}")` }}
           />
         );
@@ -410,12 +410,12 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
     return (
       <div
         key={task.id}
-        className="w-full mb-4 !bg-[#f0f7ff] rounded-2xl p-4 shadow-sm"
+        className="gba:w-full gba:mb-4 gba:bg-[#f0f7ff]! gba:rounded-2xl gba:p-4 gba:shadow-sm"
       >
-        <div className="flex justify-between items-start mb-3">
-          <div className="flex items-start gap-3">
+        <div className="gba:flex gba:justify-between gba:items-start gba:mb-3">
+          <div className="gba:flex gba:items-start gba:gap-3">
             <TaskIcon />
-            <Text strong className="text-[#262626] text-base">
+            <Text strong className="gba:text-[#262626] gba:text-base">
               {task.type === "task"
                 ? mergedLabels.taskPrefix
                 : mergedLabels.reminderPrefix}{" "}
@@ -426,39 +426,39 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
             type="text"
             size="small"
             icon={<EditOutlined />}
-            className="text-[#8c8c8c] mt-[-6px] mr-[-6px] hover:text-[#1677ff] hover:bg-[rgba(0,0,0,0.05)]"
+            className="gba:text-[#8c8c8c] gba:mt-[-6px] gba:mr-[-6px] gba:hover:text-[#1677ff] gba:hover:bg-[rgba(0,0,0,0.05)]"
           />
         </div>
-        <div className="mt-3">
-          <div className="flex mb-1.5 items-baseline">
+        <div className="gba:mt-3">
+          <div className="gba:flex gba:mb-1.5 gba:items-baseline">
             <Text
               type="secondary"
-              className="w-20 text-[#8c8c8c] flex-shrink-0"
+              className="gba:w-20 gba:text-[#8c8c8c] gba:shrink-0"
             >
               {mergedLabels.reporterLabel}
             </Text>
-            <Text className="text-[#262626]">{task.reporter}</Text>
+            <Text className="gba:text-[#262626]">{task.reporter}</Text>
           </div>
-          <div className="flex mb-1.5 items-baseline">
+          <div className="gba:flex gba:mb-1.5 gba:items-baseline">
             <Text
               type="secondary"
-              className="w-20 text-[#8c8c8c] flex-shrink-0"
+              className="gba:w-20 gba:text-[#8c8c8c] gba:shrink-0"
             >
               {mergedLabels.priorityLabel}
             </Text>
-            <Text className="text-[#262626]">{task.priority}</Text>
+            <Text className="gba:text-[#262626]">{task.priority}</Text>
           </div>
-          <div className="flex mb-1.5 items-baseline">
+          <div className="gba:flex gba:mb-1.5 gba:items-baseline">
             <Text
               type="secondary"
-              className="w-20 text-[#8c8c8c] flex-shrink-0"
+              className="gba:w-20 gba:text-[#8c8c8c] gba:shrink-0"
             >
               {mergedLabels.dueDateLabel}
             </Text>
-            <Text className="text-[#262626]">{task.dueDate}</Text>
+            <Text className="gba:text-[#262626]">{task.dueDate}</Text>
           </div>
           {task.note && (
-            <div className="mt-3 p-3 bg-[rgba(0,0,0,0.06)] rounded-md text-sm text-[#262626]">
+            <div className="gba:mt-3 gba:p-3 gba:bg-[rgba(0,0,0,0.06)] gba:rounded-md gba:text-sm gba:text-[#262626]">
               <Text type="secondary">
                 <strong>{mergedLabels.taskNotePrefix}</strong> {task.note}
               </Text>
@@ -474,101 +474,101 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
       {/* Left sidebar */}
       <Col span={6}>
         <Card
-          className="rounded-xl overflow-hidden h-full !bg-[#f0f7ff] shadow-none"
+          className="gba:rounded-xl gba:overflow-hidden gba:h-full gba:bg-[#f0f7ff]! gba:shadow-none"
           variant="borderless"
         >
-          <div className="relative flex flex-col pt-5 px-5 pb-3">
-            <div className="relative w-full flex justify-between mb-4">
+          <div className="gba:relative gba:flex gba:flex-col gba:pt-5 gba:px-5 gba:pb-3">
+            <div className="gba:relative gba:w-full gba:flex gba:justify-between gba:mb-4">
               <Avatar
                 size={100}
                 src={lead.avatarUrl}
                 style={{ backgroundColor: "#1890ff" }}
-                className="border-4 border-white shadow-md"
+                className="gba:border-4 gba:border-white gba:shadow-md"
               >
                 {!lead.avatarUrl && lead.name.charAt(0)}
               </Avatar>
               <Button
                 type="text"
                 icon={<EditOutlined style={{ fontSize: '16px' }} />}
-                className="bg-white rounded-full w-7 h-7 flex items-center justify-center text-[#666] transition-all duration-300 shadow-sm hover:bg-[rgba(0,0,0,0.05)] hover:text-[#333]"
+                className="gba:bg-white gba:rounded-full gba:w-7 gba:h-7 gba:flex gba:items-center gba:justify-center gba:text-[#666] gba:transition-all gba:duration-300 gba:shadow-sm gba:hover:bg-[rgba(0,0,0,0.05)] gba:hover:text-[#333]"
               />
             </div>
 
-            <Text className="text-xl font-semibold text-[#262626] mb-5">
+            <Text className="gba:text-xl gba:font-semibold gba:text-[#262626] gba:mb-5">
               {lead.name}
             </Text>
 
-            <div className="w-full">
-              <div className="flex flex-col mb-4">
-                <Text className="text-sm text-[#8c8c8c] mb-1" type="secondary">
+            <div className="gba:w-full">
+              <div className="gba:flex gba:flex-col gba:mb-4">
+                <Text className="gba:text-sm gba:text-[#8c8c8c] gba:mb-1" type="secondary">
                   {mergedLabels.emailLabel}
                 </Text>
-                <Text className="text-[15px] text-[#262626] font-medium">
+                <Text className="gba:text-[15px] gba:text-[#262626] gba:font-medium">
                   {lead.email}
                 </Text>
               </div>
 
-              <div className="flex flex-col mb-4">
-                <Text className="text-sm text-[#8c8c8c] mb-1" type="secondary">
+              <div className="gba:flex gba:flex-col gba:mb-4">
+                <Text className="gba:text-sm gba:text-[#8c8c8c] gba:mb-1" type="secondary">
                   {mergedLabels.phoneLabel}
                 </Text>
-                <Text className="text-[15px] text-[#262626] font-medium">
+                <Text className="gba:text-[15px] gba:text-[#262626] gba:font-medium">
                   {lead.phone}
                 </Text>
               </div>
 
-              <div className="flex flex-col mb-4">
-                <Text className="text-sm text-[#8c8c8c] mb-1" type="secondary">
+              <div className="gba:flex gba:flex-col gba:mb-4">
+                <Text className="gba:text-sm gba:text-[#8c8c8c] gba:mb-1" type="secondary">
                   {mergedLabels.companyLabel}
                 </Text>
-                <Text className="text-[15px] text-[#262626] font-medium">
+                <Text className="gba:text-[15px] gba:text-[#262626] gba:font-medium">
                   {lead.company}
                 </Text>
               </div>
 
-              <div className="flex flex-col mb-4">
-                <Text className="text-sm text-[#8c8c8c] mb-1" type="secondary">
+              <div className="gba:flex gba:flex-col gba:mb-4">
+                <Text className="gba:text-sm gba:text-[#8c8c8c] gba:mb-1" type="secondary">
                   {mergedLabels.positionLabel}
                 </Text>
-                <Text className="text-[15px] text-[#262626] font-medium">
+                <Text className="gba:text-[15px] gba:text-[#262626] gba:font-medium">
                   {lead.position}
                 </Text>
               </div>
 
-              <div className="flex flex-col mb-4">
-                <Text className="text-sm text-[#8c8c8c] mb-1" type="secondary">
+              <div className="gba:flex gba:flex-col gba:mb-4">
+                <Text className="gba:text-sm gba:text-[#8c8c8c] gba:mb-1" type="secondary">
                   {mergedLabels.sourceLabel}
                 </Text>
-                <Text className="text-[15px] text-[#262626] font-medium">
+                <Text className="gba:text-[15px] gba:text-[#262626] gba:font-medium">
                   {lead.source}
                 </Text>
               </div>
 
-              <div className="flex flex-col mb-4">
-                <Text className="text-sm text-[#8c8c8c] mb-1" type="secondary">
+              <div className="gba:flex gba:flex-col gba:mb-4">
+                <Text className="gba:text-sm gba:text-[#8c8c8c] gba:mb-1" type="secondary">
                   {mergedLabels.ratingLabel}
                 </Text>
-                <Text className="text-[15px] text-[#f5222d] font-medium">
+                <Text className="gba:text-[15px] gba:text-[#f5222d] gba:font-medium">
                   {renderRating(lead.rating)}
                 </Text>
               </div>
 
-              <div className="w-full h-px bg-[#e8e8e8] my-3"></div>
+              <div className="gba:w-full gba:h-px gba:bg-[#e8e8e8] gba:my-3"></div>
 
-              <div className="flex flex-col mb-4">
-                <Text className="text-sm text-[#8c8c8c] mb-1" type="secondary">
+              <div className="gba:flex gba:flex-col gba:mb-4">
+                <Text className="gba:text-sm gba:text-[#8c8c8c] gba:mb-1" type="secondary">
                   {mergedLabels.ownerLabel}
                 </Text>
-                <Text className="text-[15px] text-[#262626] font-medium">
+                <Text className="gba:text-[15px] gba:text-[#262626] gba:font-medium">
                   {lead.owner}
                 </Text>
               </div>
 
-              <div className="flex flex-col mb-4">
-                <Text className="text-sm text-[#8c8c8c] mb-1" type="secondary">
+              <div className="gba:flex gba:flex-col gba:mb-4">
+                <Text className="gba:text-sm gba:text-[#8c8c8c] gba:mb-1" type="secondary">
                   {mergedLabels.creationDateLabel}
                 </Text>
-                <Text className="text-[15px] text-[#262626] font-medium">
+                <Text className="gba:text-[15px] gba:text-[#262626] gba:font-medium">
                   {lead.creationDate}
                 </Text>
               </div>
@@ -579,22 +579,22 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
 
       {/* Main content */}
       <Col span={18}>
-        <Card className="rounded-xl">
+        <Card className="gba:rounded-xl">
           <Tabs
             activeKey={activeMainTab}
             onChange={setActiveMainTab}
-            className="mb-4"
+            className="gba:mb-4"
             items={[
               {
                 label: mergedLabels.overviewTabLabel,
                 key: "overview",
                 children: (
-                  <div className="w-full">
+                  <div className="gba:w-full">
                     {/* Status history */}
                     {renderStatusHistory()}
                     <Divider />
                     {/* Activity & Tasks section */}
-                    <Row gutter={24} className="content-row">
+                    <Row gutter={24} className="gba:content-row">
                       <Col span={18}>{renderActivityTimeline()}</Col>
                       <Col span={6}>{renderTasksAndReminders()}</Col>
                     </Row>
@@ -605,7 +605,7 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
                 label: mergedLabels.companyTabLabel,
                 key: "company",
                 children: companyContent || (
-                  <div className="empty-content">
+                  <div className="gba:empty-content">
                     {mergedLabels.noCompanyInfoMessage ||
                       "No company information available"}
                   </div>
@@ -615,7 +615,7 @@ export const LeadDetail: React.FC<LeadDetailProps & BusinessAppContextProps> = (
                 label: mergedLabels.documentsTabLabel,
                 key: "documents",
                 children: documentsContent || (
-                  <div className="empty-content">
+                  <div className="gba:empty-content">
                     {mergedLabels.noDocumentsMessage || "No documents available"}
                   </div>
                 ),

@@ -75,14 +75,14 @@ export function StageDialog() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md w-full">
-        <div className="p-6">
-          <h2 className="text-xl font-semibold mb-4">{title}</h2>
+    <div className="gba:fixed gba:inset-0 gba:bg-black/50 gba:flex gba:items-center gba:justify-center gba:p-4 gba:z-50">
+      <div className="gba:bg-white gba:dark:bg-gray-800 gba:rounded-lg gba:shadow-lg gba:max-w-md gba:w-full">
+        <div className="gba:p-6">
+          <h2 className="gba:text-xl gba:font-semibold gba:mb-4">{title}</h2>
           <form onSubmit={handleSubmit}>
-            <div className="space-y-4">
+            <div className="gba:space-y-4">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium mb-1">
+                <label htmlFor="name" className="gba:block gba:text-sm gba:font-medium gba:mb-1">
                   Column Name
                 </label>
                 <input
@@ -90,13 +90,13 @@ export function StageDialog() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md"
+                  className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:dark:border-gray-600 gba:rounded-md"
                   required
                 />
               </div>
 
               <div>
-                <label htmlFor="probability" className="block text-sm font-medium mb-1">
+                <label htmlFor="probability" className="gba:block gba:text-sm gba:font-medium gba:mb-1">
                   Probability ({probability}%)
                 </label>
                 <input
@@ -107,26 +107,26 @@ export function StageDialog() {
                   step="5"
                   value={probability}
                   onChange={(e) => setProbability(parseInt(e.target.value))}
-                  className="w-full"
+                  className="gba:w-full"
                 />
               </div>
 
-              <div className="flex items-center">
+              <div className="gba:flex gba:items-center">
                 <input
                   id="rotting"
                   type="checkbox"
                   checked={rotting}
                   onChange={(e) => setRotting(e.target.checked)}
-                  className="h-4 w-4 mr-2"
+                  className="gba:h-4 gba:w-4 gba:mr-2"
                 />
-                <label htmlFor="rotting" className="text-sm font-medium">
+                <label htmlFor="rotting" className="gba:text-sm gba:font-medium">
                   Enable Deal Rotting
                 </label>
               </div>
 
               {rotting && (
                 <div>
-                  <label htmlFor="rottingDays" className="block text-sm font-medium mb-1">
+                  <label htmlFor="rottingDays" className="gba:block gba:text-sm gba:font-medium gba:mb-1">
                     Days until rotting: {rottingDays}
                   </label>
                   <input
@@ -136,22 +136,22 @@ export function StageDialog() {
                     max="30"
                     value={rottingDays}
                     onChange={(e) => setRottingDays(parseInt(e.target.value))}
-                    className="w-full"
+                    className="gba:w-full"
                   />
                 </div>
               )}
 
-              <div className="flex justify-end space-x-2 pt-4">
+              <div className="gba:flex gba:justify-end gba:space-x-2 gba:pt-4">
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium"
+                  className="gba:px-4 gba:py-2 gba:border gba:border-gray-300 gba:dark:border-gray-600 gba:rounded-md gba:text-sm gba:font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+                  className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded-md gba:text-sm gba:font-medium gba:hover:bg-blue-700"
                 >
                   {isEditing ? "Update" : "Add"}
                 </button>

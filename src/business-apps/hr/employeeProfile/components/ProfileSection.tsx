@@ -22,17 +22,17 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
   columns = 2
 }) => {
   return (
-    <div className="profile-section mb-8">
-      <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center">
-        <span className="w-1 h-6 bg-blue-500 rounded mr-3"></span>
+    <div className="gba:profile-section gba:mb-8">
+      <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
+        <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
         {title}
       </h3>
-      <Card className="p-4 hover:shadow-md transition-shadow">
-        <div className={`grid grid-cols-1 ${columns === 2 ? 'md:grid-cols-2' : ''} gap-3`}>
+      <Card className="gba:p-4 gba:hover:shadow-md gba:transition-shadow">
+        <div className={`gba:grid gba:grid-cols-1 ${columns === 2 ? 'md:grid-cols-2' : ''} gba:gap-3`}>
           {data.map((item) => (
-            <div key={`${item.label}-${item.value}`} className="flex flex-col py-1 px-2 hover:bg-gray-50 rounded-md transition-colors">
-              <span className="text-sm text-gray-500 mb-0.5">{item.label}</span>
-              <span className="font-medium text-gray-800">{item.value}</span>
+            <div key={`${item.label}-${item.value}`} className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-gray-50 gba:rounded-md gba:transition-colors">
+              <span className="gba:text-sm gba:text-gray-500 gba:mb-0.5">{item.label}</span>
+              <span className="gba:font-medium gba:text-gray-800">{item.value}</span>
             </div>
           ))}
         </div>

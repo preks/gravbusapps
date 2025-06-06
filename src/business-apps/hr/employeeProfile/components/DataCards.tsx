@@ -39,8 +39,8 @@ export function DataCards<T extends Record<string, any>>({
   // Handle loading state
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-40">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
+        <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-blue-600"></div>
       </div>
     );
   }
@@ -48,7 +48,7 @@ export function DataCards<T extends Record<string, any>>({
   // Handle error state
   if (error) {
     return (
-      <div className="text-center text-red-600 py-8">
+      <div className="gba:text-center gba:text-red-600 gba:py-8">
         <p>{error}</p>
       </div>
     );
@@ -57,7 +57,7 @@ export function DataCards<T extends Record<string, any>>({
   // Handle empty state
   if (!data || data.length === 0) {
     return (
-      <div className="text-center text-gray-500 py-8">
+      <div className="gba:text-center gba:text-gray-500 gba:py-8">
         <p>{emptyMessage}</p>
       </div>
     );
@@ -82,7 +82,7 @@ export function DataCards<T extends Record<string, any>>({
           // Use a unique ID from the item if available, otherwise use index as fallback
           const key = 'id' in item ? String((item as any).id) : `item-${index}`;
           return (
-            <div key={key} className="h-full">
+            <div key={key} className="gba:h-full">
               {renderItem(item)}
             </div>
           );

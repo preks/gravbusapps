@@ -38,7 +38,7 @@ export function EmployeeAvatarPlaceholder({
         width: `${size}px`,
         height: `${size}px`
       }}
-      className="rounded-full flex items-center justify-center text-white text-xl"
+      className="gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-white gba:text-xl"
       key={`${employeeId}-Avatar`}
     >
       {initials}

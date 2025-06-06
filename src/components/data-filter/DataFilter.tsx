@@ -117,33 +117,33 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
   };
 
   return (
-    <aside className={cn('flex flex-row items-start w-[336px] h-full', className)}>
-      <div className="flex flex-row justify-center items-start p-0 px-6 w-[336px] max-w-[336px] h-full border-r border-gray-100 flex-grow overflow-hidden">
-        <form className="min-w-0 w-full flex flex-col items-start p-0 gap-4 h-full flex-grow z-0 overflow-hidden" onSubmit={(e) => e.preventDefault()}>
-          <div className="min-w-0 w-full flex flex-row items-center justify-between py-3 pb-1 gap-4 h-12">
-            <div className="flex items-center gap-4">
+    <aside className={cn("gba:flex gba:flex-row gba:items-start gba:w-[336px] gba:h-full", className)}>
+      <div className="gba:flex gba:flex-row gba:justify-center gba:items-start gba:p-0 gba:px-6 gba:w-[336px] gba:max-w-[336px] gba:h-full gba:border-r gba:border-gray-100 gba:grow gba:overflow-hidden">
+        <form className="gba:min-w-0 gba:w-full gba:flex gba:flex-col gba:items-start gba:p-0 gba:gap-4 gba:h-full gba:grow gba:z-0 gba:overflow-hidden" onSubmit={(e) => e.preventDefault()}>
+          <div className="gba:min-w-0 gba:w-full gba:flex gba:flex-row gba:items-center gba:justify-between gba:py-3 gba:pb-1 gba:gap-4 gba:h-12">
+            <div className="gba:flex gba:items-center gba:gap-4">
             {!showSearchInput ? (
               <>
-                <div className="flex flex-col items-start p-0 w-8 h-8 relative">
+                <div className="gba:flex gba:flex-col gba:items-start gba:p-0 gba:w-8 gba:h-8 gba:relative">
                   <button
-                    className="flex flex-row justify-center items-center p-0 w-8 h-8 bg-gray-100/40 rounded hover:bg-gray-100/80 transition-colors"
+                    className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:bg-gray-100/40 gba:rounded gba:hover:bg-gray-100/80 gba:transition-colors"
                     type="button"
                     aria-label="Search filters"
                     onClick={handleSearchClick}
                   >
-                    <PiMagnifyingGlass size={20} className="text-black" aria-hidden="true" />
+                    <PiMagnifyingGlass size={20} className="gba:text-black" aria-hidden="true" />
                   </button>
                 </div>
-                <span className="text-base font-medium text-gray-900">Filter</span>
+                <span className="gba:text-base gba:font-medium gba:text-gray-900">Filter</span>
               </>
             ) : (
-              <div className="flex flex-row items-center w-full h-8 bg-gray-100/40 rounded px-2">
-                <span className="flex items-center justify-center mr-2">
-                  <PiMagnifyingGlass size={20} className="text-black" aria-hidden="true" />
+              <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:h-8 gba:bg-gray-100/40 gba:rounded gba:px-2">
+                <span className="gba:flex gba:items-center gba:justify-center gba:mr-2">
+                  <PiMagnifyingGlass size={20} className="gba:text-black" aria-hidden="true" />
                 </span>
                 <DebouncedInput
                   ref={searchInputRef}
-                  className="flex-grow bg-transparent border-none outline-none text-sm"
+                  className="gba:grow gba:bg-transparent gba:border-none gba:outline-none gba:text-sm"
                   placeholder="Search for Filter Group..."
                   value={searchQuery}
                   onChange={setSearchQuery}
@@ -154,7 +154,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                 {searchQuery && (
                   <button
                     type="button"
-                    className="ml-1 text-gray-400 hover:text-gray-600"
+                    className="gba:ml-1 gba:text-gray-400 gba:hover:text-gray-600"
                     onClick={() => {
                       setSearchQuery('');
                       if (!searchQuery) setShowSearchInput(false);
@@ -170,15 +170,15 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
             {/* Close button to use onClose prop */}
             <button
               type="button"
-              className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-gray-100"
+              className="gba:flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded-full gba:hover:bg-gray-100"
               onClick={onClose}
               aria-label="Close filter panel"
             >
-              <span aria-hidden="true" className="text-gray-600">&times;</span>
+              <span aria-hidden="true" className="gba:text-gray-600">&times;</span>
             </button>
           </div>
           
-          <div className="flex flex-col w-full gap-1 overflow-y-auto flex-grow">
+          <div className="gba:flex gba:flex-col gba:w-full gba:gap-1 gba:overflow-y-auto gba:grow">
             {filteredGroups.map((group) => {
               // Determine if this group uses backend-powered search
               const groupSearch = groupSearchQueries[group.id] || '';
@@ -205,23 +205,23 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
               let filterContent: React.ReactNode;
               if (loading) {
                 filterContent = (
-                  <div className="p-2 text-gray-400">Loading...</div>
+                  <div className="gba:p-2 gba:text-gray-400">Loading...</div>
                 );
               } else if (error) {
                 filterContent = (
-                  <div className="p-2 text-red-500">Error loading filters</div>
+                  <div className="gba:p-2 gba:text-red-500">Error loading filters</div>
                 );
               } else if ((filterOptions ?? []).length > 0) {
                 filterContent = (filterOptions ?? []).map((filter) => (
                   <button
                     key={filter.id}
-                    className="flex flex-row items-center w-full p-2 rounded hover:bg-gray-100/50 transition-colors"
+                    className="gba:flex gba:flex-row gba:items-center gba:w-full gba:p-2 gba:rounded gba:hover:bg-gray-100/50 gba:transition-colors"
                     onClick={() => onFilterChange?.(filter.id, !filter.selected)}
                     onKeyDown={(e) => e.key === 'Enter' && onFilterChange?.(filter.id, !filter.selected)}
                     type="button"
                     aria-pressed={filter.selected}
                   >
-                    <div className="flex items-center justify-center mr-2">
+                    <div className="gba:flex gba:items-center gba:justify-center gba:mr-2">
                       <Checkbox 
                         value={filter.selected} 
                         onChange={() => onFilterChange?.(filter.id, !filter.selected)}
@@ -229,50 +229,50 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                         name={filter.id}
                       />
                     </div>
-                    <span className={`text-sm ${filter.selected ? 'font-medium text-primary-500' : 'text-gray-700'}`}>
+                    <span className={`gba:text-sm ${filter.selected          ? 'gba:font-medium gba:text-primary-500' : 'gba:text-gray-700'}`}>
                       {filter.label}{typeof filter.count === 'number' ? ` (${filter.count})` : ''}
                     </span>
                   </button>
                 ));
               } else {
                 filterContent = (
-                  <div className="p-2 text-gray-400 text-sm">
+                  <div className="gba:p-2 gba:text-gray-400 gba:text-sm">
                     No filters found
                   </div>
                 );
               }
 
               return (
-                <div key={group.id} className="w-full">
+                <div key={group.id} className="gba:w-full">
                   <button 
-                    className="flex flex-row items-center justify-between w-full p-2 rounded hover:bg-gray-100/50 transition-colors" 
+                    className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:w-full gba:p-2 gba:rounded gba:hover:bg-gray-100/50 gba:transition-colors" 
                     onClick={() => toggleGroup(group.id)}
                     onKeyDown={(e) => e.key === 'Enter' && toggleGroup(group.id)}
                     aria-expanded={isExpanded}
                     aria-controls={groupId}
                     type="button"
                   >
-                    <span className="text-sm font-medium text-gray-900">{group.title}</span>
-                    <div className="flex items-center">
+                    <span className="gba:text-sm gba:font-medium gba:text-gray-900">{group.title}</span>
+                    <div className="gba:flex gba:items-center">
                       {selectedCount > 0 && (
-                        <div className="flex items-center justify-center min-w-[20px] h-5 bg-primary-500 text-white text-xs font-medium rounded-full px-1.5 mr-2" aria-label={`${selectedCount} selected filters`}>
+                        <div className="gba:flex gba:items-center gba:justify-center gba:min-w-[20px] gba:h-5 gba:bg-primary-500 gba:text-white gba:text-xs gba:font-medium gba:rounded-full gba:px-1.5 gba:mr-2" aria-label={`${selectedCount} selected filters`}>
                           <span>{selectedCount}</span>
                         </div>
                       )}
                       {isExpanded ? (
-                        <PiCaretUp size={20} className="text-black" aria-hidden="true" />
+                        <PiCaretUp size={20} className="gba:text-black" aria-hidden="true" />
                       ) : (
-                        <PiCaretDown size={20} className="text-black" aria-hidden="true" />
+                        <PiCaretDown size={20} className="gba:text-black" aria-hidden="true" />
                       )}
                     </div>
                   </button>
 
                   {isExpanded && (
-                    <div className="flex flex-col w-full pl-2" id={groupId}>
+                    <div className="gba:flex gba:flex-col gba:w-full gba:pl-2" id={groupId}>
                       {/* Per-group search input with debounce */}
-                      <div className="w-full mb-2 mt-1">
+                      <div className="gba:w-full gba:mb-2 gba:mt-1">
                         <DebouncedInput
-                          className="w-full h-8 px-2 text-sm bg-gray-100/40 rounded border-none outline-none"
+                          className="gba:w-full gba:h-8 gba:px-2 gba:text-sm gba:bg-gray-100/40 gba:rounded gba:border-none gba:outline-none"
                           placeholder={`Search in ${group.title}...`}
                           value={groupSearch}
                           onChange={value => handleGroupSearchChange(group.id, value)}

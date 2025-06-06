@@ -77,9 +77,9 @@ export function KanbanBoard() {
   };
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-xs">
+    <div className="gba:h-full gba:flex gba:flex-col">
+      <div className="gba:p-4 gba:border-b gba:border-gray-200 gba:dark:border-gray-800">
+        <div className="gba:max-w-xs">
           <PipelineSelector />
         </div>
       </div>
@@ -90,8 +90,8 @@ export function KanbanBoard() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex-1 overflow-x-auto scrollbar-hide">
-          <div className="flex h-full gap-4 p-4">
+        <div className="gba:flex-1 gba:overflow-x-auto gba:scrollbar-hide">
+          <div className="gba:flex gba:h-full gba:gap-4 gba:p-4">
             <SortableContext items={pipelineStages.map((s: any) => s.id)} strategy={horizontalListSortingStrategy}>
               {pipelineStages.map((stage: any) => (
                 <KanbanColumn
@@ -103,9 +103,9 @@ export function KanbanBoard() {
             </SortableContext>
 
             {isSalesManager && (
-              <div className="flex-shrink-0 w-72 h-full">
+              <div className="gba:shrink-0 gba:w-72 gba:h-full">
                 <button
-                  className="w-full h-16 border border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-400 dark:border-gray-700 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600"
+                  className="gba:w-full gba:h-16 gba:border gba:border-dashed gba:border-gray-300 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:text-gray-500 gba:hover:text-gray-700 gba:hover:border-gray-400 gba:dark:border-gray-700 gba:dark:text-gray-400 gba:dark:hover:text-gray-300 gba:dark:hover:border-gray-600"
                   onClick={handleAddStage}
                 >
                   <PlusOutlined style={{ marginRight: '8px' }} />
@@ -118,7 +118,7 @@ export function KanbanBoard() {
 
         <DragOverlay>
           {activeId && activeOpportunity ? (
-            <div className="w-64">
+            <div className="gba:w-64">
               <OpportunityCard opportunity={activeOpportunity} />
             </div>
           ) : null}
