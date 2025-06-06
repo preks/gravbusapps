@@ -1,7 +1,6 @@
 import React from 'react';
 import { Card, Typography, Space, Button } from 'antd';
 import { UploadOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
 import { DashboardStats } from '../types';
 import AiIcon from './AiIcon';
 
@@ -20,8 +19,6 @@ const AiAssistant: React.FC<AiAssistantProps> = ({
   error, 
   navigateToExpenseItems 
 }) => {
-  const navigate = useNavigate();
-  
   // Count of expense items without receipts (assuming this data comes from stats)
   const itemsWithoutReceipts = stats?.expenseItemsWithoutReceipts || 0;
   
