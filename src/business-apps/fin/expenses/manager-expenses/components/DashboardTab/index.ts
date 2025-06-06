@@ -1,3 +1,2 @@
-import DashboardTab from './DashboardTab';
-
-export default DashboardTab;
+export { default } from './DashboardTab';
+export * from './DashboardTab';

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { GET_ADVANCE_PAYMENTS_BY_MANAGER } from '../queries/advancePayments';
+import { GET_ADVANCE_PAYMENTS_BY_MANAGER, GET_ADVANCE_PAYMENT_STATISTICS } from '../queries/advancePayments';
 
 // Define types for the hook
 export interface AdvancePaymentItem {
@@ -18,6 +18,11 @@ export interface AdvancePaymentItem {
   // Add other relevant fields from the query if needed for the UI
 }
 
+// New type for statistics data
+export interface AdvancePaymentStatisticsData {
+  totalAmount: number | null;
+}
+
 export interface AdvancePaymentsResult {
   payments: AdvancePaymentItem[];
   isLoading: boolean;
@@ -29,6 +34,10 @@ export interface AdvancePaymentsResult {
     pageSize?: number,
     status?: string
   ) => Promise<void>;
+  advancePaymentStats: AdvancePaymentStatisticsData | null;
+  statsLoading: boolean;
+  statsError: string | null;
+  fetchAdvancePaymentStatistics: () => Promise<void>;
 }
 
 /**
@@ -42,6 +51,11 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
+
+  // State for statistics
+  const [advancePaymentStats, setAdvancePaymentStats] = useState<AdvancePaymentStatisticsData | null>(null);
+  const [statsLoading, setStatsLoading] = useState<boolean>(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   const buildQueryVariables = (
     employeeId: string, // Changed from managerId to employeeId to match query
@@ -159,11 +173,80 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     }
   }, [context?.accessToken, context?.userInfo?.employeeDetails?.employeeId]);
 
+  const fetchAdvancePaymentStatistics = useCallback(async () => {
+    const employeeId = context?.userInfo?.employeeDetails?.employeeId; // Manager's ID
+    const accessToken = context?.accessToken;
+
+    if (!employeeId) {
+      setStatsError('Employee ID (Manager ID) not found. Cannot fetch advance payment statistics.');
+      setAdvancePaymentStats(null);
+      setStatsLoading(false);
+      return;
+    }
+
+    if (!accessToken) {
+      setStatsError('Access token not found. Cannot fetch advance payment statistics.');
+      setAdvancePaymentStats(null);
+      setStatsLoading(false);
+      return;
+    }
+
+    setStatsLoading(true);
+    setStatsError(null);
+
+    try {
+      const variables = { employeeId };
+      
+      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          query: GET_ADVANCE_PAYMENT_STATISTICS,
+          variables,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.errors && result.errors.length > 0) {
+        console.error('GraphQL Errors (Statistics):', result.errors);
+        throw new Error(result.errors.map((e: any) => e.message).join(', '));
+      }
+      
+      if (!result.data?.advancePaymentStats?.aggregate?.sum) {
+        // It's possible advancePaymentStats is null or sum is null if no records match, handle gracefully
+        setAdvancePaymentStats({ totalAmount: null }); 
+      } else {
+         setAdvancePaymentStats({
+           totalAmount: result.data.advancePaymentStats.aggregate.sum.amount,
+         });
+      }
+
+    } catch (err: any) {
+      console.error('Error fetching advance payment statistics:', err);
+      setStatsError(err.message ?? 'Failed to fetch advance payment statistics.');
+      setAdvancePaymentStats(null);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [context?.accessToken, context?.userInfo?.employeeDetails?.employeeId]);
+
   return {
     payments,
     isLoading,
     error,
     totalCount,
     fetchPayments,
+    advancePaymentStats,
+    statsLoading,
+    statsError,
+    fetchAdvancePaymentStatistics,
   };
 };

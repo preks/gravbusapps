@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Typography, Spin, Alert, Select, Space, Button, Tooltip, Pagination } from 'antd'; // Removed Input
+import React, { useState, useEffect, useMemo } from 'react';
+import { Typography, Spin, Alert, Select, Space, Button, Tooltip } from 'antd'; // Removed Input, Table, Pagination
 import type { ColumnsType } from 'antd/es/table';
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons'; // Removed SearchOutlined
-import { Avatar } from '@newwork/gravity-ui-catalog';
+import { DataTable, Avatar } from '@newwork/gravity-ui-catalog';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
+import AdvancePaymentStatistics from './AdvancePaymentStatistics';
 import { useGetAdvancePayments, AdvancePaymentItem } from '../../hooks/useGetAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../utils';
 
@@ -30,11 +31,35 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     error,
     totalCount,
     fetchPayments,
+    advancePaymentStats,
+    statsLoading,
+    statsError,
+    fetchAdvancePaymentStatistics,
   } = useGetAdvancePayments(props);
 
   useEffect(() => {
     fetchPayments(search, page, pageSize, selectedStatus === 'all' ? undefined : selectedStatus);
-  }, [fetchPayments, search, page, pageSize, selectedStatus]);
+    fetchAdvancePaymentStatistics(); // Fetch statistics when payments are fetched or filters change
+  }, [fetchPayments, fetchAdvancePaymentStatistics, search, page, pageSize, selectedStatus]);
+
+  // Memoize the content header to prevent unnecessary re-renders
+  const contentHeader = useMemo(() => {
+    return <AdvancePaymentStatistics advancePaymentStats={advancePaymentStats} statsLoading={statsLoading} statsError={statsError} fetchAdvancePaymentStatistics={fetchAdvancePaymentStatistics} />;
+  }, [advancePaymentStats, statsLoading, statsError, fetchAdvancePaymentStatistics]);
+
+  // Update the content header only when it changes
+  const onContentHeaderChange = props.onContentHeaderChange;
+  useEffect(() => {
+    if (onContentHeaderChange) {
+      onContentHeaderChange(contentHeader);
+    }
+    // Optional: Clear header on unmount if needed by parent
+    // return () => {
+    //   if (onContentHeaderChange) {
+    //     onContentHeaderChange(null);
+    //   }
+    // };
+  }, [onContentHeaderChange, contentHeader]);
 
   const handleStatusChange = (value: string) => {
     setSelectedStatus(value);
@@ -50,6 +75,11 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     // TODO: Implement actual API call for approval
     fetchPayments(search, page, pageSize, selectedStatus === 'all' ? undefined : selectedStatus);
     setSelectedPayment(null);
+  };
+
+  const handleTableChange = (pagination: any, _filters: any, _sorter: any) => {
+    setPage(pagination.current);
+    setPageSize(pagination.pageSize);
   };
 
   const handleRejectPayment = (paymentId: string) => {
@@ -108,17 +138,33 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
       },
     },
     {
-      title: 'Actions',
+      title: '',
       key: 'actions',
       render: (_: any, record: AdvancePaymentItem) => (
         <Space size="middle">
           {(record.status?.toUpperCase() === 'PENDING') && (
             <>
-              <Tooltip title="Approve">
-                <Button icon={<CheckOutlined />} onClick={() => handleApprovePayment(record.id)} />
+              <Tooltip title="Approve Payment">
+                <Button
+                  type="primary"
+                  style={{ backgroundColor: 'green', borderColor: 'green' }}
+                  icon={<CheckOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleApprovePayment(record.id);
+                  }}
+                />
               </Tooltip>
-              <Tooltip title="Reject">
-                <Button icon={<CloseOutlined />} onClick={() => handleRejectPayment(record.id)} />
+              <Tooltip title="Reject Payment">
+                <Button
+                  type="primary"
+                  danger
+                  icon={<CloseOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRejectPayment(record.id);
+                  }}
+                />
               </Tooltip>
             </>
           )}
@@ -133,35 +179,26 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     if (!isLoading && payments.length === 0) return <div style={{ textAlign: 'center', padding: '20px' }}><Text>No advance payments found.</Text></div>;
 
     return (
-      <div className="gba:p-4">
-        <Table
-          columns={columns}
+        <DataTable
+          columns={columns as any[]}
           dataSource={payments}
           loading={isLoading}
           rowKey="id"
-          pagination={false}
-          onRow={(record) => {
+          pagination={{
+            current: page,
+            pageSize: pageSize,
+            total: totalCount,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50']
+          }}
+          onChange={handleTableChange}
+          onRow={(record: any) => {
             return {
               onClick: () => handleViewDetails(record),
-              className: 'gba:cursor-pointer', // Add a pointer cursor for better UX
+              className: 'gba:cursor-pointer',
             };
           }}
         />
-        {totalCount > 0 && (
-          <Pagination
-            current={page}
-            pageSize={pageSize}
-            total={totalCount}
-            onChange={(newPage, newPageSize) => {
-              setPage(newPage);
-              if (newPageSize) setPageSize(newPageSize);
-            }}
-            showSizeChanger
-            pageSizeOptions={['10', '20', '50']}
-            style={{ marginTop: '20px', textAlign: 'right' }}
-          />
-        )}
-      </div>
     );
   };
 
@@ -194,7 +231,9 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
           setPage(1);
         },
         placeholder: 'Search by title, code, employee...', 
-        actions: [filterControlsNode] 
+        actions: [filterControlsNode],
+        listTitle: 'Advance Payments',
+        listAmount: totalCount 
       }}
       dataFilterProps={{ 
         filterGroups: [],

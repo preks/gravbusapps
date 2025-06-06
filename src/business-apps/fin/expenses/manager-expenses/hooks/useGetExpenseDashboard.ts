@@ -11,15 +11,14 @@ export interface ExpenseDashboardData {
   recentRequests: {
     id: string;
     title: string;
-    amount: number;
+    totalAmount: number; // Changed from amount
     status: string;
     requestDate: string;
     employeeName: string;
   }[];
-  teamBudget: {
-    total: number;
+  teamBudget?: {
     used: number;
-    remaining: number;
+    total: number;
   };
 }
 
@@ -71,7 +70,15 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
         },
         body: JSON.stringify({
           query: GET_EXPENSE_DASHBOARD_BY_MANAGER,
-          variables: { managerId },
+          variables: { 
+            managerId,
+            startDate: (() => {
+              const date = new Date();
+              date.setDate(date.getDate() - 30);
+              date.setUTCHours(0, 0, 0, 0); // Set time to midnight UTC
+              return date.toISOString();
+            })()
+          },
         }),
       });
 
@@ -91,21 +98,20 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
       const mappedDashboardData: ExpenseDashboardData = {
         teamMembersCount: data?.TeamMembersAggregate?.aggregate?.count ?? 0,
         pendingApprovalsCount: data?.PendingApprovalsAggregate?.aggregate?.count ?? 0,
-        monthlyExpensesTotal: data?.MonthlyExpensesAggregate?.aggregate?.sum?.amount ?? 0,
-        expenseCategoriesCount: data?.ExpenseCategoriesAggregate?.aggregate?.count ?? 0,
+        monthlyExpensesTotal: data?.MonthlyExpensesAggregate?.aggregate?.sum?.totalAmount ?? 0, // Changed to totalAmount
+        expenseCategoriesCount: 5, // Default value for now, can be updated with actual data later
         recentRequests: (data?.RecentExpenseRequests ?? []).map((request: any) => ({
           id: request.id,
           title: request.title ?? 'Untitled Request',
-          amount: request.amount ?? 0,
+          totalAmount: request.totalAmount ?? 0, // Changed from amount to totalAmount
           status: request.status ?? 'PENDING',
           requestDate: request.requestDate ? new Date(request.requestDate).toISOString().split('T')[0] : 'N/A',
           employeeName: request.employee?.fullName ?? 'Unknown Employee',
         })),
         teamBudget: {
-          total: data?.TeamBudget?.[0]?.total ?? 0,
-          used: data?.TeamBudget?.[0]?.used ?? 0,
-          remaining: data?.TeamBudget?.[0]?.remaining ?? 0,
-        },
+          used: data?.MonthlyExpensesAggregate?.aggregate?.sum?.totalAmount ?? 0,
+          total: 5000 // Default budget value, should be replaced with actual budget data
+        }
       };
       
       setDashboardData(mappedDashboardData);

@@ -55,6 +55,7 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
       title
       startDate
       endDate
+      requestDate
       description
       requestDate
       totalAmount
@@ -155,4 +156,80 @@ export const REJECT_EXPENSE_REQUEST = `
       }
     }
   }
+`;
+
+export const GET_EXPENSE_REQUEST_STATISTICS = `
+  query GetExpenseRequestStatistics($employeeId: uuid!) {
+  pendingRequests: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_eq: "PENDING"}
+    }
+  ) {
+    aggregate {
+      count
+      sum {
+        totalAmount
+      }
+    }
+  }
+  approvedRequests: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_eq: "APPROVED"}
+    }
+  ) {
+    aggregate {
+      count
+      sum {
+        totalAmount
+      }
+    }
+  }
+  rejectedRequests: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_eq: "REJECTED"}
+    }
+  ) {
+    aggregate {
+      count
+      sum {
+        totalAmount
+      }
+    }
+  }
+  allSubmittedRequests: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_nin: ["CREATED", "DISCARDED", "RETURNED"]}
+    }
+  ) {
+    aggregate {
+      sum {
+        totalAmount
+      }
+    }
+  }
+}
 `;

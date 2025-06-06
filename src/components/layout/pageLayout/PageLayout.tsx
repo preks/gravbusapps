@@ -51,7 +51,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
   
   const iconClasses = cn(
     "flex items-center justify-center",
-    isDisplay ? "w-12 h-12" : "w-10 h-10"
+    isDisplay ? "w-48 h-48" : "w-32 h-32"
   );
   
   const labelClasses = cn(
@@ -61,7 +61,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
 
   return (
     <div
-      className={`page-layout w-full h-full flex flex-col bg-white rounded-xl shadow-md overflow-hidden ${className}`.trim()}
+      className={`page-layout p-6 w-full h-full flex flex-col bg-white rounded-xl shadow-md overflow-hidden ${className}`.trim()}
       style={{ minHeight: '0', minWidth: '0' }}
     >
       <header className="flex flex-col box-border border-b border-gray-200 relative">
@@ -87,7 +87,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
       </header>
       <div className="flex flex-col flex-1 min-h-0">
         {contentHeader && (
-          <div className="py-2 border-b border-gray-200">{contentHeader}</div>
+          <div>{contentHeader}</div>
         )}
         <div className="bg-gray-100 flex-1 min-h-0">{contentContainer}</div>
       </div>

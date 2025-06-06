@@ -26,3 +26,25 @@ query GetAdvancePaymentsByManager($employeeId: uuid!, $limit: Int!, $offset: Int
   }
 }
 `;
+
+export const GET_ADVANCE_PAYMENT_STATISTICS = `
+  query GetAdvancePaymentStatistics($employeeId: uuid!) {
+    advancePaymentStats: AdvancePaymentAggregate(
+      where: {
+        expensePlan: {
+          employee: {
+            employeePosition: { supervisorEmployeeId: { _eq: $employeeId } }
+          }
+        },
+        isDeleted: { _eq: false },
+        status: { _nin: ["CREATED", "PREPARED", "RETURNED", "REJECTED", "DISCARDED"] }
+      }
+    ) {
+      aggregate {
+        sum {
+          amount
+        }
+      }
+    }
+  }
+`;

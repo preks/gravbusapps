@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { message } from 'antd';
-import { GET_EXPENSE_PLANS_BY_MANAGER, APPROVE_EXPENSE_PLAN, REJECT_EXPENSE_PLAN } from '../queries/expensePlans';
+import { GET_EXPENSE_PLANS_BY_MANAGER, GET_EXPENSE_PLAN_STATISTICS, APPROVE_EXPENSE_PLAN, REJECT_EXPENSE_PLAN } from '../queries/expensePlans';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 export interface ExpensePlan {
@@ -11,6 +11,7 @@ export interface ExpensePlan {
   status: string;
   startDate: string;
   endDate: string;
+  planDate: string; // Added by user query modification
   totalAmount: number;
   createdAt: string;
   updatedAt: string;
@@ -42,24 +43,58 @@ export interface ExpensePlanResponse {
   };
 }
 
-interface UseGetExpensePlansProps extends BusinessAppContextProps {
-  pageSize?: number;
-  employeeId?: string;
+export interface ExpensePlanStatistics {
+  totalCount: number;
+  sumTotalAmount: number | null;
+  pendingCount: number;
+  pendingAmount: number | null;
 }
 
-export const useGetExpensePlans = ({ accessToken, userInfo, pageSize = 10 }: UseGetExpensePlansProps) => {
-  // Get the supervisor employee ID from user info
+interface ExpensePlanStatisticsResponse {
+  allPlansStats?: {
+    aggregate: {
+      totalCount: number;
+      sum?: {
+        totalAmount: number | null;
+      };
+    };
+  };
+  pendingPlansStats?: {
+    aggregate: {
+      pendingCount: number;
+      sum?: {
+        totalAmount: number | null;
+      };
+    };
+  };
+}
+
+interface UseGetExpensePlansProps extends BusinessAppContextProps {
+  pageSize?: number;
+  employeeId?: string; // This seems to be for a different context, manager's own expenses?
+  searchTerm?: string; // Added
+  currentStatusFilter?: string | null; // Added
+}
+
+export const useGetExpensePlans = ({
+  accessToken,
+  userInfo,
+  pageSize = 10,
+  searchTerm,
+  currentStatusFilter,
+}: UseGetExpensePlansProps) => {
   const employeeId = userInfo?.employeeDetails?.employeeId;
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [plans, setPlans] = useState<ExpensePlan[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [search, setSearch] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [employeeFilter, setEmployeeFilter] = useState<string | null>(null);
+  const [employeeFilter, setEmployeeFilter] = useState<string | null>(null); 
   const [approving, setApproving] = useState<boolean>(false);
   const [rejecting, setRejecting] = useState<boolean>(false);
+  const [planStats, setPlanStats] = useState<ExpensePlanStatistics | null>(null);
+  const [statsLoading, setStatsLoading] = useState<boolean>(false);
+  const [statsError, setStatsError] = useState<Error | null>(null);
 
   const fetchPlans = useCallback(async () => {
     console.log('fetchPlans called with accessToken:', !!accessToken, 'employeeId:', employeeId);
@@ -80,7 +115,7 @@ export const useGetExpensePlans = ({ accessToken, userInfo, pageSize = 10 }: Use
     setError(null);
 
     try {
-      const searchValue = search ? `%${search}%` : '%%';
+      const searchValue = searchTerm ? `%${searchTerm}%` : '%%'; 
       const offset = (currentPage - 1) * pageSize;
       
       console.log('Fetching expense plans with employeeId:', employeeId);
@@ -97,7 +132,8 @@ export const useGetExpensePlans = ({ accessToken, userInfo, pageSize = 10 }: Use
             employeeId,
             limit: pageSize,
             offset,
-            searchTerm: searchValue
+            searchTerm: searchValue,
+            status: currentStatusFilter === 'all' || !currentStatusFilter ? null : currentStatusFilter 
           }
         })
       });
@@ -114,17 +150,12 @@ export const useGetExpensePlans = ({ accessToken, userInfo, pageSize = 10 }: Use
       // Apply client-side filtering for status and employee
       let filteredPlans = data.ExpensePlan;
       
-      // Filter by status if statusFilter is set
-      if (statusFilter) {
-        filteredPlans = filteredPlans.filter(plan => plan.status === statusFilter);
-      }
-      
-      // Filter by employee if employeeFilter is set
+      // Filter by employee if employeeFilter is set (client-side for now)
       if (employeeFilter) {
         filteredPlans = filteredPlans.filter(plan => plan.employee.id === employeeFilter);
       }
       
-      // Update state with filtered data
+      // Update state with data (status filtering is now server-side)
       setPlans(filteredPlans);
       setTotalCount(data.ExpensePlanAggregate.aggregate.count);
     } catch (err) {
@@ -133,36 +164,63 @@ export const useGetExpensePlans = ({ accessToken, userInfo, pageSize = 10 }: Use
     } finally {
       setLoading(false);
     }
-  }, [accessToken, employeeId, currentPage, pageSize, search, statusFilter, employeeFilter]);
+  }, [accessToken, employeeId, currentPage, pageSize, searchTerm, currentStatusFilter, employeeFilter]); // Updated dependencies
 
   useEffect(() => {
     fetchPlans();
   }, [fetchPlans]);
 
+  const fetchPlanStatistics = useCallback(async () => {
+    if (!accessToken || !employeeId) {
+      setStatsError(new Error('Access token or Employee ID not found for statistics.'));
+      setStatsLoading(false);
+      return;
+    }
+    setStatsLoading(true);
+    setStatsError(null);
+    try {
+      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          query: GET_EXPENSE_PLAN_STATISTICS,
+          variables: { employeeId }
+        })
+      });
+      const result = await response.json();
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
+      }
+      const data = result.data as ExpensePlanStatisticsResponse;
+      setPlanStats({
+        totalCount: data.allPlansStats?.aggregate.totalCount ?? 0,
+        sumTotalAmount: data.allPlansStats?.aggregate.sum?.totalAmount ?? null,
+        pendingCount: data.pendingPlansStats?.aggregate.pendingCount ?? 0,
+        pendingAmount: data.pendingPlansStats?.aggregate.sum?.totalAmount ?? null
+      });
+    } catch (err) {
+      setStatsError(err instanceof Error ? err : new Error('Failed to fetch expense plan statistics'));
+      console.error('Error fetching expense plan statistics:', err);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [accessToken, employeeId]);
+
+  useEffect(() => {
+    fetchPlanStatistics();
+  }, [fetchPlanStatistics]);
+
+  const handleEmployeeFilter = (value: string | null) => {
+    setEmployeeFilter(value);
+    setCurrentPage(1); // Reset to first page on filter change
+  };
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
-
-  const handleSearch = (value: string) => {
-    setSearch(value);
-    setCurrentPage(1);
-  };
-
-  const handleStatusFilter = (status: string | null) => {
-    setStatusFilter(status);
-    setCurrentPage(1);
-  };
-
-  const handleEmployeeFilter = (empId: string | null) => {
-    setEmployeeFilter(empId);
-    setCurrentPage(1);
-  };
-
-  // Fetch plans when component mounts or when dependencies change
-  useEffect(() => {
-    console.log('useEffect triggered with employeeId:', employeeId);
-    fetchPlans();
-  }, [accessToken, employeeId, currentPage, search, statusFilter, employeeFilter, fetchPlans]);
 
   const approvePlan = async (planId: string, comments?: string) => {
     if (!accessToken || !employeeId) return;
@@ -246,18 +304,19 @@ export const useGetExpensePlans = ({ accessToken, userInfo, pageSize = 10 }: Use
     plans,
     totalCount,
     currentPage,
-    search,
-    statusFilter,
+    setCurrentPage,
     employeeFilter,
     approving,
     rejecting,
-    handlePageChange,
-    handleSearch,
-    handleStatusFilter,
     handleEmployeeFilter,
+    handlePageChange,
     approvePlan,
     rejectPlan,
-    fetchPlans
+    fetchPlans,
+    planStats,
+    statsLoading,
+    statsError,
+    fetchPlanStatistics
   };
 };
 

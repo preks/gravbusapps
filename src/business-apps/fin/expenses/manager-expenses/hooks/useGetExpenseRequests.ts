@@ -2,10 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
   GET_EXPENSE_REQUESTS_BY_MANAGER, 
-  GET_TEAM_MEMBERS_BY_MANAGER,
   APPROVE_EXPENSE_REQUEST,
-  REJECT_EXPENSE_REQUEST
+  REJECT_EXPENSE_REQUEST,
+  GET_EXPENSE_REQUEST_STATISTICS
 } from '../queries/expenseRequests';
+
+// Props for the hook, ensuring accessToken and userInfo are provided
+export interface UseGetExpenseRequestsProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {}
 
 // Define types for the hook
 export interface ExpenseRequest {
@@ -32,11 +35,15 @@ export interface ExpenseRequest {
   };
 }
 
-export interface TeamMember {
-  id: string;
-  fullName: string;
-  department?: string;
-  jobTitle?: string;
+
+export interface ExpenseRequestStatisticsData {
+  pendingCount: number;
+  pendingAmount: number | null;
+  approvedCount: number;
+  approvedAmount: number | null;
+  rejectedCount: number;
+  rejectedAmount: number | null;
+  totalSubmittedAmount: number | null;
 }
 
 export interface ExpenseRequestsResult {
@@ -44,7 +51,6 @@ export interface ExpenseRequestsResult {
   isLoading: boolean;
   error: string | null;
   totalCount: number;
-  teamMembers: TeamMember[];
   fetchRequests: (
     searchTerm?: string, 
     page?: number, 
@@ -54,6 +60,10 @@ export interface ExpenseRequestsResult {
   ) => Promise<void>;
   approveRequest: (requestId: string) => Promise<boolean>;
   rejectRequest: (requestId: string, rejectionReason?: string) => Promise<boolean>;
+  requestStats: ExpenseRequestStatisticsData | null;
+  requestStatsLoading: boolean;
+  requestStatsError: string | null;
+  fetchRequestStatistics: () => Promise<void>;
 }
 
 /**
@@ -61,12 +71,16 @@ export interface ExpenseRequestsResult {
  * @param context Business app context containing user info and access token
  * @returns Object containing expense requests, loading state, error, total count, and fetch function
  */
-export const useGetExpenseRequests = (context?: BusinessAppContextProps): ExpenseRequestsResult => {
+export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRequestsProps): ExpenseRequestsResult => {
   const [requests, setRequests] = useState<ExpenseRequest[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [requestStats, setRequestStats] = useState<ExpenseRequestStatisticsData | null>(null);
+  const [requestStatsLoading, setRequestStatsLoading] = useState<boolean>(false);
+  const [requestStatsError, setRequestStatsError] = useState<string | null>(null);
+
+  const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId;
 
   /**
    * Helper function to build GraphQL variables for the query
@@ -122,66 +136,16 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
     }));
   };
   
-  // Function to fetch team members
-  const fetchTeamMembers = useCallback(async () => {
-    const managerId = context?.userInfo?.employeeDetails?.employeeId;
-    const accessToken = context?.accessToken;
-
-    if (!managerId || !accessToken) {
-      return;
-    }
-
-    try {
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          query: GET_TEAM_MEMBERS_BY_MANAGER,
-          variables: { managerId },
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (result.errors && result.errors.length > 0) {
-        throw new Error(result.errors.map((e: any) => e.message).join(', '));
-      }
-      
-      const fetchedTeamMembers = result.data?.Employee ?? [];
-      setTeamMembers(fetchedTeamMembers);
-    } catch (err) {
-      console.error('Error fetching team members:', err);
-    }
-  }, [context?.accessToken, context?.userInfo?.employeeDetails?.employeeId]);
-  
   // Function to fetch requests with search, pagination, and filtering
   const fetchRequests = useCallback(async (
     searchTerm: string = '', 
     page: number = 1, 
     pageSize: number = 10,
-    employeeId: string = 'all',
+    employeeId: string = 'all', // This is a filter parameter, distinct from supervisor's ID
     status: string = 'all'
   ) => {
-    const managerId = context?.userInfo?.employeeDetails?.employeeId;
-    const accessToken = context?.accessToken;
-
-    if (!managerId) {
+    if (!supervisorEmployeeId) {
       setError('Manager ID not found. Cannot fetch expense requests.');
-      setRequests([]);
-      setTotalCount(0);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!accessToken) {
-      setError('Access token not found. Cannot fetch expense requests.');
       setRequests([]);
       setTotalCount(0);
       setIsLoading(false);
@@ -193,7 +157,7 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
     
     try {
       // Build query variables with helper function
-      const variables = buildQueryVariables(managerId, searchTerm, page, pageSize, employeeId, status);
+      const variables = buildQueryVariables(supervisorEmployeeId, searchTerm, page, pageSize, employeeId, status);
       
       const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
         method: 'POST',
@@ -232,12 +196,10 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
     } finally {
       setIsLoading(false);
     }
-  }, [context?.accessToken, context?.userInfo?.employeeDetails?.employeeId]);
+  }, [accessToken, supervisorEmployeeId, setIsLoading, setError, setRequests, setTotalCount]);
 
   // Function to approve an expense request
   const approveRequest = useCallback(async (requestId: string): Promise<boolean> => {
-    const accessToken = context?.accessToken;
-
     if (!accessToken) {
       setError('Access token not found. Cannot approve expense request.');
       return false;
@@ -280,12 +242,10 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       setError(err instanceof Error ? err.message : String(err));
       return false;
     }
-  }, [context?.accessToken]);
+  }, [accessToken]);
 
   // Function to reject an expense request
   const rejectRequest = useCallback(async (requestId: string, rejectionReason?: string): Promise<boolean> => {
-    const accessToken = context?.accessToken;
-
     if (!accessToken) {
       setError('Access token not found. Cannot reject expense request.');
       return false;
@@ -325,31 +285,76 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
             : request
         )
       );
-      
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       return false;
     }
-  }, [context?.accessToken]);
+  }, [accessToken, setRequests, setError]);
 
-  // Fetch team members on initial load
-  useEffect(() => {
-    fetchTeamMembers();
-  }, [fetchTeamMembers]);
+  const fetchRequestStatistics = useCallback(async () => {
+    if (!accessToken || !supervisorEmployeeId) {
+      setRequestStatsError('Access token or employee ID not available for statistics.');
+      setRequestStats(null);
+      setRequestStatsLoading(false);
+      return;
+    }
+    setRequestStatsLoading(true);
+    setRequestStatsError(null);
+    try {
+      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          query: GET_EXPENSE_REQUEST_STATISTICS,
+          variables: { employeeId: supervisorEmployeeId },
+        }),
+      });
+      const result = await response.json();
+      if (result.errors) {
+        throw new Error(result.errors.map((e: any) => e.message).join(', '));
+      }
+      const data = result.data;
+      setRequestStats({
+        pendingCount: data.pendingRequests?.aggregate?.count ?? 0,
+        pendingAmount: data.pendingRequests?.aggregate?.sum?.totalAmount ?? null,
+        approvedCount: data.approvedRequests?.aggregate?.count ?? 0,
+        approvedAmount: data.approvedRequests?.aggregate?.sum?.totalAmount ?? null,
+        rejectedCount: data.rejectedRequests?.aggregate?.count ?? 0,
+        rejectedAmount: data.rejectedRequests?.aggregate?.sum?.totalAmount ?? null,
+        totalSubmittedAmount: data.allSubmittedRequests?.aggregate?.sum?.totalAmount ?? null,
+      });
+    } catch (err: any) {
+      console.error('Error fetching expense request statistics:', err);
+      setRequestStatsError(err.message ?? 'Failed to fetch expense request statistics.');
+      setRequestStats(null);
+    } finally {
+      setRequestStatsLoading(false);
+    }
+  }, [accessToken, supervisorEmployeeId, setRequestStats, setRequestStatsLoading, setRequestStatsError]);
 
-  // Initial fetch of requests
+  // Initial data fetch (requests, and statistics)
   useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
+    if (accessToken && supervisorEmployeeId) {
+      fetchRequests(); // Fetches the first page of requests
+      fetchRequestStatistics();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, supervisorEmployeeId, fetchRequests, fetchRequestStatistics]);
 
   return {
     requests,
     isLoading,
     error,
     totalCount,
-    teamMembers,
     fetchRequests,
+    requestStats,
+    requestStatsLoading,
+    requestStatsError,
+    fetchRequestStatistics,
     approveRequest,
     rejectRequest
   };

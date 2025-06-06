@@ -4,7 +4,8 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
     $employeeId: uuid!, 
     $limit: Int!, 
     $offset: Int!, 
-    $searchTerm: String
+    $searchTerm: String,
+    $status: String
   ) {
     ExpensePlanAggregate(
       where: {
@@ -21,7 +22,7 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
           {status: {_ilike: $searchTerm}},
           {employee: {fullName: {_ilike: $searchTerm}}}
         ],
-        status: {_nin: ["CREATED", "DISCARDED", "RETURNED", "REJECTED"]}
+        status: {_eq: $status, _nin: ["CREATED", "DISCARDED", "RETURNED", "REJECTED"]}
       }
     ) {
       aggregate {
@@ -46,7 +47,7 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
           {status: {_ilike: $searchTerm}},
           {employee: {fullName: {_ilike: $searchTerm}}}
         ],
-        status: {_nin: ["CREATED", "DISCARDED", "RETURNED", "REJECTED"]}
+        status: {_eq: $status, _nin: ["CREATED", "DISCARDED", "RETURNED", "REJECTED"]}
       }
     ) {
       id
@@ -62,6 +63,7 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       decisionDate
       startDate
       endDate
+      planDate
       employee {
         id
         displayName
@@ -76,6 +78,47 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       }
     }
   }
+`;
+
+export const GET_EXPENSE_PLAN_STATISTICS = `
+  query GetExpensePlanStatistics($employeeId: uuid!) {
+  allPlansStats: ExpensePlanAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_nin: ["CREATED", "DISCARDED", "RETURNED", "REJECTED"]}
+    }
+  ) {
+    aggregate {
+      totalCount: count
+      sum {
+        totalAmount
+      }
+    }
+  }
+  pendingPlansStats: ExpensePlanAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_eq: "PENDING"}
+    }
+  ) {
+    aggregate {
+      pendingCount: count
+      sum {
+        totalAmount
+      }
+    }
+  }
+}
 `;
 
 export const APPROVE_EXPENSE_PLAN = `

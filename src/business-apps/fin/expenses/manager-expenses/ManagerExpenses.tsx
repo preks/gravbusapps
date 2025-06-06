@@ -1,7 +1,7 @@
 import React, { useEffect, useState, ReactNode } from 'react';
 import { Tabs } from '@newwork/gravity-ui-catalog';
 import { WalletOutlined } from '@ant-design/icons';
-import { PiGauge, PiPath, PiHandCoins, PiMoney } from 'react-icons/pi';
+import { PiGauge, PiPath, PiHandCoins, PiMoney, PiCalendarBlank } from 'react-icons/pi';
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -9,6 +9,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 // Import tab components
 import DashboardTab from './components/DashboardTab';
 import ExpensePlansTab from './components/ExpensePlansTab';
+import ExpenseCalendarTab from './components/ExpenseCalendarTab';
 import AdvancePaymentsTab from './components/AdvancePaymentsTab';
 import ExpenseRequestsTab from './components/ExpenseRequestsTab';
 
@@ -34,7 +35,6 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
       children: <DashboardTab {...props} />,
       renderContentHeader: () => null,
     },
-
     {
       key: 'expense-plans',
       label: (
@@ -77,6 +77,17 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
       />,
       renderContentHeader: () => contentHeader,
     },
+    {
+      key: 'expense-calendar',
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <PiCalendarBlank style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Expense Calendar</span>
+        </div>
+      ),
+      children: <ExpenseCalendarTab {...props} />,
+      renderContentHeader: () => null, // ExpenseCalendarTab manages its own header/controls
+    },
   ];
 
   const activeTabItem = tabItems.find(item => item.key === activeTab);
@@ -85,7 +96,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
 
   return (
     <PageLayout
-      headerIcon={<WalletOutlined />}
+      headerIcon={<WalletOutlined size={32}/>}
       headerLabel="Team Expenses Management"
       pageController={
           <Tabs

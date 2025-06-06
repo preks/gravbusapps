@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { Table, Button, Typography, Space, Spin, Alert, Select } from 'antd';
+import { Button, Typography, Space, Spin, Alert, Select } from 'antd'; 
 import { CheckOutlined, CloseOutlined, FileTextOutlined } from '@ant-design/icons';
-import { Avatar } from '@newwork/gravity-ui-catalog';
+import { DataTable, Avatar } from '@newwork/gravity-ui-catalog';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -24,45 +24,40 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
-  const { requests, isLoading, error, totalCount, teamMembers, fetchRequests, approveRequest, rejectRequest } = useGetExpenseRequests(contextProps);
+  const { requests, isLoading, error, totalCount, fetchRequests, approveRequest, rejectRequest, requestStats, requestStatsLoading, requestStatsError, fetchRequestStatistics } = useGetExpenseRequests(contextProps);
   const [searchText, setSearchText] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   
   // Create a memoized setSearch function to prevent re-renders
+  useEffect(() => {
+    fetchRequests(searchText, currentPage, pageSize, undefined, statusFilter === 'all' ? undefined : statusFilter);
+  }, [fetchRequests, searchText, currentPage, pageSize, statusFilter]);
+
   const handleSearchChange = useCallback((value: string) => {
     setSearchText(value);
-    setCurrentPage(1); // Reset to first page on new search
-    fetchRequests(value, 1, pageSize, selectedEmployee, statusFilter);
-  }, [fetchRequests, pageSize, selectedEmployee, statusFilter]);
-  
-  // Create a memoized setFilter function to prevent re-renders
-  const handleFilterChange = useCallback(() => {
-    // This is empty as we're handling filters separately
+    setCurrentPage(1); // Reset to first page, useEffect will fetch
   }, []);
-  
-  // Handle employee filter change
-  const handleEmployeeChange = useCallback((value: string) => {
-    setSelectedEmployee(value);
-    setCurrentPage(1); // Reset to first page on new filter
-    fetchRequests(searchText, 1, pageSize, value, statusFilter);
-  }, [fetchRequests, searchText, pageSize, statusFilter]);
-  
+
+  const handleTableChange = (pagination: any, _filters: any, _sorter: any) => {
+    setCurrentPage(pagination.current);
+    setPageSize(pagination.pageSize);
+    // useEffect will fetch
+  };
+
   // Handle status filter change
   const handleStatusChange = useCallback((value: string) => {
     setStatusFilter(value);
-    setCurrentPage(1); // Reset to first page on new filter
-    fetchRequests(searchText, 1, pageSize, selectedEmployee, value);
-  }, [fetchRequests, searchText, pageSize, selectedEmployee]);
+    setCurrentPage(1); // Reset to first page, useEffect will fetch
+  }, []);
 
   // Memoize the content header to prevent unnecessary re-renders
   const contentHeader = useMemo(() => {
-    return <ExpenseRequestStatistics requests={requests || []} />;
-  }, [requests]);
+    return <ExpenseRequestStatistics requestStats={requestStats} requestStatsLoading={requestStatsLoading} requestStatsError={requestStatsError} fetchRequestStatistics={fetchRequestStatistics} />;
+  }, [requestStats, requestStatsLoading, requestStatsError, fetchRequestStatistics]);
 
   // Update the content header only when it changes
   const onContentHeaderChange = props.onContentHeaderChange;
@@ -72,19 +67,6 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     }
   }, [onContentHeaderChange, contentHeader]);
 
-  // Handle page change
-  const handlePageChange = useCallback((page: number, pageSize?: number) => {
-    setCurrentPage(page);
-    fetchRequests(searchText, page, pageSize ?? 10, selectedEmployee, statusFilter);
-  }, [fetchRequests, searchText, selectedEmployee, statusFilter]);
-  
-  // Handle page size change
-  const handlePageSizeChange = useCallback((_: number, size: number) => {
-    setPageSize(size);
-    setCurrentPage(1); // Reset to first page when changing page size
-    fetchRequests(searchText, 1, size, selectedEmployee, statusFilter);
-  }, [fetchRequests, searchText, selectedEmployee, statusFilter]);
-  
   // Handle request selection
   const handleSelectRequest = useCallback((request: any) => {
     setSelectedRequest(request);
@@ -113,18 +95,18 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     const success = await approveRequest(requestId);
     if (success) {
       // Refresh the list after approval
-      fetchRequests(searchText, currentPage, pageSize, selectedEmployee, statusFilter);
+      fetchRequests(searchText, currentPage, pageSize, undefined, statusFilter);
     }
-  }, [approveRequest, fetchRequests, searchText, currentPage, pageSize, selectedEmployee, statusFilter]);
+  }, [approveRequest, fetchRequests, searchText, currentPage, pageSize, statusFilter]);
   
   // Handle rejecting a request
   const handleRejectRequest = useCallback(async (requestId: string) => {
     const success = await rejectRequest(requestId);
     if (success) {
       // Refresh the list after rejection
-      fetchRequests(searchText, currentPage, pageSize, selectedEmployee, statusFilter);
+      fetchRequests(searchText, currentPage, pageSize, undefined, statusFilter);
     }
-  }, [rejectRequest, fetchRequests, searchText, currentPage, pageSize, selectedEmployee, statusFilter]);
+  }, [rejectRequest, fetchRequests, searchText, currentPage, pageSize, statusFilter]);
 
   const renderDataBody = useCallback(() => {
     if (isLoading) {
@@ -139,12 +121,92 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       return (
         <div style={{ padding: 24, textAlign: 'center' }}>
           <Text>No expense requests found.</Text>
-          </div>
+        </div>
       );
     }
 
+    const tableColumns = [
+      {
+        title: 'Request',
+        dataIndex: 'title',
+        key: 'title',
+        render: (text: string, record: ExpenseRequest) => (
+          <div>
+            <div style={{ fontWeight: 'bold' }}>{text ?? 'Untitled Request'}</div>
+            {record.startDate && record.endDate && (
+              <div style={{ fontSize: '12px', color: '#888' }}>
+                {new Date(record.startDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})} - {new Date(record.endDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})}
+              </div>
+            )}
+            <div style={{ fontSize: '12px', color: '#666' }}>Ref: {record.code ?? 'N/A'} | Submitted: {record.requestDate ? new Date(record.requestDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'}) : 'N/A'}</div>
+          </div>
+        )
+      },
+      {
+        title: 'Employee',
+        dataIndex: 'employee',
+        key: 'employee',
+        render: (employee: ExpenseRequest['employee']) => (
+          <Space>
+            <Avatar src={employee?.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined} alt={employee?.fullName} />
+            <div>
+              <div>{employee?.displayName}</div>
+              <div style={{ fontSize: '12px', color: '#666' }}>{employee?.department}</div>
+            </div>
+          </Space>
+        )
+      },
+      {
+        title: 'Amount',
+        dataIndex: 'totalAmount',
+        key: 'totalAmount',
+        align: 'right' as const,
+        render: (amount: number) => (
+          <Text strong>
+            {typeof amount === 'number' ? `€${amount.toFixed(2)}` : 'N/A'}
+          </Text>
+        )
+      },
+      {
+        title: 'Status',
+        dataIndex: 'status',
+        key: 'status',
+        render: (status: string) => {
+          const { label, type } = getExpenseRequestStatusDisplay(status);
+          return <Pill type={type} label={label} />;
+        }
+      },
+      {
+        title: '',
+        key: 'actions',
+        align: 'right' as const,
+        className: 'action-buttons',
+        render: (_: any, record: ExpenseRequest) => (
+          <Space size="middle">
+            {record.status?.toUpperCase() === 'PENDING' && (
+              <>
+                <Button 
+                  type="primary" 
+                  icon={<CheckOutlined />} 
+                  onClick={(e) => { e.stopPropagation(); handleApproveRequest(record.id); }}
+                  style={{ backgroundColor: 'green', borderColor: 'green' }} 
+                />
+                <Button 
+                  type="primary" 
+                  danger 
+                  icon={<CloseOutlined />} 
+                  onClick={(e) => { e.stopPropagation(); handleRejectRequest(record.id); }}
+                />
+              </>
+            )}
+            
+          </Space>
+        )
+      }
+    ];
+
     return (
-      <Table 
+      <DataTable 
         dataSource={requests}
         rowKey="id"
         rowSelection={{
@@ -153,188 +215,78 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
           onChange: handleRowSelectionChange,
           columnWidth: 48,
         }}
-        onRow={(record) => ({
-          onClick: (event: React.MouseEvent) => {
-            // Prevent row click from triggering when clicking on checkbox or action buttons
-            if ((event.target as HTMLElement).tagName !== 'INPUT' && 
-                !(event.target as HTMLElement).closest('.action-buttons')) {
-              handleSelectRequest(record);
-            }
-          },
+        onRow={(record: any) => ({
+          onClick: () => handleSelectRequest(record),
           style: { cursor: 'pointer' }
         })}
         pagination={{
           current: currentPage,
           pageSize: pageSize,
           total: totalCount,
-          onChange: handlePageChange,
-          onShowSizeChange: handlePageSizeChange,
           showSizeChanger: true,
-          showTotal: (total) => `Total ${total} requests`
+          pageSizeOptions: ['10', '20', '50'], 
+          showTotal: (total: number) => `Total ${total} requests`
         }}
-        columns={[
-          {
-            title: 'REQUEST',
-            dataIndex: 'title',
-            key: 'title',
-            render: (text: string, record: ExpenseRequest) => (
-              <div>
-                <div style={{ fontWeight: 'bold' }}>{text ?? 'Untitled Request'}</div>
-                {record.startDate && record.endDate && (
-                  <div style={{ fontSize: '12px', color: '#888' }}>
-                    {new Date(record.startDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})} - {new Date(record.endDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})}
-                  </div>
-                )}
-                <div style={{ fontSize: '12px', color: '#666' }}>Ref: {record.code ?? 'N/A'} | Submitted: {record.requestDate ? new Date(record.requestDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'}) : 'N/A'}</div>
-              </div>
-            )
-          },
-          {
-            title: 'EMPLOYEE',
-            dataIndex: 'employee',
-            key: 'employee',
-            render: (employee: ExpenseRequest['employee']) => (
-              <Space>
-                <Avatar src={employee?.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined} alt={employee?.fullName} />
-                <div>
-                  <div>{employee?.displayName}</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>{employee?.department}</div>
-                </div>
-              </Space>
-            )
-          },
-          {
-            title: 'AMOUNT',
-            dataIndex: 'totalAmount',
-            key: 'totalAmount',
-            align: 'right',
-            render: (totalAmount: number) => (
-              <span style={{ fontWeight: 'bold' }}>€{totalAmount?.toFixed(2) ?? '0.00'}</span>
-            )
-        },
-        {
-          title: 'STATUS',
-          dataIndex: 'status',
-          key: 'status',
-          render: (status: string) => {
-            const { label, type } = getExpenseRequestStatusDisplay(status);
-            return <Pill type={type} label={label} />;
-          }
-        },
-        {
-          title: 'ACTIONS',
-          key: 'actions',
-            width: 120,
-          render: (_: any, record: any) => (
-              <div className="action-buttons">
-                {record.status?.toUpperCase() === 'PENDING' && (
-                  <Space>
-              <Button 
-                      type="primary"
-                      icon={<CheckOutlined />}
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleApproveRequest(record.id);
-                      }}
-                    />
-                    <Button
-                      danger
-                      icon={<CloseOutlined />}
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRejectRequest(record.id);
-                      }}
-                    />
-                  </Space>
-                )}
-                {record.status?.toUpperCase() !== 'PENDING' && (
-                  <Button
-                icon={<FileTextOutlined />} 
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelectRequest(record);
-                    }}
-              >
-                    View
-              </Button>
-                )}
-              </div>
-          )
-        }
-      ]}
-    />
-  );
-  }, [isLoading, error, requests, totalCount, selectedRowKeys, currentPage, pageSize, handleRowSelectionChange, handleSelectRequest, handlePageChange, handlePageSizeChange, handleApproveRequest, handleRejectRequest]);
+        onChange={handleTableChange}
+        columns={tableColumns as any[]}
+      />
+    );
+  }, [
+    isLoading, error, requests, selectedRowKeys, handleRowSelectionChange, 
+    handleSelectRequest, currentPage, pageSize, totalCount, handleTableChange,
+    handleApproveRequest, handleRejectRequest
+  ]);
 
-const renderFilters = () => (
-  <div className="gba:flex gba:flex-wrap gba:gap-4">
+  const filterControlsNode = useMemo(() => (
+    <div className="gba:flex gba:flex-wrap gba:gap-4">
       <div className="gba:w-64">
-        <Text strong>Employee</Text>
-        <Select
+        <Text strong>Status</Text>
+        <Select 
           className="gba:w-full gba:mt-1"
-          value={selectedEmployee}
-          onChange={handleEmployeeChange}
+          value={statusFilter}
+          onChange={handleStatusChange}
         >
-          <Option value="all">All Employees</Option>
-          {teamMembers?.map((employee: { id: string; fullName: string }) => (
-            <Option key={employee.id} value={employee.id}>
-              {employee.fullName}
-            </Option>
-          ))}
+          <Option value="all">All Statuses</Option>
+          <Option value="PENDING">Pending</Option>
+          <Option value="APPROVED">Approved</Option>
+          <Option value="REJECTED">Rejected</Option>
+          <Option value="DRAFT">Draft</Option>
         </Select>
       </div>
-    <div className="gba:w-64">
-      <Text strong>Status</Text>
-      <Select 
-        className="gba:w-full gba:mt-1"
-        value={statusFilter}
-        onChange={handleStatusChange}
-      >
-        <Option value="all">All Statuses</Option>
-        <Option value="PENDING">Pending</Option>
-        <Option value="APPROVED">Approved</Option>
-        <Option value="REJECTED">Rejected</Option>
-          <Option value="DRAFT">Draft</Option>
-      </Select>
     </div>
-  </div>
-);
+  ), [statusFilter, handleStatusChange]);
 
-return (
+  return (
     <DataContainer
       dataControllerProps={{
         search: searchText,
-        filter: [],
         setSearch: handleSearchChange,
-        setFilter: handleFilterChange,
+        placeholder: 'Search by request title, code, employee...',
+        filter: [],
+        setFilter: () => { /* Placeholder for DataContainer prop */ },
+        listTitle: 'Expense Requests',
+        listAmount: totalCount
       }}
       dataFilterProps={{
         filterGroups: [],
-        children: renderFilters()
+        children: filterControlsNode
       }}
-      hideFilter={false}
       dataBody={renderDataBody()}
       contentBackground="white"
       dataDetails={selectedRequest ? {
         title: 'Expense Request Details',
         content: (
           <ExpenseRequestDetails
-            request={selectedRequest}
+            request={selectedRequest} 
             onApprove={handleApproveRequest}
             onReject={handleRejectRequest}
-            {...props}
+            {...props} 
           />
         ),
-        // Adjust width as needed, e.g., width: 400 or '33%'
       } : undefined}
       onDetailsPanelClose={() => {
         setSelectedRequest(null);
-        if (props.onContentHeaderChange) {
-          props.onContentHeaderChange(null);
-        }
+        setSelectedRowKeys([]);
       }}
     />
   );
