@@ -102,15 +102,15 @@ export const JobPositionFilters: React.FC<JobPositionFiltersProps & BusinessAppC
   }));
 
   return (
-    <div className="mb-4">
-      <div className="flex items-center space-x-2 mb-2">
+    <div className="gba:mb-4">
+      <div className="gba:flex gba:items-center gba:space-x-2 gba:mb-2">
         <Input
           value={searchValue}
           onChange={(field: any) => handleSearchChange(field.value)}
           onClear={handleClearSearch}
           placeholder={t('job_position.search_placeholder', 'Search job positions...')}
           data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'search-input')}
-          className="flex-grow"
+          className="gba:grow"
           name="search"
           type="search"
         />
@@ -118,18 +118,18 @@ export const JobPositionFilters: React.FC<JobPositionFiltersProps & BusinessAppC
           variant="primary"
           size="small"
           onClick={toggleFilters}
-          className="flex items-center"
+          className="gba:flex gba:items-center"
           data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'toggle-filters')}
         >
-          <PiSlidersHorizontal className="mr-1" />
+          <PiSlidersHorizontal className="gba:mr-1" />
           {t('job_position.filters', 'Filters')}
         </Button>
       </div>
 
       {showFilters && (
-        <div className="bg-gray-50 p-4 rounded-md">
-          <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4">
-            <div className="flex-grow">
+        <div className="gba:bg-gray-50 gba:p-4 gba:rounded-md">
+          <div className="gba:flex gba:flex-col gba:space-y-4 gba:md:flex-row gba:md:space-y-0 gba:md:space-x-4">
+            <div className="gba:grow">
               {/* <FilterPanel
                 title={t('job_position.organizational_units', 'Organizational Units')}
                 options={orgUnitOptions}
@@ -138,7 +138,7 @@ export const JobPositionFilters: React.FC<JobPositionFiltersProps & BusinessAppC
                 data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'org-units-filter')}
               /> */}
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="gba:flex gba:items-center gba:space-x-2">
               <Checkbox
                 id="vacant-only"
                 value={filters.showVacantOnly}
@@ -146,12 +146,12 @@ export const JobPositionFilters: React.FC<JobPositionFiltersProps & BusinessAppC
                 data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'vacant-only')}
                 name="vacant-only"
               />
-              <label htmlFor="vacant-only" className="text-sm">
+              <label htmlFor="vacant-only" className="gba:text-sm">
                 {t('job_position.vacant_only', 'Show Vacant Positions Only')}
               </label>
             </div>
           </div>
-          <div className="flex justify-end mt-4">
+          <div className="gba:flex gba:justify-end gba:mt-4">
             <Button
               variant="primary"
               size="small"

@@ -1,7 +1,10 @@
 "use client"
 
-import { useState } from "react"
-import { Link } from "react-router-dom"
+import React from "react"
+import {
+  useState, 
+  useEffect
+} from "react"
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -14,24 +17,35 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ArrowUpDown, ChevronDown, MoreHorizontal, Plus, ArrowRight, ArrowLeft } from "lucide-react"
+import { 
+  ArrowUpDown, 
+  ChevronDown, 
+  MoreHorizontal, 
+  Plus, 
+  DollarSign,
+  Briefcase,
+  TrendingUp,
+  Target
+} from "lucide-react"
 import { Button } from "./common/ui/button"
 import { Checkbox } from "./common/ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
-  DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuContent,
   DropdownMenuTrigger,
 } from "./common/ui/dropdown-menu"
 import { Input } from "./common/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableRow, TableHeader } from "./common/ui/table"
 import { Badge } from "./common/ui/badge"
 import OpportunityCreateModal from "./OpportunityCreateModal"
-import type { OpportunityWithRelations } from "../../../../common/lib/db-actions"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./common/ui/select"
-import opportunitiesData from "./opportunities.json"
-import OpportunityDetailContainer  from "./OpportunityDetailContainer"
+import OpportunityDetailContainer from "./OpportunityDetailContainer"
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { Spin, Pagination } from 'antd'
+import { GET_OPPORTUNITIES, OpportunityData, GetOpportunitiesResponse } from './graphql/opportunity-queries'
+
 
 const samplePipelines = [
   { id: "pipe-1", name: "Venture Capital" },
@@ -54,21 +68,76 @@ const sampleInvestments = [
   { id: "inv-3", name: "Renewable Energy Ventures" }
 ]
 
-export default function OpportunitiesTable({
-  data = opportunitiesData as OpportunityWithRelations[],
-  pipelines = samplePipelines,
-  companies = sampleCompanies,
-  investments = sampleInvestments,
-  isStandalone = true,
-  onSelectOpportunity
-}: {
-  data?: OpportunityWithRelations[]
+interface DisplayOpportunityData {
+  id: string;
+  name: string;
+  type: string;
+  account: string;
+  contact: string;
+  lastInteraction: string;
+  createdAt: string;
+  closeDate: string;
+  owner: string;
+  estimatedAmount: number;
+  currency: string;
+  winningChance: number;
+  stage: string;
+  companyName: string;
+  value: string;
+  stageName: string;
+  investmentName: string;
+  ownerEmployee: {
+    firstName: string;
+    lastName: string;
+  };
+}
+
+const transformOpportunityData = (apiOpportunity: OpportunityData): DisplayOpportunityData => {
+  if (!apiOpportunity) {
+    console.warn("Received empty opportunity data to transform");
+    return {} as DisplayOpportunityData;
+  }
+
+  return {
+    id: apiOpportunity.id || "",
+    name: apiOpportunity.name || "",
+    type: apiOpportunity.stage === "CLOSED_WON" || apiOpportunity.stage === "CLOSED_LOST" ? "outgoing" : "incoming",
+    account: apiOpportunity.account?.name || "",
+    contact: apiOpportunity.account?.contact?.firstName 
+      ? `${apiOpportunity.account.contact.firstName} ${apiOpportunity.account.contact.lastName || ""}`
+      : "",
+    lastInteraction: apiOpportunity.lastInteraction || "",
+    createdAt: apiOpportunity.createdAt || "",
+    closeDate: apiOpportunity.closeDate || "",
+    owner: apiOpportunity.ownerEmployee
+      ? `${apiOpportunity.ownerEmployee.firstName} ${apiOpportunity.ownerEmployee.lastName}`
+      : "",
+    estimatedAmount: apiOpportunity.estimatedAmount || 0,
+    currency: "USD",
+    winningChance: apiOpportunity.winningChance || 0,
+    stage: apiOpportunity.stage,
+    companyName: apiOpportunity.account?.name || "",
+    value: String(apiOpportunity.estimatedAmount || 0),
+    stageName: apiOpportunity.stage || "",
+    investmentName: "", 
+    ownerEmployee: apiOpportunity.ownerEmployee,
+  };
+};
+
+export const OpportunitiesTable: React.FC<BusinessAppContextProps & {
   pipelines?: { id: string; name: string }[]
   companies?: { id: string; name: string }[]
   investments?: { id: string; name: string }[]
   isStandalone?: boolean
   onSelectOpportunity?: (id: string) => void
-}) {
+}> = ({ 
+  accessToken,
+  pipelines = samplePipelines,
+  companies = sampleCompanies,
+  investments = sampleInvestments,
+  isStandalone = true,
+  onSelectOpportunity 
+}) => {
   let routerNavigate: any = undefined;
   const navigate = (path: string) => {
     if (isStandalone || !routerNavigate) {
@@ -78,34 +147,161 @@ export default function OpportunitiesTable({
     }
   };
   
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
-  const [rowSelection, setRowSelection] = useState({})
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null)
+  const graphQLClient = useGraphqlClient(accessToken);
+  const [opportunities, setOpportunities] = useState<DisplayOpportunityData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const itemsPerPage = pageSize;
 
-  const CustomLink = ({ to, children, className }: { to: string, children: React.ReactNode, className?: string }) => {
-    if (isStandalone) {
-      return <span className={className}>{children}</span>;
-    }
-    return <Link to={to} className={className}>{children}</Link>;
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = useState({});
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
+  const [debouncedFilter, setDebouncedFilter] = useState<string>("");
+  const [searchFilter, setSearchFilter] = useState("");
+
+  const enabledButtonStyle: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '6px 12px',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: '#d1d5db', 
+    borderRadius: '6px',
+    textDecoration: 'none',
+    color: '#1f2937',
+    backgroundColor: '#ffffff',
+    margin: '0 4px',
+    lineHeight: '1.5',
+    minWidth: '80px',
+    textAlign: 'center',
+    cursor: 'pointer',
   };
 
-  const handleOpportunityClick = (id: string) => {
-    console.log("Opportunity clicked:", id);
-    setSelectedOpportunityId(id);
+  const disabledButtonStyle: React.CSSProperties = {
+    ...enabledButtonStyle, 
+    color: '#9ca3af', 
+    backgroundColor: '#f9fafb', 
+    cursor: 'not-allowed',
+  };
+  
+  const itemRender = (current: number, type: 'page' | 'prev' | 'next' | 'jump-prev' | 'jump-next', originalElement: React.ReactNode): React.ReactNode => {
+    if (!React.isValidElement(originalElement)) {
+      return originalElement;
+    }
+
+    const props = originalElement.props as { className?: string; children?: React.ReactNode };
+
+    const antIsDisabled = props.className?.includes('ant-pagination-disabled');
+    let styleToApply: React.CSSProperties = {};
+    let newChildren = props.children;
+    let isPrevNextButton = false;
+
+    if (type === 'prev') {
+      const isLogicallyDisabled = currentPage === 1;
+      const finalIsDisabled = isLogicallyDisabled || antIsDisabled; 
+      styleToApply = finalIsDisabled ? disabledButtonStyle : enabledButtonStyle;
+      newChildren = 'Previous';
+      isPrevNextButton = true;
+
+    } else if (type === 'next') {
+      const totalPages = Math.ceil(total / pageSize);
+      const isLogicallyDisabled = total === 0 || currentPage >= totalPages;
+      const finalIsDisabled = isLogicallyDisabled || antIsDisabled;
+      styleToApply = finalIsDisabled ? disabledButtonStyle : enabledButtonStyle;
+      newChildren = 'Next';
+      isPrevNextButton = true;
+
+    } else if (type === 'jump-prev' || type === 'jump-next') {
+      return originalElement;
+    } else if (React.isValidElement(originalElement) && (originalElement.props as { className?: string }).className?.includes('ant-pagination-item')) {
+      return originalElement;
+    } else {
+      return originalElement;
+    }
+
+    if (isPrevNextButton) {
+      const elementToClone = originalElement as React.ReactElement<React.HTMLAttributes<HTMLElement>>;
+
+      const currentClassName = elementToClone.props.className || '';
+      const gbaClassName = type === 'prev' ? 'gba-pagination-prev-btn' : 'gba-pagination-next-btn';
+      let finalClassName = currentClassName.replace('gba-pagination-prev-btn', '').replace('gba-pagination-next-btn', '').trim();
+      finalClassName = `${finalClassName} ${gbaClassName}`.trim();
+      if (styleToApply === disabledButtonStyle && !antIsDisabled) {
+        finalClassName = `${finalClassName} ant-pagination-disabled`.trim();
+      }
+
+      return React.cloneElement(elementToClone, {
+        className: finalClassName,
+        style: styleToApply,
+        children: newChildren,
+      });
+    }
     
-    if (onSelectOpportunity) {
-      onSelectOpportunity(id);
+    return originalElement; 
+  };
+
+  const fetchOpportunities = async (whereCondition = {}) => {
+    console.log("Initial:",whereCondition)
+    try {
+      setLoading(true);
+      setError(null); // Clear any previous error state when starting a new fetch
+      const result = await graphQLClient.request<GetOpportunitiesResponse>(
+        GET_OPPORTUNITIES,
+        { 
+          offset: (currentPage - 1) * itemsPerPage, 
+          limit: itemsPerPage,
+          where: whereCondition
+        }
+      );
+      console.log("Am result here:",result)
+      if (result && result.Opportunity && Array.isArray(result.Opportunity)) {
+        const transformedData = result.Opportunity.map(transformOpportunityData);
+        setOpportunities(transformedData);
+        
+        const count = result.totalCount?.aggregate?.count;
+        setTotal(typeof count === 'number' ? count : 0);
+      } else {
+        console.error("Unexpected API response structure:", result);
+        setError("Received invalid data from API");
+      }
+    } catch (err) {
+      console.error('Error fetching opportunities:', err);
+      setError('Failed to fetch opportunities: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleBackToTable = () => {
-    setSelectedOpportunityId(null);
+  useEffect(() => {
+    console.log("Fetching opportunities with page:", currentPage);
+    
+    const whereCondition = debouncedFilter.trim() 
+      ? { 
+          _or: [
+            { name: { _iregex: debouncedFilter } },
+            { account: { name: { _iregex: debouncedFilter } } },
+            { ownerEmployee: { firstName: { _iregex: debouncedFilter } } },
+            { ownerEmployee: { lastName: { _iregex: debouncedFilter } } }
+          ]
+        } 
+      : {};
+    
+    fetchOpportunities(whereCondition);
+  }, [currentPage, pageSize, debouncedFilter, accessToken]);
+
+  const handleTableChange = (newPage: number, newPageSize: number) => {
+    setCurrentPage(newPage);
+    setPageSize(newPageSize);
   };
 
-  const columns: ColumnDef<OpportunityWithRelations>[] = [
+  const columns: ColumnDef<DisplayOpportunityData>[] = [
     {
       id: "select",
       header: ({ table }) => (
@@ -126,34 +322,12 @@ export default function OpportunitiesTable({
       enableHiding: false,
     },
     {
-      accessorKey: "type",
-      header: "Type",
-      cell: ({ row }) => {
-        const type = row.getValue("type") as "incoming" | "outgoing"
-        return (
-          <div className="flex items-center">
-            {type === "incoming" ? (
-              <div className="flex items-center" title="Incoming">
-                <ArrowLeft className="h-5 w-5 text-red-500" />
-                <span className="sr-only">Incoming</span>
-              </div>
-            ) : (
-              <div className="flex items-center" title="Outgoing">
-                <ArrowRight className="h-5 w-5 text-green-500" />
-                <span className="sr-only">Outgoing</span>
-              </div>
-            )}
-          </div>
-        )
-      },
-    },
-    {
       accessorKey: "name",
       header: ({ column }) => {
         return (
           <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
             Name
-            <ArrowUpDown className="ml-2 h-4 w-4" />
+            <ArrowUpDown className="gba:ml-2 gba:h-4 gba:w-4" />
           </Button>
         )
       },
@@ -162,18 +336,15 @@ export default function OpportunitiesTable({
         const name = row.getValue("name");
         
         return (
-          <div className="font-medium">
+          <div className="gba:font-medium">
             <button
               type="button"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                
-                console.log("BUTTON CLICK DETECTED for opportunity:", id);
-                
                 handleOpportunityClick(id);
               }}
-              className="text-left hover:underline cursor-pointer border-none bg-transparent p-0 m-0"
+              className="gba:text-left hover:underline gba:cursor-pointer gba:border-none gba:bg-transparent gba:p-0 gba:m-0"
             >
               {String(name)}
             </button>
@@ -182,60 +353,100 @@ export default function OpportunitiesTable({
       },
     },
     {
-      accessorKey: "companyName",
-      header: "Company",
-      cell: ({ row }) => <div>{row.getValue("companyName") || "—"}</div>,
-    },
-    {
-      accessorKey: "value",
-      header: ({ column }) => {
-        return (
-          <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-            Value
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
-      cell: ({ row }) => {
-        const value = row.getValue("value") as string
-        const currency = row.original.currency || "USD"
-
-        return <div className="font-medium">{value ? `${currency} ${value}` : "—"}</div>
-      },
-    },
-    {
-      accessorKey: "stageName",
-      header: "Stage",
-      cell: ({ row }) => (
-        <div>{row.getValue("stageName") ? <Badge variant="outline">{row.getValue("stageName")}</Badge> : "—"}</div>
+      accessorKey: "account",
+      header: ({ column }) => (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Account
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
       ),
+      cell: ({ row }) => <div>{row.getValue("account") || "—"}</div>,
     },
     {
-      accessorKey: "investmentName",
-      header: "Related Investment",
+      accessorKey: "createdAt",
+      header: ({ column }) => (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Creation Date
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => {
-        const investmentName = row.getValue("investmentName") as string | undefined
-        const investmentId = row.original.investmentId
-
-        if (!investmentName) return <div>—</div>
-
+        const date = row.getValue("createdAt") as string;
+        return <div>{date ? new Date(date).toLocaleDateString() : "—"}</div>;
+      },
+    },
+    {
+      accessorKey: "closeDate",
+      header: ({ column }) => (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Close Date
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const date = row.getValue("closeDate") as string;
+        return <div>{date ? new Date(date).toLocaleDateString() : "—"}</div>;
+      },
+    },
+    {
+      accessorKey: "owner",
+      header: "Owner",
+      cell: ({ row }) => <div>{row.getValue("owner") || "—"}</div>,
+    },
+    {
+      accessorKey: "estimatedAmount",
+      header: ({ column }) => (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Estimated Amount
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const amount = row.getValue("estimatedAmount") as number;
+        const currency = row.original.currency || "USD";
+        return <div className="font-medium">{amount ? `${currency} ${amount.toLocaleString()}` : "—"}</div>;
+      },
+    },
+    {
+      accessorKey: "winningChance",
+      header: ({ column }) => (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Winning Chance
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const chance = row.getValue("winningChance") as number;
+        return <div>{typeof chance === 'number' ? `${chance}%` : "—"}</div>;
+      },
+    },
+    {
+      accessorKey: "stage",
+      header: "Stage",
+      cell: ({ row }) => {
+        const stage = row.getValue("stage") as string;
+        let badgeVariant = "outline";
+        
+        if (stage === "CLOSED_WON") {
+          badgeVariant = "success";
+        } else if (stage === "CLOSED_LOST") {
+          badgeVariant = "destructive";
+        }
+        
         return (
           <div>
-            <CustomLink to={`/investments/${investmentId}`}>
-              <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80">
-                {investmentName}
+            {stage ? (
+              <Badge variant={badgeVariant as any}>
+                {stage === "CLOSED_WON" 
+                  ? "Won" 
+                  : stage === "CLOSED_LOST" 
+                    ? "Lost" 
+                    : stage.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
               </Badge>
-            </CustomLink>
+            ) : "—"}
           </div>
-        )
+        );
       },
-    },
-    {
-      accessorKey: "investmentId",
-      header: "Investment ID",
-      enableGlobalFilter: false,
-      enableColumnFilter: true,
-      cell: ({ row }) => null, 
     },
     {
       id: "actions",
@@ -246,20 +457,20 @@ export default function OpportunitiesTable({
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-transparent focus:bg-transparent focus:ring-0 focus:ring-offset-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
+              <Button variant="ghost" className="gba:h-8 gba:w-8 gba:p-0 gba:hover:bg-transparent gba:focus:bg-transparent gba:focus:ring-0 gba:focus:ring-offset-0">
+                <span className="gba:sr-only">Open menu</span>
+                <MoreHorizontal className="gba:h-4 gba:w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-white border border-gray-300 shadow-md w-[150px]">
-              <div className="px-2 py-1.5 text-sm font-semibold">Actions</div>
-              <DropdownMenuItem className="cursor-pointer focus:bg-gray-100" onClick={() => navigate(`/opportunities/${opportunity.id}`)}>
+            <DropdownMenuContent align="end" className="gba:bg-white gba:border gba:border-gray-300 gba:shadow-md gba:w-[150px]">
+              <div className="gba:px-2 gba:py-1.5 gba:text-sm gba:font-semibold">Actions</div>
+              <DropdownMenuItem className="gba:cursor-pointer gba:focus:bg-gray-100" onClick={() => navigate(`/opportunities/${opportunity.id}`)}>
                 View Details
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer focus:bg-gray-100">
+              <DropdownMenuItem className="gba:cursor-pointer gba:focus:bg-gray-100">
                 Edit
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer focus:bg-gray-100">
+              <DropdownMenuItem className="gba:cursor-pointer gba:focus:bg-gray-100">
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -270,7 +481,7 @@ export default function OpportunitiesTable({
   ]
 
   const table = useReactTable({
-    data,
+    data: opportunities,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -288,6 +499,28 @@ export default function OpportunitiesTable({
     },
   })
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedFilter(searchFilter);
+      setCurrentPage(1);
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [searchFilter]);
+
+  const handleOpportunityClick = (id: string) => {
+    console.log("Opportunity clicked:", id);
+    setSelectedOpportunityId(id);
+    
+    if (onSelectOpportunity) {
+      onSelectOpportunity(id);
+    }
+  };
+
+  const handleBackToTable = () => {
+    setSelectedOpportunityId(null);
+  };
+
   if (selectedOpportunityId) {
     return (
       <OpportunityDetailContainer 
@@ -297,106 +530,100 @@ export default function OpportunitiesTable({
     );
   }
 
+  if (error) {
+    return <div className="gba:text-red-500">{error}</div>;
+  }
+
   return (
-    <div className="w-full">
-      <div className="flex flex-col">
-        <div className="p-4 border border-gray-300 rounded-lg bg-white">
-          <h1 className="text-2xl font-bold">Opportunities</h1>
-          <p className="text-gray-500">Manage your sales opportunities</p>
+    <div className="gba:w-full">
+      <div className="gba:flex gba:flex-col">
+        <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white gba:mb-6">
+          <h1 className="gba:text-2xl gba:font-bold">Opportunities</h1>
+          <p className="gba:text-gray-500">Manage your sales opportunities</p>
         </div>
         
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="p-4 border border-gray-300 rounded-lg">
-            <h3 className="text-sm text-gray-500">Total Opportunities</h3>
-            <p className="text-2xl font-bold">{data.length}</p>
+        <div className="gba:grid gba:grid-cols-4 gba:gap-4 gba:mb-6">
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <Briefcase className="gba:h-5 gba:w-5 gba:text-blue-500" />
+              </div>
+              <div>
+                <div className="gba:text-sm gba:text-gray-500">Total Opportunities</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-blue-500">{total}</div>
+              </div>
+            </div>
           </div>
-          <div className="p-4 border border-gray-300 rounded-lg">
-            <h3 className="text-sm text-gray-500">Active Opportunities</h3>
-            <p className="text-2xl font-bold">{data.filter(opp => opp.stageName !== "Closed Won" && opp.stageName !== "Closed Lost").length}</p>
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <TrendingUp className="gba:h-5 gba:w-5 gba:text-green-500" />
+              </div>
+              <div>
+                <div className="gba:text-sm gba:text-gray-500">Active Opportunities</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-green-500">
+                  {opportunities.filter(opp => opp.stageName !== "Closed Won" && opp.stageName !== "Closed Lost").length}
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="p-4 border border-gray-300 rounded-lg">
-            <h3 className="text-sm text-gray-500">Total Value</h3>
-            <p className="text-2xl font-bold">${data.reduce((sum, opp) => {
-              const numValue = typeof opp.value === 'string' ? parseFloat(opp.value) || 0 : (opp.value || 0);
-              return sum + numValue;
-            }, 0).toLocaleString()}</p>
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-orange-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <DollarSign className="gba:h-5 gba:w-5 gba:text-orange-500" />
+              </div>
+              <div>
+                <h3 className="gba:text-sm gba:text-gray-500">Total Value</h3>
+                <p className="gba:text-2xl gba:font-bold">${opportunities.reduce((sum, opp) => {
+                  const numValue = typeof opp.value === 'string' ? parseFloat(opp.value) || 0 : (opp.value || 0);
+                  return sum + numValue;
+                }, 0).toLocaleString()}</p>
+              </div>
+            </div>
           </div>
-          <div className="p-4 border border-gray-300 rounded-lg">
-            <h3 className="text-sm text-gray-500">Win Rate</h3>
-            <p className="text-2xl font-bold">
-              {data.length ? Math.round(
-                (data.filter(opp => opp.stageName === "Closed Won").length / 
-                (data.filter(opp => opp.stageName === "Closed Won" || opp.stageName === "Closed Lost").length || 1)) * 100
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-purple-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <Target className="gba:h-5 gba:w-5 gba:text-purple-500" />
+              </div>
+              <div>
+            <h3 className="gba:text-sm gba:text-gray-500">Win Rate</h3>
+            <div className="gba:text-2xl gba:font-bold gba:text-purple-500">
+              {opportunities.length ? Math.round(
+                (opportunities.filter(opp => opp.stageName === "Closed Won").length / 
+                (opportunities.filter(opp => opp.stageName === "Closed Won" || opp.stageName === "Closed Lost").length || 1)) * 100
               ) : 0}%
-            </p>
+            </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between py-4">
-          <div className="flex items-center gap-3">
+        <div className="gba:flex gba:items-center gba:justify-between gba:py-4">
+          <div className="gba:flex gba:items-center gba:gap-3">
             <Input
               placeholder="Filter opportunities..."
-              value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-              onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
-              className="max-w-sm border-gray-300"
+              value={searchFilter}
+              onChange={(event) => setSearchFilter(event.target.value)}
+              className="gba:max-w-sm gba:border-gray-300"
             />
-            <div className="relative">
-              <Select
-                value={(table.getColumn("investmentId")?.getFilterValue() as string) ?? ""}
-                onValueChange={(value) => table.getColumn("investmentId")?.setFilterValue(value === "all" ? "" : value)}
-              >
-                <SelectTrigger className="w-[200px] border-gray-300">
-                  <SelectValue placeholder="Filter for..." />
-                </SelectTrigger>
-                <SelectContent sideOffset={4} className="bg-white w-[240px] border border-gray-300 shadow-md">
-                  <SelectItem value="all">All Investments</SelectItem>
-                  {investments.map((investment) => (
-                    <SelectItem key={investment.id} value={investment.id}>
-                      {investment.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="relative">
-              <Select
-                value={(table.getColumn("type")?.getFilterValue() as string) ?? ""}
-                onValueChange={(value) => table.getColumn("type")?.setFilterValue(value === "all" ? "" : value)}
-              >
-                <SelectTrigger className="w-[160px] border-gray-300">
-                  <SelectValue placeholder="Filter by..." />
-                </SelectTrigger>
-                <SelectContent sideOffset={4} className="bg-white w-[200px] border border-gray-300 shadow-md">
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="incoming">
-                    <div className="flex items-center">
-                      <ArrowLeft className="mr-2 h-4 w-4 text-red-500" />
-                      Incoming
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="outgoing">
-                    <div className="flex items-center">
-                      <ArrowRight className="mr-2 h-4 w-4 text-green-500" />
-                      Outgoing
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="gba:relative">
+             
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsCreateModalOpen(true)} className="ml-auto border-gray-300">
-              <Plus className="mr-2 h-4 w-4" />
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsCreateModalOpen(true)} className="gba:ml-auto gba:border-gray-300">
+              <Plus className="gba:mr-2 gba:h-4 gba:w-4" />
               New Opportunity
             </Button>
-            <div className="relative">
+            <div className="gba:relative">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="border-gray-300">
-                    Columns <ChevronDown className="ml-2 h-4 w-4" />
+                  <Button variant="outline" className="gba:border-gray-300">
+                    Columns <ChevronDown className="gba:ml-2 gba:h-4 gba:w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-white border border-gray-300 shadow-md w-[200px]">
+                <DropdownMenuContent align="end" className="gba:bg-white gba:border gba:border-gray-300 gba:shadow-md gba:w-[200px]">
                   {table
                     .getAllColumns()
                     .filter((column) => column.getCanHide())
@@ -404,7 +631,7 @@ export default function OpportunitiesTable({
                       return (
                         <DropdownMenuCheckboxItem
                           key={column.id}
-                          className="capitalize"
+                          className="gba:capitalize"
                           checked={column.getIsVisible()}
                           onCheckedChange={(value) => column.toggleVisibility(!!value)}
                         >
@@ -418,75 +645,78 @@ export default function OpportunitiesTable({
           </div>
         </div>
         
-        <div className="rounded-md border border-gray-300">
-          <Table>
-            <TableHeader className="border-b border-gray-300">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="border-b border-gray-300">
-                  {headerGroup.headers.map((header) => {
-                    return (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    )
-                  })}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="border-b border-gray-300">
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                    ))}
+        {loading ? (
+          <div className="gba:flex gba:justify-center gba:items-center gba:h-64 gba:border gba:border-gray-300 gba:rounded-lg">
+            <Spin size="large" />
+          </div>
+        ) : (
+          <div className="gba:rounded-md gba:border gba:border-gray-300">
+            <Table>
+              <TableHeader className="gba:border-b gba:border-gray-300">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id} className="gba:border-b gba:border-gray-300">
+                    {headerGroup.headers.map((header) => {
+                      return (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                        </TableHead>
+                      )
+                    })}
                   </TableRow>
-                ))
-              ) : (
-                <TableRow className="border-b border-gray-300">
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
-                    No opportunities found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        <div className="flex items-center justify-end space-x-2 py-4">
-          <div className="flex-1 text-sm text-muted-foreground">
-            {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s)
-            selected.
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="gba:border-b gba:border-gray-300">
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow className="gba:border-b gba:border-gray-300">
+                    <TableCell colSpan={columns.length} className="gba:h-24 gba:text-center">
+                      No opportunities found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
-          <div className="space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-              className="border-gray-300"
-            >
-              Previous
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => table.nextPage()} 
-              disabled={!table.getCanNextPage()}
-              className="border-gray-300"
-            >
-              Next
-            </Button>
+        )}
+        <div className="gba:flex gba:items-center gba:justify-between gba:py-4">
+          <div className="gba:flex-1 gba:text-sm gba:text-muted-foreground">
+            {opportunities.length > 0 ? (
+              <>Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, total)} of {total} opportunities</>
+            ) : (
+              <>No opportunities found.</>
+            )}
+          </div>
+          <div className="gba:space-x-2">
+            <Pagination
+              current={currentPage}
+              pageSize={pageSize}
+              total={total}
+              showSizeChanger={true}
+              pageSizeOptions={['10', '20', '50', '100']}
+              onChange={handleTableChange}
+              className="gba:custom-pagination"
+              itemRender={itemRender}
+            />
           </div>
         </div>
+        {isCreateModalOpen && (
+          <OpportunityCreateModal
+            open={isCreateModalOpen}
+            onOpenChange={setIsCreateModalOpen}
+            pipelines={pipelines}
+            companies={companies}
+          />
+        )}
       </div>
-      {isCreateModalOpen && (
-        <OpportunityCreateModal
-          open={isCreateModalOpen}
-          onOpenChange={setIsCreateModalOpen}
-          pipelines={pipelines}
-          companies={companies}
-        />
-      )}
     </div>
   )
 }
+
+export default OpportunitiesTable;

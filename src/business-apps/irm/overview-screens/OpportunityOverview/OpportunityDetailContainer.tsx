@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import opportunitiesData from "./opportunities.json"
 import { Button } from "./common/ui/button"
 import { ArrowLeft } from "lucide-react"
-import type { DetailedOpportunity, Stage, StageRequirement } from "../../../../common/lib/db-actions"
+import type { DetailedOpportunity, Stage, StageRequirement } from "./lib/db-actions"
 import OpportunityDetail from "./OpportunityDetail"
 
 const sampleStages: Stage[] = [
@@ -119,29 +119,29 @@ export default function OpportunityDetailContainer({ opportunityId, onBack }: Op
   }, [opportunityId])
   
   if (loading) {
-    return <div className="p-6">Loading opportunity details...</div>
+    return <div className="gba-p-6">Loading opportunity details...</div>
   }
   
   if (error) {
     return (
-      <div className="p-6">
-        <div className="mb-4">
-          <Button variant="ghost" onClick={onBack} className="text-gray-600">
-            <ArrowLeft className="mr-2 h-4 w-4" />
+      <div className="gba-p-6">
+        <div className="gba-mb-4">
+          <Button variant="ghost" onClick={onBack} className="gba-text-gray-600">
+            <ArrowLeft className="gba-mr-2 gba-h-4 gba-w-4" />
             Back to Opportunities
           </Button>
         </div>
-        <div className="text-red-500">{error}</div>
+        <div className="gba-text-red-500">{error}</div>
       </div>
     )
   }
   
   if (!opportunity) {
-    return <div className="p-6">No opportunity data available</div>
+    return <div className="gba-p-6">No opportunity data available</div>
   }
 
   return (
-    <div className="w-full">
+    <div className="gba-w-full">
       <OpportunityDetail 
         opportunity={opportunity}
         stages={sampleStages}

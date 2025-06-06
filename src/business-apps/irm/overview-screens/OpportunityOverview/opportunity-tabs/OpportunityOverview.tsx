@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "../common/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "../common/ui/card"
 import { Progress } from "../common/ui/progress"
-import type { DetailedOpportunity } from "../../../../../common/lib/db-actions"
+import type { DetailedOpportunity } from "../lib/db-actions"
 
 interface OpportunityOverviewProps {
   opportunity: DetailedOpportunity
@@ -92,7 +92,7 @@ export function OpportunityOverview({ opportunity = sampleOpportunity }: Opportu
   const probabilityValue = opportunity?.probability ? Number.parseInt(opportunity.probability.replace("%", "")) : 0
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="gba-grid gba-gap-6 gba-md:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>Description</CardTitle>
@@ -107,9 +107,9 @@ export function OpportunityOverview({ opportunity = sampleOpportunity }: Opportu
           <CardTitle>Key Contacts</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="gba-space-y-4">
             {opportunity.contacts.map((contact) => (
-              <div key={contact.id} className="flex items-start space-x-4">
+              <div key={contact.id} className="gba-flex gba-items-start gba-space-x-4">
                 <Avatar>
                   <AvatarImage src={`/generic-placeholder-graphic.png?height=40&width=40`} />
                   <AvatarFallback>
@@ -120,9 +120,9 @@ export function OpportunityOverview({ opportunity = sampleOpportunity }: Opportu
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h4 className="font-medium">{contact.name}</h4>
-                  <p className="text-sm text-muted-foreground">{contact.position}</p>
-                  <div className="mt-1 text-sm">
+                  <h4 className="gba-font-medium">{contact.name}</h4>
+                  <p className="gba-text-sm gba-text-muted-foreground">{contact.position}</p>
+                  <div className="gba-mt-1 gba-text-sm">
                     <div>{contact.email}</div>
                     <div>{contact.phone}</div>
                   </div>
@@ -138,26 +138,26 @@ export function OpportunityOverview({ opportunity = sampleOpportunity }: Opportu
           <CardTitle>Opportunity Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="gba-space-y-4">
             <div>
-              <div className="mb-1 text-sm font-medium">Value</div>
+              <div className="gba-mb-1 gba-text-sm gba-font-medium">Value</div>
               <div>{opportunity.value}</div>
             </div>
             <div>
-              <div className="mb-1 text-sm font-medium">Expected Close Date</div>
+              <div className="gba-mb-1 gba-text-sm gba-font-medium">Expected Close Date</div>
               <div>{opportunity.expectedCloseDate}</div>
             </div>
             <div>
-              <div className="mb-1 text-sm font-medium">Owner</div>
+              <div className="gba-mb-1 gba-text-sm gba-font-medium">Owner</div>
               <div>{opportunity.ownerId}</div>
             </div>
             <div>
-              <div className="mb-1 text-sm font-medium">Created</div>
-              <div>{new Date(opportunity.createdAt).toLocaleDateString()}</div>
+              <div className="gba-mb-1 gba-text-sm gba-font-medium">Created</div>
+              <div>{opportunity?.createdAt ? new Date(opportunity.createdAt as string).toLocaleDateString() : 'N/A'}</div>
             </div>
             <div>
-              <div className="mb-1 text-sm font-medium">Last Updated</div>
-              <div>{new Date(opportunity.updatedAt).toLocaleDateString()}</div>
+              <div className="gba-mb-1 gba-text-sm gba-font-medium">Last Updated</div>
+              <div>{opportunity?.updatedAt ? new Date(opportunity.updatedAt as string).toLocaleDateString() : 'N/A'}</div>
             </div>
           </div>
         </CardContent>
@@ -168,10 +168,10 @@ export function OpportunityOverview({ opportunity = sampleOpportunity }: Opportu
           <CardTitle>Probability</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="text-center text-3xl font-bold">{opportunity.probability}</div>
-            <Progress value={probabilityValue} className="h-2" />
-            <div className="grid grid-cols-3 text-center text-sm">
+          <div className="gba-space-y-4">
+            <div className="gba-text-center gba-text-3xl gba-font-bold">{opportunity.probability}</div>
+            <Progress value={probabilityValue} className="gba-h-2" />
+            <div className="gba-grid gba-grid-cols-3 gba-text-center gba-text-sm">
               <div>Low</div>
               <div>Medium</div>
               <div>High</div>

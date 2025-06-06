@@ -101,10 +101,10 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
   }, [handleOutsideClick]);
 
   return (
-    <div className="w-full h-screen flex flex-row relative bg-white">
+    <div className="gba:w-full gba:h-screen gba:flex gba:flex-row gba:relative gba:bg-white">
       <PageLayout
         variant="default"
-        headerIcon={<PiUsersThree size={24} className="text-primary" />}
+        headerIcon={<PiUsersThree size={24} className="gba:text-primary" />}
         headerLabel={t('employee.list_title', 'Employee List')}
         contentContainer={
           <DataContainer<DebouncedDataControllerProps>

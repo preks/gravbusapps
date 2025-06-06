@@ -91,17 +91,17 @@ export const ActivityStream: FC<ActivityStreamProps> = ({
   const getActivityIcon = (type: string) => {
     switch (type) {
       case "email":
-        return <Mail className="h-4 w-4" />
+        return <Mail className="gba:h-4 gba:w-4" />
       case "call":
-        return <Phone className="h-4 w-4" />
+        return <Phone className="gba:h-4 gba:w-4" />
       case "meeting":
-        return <Coffee className="h-4 w-4" />
+        return <Coffee className="gba:h-4 gba:w-4" />
       case "video":
-        return <Video className="h-4 w-4" />
+        return <Video className="gba:h-4 gba:w-4" />
       case "message":
-        return <MessageSquare className="h-4 w-4" />
+        return <MessageSquare className="gba:h-4 gba:w-4" />
       default:
-        return <Calendar className="h-4 w-4" />
+        return <Calendar className="gba:h-4 gba:w-4" />
     }
   }
 
@@ -125,37 +125,37 @@ export const ActivityStream: FC<ActivityStreamProps> = ({
   const displayedActivities = activitiesExpanded ? activities : activities.slice(0, 3)
 
   return (
-    <Card className="rounded-xl shadow-sm h-full border-gray-300">
-      <CardHeader className="border-b border-gray-300 pb-3">
+    <Card className="gba:rounded-xl gba:shadow-sm gba:h-full gba:border-gray-300">
+      <CardHeader className="gba:border-b gba:border-gray-300 gba:pb-3">
         <CardTitle>Recent Activities</CardTitle>
       </CardHeader>
-      <CardContent className="pt-4">
-        <div className="relative pl-20">
+      <CardContent className="gba:pt-4">
+        <div className="gba:relative gba:pl-20">
           {/* Timeline line */}
-          <div className="absolute left-[31px] top-0 bottom-0 w-[1px] border-l-2 border-dotted border-blue-300"></div>
+          <div className="gba:absolute gba:left-[31px] gba:top-0 gba:bottom-0 gba:w-[1px] gba:border-l-2 gba:border-dotted gba:border-blue-300"></div>
 
           {displayedActivities.map((activity) => (
-            <div key={activity.id} className="mb-8 last:mb-0 relative">
+            <div key={activity.id} className="gba:mb-8 gba:last:mb-0 gba:relative">
               {/* Activity icon - positioned absolutely */}
-              <div className="absolute left-[-65px] top-0">
+              <div className="gba:absolute gba:left-[-65px] gba:top-0">
                 <div
-                  className={`rounded-full p-2 h-8 w-8 flex items-center justify-center ${getActivityColor(activity.type)}`}
+                  className={`gba:rounded-full gba:p-2 gba:h-8 gba:w-8 gba:flex gba:items-center gba:justify-center ${getActivityColor(activity.type)}`}
                 >
                   {getActivityIcon(activity.type)}
                 </div>
               </div>
 
               {/* Activity content */}
-              <div className="flex-1">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2">
-                  <div className="font-medium text-base">{activity.title}</div>
-                  <div className="text-xs text-muted-foreground">{formatRelativeTime(activity.date)}</div>
+              <div className="gba:flex-1">
+                <div className="gba:flex gba:flex-col gba:sm:flex-row gba:sm:items-center gba:justify-between gba:mb-2">
+                  <div className="gba:font-medium gba:text-base">{activity.title}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{formatRelativeTime(activity.date)}</div>
                 </div>
-                <p className="text-sm mb-3">{activity.description}</p>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <p className="gba:text-sm gba:mb-3">{activity.description}</p>
+                <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-2">
                   {activity.participants.length > 0 && (
-                    <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full text-xs">
-                      <Users className="h-3 w-3 text-gray-500" />
+                    <div className="gba:flex gba:items-center gba:gap-1 gba:bg-gray-100 gba:px-2 gba:py-1 gba:rounded-full gba:text-xs">
+                      <Users className="gba:h-3 gba:w-3 gba:text-gray-500" />
                       <span>
                         {activity.participants.length > 2
                           ? `${activity.participants[0]} +${activity.participants.length - 1}`
@@ -164,17 +164,17 @@ export const ActivityStream: FC<ActivityStreamProps> = ({
                     </div>
                   )}
                   {activity.duration && (
-                    <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full text-xs">
-                      <Clock className="h-3 w-3 text-gray-500" />
+                    <div className="gba:flex gba:items-center gba:gap-1 gba:bg-gray-100 gba:px-2 gba:py-1 gba:rounded-full gba:text-xs">
+                      <Clock className="gba:h-3 gba:w-3 gba:text-gray-500" />
                       <span>{activity.duration}</span>
                     </div>
                   )}
                   {activity.documents.map((doc, i) => (
                     <div
                       key={i}
-                      className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-full text-xs text-blue-700"
+                      className="gba:flex gba:items-center gba:gap-1 gba:bg-blue-50 gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:text-blue-700"
                     >
-                      <FileText className="h-3 w-3" />
+                      <FileText className="gba:h-3 gba:w-3" />
                       <span>{doc}</span>
                     </div>
                   ))}
@@ -185,12 +185,12 @@ export const ActivityStream: FC<ActivityStreamProps> = ({
 
           {/* More/Less button */}
           {activities.length > 3 && (
-            <div className="text-center mt-6">
+            <div className="gba:text-center gba:mt-6">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setActivitiesExpanded(!activitiesExpanded)}
-                className="rounded-md text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+                className="gba:rounded-md gba:text-blue-700 gba:hover:text-blue-800 gba:hover:bg-blue-50"
               >
                 {activitiesExpanded ? "Show Less" : "Show More"}
               </Button>

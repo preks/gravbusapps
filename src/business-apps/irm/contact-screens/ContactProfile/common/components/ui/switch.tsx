@@ -10,17 +10,13 @@ const Switch = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>
 >(({ className, ...props }, ref) => (
   <SwitchPrimitives.Root
-    className={cn(
-      "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
-      className
+    className={cn("gba:peer gba:inline-flex gba:h-6 gba:w-11 gba:shrink-0 gba:cursor-pointer gba:items-center gba:rounded-full gba:border-2 gba:border-transparent gba:transition-colors gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring gba:focus-visible:ring-offset-2 gba:focus-visible:ring-offset-background gba:disabled:cursor-not-allowed gba:disabled:opacity-50 gba:data-[state=checked]:bg-primary gba:data-[state=unchecked]:bg-input", className
     )}
     {...props}
     ref={ref}
   >
     <SwitchPrimitives.Thumb
-      className={cn(
-        "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0"
-      )}
+      className={cn("gba:pointer-events-none gba:block gba:h-5 gba:w-5 gba:rounded-full gba:bg-background gba:shadow-lg gba:ring-0 gba:transition-transform gba:data-[state=checked]:translate-x-5 gba:data-[state=unchecked]:translate-x-0",  )}
     />
   </SwitchPrimitives.Root>
 ))

@@ -1,53 +1,59 @@
 import { UiCatalogProvider } from '@newwork/gravity-ui-catalog';
-import type { HTMLAttributes } from "react";
-import { useState, createElement } from "react";
-import { Dropdown, Button } from "antd";
-import TextArea from "antd/es/input/TextArea";
+import { useState, useEffect, createElement } from "react";
+import { Layout, Menu, Modal, Form, Input, Typography, Button, Tooltip } from "antd";
+import { SettingOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
 
 const modules = import.meta.glob('./business-apps/**/[A-Z]*.tsx', { eager: true });
 
-const businessAppMap: Record<string, React.ComponentType<BusinessAppContextProps>> = {};
+interface BusinessAppInfo {
+  name: string;
+  path: string;
+  module: string;
+  subModule?: string;
+  component: React.ComponentType<BusinessAppContextProps>;
+}
+
+const businessApps: BusinessAppInfo[] = [];
+
 for (const path in modules) {
-  // Skip components in special folders that shouldn't appear in the dropdown
   if (path.includes('/opportunity-tabs/') || 
       path.includes('/oportunity-tabs/') || 
       path.includes('/opportunity-components/')) {
     continue;
   }
-  
-  // extract component name from file name
-  // and use found component name in businessAppMap with default export
+
   const excludedDirs = ['/components/', '/modules/', '/hooks/', '/lib/', '/utils/'];
   if (excludedDirs.some(dir => path.includes(dir))) {
     continue;
   }
+
   const match = path.match(/\/([A-Z][A-Za-z0-9]*)\.tsx$/);
   if (match) {
-    console.log('match[1]', match[1], path)
-    businessAppMap[match[1]] = (props) => createElement(UiCatalogProvider, undefined, createElement((modules[path] as any).default, props));
+    const pathParts = path.split('/');
+    const moduleName = pathParts[2];
+    let subModule = '';
+
+    if (pathParts.length > 4) {
+      subModule = pathParts.slice(3, -1).join('/');
+    }
+
+    businessApps.push({
+      name: match[1],
+      path,
+      module: moduleName,
+      subModule: subModule || undefined,
+      component: (props) => createElement(UiCatalogProvider, undefined, createElement((modules[path] as any).default, props))
+    });
   }
 }
 
-const Container = ({ children, className }: HTMLAttributes<HTMLDivElement>) => (
-  <div className={`flex flex-col ${className || ""}`}>{children}</div>
-);
+const { Header, Sider, Content } = Layout;
+const { Text } = Typography;
 
-const Header = ({ children, className }: HTMLAttributes<HTMLDivElement>) => (
-  <div className={`h-12 border-b border-[#e1e3eb] pl-6 ${className || ""}`}>
-    {children}
-  </div>
-);
-
-const Main = ({ children, className }: HTMLAttributes<HTMLDivElement>) => (
-  <div className={`flex flex-col ${className || ""}`}>{children}</div>
-);
-
-const Content = ({ children, className }: HTMLAttributes<HTMLDivElement>) => (
-  <div className={`flex-1 h-[calc(100vh-48px)] ${className || ""}`}>
-    {children}
-  </div>
-);
+const STORAGE_KEY_USER_INFO = 'business-app-ide-user-info';
+const STORAGE_KEY_ACCESS_TOKEN = 'business-app-ide-access-token';
+const STORAGE_KEY_SIDEBAR_COLLAPSED = 'business-app-ide-sidebar-collapsed';
 
 export interface CompMeta {
   name: string;
@@ -55,25 +61,59 @@ export interface CompMeta {
 }
 
 export interface BusinessAppIDEProps {
-  packageName: string;
-  packageVersion: string;
+  readonly packageName: string;
+  readonly packageVersion: string;
 }
 
-export function BusinessAppIDE(props: BusinessAppIDEProps) {
+export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   const { packageName, packageVersion } = props;
-  const [currentCompName, setCurrentCompName] = useState<keyof typeof businessAppMap>(
-    Object.keys(businessAppMap)[0] as keyof typeof businessAppMap
-  );
+
+  const getAppByName = (name: string): BusinessAppInfo | null => {
+    return businessApps.find(app => app.name === name) || null;
+  };
+
+  const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const appFromUrl = urlParams.get('app');
+
+  const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(getAppByName(appFromUrl || '') || (businessApps.length > 0 ? businessApps[0] : null));
   const [userInfo, setUserInfo] = useState<string>("");
   const [userInfoError, setUserInfoError] = useState<string>("");
   const [accessToken, setAccessToken] = useState<string>("");
-  
+  const [settingsModalVisible, setSettingsModalVisible] = useState<boolean>(false);
+  const [collapsed, setCollapsed] = useState<boolean>(localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === 'true');
+
+  useEffect(() => {
+    const savedUserInfo = localStorage.getItem(STORAGE_KEY_USER_INFO);
+    const savedAccessToken = localStorage.getItem(STORAGE_KEY_ACCESS_TOKEN);
+
+    if (savedUserInfo) {
+      setUserInfo(savedUserInfo);
+      validateUserInfo(savedUserInfo);
+    }
+
+    if (savedAccessToken) {
+      setAccessToken(savedAccessToken);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_SIDEBAR_COLLAPSED, String(collapsed));
+  }, [collapsed]);
+
+  useEffect(() => {
+    if (selectedApp) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('app', selectedApp.name);
+      window.history.pushState({}, '', url.toString());
+    }
+  }, [selectedApp]);
+
   const validateUserInfo = (value: string): void => {
     if (!value) {
       setUserInfoError("");
       return;
     }
-    
+
     try {
       JSON.parse(value);
       setUserInfoError("");
@@ -82,75 +122,180 @@ export function BusinessAppIDE(props: BusinessAppIDEProps) {
     }
   };
 
-  const dropdownItems = Object.keys(businessAppMap).map((comp) => ({
-    key: comp,
-    label: comp,
-    onClick: () => setCurrentCompName(comp as keyof typeof businessAppMap),
-  }));
+  const saveSettings = () => {
+    localStorage.setItem(STORAGE_KEY_USER_INFO, userInfo);
+    localStorage.setItem(STORAGE_KEY_ACCESS_TOKEN, accessToken);
+    setSettingsModalVisible(false);
+  };
+
+  const createAppMenuItem = (app: BusinessAppInfo) => ({
+    key: app.name,
+    label: app.name,
+    onClick: () => setSelectedApp(app)
+  });
+
+  const getMenuItems = (): any => {
+    const moduleGroups: Record<string, BusinessAppInfo[]> = {};
+
+    businessApps.forEach(app => {
+      if (!moduleGroups[app.module]) {
+        moduleGroups[app.module] = [];
+      }
+      moduleGroups[app.module].push(app);
+    });
+
+    return Object.entries(moduleGroups).map(([module, apps]) => {
+      const subModuleGroups: Record<string, BusinessAppInfo[]> = {};
+      apps.forEach(app => {
+        const key = app.subModule ?? 'default';
+        if (!subModuleGroups[key]) {
+          subModuleGroups[key] = [];
+        }
+        subModuleGroups[key].push(app);
+      });
+
+      const children = Object.entries(subModuleGroups).flatMap(([subModule, subApps]): any => {
+        if (subModule === 'default') {
+          return subApps.map(createAppMenuItem);
+        }
+        return [{
+          key: `${module}/${subModule}`,
+          label: subModule.split('/').pop() ?? subModule,
+          type: 'group',
+          children: subApps.map(createAppMenuItem)
+        }];
+      });
+
+      return {
+        key: module,
+        label: module.charAt(0).toUpperCase() + module.slice(1),
+        children
+      };
+    });
+  };
+
+  const parsedUserInfo = (): UserInfoProps | undefined => {
+    if (userInfo?.length > 2) {
+      try {
+        return JSON.parse(userInfo);
+      } catch (e) {
+        console.error('Failed to parse user info:', e);
+        return undefined;
+      }
+    }
+    return undefined;
+  };
 
   return (
-    <Container>
-      <Header className="h-16 flex items-center justify-between">
-        <div className="pkg-name leading-[48px] flex-1">
-          <span className="text-sm font-bold">{packageName}</span>
-          <span className="ml-1 text-xs text-[#333]">
-            {" "}
-            - Version: {packageVersion}
-          </span>
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sider
+        width={250}
+        collapsible
+        collapsed={collapsed}
+        onCollapse={setCollapsed}
+        trigger={null}
+        theme="light"
+        style={{
+          overflow: 'auto',
+          height: '100vh',
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          boxShadow: '2px 0 8px rgba(0,0,0,0.05)'
+        }}
+      >
+        <div className="logo gba:p-4 gba:flex gba:items-center gba:justify-center gba:border-b gba:border-[#e1e3eb]">
+          <span className="gba:text-lg gba:font-bold gba:w-full gba:text-center">{collapsed ? 'BA' : 'Business Apps'}</span>
         </div>
-        <div className="flex items-center space-x-4 pr-6">
-          <div className="flex items-center">
-            <span className="mr-2 font-bold">Business App:</span>
-            <Dropdown menu={{ items: dropdownItems }} arrow>
-              <Button>{currentCompName}</Button>
-            </Dropdown>
-          </div>
-          <div className="flex items-center flex-col">
-            <div className="flex items-center">
-              <span className="mr-2 font-bold whitespace-nowrap">User Info:</span>
-              <div className="flex flex-col">
-                <TextArea
-                  placeholder="Enter user info in JSON format"
-                  style={{ minWidth: "200px", maxWidth: "250px", minHeight: "50px", maxHeight: "100px", resize: "none" }}
-                  onChange={e => {
-                    setUserInfo(e.target.value);
-                    validateUserInfo(e.target.value);
-                  }}
-                  value={userInfo}
-                  status={userInfoError ? "error" : ""}
-                />
-              </div>
+        <Menu
+          mode="inline"
+          selectedKeys={selectedApp ? [selectedApp.name] : []}
+          style={{ borderRight: 0 }}
+          items={getMenuItems()}
+        />
+      </Sider>
+      <Layout style={{ marginLeft: collapsed ? 80 : 250, transition: 'margin-left 0.2s' }}>
+        <Header style={{
+          background: '#fff',
+          padding: '0 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          height: 64,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.05)'
+        }}>
+          <div className="gba:flex gba:items-center gba:flex-nowrap">
+            <Button
+              type="text"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed(!collapsed)}
+              className="gba:flex-shrink-0"
+              style={{ fontSize: '16px', marginRight: 16 }}
+            />
+            <div className="pkg-name gba:flex gba:flex-col gba:sm:flex-row gba:sm:items-center">
+              <span className="gba:text-sm gba:font-bold">{packageName}</span>
+              <span className="gba:ml-0 gba:sm:ml-1 gba:text-xs gba:text-[#333]"> - Version: {packageVersion}</span>
             </div>
           </div>
-          <div className="flex items-center">
-            <span className="mr-2 font-bold whitespace-nowrap">Access Token:</span>
-            <TextArea
-              placeholder="Enter your access token"
-              style={{ minWidth: "400px", maxWidth: "450px", minHeight: "50px", maxHeight: "100px", resize: "none" }}
-              onChange={e => setAccessToken(e.target.value)}
-              value={accessToken}
+          <Tooltip title="Settings">
+            <Button
+              type="text"
+              icon={<SettingOutlined />}
+              onClick={() => setSettingsModalVisible(true)}
+              style={{ fontSize: '16px' }}
             />
-          </div>
-        </div>
-      </Header>
-      <Main>
-        <Content>
-          {currentCompName && (
-            <div className="p-4 w-full h-full overflow-auto">
-              {createElement(businessAppMap[currentCompName], {
-                userInfo: userInfo?.length > 2 ? ((): UserInfoProps | undefined => {
-                  try {
-                    return JSON.parse(userInfo);
-                  } catch (e) {
-                    return undefined;
-                  }
-                })() : undefined,
+          </Tooltip>
+        </Header>
+        <Content style={{ margin: '16px', overflow: 'initial', background: '#fff', padding: 24, minHeight: 280 }}>
+          {selectedApp && (
+            <div className="gba:w-full gba:h-full gba:overflow-auto">
+              {createElement(selectedApp.component, {
+                userInfo: parsedUserInfo(),
                 accessToken: accessToken ?? undefined
               })}
             </div>
           )}
         </Content>
-      </Main>
-    </Container>
+      </Layout>
+
+      <Modal
+        title="Business App Settings"
+        open={settingsModalVisible}
+        onCancel={() => setSettingsModalVisible(false)}
+        onOk={saveSettings}
+        width={700}
+        okText="Save Settings"
+      >
+        <Form layout="vertical">
+          <Form.Item
+            label="User Info (JSON format)"
+            validateStatus={userInfoError ? "error" : ""}
+            help={userInfoError}
+          >
+            <Input.TextArea
+              placeholder="Enter user info in JSON format"
+              rows={6}
+              onChange={e => {
+                setUserInfo(e.target.value);
+                validateUserInfo(e.target.value);
+              }}
+              value={userInfo}
+            />
+          </Form.Item>
+          <Form.Item label="Access Token">
+            <Input.TextArea
+              placeholder="Enter your access token"
+              rows={3}
+              onChange={e => setAccessToken(e.target.value)}
+              value={accessToken}
+            />
+          </Form.Item>
+          <Text type="secondary">
+            These settings will be saved in your browser's local storage and persisted between sessions.
+          </Text>
+        </Form>
+      </Modal>
+    </Layout>
   );
 }

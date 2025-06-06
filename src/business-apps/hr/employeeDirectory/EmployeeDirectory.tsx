@@ -96,7 +96,7 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
   }, [handleOutsideClick]);
 
   return (
-    <div className="w-full h-screen flex flex-row relative bg-white">
+    <div className="gba:w-full gba:h-screen gba:flex gba:flex-row gba:relative gba:bg-white">
       <PageLayout
         variant="default"
         headerIcon={<PiUsersThree size={32} />}
@@ -134,7 +134,7 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
                 getKey={(emp) => emp.id}
                 renderItem={(emp: Employee) => (
                   <div 
-                    className={`cursor-pointer ${selectedEmployee?.id === emp.id ? 'ring-2 ring-primary-500 bg-gray-50' : ''}`}
+                    className={`gba:cursor-pointer ${selectedEmployee?.id === emp.id ? 'gba:ring-2 gba:ring-primary-500 gba:bg-gray-50' : ''}`}
                     onClick={() => handleEmployeeSelect(emp)}
                     role="button"
                     tabIndex={0}

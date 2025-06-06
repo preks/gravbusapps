@@ -204,7 +204,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee }) => {
   const payrollData = getPayrollData();
 
   return (
-    <div className="details-tab space-y-6">
+    <div className="gba:details-tab gba:space-y-6">
       {/* Personal Data Section */}
       <ProfileSection 
         title={t('employee_profile.summary_layout.public_profile_container.personal_data_title')}
