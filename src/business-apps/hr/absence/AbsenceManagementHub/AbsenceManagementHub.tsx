@@ -26,7 +26,7 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
         return (
           <>
             <AbsenceOverview />
-            <div className="mt-8">
+            <div className="gba:mt-8">
               <KPISection accessToken={accessToken}/>
             </div>
           </>
@@ -39,7 +39,7 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
         return (
           <>
             <AbsenceOverview />
-            <div className="mt-8">
+            <div className="gba:mt-8">
               <KPISection accessToken={accessToken} />
             </div>
           </>
@@ -48,18 +48,18 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="gba:min-h-screen gba:bg-gray-50">
       <AppHeader />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="gba:max-w-7xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:lg:px-8 gba:py-6">
         <HeroBanner />
         
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="gba:max-w-7xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:lg:px-8 gba:py-6">
           <QuickActions onSectionChange={handleSectionChange} />
         </div>
 
         {activeSection && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="gba:max-w-7xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:lg:px-8 gba:py-6">
             {renderContent()}
           </div>
         )}

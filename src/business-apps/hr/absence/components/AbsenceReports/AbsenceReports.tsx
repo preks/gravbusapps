@@ -125,7 +125,7 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
   
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
         <Spin size="large" />
       </div>
     );
@@ -162,10 +162,10 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
   }
 
   return (
-    <div className="p-3 max-w-6xl mx-auto w-full">
-      <div className="bg-white border border-gray-200 rounded-lg">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold">Absence Overview</h2>
+    <div className="gba:p-3 gba:max-w-6xl gba:mx-auto gba:w-full">
+      <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg">
+        <div className="gba:p-4 gba:border-b gba:border-gray-200">
+          <h2 className="gba:text-lg gba:font-semibold">Absence Overview</h2>
         </div>
         <div className="p-6">
           <a 
@@ -174,23 +174,23 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
               e.preventDefault();
               window.location.href = absenceReport.url;
             }}
-            className="block"
+            className="gba:block"
           >
             <Card 
-              className="border-0 hover:shadow-md transition-shadow cursor-pointer"
+              className="gba:border-0 gba:hover:shadow-md gba:transition-shadow gba:cursor-pointer"
               hoverable
             >
-              <div className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="bg-gray-100 p-3 rounded-lg">
-                    <RiBarChartLine className="h-6 w-6 text-gray-600" />
+              <div className="gba:p-6">
+                <div className="gba:flex gba:items-center gba:gap-4">
+                  <div className="gba:bg-gray-100 gba:p-3 gba:rounded-lg">
+                    <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-gray-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium">
+                    <h3 className="gba:text-lg gba:font-medium">
                       {absenceReport.title}
                     </h3>
                     {absenceReport.category && (
-                      <p className="text-gray-600 mt-1">
+                      <p className="gba:text-gray-600 gba:mt-1">
                         {absenceReport.category}
                       </p>
                     )}

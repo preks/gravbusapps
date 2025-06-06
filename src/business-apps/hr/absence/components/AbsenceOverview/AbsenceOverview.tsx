@@ -55,7 +55,7 @@ export const AbsenceOverview = () => {
     {
       title: "Pending Requests",
       count: 0,
-      icon: <RiTimer2Line className="h-5 w-5 text-amber-400" />,
+      icon: <RiTimer2Line className="gba:h-5 gba:w-5 gba:text-amber-400" />,
       change: {
         type: "increase",
         text: "No change",
@@ -64,7 +64,7 @@ export const AbsenceOverview = () => {
     {
       title: "Approved Absences",
       count: 0,
-      icon: <RiCheckboxCircleLine className="h-5 w-5 text-emerald-400" />,
+      icon: <RiCheckboxCircleLine className="gba:h-5 gba:w-5 gba:text-emerald-400" />,
       change: {
         type: "decrease",
         text: "No change",
@@ -73,7 +73,7 @@ export const AbsenceOverview = () => {
     {
       title: "Team Members Away",
       count: 0,
-      icon: <RiGroupLine className="h-5 w-5 text-violet-400" />,
+      icon: <RiGroupLine className="gba:h-5 gba:w-5 gba:text-violet-400" />,
       change: {
         type: "increase",
         text: "No change",
@@ -82,7 +82,7 @@ export const AbsenceOverview = () => {
     {
       title: "Upcoming Absences",
       count: 0,
-      icon: <RiCalendarLine className="h-5 w-5 text-sky-400" />,
+      icon: <RiCalendarLine className="gba:h-5 gba:w-5 gba:text-sky-400" />,
       change: {
         type: "nochange",
         text: "No change",
@@ -170,33 +170,33 @@ export const AbsenceOverview = () => {
 
 
   return (
-    <div className="grid grid-cols-4 gap-4">
+    <div className="gba:grid gba:grid-cols-4 gba:gap-4">
       {statusCards.map((card, index) => (
-        <Card key={index} className="hover:shadow-md transition-shadow">
-          <div className="p-4 flex flex-col">
-            <span className="text-xs text-muted-foreground mb-1">{card.title}</span>
+        <Card key={index} className="gba:hover:shadow-md gba:transition-shadow">
+          <div className="gba:p-4 gba:flex gba:flex-col">
+            <span className="gba:text-xs gba:text-muted-foreground gba:mb-1">{card.title}</span>
 
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-2xl font-bold">{card.count}</span>
+            <div className="gba:flex gba:justify-between gba:items-center gba:mb-3">
+              <span className="gba:text-2xl gba:font-bold">{card.count}</span>
               {card.icon}
             </div>
 
             <div
-              className={`text-xs flex items-center gap-1 ${
+              className={`gba:text-xs gba:flex gba:items-center gba:gap-1 ${
                 card.change.type === "increase"
-                  ? "text-emerald-500"
+                  ? "gba:text-emerald-500"
                   : card.change.type === "decrease"
-                    ? "text-rose-500"
-                    : "text-gray-400"
+                    ? "gba:text-rose-500"
+                    : "gba:text-gray-400"
               }`}
             >
               {card.change.type === "increase" && (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-3 gba:w-3" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 8.293a1 1 0 01-1.414 0z" clipRule="evenodd" />
                 </svg>
               )}
               {card.change.type === "decrease" && (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-3 gba:w-3" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               )}

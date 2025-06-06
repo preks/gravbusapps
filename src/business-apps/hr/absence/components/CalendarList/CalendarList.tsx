@@ -204,15 +204,15 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
+        <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-t-2 gba:border-b-2 gba:border-blue-500"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 text-red-600 bg-red-50 rounded">
+      <div className="gba:p-4 gba:text-red-600 gba:bg-red-50 gba:rounded">
         Error loading absences: {error.message}
       </div>
     );
@@ -227,26 +227,26 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
         legendItems={legendItems}
         itemDetailLabel='Department'
         renderItemContent={(item) => (
-          <div className="flex items-center gap-2 p-1 w-full hover:bg-gray-50 rounded">
-            <div className="w-6 h-6 rounded-full bg-gray-100 flex-shrink-0 overflow-hidden">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:p-1 gba:w-full gba:hover:bg-gray-50 gba:rounded">
+            <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-gray-100 gba:flex-shrink-0 gba:overflow-hidden">
               {item.picture ? (
                 <img 
                   src={`data:image/gif;base64,${item.picture}`} 
-                  alt={item.name}
-                  className="w-full h-full object-cover"
+                  alt={getInitials(item.name)}
+                  className="gba:w-full gba:h-full gba:object-cover"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
-                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    e.currentTarget.nextElementSibling?.classList.remove('gba:hidden');
                   }}
                 />
               ) : null}
-              <div className={`w-full h-full flex items-center justify-center text-xs text-gray-600 ${item.picture ? 'hidden' : ''}`}>
+              <div className={`gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-blue-100 gba:text-blue-700 gba:text-xs gba:font-medium ${item.picture ? 'gba:hidden' : ''}`}>
                 {getInitials(item.name)}
               </div>
             </div>
-            <div className="flex-grow min-w-0">
-              <div className="truncate font-medium">{item.name}</div>
-              <div className="text-xs text-gray-500 truncate">{item.department}</div>
+            <div className="gba:flex-grow gba:min-w-0">
+              <div className="gba:truncate gba:font-medium">{item.name}</div>
+              <div className="gba:text-xs gba:text-gray-500 gba:truncate">{item.department}</div>
             </div>
           </div>
         )}

@@ -30,13 +30,13 @@ export const QuickActions = ({ onSectionChange }: { onSectionChange: (section: s
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-4 gap-3 pt-3">
+    <div className="gba:space-y-4">
+      <div className="gba:grid gba:grid-cols-4 gba:gap-3 gba:pt-3">
         {quickActions.map((action, index) => (
           <Button
             key={index}
             type="default"
-            className="bg-gray-50 hover:bg-gray-100 rounded-lg p-3 flex items-center justify-center gap-2 transition-colors"
+            className="gba:bg-gray-50 gba:hover:bg-gray-100 gba:rounded-lg gba:p-3 gba:flex gba:items-center gba:justify-center gba:gap-2 gba:transition-colors"
             icon={action.icon}
             onClick={() => handleActionClick(action.title)}
           >

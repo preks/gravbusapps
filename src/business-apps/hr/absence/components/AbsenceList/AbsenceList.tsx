@@ -85,7 +85,7 @@ const formatDateRange = (startDate: Date, endDate: Date): string => {
 
 export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   if (!userInfo?.employeeDetails?.organizationalUnit?.id) {
-    return <div className="p-4 text-red-500">Organization unit information is not available</div>;
+    return <div className="gba:p-4 gba:text-red-500">Organization unit information is not available</div>;
   }
   
   const orgUnitId = userInfo.employeeDetails.organizationalUnit.id;
@@ -138,14 +138,14 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken, us
 
   if (loadingPage) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
         <Spin size="large" />
       </div>
     )
   }
 
   if (error) {
-    return <div className="text-red-500">{error}</div>
+    return <div className="gba:text-red-500">{error}</div>
   }
 
  
@@ -167,15 +167,15 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken, us
   });
 
   return (
-    <div className="p-4 max-w-full overflow-x-auto">
+    <div className="gba:p-4 gba:max-w-full gba:overflow-x-auto">
 
-      <div className="flex flex-col md:flex-row gap-2 mb-4 items-start md:items-end">
+      <div className="gba:flex gba:flex-col gba:md:flex-row gba:gap-2 gba:mb-4 gba:items-start gba:md:items-end">
         <Input.Search
           placeholder="Search by requester"
           allowClear
           value={searchText}
           onChange={e => setSearchText(e.target.value)}
-          className="w-full md:w-64"
+          className="gba:w-full gba:md:w-64"
         />
         <Select
           placeholder="Filter by status"
@@ -214,12 +214,12 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken, us
               const groupName = absenceTypes[parentId] || record.type.value;
 
               const classMap: { [key: string]: string } = {
-                'Sick Leave': 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal bg-pink-100 text-pink-800 hover:bg-pink-200',
-                'Vacation': 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal bg-emerald-100 text-emerald-800 hover:bg-emerald-200',
-                'Special Leave': 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal bg-violet-100 text-violet-800 hover:bg-violet-200',
-                'Work Leave': 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal bg-amber-100 text-amber-800 hover:bg-amber-200',
+                'Sick Leave': 'gba:inline-flex gba:items-center gba:rounded-md gba:border gba:px-2.5 gba:py-0.5 gba:text-xs gba:transition-colors gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring gba:focus:ring-offset-2 gba:border-transparent gba:font-normal gba:bg-pink-100 gba:text-pink-800 gba:hover:bg-pink-200',
+                'Vacation': 'gba:inline-flex gba:items-center gba:rounded-md gba:border gba:px-2.5 gba:py-0.5 gba:text-xs gba:transition-colors gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring gba:focus:ring-offset-2 gba:border-transparent gba:font-normal gba:bg-emerald-100 gba:text-emerald-800 gba:hover:bg-emerald-200',
+                'Special Leave': 'gba:inline-flex gba:items-center gba:rounded-md gba:border gba:px-2.5 gba:py-0.5 gba:text-xs gba:transition-colors gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring gba:focus:ring-offset-2 gba:border-transparent gba:font-normal gba:bg-violet-100 gba:text-violet-800 gba:hover:bg-violet-200',
+                'Work Leave': 'gba:inline-flex gba:items-center gba:rounded-md gba:border gba:px-2.5 gba:py-0.5 gba:text-xs gba:transition-colors gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring gba:focus:ring-offset-2 gba:border-transparent gba:font-normal gba:bg-amber-100 gba:text-amber-800 gba:hover:bg-amber-200',
               };
-              const tagClass = classMap[groupName] || 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal bg-gray-100 text-gray-800';
+              const tagClass = classMap[groupName] || 'gba:inline-flex gba:items-center gba:rounded-md gba:border gba:px-2.5 gba:py-0.5 gba:text-xs gba:transition-colors gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring gba:focus:ring-offset-2 gba:border-transparent gba:font-normal gba:bg-gray-100 gba:text-gray-800';
               return <span className={tagClass}>{groupName}</span>;
             },
           },
@@ -236,7 +236,7 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken, us
             dataIndex: 'startDate',
             key: 'dates',
             render: (_: any, record: EmployeeAbsence) => (
-              <div className="text-sm">
+              <div className="gba:text-sm">
                 {formatDateRange(new Date(record.startDate), new Date(record.endDate))}
               </div>
             ),
@@ -250,10 +250,10 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken, us
             title: 'Requester',
             dataIndex: 'requester',
             render: (_: any, record: EmployeeAbsence) => (
-              <div className="flex items-start">
-                <div className="flex flex-col">
-                  <span className="font-medium">{record.employee.firstName} {record.employee.lastName}</span>
-                  <span className="text-xs text-gray-500">
+              <div className="gba:flex gba:items-start">
+                <div className="gba:flex gba:flex-col">
+                  <span className="gba:font-medium">{record.employee.firstName} {record.employee.lastName}</span>
+                  <span className="gba:text-xs gba:text-gray-500">
                     {record.employee.employeePosition?.organizationalUnit?.name || 'No Department'}
                   </span>
                 </div>
@@ -268,11 +268,11 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = ({ accessToken, us
               if (!record.status) return '';
               const status = record.status.toLowerCase();
               const statusClassMap: { [key: string]: string } = {
-                approved: 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal capitalize bg-green-100 text-green-800 hover:bg-green-200',
-                pending: 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal capitalize bg-yellow-100 text-yellow-800 hover:bg-yellow-200',
-                rejected: 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal capitalize bg-red-100 text-red-800 hover:bg-red-200',
+                approved: 'gba:inline-flex gba:items-center gba:rounded-md gba:border gba:px-2.5 gba:py-0.5 gba:text-xs gba:transition-colors gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring gba:focus:ring-offset-2 gba:border-transparent gba:font-normal gba:capitalize gba:bg-green-100 gba:text-green-800 gba:hover:bg-green-200',
+                pending: 'gba:inline-flex gba:items-center gba:rounded-md gba:border gba:px-2.5 gba:py-0.5 gba:text-xs gba:transition-colors gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring gba:focus:ring-offset-2 gba:border-transparent gba:font-normal gba:capitalize gba:bg-yellow-100 gba:text-yellow-800 gba:hover:bg-yellow-200',
+                rejected: 'gba:inline-flex gba:items-center gba:rounded-md gba:border gba:px-2.5 gba:py-0.5 gba:text-xs gba:transition-colors gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring gba:focus:ring-offset-2 gba:border-transparent gba:font-normal gba:capitalize gba:bg-red-100 gba:text-red-800 gba:hover:bg-red-200',
               };
-              const tagClass = statusClassMap[status] || 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent font-normal capitalize bg-gray-100 text-gray-800';
+              const tagClass = statusClassMap[status] || 'gba:inline-flex gba:items-center gba:rounded-md gba:border gba:px-2.5 gba:py-0.5 gba:text-xs gba:transition-colors gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring gba:focus:ring-offset-2 gba:border-transparent gba:font-normal gba:capitalize gba:bg-gray-100 gba:text-gray-800';
               return <span className={tagClass}>{status}</span>;
             },
             key: 'status',

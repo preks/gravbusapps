@@ -239,18 +239,18 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const maxAbsenceDays = Math.max(...absences.map((abs) => abs.effectiveDays));
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
       <Card className="hover:shadow-md transition-shadow">
         <div className="flex flex-row items-center justify-between pb-2">
   <div>
-    <Title level={5} className="text-sm font-medium">Absence Trends</Title>
-    <p className="text-xs text-muted-foreground">Monthly absence days by group</p>
-    <div className="text-2xl font-bold pt-2 text-left">{totalAbsenceDays}</div>
-    <div className="text-xs text-muted-foreground text-left pb-3">Total Absence Days</div>
+    <Title level={5} className="gba:text-sm gba:font-medium">Absence Trends</Title>
+    <p className="gba:text-xs gba:text-muted-foreground">Monthly absence days by group</p>
+    <div className="gba:text-2xl gba:font-bold gba:pt-2 gba:text-left">{totalAbsenceDays}</div>
+    <div className="gba:text-xs gba:text-muted-foreground gba:text-left gba:pb-3">Total Absence Days</div>
   </div>
-  <RiBarChartLine className="h-6 w-6 text-gray-500 ml-2" />
+  <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-gray-500 gba:ml-2" />
 </div>
-        <div className="p-4 h-[300px]">
+        <div className="gba:p-4 gba:h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={barChartData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -291,25 +291,25 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
         
       </Card>
 
-      <Card className="hover:shadow-md transition-shadow">
-        <div className="flex flex-row items-center justify-between pb-2">
+      <Card className="gba:hover:shadow-md gba:transition-shadow">
+        <div className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2">
           <div>
-            <Title level={5} className="text-sm font-medium">
+            <Title level={5} className="gba:text-sm gba:font-medium">
               Absence Distribution
             </Title>
-            <p className="text-xs text-muted-foreground">
+            <p className="gba:text-xs gba:text-muted-foreground">
               Total absence days by group
             </p>
           </div>
-          <RiPieChart2Line className="h-6 w-6 text-gray-500" />
+          <RiPieChart2Line className="gba:h-6 gba:w-6 gba:text-gray-500" />
         </div>
-        <div className="text-2xl font-bold pt-2 text-left">
+        <div className="gba:text-2xl gba:font-bold gba:pt-2 gba:text-left">
           {vacationShare}%
         </div>
-        <div className="text-xs text-muted-foreground text-left pb-3">
+        <div className="gba:text-xs gba:text-muted-foreground gba:text-left gba:pb-3">
           Vacation Share
         </div>
-        <div className="p-4 h-[200px]">
+        <div className="gba:p-4 gba:h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -394,26 +394,26 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
         </div>
       </Card>
 
-      <Card className="hover:shadow-md transition-shadow flex flex-col justify-between text-left min-h-[370px]">
-        <div className="flex flex-row items-center justify-between pb-2">
+      <Card className="gba:hover:shadow-md gba:transition-shadow gba:flex gba:flex-col gba:justify-between gba:text-left gba:min-h-[370px]">
+        <div className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2">
           <div>
-            <Title level={5} className="text-sm font-medium">
+            <Title level={5} className="gba:text-sm gba:font-medium">
               Top Absentees
             </Title>
-            <p className="text-xs text-muted-foreground">
+            <p className="gba:text-xs gba:text-muted-foreground">
               Employees with most absence days
             </p>
           </div>
-          <span className="text-xl">
-            <RiMedalLine className="h-6 w-6 text-gray-500 rotate-90" />
+          <span className="gba:text-xl">
+            <RiMedalLine className="gba:h-6 gba:w-6 gba:text-gray-500 gba:rotate-90" />
           </span>
         </div>
-        <div className="text-2xl font-bold pt-2">{maxAbsenceDays}</div>
-        <div className="text-xs text-muted-foreground pb-3">
+        <div className="gba:text-2xl gba:font-bold gba:pt-2">{maxAbsenceDays}</div>
+        <div className="gba:text-xs gba:text-muted-foreground gba:pb-3">
           Max Absence Days
         </div>
 
-        <div className="space-y-2">
+        <div className="gba:space-y-2">
           {(() => {
             const employeeMap: {
               [id: string]: {
@@ -448,17 +448,17 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
             return top.map((emp, idx) => (
               <div
                 key={emp.name + idx}
-                className="flex flex-row items-center justify-between"
+                className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2"
               >
                 <div>
-                  <div className="text-sm font-medium leading-tight">
+                  <div className="gba:text-sm gba:font-medium gba:leading-tight">
                     {emp.name}
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="gba:text-xs gba:text-muted-foreground">
                     {emp.department} &bull; {emp.total} days
                   </div>
                 </div>
-                <div className="flex flex-row gap-2 pr-1">
+                <div className="gba:flex gba:flex-row gba:gap-2 gba:pr-1">
                   {[
                     { color: "#fb7185", group: "Sick Leave" },
                     { color: "#34d399", group: "Vacation" },
@@ -475,7 +475,7 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
                         placement="top"
                       >
                         <span
-                          className="inline-block w-3 h-3 rounded-full"
+                          className="gba:inline-block gba:w-3 gba:h-3 gba:rounded-full"
                           style={{
                             backgroundColor: color,
                             opacity: 0.85,
