@@ -52,6 +52,10 @@ interface ExpenseItemContextProps {
   setLoading: (loading: boolean) => void;
   fileList: any[];
   setFileList: (files: any[]) => void;
+  isProcessingFiles: boolean;
+  setIsProcessingFiles: (isProcessing: boolean) => void;
+  isFormDisabled: boolean;
+  setIsFormDisabled: (isDisabled: boolean) => void;
   multiPosition: boolean;
   setMultiPosition: (isMulti: boolean) => void;
 
@@ -70,7 +74,7 @@ interface ExpenseItemContextProps {
 
   // Actions
   calculateTotal: () => number;
-  handleFileUpload: () => Promise<any | null>;
+  handleFileUpload: (files: File[]) => Promise<any | null>;
   handleSubmit: () => Promise<void>;
   handleExpenseGroupChange: (
     value: string,
@@ -112,6 +116,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [currentStep, setCurrentStep] = useState<"start" | "form">("start");
   const [loading, setLoading] = useState<boolean>(false);
   const [fileList, setFileList] = useState<any[]>([]);
+  const [isProcessingFiles, setIsProcessingFiles] = useState<boolean>(false);
+  const [isFormDisabled, setIsFormDisabled] = useState<boolean>(false);
   const [multiPosition, setMultiPosition] = useState<boolean>(false);
   // Data states
   const [positions, setPositions] = useState<ExpensePosition[]>([
@@ -138,9 +144,9 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   // API response states
   const [generalDataResponse, setGeneralDataResponse] = useState<any>(null);
   const [catalogueDataResponse, setCatalogueDataResponse] = useState<any>(null);
-  const [structureCostCenter, setStructureCostCenter] = useState<any>(null);
-  const [expenseRequestByCurrency, setExpenseRequestByCurrency] =
-    useState<any>(null);
+  // These states are reserved for future implementation
+  const [, setStructureCostCenter] = useState<any>(null);
+  const [, setExpenseRequestByCurrency] = useState<any>(null);
 
   // GraphQL client - using useMemo to prevent recreation on every render
   const graphqlClient = useMemo(
@@ -298,6 +304,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   useEffect(() => {
     if (catalogueDataResponse) {
       addRequestsWrapper();
+      console.log("expenseRequests",expenseRequests)
+      form.setFieldsValue({ expenseRequestId: "0" });
     }
   }, [catalogueDataResponse]);
 
@@ -308,22 +316,56 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     const today = formatDateToDDMMYYYY(new Date().toISOString());
     console.debug(`Loading expense types data on ${today}`);
     
-    return typeof employeeRuleId === "object"
-      ? []
-      : generalDataResponse?.data.ExpenseRuleGeneralExpense.map(
-          (item: any) => ({
-            expenseCode: item.code,
-            expenseLabel: item.name,
-            expenseGroupCode: item.expenseGroup.code,
-            expenseGroupLabel: getCatalogValue(item.expenseGroup),
-          })
-        );
+    if (typeof employeeRuleId === "object" || !generalDataResponse?.data.ExpenseRuleGeneralExpense) {
+      return [];
+    }
+    
+    // Create a map to track unique labels
+    const uniqueLabels = new Map<string, boolean>();
+    
+    // Define the type for expense items
+    type ExpenseAIItem = {
+      expenseCode: string;
+      expenseLabel: string;
+      expenseGroupCode: string;
+      expenseGroupLabel: string;
+    };
+    
+    const result: ExpenseAIItem[] = [];
+    
+    // Process each expense type and ensure unique labels
+    generalDataResponse.data.ExpenseRuleGeneralExpense.forEach((item: any) => {
+      let expenseLabel = item.name;
+      
+      // If this label already exists, make it unique by appending the code
+      if (uniqueLabels.has(expenseLabel.toLowerCase())) {
+        expenseLabel = `${item.name} (${item.code})`;
+      }
+      
+      // If still not unique, add the group code as well
+      if (uniqueLabels.has(expenseLabel.toLowerCase())) {
+        expenseLabel = `${item.name} (${item.code}-${item.expenseGroup.code})`;
+      }
+      
+      // Add to unique labels map
+      uniqueLabels.set(expenseLabel.toLowerCase(), true);
+      
+      // Add to result array
+      result.push({
+        expenseCode: item.code,
+        expenseLabel: expenseLabel,
+        expenseGroupCode: item.expenseGroup.code,
+        expenseGroupLabel: getCatalogValue(item.expenseGroup),
+      });
+    });
+    
+    return result;
   }, [generalDataResponse, employeeRuleId]);
 
   const addRequestsWrapper = () => {
     addRequests(
       catalogueDataResponse,
-      expenseRequestByCurrency,
+      null, // expenseRequestByCurrency is no longer used, passing null instead
       multiPosition,
       form,
       setExpenseRequests,
@@ -346,9 +388,241 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     return calculateTotal(positions);
   };
 
+  // Process receipt data and populate form fields
+  const setByReceipts = (receiptData: any): void => {
+    if (!receiptData || !receiptData.data) {
+      console.debug('No receipt data to process');
+      return;
+    }
+    
+    try {
+      const data = receiptData.data;
+      console.debug('Processing receipt data:', data);
+      
+      // Check if currency from receipt matches the request currency (if additionalData exists)
+      if (additionalData?.currencyData) {
+        const requestCurrency = currencies.find(c => c.id === additionalData.currencyData);
+        if (requestCurrency && requestCurrency.code !== data.currencyCode) {
+          message.error(t("expense_item.currency_mismatch", "The Receipt could not be added as it does not match the request currency"));
+          return;
+        }
+      }
+      
+      // Set title if available
+      if (data.vendor?.name) {
+        form.setFieldsValue({ title: data.vendor.name });
+      }
+      
+      // Set date if available
+      if (data.invoiceDate) {
+        try {
+          // Handle different date formats
+          let dateValue;
+          
+          // Check if the date is already a valid date string
+          if (typeof data.invoiceDate === 'string') {
+            // Try to parse the date string
+            if (data.invoiceDate.includes('T')) {
+              // ISO format with time
+              dateValue = new Date(data.invoiceDate);
+            } else {
+              // Simple date format (YYYY-MM-DD)
+              const [year, month, day] = data.invoiceDate.split('-').map(Number);
+              dateValue = new Date(year, month - 1, day); // month is 0-indexed in JS Date
+            }
+          } else {
+            // If it's already a date object or timestamp
+            dateValue = new Date(data.invoiceDate);
+          }
+          
+          // Validate the date is valid before setting it
+          if (!isNaN(dateValue.getTime())) {
+            console.debug(`Setting date value: ${dateValue}`);
+            form.setFieldsValue({ date: dateValue });
+          } else {
+            console.error(`Invalid date format: ${data.invoiceDate}`);
+          }
+        } catch (error) {
+          console.error(`Error parsing date ${data.invoiceDate}:`, error);
+        }
+      }
+      
+      // Set currency if available
+      if (data.currencyCode) {
+        const currencyId = currencies.find(c => c.code === data.currencyCode)?.id;
+        if (currencyId) {
+          form.setFieldsValue({ currency: currencyId });
+        }
+      }
+      
+      // Handle positions based on items in receipt
+      if (data.items && data.items.length > 0) {
+        // Create new positions array
+        const newPositions: ExpensePosition[] = [];
+        
+        // Get the cost center from the first position (if exists)
+        const costCenterId = positions[0]?.costCenter || '';
+        
+        // Process each item in the receipt
+        data.items.forEach((item: any, index: number) => {
+          // Create a new position
+          const newPosition: ExpensePosition = {
+            id: `position-${Date.now()}-${index}`,
+            expenseGroup: '',
+            expenseType: '',
+            amount: item.totalPrice || 0,
+            costCenter: costCenterId,
+            isReimbursable: true,
+            customField: ''
+          };
+          
+          // Map expense group and type if available in the receipt item
+          if (item.expenseDetails) {
+            // Find matching expense group by code
+            if (item.expenseDetails.expenseGroupCode) {
+              const matchingGroup = expenseGroups.find(
+                group => group.code === item.expenseDetails.expenseGroupCode
+              );
+              
+              if (matchingGroup) {
+                newPosition.expenseGroup = matchingGroup.id;
+                console.debug(`Mapped expense group code ${item.expenseDetails.expenseGroupCode} to ID ${matchingGroup.id}`);
+                
+                // After setting the group, find the matching expense type
+                if (item.expenseDetails.expenseCode && expenseTypes[matchingGroup.id]) {
+                  const matchingType = expenseTypes[matchingGroup.id].find(
+                    type => type.code === item.expenseDetails.expenseCode
+                  );
+                  
+                  if (matchingType) {
+                    newPosition.expenseType = matchingType.id;
+                    console.debug(`Mapped expense type code ${item.expenseDetails.expenseCode} to ID ${matchingType.id}`);
+                  } else {
+                    // If we can't find the type in the loaded types, try to fetch it
+                    console.debug(`Expense type with code ${item.expenseDetails.expenseCode} not found in loaded types, will try to fetch`);
+                    // We'll handle this in a separate effect after positions are set
+                  }
+                }
+              } else {
+                console.debug(`Expense group with code ${item.expenseDetails.expenseGroupCode} not found`);
+              }
+            }
+          }
+          
+          // If we still don't have a group/type match from the system, try to match using aiGroupsAndTypes
+          if (!newPosition.expenseGroup && item.expenseDetails?.expenseGroupCode) {
+            const aiMatch = aiGroupsAndTypes.find(
+              ai => ai.expenseGroupCode === item.expenseDetails.expenseGroupCode && 
+                   ai.expenseCode === item.expenseDetails.expenseCode
+            );
+            
+            if (aiMatch) {
+              console.debug(`Found AI match for group ${aiMatch.expenseGroupCode} and type ${aiMatch.expenseCode}`);
+              // Now we need to find the actual IDs from our loaded data
+              const matchingGroup = expenseGroups.find(
+                group => group.code === aiMatch.expenseGroupCode
+              );
+              
+              if (matchingGroup) {
+                newPosition.expenseGroup = matchingGroup.id;
+                // We'll need to fetch expense types for this group if not already loaded
+              }
+            }
+          }
+          
+          newPositions.push(newPosition);
+        });
+        
+        // Update positions state
+        setPositions(newPositions);
+        
+        // Set multiPosition mode if there are multiple items
+        if (newPositions.length > 1) {
+          setMultiPosition(true);
+        } else {
+          setMultiPosition(false);
+        }
+        
+        // For each position with a group but no type, fetch the types
+        newPositions.forEach(async (position, index) => {
+          if (position.expenseGroup && !position.expenseType) {
+            try {
+              const types = await fetchExpenseTypesWrapper(position.expenseGroup);
+              
+              // Now try to find the matching type by code
+              if (data.items[index]?.expenseDetails?.expenseCode) {
+                const matchingType = types.find(
+                  type => type.code === data.items[index].expenseDetails.expenseCode
+                );
+                
+                if (matchingType) {
+                  // Update the position with the found type
+                  const updatedPositions = [...newPositions];
+                  updatedPositions[index].expenseType = matchingType.id;
+                  setPositions(updatedPositions);
+                  console.debug(`Updated position ${index} with expense type ${matchingType.id}`);
+                }
+              }
+            } catch (error) {
+              console.error(`Error fetching expense types for group ${position.expenseGroup}:`, error);
+            }
+          }
+        });
+      }
+      
+      console.debug('Receipt data processed successfully');
+    } catch (error) {
+      console.error('Error processing receipt data:', error);
+      message.error(t("expense_item.receipt_processing_error", "Error processing receipt data"));
+    }
+  };
+
   // Handle file upload
-  const handleFileUploadWrapper = async (): Promise<any | null> => {
-    return await handleFileUpload(fileList, t);
+  const handleFileUploadWrapper = async (files: File[]): Promise<any | null> => {
+    if (!files || files.length === 0) {
+      message.error(t("expense_item.no_files", "No files selected for upload"));
+      return null;
+    }
+
+    try {
+      // Set processing state to true
+      setIsProcessingFiles(true);
+      setIsFormDisabled(true);
+      
+      console.debug(`Starting file upload process with ${files.length} files`);
+      
+      // Call the handleFileUpload function with the required parameters
+      const result = await handleFileUpload(files, accessToken, aiGroupsAndTypes, t);
+      
+      if (result) {
+        console.debug('File upload completed successfully');
+        // Process the receipt data to populate form fields
+        setByReceipts(result);
+      } else {
+        console.debug('File upload completed but returned no data');
+      }
+      
+      // Move to the next step regardless of success or failure
+      setCurrentStep("form");
+      
+      // Reset processing state
+      setIsProcessingFiles(false);
+      setIsFormDisabled(false);
+      
+      return result;
+    } catch (error) {
+      console.error("Error in file upload:", error);
+      message.error(t("expense_item.upload_error", "Error processing receipt. Continuing without receipt data."));
+      
+      // Reset processing state
+      setIsProcessingFiles(false);
+      setIsFormDisabled(false);
+      
+      // Move to the next step even if there's an error
+      setCurrentStep("form");
+      
+      return null;
+    }
   };
 
   // Handle form submission
@@ -427,6 +701,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     setLoading,
     fileList,
     setFileList,
+    isProcessingFiles,
+    setIsProcessingFiles,
+    isFormDisabled,
+    setIsFormDisabled,
     multiPosition,
     setMultiPosition,
     positions,

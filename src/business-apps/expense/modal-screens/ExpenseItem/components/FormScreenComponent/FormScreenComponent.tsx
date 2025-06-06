@@ -20,6 +20,7 @@ import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, Custo
 import UploadComponent from "../UploadComponent";
 import SinglePositionComponent from "./SinglePositionComponent";
 import MultiPositionComponent from "./MultiPositionComponent";
+import { useExpenseItem } from "../../ExpenseItemContext/ExpenseItemContext";
 
 interface FormScreenComponentProps {
   form: any;
@@ -67,6 +68,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   calculateTotal,
 }) => {
   const { t } = useTranslation();
+  const { isProcessingFiles, isFormDisabled } = useExpenseItem();
 
   return (
     <Form
@@ -93,6 +95,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             <InputField
               label={t("create_expense_type_item.current_title_label", "Title")}
               name="title"
+              disabled={isFormDisabled || isProcessingFiles}
               placeholder={t(
                 "create_expense_type_item.current_title_placeholder",
                 "Enter Title"
@@ -185,9 +188,14 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       )}
 
       {multiPosition && (
-        <Button variant="ghost" onClick={handleAddPosition}>
-          <PlusCircleOutlined style={{ width: "17px", height: "17px" }} /> Add
-          Position
+        <Button 
+          variant="ghost" 
+          onClick={handleAddPosition}
+          disabled={isProcessingFiles}
+          className={`${styles.marginBottom16} gba:marginBottom16`}
+        >
+          <PlusCircleOutlined style={{ width: "17px", height: "17px" }} /> 
+          {isProcessingFiles ? "Processing..." : "Add Position"}
         </Button>
       )}
 
@@ -273,6 +281,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             "create_expense_item.change_expense_item_container.current_request_placeholder",
             "Select Request"
           )}
+          disabled={isProcessingFiles}
         />
       </Form.Item>
 
@@ -280,7 +289,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <Button
           variant="primary"
           onClick={handleSubmit}
-          loading={loading}
+          disabled={isProcessingFiles}
           className={`${styles.submitButton} gba:submitButton`}
         >
           {t("expense_item.submit", "Submit")}

@@ -10,6 +10,7 @@ import {
   CustomField,
 } from "../../types";
 import { getCatalogValue } from "../../utils/windowUtils";
+import { useExpenseItem } from "../../ExpenseItemContext/ExpenseItemContext";
 
 interface SinglePositionComponentProps {
   positions: ExpensePosition[];
@@ -41,6 +42,7 @@ export const SinglePositionComponent: React.FC<
   handleExpenseTypeChange,
 }) => {
   const { t } = useTranslation();
+  const { isProcessingFiles } = useExpenseItem();
 
   return (
     <div>
@@ -54,6 +56,7 @@ export const SinglePositionComponent: React.FC<
                   "create_expense_item.change_expense_item_container.current_expense_group_label",
                   "Expense Group"
                 )}
+                disabled={isProcessingFiles}
                 name="expenseGroup"
                 data={
                   expenseGroups
@@ -84,6 +87,7 @@ export const SinglePositionComponent: React.FC<
                   "create_expense_item.change_expense_item_container.current_expense_type_label",
                   "Expense Type"
                 )}
+                disabled={isProcessingFiles || !position.expenseGroup}
                 name="expenseType"
                 data={
                   position.expenseGroup && expenseTypes[position.expenseGroup]
@@ -100,7 +104,6 @@ export const SinglePositionComponent: React.FC<
                   "create_expense_item.change_expense_item_container.current_expense_type_placeholder",
                   "Select Expense Type"
                 )}
-                disabled={!position.expenseGroup}
                 value={position.expenseType || undefined}
               />
             </div>
@@ -135,7 +138,7 @@ export const SinglePositionComponent: React.FC<
                     required={
                       customFields[position.expenseType][0]?.mandatory || false
                     }
-                    disabled={!position.expenseType}
+                    disabled={isProcessingFiles || !position.expenseType}
                   />
                 </div>
               </div>
@@ -147,7 +150,8 @@ export const SinglePositionComponent: React.FC<
                   "create_expense_item.change_expense_item_container.current_amount_label",
                   "Amount"
                 )}
-                name="positionAmount"
+                disabled={isProcessingFiles}
+                name="amount"
                 placeholder={t(
                   "create_expense_item.change_expense_item_container.current_amount_placeholder",
                   "Enter Amount"
@@ -170,6 +174,7 @@ export const SinglePositionComponent: React.FC<
               <SelectField
                 allowClear
                 name="costCenter"
+                disabled={isProcessingFiles}
                 data={costCenters.map((center) => ({
                   id: center.id,
                   name: center.name,
@@ -199,6 +204,7 @@ export const SinglePositionComponent: React.FC<
                   "create_expense_item.is_reimbursable",
                   "Is Reimbursable"
                 )}
+                disabled={isProcessingFiles}
                 name={"isReimbursable" + index}
                 value={position.isReimbursable}
                 onChange={(checked) => {

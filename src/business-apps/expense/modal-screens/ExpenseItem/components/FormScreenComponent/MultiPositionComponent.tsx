@@ -17,6 +17,7 @@ import {
   CustomField,
 } from "../../types";
 import { getCatalogValue } from "../../utils/windowUtils";
+import { useExpenseItem } from "../../ExpenseItemContext/ExpenseItemContext";
 
 interface MultiPositionComponentProps {
   positions: ExpensePosition[];
@@ -48,6 +49,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
   handleRemovePosition,
 }) => {
   const { t } = useTranslation();
+  const { isProcessingFiles } = useExpenseItem();
 
   return (
     <div>
@@ -62,6 +64,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                 variant="ghost"
                 onClick={() => handleRemovePosition(position.id)}
                 className={`${styles.deleteButton} gba:deleteButton`}
+                disabled={isProcessingFiles}
               >
                 <DeleteOutlined />
               </Button>
@@ -77,6 +80,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                   "create_expense_item.change_expense_item_container.current_expense_group_label",
                   "Expense Group"
                 )}
+                disabled={isProcessingFiles}
                 name="expenseGroup"
                 data={expenseGroups.map((group) => ({
                   id: group.id,
@@ -119,7 +123,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                   "create_expense_item.change_expense_item_container.current_expense_type_placeholder",
                   "Select Expense Type"
                 )}
-                disabled={!position.expenseGroup}
+                disabled={isProcessingFiles || !position.expenseGroup}
                 value={position.expenseType || undefined}
               />
             </div>
@@ -154,7 +158,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                     required={
                       customFields[position.expenseType][0]?.mandatory || false
                     }
-                    disabled={!position.expenseType}
+                    disabled={isProcessingFiles || !position.expenseType}
                   />
                 </div>
               </div>
@@ -166,6 +170,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                   "create_expense_item.change_expense_item_container.current_amount_label",
                   "Amount"
                 )}
+                disabled={isProcessingFiles}
                 name="positionAmount"
                 placeholder={t(
                   "create_expense_item.change_expense_item_container.current_amount_placeholder",
@@ -188,6 +193,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
             <div className={`${styles.relativePosition} gba:relativePosition`}>
               <SelectField
                 allowClear
+                disabled={isProcessingFiles}
                 name="costCenter"
                 data={costCenters.map((center) => ({
                   id: center.id,
@@ -218,6 +224,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                   "create_expense_item.is_reimbursable",
                   "Is Reimbursable"
                 )}
+                disabled={isProcessingFiles}
                 name={"isReimbursable" + index}
                 value={position.isReimbursable}
                 onChange={(checked) => {

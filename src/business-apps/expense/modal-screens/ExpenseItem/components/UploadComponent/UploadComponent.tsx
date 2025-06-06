@@ -1,6 +1,6 @@
 import React from "react";
 import { Upload, message } from "antd";
-import { CameraOutlined, FullscreenOutlined } from "@ant-design/icons";
+import { CameraOutlined, FullscreenOutlined, LoadingOutlined } from "@ant-design/icons";
 import styles from "../../ExpenseItem.module.css";
 import { useExpenseItem } from "../../ExpenseItemContext/ExpenseItemContext";
 
@@ -16,7 +16,11 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
   fileList, 
   setFileList
 }) => {
-  const { currentStep } = useExpenseItem();
+  const { 
+    currentStep, 
+    handleFileUpload, 
+    isProcessingFiles
+  } = useExpenseItem();
   
   // Validate file type
   const validateFileType = (file: File) => {
@@ -37,6 +41,26 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
     if (!validateFileType(file)) {
       return Upload.LIST_IGNORE;
     }
+    
+    // If valid, process the file immediately
+    if (!isProcessingFiles) {
+      // Add the file to the fileList
+      const newFile = {
+        uid: Date.now().toString(),
+        name: file.name,
+        status: 'done',
+        originFileObj: file
+      };
+      
+      const newFileList = [...fileList, newFile];
+      setFileList(newFileList);
+      
+      // Process the file upload
+      setTimeout(() => {
+        handleFileUpload([file]);
+      }, 0);
+    }
+    
     return false; // Prevent auto upload
   };
   
@@ -65,8 +89,17 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
     if (fileList.length === 0 && currentStep === "start") {
       return (
         <div className={`${styles.uploadButtonStart} gba:uploadButtonStart`}>
-          <CameraOutlined className={styles.uploadIcon} />
-          <span>Attach Receipt</span>
+          {isProcessingFiles ? (
+            <>
+              <LoadingOutlined className={styles.uploadIcon} />
+              <span>Processing the receipt...</span>
+            </>
+          ) : (
+            <>
+              <CameraOutlined className={styles.uploadIcon} />
+              <span>Attach Receipt</span>
+            </>
+          )}
         </div>
       );
     }
@@ -75,8 +108,17 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
     if (fileList.length === 0) {
       return (
         <div className={`${styles.uploadButtonFormEmpty} gba:uploadButtonFormEmpty`}>
-          <span>Attach Receipt</span>
-          <FullscreenOutlined className={styles.uploadIconSmall} />
+          {isProcessingFiles ? (
+            <>
+              <LoadingOutlined className={styles.uploadIconSmall} />
+              <span>Processing...</span>
+            </>
+          ) : (
+            <>
+              <span>Attach Receipt</span>
+              <FullscreenOutlined className={styles.uploadIconSmall} />
+            </>
+          )}
         </div>
       );
     }
@@ -111,6 +153,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
           multiple={true}
           accept={acceptedFileTypes}
           className={`${styles.uploadComponent} gba:uploadComponent`}
+          disabled={isProcessingFiles}
         >
           {getButtonContent()}
         </Upload>
@@ -144,10 +187,20 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
               onChange={handleChange}
               multiple={true}
               accept={acceptedFileTypes}
+              disabled={isProcessingFiles}
             >
               <div className={`${styles.attachMoreContainer} gba:attachMoreContainer`}>
-                <span>Attach Receipt</span>
-                <FullscreenOutlined className={styles.uploadIconSmall} />
+                {isProcessingFiles ? (
+                  <>
+                    <span>Processing...</span>
+                    <LoadingOutlined className={styles.uploadIconSmall} />
+                  </>
+                ) : (
+                  <>
+                    <span>Attach Receipt</span>
+                    <FullscreenOutlined className={styles.uploadIconSmall} />
+                  </>
+                )}
               </div>
             </Upload>
           </div>
