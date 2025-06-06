@@ -77,11 +77,12 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         currency: "EUR",
       }}
     >
-      {fileList.length > 0 && (
-        <div className={`${styles.marginBottom16} gba:marginBottom16`}>
-          <UploadComponent fileList={fileList} setFileList={setFileList} />
-        </div>
-      )}
+      <div className={`${styles.marginBottom16} gba:marginBottom16`}>
+        <UploadComponent 
+          fileList={fileList} 
+          setFileList={setFileList} 
+        />
+      </div>
 
       <div className={`${styles.marginBottom16} gba:marginBottom16`}>
         <div>

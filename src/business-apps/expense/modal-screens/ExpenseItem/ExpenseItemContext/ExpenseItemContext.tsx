@@ -7,8 +7,7 @@ import React, {
   useMemo,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Form } from "antd";
-import { message } from "antd";
+import { Form, message } from "antd";
 import {
   ExpensePosition,
   ExpenseType,
@@ -18,25 +17,31 @@ import {
   CustomField,
 } from "../types";
 
+import { getCurrentActiveUserLocale } from "../utils/windowUtils";
+import { getCatalogValue } from "../utils/windowUtils";
 import {
-  getCurrentActiveUserLocale,
-  getCatalogValue
-} from "../utils/windowUtils";
-import {
-  getNewTypes,
-  getCustomFields,
-  fetchEmployeeRule,
   fetchExpenseCatalogueData,
   fetchExpenseRuleGeneralData,
   getStructureCostCenter,
 } from "../ExpenseItemQueries";
-import { DEFAULT_EMPLOYEE_ID, DEFAULT_EXPENSE_SOURCE, DEFAULT_EXPENSE_STATUS, DEFAULT_POSITION } from "./constants";
-import { createGraphQLClient } from "../services/graphqlClient";
+import { fetchEmployeeRule } from "../ExpenseItemQueries";
+import { DEFAULT_EMPLOYEE_ID, DEFAULT_POSITION } from "./constants";
+import { formatDateToDDMMYYYY } from "../utils/dateUtils";
 import { transformCurrencies } from "../utils/currencyUtils";
-import { formatDateToISOString, formatDateToDDMMYYYY } from "../utils/dateUtils";
-import { prepareExpenseRequestsList } from "../utils/expenseRequestUtils";
-import { calculateTotalAmount } from "../utils/calculationUtils";
-
+import { createGraphQLClient } from "../services/graphqlClient";
+import {
+  addRequests,
+  fetchCustomFields,
+  fetchExpenseTypes,
+  calculateTotal,
+  handleAmountChange,
+  handleAddPosition,
+  handleExpenseGroupChange,
+  handleExpenseTypeChange,
+  handleRemovePosition,
+  handleSubmit,
+  handleFileUpload
+} from "./services";
 
 interface ExpenseItemContextProps {
   // Form and UI states
@@ -189,12 +194,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           });
           setCatalogueDataResponse(catalogueData);
           if (firstRunVariable === false) {
-            if (catalogueData?.data.EmployeePosition[0]?.costCenterId) {
-              const updatedPositions = [...positions];
-              updatedPositions[0].costCenter =
-                catalogueData?.data.EmployeePosition[0]?.costCenterId;
-              setPositions(updatedPositions);
-            }
+            // Fetch cost center data first
             const costCenterData = await graphqlClient.query({
               query: getStructureCostCenter,
               variables: {
@@ -206,20 +206,35 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             });
             setStructureCostCenter(costCenterData);
             setCostCenters(costCenterData?.data.userCostCenters || []);
+            
+            // Update positions with the selected cost center
+            const updatedPositions = [...positions];
+            
+            // If employee position has a cost center, use it; otherwise use the first cost center from structure
+            if (catalogueData?.data.EmployeePosition[0]?.costCenterId) {
+              updatedPositions[0].costCenter = catalogueData.data.EmployeePosition[0].costCenterId;
+            } else if (costCenterData?.data.userCostCenters && costCenterData.data.userCostCenters.length > 0) {
+              updatedPositions[0].costCenter = costCenterData.data.userCostCenters[0].id;
+            }
+            
+            setPositions(updatedPositions);
+            
+            // If using form, also set the form value
+            if (form) {
+              form.setFieldsValue({
+                [`positions[0].costCenter`]: updatedPositions[0].costCenter
+              });
+            }
 
             // Sort and set currencies with priority
             if (catalogueData?.data?.currency) {
               try {
                 const finalCurrencies = transformCurrencies(catalogueData.data.currency);
-                console.log(finalCurrencies,"currencies")
                 setCurrencies(finalCurrencies);
               } catch (error) {
                 console.error("Error transforming currencies:", error);
               }
             }
-
-            // addRequests is now called right after setCatalogueDataResponse
-            // changeDisplayedColumn.run(); most likely not needed anymore
             setFirstRunVariable(true);
 
             // if (additionalData &&
@@ -282,7 +297,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   // Call addRequests whenever catalogueDataResponse changes
   useEffect(() => {
     if (catalogueDataResponse) {
-      addRequests();
+      addRequestsWrapper();
     }
   }, [catalogueDataResponse]);
 
@@ -305,384 +320,102 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         );
   }, [generalDataResponse, employeeRuleId]);
 
-  const addRequests = () => {
-    if (catalogueDataResponse?.data.ExpenseRequest) {
-      let itemsWithCurrency = [];
-      if (expenseRequestByCurrency && expenseRequestByCurrency.data) {
-        if (multiPosition === true && form.getFieldValue("currency")) {
-          itemsWithCurrency = expenseRequestByCurrency.data.ExpenseRequest;
-        } else if (multiPosition === false && form.getFieldValue("currency")) {
-          itemsWithCurrency = expenseRequestByCurrency.data.ExpenseRequest;
-        }
-      }
-
-      const allExpenseRequests = [
-        ...itemsWithCurrency,
-        ...catalogueDataResponse?.data.ExpenseRequest,
-      ];
-      
-      const formattedRequests = prepareExpenseRequestsList(
-        allExpenseRequests,
-        t("create_expense_type_item.none", "None")
-      );
-      
-      setExpenseRequests(formattedRequests);
-    }
+  const addRequestsWrapper = () => {
+    addRequests(
+      catalogueDataResponse,
+      expenseRequestByCurrency,
+      multiPosition,
+      form,
+      setExpenseRequests,
+      t
+    );
   };
 
-  const fetchExpenseTypes = async (groupId: string) => {
-    try {
-      // Check if employeeRuleId is valid
-      if (typeof employeeRuleId === "object" || !employeeRuleId) {
-        console.error("Invalid employeeRuleId for fetching expense types");
-        return [];
-      }
-
-      // Get all current expense group IDs from the positions
-      const expenseGroupIds = positions
-        .map((position) => position.expenseGroup)
-        .filter((id) => id && id.length > 0);
-
-      // Add the current groupId if it's not already in the list
-      if (groupId && !expenseGroupIds.includes(groupId)) {
-        expenseGroupIds.push(groupId);
-      }
-
-      // If there are no expense groups selected, return empty array
-      if (expenseGroupIds.length === 0) {
-        return [];
-      }
-
-      const response = await graphqlClient.query({
-        query: getNewTypes,
-        variables: {
-          expenseRuleId: employeeRuleId,
-          objectFilter: { useInExpense: true },
-          expenseGroupId: expenseGroupIds, // Pass array of all expense group IDs
-        },
-      });
-
-
-      // Check if response has the expected structure
-      if (!response?.data?.ExpenseRuleGeneralExpense) {
-        console.error("Invalid response structure for expense types");
-        return [];
-      }
-
-      // Map the response to the expected format
-      const expenseTypesList = response.data.ExpenseRuleGeneralExpense.map(
-        (item: any) => ({
-          id: item.id,
-          name: item.name,
-          code: item.code,
-          classId: item.expenseGroupRef,
-          reimbursable: item.reimbursable,
-        })
-      );
-
-      // Group expense types by their classId (expenseGroupRef)
-      const expenseTypesByGroup = expenseTypesList.reduce(
-        (acc: { [key: string]: ExpenseType[] }, item: ExpenseType) => {
-          if (!acc[item.classId]) {
-            acc[item.classId] = [];
-          }
-          acc[item.classId].push(item);
-          return acc;
-        },
-        {}
-      );
-
-      // Update the state with all expense types organized by group
-      setExpenseTypes(expenseTypesByGroup);
-
-      return expenseTypesList;
-    } catch (error) {
-      console.error("Error fetching expense types:", error);
-      message.error(
-        t("expense_item.error_message", "Failed to load expense types")
-      );
-      return [];
-    }
+  // Fetch expense types for a specific group ID
+  const fetchExpenseTypesWrapper = async (groupId: string): Promise<ExpenseType[]> => {
+    return await fetchExpenseTypes(groupId, positions, employeeRuleId, graphqlClient, setExpenseTypes, t);
   };
 
-  const fetchCustomFields = async (expenseTypeIds: string[]) => {
-    try {
-      // If no expense type IDs provided, return empty array
-      if (!expenseTypeIds || expenseTypeIds.length === 0) {
-        return [];
-      }
-
-      const response = await graphqlClient.query({
-        query: getCustomFields,
-        variables: {
-          expenseRuleGeneralId: expenseTypeIds,
-        },
-      });
-
-
-      // Check if response has the expected structure
-      if (!response?.data?.ExpenseRuleOtherInfo) {
-        console.error("Invalid response structure for custom fields");
-        return [];
-      }
-
-      // Map the response to the expected format
-      const customFieldsList = response.data.ExpenseRuleOtherInfo.map(
-        (item: any) => ({
-          id: item.id,
-          infoValue: item.infoValue,
-          mandatory: item.mandatory,
-          source: item.source,
-          expenseRuleGeneralExpenseId: item.expenseRuleGeneralExpenseId,
-          expenseGroupRef: item.expenseRuleGeneralExpense?.expenseGroupRef,
-        })
-      );
-
-      // Group custom fields by their expenseRuleGeneralExpenseId
-      const customFieldsByType = customFieldsList.reduce(
-        (acc: { [key: string]: CustomField[] }, item: CustomField) => {
-          if (!acc[item.expenseRuleGeneralExpenseId]) {
-            acc[item.expenseRuleGeneralExpenseId] = [];
-          }
-          acc[item.expenseRuleGeneralExpenseId].push(item);
-          return acc;
-        },
-        {}
-      );
-
-      // Update the state with all custom fields organized by expense type ID
-      setCustomFields((prev) => ({
-        ...prev,
-        ...customFieldsByType,
-      }));
-
-      return customFieldsList;
-    } catch (error) {
-      console.error("Error fetching custom fields:", error);
-      message.error(
-        t("expense_item.error_message", "Failed to load custom fields")
-      );
-      return [];
-    }
+  // Fetch custom fields for expense types
+  const fetchCustomFieldsWrapper = async (expenseTypeIds: string[]): Promise<CustomField[]> => {
+    return await fetchCustomFields(expenseTypeIds, graphqlClient, setCustomFields, t);
   };
 
   // Calculate total amount from all positions
-  const calculateTotal = () => {
-    return calculateTotalAmount(positions);
+  const calculateTotalWrapper = (): number => {
+    return calculateTotal(positions);
   };
 
   // Handle file upload
-  const handleFileUpload = async () => {
-    if (fileList.length === 0) return null;
-
-    try {
-      // File upload logic would go here
-      return null;
-    } catch (error) {
-      console.error("Error uploading file:", error);
-      message.error("Failed to upload receipt");
-      return null;
-    }
+  const handleFileUploadWrapper = async (): Promise<any | null> => {
+    return await handleFileUpload(fileList, t);
   };
 
   // Handle form submission
-  const handleSubmit = async () => {
-    setLoading(true);
-    try {
-      // Validate form fields
-      await form.validateFields();
-
-      // Get form values
-      const values = form.getFieldsValue();
-
-      // Format the expense positions with custom fields
-      const formattedPositions = positions.map((position, index) => {
-        // Prepare custom fields array if a custom field exists
-        const customFieldsArray = [];
-        if (
-          position.expenseType &&
-          customFields[position.expenseType] &&
-          position.customField
-        ) {
-          const customFieldData = customFields[position.expenseType][0];
-          if (customFieldData) {
-            customFieldsArray.push({
-              id: customFieldData.id,
-              infoValue: customFieldData.infoValue,
-              mandatory: customFieldData.mandatory || false,
-              value: position.customField,
-            });
-          }
-        }
-
-        return {
-          expenseGroupRef: position.expenseGroup,
-          expenseTypeRef: position.expenseType,
-          totalAmount: position.amount || 0,
-          positionOrder: index,
-          expenseRuleGeneralExpense: position.expenseType,
-          costCenter: position.costCenter,
-          reimbursable: position.isReimbursable,
-          additionalProperties: {
-            customFields: customFieldsArray,
-          },
-          source: DEFAULT_EXPENSE_SOURCE,
-          expenseRule: employeeRuleId as string,
-        };
-      });
-
-      // Prepare data for submission in the required format
-      const submitData = {
-        expenseItem: {
-          title: values.title,
-          expenseDate: values.date
-            ? formatDateToISOString(values.date)
-            : formatDateToISOString(new Date()),
-          totalAmount: calculateTotal(),
-          source: DEFAULT_EXPENSE_SOURCE,
-          currencyRef: values.currency || "EUR",
-          costCenter: positions[0]?.costCenter || "",
-          reimbursable: positions[0]?.isReimbursable || false,
-          expenseClassRef: "ExpenseClass:v1:EXPENSE",
-          status: DEFAULT_EXPENSE_STATUS,
-          multiplePositions: multiPosition,
-          expenseRequest: values.expenseRequest || "",
-          employee: generalDataResponse?.data?.Employee?.[0]?.id || "",
-          expenseRule: employeeRuleId as string,
-        },
-        event: "pse_submit",
-        expensePositions: {
-          expensePositions: formattedPositions,
-        },
-        expenseItemFiles: {
-          expenseFiles: [],
-        },
-      };
-
-      console.log("Submitting data:", submitData);
-
-      // Here you would typically make an API call to submit the data
-      // For now, we'll just show a success message
-      message.success(
-        t("expense_item.success_message", "Expense item created successfully!")
-      );
-
-      // Reset form and state
-      form.resetFields();
-      setPositions([
-        DEFAULT_POSITION,
-      ]);
-      setFileList([]);
-      setCurrentStep("start");
-    } catch (error) {
-      console.error("Submit error:", error);
-      message.error(
-        t(
-          "expense_item.error_message",
-          "Failed to create expense item. Please try again."
-        )
-      );
-    } finally {
-      setLoading(false);
-    }
+  const handleSubmitWrapper = async (): Promise<void> => {
+    await handleSubmit(
+      form,
+      positions,
+      customFields,
+      employeeRuleId,
+      generalDataResponse,
+      multiPosition,
+      setPositions,
+      setFileList,
+      setCurrentStep,
+      setLoading,
+      t
+    );
   };
 
-  // Handle expense group change
-  const handleExpenseGroupChange = async (
-    value: string,
-    positionIndex: number
-  ) => {
-    try {
-      // Update the position with the new expense group and reset its expense type
-      const updatedPositions = [...positions];
-      updatedPositions[positionIndex].expenseGroup = value;
-      updatedPositions[positionIndex].expenseType = ""; // Reset expense type for this position only
-      updatedPositions[positionIndex].customField = ""; // Reset custom field for this position
-      setPositions(updatedPositions);
+  // This inline function has been moved to services/eventHandlers.ts
 
-      // Check if we already have expense types for this group
-      const hasExpenseTypesForGroup = Object.keys(expenseTypes).includes(value);
+  // This inline function has been moved to services/eventHandlers.ts
 
-      // If we don't have expense types for this group or we want to refresh them,
-      // fetch all expense types for all selected groups
-      if (!hasExpenseTypesForGroup) {
-        await fetchExpenseTypes(value);
-      }
-    } catch (error) {
-      console.error("Error handling expense group change:", error);
-      message.error(
-        t(
-          "expense_item.error_message",
-          "Failed to update expense types. Please try again."
-        )
-      );
-    }
+  // This inline function has been moved to services/eventHandlers.ts
+
+  // Handle expense group change wrapper
+  const handleExpenseGroupChangeWrapper = async (value: string, positionIndex: number): Promise<void> => {
+    await handleExpenseGroupChange(
+      value,
+      positionIndex,
+      positions,
+      setPositions,
+      expenseTypes,
+      employeeRuleId,
+      graphqlClient,
+      setExpenseTypes,
+      t
+    );
   };
 
-  // Handle expense type change
-  const handleExpenseTypeChange = async (
-    value: string,
-    positionIndex: number
-  ) => {
-    try {
-      // Update the position with the new expense type and reset its custom field
-      const updatedPositions = [...positions];
-      updatedPositions[positionIndex].expenseType = value;
-      updatedPositions[positionIndex].customField = ""; // Reset custom field when expense type changes
-      setPositions(updatedPositions);
-
-      // Check if we already have custom fields for this expense type
-      const hasCustomFieldsForType = Object.keys(customFields).includes(value);
-
-      // If we don't have custom fields for this type or we want to refresh them,
-      // fetch custom fields for all selected expense types
-      if (!hasCustomFieldsForType && value) {
-        // Get all current expense type IDs from the positions
-        const expenseTypeIds = positions
-          .map((position) => position.expenseType)
-          .filter((id) => id && id.length > 0);
-
-        // Add the current type ID if it's not already in the list
-        if (!expenseTypeIds.includes(value)) {
-          expenseTypeIds.push(value);
-        }
-
-        await fetchCustomFields(expenseTypeIds);
-      }
-    } catch (error) {
-      console.error("Error handling expense type change:", error);
-      message.error(
-        t(
-          "expense_item.error_message",
-          "Failed to update custom fields. Please try again."
-        )
-      );
-    }
+  // Handle expense type change wrapper
+  const handleExpenseTypeChangeWrapper = async (value: string, positionIndex: number): Promise<void> => {
+    await handleExpenseTypeChange(
+      value,
+      positionIndex,
+      positions,
+      setPositions,
+      customFields,
+      graphqlClient,
+      setCustomFields,
+      t
+    );
   };
 
-  // Handle adding a new position
-  const handleAddPosition = () => {
-    setPositions([
-      ...positions,
-      DEFAULT_POSITION,
-    ]);
+  // Handle adding a position wrapper
+  const handleAddPositionWrapper = (): void => {
+    handleAddPosition(positions, setPositions);
   };
 
-  // Handle removing a position
-  const handleRemovePosition = (positionId: string) => {
-    if (positions.length === 1) {
-      message.warning("At least one position is required");
-      return;
-    }
-
-    setPositions(positions.filter((position) => position.id !== positionId));
+  // Handle removing a position wrapper
+  const handleRemovePositionWrapper = (positionId: string): void => {
+    handleRemovePosition(positionId, positions, setPositions, t);
   };
 
-  // Handle amount change
-  const handleAmountChange = (value: number, positionIndex: number) => {
-    const updatedPositions = [...positions];
-    updatedPositions[positionIndex].amount = value;
-    setPositions(updatedPositions);
+  // Handle amount change wrapper
+  const handleAmountChangeWrapper = (value: number, positionIndex: number): void => {
+    handleAmountChange(value, positionIndex, positions, setPositions);
   };
 
   // Context value
@@ -705,16 +438,16 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     currencies,
     expenseRequests,
     employeeRuleId,
-    calculateTotal,
-    handleFileUpload,
-    handleSubmit,
-    handleExpenseGroupChange,
-    handleExpenseTypeChange,
-    handleAddPosition,
-    handleRemovePosition,
-    handleAmountChange,
-    fetchExpenseTypes,
-    fetchCustomFields,
+    calculateTotal: calculateTotalWrapper,
+    handleFileUpload: handleFileUploadWrapper,
+    handleSubmit: handleSubmitWrapper,
+    handleExpenseGroupChange: handleExpenseGroupChangeWrapper,
+    handleExpenseTypeChange: handleExpenseTypeChangeWrapper,
+    handleAddPosition: handleAddPositionWrapper,
+    handleRemovePosition: handleRemovePositionWrapper,
+    handleAmountChange: handleAmountChangeWrapper,
+    fetchExpenseTypes: fetchExpenseTypesWrapper,
+    fetchCustomFields: fetchCustomFieldsWrapper,
   };
 
   return (

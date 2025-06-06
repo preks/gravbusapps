@@ -18,8 +18,13 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
   const { t } = useTranslation();
 
   return (
-    <div style={{ textAlign: "center", padding: "20px" }}>
-      <UploadComponent fileList={fileList} setFileList={setFileList} />
+    <div className={`${styles.startScreenContainer} gba:startScreenContainer`}>
+      <div className={`${styles.uploadWrapper} gba:uploadWrapper`}>
+        <UploadComponent 
+          fileList={fileList} 
+          setFileList={setFileList} 
+        />
+      </div>
       <Button
         variant="ghost"
         onClick={() => setCurrentStep("form")}

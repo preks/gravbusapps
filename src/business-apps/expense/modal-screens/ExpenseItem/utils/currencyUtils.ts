@@ -42,7 +42,6 @@ export const transformCurrencies = (currencyData: ApiCurrency[]): Currency[] => 
     const otherCurrencies = sortedCurrencies.filter(
       (currency: ApiCurrency) => !PRIORITY_CURRENCIES.includes(currency.code)
     );
-    console.log([...sortedPriorityList, ...otherCurrencies],"aici")
     return [...sortedPriorityList, ...otherCurrencies].map((c) => ({
       id: c.id,
       code: c.code,
