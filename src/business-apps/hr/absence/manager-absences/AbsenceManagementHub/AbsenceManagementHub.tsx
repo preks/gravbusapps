@@ -51,7 +51,7 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
     <div className="gba:min-h-screen gba:bg-gray-50">
       <AppHeader />
       
-      <main className="gba:max-w-7xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:lg:px-8 gba:py-6">
+      <main className="gba:max-w-10xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:lg:px-8 gba:py-6">
         <HeroBanner />
         
         <div className="gba:max-w-7xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:lg:px-8 gba:py-6">

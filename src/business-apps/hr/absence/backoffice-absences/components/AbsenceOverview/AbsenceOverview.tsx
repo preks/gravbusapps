@@ -1,5 +1,5 @@
 import { Card } from 'antd';
-import { RiTimer2Line, RiCheckboxCircleLine, RiGroupLine, RiCalendarLine } from "@remixicon/react"
+import { RiCalendar2Line, RiTimeLine, RiPercentLine, RiAlertLine } from "@remixicon/react"
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useEffect, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -31,60 +31,61 @@ interface StatusCard {
 }
 
 interface AbsenceOverviewResponse {
-  allAbsencesFromToday: Absence[];
-  membersAway: Absence[];
-  pendingRequests: {
+  todayAbsences: Array<{
+    status: string;
+    effectiveDays: number;
+  }>;
+  allAbsences: Array<{
+    effectiveDays: number;
+    status: string;
+  }>;
+  pendingCount: {
     aggregate: {
-      sum: {
-        effectiveDays: number;
-      };
+      count: number;
     };
   };
-  approvedAbsences: {
+  approvedCount: {
     aggregate: {
-      sum: {
-        effectiveDays: number;
-      };
+      count: number;
     };
   };
 }
-
 
 export const AbsenceOverview: React.FC<BusinessAppContextProps> = ({ accessToken}) => {
   const graphQLClient = useGraphqlClient(accessToken)
 
   const [statusCards, setStatusCards] = useState<StatusCard[]>([
     {
-      title: "Pending Requests",
+      title: "Total Absences",
       count: 0,
-      icon: <RiTimer2Line className="gba:h-5 gba:w-5 gba:text-amber-400" />,
+      icon: <RiCalendar2Line className="gba:h-5 gba:w-5 gba:text-amber-400" />,
       change: {
         type: "increase",
         text: "No change",
       },
     },
     {
-      title: "Approved Absences",
+      title: "Average Duration",
       count: 0,
-      icon: <RiCheckboxCircleLine className="gba:h-5 gba:w-5 gba:text-emerald-400" />,
+      icon: <RiTimeLine className="gba:h-5 gba:w-5 gba:text-emerald-400" />,
       change: {
         type: "decrease",
         text: "No change",
       },
     },
     {
-      title: "Team Members Away",
+      title: "Approval Rate",
       count: 0,
-      icon: <RiGroupLine className="gba:h-5 gba:w-5 gba:text-violet-400" />,
+      icon: <RiPercentLine className="gba:h-5 gba:w-5 gba:text-violet-400" />,
       change: {
         type: "increase",
         text: "No change",
       },
     },
     {
-      title: "Upcoming Absences",
+      title: "To be Acknowledged",
       count: 0,
-      icon: <RiCalendarLine className="gba:h-5 gba:w-5 gba:text-sky-400" />,
+      icon: <RiAlertLine className="gba:h-5 gba:w-5 gba:text-sky-400" />,
       change: {
         type: "nochange",
         text: "No change",
@@ -101,67 +102,73 @@ export const AbsenceOverview: React.FC<BusinessAppContextProps> = ({ accessToken
         
         const query = `
           query GetAbsenceOverview {
-            allAbsencesFromToday: EmployeeAbsence(orderBy: {startDate: ASC}, limit: 5, where: {status: {_in: ["PENDING", "APPROVED"]}, startDate: {_gte: "${todayDate}"}, endDate: {_lte: "${lastDayOfYear}"}, isDeleted: {_eq: false}}) {
-              startDate
-              endDate
+            todayAbsences: EmployeeAbsence(
+              where: {
+                startDate: {_eq: "${todayDate}"}, 
+                isDeleted: {_eq: false},
+                status: {_in: ["PENDING", "APPROVED"]}
+              }
+            ) {
               status
-              type {
-                value
-                code
-                id
-                objectValue
-                translations {
-                  localeCode
-                  value
-                }
-              }
+              effectiveDays
             }
-            membersAway: EmployeeAbsence(orderBy: {startDate: ASC}, where: {status: {_in: ["PENDING", "APPROVED"]}, startDate: {_eq: "${todayDate}"}, isDeleted: {_eq: false}}) {
-              startDate
-              endDate
+            allAbsences: EmployeeAbsence(
+              where: {
+                isDeleted: {_eq: false},
+                status: {_in: ["PENDING", "APPROVED"]}
+              }
+            ) {
+              effectiveDays
               status
-              type {
-                value
-                code
-                id
-                objectValue
-                translations {
-                  localeCode
-                  value
-                }
-              }
             }
-            approvedAbsences: EmployeeAbsenceAggregate(where: {isDeleted: {_eq: false}, status: {_in: ["APPROVED"]}, startDate: {_eq: "${todayDate}"}}) {
+            pendingCount: EmployeeAbsenceAggregate(
+              where: {
+                startDate: {_eq: "${todayDate}"},
+                isDeleted: {_eq: false},
+                status: {_eq: "PENDING"}
+              }
+            ) {
               aggregate {
-                sum {
-                  effectiveDays
-                }
+                count
               }
             }
-            pendingRequests: EmployeeAbsenceAggregate(where: {isDeleted: {_eq: false}, status: {_in: ["PENDING"]}, startDate: {_eq: "${todayDate}"}}) {
+            approvedCount: EmployeeAbsenceAggregate(
+              where: {
+                startDate: {_eq: "${todayDate}"},
+                isDeleted: {_eq: false},
+                status: {_eq: "APPROVED"}
+              }
+            ) {
               aggregate {
-                sum {
-                  effectiveDays
-                }
+                count
               }
             }
-          }
-        `
+          }`
         
         const result = await graphQLClient.request<AbsenceOverviewResponse>(query)
 
-        const pendingRequests = result.pendingRequests.aggregate.sum.effectiveDays || 0
-        const membersAwayCount = result.membersAway.length
-        const upcomingAbsences = result.allAbsencesFromToday.length
-        const approvedAbsences = result.approvedAbsences.aggregate.sum.effectiveDays || 0
+        const totalAbsences = result.todayAbsences.length
+        
+        const totalDays = result.allAbsences.reduce((sum, abs) => sum + (abs.effectiveDays || 0), 0)
+        const avgDuration = result.allAbsences.length > 0 
+          ? Math.round((totalDays / result.allAbsences.length) * 10) / 10 
+          : 0
+        
+        const approvedCount = result.approvedCount.aggregate?.count || 0
+        const pendingCount = result.pendingCount.aggregate?.count || 0
+        const totalRequests = approvedCount + pendingCount
+        const approvalRate = totalRequests > 0 
+          ? Math.round((approvedCount / totalRequests) * 100) 
+          : 0
 
-        setStatusCards(prevCards => prevCards.map((card, index) => {
-          const newCount = [pendingRequests, approvedAbsences, membersAwayCount, upcomingAbsences][index]
-          return {
-            ...card,
-            count: newCount,
-          }
-        }))
+        setStatusCards(prevCards => {
+          const cards = [...prevCards]
+          cards[0].count = totalAbsences
+          cards[1].count = avgDuration
+          cards[2].count = approvalRate
+          cards[3].count = pendingCount
+          return cards
+        })
       } catch (error) {
         console.error('Error fetching absence data:', error)
       }
