@@ -2,6 +2,7 @@ import { Card } from 'antd';
 import { RiTimer2Line, RiCheckboxCircleLine, RiGroupLine, RiCalendarLine } from "@remixicon/react"
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useEffect, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface Absence {
   startDate: string;
@@ -48,8 +49,9 @@ interface AbsenceOverviewResponse {
   };
 }
 
-export const AbsenceOverview = () => {
-  const graphQLClient = useGraphqlClient('')
+
+export const AbsenceOverview: React.FC<BusinessAppContextProps> = ({ accessToken}) => {
+  const graphQLClient = useGraphqlClient(accessToken)
 
   const [statusCards, setStatusCards] = useState<StatusCard[]>([
     {

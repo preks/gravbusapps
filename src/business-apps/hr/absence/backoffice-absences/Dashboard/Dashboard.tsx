@@ -25,7 +25,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ accessToken, userInfo }) =
       case "Dashboard":
         return (
           <>
-            <AbsenceOverview />
+            <AbsenceOverview accessToken={accessToken} userInfo={userInfo}/>
             <div className="gba:mt-8">
               <KPISection accessToken={accessToken}/>
             </div>
@@ -38,7 +38,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ accessToken, userInfo }) =
       default:
         return (
           <>
-            <AbsenceOverview />
+            <AbsenceOverview accessToken={accessToken} userInfo={userInfo}/>
             <div className="gba:mt-8">
               <KPISection accessToken={accessToken} />
             </div>

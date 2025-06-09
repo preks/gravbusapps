@@ -25,9 +25,9 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
       case "Dashboard":
         return (
           <>
-            <AbsenceOverview />
+            <AbsenceOverview accessToken={accessToken} userInfo={userInfo}/>
             <div className="gba:mt-8">
-              <KPISection accessToken={accessToken}/>
+              <KPISection accessToken={accessToken} userInfo={userInfo}/>
             </div>
           </>
         )
@@ -38,9 +38,9 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
       default:
         return (
           <>
-            <AbsenceOverview />
+            <AbsenceOverview accessToken={accessToken} userInfo={userInfo}/>
             <div className="gba:mt-8">
-              <KPISection accessToken={accessToken} />
+              <KPISection accessToken={accessToken} userInfo={userInfo} />
             </div>
           </>
         )

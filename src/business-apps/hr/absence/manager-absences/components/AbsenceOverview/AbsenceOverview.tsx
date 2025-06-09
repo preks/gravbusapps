@@ -2,6 +2,7 @@ import { Card } from 'antd';
 import { RiTimer2Line, RiCheckboxCircleLine, RiGroupLine, RiCalendarLine } from "@remixicon/react"
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useEffect, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface Absence {
   startDate: string;
@@ -48,8 +49,11 @@ interface AbsenceOverviewResponse {
   };
 }
 
-export const AbsenceOverview = () => {
-  const graphQLClient = useGraphqlClient('')
+interface AbsenceOverviewProps extends BusinessAppContextProps {}
+
+export const AbsenceOverview = ({ accessToken, userInfo }: AbsenceOverviewProps) => {
+  const graphQLClient = useGraphqlClient(accessToken)
+  const orgUnitId = userInfo?.employeeDetails?.organizationalUnit?.id
 
   const [statusCards, setStatusCards] = useState<StatusCard[]>([
     {
@@ -92,14 +96,26 @@ export const AbsenceOverview = () => {
 
   useEffect(() => {
     const fetchAndSetAbsenceData = async () => {
+      if (!orgUnitId) return;
+      
       try {
         const todayDate = new Date().toISOString().split('T')[0];
         const currentYear = new Date().getFullYear();
         const lastDayOfYear = new Date(currentYear, 11, 31).toISOString().split('T')[0];
         
         const query = `
-          query GetAbsenceOverview {
-            allAbsencesFromToday: EmployeeAbsence(orderBy: {startDate: ASC}, limit: 5, where: {status: {_in: ["PENDING", "APPROVED"]}, startDate: {_gte: "${todayDate}"}, endDate: {_lte: "${lastDayOfYear}"}, isDeleted: {_eq: false}}) {
+          query GetAbsenceOverview($orgUnitId: uuid!) {
+            allAbsencesFromToday: EmployeeAbsence(
+              orderBy: {startDate: ASC}, 
+              limit: 5, 
+              where: {
+                status: {_in: ["PENDING", "APPROVED"]}, 
+                startDate: {_gte: "${todayDate}"}, 
+                endDate: {_lte: "${lastDayOfYear}"}, 
+                isDeleted: {_eq: false},
+                employee: {employeePosition: {organizationalUnitId: {_eq: $orgUnitId}}}
+              }
+            ) {
               startDate
               endDate
               status
@@ -114,7 +130,15 @@ export const AbsenceOverview = () => {
                 }
               }
             }
-            membersAway: EmployeeAbsence(orderBy: {startDate: ASC}, where: {status: {_in: ["PENDING", "APPROVED"]}, startDate: {_eq: "${todayDate}"}, isDeleted: {_eq: false}}) {
+            membersAway: EmployeeAbsence(
+              orderBy: {startDate: ASC}, 
+              where: {
+                status: {_in: ["PENDING", "APPROVED"]}, 
+                startDate: {_eq: "${todayDate}"}, 
+                isDeleted: {_eq: false},
+                employee: {employeePosition: {organizationalUnitId: {_eq: $orgUnitId}}}
+              }
+            ) {
               startDate
               endDate
               status
@@ -129,14 +153,28 @@ export const AbsenceOverview = () => {
                 }
               }
             }
-            approvedAbsences: EmployeeAbsenceAggregate(where: {isDeleted: {_eq: false}, status: {_in: ["APPROVED"]}, startDate: {_eq: "${todayDate}"}}) {
+            approvedAbsences: EmployeeAbsenceAggregate(
+              where: {
+                isDeleted: {_eq: false}, 
+                status: {_in: ["APPROVED"]}, 
+                startDate: {_eq: "${todayDate}"},
+                employee: {employeePosition: {organizationalUnitId: {_eq: $orgUnitId}}}
+              }
+            ) {
               aggregate {
                 sum {
                   effectiveDays
                 }
               }
             }
-            pendingRequests: EmployeeAbsenceAggregate(where: {isDeleted: {_eq: false}, status: {_in: ["PENDING"]}, startDate: {_eq: "${todayDate}"}}) {
+            pendingRequests: EmployeeAbsenceAggregate(
+              where: {
+                isDeleted: {_eq: false}, 
+                status: {_in: ["PENDING"]}, 
+                startDate: {_eq: "${todayDate}"},
+                employee: {employeePosition: {organizationalUnitId: {_eq: $orgUnitId}}}
+              }
+            ) {
               aggregate {
                 sum {
                   effectiveDays
@@ -146,7 +184,7 @@ export const AbsenceOverview = () => {
           }
         `
         
-        const result = await graphQLClient.request<AbsenceOverviewResponse>(query)
+        const result = await graphQLClient.request<AbsenceOverviewResponse>(query, { orgUnitId })
 
         const pendingRequests = result.pendingRequests.aggregate.sum.effectiveDays || 0
         const membersAwayCount = result.membersAway.length
@@ -165,8 +203,10 @@ export const AbsenceOverview = () => {
       }
     }
 
-    fetchAndSetAbsenceData()
-  }, [graphQLClient])
+    if (orgUnitId) {
+      fetchAndSetAbsenceData()
+    }
+  }, [graphQLClient, orgUnitId])
 
 
   return (
