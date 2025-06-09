@@ -7,6 +7,7 @@ import { AbsenceReports } from '../components/AbsenceReports/AbsenceReports';
 import { QuickActions } from '../components/QuickActions/QuickActions';
 import { AbsenceList } from '../components/AbsenceList/AbsenceList';
 import CalendarList from '../components/CalendarList/CalendarList';
+import AbsenceTrends from '../components/AbsenceTrends/AbsenceTrends';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface DashboardProps extends BusinessAppContextProps {}
@@ -26,6 +27,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ accessToken, userInfo }) =
         return (
           <>
             <AbsenceOverview accessToken={accessToken} userInfo={userInfo}/>
+            <div className="gba:mt-8">
+            <AbsenceTrends accessToken={accessToken} />
+            </div>
             <div className="gba:mt-8">
               <KPISection accessToken={accessToken}/>
             </div>
