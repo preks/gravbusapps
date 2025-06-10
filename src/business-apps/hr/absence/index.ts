@@ -5,3 +5,4 @@ export { HeroBanner } from './components/HeroBanner/HeroBanner';
 export { default as KPISection } from './components/KPISection/KPISection';
 export { QuickActions } from './components/QuickActions/QuickActions';
 export { InsightsSection } from './components/InsightsSection/InsightsSection';
+export { default } from './AbsenceManagementHub/AbsenceManagementHub';
