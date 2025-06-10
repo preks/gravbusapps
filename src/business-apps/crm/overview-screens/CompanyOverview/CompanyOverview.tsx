@@ -8,7 +8,6 @@ import {
   Col, 
   Table, 
   Spin, 
-  Alert,
   Empty,
 } from 'antd';
 import CompanyDetail from '../../detail-screens/CompanyDetail/CompanyDetail';
@@ -18,9 +17,8 @@ import {
   FilterOutlined,
   BankOutlined,
   AreaChartOutlined,
-  DollarOutlined,
   TeamOutlined,
-  EllipsisOutlined
+  GlobalOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -392,110 +390,120 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
 
       <Row gutter={16} style={{ marginBottom: '24px' }} className="gba-kpi-row">
         <Col span={6}>
-          <Card>
-            <div className="gba:card-content">
-              <div>
-                <div className="gba:card-metric">Total Companies</div>
-                <div className="gba:card-value">342</div>
-                <div className="gba:card-change">+5.4% from last month</div>
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <BankOutlined className="gba:h-5 gba:w-5 gba:text-blue-500" />
               </div>
-              <div className="gba:card-icon-container gba:blue-icon-bg">
-                <BankOutlined className="gba:blue-icon" />
+              <div>
+                <div className="gba:text-sm gba:text-gray-500">Total Companies</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-blue-500">{totalItems}</div>
               </div>
             </div>
-          </Card>
+          </div>
         </Col>
         <Col span={6}>
-          <Card>
-            <div className="gba:card-content">
-              <div>
-                <div className="gba:card-metric">Active Opportunities</div>
-                <div className="gba:card-value">64</div>
-                <div className="gba:card-change">+2.3% from last month</div>
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <AreaChartOutlined className="gba:h-5 gba:w-5 gba:text-green-500" />
               </div>
-              <div className="gba:card-icon-container gba:green-icon-bg">
-                <AreaChartOutlined className="gba:green-icon" />
+              <div>
+                <div className="gba:text-sm gba:text-gray-500">Industries</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-green-500">
+                  {companiesData.reduce((industries, company) => {
+                    if (company.industry && !industries.includes(company.industry)) {
+                      industries.push(company.industry);
+                    }
+                    return industries;
+                  }, [] as string[]).length}
+                </div>
               </div>
             </div>
-          </Card>
+          </div>
         </Col>
         <Col span={6}>
-          <Card>
-            <div className="gba:card-content">
-              <div>
-                <div className="gba:card-metric">Total Portfolio Value</div>
-                <div className="gba:card-value">$1.2M</div>
-                <div className="gba:card-change">+6.8% from last month</div>
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-orange-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <TeamOutlined className="gba:h-5 gba:w-5 gba:text-orange-500" />
               </div>
-              <div className="gba:card-icon-container gba:light-blue-icon-bg">
-                <DollarOutlined className="gba:blue-icon" />
+              <div>
+                <div className="gba:text-sm gba:text-gray-500">Total Employees</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-orange-500">
+                  {companiesData.reduce((sum, company) => {
+                    const employeeCount = parseInt(company.numberOfEmployees) || 0;
+                    return sum + employeeCount;
+                  }, 0).toLocaleString()}
+                </div>
               </div>
             </div>
-          </Card>
+          </div>
         </Col>
         <Col span={6}>
-          <Card>
-            <div className="gba:card-content">
-              <div>
-                <div className="gba:card-metric">Total Contacts</div>
-                <div className="gba:card-value">528</div>
-                <div className="gba:card-change">+7.2% from last month</div>
+          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-purple-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <GlobalOutlined className="gba:h-5 gba:w-5 gba:text-purple-500" />
               </div>
-              <div className="gba:card-icon-container gba:purple-icon-bg">
-                <TeamOutlined className="gba:purple-icon" />
+              <div>
+                <div className="gba:text-sm gba:text-gray-500">Countries</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-purple-500">
+                  {companiesData.reduce((countries, company) => {
+                    if (company.country && !countries.includes(company.country)) {
+                      countries.push(company.country);
+                    }
+                    return countries;
+                  }, [] as string[]).length}
+                </div>
               </div>
             </div>
-          </Card>
+          </div>
         </Col>
       </Row>
 
-      <Card className="gba-table-card">
-        <Row justify="space-between" style={{ marginBottom: '16px' }} className="gba-filter-row">
-          <Col span={12}>
-            <Input 
-              placeholder="Search companies (e.g., name, industry)"
-              prefix={<SearchOutlined className="gba-search-icon" />}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="gba-search-input"
-            />
-          </Col>
-          <Col>
-            <Button icon={<FilterOutlined />} className="gba-filter-button">Filters</Button> 
-          </Col>
-        </Row>
-
-        {error && <Alert message="Error" description={error} type="error" showIcon style={{ marginBottom: 16 }} className="gba-error-alert"/>}
-
-        <Spin spinning={loading} tip="Loading companies..." className="gba-loading-spin">
-          <Table 
-            key={`company-table-${currentPage}-${pageSize}`} 
-            columns={columns} 
-            dataSource={companiesData} 
-            rowKey="id" 
-            pagination={{
-              current: currentPage,
-              pageSize: pageSize,
-              total: totalItems,
-              showSizeChanger: true,
-              pageSizeOptions: ['10', '20', '50', '100'],
-              onChange: handleTableChange,
-              className: 'gba-custom-pagination',
-              itemRender: itemRender
-            }}
-            className="gba-company-table"
-            locale={{
-              emptyText: 
-                error ? <Text type="danger">Failed to load companies.</Text> :
-                !loading && companiesData.length === 0 && debouncedSearchText ? 
-                <Empty description={`No companies found matching "${debouncedSearchText}"`} /> : 
-                !loading && companiesData.length === 0 ? 
-                <Empty description="No companies found." /> : 
-                <span>No data</span> 
-            }}
+      <Row justify="space-between" style={{ marginBottom: '16px' }} className="gba-filter-row">
+        <Col span={12}>
+          <Input 
+            placeholder="Search companies (e.g., name, industry)"
+            prefix={<SearchOutlined className="gba-search-icon" />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="gba-search-input"
           />
-        </Spin>
-      </Card>
+        </Col>
+        <Col>
+          <Button icon={<FilterOutlined />} className="gba-filter-button">Filters</Button> 
+        </Col>
+      </Row>
+
+      <Spin spinning={loading} tip="Loading companies..." className="gba-loading-spin">
+        <Table 
+          key={`company-table-${currentPage}-${pageSize}`} 
+          columns={columns} 
+          dataSource={companiesData} 
+          rowKey="id" 
+          pagination={{
+            current: currentPage,
+            pageSize: pageSize,
+            total: totalItems,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            onChange: handleTableChange,
+            className: 'gba-custom-pagination',
+            itemRender: itemRender
+          }}
+          className="gba-company-table"
+          locale={{
+            emptyText: 
+              !loading && companiesData.length === 0 && debouncedSearchText ? 
+              <Empty description={`No companies found matching "${debouncedSearchText}"`} /> : 
+              !loading && companiesData.length === 0 ? 
+              <Empty description="No companies found." /> : 
+              <span>No data</span> 
+          }}
+        />
+      </Spin>
 
       {isCreatingCompany && (
         <div className="gba-modal-placeholder"> 

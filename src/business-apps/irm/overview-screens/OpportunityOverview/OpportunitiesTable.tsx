@@ -43,7 +43,7 @@ import OpportunityCreateModal from "./OpportunityCreateModal"
 import OpportunityDetailContainer from "./OpportunityDetailContainer"
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Spin, Pagination } from 'antd'
+import { Spin, Pagination, Empty } from 'antd'
 import { GET_OPPORTUNITIES, OpportunityData, GetOpportunitiesResponse } from './graphql/opportunity-queries'
 
 
@@ -273,7 +273,7 @@ export const OpportunitiesTable: React.FC<BusinessAppContextProps & {
       }
     } catch (err) {
       console.error('Error fetching opportunities:', err);
-      setError('Failed to fetch opportunities: ' + (err instanceof Error ? err.message : String(err)));
+      setError("No opportunities found");
     } finally {
       setLoading(false);
     }
@@ -530,10 +530,6 @@ export const OpportunitiesTable: React.FC<BusinessAppContextProps & {
     );
   }
 
-  if (error) {
-    return <div className="gba:text-red-500">{error}</div>;
-  }
-
   return (
     <div className="gba:w-full">
       <div className="gba:flex gba:flex-col">
@@ -666,7 +662,15 @@ export const OpportunitiesTable: React.FC<BusinessAppContextProps & {
                 ))}
               </TableHeader>
               <TableBody>
-                {table.getRowModel().rows?.length ? (
+                {error ? (
+                  <TableRow className="gba:border-b gba:border-gray-300">
+                    <TableCell colSpan={columns.length} className="gba:h-24 gba:text-center">
+                      <Empty 
+                        description={error}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ) : table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
                     <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="gba:border-b gba:border-gray-300">
                       {row.getVisibleCells().map((cell) => (
@@ -677,7 +681,9 @@ export const OpportunitiesTable: React.FC<BusinessAppContextProps & {
                 ) : (
                   <TableRow className="gba:border-b gba:border-gray-300">
                     <TableCell colSpan={columns.length} className="gba:h-24 gba:text-center">
-                      No opportunities found.
+                      {searchFilter.trim() ? 
+                        <Empty description={`No opportunities found matching "${searchFilter.trim()}"`} /> : 
+                        <Empty description="No opportunities found." />}
                     </TableCell>
                   </TableRow>
                 )}
