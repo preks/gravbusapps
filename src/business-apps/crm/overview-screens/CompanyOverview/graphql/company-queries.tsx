@@ -43,17 +43,21 @@ export interface CompanyData {
       };
     };
   }
-  
+
+  export interface GetCompanyByIdResponse {
+    Account: CompanyData[];
+  }
+
 export const GET_COMPANIES = `
   query MyQuery (
-  $where: AccountBoolExp
-  $limit: Int 
-  $offset: Int
-) { 
-  Account(
-    where: $where 
-    limit: $limit 
-    offset: $offset
+    $where: AccountBoolExp
+    $limit: Int 
+    $offset: Int
+  ) { 
+    Account(
+      where: $where 
+      limit: $limit 
+      offset: $offset
 ) {
     id
     name
@@ -96,4 +100,49 @@ export const GET_COMPANIES = `
     }
   }
 }
+`;
+
+export const GET_COMPANY_BY_ID = `
+  query GetCompanyById(
+    $id: uuid!
+  ) { 
+    Account(
+      where: { id: { _eq: $id } }
+    ) {
+      id
+      name
+      website
+      legalForm {
+        value
+        code
+        id
+      }
+      numberOfEmployees {
+        value
+      }
+      contact {
+        firstName
+        lastName
+      }
+      addresses {
+        city
+        country {
+          id
+          value
+          code
+        }
+      }
+      foundationDate
+      industry {
+        id
+        code
+        value
+      }
+      ownerEmployee {
+        id
+        lastName
+        firstName
+      }
+    }
+  }
 `;
