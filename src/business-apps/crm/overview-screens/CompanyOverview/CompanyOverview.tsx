@@ -80,6 +80,7 @@ const transformCompanyData = (apiCompany: CompanyData): DisplayCompanyData => {
   };
 };
 
+  
 const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<DisplayCompanyData | null>(null);
@@ -359,7 +360,6 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
     //   },
     // },
   ];
-
   if (selectedCompany) {
     return (
       <CompanyDetail 
