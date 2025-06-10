@@ -53,10 +53,23 @@ interface EmployeeAbsence {
 }
 
 const GET_EMPLOYEE_ABSENCES = `
-  query GetEmployeeAbsences($page: Int!, $limit: Int!) {
+  query GetEmployeeAbsences(
+    $page: Int!,
+    $limit: Int!,
+    $startDate: timestamp!,
+    $endDate: timestamp!
+  ) {
     EmployeeAbsence(
       offset: $page
       limit: $limit
+      where: {
+        _and: [
+          { startDate: { _gte: $startDate } },
+          { endDate: { _lte: $endDate } },
+          { status: { _in: ["PENDING", "APPROVED", "REJECTED"] } },
+          { isDeleted: { _eq: false } }
+        ]
+      }
     ) {
       id
       startDate
@@ -95,9 +108,7 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [absences, setAbsences] = useState<EmployeeAbsence[]>([]);
-  const [absenceGroups, setAbsenceGroups] = useState<{
-    [typeId: string]: string;
-  }>({});
+  const [, setAbsenceGroups] = useState<{ [typeId: string]: string }>({});
   const [organizedAbsences, setOrganizedAbsences] = useState<{
     [month: string]: { [type: string]: number };
   }>({});
@@ -139,11 +150,23 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
         catalogData.data.forEach((entry: CatalogEntry) => {
           groupsMap[entry.id] = entry.value;
         });
-        setAbsenceGroups(groupsMap);
+
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+        
+        const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+        const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
 
         const result = await graphQLClient.request<{
           EmployeeAbsence: EmployeeAbsence[];
-        }>(GET_EMPLOYEE_ABSENCES, { page: 0, limit: 100 });
+        }>(GET_EMPLOYEE_ABSENCES, { 
+          page: 0, 
+          limit: 100,
+          startDate: firstDayOfMonth.toISOString(),
+          endDate: lastDayOfMonth.toISOString()
+        });
+
 
         const enrichedAbsences = result.EmployeeAbsence.map((absence) => ({
           ...absence,
@@ -154,19 +177,15 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
         }));
         setAbsences(enrichedAbsences);
 
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
-
         const departmentMap: { [key: string]: number } = {};
 
         enrichedAbsences.forEach((absence) => {
-          const startDate = new Date(absence.startDate);
-          if (startDate.getMonth() === currentMonth && startDate.getFullYear() === currentYear) {
-            const dept = absence.employee.employeePosition?.organizationalUnit?.name || 'No Department';
-            departmentMap[dept] = (departmentMap[dept] || 0) + (absence.effectiveDays || 0);
-          }
+          const dept = absence.employee.employeePosition?.organizationalUnit?.name || 'No Department';
+          
+          departmentMap[dept] = (departmentMap[dept] || 0) + (absence.effectiveDays || 0);
         });
+
+        console.log('Department map after processing:', departmentMap);
 
         const deptData = Object.entries(departmentMap)
           .map(([department, absences]) => ({
@@ -233,17 +252,49 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
     return monthData;
   });
 
-  const pieDataMap: { [group: string]: number } = {};
+  const statusTypeData: {
+    [status: string]: {
+      totalDays: number;
+      types: { [type: string]: { days: number; count: number } };
+    };
+  } = {
+    'APPROVED': { totalDays: 0, types: {} },
+    'PENDING': { totalDays: 0, types: {} },
+    'REJECTED': { totalDays: 0, types: {} }
+  };
+  
   absences.forEach((absence) => {
-    const group = absence.type.groupName || "Unknown";
-    if (!pieDataMap[group]) pieDataMap[group] = 0;
-    pieDataMap[group] += absence.effectiveDays;
+    const status = absence.status?.toUpperCase() || 'PENDING';
+    const typeName = absence.type.groupName || 'Other';
+    const days = absence.effectiveDays || 0;
+    
+    if (status in statusTypeData) {
+      statusTypeData[status].totalDays += days;
+      
+      if (!statusTypeData[status].types[typeName]) {
+        statusTypeData[status].types[typeName] = { days: 0, count: 0 };
+      }
+      statusTypeData[status].types[typeName].days += days;
+      statusTypeData[status].types[typeName].count += 1;
+    }
   });
-  const pieChartData = Object.keys(pieDataMap).map((group) => ({
-    name: group,
-    value: pieDataMap[group],
-  }));
+  
+  const pieChartData = Object.entries(statusTypeData)
+    .filter(([_, data]) => data.totalDays > 0)
+    .map(([status, data]) => ({
+      name: status.charAt(0) + status.slice(1).toLowerCase(),
+      value: data.totalDays,
+      status: status,
+      typeBreakdown: data.types
+    }));
 
+
+  const statusColors: {[key: string]: string} = {
+    'APPROVED': '#34d399', 
+    'PENDING': '#fbbf24',   
+    'REJECTED': '#f87171'   
+  };
+  
   const colorPalette = [
     "#fb7185",
     "#34d399",
@@ -252,20 +303,23 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
     "#fbbf24",
     "#8b5cf6",
   ];
+  
   const groupColors: { [key: string]: string } = {};
   Array.from(uniqueGroups).forEach((group, index) => {
     groupColors[group] = colorPalette[index % colorPalette.length];
   });
+  
+
   pieChartData.forEach((item, index) => {
     groupColors[item.name] = colorPalette[index % colorPalette.length];
   });
 
-  const totalAbsenceDays = absences.reduce(
-    (sum, absence) => sum + absence.effectiveDays,
+  const totalAbsenceDays = pieChartData.reduce(
+    (sum, entry) => sum + entry.value,
     0
   );
-  const vacationDays = pieDataMap["Vacation"] || 0;
-  const vacationShare = ((vacationDays / totalAbsenceDays) * 100).toFixed(1);
+  const approvedDays = pieChartData.find(entry => entry.status === 'APPROVED')?.value || 0;
+  const approvedShare = totalAbsenceDays > 0 ? ((approvedDays / totalAbsenceDays) * 100).toFixed(1) : '0.0';
 
   return (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
@@ -333,7 +387,7 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
           <RiPieChart2Line className="gba:h-6 gba:w-6 gba:text-gray-500" />
         </div>
         <div className="gba:text-2xl gba:font-bold gba:pt-2 gba:text-left">
-          {vacationShare}%
+          {approvedShare}%
         </div>
         <div className="gba:text-xs gba:text-muted-foreground gba:text-left gba:pb-3">
           Approved Rate
@@ -350,19 +404,25 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
                 outerRadius={80}
               >
                 {pieChartData.map((entry, index) => (
-                  <Cell key={index} fill={groupColors[entry.name]} />
+                  <Cell 
+                    key={index} 
+                    fill={statusColors[entry.status] || '#94a3b8'} 
+                  />
                 ))}
               </Pie>
               <RechartsTooltip
                 content={({ active, payload }) => {
                   if (active && payload && payload.length > 0) {
-                    const entry = payload[0];
-                    const group = entry.name;
-                    const value = entry.value;
-                    const percent =
-                      totalAbsenceDays > 0
-                        ? Math.round((Number(value) / totalAbsenceDays) * 100)
-                        : 0;
+                    const entry = payload[0].payload;
+                    const totalDays = entry.value;
+                    const percent = totalAbsenceDays > 0 
+                      ? Math.round((totalDays / totalAbsenceDays) * 100) 
+                      : 0;
+                    
+                    const typeBreakdown = Object.entries<{days: number, count: number}>(
+                      (entry as any).typeBreakdown || {}
+                    ).sort((a, b) => b[1].days - a[1].days);
+                    
                     return (
                       <div
                         style={{
@@ -371,10 +431,36 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
                           boxShadow: "0 2px 8px #0001",
                           padding: 12,
                           fontSize: 13,
+                          minWidth: 200,
                         }}
                       >
-                        <span style={{ fontWeight: 600 }}>{group}:</span>{" "}
-                        {value} days ({percent}%)
+                        <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                          {entry.name}: {totalDays} days ({percent}%)
+                        </div>
+                        
+                        {typeBreakdown.length > 0 && (
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ fontWeight: 500, marginBottom: 4, fontSize: 12 }}>
+                              Breakdown:
+                            </div>
+                            {(typeBreakdown as Array<[string, {days: number, count: number}]>).map(([type, data]) => {
+                              const typePercent = totalDays > 0 
+                                ? Math.round((data.days / totalDays) * 100) 
+                                : 0;
+                              return (
+                                <div key={type} style={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between',
+                                  fontSize: 12,
+                                  marginTop: 4
+                                }}>
+                                  <span>{type}:</span>
+                                  <span>{data.days} days ({typePercent}%)</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   }
@@ -407,7 +493,7 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
                     style={{
                       width: 14,
                       height: 14,
-                      background: groupColors[entry.name],
+                      background: statusColors[entry.status] || '#94a3b8',
                       display: "inline-block",
                       borderRadius: 3,
                       marginRight: 4,
@@ -430,7 +516,7 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
               Department Insights
             </Title>
             <p className="gba:text-xs gba:text-muted-foreground">
-              Absences by department in {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+              Absences by department in {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} (1st - {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()})
             </p>
           </div>
           <RiBarChart2Line className="gba:h-4 gba:w-4" />
@@ -447,8 +533,7 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
           <div style={{ width: '100%', height: 180 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={departmentData}
-                layout="vertical"
+                data={departmentData}                layout="vertical"
                 margin={{ top: 20, right: 0, left: -90, bottom: 10 }}
                 barCategoryGap={12}
               >

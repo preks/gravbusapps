@@ -70,11 +70,11 @@ interface OrganizationalUnit {
   name: string;
 }
 
-const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const graphQLClient = useGraphqlClient(accessToken)
   const [employeeAbsences, setEmployeeAbsences] = useState<EmployeeAbsence[]>([])
   const [organizationalUnits, setOrganizationalUnits] = useState<OrganizationalUnit[]>([])
-  const [selectedOrgUnit, setSelectedOrgUnit] = useState<string | null>(null)
+  const [selectedOrgUnit, setSelectedOrgUnit] = useState<string | null>(userInfo?.employeeDetails?.organizationalUnit?.name || null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
@@ -110,8 +110,11 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
       const orgUnits = extractOrgUnits(EmployeeAbsence);
       setOrganizationalUnits(orgUnits);
       
-      if (orgUnits.length > 0 && !selectedOrgUnit) {
-        setSelectedOrgUnit(orgUnits[0].id);
+      const userOrgUnit = orgUnits.find(unit => unit.name === userInfo?.employeeDetails?.organizationalUnit?.name);
+      if (userOrgUnit) {
+        setSelectedOrgUnit(userOrgUnit.name);
+      } else if (orgUnits.length > 0 && !selectedOrgUnit) {
+        setSelectedOrgUnit(orgUnits[0].name);
       }
 
       setEmployeeAbsences(EmployeeAbsence)
