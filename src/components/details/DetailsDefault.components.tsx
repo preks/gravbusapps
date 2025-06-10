@@ -46,7 +46,7 @@ export interface DetailsDefaultProps {
  *   icon={<EmployeeIcon />}
  *   onClose={handleClose}
  *   footer={
- *     <div className="flex justify-end gap-2">
+ *     <div className="gba:flex gba:justify-end gba:gap-2">
  *       <Button variant="secondary">Cancel</Button>
  *       <Button variant="primary">Save</Button>
  *     </div>
@@ -68,14 +68,14 @@ export const DetailsDefault: React.FC<DetailsDefaultProps> = ({
   return (
     <div className={`flex flex-col h-full bg-white ${className}`.trim()}>
       {/* Header with title and close button */}
-      <div className="flex justify-between items-center p-4 border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          {icon && <div className="flex-shrink-0">{icon}</div>}
-          <h2 className="text-lg font-semibold">{title}</h2>
+      <div className="gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b gba:border-gray-200">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          {icon && <div className="gba:shrink-0">{icon}</div>}
+          <h2 className="gba:text-lg gba:font-semibold">{title}</h2>
         </div>
         <button
           onClick={onClose}
-          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+          className="gba:p-2 gba:rounded-full gba:hover:bg-gray-100 gba:transition-colors"
           aria-label="Close"
         >
           <svg
@@ -96,13 +96,13 @@ export const DetailsDefault: React.FC<DetailsDefaultProps> = ({
       </div>
 
       {/* Scrollable content area */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="gba:flex-1 gba:overflow-auto gba:p-4">
         {children}
       </div>
 
       {/* Optional footer with action buttons */}
       {footer && (
-        <div className="p-4 border-t border-gray-200 bg-white">
+        <div className="gba:p-4 gba:border-t gba:border-gray-200 gba:bg-white">
           {footer}
         </div>
       )}

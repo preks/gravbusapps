@@ -97,7 +97,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
   // Handle loading state
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-full">
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
         <Spinner size="large" />
       </div>
     );
@@ -111,8 +111,8 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
       description: t('employee_profile.error_loading_data')
     });
     return (
-      <div className="flex justify-center items-center h-full text-red-600">
-        <p className="text-xl font-medium">{t('common.error')}</p>
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-red-600">
+        <p className="gba:text-xl gba:font-medium">{t('common.error')}</p>
         <p>{t('employee_profile.error_loading_data')}</p>
       </div>
     );
@@ -121,8 +121,8 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
   // Handle no data
   if (!employee) {
     return (
-      <div className="flex justify-center items-center h-full text-gray-600">
-        <p className="text-xl font-medium">{t('common.not_found')}</p>
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-gray-600">
+        <p className="gba:text-xl gba:font-medium">{t('common.not_found')}</p>
         <p>{t('employee_profile.employee_not_found')}</p>
       </div>
     );
@@ -199,7 +199,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
       activeKey={activeTab}
       onChange={setActiveTab}
       items={tabItems.map(item => ({ key: item.key, label: item.label }))}
-      className="w-full"
+      className="gba:w-full"
       destroyInactiveTabPane
     />
   );
@@ -211,8 +211,8 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
   };
 
   return (
-    <div className="employee-profile w-full h-full">
-      <ScreenBody className="h-full w-full">
+    <div className="gba:employee-profile gba:w-full gba:h-full">
+      <ScreenBody className="gba:h-full gba:w-full">
         <ProfileLayout
           headerContent={
             <ProfileHeader
@@ -223,7 +223,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
           contentHeader={tabNavigation}
           contentContainer={getTabContent()}
           headerPlacement="left"
-          className="w-full max-w-full mx-auto px-4"
+          className="gba:w-full gba:max-w-full gba:mx-auto gba:px-4"
         />
       </ScreenBody>
     </div>

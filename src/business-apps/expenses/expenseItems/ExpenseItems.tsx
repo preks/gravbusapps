@@ -546,18 +546,18 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
   const getStatusTag = (status: string) => {
     // Define a mapping of status values to tag colors
     const statusColorMap: Record<string, string> = {
-      'Draft': 'bg-gray-100 text-gray-800',
-      'Pending': 'bg-blue-100 text-blue-800',
-      'Approved': 'bg-green-100 text-green-800',
-      'Rejected': 'bg-red-100 text-red-800',
+      'Draft': 'gba:bg-gray-100 gba:text-gray-800',
+      'Pending': 'gba:bg-blue-100 gba:text-blue-800',
+      'Approved': 'gba:bg-green-100 gba:text-green-800',
+      'Rejected': 'gba:bg-red-100 gba:text-red-800',
       // Add more statuses as needed
     };
     
     // Use the mapped color or default to blue
-    const colorClass = statusColorMap[status] || 'bg-blue-100 text-blue-800';
+    const colorClass = statusColorMap[status] || 'gba:bg-blue-100 gba:text-blue-800';
     
     return (
-      <div className={`w-24 text-center py-1 px-2 ${colorClass} rounded-md`}>
+      <div className={`gba:w-24 gba:text-center gba:py-1 gba:px-2 ${colorClass} gba:rounded-md`}>
         {status || 'Draft'}
       </div>
     );
@@ -573,7 +573,7 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
       sortOrder: sortedInfo.columnKey === 'title' ? sortedInfo.order : null,
       render: (text: string, record: ExpenseItem) => (
         <div>
-          <div className="font-medium cursor-pointer hover:text-blue-600">
+          <div className="gba:font-medium gba:cursor-pointer gba:hover:text-blue-600">
             <a 
               href={`/platform/landing_screen/srn_expenseItemDetails?id=${record.id}`}
             >
@@ -628,7 +628,7 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
         
         // Show a checkmark if there are files
         return hasFiles ? (
-          <div className="text-green-600">
+          <div className="gba:text-green-600">
             ✓
           </div>
         ) : null; // Don't show any icon if there are no files
@@ -650,18 +650,18 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
   ];
 
   return (
-    <div className="flex flex-col">
+    <div className="gba:flex gba:flex-col">
       {/* Header with title and Flows button */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">{title}</h1>
-        <div className="relative">
+      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
+        <h1 className="gba:text-2xl gba:font-semibold">{title}</h1>
+        <div className="gba:relative">
           {/* Actions Button with Dropdown */}
-          <div className="relative inline-block">
+          <div className="gba:relative gba:inline-block">
             <Button 
-              className="rounded-full border border-gray-300 hover:bg-gray-100"
+              className="gba:rounded-full gba:border gba:border-gray-300 gba:hover:bg-gray-100"
               onClick={() => setIsActionsMenuOpen(!isActionsMenuOpen)}
             >
-              <span className="flex items-center gap-1">
+              <span className="gba:flex gba:items-center gba:gap-1">
                 <span>+</span> ACTIONS <RiArrowDownSLine size={16} />
               </span>
             </Button>
@@ -669,16 +669,16 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
             {/* Dropdown Menu */}
             {isActionsMenuOpen && (
               <div 
-                className="absolute right-0 mt-2 w-56 bg-white shadow-lg rounded-md border border-gray-200 z-10"
+                className="gba:absolute gba:right-0 gba:mt-2 gba:w-56 gba:bg-white gba:shadow-lg gba:rounded-md gba:border gba:border-gray-200 gba:z-10"
                 ref={actionsMenuRef}
               >
-                <div className="py-1">
+                <div className="gba:py-1">
                   <a 
                     href="/platform/landing_screen/srn_expenseItemCreate"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                    className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-sm gba:text-gray-700 gba:hover:bg-blue-50 gba:hover:text-blue-700"
                     onClick={() => setIsActionsMenuOpen(false)}
                   >
-                    <span className="inline-flex items-center justify-center w-4 h-4 mr-1">
+                    <span className="gba:inline-flex gba:items-center gba:justify-center gba:w-4 gba:h-4 gba:mr-1">
                       <RiAddLine size={16} />
                     </span>
                     Create Expense Item
@@ -687,7 +687,7 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
                   {selectedRows.length > 0 && (
                     <a 
                       href="#"
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                      className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-sm gba:text-gray-700 gba:hover:bg-blue-50 gba:hover:text-blue-700"
                       onClick={(e) => {
                         e.preventDefault();
                         // Here you would implement the logic to create an expense request with the selected items
@@ -695,7 +695,7 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
                         setIsActionsMenuOpen(false);
                       }}
                     >
-                      <span className="inline-flex items-center justify-center w-4 h-4 mr-1">
+                      <span className="gba:inline-flex gba:items-center gba:justify-center gba:w-4 gba:h-4 gba:mr-1">
                         <RiAddLine size={16} />
                       </span>
                       Create Expense Request ({selectedRows.length} {selectedRows.length === 1 ? 'item' : 'items'})
@@ -718,22 +718,22 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
       />
 
       {/* Filters and Table */}
-      <div className="bg-white rounded-lg shadow-sm">
+      <div className="gba:bg-white gba:rounded-lg gba:shadow-sm">
         {/* Filter sidebar overlay - only visible when filter menu is open */}
         <div 
-          className={`fixed inset-0 bg-black transition-opacity duration-300 z-10 ${isFilterMenuOpen ? 'opacity-25' : 'opacity-0 pointer-events-none'}`} 
+          className={`gba:fixed gba:inset-0 gba:bg-black gba:transition-opacity gba:duration-300 gba:z-10 ${isFilterMenuOpen          ? 'gba:opacity-25' : 'gba:opacity-0 gba:pointer-events-none'}`} 
           onClick={() => setIsFilterMenuOpen(false)}
         ></div>
         
         {/* Filter sidebar that slides in from left */}
         <div 
           ref={filterMenuRef}
-          className={`fixed left-0 top-0 h-full w-72 bg-white shadow-xl transform transition-transform duration-300 ease-in-out z-20 ${isFilterMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          className={`gba:fixed gba:left-0 gba:top-0 gba:h-full gba:w-72 gba:bg-white gba:shadow-xl gba:transform gba:transition-transform gba:duration-300 gba:ease-in-out gba:z-20 ${isFilterMenuOpen      ? 'gba:translate-x-0' : 'gba:-translate-x-full'}`}
         >
-          <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-            <h2 className="text-lg font-medium">Filters</h2>
+          <div className="gba:p-4 gba:border-b gba:border-gray-200 gba:flex gba:justify-between gba:items-center">
+            <h2 className="gba:text-lg gba:font-medium">Filters</h2>
             <Button 
-              className="text-gray-500 hover:text-gray-700"
+              className="gba:text-gray-500 gba:hover:text-gray-700"
               onClick={() => setIsFilterMenuOpen(false)}
             >
               ×
@@ -741,49 +741,49 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
           </div>
           
           {/* Filter sections */}
-          <div className="p-4 space-y-6 overflow-y-auto" style={{ height: 'calc(100% - 60px)' }}>
+          <div className="gba:p-4 gba:space-y-6 gba:overflow-y-auto" style={{ height: 'calc(100% - 60px)' }}>
             {/* Filter by Time Period */}
-            <div className="border-b pb-4">
+            <div className="gba:border-b gba:pb-4">
               <h3 
-                className="font-medium mb-2 flex justify-between items-center cursor-pointer" 
+                className="gba:font-medium gba:mb-2 gba:flex gba:justify-between gba:items-center gba:cursor-pointer" 
                 onClick={() => toggleFilterSection('timePeriod')}
               >
                 <span>Filter by Time Period</span>
                 <RiArrowDownSLine 
                   size={20} 
-                  className={`text-gray-500 transform transition-transform ${expandedFilterSections.timePeriod ? 'rotate-180' : ''}`} 
+                  className={`gba:text-gray-500 gba:transform gba:transition-transform ${expandedFilterSections.timePeriod ? 'gba:rotate-180' : ''}`} 
                 />
               </h3>
               {expandedFilterSections.timePeriod && (
-                <div className="space-y-2 mt-2">
-                  <div className="flex items-center">
+                <div className="gba:space-y-2 gba:mt-2">
+                  <div className="gba:flex gba:items-center">
                     <input 
                       type="radio" 
                       id="time-last30" 
                       name="timePeriod"
-                      className="mr-2" 
+                      className="gba:mr-2" 
                       checked={timePeriodFilter === 'last30'}
                       onChange={() => handleTimePeriodChange('last30')}
                     />
                     <label htmlFor="time-last30">Last 30 days</label>
                   </div>
-                  <div className="flex items-center">
+                  <div className="gba:flex gba:items-center">
                     <input 
                       type="radio" 
                       id="time-last90" 
                       name="timePeriod"
-                      className="mr-2" 
+                      className="gba:mr-2" 
                       checked={timePeriodFilter === 'last90'}
                       onChange={() => handleTimePeriodChange('last90')}
                     />
                     <label htmlFor="time-last90">Last 90 days</label>
                   </div>
-                  <div className="flex items-center">
+                  <div className="gba:flex gba:items-center">
                     <input 
                       type="radio" 
                       id="time-last180" 
                       name="timePeriod"
-                      className="mr-2" 
+                      className="gba:mr-2" 
                       checked={timePeriodFilter === 'last180'}
                       onChange={() => handleTimePeriodChange('last180')}
                     />
@@ -791,9 +791,9 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
                   </div>
 
                   {timePeriodFilter && (
-                    <div className="mt-2">
+                    <div className="gba:mt-2">
                       <button 
-                        className="text-sm text-blue-600 hover:text-blue-800"
+                        className="gba:text-sm gba:text-blue-600 gba:hover:text-blue-800"
                         onClick={() => handleTimePeriodChange('')}
                       >
                         Clear time period filter
@@ -805,63 +805,63 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
             </div>
             
             {/* Filter by Expense Type */}
-            <div className="border-b py-4">
+            <div className="gba:border-b gba:py-4">
               <h3 
-                className="font-medium mb-2 flex justify-between items-center cursor-pointer" 
+                className="gba:font-medium gba:mb-2 gba:flex gba:justify-between gba:items-center gba:cursor-pointer" 
                 onClick={() => toggleFilterSection('expenseType')}
               >
                 <span>Filter by Expense Type</span>
                 <RiArrowDownSLine 
                   size={20} 
-                  className={`text-gray-500 transform transition-transform ${expandedFilterSections.expenseType ? 'rotate-180' : ''}`} 
+                  className={`gba:text-gray-500 gba:transform gba:transition-transform ${expandedFilterSections.expenseType ? 'gba:rotate-180' : ''}`} 
                 />
               </h3>
               {expandedFilterSections.expenseType && (
-                <div className="space-y-2 mt-2">
-                  <div className="flex items-center">
+                <div className="gba:space-y-2 gba:mt-2">
+                  <div className="gba:flex gba:items-center">
                     <input 
                       type="checkbox" 
                       id="type-expense" 
-                      className="mr-2" 
+                      className="gba:mr-2" 
                       checked={expenseTypeFilters.includes('expense')}
                       onChange={() => handleExpenseTypeChange('expense')}
                     />
                     <label htmlFor="type-expense">Expense</label>
                   </div>
-                  <div className="flex items-center">
+                  <div className="gba:flex gba:items-center">
                     <input 
                       type="checkbox" 
                       id="type-allowance" 
-                      className="mr-2" 
+                      className="gba:mr-2" 
                       checked={expenseTypeFilters.includes('allowance')}
                       onChange={() => handleExpenseTypeChange('allowance')}
                     />
                     <label htmlFor="type-allowance">Allowance</label>
                   </div>
-                  <div className="flex items-center">
+                  <div className="gba:flex gba:items-center">
                     <input 
                       type="checkbox" 
                       id="type-mileage" 
-                      className="mr-2" 
+                      className="gba:mr-2" 
                       checked={expenseTypeFilters.includes('mileage')}
                       onChange={() => handleExpenseTypeChange('mileage')}
                     />
                     <label htmlFor="type-mileage">Mileage</label>
                   </div>
-                  <div className="flex items-center">
+                  <div className="gba:flex gba:items-center">
                     <input 
                       type="checkbox" 
                       id="type-travel" 
-                      className="mr-2" 
+                      className="gba:mr-2" 
                       checked={expenseTypeFilters.includes('travel')}
                       onChange={() => handleExpenseTypeChange('travel')}
                     />
                     <label htmlFor="type-travel">Travel</label>
                   </div>
                   {expenseTypeFilters.length > 0 && (
-                    <div className="mt-2">
+                    <div className="gba:mt-2">
                       <button 
-                        className="text-sm text-blue-600 hover:text-blue-800"
+                        className="gba:text-sm gba:text-blue-600 gba:hover:text-blue-800"
                         onClick={() => {
                           setExpenseTypeFilters([]);
                           applyFilters();
@@ -876,53 +876,53 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
             </div>
             
             {/* Filter by Status */}
-            <div className="border-b py-4">
+            <div className="gba:border-b gba:py-4">
               <h3 
-                className="font-medium mb-2 flex justify-between items-center cursor-pointer" 
+                className="gba:font-medium gba:mb-2 gba:flex gba:justify-between gba:items-center gba:cursor-pointer" 
                 onClick={() => toggleFilterSection('status')}
               >
                 <span>Filter by Status</span>
                 <RiArrowDownSLine 
                   size={20} 
-                  className={`text-gray-500 transform transition-transform ${expandedFilterSections.status ? 'rotate-180' : ''}`} 
+                  className={`gba:text-gray-500 gba:transform gba:transition-transform ${expandedFilterSections.status ? 'rotate-180' : ''}`} 
                 />
               </h3>
               {expandedFilterSections.status && (
-                <div className="space-y-2 mt-2">
-                  <div className="flex items-center">
+                <div className="gba:space-y-2 gba:mt-2">
+                  <div className="gba:flex gba:items-center">
                     <input 
                       type="checkbox" 
                       id="status-open" 
-                      className="mr-2" 
+                      className="gba:mr-2" 
                       checked={statusFilters.includes('open')}
                       onChange={() => handleStatusChange('open')}
                     />
                     <label htmlFor="status-open">Open</label>
                   </div>
-                  <div className="flex items-center">
+                  <div className="gba:flex gba:items-center">
                     <input 
                       type="checkbox" 
                       id="status-pending" 
-                      className="mr-2" 
+                      className="gba:mr-2" 
                       checked={statusFilters.includes('pending')}
                       onChange={() => handleStatusChange('pending')}
                     />
                     <label htmlFor="status-pending">Pending</label>
                   </div>
-                  <div className="flex items-center">
+                  <div className="gba:flex gba:items-center">
                     <input 
                       type="checkbox" 
                       id="status-done" 
-                      className="mr-2" 
+                      className="gba:mr-2" 
                       checked={statusFilters.includes('done')}
                       onChange={() => handleStatusChange('done')}
                     />
                     <label htmlFor="status-done">Done</label>
                   </div>
                   {statusFilters.length > 0 && (
-                    <div className="mt-2">
+                    <div className="gba:mt-2">
                       <button 
-                        className="text-sm text-blue-600 hover:text-blue-800"
+                        className="gba:text-sm gba:text-blue-600 gba:hover:text-blue-800"
                         onClick={() => {
                           setStatusFilters([]);
                           applyFilters();
@@ -937,25 +937,25 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
             </div>
             
             {/* Filter by Amount */}
-            <div className="py-4">
+            <div className="gba:py-4">
               <h3 
-                className="font-medium mb-2 flex justify-between items-center cursor-pointer" 
+                className="gba:font-medium gba:mb-2 gba:flex gba:justify-between gba:items-center gba:cursor-pointer" 
                 onClick={() => toggleFilterSection('amount')}
               >
                 <span>Filter by Amount</span>
                 <RiArrowDownSLine 
                   size={20} 
-                  className={`text-gray-500 transform transition-transform ${expandedFilterSections.amount ? 'rotate-180' : ''}`} 
+                  className={`gba:text-gray-500 gba:transform gba:transition-transform ${expandedFilterSections.amount ? 'gba:rotate-180' : ''}`} 
                 />
               </h3>
               {expandedFilterSections.amount && (
-                <div className="space-y-4 mt-2">
+                <div className="gba:space-y-4 gba:mt-2">
                   <div>
-                    <label htmlFor="amount-min" className="block text-sm mb-1">Minimum Amount</label>
+                    <label htmlFor="amount-min" className="gba:block gba:text-sm gba:mb-1">Minimum Amount</label>
                     <input 
                       type="number" 
                       id="amount-min" 
-                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm" 
+                      className="gba:w-full gba:border gba:border-gray-300 gba:rounded gba:px-2 gba:py-1 gba:text-sm" 
                       placeholder="Min amount"
                       value={amountRange.min !== null ? amountRange.min : ''}
                       onChange={(e) => {
@@ -965,11 +965,11 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
                     />
                   </div>
                   <div>
-                    <label htmlFor="amount-max" className="block text-sm mb-1">Maximum Amount</label>
+                    <label htmlFor="amount-max" className="gba:block gba:text-sm gba:mb-1">Maximum Amount</label>
                     <input 
                       type="number" 
                       id="amount-max" 
-                      className="w-full border border-gray-300 rounded px-2 py-1 text-sm" 
+                      className="gba:w-full gba:border gba:border-gray-300 gba:rounded gba:px-2 gba:py-1 gba:text-sm" 
                       placeholder="Max amount"
                       value={amountRange.max !== null ? amountRange.max : ''}
                       onChange={(e) => {
@@ -981,7 +981,7 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
                   {(amountRange.min !== null || amountRange.max !== null) && (
                     <div>
                       <button 
-                        className="text-sm text-blue-600 hover:text-blue-800"
+                        className="gba:text-sm gba:text-blue-600 gba:hover:text-blue-800"
                         onClick={() => {
                           setAmountRange({min: null, max: null});
                           applyFilters();
@@ -996,9 +996,9 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
             </div>
             
             {/* Clear All Filters */}
-            <div className="pt-4 flex justify-end border-t border-gray-200">
+            <div className="gba:pt-4 gba:flex gba:justify-end gba:border-t gba:border-gray-200">
               <button 
-                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+                className="gba:px-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded gba:hover:bg-gray-100"
                 onClick={() => {
                   // Reset all filters
                   setTimePeriodFilter('');
@@ -1016,7 +1016,7 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
         </div>
         
         {/* Search and filter bar */}
-        <div className="flex items-center p-4 border-b border-gray-200">
+        <div className="gba:flex gba:items-center gba:p-4 gba:border-b gba:border-gray-200">
           {/* Filter button */}
           <div 
             id="filter-button"
@@ -1042,7 +1042,7 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
           {isSearchExpanded ? (
             <Input
               name="search"
-              prefix={<RiSearchLine className="text-gray-400" />}
+              prefix={<RiSearchLine className="gba:text-gray-400" />}
               placeholder="Search in Expense Item List"
               defaultValue={searchTerm}
               onChange={(e: any) => handleSearch(e)}
@@ -1052,29 +1052,29 @@ const ExpenseItems: React.FC<ExpenseItemsProps> = ({
                 }
               }}
               autoFocus
-              className="mr-auto"
+              className="gba:mr-auto"
             />
           ) : (
             <div 
-              className="flex items-center cursor-pointer mr-auto" 
+              className="gba:flex gba:items-center gba:cursor-pointer gba:mr-auto" 
               onClick={() => setIsSearchExpanded(true)}
             >
-              <RiSearchLine className="text-gray-400 mr-2" />
+              <RiSearchLine className="gba:text-gray-400 gba:mr-2" />
               <span>My Expense Items</span>
             </div>
           )}
         </div>
         
         {loading ? (
-          <div className="flex justify-center py-8">
+          <div className="gba:flex gba:justify-center gba:py-8">
             <span>Loading expense data...</span>
           </div>
         ) : error ? (
-          <div className="text-red-500 py-4">{error}</div>
+          <div className="gba:text-red-500 gba:py-4">{error}</div>
         ) : expenseItems.length === 0 ? (
-          <div className="flex flex-col justify-center items-center py-8">
+          <div className="gba:flex gba:flex-col gba:justify-center gba:items-center gba:py-8">
             <span>No expense data available</span>
-            <div className="text-xs text-gray-500 mt-2">
+            <div className="gba:text-xs gba:text-gray-500 gba:mt-2">
               No expense items found for your account
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Typography,
   Button,
@@ -12,7 +12,8 @@ import {
   Alert,
   Input,
   Select,
-  Space
+  Space,
+  Spin
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -34,12 +35,15 @@ import {
   UserOutlined,
   PaperClipOutlined
 } from '@ant-design/icons';
+import {
+  GET_COMPANY_BY_ID, GetCompanyByIdResponse
+} from "../../overview-screens/CompanyOverview/graphql/company-queries"
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
 const { Option } = Select;
 
-// Helper function to generate a consistent color from a string
 const stringToColor = (str: string): string => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -55,9 +59,26 @@ const stringToColor = (str: string): string => {
   return color;
 };
 
+interface Person {
+  name: string;
+  title?: string;
+  avatar?: string;
+}
+
+interface Activity {
+  title: string;
+  date: string;
+  description: string;
+  duration?: string;
+  outcome?: string;
+  agent?: string;
+  cc?: string;
+}
+
 interface CompanyDetailProps {
   companyId?: string;
   onBack?: () => void;
+  accessToken: string;
 }
 
 const emptyCompanyData = {
@@ -90,10 +111,10 @@ const emptyCompanyData = {
     valuation: ''
   },
   keyPeople: {
-    founders: [],
-    leadership: []
+    founders: [] as Person[],
+    leadership: [] as Person[]
   },
-  activityTimeline: [],
+  activityTimeline: [] as Activity[],
   legalInformation: {
     registerId: '',
     vatId: ''
@@ -101,20 +122,21 @@ const emptyCompanyData = {
   geographicPresence: ''
 };
 
-const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, onBack }) => {
-  // State for edit mode
+const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, onBack, accessToken }) => {
   const [isEditing, setIsEditing] = useState<boolean>(!_companyId);
   const [editedData, setEditedData] = useState<any>(!_companyId ? emptyCompanyData : null);
   const [hasChanges, setHasChanges] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(_companyId ? true : false);
+  const [error, setError] = useState<string | null>(null);
+  const [companyData, setCompanyData] = useState(_companyId ? emptyCompanyData : emptyCompanyData);
 
-  // For ChatGPT search
+  const graphQLClient = useGraphqlClient(accessToken);
+
   const [searchCompany, setSearchCompany] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Maps the ChatGPT JSON to our form structure
   const mapChatGptJsonToForm = (json: any) => {
-    // Map all fields robustly from backend JSON
     const companyOverview = json.company_overview || {};
     const financial = json.financial_and_business_metrics || {};
     const keyPeopleArr = Array.isArray(json.key_people) ? json.key_people : [];
@@ -125,16 +147,13 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
           avatar: f.picture_url || ''
         }))
       : [];
-    console.log('DEBUG foundersArr:', foundersArr);
 
-    // Leadership mapping
     const leadershipArr = keyPeopleArr.map((p: any) => ({
       name: p.name || '',
       title: p.title || '',
       avatar: p.picture_url || ''
     }));
 
-    // Format notable facts as bullet points if array
     let notableFacts = '';
     if (Array.isArray(companyOverview.notable_facts)) {
       notableFacts = companyOverview.notable_facts.map((fact: string) => `• ${fact}`).join('\n');
@@ -142,7 +161,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
       notableFacts = companyOverview.notable_facts;
     }
 
-    // Format revenue in millions, e.g. €800m
     let revenue = '';
     if (financial.estimated_revenue?.amount_local && financial.estimated_revenue?.currency_local) {
       const amount = financial.estimated_revenue.amount_local;
@@ -160,7 +178,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
       ? `${financial.valuation.amount_local} ${financial.valuation.currency_local}`
       : '';
 
-    // Legal info
     const registerId = Array.isArray(companyOverview.commercial_register_ids) && companyOverview.commercial_register_ids.length > 0
       ? companyOverview.commercial_register_ids[0]
       : '';
@@ -208,10 +225,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
     };
   };
 
-  // Handle ChatGPT search
-  // I have some python code that works. The response will look like this.
-  // If you are interested in the python code, please let me know - Kain
-  // src/business-apps/crm/detail-screens/CompanyDetail/Coca_Cola_response_20250528_145209.json
   const handleSearch = async () => {
     setSearchError(null);
     setSearchLoading(true);
@@ -226,7 +239,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
         throw new Error(err.error || 'Unknown error');
       }
       const data = await res.json();
-      // If Flask returns company_data, otherwise use the root
       const json = data.company_data || data;
       const mapped = mapChatGptJsonToForm(json);
       setCompanyData(mapped);
@@ -239,102 +251,89 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
     }
   };
   
-  // In a real application, you would fetch company data based on companyId
-  // For this example, we'll use mock data based on the screenshot
-  // If companyId is provided, we would use it to fetch specific company data
-  // console.log('Rendering company with ID:', companyId);
-  
-  const [companyData, setCompanyData] = useState(_companyId ? {
-    id: '1',
-    name: 'Acme Corporation',
-    industry: 'Technology Solutions',
-    description: 'Leading provider of innovative technology solutions for enterprise clients worldwide.',
-    founded: '2010',
-    headquarters: 'New York, NY',
-    size: '1000-5000 employees',
-    legalForm: 'Corporation',
-    tags: ['Enterprise', 'Key Account', 'Technology'],
-    website: 'acmecorp.com',
-    linkedin: 'linkedin.com/company/acme-corp',
-    mainContact: {
-      name: 'Emily Davis',
-      position: 'Business Development Manager',
-      email: 'emily.davis@acmecorp.com',
-      phone: '+1 (555) 123-4567'
-    },
-    accountOwner: {
-      name: 'Robert Taylor',
-      avatar: '/avatars/robert.jpg'
-    },
-    lastContacted: '5/15/2023',
-    notableFacts: '• First company to implement AI-driven customer service\n• Winner of Tech Innovation Award 2023\n• Serves over 500 enterprise clients globally',
-    financialMetrics: {
-      revenue: '€50M',
-      funding: '€25M',
-      valuation: '€200M'
-    },
-    keyPeople: {
-      founders: [
-        {
-          name: 'John Smith',
-          title: 'Founder',
-          avatar: '/avatars/john.jpg'
+  useEffect(() => {
+    const fetchCompanyById = async () => {
+      if (!_companyId) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const result = await graphQLClient.request<GetCompanyByIdResponse>(
+          GET_COMPANY_BY_ID,
+          {
+            id: _companyId
+          }
+        );
+        if (result && result.Account && result.Account[0]) {
+          const apiData = result?.Account[0];
+          const transformedData = {
+            id: apiData.id || '',
+            name: apiData.name || '',
+            industry: apiData.industry?.value || '',
+            description: '', 
+            founded: apiData.foundationDate || '',
+            headquarters: apiData.addresses?.[0]?.city || '',
+            size: apiData.numberOfEmployees?.value || '',
+            legalForm: apiData.legalForm?.value || '',
+            tags: [], 
+            website: apiData.website || '',
+            linkedin: '',
+            mainContact: {
+              name: apiData.contact?.firstName && apiData.contact?.lastName ? 
+                `${apiData.contact.firstName} ${apiData.contact.lastName}` : '',
+              position: '',
+              email: '',
+              phone: ''
+            },
+            accountOwner: {
+              name: apiData.ownerEmployee?.firstName && apiData.ownerEmployee?.lastName ?
+                `${apiData.ownerEmployee.firstName} ${apiData.ownerEmployee.lastName}` : '',
+              avatar: ''
+            },
+            lastContacted: '',
+            notableFacts: '',
+            financialMetrics: {
+              revenue: '',
+              funding: '',
+              valuation: ''
+            },
+            keyPeople: {
+              founders: [],
+              leadership: []
+            },
+            activityTimeline: [],
+            legalInformation: {
+              registerId: '',
+              vatId: ''
+            },
+            geographicPresence: apiData.addresses?.[0]?.country?.value || ''
+          };
+          setCompanyData(transformedData);
+        } else {
+          setError("Failed to fetch company data");
+          setCompanyData(emptyCompanyData);
         }
-      ],
-      leadership: [
-        {
-          name: 'Sarah Johnson',
-          title: 'CEO',
-          avatar: '/avatars/sarah.jpg'
-        },
-        {
-          name: 'Michael Brown',
-          title: 'CTO',
-          avatar: '/avatars/michael.jpg'
-        }
-      ]
-    },
-    activityTimeline: [
-      {
-        type: 'salesCall',
-        date: 'May 23, 2024, 8:30 PM',
-        title: 'Sales call with Jane Smith',
-        description: 'Discussed product features and pricing options. Jane showed interest in our enterprise plan.',
-        duration: '25 minutes',
-        outcome: 'Positive',
-        agent: 'Alex Johnson'
-      },
-      {
-        type: 'proposal',
-        date: 'May 18, 2023, 12:15 PM',
-        title: 'Sent proposal to John Doe',
-        description: 'Sent the customized proposal with pricing details and implementation timeline.',
-        cc: 'Sarah Williams'
-      },
-      {
-        type: 'demo',
-        date: 'May 13, 2023, 5:00 PM',
-        title: 'Product demo with technical team',
-        description: 'Demonstrated our platform\'s API integration'
+      } catch (err) {
+        setError('Failed to fetch company: ' + (err instanceof Error ? err.message : String(err)));
+        setCompanyData(emptyCompanyData);
+      } finally {
+        setLoading(false);
       }
-    ],
-    legalInformation: {
-      registerId: '123456',
-      vatId: 'DE123456789'
-    },
-    geographicPresence: 'United States, Europe, Asia'
-  } : emptyCompanyData);
+    };
 
-  // Initialize the company data for editing when edit mode is turned on
+    if (_companyId) {
+      fetchCompanyById();
+    }
+  }, [_companyId, accessToken, graphQLClient]);
+
   React.useEffect(() => {
     if (isEditing && companyData) {
       setEditedData({ ...companyData });
     }
   }, [isEditing, companyData]);
 
-  // Function to handle navigation back to company list
   const handleBack = () => {
-    // Use the provided onBack function if available, otherwise log a message
     if (onBack) {
       onBack();
     } else {
@@ -342,34 +341,49 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
     }
   };
 
-  // Function to handle edit company
   const handleEdit = () => {
-    // Initialize the editedData before setting isEditing to true
-    // This ensures editedData is available immediately when rendering the edit fields
     setEditedData({...companyData});
     setIsEditing(true);
     console.log('Edit company:', companyData.id);
   };
 
-  // Function to handle save
-  const handleSave = () => {
-    setCompanyData(editedData);
-    setIsEditing(false);
-    setHasChanges(false);
-    console.log('Save changes:', editedData);
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      
+      setCompanyData(editedData);
+      setIsEditing(false);
+      setHasChanges(false);
+      
+      console.log('Company data to update:', {
+        id: editedData.id,
+        name: editedData.name,
+        website: editedData.website,
+        foundationDate: editedData.founded,
+        industry: editedData.industry,
+        description: editedData.description,
+        headquarters: editedData.headquarters,
+        size: editedData.size
+      });
+      
+      
+      console.log('Company updated successfully in UI - backend update to be implemented when API is ready');
+      
+    } catch (error) {
+      console.error('Error updating company:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Function to handle cancel
   const handleCancel = () => {
     setIsEditing(false);
     setHasChanges(false);
     console.log('Cancel edit');
   };
 
-  // Function to handle field changes
   const handleFieldChange = (field: string, value: any) => {
     setEditedData((prevData: any) => {
-      // Handle nested fields
       if (field.includes('.')) {
         const [parentField, childField] = field.split('.');
         return {
@@ -380,7 +394,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
           }
         };
       }
-      // Handle top-level fields
       return {
         ...prevData,
         [field]: value
@@ -389,50 +402,77 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
     setHasChanges(true);
   };
 
-  // Function to handle add activity
   const handleAddActivity = () => {
     console.log('Add activity for company:', companyData.id);
   };
 
   return (
-    <div className="company-detail-container">
-      {/* Back link */}
-      <div className="back-link" onClick={handleBack}>
-        <ArrowLeftOutlined className="back-icon" />
+    <div className="gba:company-detail-container" style={{ padding: '0 12px', maxWidth: '1600px', margin: '0 auto' }}>
+      {loading ? (
+        <div className="gba:full-page-loading" style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          width: '100%',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          zIndex: 1000
+        }}>
+          <Spin size="large" tip="Loading company data..." />
+        </div>
+      ) : null}
+      
+      <div 
+        className="gba:back-link" 
+        onClick={handleBack} 
+        style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px', 
+          marginBottom: '20px',
+          cursor: 'pointer',
+          fontSize: '16px'
+        }}
+      >
+        <ArrowLeftOutlined className="gba:back-icon" />
         Back to Companies
       </div>
 
-      {/* Edit Mode Warning */}
       {isEditing && (
         <Alert
           message="Edit Mode Active"
           description="Click on any cell to edit. Use save/cancel buttons to confirm changes."
           type="warning"
           showIcon
-          className="edit-mode-alert"
-          style={{ marginBottom: '16px' }}
+          className="gba:edit-mode-alert"
+          style={{ marginBottom: '24px' }}
         />
       )}
 
-      {/* Company header */}
-      <div className="company-header">
-        <div className="company-name-wrapper">
-          <div className="company-logo">
-            {(isEditing && editedData ? editedData.name : companyData.name)?.charAt(0) || ''}
-          </div>
+      <div className="gba:company-header" style={{ 
+        marginBottom: '32px', 
+        borderBottom: '1px solid #f0f0f0', 
+        paddingBottom: '24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start'
+      }}>
+        <div className="gba:company-name-wrapper" style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
           <div style={{ flex: 1 }}>
             {isEditing && editedData ? (
               <>
                 <Input
                   value={editedData.name}
                   onChange={e => handleFieldChange('name', e.target.value)}
-                  style={{ fontSize: '20px', fontWeight: 600, marginBottom: '4px', maxWidth: 350 }}
+                  style={{ fontSize: '24px', fontWeight: 600, marginBottom: '12px', maxWidth: 400 }}
                   placeholder="Company Name"
                 />
 
-                {/* Search field just below name input */}
-                <div style={{ margin: '8px 0' }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ margin: '16px 0' }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     <Input
                       placeholder="Search company name (e.g. Apple, Tesla)"
                       value={searchCompany}
@@ -455,22 +495,21 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
                     </Button>
                   </div>
                   {searchError && (
-                    <Alert message={searchError} type="error" showIcon style={{ marginTop: 8 }} />
+                    <Alert message={searchError} type="error" showIcon style={{ marginTop: 12 }} />
                   )}
                 </div>
                 <Input
                   value={editedData.industry}
                   onChange={e => handleFieldChange('industry', e.target.value)}
-                  style={{ color: 'rgba(0, 0, 0, 0.65)', marginBottom: '8px', maxWidth: 350 }}
+                  style={{ color: 'rgba(0, 0, 0, 0.65)', marginBottom: '12px', maxWidth: 400 }}
                   placeholder="Industry"
                 />
-                <div style={{ marginTop: 12 }}>
-                  <a href={editedData.website || companyData.website || '#'} target="_blank" rel="noopener noreferrer">
+                <div style={{ marginTop: 16 }}>
+                  <a href={editedData.website || companyData.website || '#'} target="_blank" rel="noopener noreferrer" style={{ fontSize: '15px', marginRight: '12px' }}>
                     Website
                   </a>
                   {((editedData.linkedin || companyData.linkedin) && <>
-                    {' | '}
-                    <a href={editedData.linkedin || companyData.linkedin || '#'} target="_blank" rel="noopener noreferrer">
+                    <a href={editedData.linkedin || companyData.linkedin || '#'} target="_blank" rel="noopener noreferrer" style={{ fontSize: '15px' }}>
                       LinkedIn
                     </a>
                   </>)}
@@ -478,26 +517,44 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
               </>
             ) : (
               <>
-                <Title level={4} className="company-name">{companyData.name}</Title>
-                <Text className="company-industry">{companyData.industry}</Text>
+                {loading ? (
+                  <Spin style={{ fontSize: 24 }} />
+                ) : (
+                  <>
+                    <Title level={3} className="gba:company-name" style={{ marginBottom: '12px' }}>{companyData.name}</Title>
+                    <Text className="gba:company-industry" style={{ display: 'block', fontSize: '16px', marginBottom: '16px', color: '#555' }}>{companyData.industry}</Text>
+                    <div style={{ marginTop: '16px' }}>
+                      <a href={companyData.website || '#'} target="_blank" rel="noopener noreferrer" style={{ fontSize: '15px', marginRight: '16px' }}>
+                        Website
+                      </a>
+                      {companyData.linkedin && (
+                        <a href={companyData.linkedin || '#'} target="_blank" rel="noopener noreferrer" style={{ fontSize: '15px' }}>
+                          LinkedIn
+                        </a>
+                      )}
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
         </div>
         {isEditing ? (
-          <div className="edit-actions" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div className="gba:edit-actions" style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: '8px' }}>
             <Space>
               <Button 
                 type="primary" 
                 icon={<SaveOutlined />} 
                 onClick={handleSave}
                 disabled={!hasChanges}
+                size="large"
               >
                 Save
               </Button>
               <Button 
                 icon={<CloseOutlined />} 
                 onClick={handleCancel}
+                size="large"
               >
                 Cancel
               </Button>
@@ -507,43 +564,60 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
           <Button 
             type="primary" 
             icon={<EditOutlined />} 
-            className="edit-button"
+            className="gba:edit-button"
             onClick={handleEdit}
+            size="large"
           >
             Edit Company
           </Button>
         )}
       </div>
 
-      {/* Main content */}
-      <Row gutter={[24, 24]}>
-        {/* Left column - Company information */}
+      <Row gutter={[40, 32]}>
         <Col span={16}>
-          {/* Company overview */}
-          <Card className="card-container">
-            <div className="section-title">
-              <BankOutlined className="section-title-icon" /> 
+          <Card className="gba:card-container" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.08)', borderRadius: '8px' }}>
+            <div className="gba:section-title" style={{ 
+              fontSize: '18px', 
+              fontWeight: 600, 
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <BankOutlined className="gba:section-title-icon" /> 
               Company Overview
             </div>
-            <div className="section-title">About</div>
+            <div className="gba:section-subtitle" style={{ 
+              fontSize: '16px', 
+              fontWeight: 500, 
+              marginBottom: '12px',
+              marginTop: '4px'
+            }}>About</div>
             {isEditing && editedData ? (
               <Input.TextArea
                 value={editedData.description}
                 onChange={(e) => handleFieldChange('description', e.target.value)}
                 rows={4}
-                style={{ marginBottom: '16px' }}
+                style={{ marginBottom: '24px' }}
               />
             ) : (
-              <Paragraph>{companyData.description}</Paragraph>
+              <Paragraph style={{ marginBottom: '24px' }}>{companyData.description}</Paragraph>
             )}
             
-            <Row gutter={[24, 16]} className="company-info-row">
+            <Row gutter={[32, 24]} className="gba:company-info-row">
               <Col span={12}>
-                <div className="company-info-label">
-                  <CalendarOutlined className="icon-wrapper" />
+                <div className="gba:company-info-label" style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  color: '#555',
+                  marginBottom: '6px',
+                  fontSize: '14px'
+                }}>
+                  <CalendarOutlined className="gba:icon-wrapper" />
                   Founded:
                 </div>
-                <div className="company-info-value">
+                <div className="gba:company-info-value" style={{ fontSize: '15px' }}>
                   {isEditing && editedData ? (
                     <Input 
                       value={editedData.founded} 
@@ -555,11 +629,18 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
                 </div>
               </Col>
               <Col span={12}>
-                <div className="company-info-label">
-                  <EnvironmentOutlined className="icon-wrapper" />
+                <div className="gba:company-info-label" style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  color: '#555',
+                  marginBottom: '6px',
+                  fontSize: '14px'
+                }}>
+                  <EnvironmentOutlined className="gba:icon-wrapper" />
                   Headquarters:
                 </div>
-                <div className="company-info-value">
+                <div className="gba:company-info-value" style={{ fontSize: '15px' }}>
                   {isEditing && editedData ? (
                     <Input 
                       value={editedData.headquarters} 
@@ -572,13 +653,20 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
               </Col>
             </Row>
             
-            <Row gutter={[24, 16]} className="company-info-row">
+            <Row gutter={[32, 24]} className="gba:company-info-row">
               <Col span={12}>
-                <div className="company-info-label">
-                  <TeamOutlined className="icon-wrapper" />
+                <div className="gba:company-info-label" style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  color: '#555',
+                  marginBottom: '6px',
+                  fontSize: '14px'
+                }}>
+                  <TeamOutlined className="gba:icon-wrapper" />
                   Company Size:
                 </div>
-                <div className="company-info-value">
+                <div className="gba:company-info-value" style={{ fontSize: '15px' }}>
                   {isEditing && editedData ? (
                     <Select
                       style={{ width: '100%' }}
@@ -599,11 +687,18 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
                 </div>
               </Col>
               <Col span={12}>
-                <div className="company-info-label">
-                  <BankOutlined className="icon-wrapper" />
+                <div className="gba:company-info-label" style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  color: '#555',
+                  marginBottom: '6px',
+                  fontSize: '14px'
+                }}>
+                  <BankOutlined className="gba:icon-wrapper" />
                   Legal Form:
                 </div>
-                <div className="company-info-value">
+                <div className="gba:company-info-value" style={{ fontSize: '15px' }}>
                   {isEditing && editedData ? (
                     <Input 
                       value={editedData.legalForm} 
@@ -616,7 +711,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
               </Col>
             </Row>
             
-            <div className="tag-container">
+            <div className="gba:tag-container">
               {companyData.tags.map(tag => {
                 let color = 'geekblue';
                 if (tag === 'Enterprise') {
@@ -633,105 +728,122 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
             </div>
             
             <div style={{ marginTop: '16px', display: 'flex' }}>
-              <a href={`https://${companyData.website}`} className="external-link" target="_blank" rel="noopener noreferrer">
-                <LinkOutlined className="link-icon" /> Website
+              <a href={`https://${companyData.website}`} className="gba:external-link" target="_blank" rel="noopener noreferrer">
+                <LinkOutlined className="gba:link-icon" /> Website
               </a>
-              <a href={`https://${companyData.linkedin}`} className="external-link" target="_blank" rel="noopener noreferrer">
-                <LinkOutlined className="link-icon" /> LinkedIn
+              <a href={`https://${companyData.linkedin}`} className="gba:external-link" target="_blank" rel="noopener noreferrer">
+                <LinkOutlined className="gba:link-icon" /> LinkedIn
               </a>
             </div>
           </Card>
 
-          {/* Notable Facts Section */}
-          <Card className="card-container" style={{ marginTop: '24px' }}>
-            <div className="section-title">
-              <CheckCircleOutlined className="section-title-icon" /> 
+          <Card className="gba:card-container" style={{ marginTop: '24px' }}>
+            <div className="gba:section-title" style={{ 
+              fontSize: '18px', 
+              fontWeight: 600, 
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <CheckCircleOutlined className="gba:section-title-icon" /> 
               Notable Facts
             </div>
-            <div className="account-info-value" style={{ whiteSpace: 'pre-line' }}>
+            <div className="gba:account-info-value" style={{ whiteSpace: 'pre-line' }}>
               {(isEditing && editedData ? editedData.notableFacts : companyData.notableFacts) || <span style={{ color: '#ccc' }}>No notable facts available.</span>}
             </div>
           </Card>
 
-          {/* Financial metrics */}
-          <Card className="card-container" style={{ marginTop: '24px' }}>
-            <div className="section-title">
-              <DollarOutlined className="section-title-icon" /> 
+          <Card className="gba:card-container" style={{ marginTop: '24px' }}>
+            <div className="gba:section-title" style={{ 
+              fontSize: '18px', 
+              fontWeight: 600, 
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <DollarOutlined className="gba:section-title-icon" /> 
               Financial & Business Metrics
             </div>
             
-            <div className="metrics-container">
-              <div className="metric-item">
+            <div className="gba:metrics-container">
+              <div className="gba:metric-item">
                 <DollarOutlined style={{ fontSize: '24px', color: '#52c41a' }} />
-                <div className="metric-value revenue-metric">{companyData.financialMetrics.revenue || 'N/A'}</div>
-                <div className="metric-label">Estimated Revenue (2023)</div>
+                <div className="gba:metric-value gba:revenue-metric">{companyData.financialMetrics.revenue || 'N/A'}</div>
+                <div className="gba:metric-label">Estimated Revenue (2023)</div>
               </div>
               
-              <div className="metric-item">
+              <div className="gba:metric-item">
                 <FundOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
-                <div className="metric-value funding-metric">{companyData.financialMetrics.funding || 'N/A'}</div>
-                <div className="metric-label">Total Funding (2023)</div>
+                <div className="gba:metric-value gba:funding-metric">{companyData.financialMetrics.funding || 'N/A'}</div>
+                <div className="gba:metric-label">Total Funding (2023)</div>
               </div>
               
-              <div className="metric-item">
+              <div className="gba:metric-item">
                 <StockOutlined style={{ fontSize: '24px', color: '#722ed1' }} />
-                <div className="metric-value valuation-metric">{companyData.financialMetrics.valuation || 'N/A'}</div>
-                <div className="metric-label">Valuation (2023)</div>
+                <div className="gba:metric-value gba:valuation-metric">{companyData.financialMetrics.valuation || 'N/A'}</div>
+                <div className="gba:metric-label">Valuation (2023)</div>
               </div>
             </div>
           </Card>
 
-          {/* Key people */}
-          <Card className="card-container" style={{ marginTop: '24px' }}>
-            <div className="section-title">
-              <TeamOutlined className="section-title-icon" /> 
+          <Card className="gba:card-container" style={{ marginTop: '24px' }}>
+            <div className="gba:section-title" style={{ 
+              fontSize: '18px', 
+              fontWeight: 600, 
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <TeamOutlined className="gba:section-title-icon" /> 
               Key People
             </div>
 
-            <div className="key-people-section">
-              <div className="people-group">
-                <div className="people-group-title">Founders</div>
-                {console.log('RENDER founders:', companyData.keyPeople.founders) || true}
-{companyData.keyPeople.founders.length === 0 ? (
-  <Text type="secondary">No founders available</Text>
-) : (
-  companyData.keyPeople.founders.map((person, index) => (
-    <div key={index} className="person-card">
-      <Avatar 
-        size={40} 
-        src={person.avatar}
-        className="person-avatar"
-        style={{ backgroundColor: stringToColor(person.name) }}
-      >
-        {person.name.charAt(0)}
-      </Avatar>
-      <div className="person-info">
-        <Text className="person-name">{person.name}</Text>
-        {person.title && <Text className="person-title">{person.title}</Text>}
-      </div>
-    </div>
-  ))
-)}
+            <div className="gba:key-people-section">
+              <div className="gba:people-group">
+                <div className="gba:people-group-title">Founders</div>
+                {companyData.keyPeople.founders.length === 0 ? (
+                  <Text type="secondary">No founders available</Text>
+                ) : (
+                  companyData.keyPeople.founders.map((person, index) => (
+                    <div key={index} className="gba:person-card">
+                      <Avatar 
+                        size={40} 
+                        src={person?.avatar}
+                        className="gba:person-avatar"
+                        style={{ backgroundColor: stringToColor(person?.name) }}
+                      >
+                        {person?.name?.charAt(0)}
+                      </Avatar>
+                      <div className="gba:person-info">
+                        <Text className="gba:person-name">{person?.name}</Text>
+                        {person.title && <Text className="gba:person-title">{person.title}</Text>}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
-              <div className="people-group">
-                <div className="people-group-title">Leadership Team</div>
+              <div className="gba:people-group">
+                <div className="gba:people-group-title">Leadership Team</div>
                 {companyData.keyPeople.leadership.length === 0 ? (
                   <Text type="secondary">No leadership available</Text>
                 ) : (
                   companyData.keyPeople.leadership.map((person, index) => (
-                    <div key={index} className="person-card">
+                    <div key={index} className="gba:person-card">
                       <Avatar 
                         size={40} 
                         src={person.avatar}
-                        className="person-avatar"
+                        className="gba:person-avatar"
                         style={{ backgroundColor: stringToColor(person.name) }}
                       >
                         {person.name.charAt(0)}
                       </Avatar>
-                      <div className="person-info">
-                        <Text className="person-name">{person.name}</Text>
-                        <Text className="person-title">{person.title}</Text>
+                      <div className="gba:person-info">
+                        <Text className="gba:person-name">{person.name}</Text>
+                        <Text className="gba:person-title">{person.title}</Text>
                       </div>
                     </div>
                   ))
@@ -741,53 +853,124 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
           </Card>
         </Col>
 
-        {/* Right column - Contact and account information */}
         <Col span={8}>
-          {/* Main contact */}
-          <Card className="card-container">
-            <div className="section-title">
-              <UserOutlined className="section-title-icon" /> 
+          <Card className="gba:card-container" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.08)', borderRadius: '8px' }}>
+            <div className="gba:section-title" style={{ 
+              fontSize: '18px', 
+              fontWeight: 600, 
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <UserOutlined className="gba:section-title-icon" /> 
               Main Contact
             </div>
-            <div className="contact-info">
-              <div className="contact-name">{companyData.mainContact.name}</div>
-              <div className="contact-position">{companyData.mainContact.position}</div>
+            <div className="gba:contact-info" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <div className="gba:contact-name" style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px' }}>
+                  {companyData.mainContact.name}
+                </div>
+                <div className="gba:contact-position" style={{ fontSize: '14px', color: '#555', marginBottom: '12px' }}>
+                  {companyData.mainContact.position}
+                </div>
+              </div>
               
-              <a href={`mailto:${companyData.mainContact.email}`} className="contact-link">
-                <MailOutlined className="contact-link-icon" />
+              <a 
+                href={`mailto:${companyData.mainContact.email}`} 
+                className="gba:contact-link"
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '10px',
+                  color: '#1890ff',
+                  fontSize: '14px',
+                  marginBottom: '8px',
+                  textDecoration: 'none'
+                }}
+              >
+                <MailOutlined className="gba:contact-link-icon" />
                 {companyData.mainContact.email}
               </a>
               
-              <a href={`tel:${companyData.mainContact.phone}`} className="contact-link">
-                <PhoneOutlined className="contact-link-icon" />
+              <a 
+                href={`tel:${companyData.mainContact.phone}`} 
+                className="gba:contact-link"
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '10px',
+                  color: '#1890ff',
+                  fontSize: '14px',
+                  textDecoration: 'none'
+                }}
+              >
+                <PhoneOutlined className="gba:contact-link-icon" />
                 {companyData.mainContact.phone}
               </a>
             </div>
           </Card>
 
-          {/* Account information */}
-          <Card className="card-container" style={{ marginTop: '24px' }}>
-            <div className="section-title">
-              <BankOutlined className="section-title-icon" /> 
+          <Card className="gba:card-container" style={{ marginTop: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', borderRadius: '8px' }}>
+            <div className="gba:section-title" style={{ 
+              fontSize: '18px', 
+              fontWeight: 600, 
+              marginBottom: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <BankOutlined className="gba:section-title-icon" /> 
               Account Information
             </div>
             
-            <div className="account-info-item">
-              <div className="account-info-label">Account Owner</div>
-              <div className="account-info-value">{companyData.accountOwner.name}</div>
+            <div className="gba:account-info-item" style={{ 
+              marginBottom: '20px',
+              paddingBottom: '16px',
+              borderBottom: '1px solid #f0f0f0'
+            }}>
+              <div className="gba:account-info-label" style={{ 
+                fontSize: '14px',
+                color: '#555',
+                marginBottom: '6px',
+                fontWeight: 500
+              }}>Account Owner</div>
+              <div className="gba:account-info-value" style={{ 
+                fontSize: '15px'
+              }}>{companyData.accountOwner.name}</div>
             </div>
             
-            <div className="account-info-item">
-              <div className="account-info-label">Last Contacted</div>
-              <div className="account-info-value">{companyData.lastContacted}</div>
+            <div className="gba:account-info-item" style={{ 
+              marginBottom: '4px'
+            }}>
+              <div className="gba:account-info-label" style={{ 
+                fontSize: '14px',
+                color: '#555',
+                marginBottom: '6px',
+                fontWeight: 500
+              }}>Last Contacted</div>
+              <div className="gba:account-info-value" style={{ 
+                fontSize: '15px'
+              }}>{companyData.lastContacted}</div>
             </div>
           </Card>
 
-          {/* Activity timeline */}
-          <Card className="card-container" style={{ marginTop: '24px' }}>
-            <div className="timeline-header">
-              <div className="section-title" style={{ margin: 0 }}>
-                <CalendarOutlined className="section-title-icon" /> 
+          <Card className="gba:card-container" style={{ marginTop: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', borderRadius: '8px' }}>
+            <div className="gba:timeline-header" style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}>
+              <div className="gba:section-title" style={{ 
+                margin: 0,
+                fontSize: '18px', 
+                fontWeight: 600, 
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <CalendarOutlined className="gba:section-title-icon" /> 
                 Activity Timeline
               </div>
               <Button 
@@ -802,7 +985,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
 
             <Tabs defaultActiveKey="activities">
               <TabPane tab="Activities" key="activities">
-                <div className="tab-content">
+                <div className="gba:tab-content">
                   <Timeline>
                     {companyData.activityTimeline.map((activity, index) => (
                       <Timeline.Item key={index} color="blue">
@@ -829,44 +1012,56 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
                 </div>
               </TabPane>
               <TabPane tab="Notes" key="notes">
-                <div className="tab-content">
+                <div className="gba:tab-content">
                   <Text type="secondary">No notes available</Text>
                 </div>
               </TabPane>
               <TabPane tab="Documents" key="documents">
-                <div className="tab-content">
+                <div className="gba:tab-content">
                   <Text type="secondary">No documents available</Text>
                 </div>
               </TabPane>
             </Tabs>
           </Card>
 
-          {/* Legal information */}
-          <Card className="card-container" style={{ marginTop: '24px' }}>
-            <div className="section-title">
-              <BankOutlined className="section-title-icon" /> 
+          <Card className="gba:card-container" style={{ marginTop: '24px' }}>
+            <div className="gba:section-title" style={{ 
+              fontSize: '18px', 
+              fontWeight: 600, 
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <BankOutlined className="gba:section-title-icon" /> 
               Legal Information
             </div>
             
-            <div className="account-info-item">
-              <div className="account-info-label">Register IDs</div>
-              <div className="account-info-value">{companyData.legalInformation.registerId ? `HRB ${companyData.legalInformation.registerId}` : 'N/A'}</div>
+            <div className="gba:account-info-item">
+              <div className="gba:account-info-label">Register IDs</div>
+              <div className="gba:account-info-value">{companyData.legalInformation.registerId ? `HRB ${companyData.legalInformation.registerId}` : 'N/A'}</div>
             </div>
             
-            <div className="account-info-item">
-              <div className="account-info-label">VAT</div>
-              <div className="account-info-value">{companyData.legalInformation.vatId || 'N/A'}</div>
+            <div className="gba:account-info-item">
+              <div className="gba:account-info-label">VAT</div>
+              <div className="gba:account-info-value">{companyData.legalInformation.vatId || 'N/A'}</div>
             </div>
           </Card>
 
-          {/* Geographic presence */}
-          <Card className="card-container" style={{ marginTop: '24px' }}>
-            <div className="section-title">
-              <GlobalOutlined className="section-title-icon" /> 
+          <Card className="gba:card-container" style={{ marginTop: '24px' }}>
+            <div className="gba:section-title" style={{ 
+              fontSize: '18px', 
+              fontWeight: 600, 
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <GlobalOutlined className="gba:section-title-icon" /> 
               Geographic Presence
             </div>
             
-            <div className="account-info-value">{companyData.geographicPresence || 'N/A'}</div>
+            <div className="gba:account-info-value">{companyData.geographicPresence || 'N/A'}</div>
           </Card>
         </Col>
       </Row>

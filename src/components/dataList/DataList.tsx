@@ -204,10 +204,10 @@ export function DataList<T>({
         // If item is clickable, wrap in a button for proper accessibility
         if (onItemClick) {
           return (
-            <li key={key} className={`border-b border-gray-200 transition-colors duration-200 ${selected ? 'bg-gray-100' : 'hover:bg-gray-50'}`}>
+            <li key={key} className={`gba:border-b gba:border-gray-200 gba:transition-colors gba:duration-200 ${selected ? 'gba:bg-gray-100' : 'gba:hover:bg-gray-50'}`}>
               <button
                 type="button"
-                className="w-full text-left bg-transparent border-none py-3 px-4 cursor-pointer block font-inherit text-inherit"
+                className="gba:w-full gba:text-left gba:bg-transparent gba:border-none gba:py-3 gba:px-4 gba:cursor-pointer gba:block gba:font-inherit gba:text-inherit"
                 onClick={() => onItemClick(item, index)}
                 aria-current={selected ? 'page' : undefined}
               >
@@ -221,7 +221,7 @@ export function DataList<T>({
         return (
           <li
             key={key}
-            className={`border-b border-gray-200 py-3 px-4 transition-colors duration-200 ${selected ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+            className={`gba:border-b gba:border-gray-200 gba:py-3 gba:px-4 gba:transition-colors gba:duration-200 ${selected ? 'gba:bg-gray-100' : 'gba:hover:bg-gray-50'}`}
             aria-current={selected ? 'page' : undefined}
           >
             {renderItem?.(item, index, selected)}

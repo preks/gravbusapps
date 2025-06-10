@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import { CheckCircle2 } from "lucide-react"
-import { getStageColorClass } from "../../../../common/lib/stage-requirements"
-import type { DetailedOpportunity, Stage } from "../../../../common/lib/db-actions"
+import { getStageColorClass } from "./lib/stage-requirements"
+import type { DetailedOpportunity, Stage } from "./lib/db-actions"
 
 interface OpportunityPipelineVisualizationProps {
   opportunity?: DetailedOpportunity
@@ -85,24 +85,24 @@ export default function OpportunityPipelineVisualization({
 
   if (!stages || stages.length === 0) {
     return (
-      <div className="p-4 border rounded-md bg-gray-50">
-        <p className="text-sm text-gray-500">No pipeline stages defined.</p>
+      <div className="gba-p-4 gba-border gba-rounded-md gba-bg-gray-50">
+        <p className="gba-text-sm gba-text-gray-500">No pipeline stages defined.</p>
       </div>
     )
   }
 
   return (
-    <div className="relative">
-      <div className="absolute top-1/2 left-0 right-0 h-2 bg-gray-200 -translate-y-1/2 rounded-full"></div>
+    <div className="gba-relative">
+      <div className="gba-absolute gba-top-1/2 gba-left-0 gba-right-0 gba-h-2 gba-bg-gray-200 -translate-y-1/2 gba-rounded-full"></div>
 
       <div
-        className="absolute top-1/2 left-0 h-2 bg-blue-500 -translate-y-1/2 rounded-full transition-all duration-500"
+        className="gba-absolute gba-top-1/2 gba-left-0 gba-h-2 gba-bg-blue-500 -translate-y-1/2 gba-rounded-full gba-transition-all gba-duration-500"
         style={{
           width: `${currentStageIndex >= 0 ? (currentStageIndex / (stages.length - 1)) * 100 : 0}%`,
         }}
       ></div>
 
-      <div className="relative flex justify-between items-center py-8">
+      <div className="gba-relative gba-flex gba-justify-between gba-items-center gba-py-8">
         {stages.map((stage, index) => {
           const isPastStage = index < currentStageIndex
           const isCurrentStage = index === currentStageIndex
@@ -112,7 +112,7 @@ export default function OpportunityPipelineVisualization({
           return (
             <div
               key={stage.id}
-              className="relative flex flex-col items-center group"
+              className="gba-relative gba-flex gba-flex-col gba-items-center group"
               onMouseEnter={() => setHoveredStage(stage.id)}
               onMouseLeave={() => setHoveredStage(null)}
             >
@@ -133,34 +133,27 @@ export default function OpportunityPipelineVisualization({
                 aria-label={`Stage ${index + 1}: ${stage.name}`}
               >
                 {isPastStage ? (
-                  <CheckCircle2 className="h-5 w-5 text-white" />
+                  <CheckCircle2 className="gba-h-5 gba-w-5 gba-text-white" />
                 ) : (
-                  <span className="text-sm font-medium">{index + 1}</span>
+                  <span className="gba-text-sm gba-font-medium">{index + 1}</span>
                 )}
               </button>
 
               <div
-                className={`
-                mt-2 text-xs font-medium whitespace-nowrap max-w-[100px] text-center
-                ${isCurrentStage ? "text-blue-600 font-semibold" : isPastStage ? "text-gray-600" : "text-gray-400"}
-              `}
+                className={` gba-mt-2 gba-text-xs gba-font-medium gba-whitespace-nowrap gba-max-w-[100px] gba-text-center ${isCurrentStage ? "gba-text-blue-600 gba-font-semibold" : isPastStage          ? "gba-text-gray-600" : "gba-text-gray-400"} `}
               >
                 {stage.name}
               </div>
 
               <div
-                className={`
-                absolute top-full mt-2 z-50 w-48 bg-white rounded-md shadow-lg border p-3 text-xs
-                transition-opacity duration-200
-                ${hoveredStage === stage.id ? "opacity-100" : "opacity-0 pointer-events-none"}
-              `}
+                className={` gba-absolute gba-top-full gba-mt-2 gba-z-50 gba-w-48 gba-bg-white gba-rounded-md gba-shadow-lg gba-border gba-p-3 gba-text-xs gba-transition-opacity gba-duration-200 ${hoveredStage === stage.id          ? "gba-opacity-100" : "gba-opacity-0 gba-pointer-events-none"} `}
               >
-                <p className="font-medium text-sm">{stage.name}</p>
-                {stage.description && <p className="text-gray-500 mt-1">{stage.description}</p>}
-                <div className="mt-2 text-gray-500">
-                  {isCurrentStage && <span className="text-blue-600 font-medium">Current stage</span>}
-                  {isPastStage && <span className="text-green-600 font-medium">Completed</span>}
-                  {isFutureStage && <span className="text-gray-600 font-medium">Upcoming stage</span>}
+                <p className="gba-font-medium gba-text-sm">{stage.name}</p>
+                {stage.description && <p className="gba-text-gray-500 gba-mt-1">{stage.description}</p>}
+                <div className="gba-mt-2 gba-text-gray-500">
+                  {isCurrentStage && <span className="gba-text-blue-600 gba-font-medium">Current stage</span>}
+                  {isPastStage && <span className="gba-text-green-600 gba-font-medium">Completed</span>}
+                  {isFutureStage && <span className="gba-text-gray-600 gba-font-medium">Upcoming stage</span>}
                 </div>
               </div>
             </div>

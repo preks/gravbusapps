@@ -25,7 +25,7 @@ export function EmployeeAvatarStatus({
 
   return (
     <div 
-      className="absolute"
+      className="gba:absolute"
       style={{
         bottom: 0,
         right: 0,

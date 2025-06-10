@@ -11,8 +11,8 @@ import {
   DialogTitle,
 } from "./common/ui/dialog"
 import { CheckCircle2, AlertCircle, FileText, Calendar, CheckSquare } from "lucide-react"
-import { checkAllRequirementsMet, getStageColorClass, type StageRequirement } from "../../../../common/lib/stage-requirements"
-import type { DetailedOpportunity, Stage } from "../../../../common/lib/db-actions"
+import { checkAllRequirementsMet, getStageColorClass, type StageRequirement } from "./lib/stage-requirements"
+import type { DetailedOpportunity, Stage } from "./lib/db-actions"
 
 interface StageProgressionBarProps {
   opportunity?: DetailedOpportunity
@@ -28,21 +28,21 @@ const demoStageRequirements = {
       type: "activity",
       description: "Initial discovery call",
       status: "completed",
-      icon: <Calendar className="h-4 w-4 text-blue-500" />,
+      icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
     },
     {
       id: "disc-2",
       type: "activity",
       description: "Needs assessment meeting",
       status: "pending",
-      icon: <Calendar className="h-4 w-4 text-blue-500" />,
+      icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
     },
     {
       id: "disc-3",
       type: "document",
       description: "Client profile document",
       status: "pending",
-      icon: <FileText className="h-4 w-4 text-orange-500" />,
+      icon: <FileText className="gba:h-4 gba:w-4 gba:text-orange-500" />,
     },
   ],
   "2": [
@@ -51,21 +51,21 @@ const demoStageRequirements = {
       type: "document",
       description: "Requirements specification",
       status: "completed",
-      icon: <FileText className="h-4 w-4 text-orange-500" />,
+      icon: <FileText className="gba:h-4 gba:w-4 gba:text-orange-500" />,
     },
     {
       id: "qual-2",
       type: "activity",
       description: "Budget discussion call",
       status: "completed",
-      icon: <Calendar className="h-4 w-4 text-blue-500" />,
+      icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
     },
     {
       id: "qual-3",
       type: "decision",
       description: "Solution approach approval",
       status: "pending",
-      icon: <CheckSquare className="h-4 w-4 text-purple-500" />,
+      icon: <CheckSquare className="gba:h-4 gba:w-4 gba:text-purple-500" />,
     },
   ],
   "3": [
@@ -74,21 +74,21 @@ const demoStageRequirements = {
       type: "document",
       description: "Formal proposal document",
       status: "completed",
-      icon: <FileText className="h-4 w-4 text-orange-500" />,
+      icon: <FileText className="gba:h-4 gba:w-4 gba:text-orange-500" />,
     },
     {
       id: "prop-2",
       type: "activity",
       description: "Proposal presentation meeting",
       status: "pending",
-      icon: <Calendar className="h-4 w-4 text-blue-500" />,
+      icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
     },
     {
       id: "prop-3",
       type: "document",
       description: "Pricing breakdown",
       status: "completed",
-      icon: <FileText className="h-4 w-4 text-orange-500" />,
+      icon: <FileText className="gba:h-4 gba:w-4 gba:text-orange-500" />,
     },
   ],
   "4": [
@@ -97,21 +97,21 @@ const demoStageRequirements = {
       type: "activity",
       description: "Terms negotiation call",
       status: "pending",
-      icon: <Calendar className="h-4 w-4 text-blue-500" />,
+      icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
     },
     {
       id: "neg-2",
       type: "decision",
       description: "Final pricing approval",
       status: "pending",
-      icon: <CheckSquare className="h-4 w-4 text-purple-500" />,
+      icon: <CheckSquare className="gba:h-4 gba:w-4 gba:text-purple-500" />,
     },
     {
       id: "neg-3",
       type: "document",
       description: "Contract draft",
       status: "pending",
-      icon: <FileText className="h-4 w-4 text-orange-500" />,
+      icon: <FileText className="gba:h-4 gba:w-4 gba:text-orange-500" />,
     },
   ],
   "5": [
@@ -120,21 +120,21 @@ const demoStageRequirements = {
       type: "document",
       description: "Signed contract",
       status: "pending",
-      icon: <FileText className="h-4 w-4 text-orange-500" />,
+      icon: <FileText className="gba:h-4 gba:w-4 gba:text-orange-500" />,
     },
     {
       id: "won-2",
       type: "decision",
       description: "Final executive approval",
       status: "pending",
-      icon: <CheckSquare className="h-4 w-4 text-purple-500" />,
+      icon: <CheckSquare className="gba:h-4 gba:w-4 gba:text-purple-500" />,
     },
     {
       id: "won-3",
       type: "activity",
       description: "Kickoff meeting",
       status: "pending",
-      icon: <Calendar className="h-4 w-4 text-blue-500" />,
+      icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
     },
   ],
   "6": [
@@ -143,14 +143,14 @@ const demoStageRequirements = {
       type: "document",
       description: "Loss analysis report",
       status: "pending",
-      icon: <FileText className="h-4 w-4 text-orange-500" />,
+      icon: <FileText className="gba:h-4 gba:w-4 gba:text-orange-500" />,
     },
     {
       id: "lost-2",
       type: "activity",
       description: "Debrief meeting",
       status: "pending",
-      icon: <Calendar className="h-4 w-4 text-blue-500" />,
+      icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
     },
   ],
   "7": [
@@ -159,14 +159,14 @@ const demoStageRequirements = {
       type: "activity",
       description: "Initial contact call",
       status: "completed",
-      icon: <Calendar className="h-4 w-4 text-blue-500" />,
+      icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
     },
     {
       id: "lead-2",
       type: "document",
       description: "Lead qualification form",
       status: "pending",
-      icon: <FileText className="h-4 w-4 text-orange-500" />,
+      icon: <FileText className="gba:h-4 gba:w-4 gba:text-orange-500" />,
     },
   ],
   "8": [
@@ -175,21 +175,21 @@ const demoStageRequirements = {
       type: "activity",
       description: "Requirements gathering session",
       status: "pending",
-      icon: <Calendar className="h-4 w-4 text-blue-500" />,
+      icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
     },
     {
       id: "need-2",
       type: "document",
       description: "Needs assessment document",
       status: "pending",
-      icon: <FileText className="h-4 w-4 text-orange-500" />,
+      icon: <FileText className="gba:h-4 gba:w-4 gba:text-orange-500" />,
     },
     {
       id: "need-3",
       type: "decision",
       description: "Budget range confirmation",
       status: "pending",
-      icon: <CheckSquare className="h-4 w-4 text-purple-500" />,
+      icon: <CheckSquare className="gba:h-4 gba:w-4 gba:text-purple-500" />,
     },
   ],
   "9": [
@@ -198,21 +198,21 @@ const demoStageRequirements = {
       type: "document",
       description: "Solution specification",
       status: "pending",
-      icon: <FileText className="h-4 w-4 text-orange-500" />,
+      icon: <FileText className="gba:h-4 gba:w-4 gba:text-orange-500" />,
     },
     {
       id: "sol-2",
       type: "activity",
       description: "Solution review meeting",
       status: "pending",
-      icon: <Calendar className="h-4 w-4 text-blue-500" />,
+      icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
     },
     {
       id: "sol-3",
       type: "decision",
       description: "Solution approach approval",
       status: "pending",
-      icon: <CheckSquare className="h-4 w-4 text-purple-500" />,
+      icon: <CheckSquare className="gba:h-4 gba:w-4 gba:text-purple-500" />,
     },
   ],
   "10": [
@@ -221,21 +221,21 @@ const demoStageRequirements = {
       type: "document",
       description: "Term sheet draft",
       status: "pending",
-      icon: <FileText className="h-4 w-4 text-orange-500" />,
+      icon: <FileText className="gba:h-4 gba:w-4 gba:text-orange-500" />,
     },
     {
       id: "term-2",
       type: "activity",
       description: "Term negotiation meeting",
       status: "pending",
-      icon: <Calendar className="h-4 w-4 text-blue-500" />,
+      icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
     },
     {
       id: "term-3",
       type: "decision",
       description: "Term sheet approval",
       status: "pending",
-      icon: <CheckSquare className="h-4 w-4 text-purple-500" />,
+      icon: <CheckSquare className="gba:h-4 gba:w-4 gba:text-purple-500" />,
     },
   ],
   "11": [
@@ -244,21 +244,21 @@ const demoStageRequirements = {
       type: "document",
       description: "Final agreement",
       status: "pending",
-      icon: <FileText className="h-4 w-4 text-orange-500" />,
+      icon: <FileText className="gba:h-4 gba:w-4 gba:text-orange-500" />,
     },
     {
       id: "close-2",
       type: "activity",
       description: "Closing meeting",
       status: "pending",
-      icon: <Calendar className="h-4 w-4 text-blue-500" />,
+      icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
     },
     {
       id: "close-3",
       type: "decision",
       description: "Final approval",
       status: "pending",
-      icon: <CheckSquare className="h-4 w-4 text-purple-500" />,
+      icon: <CheckSquare className="gba:h-4 gba:w-4 gba:text-purple-500" />,
     },
   ],
   "12": [
@@ -267,14 +267,14 @@ const demoStageRequirements = {
       type: "document",
       description: "Decline rationale",
       status: "pending",
-      icon: <FileText className="h-4 w-4 text-orange-500" />,
+      icon: <FileText className="gba:h-4 gba:w-4 gba:text-orange-500" />,
     },
     {
       id: "decline-2",
       type: "activity",
       description: "Debrief meeting",
       status: "pending",
-      icon: <Calendar className="h-4 w-4 text-blue-500" />,
+      icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
     },
   ],
 }
@@ -422,18 +422,18 @@ export default function StageProgressionBar({
 
   if (!stages || stages.length === 0) {
     return (
-      <div className="p-4 border rounded-md bg-gray-50">
-        <p className="text-sm text-gray-500">No pipeline stages defined.</p>
+      <div className="gba:p-4 gba:border gba:rounded-md gba:bg-gray-50">
+        <p className="gba:text-sm gba:text-gray-500">No pipeline stages defined.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-medium">Stage Progression</h3>
+    <div className="gba:space-y-4">
+      <h3 className="gba:text-sm gba:font-medium">Stage Progression</h3>
 
-      <div className="flex flex-col space-y-2">
-        <div className="flex w-full items-center">
+      <div className="gba:flex gba:flex-col gba:space-y-2">
+        <div className="gba:flex gba:w-full gba:items-center">
           {stages.map((stage, index) => {
             const isCurrentStage = stage.id === opportunity.stageId
             const isPastStage = index < currentStageIndex
@@ -447,112 +447,112 @@ export default function StageProgressionBar({
             return (
               <div
                 key={stage.id}
-                className="flex flex-1 items-center relative"
+                className="gba:flex gba:flex-1 gba:items-center gba:relative"
                 style={{ flexBasis }}
                 onMouseEnter={() => setHoveredStage(stage)}
                 onMouseLeave={() => setHoveredStage(null)}
               >
                 <button
                   type="button"
-                  className={`flex h-8 items-center rounded-md border px-3 text-xs font-medium transition-colors ${
+                  className={`gba:flex gba:h-8 gba:items-center gba:rounded-md gba:border gba:px-3 gba:text-xs gba:font-medium gba:transition-colors ${
                     isCurrentStage
-                      ? `${getStageColorClass(stage.color || "gray")} border-2`
+                      ? `${getStageColorClass(stage.color || "gray")} gba:border-2`
                       : isPastStage
-                        ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                        ? "gba:bg-muted gba:text-muted-foreground gba:hover:bg-muted/80"
                         : isClickable
-                          ? "border-dashed border-muted-foreground bg-background text-muted-foreground hover:bg-muted/50"
-                          : "border-dashed border-muted-foreground bg-background text-muted-foreground opacity-50"
-                  } ${isClickable ? "cursor-pointer" : "cursor-not-allowed"}`}
+                          ? "gba:border-dashed gba:border-muted-foreground gba:bg-background gba:text-muted-foreground gba:hover:bg-muted/50"
+                          : "gba:border-dashed gba:border-muted-foreground gba:bg-background gba:text-muted-foreground gba:opacity-50"
+                  } ${isClickable ? "gba:cursor-pointer" : "gba:cursor-not-allowed"}`}
                   onClick={() => isClickable && handleStageClick(stage)}
                   disabled={!isClickable}
                 >
-                  {isPastStage && <CheckCircle2 className="mr-1 h-3 w-3" />}
+                  {isPastStage && <CheckCircle2 className="gba:mr-1 gba:h-3 gba:w-3" />}
                   {stage.name}
                 </button>
-                {index < stages.length - 1 && <div className="flex-1 h-0.5 mx-1 bg-gray-200"></div>}
+                {index < stages.length - 1 && <div className="gba:flex-1 gba:h-0.5 gba:mx-1 gba:bg-gray-200"></div>}
 
                 {hoveredStage && hoveredStage.id === stage.id && (
-                  <div className="absolute top-full left-0 mt-2 z-50 w-80 bg-white rounded-md shadow-lg border p-4">
-                    <div className="flex justify-between items-center mb-3">
-                      <h4 className="font-medium text-sm">{stage.name} Requirements</h4>
-                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100">
+                  <div className="gba:absolute gba:top-full gba:left-0 gba:mt-2 gba:z-50 gba:w-80 gba:bg-white gba:rounded-md gba:shadow-lg gba:border gba:p-4">
+                    <div className="gba:flex gba:justify-between gba:items-center gba:mb-3">
+                      <h4 className="gba:font-medium gba:text-sm">{stage.name} Requirements</h4>
+                      <span className="gba:text-xs gba:font-medium gba:px-2 gba:py-1 gba:rounded-full gba:bg-gray-100">
                         {completionPercentage}% Complete
                       </span>
                     </div>
 
-                    <div className="w-full h-1.5 bg-gray-100 rounded-full mb-3">
+                    <div className="gba:w-full gba:h-1.5 gba:bg-gray-100 gba:rounded-full gba:mb-3">
                       <div
-                        className="h-full bg-green-500 rounded-full"
+                        className="gba:h-full gba:bg-green-500 gba:rounded-full"
                         style={{ width: `${completionPercentage}%` }}
                       ></div>
                     </div>
 
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <h5 className="text-xs font-medium text-orange-600 flex items-center">
-                          <FileText className="h-3.5 w-3.5 mr-1" /> Required Documents
+                    <div className="gba:space-y-3">
+                      <div className="gba:space-y-1">
+                        <h5 className="gba:text-xs gba:font-medium gba:text-orange-600 gba:flex gba:items-center">
+                          <FileText className="gba:h-3.5 gba:w-3.5 gba:mr-1" /> Required Documents
                         </h5>
-                        <div className="space-y-1.5">
+                        <div className="gba:space-y-1.5">
                           {getStageRequirements(stage.id)
                             .filter((req) => req.type === "document")
                             .map((req) => (
-                              <div key={req.id} className="flex items-start gap-2">
+                              <div key={req.id} className="gba:flex gba:items-start gba:gap-2">
                                 {req.status === "completed" ? (
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5" />
+                                  <CheckCircle2 className="gba:h-3.5 gba:w-3.5 gba:text-green-500 gba:mt-0.5" />
                                 ) : (
-                                  <AlertCircle className="h-3.5 w-3.5 text-amber-500 mt-0.5" />
+                                  <AlertCircle className="gba:h-3.5 gba:w-3.5 gba:text-amber-500 gba:mt-0.5" />
                                 )}
-                                <span className="text-xs">{req.description}</span>
+                                <span className="gba:text-xs">{req.description}</span>
                               </div>
                             ))}
                           {getStageRequirements(stage.id).filter((req) => req.type === "document").length === 0 && (
-                            <span className="text-xs text-gray-500">No document requirements</span>
+                            <span className="gba:text-xs gba:text-gray-500">No document requirements</span>
                           )}
                         </div>
                       </div>
 
-                      <div className="space-y-1">
-                        <h5 className="text-xs font-medium text-blue-600 flex items-center">
-                          <Calendar className="h-3.5 w-3.5 mr-1" /> Required Activities
+                      <div className="gba:space-y-1">
+                        <h5 className="gba:text-xs gba:font-medium gba:text-blue-600 gba:flex gba:items-center">
+                          <Calendar className="gba:h-3.5 gba:w-3.5 gba:mr-1" /> Required Activities
                         </h5>
-                        <div className="space-y-1.5">
+                        <div className="gba:space-y-1.5">
                           {getStageRequirements(stage.id)
                             .filter((req) => req.type === "activity")
                             .map((req) => (
-                              <div key={req.id} className="flex items-start gap-2">
+                              <div key={req.id} className="gba:flex gba:items-start gba:gap-2">
                                 {req.status === "completed" ? (
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5" />
+                                  <CheckCircle2 className="gba:h-3.5 gba:w-3.5 gba:text-green-500 gba:mt-0.5" />
                                 ) : (
-                                  <AlertCircle className="h-3.5 w-3.5 text-amber-500 mt-0.5" />
+                                  <AlertCircle className="gba:h-3.5 gba:w-3.5 gba:text-amber-500 gba:mt-0.5" />
                                 )}
-                                <span className="text-xs">{req.description}</span>
+                                <span className="gba:text-xs">{req.description}</span>
                               </div>
                             ))}
                           {getStageRequirements(stage.id).filter((req) => req.type === "activity").length === 0 && (
-                            <span className="text-xs text-gray-500">No activity requirements</span>
+                            <span className="gba:text-xs gba:text-gray-500">No activity requirements</span>
                           )}
                         </div>
                       </div>
 
-                      <div className="space-y-1">
-                        <h5 className="text-xs font-medium text-purple-600 flex items-center">
-                          <CheckSquare className="h-3.5 w-3.5 mr-1" /> Required Decisions
+                      <div className="gba:space-y-1">
+                        <h5 className="gba:text-xs gba:font-medium gba:text-purple-600 gba:flex gba:items-center">
+                          <CheckSquare className="gba:h-3.5 gba:w-3.5 gba:mr-1" /> Required Decisions
                         </h5>
-                        <div className="space-y-1.5">
+                        <div className="gba:space-y-1.5">
                           {getStageRequirements(stage.id)
                             .filter((req) => req.type === "decision")
                             .map((req) => (
-                              <div key={req.id} className="flex items-start gap-2">
+                              <div key={req.id} className="gba:flex gba:items-start gba:gap-2">
                                 {req.status === "completed" ? (
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5" />
+                                  <CheckCircle2 className="gba:h-3.5 gba:w-3.5 gba:text-green-500 gba:mt-0.5" />
                                 ) : (
-                                  <AlertCircle className="h-3.5 w-3.5 text-amber-500 mt-0.5" />
+                                  <AlertCircle className="gba:h-3.5 gba:w-3.5 gba:text-amber-500 gba:mt-0.5" />
                                 )}
-                                <span className="text-xs">{req.description}</span>
+                                <span className="gba:text-xs">{req.description}</span>
                               </div>
                             ))}
                           {getStageRequirements(stage.id).filter((req) => req.type === "decision").length === 0 && (
-                            <span className="text-xs text-gray-500">No decision requirements</span>
+                            <span className="gba:text-xs gba:text-gray-500">No decision requirements</span>
                           )}
                         </div>
                       </div>
@@ -561,7 +561,7 @@ export default function StageProgressionBar({
                     {isNextStage && canMoveToNextStage && (
                       <Button
                         size="sm"
-                        className="w-full mt-4"
+                        className="gba:w-full gba:mt-4"
                         onClick={() => {
                           setSelectedStage(nextStage)
                           setIsDialogOpen(true)
@@ -586,11 +586,11 @@ export default function StageProgressionBar({
               Are you sure you want to change the stage from "{opportunity.stageName}" to "{selectedStage?.name}"?
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
+          <div className="gba:py-4">
             {selectedStage && selectedStage.id !== opportunity.stageId && (
-              <div className="rounded-md bg-muted p-4">
-                <h4 className="mb-2 font-medium">{selectedStage.name}</h4>
-                <p className="text-sm text-muted-foreground">{selectedStage.description}</p>
+              <div className="gba:rounded-md gba:bg-muted gba:p-4">
+                <h4 className="gba:mb-2 gba:font-medium">{selectedStage.name}</h4>
+                <p className="gba:text-sm gba:text-muted-foreground">{selectedStage.description}</p>
               </div>
             )}
           </div>

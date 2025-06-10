@@ -9,10 +9,10 @@ export function OpportunitiesError({ error }: { error?: Error }) {
   const errorMessage = error?.message || "No specific error details available. This is a sample error component.";
   
   return (
-    <Card className="mx-auto max-w-md">
+    <Card className="gba:mx-auto gba:max-w-md">
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-destructive" />
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <AlertCircle className="gba:h-5 gba:w-5 gba:text-destructive" />
           <CardTitle>Database Connection Error</CardTitle>
         </div>
         <CardDescription>
@@ -20,17 +20,17 @@ export function OpportunitiesError({ error }: { error?: Error }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
-          <p className="font-medium">Error details:</p>
-          <p className="mt-1">{errorMessage}</p>
+        <div className="gba:rounded-md gba:bg-destructive/10 gba:p-4 gba:text-sm gba:text-destructive">
+          <p className="gba:font-medium">Error details:</p>
+          <p className="gba:mt-1">{errorMessage}</p>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
+      <CardFooter className="gba:flex gba:justify-between">
         <Button variant="outline" asChild>
           <Link to="/dashboard">Go to Dashboard</Link>
         </Button>
         <Button onClick={() => window.location.reload()}>
-          <RefreshCcw className="mr-2 h-4 w-4" />
+          <RefreshCcw className="gba:mr-2 gba:h-4 gba:w-4" />
           Try Again
         </Button>
       </CardFooter>

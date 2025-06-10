@@ -102,21 +102,21 @@ export function NotesSection() {
   }
 
   return (
-    <Card className="rounded-xl shadow-sm md:col-span-2 border-gray-300">
-      <CardHeader className="border-b border-gray-300 pb-3">
+    <Card className="gba:rounded-xl gba:shadow-sm gba:md:col-span-2 gba:border-gray-300">
+      <CardHeader className="gba:border-b gba:border-gray-300 gba:pb-3">
         <CardTitle>Notes & Insights</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6 pt-4">
+      <CardContent className="gba:space-y-6 gba:pt-4">
         {/* Key Insights Panel */}
-        <div className="relative p-[2px] rounded-lg bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500">
-          <div className="bg-gradient-to-r from-blue-50 to-sky-50 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="bg-gradient-to-r from-blue-500 to-purple-500 p-1.5 rounded-full">
-                <Lightbulb className="h-4 w-4 text-white" />
+        <div className="gba:relative gba:p-[2px] gba:rounded-lg gba:bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500">
+          <div className="gba:bg-gradient-to-r from-blue-50 to-sky-50 gba:rounded-lg gba:p-4">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+              <div className="gba:bg-gradient-to-r from-blue-500 to-purple-500 gba:p-1.5 gba:rounded-full">
+                <Lightbulb className="gba:h-4 gba:w-4 gba:text-white" />
               </div>
-              <h3 className="font-medium text-blue-800">AI-Generated Key Insights</h3>
+              <h3 className="gba:font-medium gba:text-blue-800">AI-Generated Key Insights</h3>
             </div>
-            <ul className="list-disc pl-5 space-y-1 text-sm text-blue-900">
+            <ul className="gba:list-disc gba:pl-5 gba:space-y-1 gba:text-sm gba:text-blue-900">
               <li>Interested in analytics platform, requested demo</li>
               <li>Evaluating new solutions in Q1 2024</li>
               <li>Concerned about security compliance</li>
@@ -126,51 +126,51 @@ export function NotesSection() {
         </div>
 
         {/* Add a Note Area */}
-        <div className="space-y-4">
+        <div className="gba:space-y-4">
           <Textarea
             placeholder="Add a note about this contact..."
-            className="min-h-[100px] w-full border-gray-300 focus-visible:ring-blue-500"
+            className="gba:min-h-[100px] gba:w-full gba:border-gray-300 gba:focus-visible:ring-blue-500"
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
           />
-          <div className="flex flex-col sm:flex-row justify-between gap-4">
-            <div className="flex items-center space-x-2">
+          <div className="gba:flex gba:flex-col gba:sm:flex-row gba:justify-between gba:gap-4">
+            <div className="gba:flex gba:items-center gba:space-x-2">
               <Switch
                 id="important-note"
                 checked={isImportant}
                 onCheckedChange={setIsImportant}
-                className="data-[state=checked]:bg-blue-600"
+                className="gba:data-[state=checked]:bg-blue-600"
               />
-              <label htmlFor="important-note" className="text-sm font-medium">
+              <label htmlFor="important-note" className="gba:text-sm gba:font-medium">
                 Mark as Important
               </label>
             </div>
-            <Button className="rounded-md bg-blue-600 hover:bg-blue-700" onClick={handleAddNote}>
+            <Button className="gba:rounded-md gba:bg-blue-600 gba:hover:bg-blue-700" onClick={handleAddNote}>
               Add Note
             </Button>
           </div>
         </div>
 
-        <Separator className="bg-blue-100" />
+        <Separator className="gba:bg-blue-100" />
 
         {/* Notes List with Filtering/Sorting */}
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center space-x-2">
+        <div className="gba:space-y-4">
+          <div className="gba:flex gba:flex-col gba:sm:flex-row gba:justify-between gba:items-start gba:sm:items-center gba:gap-4">
+            <div className="gba:flex gba:items-center gba:space-x-2">
               <Switch
                 id="important-only"
                 checked={showImportantOnly}
                 onCheckedChange={setShowImportantOnly}
-                className="data-[state=checked]:bg-blue-600"
+                className="gba:data-[state=checked]:bg-blue-600"
               />
-              <label htmlFor="important-only" className="text-sm font-medium">
+              <label htmlFor="important-only" className="gba:text-sm gba:font-medium">
                 Show important only
               </label>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Sort by:</span>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-sm gba:text-muted-foreground">Sort by:</span>
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-[140px] border-gray-300 focus:ring-blue-500">
+                <SelectTrigger className="gba:w-[140px] gba:border-gray-300 gba:focus:ring-blue-500">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
@@ -183,51 +183,51 @@ export function NotesSection() {
           </div>
 
           {/* Notes Items */}
-          <div className="space-y-4">
+          <div className="gba:space-y-4">
             {filteredNotes.map((note) => (
               <div
                 key={note.id}
-                className={`p-4 border rounded-lg ${
+                className={`gba:p-4 gba:border gba:rounded-lg ${
                   note.important ? "border-blue-200 bg-gradient-to-r from-blue-50 to-sky-50" : "border-gray-300"
                 }`}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-sm">
+                <div className="gba:flex gba:justify-between gba:items-start gba:mb-2">
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    <div className="gba:relative gba:w-10 gba:h-10 gba:rounded-full gba:overflow-hidden gba:border-2 gba:border-white gba:shadow-sm">
                       <img
                         src={`https://randomuser.me/api/portraits/${note.author === "Sarah Johnson" ? "women/45" : note.author === "Michael Chen" ? "men/32" : note.author === "David Rodriguez" ? "men/68" : "women/22"}.jpg`}
                         alt={note.author}
-                        className="object-cover w-full h-full"
+                        className="gba:object-cover gba:w-full gba:h-full"
                       />
                     </div>
                     <div>
-                      <p className="font-medium">{note.author}</p>
-                      <p className="text-xs text-muted-foreground">{formatRelativeTime(note.date)}</p>
+                      <p className="gba:font-medium">{note.author}</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">{formatRelativeTime(note.date)}</p>
                     </div>
                   </div>
                   {/* Voting UI */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center">
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    <div className="gba:flex gba:items-center">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+                        className="gba:h-8 gba:w-8 gba:text-blue-700 gba:hover:text-blue-800 gba:hover:bg-blue-50"
                         onClick={() => handleUpvote(note.id)}
                       >
-                        <ThumbsUp className="h-4 w-4" />
+                        <ThumbsUp className="gba:h-4 gba:w-4" />
                       </Button>
-                      <span className="text-xs font-medium">{note.upvotes}</span>
+                      <span className="gba:text-xs gba:font-medium">{note.upvotes}</span>
                     </div>
-                    <div className="flex items-center">
+                    <div className="gba:flex gba:items-center">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+                        className="gba:h-8 gba:w-8 gba:text-blue-700 gba:hover:text-blue-800 gba:hover:bg-blue-50"
                         onClick={() => handleDownvote(note.id)}
                       >
-                        <ThumbsDown className="h-4 w-4" />
+                        <ThumbsDown className="gba:h-4 gba:w-4" />
                       </Button>
-                      <span className="text-xs font-medium">{note.downvotes}</span>
+                      <span className="gba:text-xs gba:font-medium">{note.downvotes}</span>
                     </div>
                     <TooltipProvider>
                       <Tooltip>
@@ -235,11 +235,11 @@ export function NotesSection() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+                            className="gba:h-8 gba:w-8 gba:text-blue-700 gba:hover:text-blue-800 gba:hover:bg-blue-50"
                             onClick={() => toggleImportance(note.id)}
                           >
                             <Flag
-                              className={`h-4 w-4 ${
+                              className={`gba:h-4 gba:w-4 ${
                                 note.important ? "fill-blue-500 text-blue-500" : "text-muted-foreground"
                               }`}
                             />
@@ -255,9 +255,9 @@ export function NotesSection() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+                          className="gba:h-8 gba:w-8 gba:text-blue-700 gba:hover:text-blue-800 gba:hover:bg-blue-50"
                         >
-                          <MoreHorizontal className="h-4 w-4" />
+                          <MoreHorizontal className="gba:h-4 gba:w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -267,7 +267,7 @@ export function NotesSection() {
                     </DropdownMenu>
                   </div>
                 </div>
-                <p className="text-sm leading-relaxed mt-2">{note.content}</p>
+                <p className="gba:text-sm gba:leading-relaxed gba:mt-2">{note.content}</p>
               </div>
             ))}
           </div>

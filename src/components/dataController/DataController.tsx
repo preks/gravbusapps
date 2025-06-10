@@ -70,12 +70,12 @@ const renderAddButton = (addButton: DataControllerProps['addButton']) => {
   return (
     <button
       type="button"
-      className="px-2 py-0 pl-2 pr-3 gap-1 w-[76px] h-8 rounded bg-black/[0.04] flex flex-row justify-center items-center"
+      className="gba:px-2 gba:py-0 gba:pl-2 gba:pr-3 gba:gap-1 gba:w-[76px] gba:h-8 gba:rounded gba:bg-black/[0.04] gba:flex gba:flex-row gba:justify-center gba:items-center"
       onClick={onClick}
       data-testid={dataTestId}
     >
       {icon ?? <PlusSquareIcon />}
-      <span className="font-normal text-sm leading-4 text-black flex items-center w-[25px] h-4">{label}</span>
+      <span className="gba:font-normal gba:text-sm gba:leading-4 gba:text-black gba:flex gba:items-center gba:w-[25px] gba:h-4">{label}</span>
     </button>
   );
 };
@@ -107,19 +107,19 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   }, [showSearchInput]);
 
   return (
-    <div className="w-full bg-white pt-6 px-6">
+    <div className="gba:w-full gba:bg-white gba:pt-6 gba:px-6">
 
-        <div className="flex flex-row items-center w-full gap-2">
+        <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:gap-2">
           {/* Left: Filter and Search */}
-          <div className="flex flex-row items-center gap-2 pb-5 flex-shrink-0">
+          <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:pb-5 gba:shrink-0">
             {!hideFilter && (
               <button
-                className={`flex flex-row justify-center items-center p-0 w-8 h-8 rounded flex-none order-0 flex-grow-0 ${showDataFilter ? 'bg-black text-white' : 'bg-black/[0.04] text-black'}`}
+                className={`gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:flex-none gba:order-0 gba:grow-0 ${showDataFilter          ? 'gba:bg-black gba:text-white' : 'gba:bg-black/[0.04] gba:text-black'}`}
                 aria-label={showDataFilter ? 'Close filter sidebar' : 'Open filter sidebar'}
                 onClick={onToggleDataFilter}
                 type="button"
               >
-                <div className="w-5 h-5 flex-none order-0 flex-grow-0">
+                <div className="gba:w-5 gba:h-5 gba:flex-none order-0 gba:grow-0">
                   {showDataFilter ? (
                     <PiFunnelSimple fill="#fff" size={20} />
                   ) : (
@@ -130,23 +130,23 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
             )}
             {!showSearchInput ? (
               <button
-                className="flex flex-row justify-center items-center p-0 w-8 h-8 rounded bg-black/[0.04] flex-none order-0 flex-grow-0"
+                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:bg-black/[0.04] gba:flex-none gba:order-0 gba:grow-0"
                 aria-label="Open search"
                 onClick={() => setShowSearchInput(true)}
                 type="button"
               >
-                <div className="w-5 h-5 flex-none order-0 flex-grow-0">
+                <div className="gba:w-5 gba:h-5 gba:flex-none gba:order-0 gba:grow-0">
                   <PiMagnifyingGlass size={20} />
                 </div>
               </button>
             ) : (
-              <div className="flex items-center bg-black/[0.04] rounded px-2 h-8 w-[240px]">
-                <span className="text-gray-500 mr-2">
+              <div className="gba:flex gba:items-center gba:bg-black/[0.04] gba:rounded gba:px-2 gba:h-8 gba:w-[240px]">
+                <span className="gba:text-gray-500 gba:mr-2">
                   <PiMagnifyingGlass size={20} />
                 </span>
                 <input
                   ref={inputRef}
-                  className="bg-transparent border-none outline-none w-full text-sm"
+                  className="gba:bg-transparent gba:border-none gba:outline-none gba:w-full gba:text-sm"
                   type="text"
                   placeholder={placeholder}
                   value={search}
@@ -159,13 +159,13 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
             )}
           {/* Center: List Title */}
           {listTitle && (
-            <div className="flex-1 ml-4 font-semibold text-base text-black truncate">{listTitle}</div>
+            <div className="gba:flex-1 gba:ml-4 gba:font-semibold gba:text-base gba:text-black gba:truncate">{listTitle}</div>
           )}
           {/* Optional: Icon and Amount */}
           {(listIcon || listAmount) && (
-            <div className="flex flex-row items-center gap-2 ml-2">
+            <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:ml-2">
               {listIcon && <span>{listIcon}</span>}
-              {listAmount && <span className="font-semibold text-base text-gray-700">{listAmount}</span>}
+              {listAmount && <span className="gba:font-semibold gba:text-base gba:text-gray-700">{listAmount}</span>}
             </div>
           )}
           </div>
@@ -173,19 +173,19 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
           {/* Right: Actions */}
           {(addButton || actions) && (
             // All actions including Add are right-aligned (ml-auto)
-            <div className="flex flex-row items-center gap-2 pb-5 w-full justify-end">
+            <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:pb-5 gba:w-full gba:justify-end">
               {/* Add Button: match design, no frame, no background, icon left, label right */}
               {addButton && (
                 <button
-                  className="flex flex-row justify-center items-center px-3 py-0 h-8 rounded gap-1"
+                  className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:bg-black/[0.04] gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
                   onClick={addButton.onClick}
                   data-testid={addButton['data-testid']}
                   type="button"
                 >
-                  <span className="w-5 h-5 flex items-center justify-center flex-none order-0 flex-grow-0">
+                  <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
                     {addButton.icon ?? <PlusSquareIcon />}
                   </span>
-                  <span className="w-[25px] h-4 font-normal text-sm leading-4 flex items-center text-black flex-none order-1 flex-grow-0">{addButton.label}</span>
+                  <span className="gba:w-[25px] gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">{addButton.label}</span>
                 </button>
               )}
               {actions && (Array.isArray(actions)
@@ -198,7 +198,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                   return (
                     <div
                       key={key}
-                      className="flex flex-row justify-center items-center px-3 h-8 rounded bg-black/[0.04] gap-1"
+                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:bg-black/[0.04] gba:gap-1"
                     >
                       {action}
                     </div>
@@ -206,7 +206,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                 })
                 : (
                   <div
-                    className="flex flex-row justify-center items-center px-3 h-8 rounded bg-black/[0.04] gap-1"
+                    className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:bg-black/[0.04] gba:gap-1"
                   >
                     {actions}
                   </div>
@@ -216,12 +216,12 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
         </div>
         {/* Filter pills row: always below the bar group, left-aligned */}
         {filter && filter.length > 0 && setFilter && (
-          <div className="flex items-center gap-2 self-start mb-5">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:self-start gba:mb-5">
             {filter.map(val => (
-              <div key={val} className="flex h-6 py-1 px-3 items-center gap-3 rounded-full bg-gray-100">
+              <div key={val} className="gba:flex gba:h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-gray-100">
                 <span>{filterLabelMap?.[val] ?? val}</span>
                 <button
-                  className="ml-0.5 bg-transparent border-none text-gray-800 w-3 h-3 flex items-center justify-center p-0 cursor-pointer rounded-full hover:bg-gray-200 transition-colors"
+                  className="gba:ml-0.5 gba:bg-transparent gba:border-none gba:text-gray-800 gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:p-0 gba:cursor-pointer gba:rounded-full gba:hover:bg-gray-200 gba:transition-colors"
                   onClick={() => setFilter(filter.filter(f => f !== val))}
                   aria-label={`Remove filter ${filterLabelMap?.[val] ?? val}`}
                   tabIndex={0}
@@ -231,9 +231,9 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                 </button>
               </div>
             ))}
-            <button className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 transition-colors" onClick={() => setFilter([])} type="button">
+            <button className="gba:flex gba:items-center gba:gap-1 gba:text-sm gba:text-gray-600 gba:hover:text-gray-800 gba:transition-colors" onClick={() => setFilter([])} type="button">
               <span>Clear all filters</span>
-              <span className="flex items-center justify-center">
+              <span className="gba:flex gba:items-center gba:justify-center">
                 <PiXCircle size={16} />
               </span>
             </button>

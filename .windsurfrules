@@ -38,7 +38,7 @@ When tab components are used, provide a unique hash for each tab to allow direct
 Everytime data querying with GraphQL is needed, use the newwork-graphql-mcp plugin.
 
 4. Component Publishing
-Use npm run publish:screen -- src/business-apps/**/<ScreenName> to publish a screen
+Use npm run publish:screen -- **/<ScreenFolder> to publish a screen
 
 # Project Development
 
