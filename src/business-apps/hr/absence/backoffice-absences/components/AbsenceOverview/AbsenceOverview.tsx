@@ -159,27 +159,7 @@ export const AbsenceOverview: React.FC<BusinessAppContextProps> = ({ accessToken
           today: formatForGraphQL(todayDate)
         };
         
-        console.log('Query variables:', {
-          firstDayOfYear,
-          todayDate,
-          formattedVariables: {
-            startDate: variables.startDate,
-            endDate: variables.endDate,
-            today: variables.today
-          }
-        });
-        
-        console.log('Executing GraphQL query...');
         const result = await graphQLClient.request<AbsenceOverviewResponse>(query, variables);
-        console.log('Query result:', JSON.stringify(result, null, 2));
-
-        console.log('Raw result values:', {
-          totalAbsences: result.totalAbsences?.aggregate?.count,
-          allAbsencesCount: result.allAbsences?.aggregate?.count,
-          effectiveDaysSum: result.allAbsences?.aggregate?.sum?.effectiveDays,
-          approvedCount: result.approvedCount?.aggregate?.count,
-          pendingCount: result.pendingAbsences?.aggregate?.count
-        });
 
         const totalAbsences = result.totalAbsences?.aggregate?.count || 0;
         const totalAbsencesCount = result.allAbsences?.aggregate?.count || 0;
