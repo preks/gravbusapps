@@ -691,13 +691,12 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
             <div className="gba:key-people-section">
               <div className="gba:people-group">
                 <div className="gba:people-group-title">Founders</div>
-                {console.log('RENDER founders:', companyData.keyPeople.founders) || true}
-{companyData.keyPeople.founders.length === 0 ? (
-  <Text type="secondary">No founders available</Text>
-) : (
-  companyData.keyPeople.founders.map((person, index) => (
-    <div key={index} className="gba:person-card">
-      <Avatar 
+                {companyData.keyPeople.founders.length === 0 ? (
+                  <Text type="secondary">No founders available</Text>
+                ) : (
+                  companyData.keyPeople.founders.map((person, index) => (
+                    <div key={index} className="gba:person-card">
+                      <Avatar 
         size={40} 
         src={person.avatar}
         className="gba:person-avatar"

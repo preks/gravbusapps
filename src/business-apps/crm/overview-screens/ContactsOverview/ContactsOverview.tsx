@@ -4,17 +4,20 @@ import {
   Input, 
   Button, 
   Typography, 
-  Card, 
+  Card,
   Row, 
   Col, 
+  Grid,
+  Spin,
+  message,
+  Modal,
   Dropdown,
   Menu,
-  Empty,
-  Badge,
   List,
-  Grid,
-  Spin
+  Empty,
+  Badge
 } from 'antd';
+import type { MenuInfo } from 'rc-menu/lib/interface';
 import { 
   SearchOutlined, 
   PlusOutlined, 
@@ -30,18 +33,24 @@ import {
   GlobalOutlined
 } from '@ant-design/icons';
 import { useContactsData, Contact } from './hooks/useContactsData';
-import { BusinessAppContextProps } from '../../../../common/BusinessAppContext';
+import { BusinessAppContextProps } from '../../../types';
+import { ContactProfile } from '../../../irm/contact-screens/ContactProfile/ContactProfile';
 
 const { Title, Text, Paragraph } = Typography;
 const { useBreakpoint } = Grid;
 
 interface ExtendedContact extends Contact {
-  company?: string;
+  key: string;
+  fullName: string;
+  company: string;
   position?: string;
+  version?: number;
   status?: 'active' | 'inactive';
   relatedOpportunities?: Array<{
     id: string;
     name: string;
+    stage: string;
+    value: number;
   }>;
   isPrimary?: boolean;
   lastUpdated?: string;
@@ -57,27 +66,40 @@ interface MetricCardProps {
   iconColor: string;
 }
 
-export function ContactsOverview({ accessToken }: BusinessAppContextProps) {
+export function ContactsOverview({ accessToken, employeeId }: BusinessAppContextProps) {
   const [searchText, setSearchText] = useState('');
+  const [selectedContactId, setSelectedContactId] = useState<string | undefined>();
+  const [isContactProfileVisible, setIsContactProfileVisible] = useState(false);
+  const [isNewContact, setIsNewContact] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isDeletingContact, setIsDeletingContact] = useState(false);
   const screens = useBreakpoint();
   const [isMobile, setIsMobile] = useState(false);
+  const [contacts, setContacts] = useState<ExtendedContact[]>([]);
   
   useEffect(() => {
     setIsMobile(!screens.md);
   }, [screens]);
   
-  const { contacts: contactsData, metrics: metricsData, loading, error } = useContactsData(accessToken);
-  const contacts: ExtendedContact[] = contactsData.map(contact => ({
-    ...contact,
-    position: contact.jobTitle,
-    isPrimary: contact.mainContact,
-    lastUpdated: contact.updatedAt || contact.createdAt,
-    jobTitle: contact.jobTitle,
-    status: 'active' as const,
-    company: contact.ownerEmployee?.employeePosition?.company?.name || '',
-    relatedOpportunities: []
-  }));
-
+  const { contacts: contactsData, metrics: metricsData, loading, error, refetch: refetchContacts } = useContactsData(accessToken);
+  
+  useEffect(() => {
+    if (contactsData && contactsData.length > 0) {
+      setContacts(contactsData.map(contact => ({
+        ...contact,
+        key: contact.id,
+        fullName: `${contact.firstName} ${contact.lastName}`,
+        position: contact.jobTitle || '',
+        isPrimary: false,
+        lastUpdated: contact.updatedAt,
+        jobTitle: contact.jobTitle || '',
+        status: 'active' as const,
+        company: contact.ownerEmployee?.employeePosition?.company?.name || '',
+        relatedOpportunities: []
+      })));
+    }
+  }, [contactsData]);
+  
   const metrics: MetricCardProps[] = [
     {
       title: 'Total Contacts',
@@ -129,10 +151,15 @@ export function ContactsOverview({ accessToken }: BusinessAppContextProps) {
       }
       
       const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-      
-      if (diffInSeconds < 60) {
-        return `${diffInSeconds} seconds ago${isCreatedAt ? '' : ''}`;
+    
+    if (diffInSeconds < 60) {
+      // Handle edge cases: negative or zero seconds should show as "1 second ago"
+      if (diffInSeconds <= 0) {
+        return `1 second ago${isCreatedAt ? '' : ''}`;
       }
+      // Handle singular/plural form correctly
+      return `${diffInSeconds} ${diffInSeconds === 1 ? 'second' : 'seconds'} ago${isCreatedAt ? '' : ''}`;
+    }  
       
       const diffInMinutes = Math.floor(diffInSeconds / 60);
       if (diffInMinutes < 60) {
@@ -171,8 +198,75 @@ export function ContactsOverview({ accessToken }: BusinessAppContextProps) {
     return `${contact.firstName} ${contact.lastName}`;
   };
   
+  // Function to show contact profile component
   const handleRowClick = (record: ExtendedContact) => {
-    console.log('Opening detail view for contact:', record.id);
+    if (record && record.id) {
+      setSelectedContactId(record.id);
+      setIsContactProfileVisible(true);
+      setIsNewContact(false);
+      setIsEditMode(false);
+    } else {
+      message.error('Contact ID not found');
+    }
+  };
+  
+  // Function to handle back button click in contact profile
+  const handleContactProfileBack = () => {
+    setIsContactProfileVisible(false);
+    setSelectedContactId(undefined);
+    setIsNewContact(false);
+    setIsEditMode(false);
+  };
+  
+  // Function to create a new contact
+  const handleAddContact = () => {
+    setIsNewContact(true);
+    setIsEditMode(true);
+    setIsContactProfileVisible(true);
+    setSelectedContactId(undefined);
+  };
+  
+  // Function to delete a contact
+  const handleDeleteContact = async (contact: ExtendedContact) => {
+    if (!contact || !contact.id) {
+      message.error('Cannot delete: Contact information is missing');
+      return;
+    }
+    
+    try {
+      setIsDeletingContact(true);
+      
+      const deletePayload = {
+        changeMode: "DELETE",
+        contact: {
+          id: contact.id,
+          version: contact.version
+        }
+      };
+      
+      const response = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveContact', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(deletePayload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to delete contact: ${response.statusText}`);
+      }
+      
+      message.success('Contact deleted successfully');
+      
+      // Refresh the contacts list
+      refetchContacts();
+    } catch (error) {
+      console.error('Error deleting contact:', error);
+      message.error(`Failed to delete contact: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDeletingContact(false);
+    }
   };
   
   const columns = [
@@ -279,7 +373,7 @@ export function ContactsOverview({ accessToken }: BusinessAppContextProps) {
       title: '',
       key: 'actions',
       width: 80,
-      render: () => (
+      render: (_: any, record: ExtendedContact) => (
         <Dropdown
           overlay={
             <Menu
@@ -287,11 +381,37 @@ export function ContactsOverview({ accessToken }: BusinessAppContextProps) {
                 {
                   key: '1',
                   icon: <EditOutlined />,
-                  label: 'Edit'
+                  label: 'Edit',
+                  onClick: (info: MenuInfo) => {
+                    info.domEvent.stopPropagation();
+                    
+                    setTimeout(() => {
+                      setSelectedContactId(record.id);
+                      setIsContactProfileVisible(true);
+                      setIsNewContact(false);
+                      setIsEditMode(true);
+                    }, 0);
+                  }
                 },
                 {
                   key: '2',
                   icon: <DeleteOutlined />,
+                  onClick: (info: MenuInfo) => {
+                    info.domEvent.stopPropagation();
+                    
+                    Modal.confirm({
+                      title: 'Delete Contact',
+                      content: 'Are you sure you want to delete this contact? This action cannot be undone.',
+                      okText: 'Delete',
+                      okType: 'danger',
+                      cancelText: 'Cancel',
+                      okButtonProps: { loading: isDeletingContact },
+                      onOk: () => {
+                        setTimeout(() => handleDeleteContact(record), 0);
+                      },
+                      maskClosable: true,
+                    });
+                  },
                   label: 'Delete',
                   danger: true
                 }
@@ -353,30 +473,37 @@ export function ContactsOverview({ accessToken }: BusinessAppContextProps) {
   };
 
 
-  const filteredContacts = contacts.filter(contact => {
-    if (!searchText.trim()) {
-      return true;
-    }
-    
-    const query = searchText.toLowerCase().trim();
-    
-    const fullName = getFullName(contact).toLowerCase();
-    const firstName = (contact.firstName || '').toLowerCase();
-    const lastName = (contact.lastName || '').toLowerCase();
-    
-    const email = (contact.email || '').toLowerCase();
-    
-    const company = (contact.company || '').toLowerCase();
-    
-    const phone = (contact.phone || '').toLowerCase();
-    
-    return fullName.includes(query) ||
-           firstName.includes(query) ||
-           lastName.includes(query) ||
-           email.includes(query) ||
-           company.includes(query) ||
-           phone.includes(query);
-  });
+  const filteredContacts = contacts
+    .filter(contact => {
+      if (!searchText.trim()) {
+        return true;
+      }
+      
+      const query = searchText.toLowerCase().trim();
+      
+      const fullName = getFullName(contact).toLowerCase();
+      const firstName = (contact.firstName || '').toLowerCase();
+      const lastName = (contact.lastName || '').toLowerCase();
+      
+      const email = (contact.email || '').toLowerCase();
+      
+      const company = (contact.company || '').toLowerCase();
+      
+      const phone = (contact.phone || '').toLowerCase();
+      
+      return fullName.includes(query) ||
+             firstName.includes(query) ||
+             lastName.includes(query) ||
+             email.includes(query) ||
+             company.includes(query) ||
+             phone.includes(query);
+    })
+    // Sort contacts by creation date (newest first)
+    .sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA; // Descending order (newest first)
+    });
 
   const renderContactCard = (contact: ExtendedContact) => (
     <List.Item 
@@ -426,12 +553,39 @@ export function ContactsOverview({ accessToken }: BusinessAppContextProps) {
                   {
                     key: '1',
                     icon: <EditOutlined />,
-                    label: 'Edit'
+                    label: 'Edit',
+                    onClick: (e) => {
+                      e.domEvent.stopPropagation();
+                      handleRowClick(contact);
+                      setIsEditMode(true);
+                    }
                   },
                   {
                     key: '2',
                     icon: <DeleteOutlined />,
-                    label: 'Delete',
+                    label: (
+                      <span
+                        onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
+                          e.stopPropagation();
+                          // Show confirmation modal
+                          Modal.confirm({
+                            title: 'Delete Contact',
+                            content: 'Are you sure you want to delete this contact? This action cannot be undone.',
+                            okText: 'Delete',
+                            okType: 'danger',
+                            cancelText: 'Cancel',
+                            okButtonProps: { loading: isDeletingContact },
+                            onOk: () => {
+                              // Add a small delay to ensure the event doesn't propagate
+                              setTimeout(() => handleDeleteContact(contact), 0);
+                            },
+                            maskClosable: true,
+                          });
+                        }}
+                      >
+                        Delete
+                      </span>
+                    ),
                     danger: true
                   }
                 ]}
@@ -449,14 +603,32 @@ export function ContactsOverview({ accessToken }: BusinessAppContextProps) {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* Header Section */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div>
-          <Title level={2} style={{ margin: 0 }}>Contacts</Title>
-          <Paragraph type='secondary'>Manage your investor contacts and their information.</Paragraph>
-        </div>
-        <Button type='primary' icon={<PlusOutlined />}>Add Contact</Button>
-      </div>
+      {isContactProfileVisible ? (
+        <ContactProfile
+          accessToken={accessToken}
+          employeeId={employeeId}
+          contactId={selectedContactId}
+          isEditMode={isEditMode}
+          isNewContact={isNewContact}
+          onBack={handleContactProfileBack}
+          onDelete={refetchContacts}
+        />
+      ) : (
+        <>
+          {/* Header Section */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div>
+              <Title level={2} style={{ margin: 0 }}>Contacts</Title>
+              <Paragraph type='secondary'>Manage your investor contacts and their information.</Paragraph>
+            </div>
+            <Button 
+              type='primary' 
+              icon={<PlusOutlined />} 
+              onClick={handleAddContact}
+            >
+              Add Contact
+            </Button>
+          </div>
 
       {/* Metrics Section */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
@@ -493,7 +665,7 @@ export function ContactsOverview({ accessToken }: BusinessAppContextProps) {
         ) : error ? (
           <div style={{ textAlign: 'center', padding: '50px', color: 'red' }}>
             <div>Error loading contacts: {error.message}</div>
-            <Button type="primary" onClick={() => window.location.reload()} style={{ marginTop: '20px' }}>
+            <Button type="primary" onClick={refetchContacts} style={{ marginTop: '20px' }}>
               Retry
             </Button>
           </div>
@@ -522,6 +694,8 @@ export function ContactsOverview({ accessToken }: BusinessAppContextProps) {
           />
         )}
       </Card>
+        </>
+      )}
     </div>
   );
 }

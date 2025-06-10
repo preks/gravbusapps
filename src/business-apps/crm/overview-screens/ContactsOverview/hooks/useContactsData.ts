@@ -9,7 +9,6 @@ export interface Contact {
   email: string;
   phone: string;
   jobTitle: string;
-  mainContact: boolean;
   linkedinUrl?: string;
   xingUrl?: string;
   updatedAt?: string;
@@ -47,7 +46,7 @@ export interface ContactsMetrics {
 // GraphQL query to fetch contacts
 const CONTACTS_QUERY = `
   query GetContacts {
-    Contact {
+    Contact(where: { isDeleted: { _eq: false } }) {
       ownerEmployee {
         fullName
         employeePosition {
@@ -61,12 +60,13 @@ const CONTACTS_QUERY = `
       jobTitle
       firstName
       lastName
-      mainContact
       linkedinUrl
       updatedAt
       createdAt
       xingUrl
       id
+      version
+      isDeleted
     }
   }
 `;
@@ -82,8 +82,7 @@ export const useContactsData = (accessToken: string) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   
-  const client = useGraphqlClient(accessToken);
-
+  const client = useGraphqlClient(accessToken)
   const fetchContacts = async () => {
     try {
       setLoading(true);
