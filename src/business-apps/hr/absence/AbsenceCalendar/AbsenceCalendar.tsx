@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
-import { Calendar, List, Tag, Typography, Tabs } from "antd";
+import { Calendar, Tag, Typography, Tabs } from "antd";
+import { AbsenceListDisplay } from "./AbsenceListDisplay";
 import dayjs, { Dayjs } from "dayjs";
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import "./AbsenceCalendar.css";
 import {
   useGetEmployeeAbsences,
@@ -13,6 +15,7 @@ import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
 dayjs.extend(weekday)
 dayjs.extend(localeData)
+dayjs.extend(isSameOrAfter)
 
 const { Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -34,7 +37,7 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = (props) => {
     accessToken,
   });
 
-  const now = useMemo(() => new Date(), []);
+  const now = useMemo(() => dayjs(), []);
 
   const mapAbsence = (absence: EmployeeAbsence) => {
     let tagColor: string | undefined = undefined;
@@ -52,7 +55,7 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = (props) => {
       startDate: absence.startDate?.slice(0, 10),
       endDate: absence.endDate?.slice(0, 10),
       type: absence.type.value,
-      status: absence.status,
+      status: absence.status || '',
       tagColor,
       description: absence.description || "",
     };
@@ -65,22 +68,23 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = (props) => {
   const upcomingAbsences = useMemo(
     () =>
       mappedAbsences
-        .filter((absence) => absence.endDate && new Date(absence.endDate) >= now)
-        .sort((a, b) => {
-          const aDate = new Date(a.startDate ?? '').getTime();
-          const bDate = new Date(b.startDate ?? '').getTime();
-          return aDate - bDate;
+        .filter((absence) => absence.endDate && dayjs(absence.endDate).isSameOrAfter(now, 'day'))
+        .sort((sDate, eDate) => {
+          const startDate = dayjs(sDate.startDate ?? '').valueOf();
+          const endDate = dayjs(eDate.endDate ?? '').valueOf();
+          return startDate - endDate;
         }),
     [mappedAbsences, now]
   );
+
   const pastAbsences = useMemo(
     () =>
       mappedAbsences
-        .filter((absence) => absence.endDate && new Date(absence.endDate) < now)
-        .sort((a, b) => {
-          const aDate = new Date(a.endDate ?? '').getTime();
-          const bDate = new Date(b.endDate ?? '').getTime();
-          return bDate - aDate;
+        .filter((absence) => absence.endDate && dayjs(absence.endDate).isBefore(now, 'day'))
+        .sort((sDate, eDate) => {
+          const endDate = dayjs(eDate.endDate ?? '').valueOf();
+          const startDate = dayjs(sDate.startDate ?? '').valueOf();
+          return endDate - startDate;
         }),
     [mappedAbsences, now]
   );
@@ -91,7 +95,7 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = (props) => {
       (absence) => dateStr >= absence.startDate && dateStr <= absence.endDate
     );
     return items.length ? (
-      <ul className="absence-calendar-date-list">
+      <ul>
         {items.map((item) => (
           <li key={item.id}>
             <Tag
@@ -103,9 +107,6 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = (props) => {
             >
               <div className="absence-calendar-type">{item.type}</div>
             </Tag>
-            {item.description && (
-              <div className="absence-calendar-description">{item.description}</div>
-            )}
           </li>
         ))}
       </ul>
@@ -117,6 +118,7 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = (props) => {
       <div className="absence-calendar-loading">Loading absences...</div>
     );
   }
+
   if (error) {
     return (
       <div className="absence-calendar-error">Error loading absences.</div>
@@ -165,94 +167,42 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = (props) => {
         </TabPane>
         <TabPane tab="Upcoming Absences" key="upcoming">
           <Paragraph
-            className="gba:font-semibold gba:text-lg"
-            style={{ marginBottom: 16 }}
+            className="gba:font-semibold gba:text-lg gba:mb-6"
           >
             These are your upcoming absences as recorded in the system.
           </Paragraph>
-          <List
-            itemLayout="vertical"
-            dataSource={upcomingAbsences}
-            locale={{ emptyText: "No upcoming absences." }}
-            pagination={{
-              current: upcomingPage,
-              pageSize: upcomingPageSize,
-              onChange: (page, pageSize) => {
-                setUpcomingPage(page);
-                setUpcomingPageSize(pageSize);
-              },
-              showSizeChanger: true,
-              pageSizeOptions: ['10', '20', '50', '100'],
+          <AbsenceListDisplay
+            absences={upcomingAbsences}
+            title={undefined}
+            page={upcomingPage}
+            pageSize={upcomingPageSize}
+            total={upcomingAbsences.length}
+            onPageChange={(page, pageSize) => {
+              setUpcomingPage(page);
+              setUpcomingPageSize(pageSize);
             }}
-            renderItem={(item) => {
-              const isSameDay = item.startDate === item.endDate;
-              return (
-                <List.Item key={item.id} className="absence-event-item">
-                  <div className="absence-event-row">
-                    <div className="absence-event-date">
-                      {isSameDay
-                        ? `Date: ${item.startDate}`
-                        : `From: ${item.startDate} - To: ${item.endDate}`}
-                    </div>
-                    <span>Type: </span>
-                    <Tag
-                      color={item.tagColor}
-                      className={`absence-event-tag${item.status === 'PENDING' ? ' absence-pending' : ''}`}
-                    >
-                      {item.type}
-                    </Tag>
-                    <div className="absence-event-status">Status: {item.status}</div>
-                    {item.description && <div className="absence-event-description">Note: {item.description}</div>}
-                  </div>
-                </List.Item>
-              );
-            }}
+            accessToken={accessToken}
+            userInfo={userInfo}
           />
         </TabPane>
         <TabPane tab="Past Absences" key="past">
           <Paragraph
-           className="gba:font-semibold gba:text-lg"
-            style={{ marginBottom: 16 }}
+            className="gba:font-semibold gba:text-lg gba:mb-6"
           >
             These are your past absences as recorded in the system.
           </Paragraph>
-          <List
-            itemLayout="vertical"
-            dataSource={pastAbsences}
-            locale={{ emptyText: "No past absences." }}
-            pagination={{
-              current: pastPage,
-              pageSize: pastPageSize,
-              onChange: (page, pageSize) => {
-                setPastPage(page);
-                setPastPageSize(pageSize);
-              },
-              showSizeChanger: true,
-              pageSizeOptions: ['10', '20', '50', '100'],
+          <AbsenceListDisplay
+            absences={pastAbsences}
+            title={undefined}
+            page={pastPage}
+            pageSize={pastPageSize}
+            total={pastAbsences.length}
+            onPageChange={(page, pageSize) => {
+              setPastPage(page);
+              setPastPageSize(pageSize);
             }}
-            renderItem={(item) => {
-              const isSameDay = item.startDate === item.endDate;
-              return (
-                <List.Item key={item.id} className="absence-event-item">
-                  <div className="absence-event-row">
-                    <div className="absence-event-date">
-                      {isSameDay
-                        ? `Date: ${item.startDate}`
-                        : `From: ${item.startDate} - To: ${item.endDate}`}
-                    </div>
-                    <span>Type: </span>
-                    <Tag
-                      color={item.tagColor}
-                      className={`absence-event-tag${item.status === 'PENDING' ? ' absence-pending' : ''}`}
-                    >
-                      {item.type}
-                    </Tag>
-                    <div className="absence-event-status">Status: {item.status}</div> 
-                    {item.description && <div className="absence-event-description">Note: {item.description}</div>}
-                  </div>
-                </List.Item>
-              );
-            }}
+            accessToken={accessToken}
+            userInfo={userInfo}
           />
         </TabPane>
       </Tabs>

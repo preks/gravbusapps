@@ -105,6 +105,15 @@
   font-style: italic;
   gap: 6px;
 }
+
+.absence-calendar-tabs .ant-tabs-tab-active {
+  border-bottom: none !important;
+}
+
+.absence-calendar-tabs .ant-tabs-ink-bar {
+  display: none !important;
+}
+
 .absence-event-dot {
   width: 7px;
   height: 7px;
@@ -120,7 +129,6 @@
 .absence-calendar-tabs .ant-tabs-nav-list {
   background: #efeff1;
   border-radius: 40px;
-  padding: 0 8px;
   display: flex;
   gap: 4px;
   border: none !important;
@@ -167,4 +175,8 @@
 }
 .absence-pending {
   opacity: 0.5;
+}
+
+.absence-calendar-root {
+  padding: 30px 25px 25px 25px;
 }
