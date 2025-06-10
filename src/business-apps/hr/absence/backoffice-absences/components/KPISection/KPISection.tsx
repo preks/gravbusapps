@@ -13,7 +13,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { RiBarChartLine, RiPieChart2Line, RiMedalLine } from "@remixicon/react";
+import { RiBarChartLine, RiPieChart2Line, RiBarChart2Line } from "@remixicon/react";
 import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
 import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -89,6 +89,8 @@ const GET_EMPLOYEE_ABSENCES = `
   }
 `;
 
+
+
 const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +101,10 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const [organizedAbsences, setOrganizedAbsences] = useState<{
     [month: string]: { [type: string]: number };
   }>({});
+  const [departmentData, setDepartmentData] = useState<Array<{
+    department: string;
+    absences: number;
+  }>>([]);
 
   const graphQLClient = useGraphqlClient(accessToken);
   const catalogClient = useCatalogManagerClient(accessToken);
@@ -147,6 +153,30 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
           },
         }));
         setAbsences(enrichedAbsences);
+
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        const departmentMap: { [key: string]: number } = {};
+
+        enrichedAbsences.forEach((absence) => {
+          const startDate = new Date(absence.startDate);
+          if (startDate.getMonth() === currentMonth && startDate.getFullYear() === currentYear) {
+            const dept = absence.employee.employeePosition?.organizationalUnit?.name || 'No Department';
+            departmentMap[dept] = (departmentMap[dept] || 0) + (absence.effectiveDays || 0);
+          }
+        });
+
+        const deptData = Object.entries(departmentMap)
+          .map(([department, absences]) => ({
+            department,
+            absences: Math.round(absences * 10) / 10
+          }))
+          .sort((a, b) => b.absences - a.absences)
+          .slice(0, 5);
+
+        setDepartmentData(deptData);
 
         const grouped: { [month: string]: { [type: string]: number } } = {};
         enrichedAbsences.forEach((absence) => {
@@ -236,20 +266,19 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   );
   const vacationDays = pieDataMap["Vacation"] || 0;
   const vacationShare = ((vacationDays / totalAbsenceDays) * 100).toFixed(1);
-  const maxAbsenceDays = Math.max(...absences.map((abs) => abs.effectiveDays));
 
   return (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
       <Card className="hover:shadow-md transition-shadow">
-        <div className="flex flex-row items-center justify-between pb-2">
-  <div>
-    <Title level={5} className="gba:text-sm gba:font-medium">Absence Trends</Title>
-    <p className="gba:text-xs gba:text-muted-foreground">Monthly absence days by group</p>
-    <div className="gba:text-2xl gba:font-bold gba:pt-2 gba:text-left">{totalAbsenceDays}</div>
-    <div className="gba:text-xs gba:text-muted-foreground gba:text-left gba:pb-3">Total Absence Days</div>
-  </div>
-  <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-gray-500 gba:ml-2" />
-</div>
+      <div className="gba:flex gba:flex-row gba:items-start gba:justify-between">
+        <div>
+          <Title level={5} className="gba:!mb-0 gba:!text-sm gba:!font-medium gba:pb-2">Absence Trends</Title>
+          <p className="gba:text-xs gba:text-muted-foreground">Monthly absence days by group</p>
+          <div className="gba:mt-2 gba:text-2xl gba:font-bold">{totalAbsenceDays}</div>
+          <div className="gba:mt-1 gba:text-xs gba:text-muted-foreground">Total Absence Days</div>
+        </div>
+        <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-gray-500 gba:mt-1" />
+      </div>
         <div className="gba:p-4 gba:h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={barChartData}>
@@ -257,25 +286,25 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
               <XAxis dataKey="month" />
               <YAxis />
               <RechartsTooltip
-  content={({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div style={{ background: 'white', borderRadius: 8, boxShadow: '0 2px 8px #0001', padding: 12, fontSize: 13 }}>
-          <div style={{ fontWeight: 600, marginBottom: 6 }}>{label}</div>
-          {payload.map((entry, idx) => (
-  typeof entry.value === 'number' && entry.value > 0 && (
-    <div key={entry.dataKey} style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
-      <span style={{ width: 12, height: 12, background: entry.color, display: 'inline-block', borderRadius: 3, marginRight: 6 }} />
-      <span>{entry.dataKey}: {entry.value} days</span>
-    </div>
-  )
-))}
-        </div>
-      );
-    }
-    return null;
-  }}
-/>
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div style={{ background: 'white', borderRadius: 8, boxShadow: '0 2px 8px #0001', padding: 12, fontSize: 13 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 6 }}>{label}</div>
+                        {payload.map((entry, idx) => (
+                          typeof entry.value === 'number' && entry.value > 0 && (
+                            <div key={entry.dataKey} style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
+                              <span style={{ width: 12, height: 12, background: entry.color, display: 'inline-block', borderRadius: 3, marginRight: 6 }} />
+                              <span>{entry.dataKey}: {entry.value} days</span>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
               <Legend />
               {Array.from(uniqueGroups).map((group) => (
                 <Bar
@@ -295,10 +324,10 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
         <div className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2">
           <div>
             <Title level={5} className="gba:text-sm gba:font-medium">
-              Absence Distribution
+            Absence Approvals
             </Title>
             <p className="gba:text-xs gba:text-muted-foreground">
-              Total absence days by group
+            Status of absence requests
             </p>
           </div>
           <RiPieChart2Line className="gba:h-6 gba:w-6 gba:text-gray-500" />
@@ -307,7 +336,7 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
           {vacationShare}%
         </div>
         <div className="gba:text-xs gba:text-muted-foreground gba:text-left gba:pb-3">
-          Vacation Share
+          Approved Rate
         </div>
         <div className="gba:p-4 gba:h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -394,102 +423,85 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
         </div>
       </Card>
 
-      <Card className="gba:hover:shadow-md gba:transition-shadow gba:flex gba:flex-col gba:justify-between gba:text-left gba:min-h-[370px]">
+      <Card className="gba:hover:shadow-md gba:transition-shadow">
         <div className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2">
           <div>
             <Title level={5} className="gba:text-sm gba:font-medium">
-              Top Absentees
+              Department Insights
             </Title>
             <p className="gba:text-xs gba:text-muted-foreground">
-              Employees with most absence days
+              Absences by department in {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
             </p>
           </div>
-          <span className="gba:text-xl">
-            <RiMedalLine className="gba:h-6 gba:w-6 gba:text-gray-500 gba:rotate-90" />
-          </span>
+          <RiBarChart2Line className="gba:h-4 gba:w-4" />
         </div>
-        <div className="gba:text-2xl gba:font-bold gba:pt-2">{maxAbsenceDays}</div>
-        <div className="gba:text-xs gba:text-muted-foreground gba:pb-3">
-          Max Absence Days
+        
+        <div className="gba:mb-3">
+          <div className="gba:text-2xl gba:font-bold">
+            {departmentData.length > 0 ? Math.max(...departmentData.map(item => item.absences)) : 0}
+          </div>
+          <p className="gba:text-xs gba:text-muted-foreground">Max Absence Days</p>
         </div>
-
-        <div className="gba:space-y-2">
-          {(() => {
-            const employeeMap: {
-              [id: string]: {
-                name: string;
-                department: string;
-                total: number;
-                colorIdx: number;
-                absences: EmployeeAbsence[];
-              };
-            } = {};
-            absences.forEach((abs) => {
-              const id = abs.employee.id;
-              if (!employeeMap[id]) {
-                employeeMap[id] = {
-                  name: `${abs.employee.firstName} ${abs.employee.lastName}`,
-                  department:
-                    abs.employee.employeePosition?.organizationalUnit?.name ||
-                    "",
-                  total: 0,
-                  colorIdx: Object.keys(employeeMap).length,
-                  absences: [],
-                };
-              }
-              employeeMap[id].total += abs.effectiveDays;
-              employeeMap[id].absences.push(abs);
-            });
-
-            const top = Object.values(employeeMap)
-              .sort((a, b) => b.total - a.total)
-              .slice(0, 5);
-
-            return top.map((emp, idx) => (
-              <div
-                key={emp.name + idx}
-                className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2"
+        
+        {departmentData.length > 0 ? (
+          <div style={{ width: '100%', height: 180 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={departmentData}
+                layout="vertical"
+                margin={{ top: 20, right: 0, left: -90, bottom: 10 }}
+                barCategoryGap={12}
               >
-                <div>
-                  <div className="gba:text-sm gba:font-medium gba:leading-tight">
-                    {emp.name}
-                  </div>
-                  <div className="gba:text-xs gba:text-muted-foreground">
-                    {emp.department} &bull; {emp.total} days
-                  </div>
-                </div>
-                <div className="gba:flex gba:flex-row gba:gap-2 gba:pr-1">
-                  {[
-                    { color: "#fb7185", group: "Sick Leave" },
-                    { color: "#34d399", group: "Vacation" },
-                    { color: "#a78bfa", group: "Special Leave" },
-                    { color: "#38bdf8", group: "Work Leave" },
-                  ].map(({ color, group }, i) => {
-                    const days = emp.absences
-                      .filter((a) => a.type.groupName === group)
-                      .reduce((sum, a) => sum + a.effectiveDays, 0);
-                    return (
-                      <Tooltip
-                        key={i}
-                        title={`${group}: ${days} days`}
-                        placement="top"
-                      >
-                        <span
-                          className="gba:inline-block gba:w-3 gba:h-3 gba:rounded-full"
-                          style={{
-                            backgroundColor: color,
-                            opacity: 0.85,
-                            cursor: "pointer",
-                          }}
-                        />
-                      </Tooltip>
-                    );
-                  })}
-                </div>
-              </div>
-            ));
-          })()}
-        </div>
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
+                <XAxis 
+                  type="number" 
+                  allowDecimals={false} 
+                  fontSize={10} 
+                  tickMargin={5}
+                  tickLine={false}
+                  axisLine={{ stroke: '#d9d9d9' }}
+                />
+                <YAxis 
+                  dataKey="department" 
+                  type="category" 
+                  width={200}
+                  fontSize={11} 
+                  tickMargin={8}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={0}
+                  tick={{
+                    fontSize: 11,
+                  }}
+                  tickFormatter={(value) => {
+                    return value === 'No Department' ? 'Other' : value;
+                  }}
+                />
+                <RechartsTooltip 
+                  cursor={{ fill: '#f3f4f6' }} 
+                  formatter={(value: number) => [`${value} days`, 'Absence Days']}
+                  labelFormatter={(label) => `Department: ${label === 'No Department' ? 'Other' : label}`}
+                />
+                <Bar 
+                  dataKey="absences" 
+                  fill="#38bdf8" 
+                  radius={[4, 4, 4, 4]}
+                  barSize={16}
+                  minPointSize={3}
+                  background={{ fill: '#f3f4f6' }}
+                >
+                  {departmentData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill="#38bdf8" />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="gba:flex gba:justify-center gba:items-center gba:h-[180px] gba:bg-gray-50 gba:rounded-md">
+            <p className="gba:text-xs gba:text-gray-500">Loading insights data...</p>
+          </div>
+        )}
       </Card>
     </div>
   );

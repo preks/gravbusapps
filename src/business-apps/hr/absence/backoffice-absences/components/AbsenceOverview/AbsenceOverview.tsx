@@ -4,21 +4,6 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useEffect, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
-interface Absence {
-  startDate: string;
-  endDate: string;
-  status: string;
-  type: {
-    value: string;
-    code: string;
-    id: string;
-    objectValue: string;
-    translations: {
-      localeCode: string;
-      value: string;
-    }[];
-  };
-}
 
 interface StatusCard {
   title: string;
@@ -31,15 +16,20 @@ interface StatusCard {
 }
 
 interface AbsenceOverviewResponse {
-  todayAbsences: Array<{
-    status: string;
-    effectiveDays: number;
-  }>;
-  allAbsences: Array<{
-    effectiveDays: number;
-    status: string;
-  }>;
-  pendingCount: {
+  totalAbsences: {
+    aggregate: {
+      count: number;
+    };
+  };
+  allAbsences: {
+    aggregate: {
+      count: number;
+      sum: {
+        effectiveDays: number | null;
+      };
+    };
+  };
+  pendingAbsences: {
     aggregate: {
       count: number;
     };
@@ -96,77 +86,121 @@ export const AbsenceOverview: React.FC<BusinessAppContextProps> = ({ accessToken
   useEffect(() => {
     const fetchAndSetAbsenceData = async () => {
       try {
-        const todayDate = new Date().toISOString().split('T')[0];
-        const currentYear = new Date().getFullYear();
-        const lastDayOfYear = new Date(currentYear, 11, 31).toISOString().split('T')[0];
+        const today = new Date();
+        const todayDate = today.toISOString().split('T')[0];
+        const currentYear = today.getFullYear();
+        const firstDayOfYear = new Date(Date.UTC(currentYear, 0, 1)).toISOString().split('T')[0];
+
+        
+        const formatForGraphQL = (dateStr: string) => `${dateStr}T00:00:00.000Z`;
         
         const query = `
-          query GetAbsenceOverview {
-            todayAbsences: EmployeeAbsence(
-              where: {
-                startDate: {_eq: "${todayDate}"}, 
-                isDeleted: {_eq: false},
-                status: {_in: ["PENDING", "APPROVED"]}
-              }
-            ) {
-              status
-              effectiveDays
+        query GetAbsenceOverview($startDate: timestamp!, $endDate: timestamp!, $today: timestamp!) {
+          totalAbsences: EmployeeAbsenceAggregate(
+           where: {
+              status: {_in: ["PENDING", "APPROVED", "REJECTED"]}, 
+              startDate: {_gte: $startDate}, 
+              endDate: {_lte: $endDate}, 
+              isDeleted: {_eq: false}
             }
-            allAbsences: EmployeeAbsence(
-              where: {
-                isDeleted: {_eq: false},
-                status: {_in: ["PENDING", "APPROVED"]}
-              }
-            ) {
-              effectiveDays
-              status
+          ) {
+            aggregate {
+              count
+          }
+        }
+          allAbsences: EmployeeAbsenceAggregate(
+            where: {
+              isDeleted: {_eq: false},
+              status: {_in: ["PENDING", "APPROVED", "REJECTED"]},
+              startDate: {_gte: $startDate, _lte: $endDate}
             }
-            pendingCount: EmployeeAbsenceAggregate(
-              where: {
-                startDate: {_eq: "${todayDate}"},
-                isDeleted: {_eq: false},
-                status: {_eq: "PENDING"}
-              }
-            ) {
-              aggregate {
-                count
+          ) {
+            aggregate {
+              count
+              sum {
+                effectiveDays
               }
             }
-            approvedCount: EmployeeAbsenceAggregate(
-              where: {
-                startDate: {_eq: "${todayDate}"},
-                isDeleted: {_eq: false},
-                status: {_eq: "APPROVED"}
-              }
-            ) {
-              aggregate {
-                count
-              }
+        }
+          pendingAbsences: EmployeeAbsenceAggregate(
+            where: {
+              startDate: {_lte: $today},
+              endDate: {_gte: $today},
+              isDeleted: {_eq: false},
+              status: {_eq: "PENDING"}
             }
-          }`
+          ) {
+            aggregate {
+              count
+            }
+          }
+          approvedCount: EmployeeAbsenceAggregate(
+            where: {
+              status: {_eq: "APPROVED"},
+              isDeleted: {_eq: false},
+              _or: [
+                { startDate: {_gte: $startDate, _lte: $endDate} },
+                { 
+                  startDate: {_lte: $endDate},
+                  endDate: {_gte: $startDate}
+                }
+              ]
+            }
+          ) {
+            aggregate {
+              count
+            }
+          }
+        }`;
         
-        const result = await graphQLClient.request<AbsenceOverviewResponse>(query)
+        const variables = {
+          startDate: formatForGraphQL(firstDayOfYear),
+          endDate: formatForGraphQL(todayDate),
+          today: formatForGraphQL(todayDate)
+        };
+        
+        console.log('Query variables:', {
+          firstDayOfYear,
+          todayDate,
+          formattedVariables: {
+            startDate: variables.startDate,
+            endDate: variables.endDate,
+            today: variables.today
+          }
+        });
+        
+        console.log('Executing GraphQL query...');
+        const result = await graphQLClient.request<AbsenceOverviewResponse>(query, variables);
+        console.log('Query result:', JSON.stringify(result, null, 2));
 
-        const totalAbsences = result.todayAbsences.length
+        console.log('Raw result values:', {
+          totalAbsences: result.totalAbsences?.aggregate?.count,
+          allAbsencesCount: result.allAbsences?.aggregate?.count,
+          effectiveDaysSum: result.allAbsences?.aggregate?.sum?.effectiveDays,
+          approvedCount: result.approvedCount?.aggregate?.count,
+          pendingCount: result.pendingAbsences?.aggregate?.count
+        });
+
+        const totalAbsences = result.totalAbsences?.aggregate?.count || 0;
+        const totalAbsencesCount = result.allAbsences?.aggregate?.count || 0;
+        const totalEffectiveDays = result.allAbsences?.aggregate?.sum?.effectiveDays || 0;
+        const approvedCount = result.approvedCount?.aggregate?.count ?? 0;
+        const pendingAbsences = result.pendingAbsences?.aggregate?.count ?? 0;
         
-        const totalDays = result.allAbsences.reduce((sum, abs) => sum + (abs.effectiveDays || 0), 0)
-        const avgDuration = result.allAbsences.length > 0 
-          ? Math.round((totalDays / result.allAbsences.length) * 10) / 10 
-          : 0
-        
-        const approvedCount = result.approvedCount.aggregate?.count || 0
-        const pendingCount = result.pendingCount.aggregate?.count || 0
-        const totalRequests = approvedCount + pendingCount
-        const approvalRate = totalRequests > 0 
-          ? Math.round((approvedCount / totalRequests) * 100) 
-          : 0
+        const avgDuration = totalAbsencesCount > 0 
+          ? Math.round((totalEffectiveDays / totalAbsencesCount) * 10) / 10 
+          : 0;
+          
+        const approvalRate = totalAbsencesCount > 0 
+          ? Math.round((approvedCount / totalAbsencesCount) * 100) 
+          : 0;
 
         setStatusCards(prevCards => {
           const cards = [...prevCards]
           cards[0].count = totalAbsences
           cards[1].count = avgDuration
           cards[2].count = approvalRate
-          cards[3].count = pendingCount
+          cards[3].count = pendingAbsences
           return cards
         })
       } catch (error) {
@@ -186,7 +220,10 @@ export const AbsenceOverview: React.FC<BusinessAppContextProps> = ({ accessToken
             <span className="gba:text-xs gba:text-muted-foreground gba:mb-1">{card.title}</span>
 
             <div className="gba:flex gba:justify-between gba:items-center gba:mb-3">
-              <span className="gba:text-2xl gba:font-bold">{card.count}</span>
+              <div>
+                <span className="gba:text-2xl gba:font-bold">{card.count}</span>
+                {card.title === 'Average Duration' && <span className="gba:ml-1 gba:text-sm">days</span>}
+              </div>
               {card.icon}
             </div>
 
