@@ -7,7 +7,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  Legend,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -93,13 +92,34 @@ const GET_EMPLOYEE_ABSENCES = `
   }
 `;
 
+const GET_ABSENCE_ENTITLEMENTS = `
+  query GetAbsenceEntitlements($currentYearFirstDay: timestamp!, $currentYearLastDay: timestamp!) {
+    EmployeeAbsenceEntitlementAggregate(
+      where: {
+        isDeleted: {_eq: false}, 
+        validFrom: {_gte: $currentYearFirstDay}, 
+        validTo: {_lte: $currentYearLastDay},
+        typeRef: {_eq: "AbsenceType:v1:A001"}
+      }
+    ) {
+      aggregate {
+        sum {
+          available
+          pending
+          approved
+        }
+        count
+      }
+    }
+  }
+`;
+
 
 
 const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [absences, setAbsences] = useState<EmployeeAbsence[]>([]);
-  const [absenceGroups, setAbsenceGroups] = useState<{ [typeId: string]: string }>({});
   const [organizedAbsences, setOrganizedAbsences] = useState<{
     [month: string]: { [type: string]: number };
   }>({});
@@ -107,6 +127,12 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
     department: string;
     absences: number;
   }>>([]);
+  const [entitlements, setEntitlements] = useState<{
+    pending: number;
+    approved: number;
+    available: number;
+    total: number;
+  } | null>(null);
 
   const graphQLClient = useGraphqlClient(accessToken);
   const catalogClient = useCatalogManagerClient(accessToken);
@@ -133,6 +159,68 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
     const fetchAbsences = async () => {
       try {
         setLoading(true);
+        
+        // Fetch entitlements data
+        const currentYear = new Date().getFullYear();
+        const currentYearFirstDay = new Date(currentYear, 0, 1).toISOString();
+        const currentYearLastDay = new Date(currentYear, 11, 31, 23, 59, 59).toISOString();
+        
+        console.log('Fetching entitlements with dates:', { currentYearFirstDay, currentYearLastDay });
+        try {
+          const result = await graphQLClient.request<{
+            EmployeeAbsenceEntitlementAggregate: {
+              aggregate: {
+                sum: {
+                  available: number;
+                  pending: number;
+                  approved: number;
+                };
+                count: number;
+              };
+            };
+          }>(GET_ABSENCE_ENTITLEMENTS, {
+            currentYearFirstDay,
+            currentYearLastDay
+          });
+          
+          console.log('Entitlements result:', result);
+          
+          if (result?.EmployeeAbsenceEntitlementAggregate?.aggregate?.sum) {
+            const { sum } = result.EmployeeAbsenceEntitlementAggregate.aggregate;
+            const total = (sum.pending || 0) + (sum.approved || 0) + (sum.available || 0);
+            
+            // Calculate average per employee
+            const count = result.EmployeeAbsenceEntitlementAggregate.aggregate.count || 1;
+            const entitlementsData = {
+              pending: Math.round((sum.pending || 0) / count * 100) / 100, // Round to 2 decimal places
+              approved: Math.round((sum.approved || 0) / count * 100) / 100,
+              available: Math.round((sum.available || 0) / count * 100) / 100,
+              total: total > 0 ? Math.round(total / count * 100) / 100 : 30 // Default to 30 if total is 0
+            };
+            
+            console.log('Processed entitlements (averages):', entitlementsData);
+            setEntitlements(entitlementsData);
+          } else {
+            console.log('No entitlements found in response');
+            // Set some default values to prevent errors
+            setEntitlements({
+              pending: 0,
+              approved: 0,
+              available: 30,
+              total: 30
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching entitlements:', error);
+          // Set default values on error
+          setEntitlements({
+            pending: 0,
+            approved: 0,
+            available: 30,
+            total: 30
+          });
+        }
+        
         const catalogData = await catalogClient.getCatalogEntriesList({
           catalogIdentifier: "AbsenceGroup",
           version: "v1",
@@ -143,11 +231,10 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
         });
 
         const now = new Date();
-        const currentYear = now.getFullYear();
         const currentMonth = now.getMonth();
         
-        const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
-        const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
+        const firstDayOfMonth = new Date(now.getFullYear(), currentMonth, 1);
+        const lastDayOfMonth = new Date(now.getFullYear(), currentMonth + 1, 0, 23, 59, 59);
 
         const result = await graphQLClient.request<{
           EmployeeAbsence: EmployeeAbsence[];
@@ -232,13 +319,6 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
       uniqueGroups.add(group);
     });
   });
-  const barChartData = months.map((month) => {
-    const monthData: any = { month };
-    uniqueGroups.forEach((group) => {
-      monthData[group] = organizedAbsences[month][group] || 0;
-    });
-    return monthData;
-  });
 
   const statusTypeData: {
     [status: string]: {
@@ -312,73 +392,103 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   return (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
       <Card className="hover:shadow-md transition-shadow">
-      <div className="gba:flex gba:flex-row gba:items-start gba:justify-between">
-        <div>
-          <Title level={5} className="gba:!mb-0 gba:!text-sm gba:!font-medium gba:pb-2">Absence Trends</Title>
-          <p className="gba:text-xs gba:text-muted-foreground">Monthly absence days by group</p>
-          <div className="gba:mt-2 gba:text-2xl gba:font-bold">{totalAbsenceDays}</div>
-          <div className="gba:mt-1 gba:text-xs gba:text-muted-foreground">Total Absence Days</div>
+        <div className="gba:flex gba:flex-row gba:items-start gba:justify-between">
+          <div>
+            <Title level={5} className="gba:text-sm gba:font-medium">Absence Entitlements</Title>
+            <p className="gba:text-xs gba:text-muted-foreground">Planned vs. unplanned absence breakdown</p>
+            <div className="gba:mt-2 gba:text-2xl gba:font-bold">
+            {entitlements ? `${Math.round(((entitlements.pending + entitlements.approved) / entitlements.total) * 100)}%` : '--%'} 
+            </div>
+            <div className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
+              Planned Absence Rate
+            </div>
+          </div>
+          <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-gray-500 gba:mt-1" />
         </div>
-        <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-gray-500 gba:mt-1" />
-      </div>
         <div className="gba:p-4 gba:h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={barChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
+            <BarChart
+              data={entitlements ? [
+                { 
+                  name: 'Planned', 
+                  value: Math.max(((entitlements.pending + entitlements.approved) / entitlements.total) * 100, 1), // Ensure at least 1% height
+                  pending: entitlements.pending,
+                  approved: entitlements.approved,
+                  total: entitlements.total
+                },
+                { 
+                  name: 'Unplanned', 
+                  value: Math.max((entitlements.available / entitlements.total) * 100, 1), // Ensure at least 1% height
+                  available: entitlements.available,
+                  total: entitlements.total
+                }
+              ] : []}
+              layout="vertical"
+              margin={{ top: 10, right: 20, left: -5, bottom: 10 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+              <XAxis 
+                type="number" 
+                tickFormatter={(value) => `${value}%`}
+                domain={[0, 100]}
+              />
+              <YAxis dataKey="name" type="category" width={80} />
               <RechartsTooltip
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    return (
-                      <div style={{ background: 'white', borderRadius: 8, boxShadow: '0 2px 8px #0001', padding: 12, fontSize: 13 }}>
-                        <div style={{ fontWeight: 600, marginBottom: 6 }}>{label}</div>
-                        {payload.map((entry, idx) => (
-                          typeof entry.value === 'number' && entry.value > 0 && (
-                            <div key={entry.dataKey} style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
-                              <span style={{ width: 12, height: 12, background: entry.color, display: 'inline-block', borderRadius: 3, marginRight: 6 }} />
-                              <span>{entry.dataKey}: {entry.value} days</span>
-                            </div>
-                          )
-                        ))}
-                      </div>
-                    );
+                formatter={(value: number, _name: string, props: any) => {
+                  console.log('Tooltip props:', { value, props });
+                  if (props.name === 'Planned' && props.payload.pending !== undefined) {
+                    const total = entitlements?.total || 1;
+                    return [
+                      `Approved: ${((props.payload.approved / total) * 100).toFixed(1)}%`,
+                      `Pending: ${((props.payload.pending / total) * 100).toFixed(1)}%`,
+                      `Total: ${((value / total) * 100).toFixed(1)}%`
+                    ];
+                  } else if (props.name === 'Unplanned' && props.payload.available !== undefined) {
+                    const total = entitlements?.total || 1;
+                    return [
+                      `Available: ${((props.payload.available / total) * 100).toFixed(1)}%`,
+                      `Total: ${((value / total) * 100).toFixed(1)}%`
+                    ];
                   }
-                  return null;
+                  const percentage = entitlements ? value.toFixed(1) : '0';
+                  return [`${percentage}%`];
                 }}
               />
-              <Legend />
-              {Array.from(uniqueGroups).map((group) => (
-                <Bar
-                  key={group}
-                  dataKey={group}
-                  fill={groupColors[group]}
-                  stackId="a"
-                />
-              ))}
+              <Bar dataKey="value" fill="#38bdf8" barSize={30} radius={[0, 4, 4, 0]}>
+                <Cell fill="#0FB981" />
+                <Cell fill="#A9B2C1" />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
+          <div className="gba:flex gba:justify-center gba:gap-6 gba:mt-4">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: '#0FB981' }} />
+              <span className="gba:text-xs gba:text-muted-foreground">Planned</span>
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: '#A9B2C1' }} />
+              <span className="gba:text-xs gba:text-muted-foreground">Unplanned</span>
+            </div>
+          </div>
         </div>
-        
       </Card>
 
       <Card className="gba:hover:shadow-md gba:transition-shadow">
         <div className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2">
           <div>
             <Title level={5} className="gba:text-sm gba:font-medium">
-            Absence Approvals
+            Absence Planning
             </Title>
             <p className="gba:text-xs gba:text-muted-foreground">
-            Status of absence requests
-            </p>
+            Planned vs. unplanned absence breakdown            </p>
           </div>
-          <RiPieChart2Line className="gba:h-6 gba:w-6 gba:text-gray-500" />
+          <RiPieChart2Line className="gba:h-6 gba:w-6 gba:text-gray-500 gba:mt-1" />
         </div>
         <div className="gba:text-2xl gba:font-bold gba:pt-2 gba:text-left">
           {approvedShare}%
         </div>
         <div className="gba:text-xs gba:text-muted-foreground gba:text-left gba:pb-3">
-          Approved Rate
+            Planned Absence Rate
         </div>
         <div className="gba:p-4 gba:h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
