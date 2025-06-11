@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useGraphqlClient } from "../../../../../common/network/graphql/useGraphQLClient";
+import { useGraphqlClient } from "../../../../../../common/network/graphql/useGraphQLClient";
 
 interface UseGetEmployeeAbsencesProps {
   employeeId?: string;

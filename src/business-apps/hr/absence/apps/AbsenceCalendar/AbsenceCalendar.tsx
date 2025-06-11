@@ -4,13 +4,13 @@ import { Calendar, Tag, Typography, Tabs } from "antd";
 import { AbsenceListDisplay } from "./components/AbsenceListDisplay";
 import dayjs, { Dayjs } from "dayjs";
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
-import "./AbsenceCalendar.css";
+import "./styles/AbsenceCalendar.css";
 import {
   useGetEmployeeAbsences,
   EmployeeAbsence,
 } from "./hooks/useGetEmployeeAbsences";
-import { BusinessAppContextProps } from "../../../../common/BusinessAppContext";
-import calendarIcon from "../../../../assets/icons/calendarIcon.svg";
+import { BusinessAppContextProps } from "../../../../../common/BusinessAppContext";
+import calendarIcon from "../../../../../assets/icons/calendarIcon.svg";
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
 dayjs.extend(weekday)
