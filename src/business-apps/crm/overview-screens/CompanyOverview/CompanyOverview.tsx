@@ -9,6 +9,7 @@ import {
   Table, 
   Spin, 
   Empty,
+  Popover
 } from 'antd';
 import CompanyDetail from '../../detail-screens/CompanyDetail/CompanyDetail';
 import { 
@@ -33,14 +34,17 @@ interface DisplayCompanyData {
   id: string;
   name: string;
   location: string;
+  version: number;
   industry: string;
   country:string;
   website:string;
   numberOfEmployees: string;
-  contact: {
+  contacts: {
     firstName: string;
     lastName: string;
-  }
+    email?: string;
+    phone?: string;
+  }[];
   accountOwnerName: string;
   accountOwnerId?: string;
   foundationDate?: string;
@@ -62,6 +66,7 @@ const transformCompanyData = (apiCompany: CompanyData): DisplayCompanyData => {
   return {
     id: apiCompany.id,
     name: apiCompany.name || '',
+    version: apiCompany.version,
     location: locationString,
     industry: apiCompany.industry?.value || '',
     legalForm: apiCompany.legalForm?.value,
@@ -73,10 +78,12 @@ const transformCompanyData = (apiCompany: CompanyData): DisplayCompanyData => {
       : '',
     accountOwnerId: apiCompany.ownerEmployee?.id,
     numberOfEmployees: apiCompany.numberOfEmployees?.value || '',
-    contact: {
-      firstName: apiCompany.contact?.firstName || '',
-      lastName: apiCompany.contact?.lastName || '',
-    },
+    contacts: apiCompany.contact?.map(contact => ({
+      firstName: contact.firstName || '',
+      lastName: contact.lastName || '',
+      email: contact.email || '',
+      phone: contact.phone || ''
+    })) || [],
   };
 };
 
@@ -161,6 +168,11 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
   const handleCreateCompany = () => {
     setIsCreatingCompany(true);
   };
+
+  const handleBackFromDetail = useCallback(() => {
+    setSelectedCompany(null);
+    fetchCompanies(currentPage, debouncedSearchText, pageSize);
+  }, [currentPage, debouncedSearchText, pageSize]);
 
   const handleTableChange = (newPage: number, newPageSize: number) => {
     setCurrentPage(newPage);
@@ -281,14 +293,89 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
     },
     {
       title: 'Contact',
-      dataIndex: 'contact',
-      key: 'contact',
+      dataIndex: 'contacts',
+      key: 'contacts',
       className: 'gba-contact-cell',
-      render: (contact: { firstName: string; lastName: string }) => {
-        if (contact && (contact.firstName || contact.lastName)) {
-          return `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+      render: (contacts: { firstName: string; lastName: string; email?: string; phone?: string }[]) => {
+        if (!contacts || contacts.length === 0) {
+          return '';
         }
-        return '';
+        
+        const firstContact = contacts[0];
+        const firstContactElement = (
+          <div>
+            {firstContact.firstName} {firstContact.lastName}
+            {firstContact.email && (
+              <span style={{ marginLeft: 8 }}>
+                ({firstContact.email})
+              </span>
+            )}
+            {firstContact.phone && (
+              <span style={{ marginLeft: 8 }}>
+                ({firstContact.phone})
+              </span>
+            )}
+          </div>
+        );
+        
+        if (contacts.length === 1) {
+          return firstContactElement;
+        }
+        
+        const additionalContacts = contacts.slice(1);
+        return (
+          <div className="gba:contacts-container">
+            {firstContactElement}
+            <Popover
+              classNames={{ root: 'gba:contacts-list-popover' }}
+              content={
+                <div className="gba:additional-contacts gba:hide-scrollbar" style={{ 
+                  maxWidth: '320px',
+                  maxHeight: '500px',
+                  overflowY: 'auto',
+                  padding: '0 5px'
+                }}>
+                  {additionalContacts.map((contact, index) => (
+                    <div key={index} style={{ 
+                      marginBottom: index < additionalContacts.length - 1 ? '12px' : 0,
+                      borderBottom: index < additionalContacts.length - 1 ? '1px solid #f0f0f0' : 'none',
+                      paddingBottom: index < additionalContacts.length - 1 ? '8px' : 0
+                    }}>
+                      <div>
+                        {contact.firstName} {contact.lastName}
+                        {contact.email && (
+                          <div style={{ fontSize: '13px', marginTop: '2px' }}>
+                            {contact.email}
+                          </div>
+                        )}
+                        {contact.phone && (
+                          <div style={{ fontSize: '13px', marginTop: '2px' }}>
+                            {contact.phone}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              }
+              title="Additional Contacts"
+              trigger={["hover", "click"]}
+              placement="right"
+            >
+              <div 
+                className="gba:more-contacts-indicator" 
+                style={{ 
+                  color: '#000000', 
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '16px'
+                }}
+              >
+                ...
+              </div>
+            </Popover>
+          </div>
+        );
       },
     },
     {
@@ -364,7 +451,7 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
     return (
       <CompanyDetail 
         companyId={selectedCompany.id} 
-        onBack={() => setSelectedCompany(null)} 
+        onBack={handleBackFromDetail} 
         accessToken={accessToken} 
       />
     );

@@ -175,3 +175,27 @@
 .gba-company-table .ant-table-cell a:visited {
   color: black !important;
 }
+
+.gba\:hide-scrollbar {
+  scrollbar-width: none; 
+  -ms-overflow-style: none; 
+  overflow-x: hidden;
+}
+
+.gba\:hide-scrollbar::-webkit-scrollbar {
+  width: 0px;
+  background: transparent; 
+  display: none;
+}
+
+.gba\:contacts-list-popover .ant-popover-inner-content::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+  background: transparent;
+  display: none;
+}
+
+.gba\:contacts-list-popover .ant-popover-inner,
+.gba\:contacts-list-popover .ant-popover-inner-content {
+  overflow: hidden !important;
+}
