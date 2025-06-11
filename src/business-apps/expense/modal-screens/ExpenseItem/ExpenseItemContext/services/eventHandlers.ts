@@ -4,9 +4,7 @@ import { formatDateToISOString } from "../../utils/dateUtils";
 import { calculateTotalAmount } from "../../utils/calculationUtils";
 import { fetchExpenseTypes, fetchCustomFields } from "./dataFetchers";
 
-/**
- * Handle expense group change
- */
+
 export const handleExpenseGroupChange = async (
   value: string,
   positionIndex: number,
@@ -16,21 +14,30 @@ export const handleExpenseGroupChange = async (
   employeeRuleId: string | null | object,
   graphqlClient: any,
   setExpenseTypes: (types: { [classId: string]: any[] }) => void,
-  t: (key: string, fallback: string) => string
+  t: (key: string, fallback: string) => string,
+  form?: any
 ) => {
   try {
-    // Update the position with the new expense group and reset its expense type
+
     const updatedPositions = [...positions];
     updatedPositions[positionIndex].expenseGroup = value;
-    updatedPositions[positionIndex].expenseType = ""; // Reset expense type for this position only
-    updatedPositions[positionIndex].customField = ""; // Reset custom field for this position
+    updatedPositions[positionIndex].expenseType = "";
+    updatedPositions[positionIndex].customField = "";
     setPositions(updatedPositions);
 
-    // Check if we already have expense types for this group
+    if (form) {
+
+      form.setFieldsValue({
+        [`expenseType-${positionIndex}`]: undefined
+      });
+      
+
+    }
+
+
     const hasExpenseTypesForGroup = Object.keys(expenseTypes).includes(value);
 
-    // If we don't have expense types for this group or we want to refresh them,
-    // fetch all expense types for all selected groups
+
     if (!hasExpenseTypesForGroup) {
       await fetchExpenseTypes(value, positions, employeeRuleId, graphqlClient, setExpenseTypes, t);
     }
@@ -45,9 +52,7 @@ export const handleExpenseGroupChange = async (
   }
 };
 
-/**
- * Handle expense type change
- */
+
 export const handleExpenseTypeChange = async (
   value: string,
   positionIndex: number,
@@ -56,27 +61,47 @@ export const handleExpenseTypeChange = async (
   customFields: { [expenseTypeId: string]: any[] },
   graphqlClient: any,
   setCustomFields: (fields: any) => void,
-  t: (key: string, fallback: string) => string
+  t: (key: string, fallback: string) => string,
+  form?: any
 ) => {
   try {
-    // Update the position with the new expense type and reset its custom field
+
     const updatedPositions = [...positions];
     updatedPositions[positionIndex].expenseType = value;
-    updatedPositions[positionIndex].customField = ""; // Reset custom field when expense type changes
+    updatedPositions[positionIndex].customField = "";
     setPositions(updatedPositions);
+    
+
+    if (form) {
+
+      const prevExpenseType = positions[positionIndex]?.expenseType;
+      
+      if (prevExpenseType && customFields[prevExpenseType]) {
+
+        const fieldsToReset: Record<string, undefined> = {};
+        
+        customFields[prevExpenseType].forEach(field => {
+
+          fieldsToReset[`customField-${positionIndex}-${field.id}`] = undefined;
+        });
+        
+        if (Object.keys(fieldsToReset).length > 0) {
+          form.setFieldsValue(fieldsToReset);
+        }
+      }
+    }
 
     // Check if we already have custom fields for this expense type
     const hasCustomFieldsForType = Object.keys(customFields).includes(value);
 
-    // If we don't have custom fields for this type or we want to refresh them,
-    // fetch custom fields for all selected expense types
+
     if (!hasCustomFieldsForType && value) {
-      // Get all current expense type IDs from the positions
+
       const expenseTypeIds = positions
         .map((position) => position.expenseType)
         .filter((id) => id && id.length > 0);
 
-      // Add the current type ID if it's not already in the list
+
       if (!expenseTypeIds.includes(value)) {
         expenseTypeIds.push(value);
       }
@@ -94,9 +119,7 @@ export const handleExpenseTypeChange = async (
   }
 };
 
-/**
- * Handle adding a new position
- */
+
 export const handleAddPosition = (
   positions: any[],
   setPositions: (positions: any[]) => void
@@ -107,9 +130,7 @@ export const handleAddPosition = (
   ]);
 };
 
-/**
- * Handle removing a position
- */
+
 export const handleRemovePosition = (
   positionId: string,
   positions: any[],
@@ -124,9 +145,7 @@ export const handleRemovePosition = (
   setPositions(positions.filter((position) => position.id !== positionId));
 };
 
-/**
- * Handle amount change
- */
+
 export const handleAmountChange = (
   value: number,
   positionIndex: number,
@@ -138,9 +157,7 @@ export const handleAmountChange = (
   setPositions(updatedPositions);
 };
 
-/**
- * Handle form submission
- */
+
 export const handleSubmit = async (
   form: any,
   positions: any[],
@@ -156,15 +173,15 @@ export const handleSubmit = async (
 ) => {
   setLoading(true);
   try {
-    // Validate form fields
+
     await form.validateFields();
 
-    // Get form values
+
     const values = form.getFieldsValue();
 
-    // Format the expense positions with custom fields
+
     const formattedPositions = positions.map((position, index) => {
-      // Prepare custom fields array if a custom field exists
+
       const customFieldsArray = [];
       if (
         position.expenseType &&
@@ -198,7 +215,7 @@ export const handleSubmit = async (
       };
     });
 
-    // Prepare data for submission in the required format
+
     const submitData = {
       expenseItem: {
         title: values.title,
@@ -228,13 +245,12 @@ export const handleSubmit = async (
 
     console.log("Submitting data:", submitData);
 
-    // Here you would typically make an API call to submit the data
-    // For now, we'll just show a success message
+
     message.success(
       t("expense_item.success_message", "Expense item created successfully!")
     );
 
-    // Reset form and state
+
     form.resetFields();
     setPositions([DEFAULT_POSITION]);
     setFileList([]);

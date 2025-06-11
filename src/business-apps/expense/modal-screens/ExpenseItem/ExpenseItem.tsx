@@ -5,7 +5,7 @@ import { BusinessAppContextProps } from '../../../../common/BusinessAppContext';
 import { ExpenseItemProvider, useExpenseItem } from './ExpenseItemContext';
 import { Button } from "@newwork/gravity-ui-catalog";
 import { Typography, Divider } from "antd";
-import { ArrowLeftOutlined, CloseOutlined } from "@ant-design/icons";
+import { CloseOutlined } from "@ant-design/icons";
 import { ExpenseItemProps } from "./types";
 import StartScreenComponent from "./components/StartScreenComponent";
 import FormScreenComponent from "./components/FormScreenComponent";
@@ -48,17 +48,22 @@ const ExpenseItemContent: React.FC = () => {
           <Button
             variant="ghost"
             onClick={() => setCurrentStep("start")}
-            className={`${styles.button} gba:button`}
+            className={`${styles.backButton} gba:backButton`}
           >
-            <ArrowLeftOutlined />
+            <img 
+              src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/arrow-left-s-line.svg" 
+              alt="Back" 
+              className={`${styles.backIcon} gba:backIcon`}
+              width="24"
+              height="24"
+            />
           </Button>
         )}
-        <Title level={4} className={`${styles.headerTitle} gba:headerTitle`}>
-          {t("expense_item.title", "New Expense Item")}
-        </Title>
-        <Button variant="ghost" className={`${styles.button} gba:button`}>
-          <CloseOutlined />
-        </Button>
+        <div className={`${styles.titleContainer} gba:titleContainer`}>
+          <Title level={4} className={`${styles.headerTitle} gba:headerTitle`}>
+            {t("expense_item.title", "New Expense Item")}
+          </Title>
+        </div>
       </div>
       <Divider className={`${styles.headerDivider} gba:headerDivider`} />
 

@@ -21,6 +21,7 @@ import UploadComponent from "../UploadComponent";
 import SinglePositionComponent from "./SinglePositionComponent";
 import MultiPositionComponent from "./MultiPositionComponent";
 import { useExpenseItem } from "../../ExpenseItemContext/ExpenseItemContext";
+import { getDateFormat } from "../../utils/windowUtils";
 
 interface FormScreenComponentProps {
   form: any;
@@ -64,7 +65,6 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   handleExpenseTypeChange,
   handleAddPosition,
   handleRemovePosition,
-  loading,
   calculateTotal,
 }) => {
   const { t } = useTranslation();
@@ -74,6 +74,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     <Form
       form={form}
       layout="vertical"
+      validateTrigger={['onChange', 'onBlur']}
       initialValues={{
         date: new Date(),
         currency: "EUR",
@@ -90,7 +91,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <div>
           <Form.Item
             name="title"
-            rules={[{ required: true, message: "Please enter a title" }]}
+            rules={[{ required: true, message: t('create_expense_type_item.current_title_custom_rule', 'Please enter a title')}]}
           >
             <InputField
               label={t("create_expense_type_item.current_title_label", "Title")}
@@ -110,8 +111,9 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       <div className={`${styles.marginBottom16} gba:marginBottom16`}>
         <div style={{ position: "relative" }}>
           <Form.Item
+          shouldUpdate
             name="date"
-            rules={[{ required: true, message: "Please select a date" }]}
+            rules={[{ required: true, message: t('create_expense_type_item.current_date_custom_rule', 'Please select a date') }]}
             style={{ marginBottom: 0 }}
           >
             <div className={`${styles.relativePosition} gba:relativePosition`}>
@@ -126,9 +128,11 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                     "create_expense_type_item.current_date_placeholder",
                     "Select date"
                   )}
-                  onChange={(field) => form.setFieldsValue({ date: field.value })}
+                  onChange={(field) => {form.setFieldsValue({ date: field.value })
+                console.log(field.value,"-",form.getFieldValue('date'))}}
                   required={true}
-                  format="DD.MM.YYYY"
+                  format={getDateFormat('date.long')}
+                  value={form.getFieldValue('date') || null}
                 />
               </div>
             </div>
@@ -148,11 +152,30 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
               value={multiPosition}
               onChange={(checked) => {
                 const newMultiPositionValue = checked.value as boolean;
-                
-                // If switching from multi to single position, keep only the first position
                 if (!newMultiPositionValue && positions.length > 1) {
                   const firstPosition = positions[0];
                   setPositions([firstPosition]);
+                  if (firstPosition.expenseType && 
+                      firstPosition.customField && 
+                      customFields[firstPosition.expenseType]) {
+                    setTimeout(() => {
+                      form.setFieldsValue({
+                        [`customField-0`]: firstPosition.customField
+                      });
+                    }, 100);
+                  }
+                } else if (newMultiPositionValue) {
+                  setTimeout(() => {
+                    positions.forEach((position, index) => {
+                      if (position.expenseType && 
+                          position.customField && 
+                          customFields[position.expenseType]) {
+                        form.setFieldsValue({
+                          [`customField-${index}`]: position.customField
+                        });
+                      }
+                    });
+                  }, 100);
                 }
                 
                 setMultiPosition(newMultiPositionValue);
@@ -170,6 +193,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           expenseTypes={expenseTypes}
           customFields={customFields}
           costCenters={costCenters}
+          currencies={currencies}
           handleExpenseGroupChange={handleExpenseGroupChange}
           handleExpenseTypeChange={handleExpenseTypeChange}
         />
@@ -199,65 +223,69 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         </Button>
       )}
 
-      <Row
-        gutter={16}
-        className={`${styles.marginTop16} ${styles.marginBottom16} gba:marginTop16 gba:marginBottom16`}
-      >
-        <Col span={12}>
-          <Form.Item className={`${styles.marginBottom0} gba:marginBottom0`}>
-            <InputField
-              label={t(
-                "create_expense_item.change_expense_item_container.current_amount_label",
-                "Amount"
-              )}
-              name="amount"
-              value={calculateTotal().toFixed(2)}
-              placeholder={t(
-                "create_expense_item.change_expense_item_container.current_amount_placeholder",
-                "Enter Amount"
-              )}
-              onChange={() => {
-                console.log("changed");
-              }}
-              required={true}
-            />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item
-            name="currency"
-            rules={[{ required: true, message: "Please select a currency" }]}
-            className={`${styles.marginBottom0} gba:marginBottom0`}
-          >
-            <SelectField
-              allowClear
-              label={t(
-                "create_expense_item.change_expense_item_container.current_currency_label",
-                "Currency"
-              )}
+      {/* Total amount and currency row - only visible in multi-position mode */}
+      {multiPosition && (
+        <Row
+          gutter={16}
+          className={`${styles.marginTop16} ${styles.marginBottom16} gba:marginTop16 gba:marginBottom16`}
+        >
+          <Col span={12}>
+            <Form.Item className={`${styles.marginBottom0} gba:marginBottom0`}>
+              <InputField
+                label={t(
+                  "create_expense_item.change_expense_item_container.current_amount_label",
+                  "Amount"
+                )}
+                name="amount"
+                value={calculateTotal().toFixed(2)}
+                placeholder={t(
+                  "create_expense_item.change_expense_item_container.current_amount_placeholder",
+                  "Enter Amount"
+                )}
+                onChange={() => {
+                  console.log("changed");
+                }}
+                required={true}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
               name="currency"
-              isDataSorted={false}
-              data={currencies.map((currency) => {
-                return {
-                  id: currency.id,
-                  name: currency.code,
-                  value: currency.code
-                };
-              })}
-              onChange={(value: any) => {
-                form.setFieldsValue({ currency: value.value });
-              }}
-              placeholder={t(
-                "create_expense_item.change_expense_item_container.current_currency_placeholder",
-                "Select Currency"
-              )}
-            />
-          </Form.Item>
-        </Col>
-      </Row>
+              rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_currency_custom_rule', 'Please select a currency') }]}
 
+              className={`${styles.marginBottom0} gba:marginBottom0`}
+            >
+              <SelectField
+                allowClear
+                label={t(
+                  "create_expense_item.change_expense_item_container.current_currency_label",
+                  "Currency"
+                )}
+                disabled={isProcessingFiles}
+                name="currency"
+                isDataSorted={false}
+                data={currencies.map((currency) => ({
+                  id: currency.code,
+                  name: currency.code,
+                }))}
+                onChange={(value: any) => {
+                  form.setFieldsValue({ currency: value.value });
+                }}
+                placeholder={t(
+                  "create_expense_item.change_expense_item_container.current_currency_placeholder",
+                  "Select Currency"
+                )}
+                required={true}
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+      )}
+      
       <Form.Item
         name="expenseRequestId"
+        rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_request_custom_rule', 'Please select a request') }]}
         className={`${styles.marginBottom16} gba:marginBottom16`}
       >
         <SelectField

@@ -1,6 +1,6 @@
 import React from "react";
 import { Upload, message } from "antd";
-import { CameraOutlined, FullscreenOutlined, LoadingOutlined } from "@ant-design/icons";
+import { LoadingOutlined } from "@ant-design/icons";
 import styles from "../../ExpenseItem.module.css";
 import { useExpenseItem } from "../../ExpenseItemContext/ExpenseItemContext";
 
@@ -96,7 +96,13 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
             </>
           ) : (
             <>
-              <CameraOutlined className={styles.uploadIcon} />
+              <img 
+                src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
+                alt="Focus" 
+                className={`${styles.uploadIcon} gba:uploadIcon`}
+                width="36"
+                height="36"
+              />
               <span>Attach Receipt</span>
             </>
           )}
@@ -116,7 +122,13 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
           ) : (
             <>
               <span>Attach Receipt</span>
-              <FullscreenOutlined className={styles.uploadIconSmall} />
+              <img 
+                src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
+                alt="Focus" 
+                className={`${styles.uploadIconSmall} gba:uploadIconSmall`}
+                width="18"
+                height="18"
+              />
             </>
           )}
         </div>
@@ -198,7 +210,13 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
                 ) : (
                   <>
                     <span>Attach Receipt</span>
-                    <FullscreenOutlined className={styles.uploadIconSmall} />
+                    <img 
+                      src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
+                      alt="Focus" 
+                      className={`${styles.uploadIconSmall} gba:uploadIconSmall`}
+                      width="18"
+                      height="18"
+                    />
                   </>
                 )}
               </div>

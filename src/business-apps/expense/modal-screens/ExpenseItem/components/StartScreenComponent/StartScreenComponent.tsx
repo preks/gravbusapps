@@ -34,7 +34,14 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
           className={`${styles.continueButton} gba:continueButton`}
           disabled={isProcessingFiles}
         >
-          {t("expense_item.continue_without_receipt", "Continue without receipt")}
+          <div className={`${styles.buttonWithIcon} gba:buttonWithIcon`}>
+            <span>{t("expense_item.continue_without_receipt", "Continue without receipt")}</span>
+            <img 
+              src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/ArrowRightSLine.svg" 
+              alt="Continue" 
+              className={`${styles.arrowIcon} gba:arrowIcon`}
+            />
+          </div>
         </Button>
       </div>
     </div>
