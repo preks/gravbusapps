@@ -12,6 +12,7 @@ import {
   Popover
 } from 'antd';
 import CompanyDetail from '../../detail-screens/CompanyDetail/CompanyDetail';
+import AddNewCompany from './AddNewCompany';
 import { 
   PlusOutlined, 
   SearchOutlined, 
@@ -87,22 +88,63 @@ const transformCompanyData = (apiCompany: CompanyData): DisplayCompanyData => {
   };
 };
 
+interface EmployeeDetails {
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  organizationalUnit: {
+    id: string;
+    name: string;
+  };
+  supervisor: {
+    firstName: string;
+    id: string;
+    lastName: string;
+    userId: string;
+  };
+}
+
+const STORAGE_KEY_USER_INFO = 'business-app-ide-user-info';
   
 const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<DisplayCompanyData | null>(null);
-  
+  const savedUserInfo = localStorage.getItem(STORAGE_KEY_USER_INFO);
   const [companiesData, setCompaniesData] = useState<DisplayCompanyData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
+  const [employeeDetails, setEmployeeDetails ] = useState<EmployeeDetails | null>(null);
   
   const [searchText, setSearchText] = useState<string>('');
   const [debouncedSearchText, setDebouncedSearchText] = useState<string>('');
 
   const graphQLClient = useGraphqlClient(accessToken);
+
+  useEffect(() => {
+    console.log("Saved user info ", savedUserInfo);
+    
+    if (savedUserInfo) {
+      try {
+        const userInfoObj = JSON.parse(savedUserInfo);
+        if (userInfoObj?.employeeDetails) {
+          try {
+            const parsedDetails = typeof userInfoObj.employeeDetails === 'string' 
+              ? JSON.parse(userInfoObj.employeeDetails) 
+              : userInfoObj.employeeDetails;
+            
+            setEmployeeDetails(parsedDetails);
+          } catch (e) {
+            console.error('Error parsing employee details:', e);
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing user info:", error);
+      }
+    }
+  }, [savedUserInfo]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -171,6 +213,11 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
 
   const handleBackFromDetail = useCallback(() => {
     setSelectedCompany(null);
+    fetchCompanies(currentPage, debouncedSearchText, pageSize);
+  }, [currentPage, debouncedSearchText, pageSize]);
+
+  const handleCancelCreateCompany = useCallback(() => {
+    setIsCreatingCompany(false);
     fetchCompanies(currentPage, debouncedSearchText, pageSize);
   }, [currentPage, debouncedSearchText, pageSize]);
 
@@ -457,6 +504,16 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
     );
   }
 
+  if (isCreatingCompany) {
+    return (
+      <AddNewCompany
+        accessToken={accessToken}
+        employeeDetails={employeeDetails || undefined}
+        onBack={handleCancelCreateCompany}
+      />
+    );
+  }
+
   return (
     <div style={{ padding: '24px' }} className="gba-company-overview-container">
       <Row justify="space-between" align="middle" style={{ marginBottom: '24px' }} className="gba-header-row">
@@ -592,14 +649,6 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
         />
       </Spin>
 
-      {isCreatingCompany && (
-        <div className="gba-modal-placeholder"> 
-          <Card title="Create New Company" style={{ marginTop: 20 }} className="gba-create-modal-card">
-            <p>Company creation form will be here.</p>
-            <Button onClick={() => setIsCreatingCompany(false)} className="gba-cancel-button">Cancel</Button>
-          </Card>
-        </div>
-      )}
     </div>
   );
 };
