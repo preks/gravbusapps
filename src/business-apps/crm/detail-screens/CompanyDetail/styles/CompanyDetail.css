@@ -1,11 +1,11 @@
 /* CompanyDetail styles */
-.company-detail-container {
+.gba\:company-detail-container {
   padding: 24px;
   background-color: #f5f7fa;
   min-height: 100vh;
 }
 
-.back-link {
+.gba\:back-link {
   display: flex;
   align-items: center;
   margin-bottom: 16px;
@@ -14,15 +14,15 @@
   cursor: pointer;
 }
 
-.back-link:hover {
+.gba\:back-link:hover {
   color: #40a9ff;
 }
 
-.back-icon {
+.gba\:back-icon {
   margin-right: 8px;
 }
 
-.company-header {
+.gba\:company-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -33,12 +33,12 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.company-header-left {
+.gba\:company-header-left {
   display: flex;
   flex-direction: column;
 }
 
-.company-logo {
+.gba\:company-logo {
   width: 64px;
   height: 64px;
   background-color: #f0f2f5;
@@ -51,34 +51,34 @@
   color: #1890ff;
 }
 
-.company-name-wrapper {
+.gba\:company-name-wrapper {
   display: flex;
   align-items: center;
 }
 
-.company-name {
+.gba\:company-name {
   margin-bottom: 4px;
   font-size: 24px;
   font-weight: 600;
 }
 
-.company-industry {
+.gba\:company-industry {
   color: rgba(0, 0, 0, 0.45);
   margin-bottom: 0;
 }
 
-.edit-button {
+.gba\:edit-button {
   margin-left: auto;
 }
 
-.card-container {
+.gba\:card-container {
   margin-bottom: 24px;
   border-radius: 8px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   background-color: white;
 }
 
-.section-title {
+.gba\:section-title {
   display: flex;
   align-items: center;
   font-size: 16px;
@@ -87,44 +87,44 @@
   color: rgba(0, 0, 0, 0.85);
 }
 
-.section-title-icon {
+.gba\:section-title-icon {
   margin-right: 8px;
   font-size: 18px;
 }
 
-.company-info-row {
+.gba\:company-info-row {
   margin-bottom: 16px;
 }
 
-.company-info-label {
+.gba\:company-info-label {
   color: rgba(0, 0, 0, 0.45);
   font-size: 14px;
   margin-bottom: 4px;
 }
 
-.company-info-value {
+.gba\:company-info-value {
   font-size: 14px;
   color: rgba(0, 0, 0, 0.85);
 }
 
-.tag-container {
+.gba\:tag-container {
   display: flex;
   gap: 8px;
   margin-top: 16px;
 }
 
-.link-icon {
+.gba\:link-icon {
   margin-right: 4px;
 }
 
-.external-link {
+.gba\:external-link {
   display: flex;
   align-items: center;
   margin-right: 16px;
   color: #1890ff;
 }
 
-.fact-item {
+.gba\:fact-item {
   display: flex;
   align-items: flex-start;
   margin-bottom: 12px;
@@ -132,183 +132,183 @@
   position: relative;
 }
 
-.fact-icon {
+.gba\:fact-icon {
   position: absolute;
   left: 0;
   top: 3px;
   color: #1890ff;
 }
 
-.metrics-container {
+.gba\:metrics-container {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   margin-top: 24px;
 }
 
-.metric-item {
+.gba\:metric-item {
   flex: 1;
   text-align: center;
 }
 
-.metric-value {
+.gba\:metric-value {
   font-size: 24px;
   font-weight: 600;
   color: rgba(0, 0, 0, 0.85);
   margin-bottom: 4px;
 }
 
-.revenue-metric {
+.gba\:revenue-metric {
   color: #52c41a;
 }
 
-.funding-metric {
+.gba\:funding-metric {
   color: #1890ff;
 }
 
-.valuation-metric {
+.gba\:valuation-metric {
   color: #722ed1;
 }
 
-.metric-label {
+.gba\:metric-label {
   font-size: 14px;
   color: rgba(0, 0, 0, 0.45);
 }
 
-.key-people-section {
+.gba\:key-people-section {
   margin-top: 24px;
 }
 
-.people-group {
+.gba\:people-group {
   margin-bottom: 24px;
 }
 
-.people-group-title {
+.gba\:people-group-title {
   font-size: 16px;
   margin-bottom: 16px;
   color: rgba(0, 0, 0, 0.85);
 }
 
-.person-card {
+.gba\:person-card {
   display: flex;
   align-items: center;
   margin-bottom: 16px;
 }
 
-.person-avatar {
+.gba\:person-avatar {
   margin-right: 12px;
 }
 
-.person-info {
+.gba\:person-info {
   display: flex;
   flex-direction: column;
 }
 
-.person-name {
+.gba\:person-name {
   font-weight: 500;
   margin-bottom: 0;
 }
 
-.person-title {
+.gba\:person-title {
   font-size: 12px;
   color: rgba(0, 0, 0, 0.45);
 }
 
-.contact-section {
+.gba\:contact-section {
   padding: 24px;
 }
 
-.contact-title {
+.gba\:contact-title {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 16px;
 }
 
-.contact-info {
+.gba\:contact-info {
   margin-bottom: 8px;
 }
 
-.contact-name {
+.gba\:contact-name {
   font-weight: 500;
   margin-bottom: 4px;
 }
 
-.contact-position {
+.gba\:contact-position {
   font-size: 12px;
   color: rgba(0, 0, 0, 0.45);
   margin-bottom: 8px;
 }
 
-.contact-link {
+.gba\:contact-link {
   display: flex;
   align-items: center;
   margin-bottom: 8px;
   color: #1890ff;
 }
 
-.contact-link-icon {
+.gba\:contact-link-icon {
   margin-right: 8px;
 }
 
-.timeline-container {
+.gba\:timeline-container {
   padding: 0 24px 24px;
 }
 
-.timeline-header {
+.gba\:timeline-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
 }
 
-.account-info-section {
+.gba\:account-info-section {
   padding: 24px;
 }
 
-.account-info-title {
+.gba\:account-info-title {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 16px;
 }
 
-.account-info-item {
+.gba\:account-info-item {
   margin-bottom: 16px;
 }
 
-.account-info-label {
+.gba\:account-info-label {
   color: rgba(0, 0, 0, 0.45);
   font-size: 14px;
   margin-bottom: 4px;
 }
 
-.account-info-value {
+.gba\:account-info-value {
   font-size: 14px;
 }
 
-.tab-content {
+.gba\:tab-content {
   padding: 16px 0;
 }
 
-.legal-info-section {
+.gba\:legal-info-section {
   padding: 24px;
 }
 
-.legal-info-title {
+.gba\:legal-info-title {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 16px;
 }
 
-.geo-presence-section {
+.gba\:geo-presence-section {
   padding: 24px;
 }
 
-.geo-presence-title {
+.gba\:geo-presence-title {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 16px;
 }
 
-.icon-wrapper {
+.gba\:icon-wrapper {
   margin-right: 8px;
 }
