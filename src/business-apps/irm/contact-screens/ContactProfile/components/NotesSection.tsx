@@ -108,10 +108,10 @@ export function NotesSection() {
       </CardHeader>
       <CardContent className="gba:space-y-6 gba:pt-4">
         {/* Key Insights Panel */}
-        <div className="gba:relative gba:p-[2px] gba:rounded-lg gba:bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500">
-          <div className="gba:bg-gradient-to-r from-blue-50 to-sky-50 gba:rounded-lg gba:p-4">
+        <div className="gba:relative gba:p-[2px] gba:rounded-lg gba:bg-gradient-to-r gba:from-blue-500 gba:via-indigo-500 gba:to-purple-500">
+          <div className="gba:bg-gradient-to-r gba:from-blue-50 gba:to-sky-50 gba:rounded-lg gba:p-4">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <div className="gba:bg-gradient-to-r from-blue-500 to-purple-500 gba:p-1.5 gba:rounded-full">
+              <div className="gba:bg-gradient-to-r gba:from-blue-500 gba:to-purple-500 gba:p-1.5 gba:rounded-full">
                 <Lightbulb className="gba:h-4 gba:w-4 gba:text-white" />
               </div>
               <h3 className="gba:font-medium gba:text-blue-800">AI-Generated Key Insights</h3>
@@ -188,7 +188,7 @@ export function NotesSection() {
               <div
                 key={note.id}
                 className={`gba:p-4 gba:border gba:rounded-lg ${
-                  note.important ? "border-blue-200 bg-gradient-to-r from-blue-50 to-sky-50" : "border-gray-300"
+                  note.important ? "gba:border-blue-200 gba:bg-gradient-to-r gba:from-blue-50 gba:to-sky-50" : "gba:border-gray-300"
                 }`}
               >
                 <div className="gba:flex gba:justify-between gba:items-start gba:mb-2">
@@ -240,7 +240,7 @@ export function NotesSection() {
                           >
                             <Flag
                               className={`gba:h-4 gba:w-4 ${
-                                note.important ? "fill-blue-500 text-blue-500" : "text-muted-foreground"
+                                note.important ? "gba:fill-blue-500 gba:text-blue-500" : "text-muted-foreground"
                               }`}
                             />
                           </Button>
