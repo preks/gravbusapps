@@ -189,7 +189,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
-        width={250}
+        width={264}
+        collapsedWidth={68}
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
@@ -215,15 +216,16 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
           items={getMenuItems()}
         />
       </Sider>
-      <Layout style={{ marginLeft: collapsed ? 80 : 250, transition: 'margin-left 0.2s' }}>
+      <Layout style={{ marginLeft: collapsed ? 68 : 264, transition: 'margin-left 0.2s' }}>
         <Header style={{
           background: '#fff',
           padding: '0 16px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          height: 64,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.05)'
+          height: 48,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+          borderBottom: '1px solid #e8e8e8' // Added bottom border
         }}>
           <div className="gba:flex gba:items-center gba:flex-nowrap">
             <Button
@@ -247,7 +249,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             />
           </Tooltip>
         </Header>
-        <Content style={{ margin: '16px', overflow: 'initial', background: '#fff', padding: 24, minHeight: 280 }}>
+        <Content style={{ overflow: 'initial', background: '#fff', minHeight: 280 }}>
           {selectedApp && (
             <div className="gba:w-full gba:h-full gba:overflow-auto">
               {createElement(selectedApp.component, {

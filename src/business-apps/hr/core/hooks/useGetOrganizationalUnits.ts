@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useGraphqlClient } from '../../../common/network/graphql/useGraphQLClient';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 
 export interface OrganizationalUnitOption {
   id: string;

@@ -7,8 +7,8 @@ import { DataContainer } from '@/components/layout/dataContainer';
 import { useJobPositionListData } from './hooks/useJobPositionListData';
 import { JobPositionTable } from './components/JobPositionTable';
 import { PiBriefcase } from 'react-icons/pi';
-import { BusinessAppContextProps } from '../../../common/BusinessAppContext';
-import { useGetOrganizationalUnits } from '../hooks/useGetOrganizationalUnits';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGetOrganizationalUnits } from '../../hooks/useGetOrganizationalUnits';
 
 /**
  * Job Position List page component. Renders the job position list module with a table view.

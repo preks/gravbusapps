@@ -1,23 +1,23 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useUserLocale } from '../../../common/locale/useUserLocale';
-import { useCatalogManagerClient } from '../../../common/network/catalogs/useCatalogManagerClient';
+import { useUserLocale } from '@/common/locale/useUserLocale';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 
-export interface EmploymentTypeOption {
+export interface ContractTypeOption {
   id: string;
   name: string;
 }
 
 /**
- * Custom hook to fetch employment types with a search filter and pagination (limit 5).
+ * Custom hook to fetch contract types with a search filter and pagination (limit 5).
  * Uses the catalog-management API utilities for consistency and CORS compliance.
- * @param searchRegex Search regex string for filtering employment types.
+ * @param searchRegex Search regex string for filtering contract types.
  * @param offset Pagination offset
  */
-export function useGetEmploymentTypes(accessToken: string, searchRegex: string, offset: number = 0) {
+export function useGetContractTypes(accessToken: string, searchRegex: string, offset: number = 0) {
   const userLocale = useUserLocale() ?? 'en-US';
-  const [types, setTypes] = useState<EmploymentTypeOption[]>([]);
+  const [types, setTypes] = useState<ContractTypeOption[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -27,7 +27,7 @@ export function useGetEmploymentTypes(accessToken: string, searchRegex: string, 
     setError(null);
     
     client.getCatalogEntriesList({
-      catalogIdentifier: 'EmploymentType',
+      catalogIdentifier: 'ContractType',
       version: 'v1',
     },
     {
@@ -48,7 +48,7 @@ export function useGetEmploymentTypes(accessToken: string, searchRegex: string, 
         entries = response;
       }
       
-      const typesArr: EmploymentTypeOption[] = entries
+      const typesArr = entries
         .filter((entry: any) => entry && (entry.id || entry._id))
         .map((entry: any) => ({
           id: entry.id || entry._id || '',
@@ -59,7 +59,7 @@ export function useGetEmploymentTypes(accessToken: string, searchRegex: string, 
       setHasMore(entries.length === 5);
     })
     .catch((err: any) => {
-      console.error('Error fetching employment types:', err);
+      console.error('Error fetching contract types:', err);
       setError(err);
       setTypes([]);
       setHasMore(false);

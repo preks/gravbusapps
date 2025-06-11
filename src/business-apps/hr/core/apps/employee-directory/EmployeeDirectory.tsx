@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useCallback, useState } from 'react';
-import { useGetEmployees, Employee } from '@/business-apps/hr/hooks/useGetEmployees';
-import { useEmployeeFilters } from '@/business-apps/hr/hooks/useEmployeeFilters';
+import { useGetEmployees, Employee } from '@/business-apps/hr/core/hooks/useGetEmployees';
+import { useEmployeeFilters } from '@/business-apps/hr/core/hooks/useEmployeeFilters';
 import { PageLayout } from '@/components/layout/pageLayout';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { DebouncedDataController, DebouncedDataControllerProps } from '@/components/dataController';
@@ -11,7 +11,7 @@ import { PiUsersThree } from 'react-icons/pi';
 import { EmployeeCard } from './components/EmployeeCard.component';
 import EmployeeDetails from '@/business-apps/hr/components/employeeDetails';
 //import { useTranslation } from 'react-i18next';
-import { BusinessAppContextProps } from '../../../common/BusinessAppContext';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 /**
  * Employee Directory page component. Renders the employee directory module with grid, infinite scroll, and alphabet filter.
@@ -96,10 +96,8 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
   }, [handleOutsideClick]);
 
   return (
-    <div className="gba:w-full gba:h-screen gba:flex gba:flex-row gba:relative gba:bg-white">
       <PageLayout
-        variant="default"
-        headerIcon={<PiUsersThree size={32} />}
+        headerIcon={<PiUsersThree size={32}/>}
         headerLabel={'Employee Directory'}
         contentHeader={null}
         contentContainer={
@@ -169,7 +167,6 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
           />
         }
       />
-    </div>
   );
 };
 

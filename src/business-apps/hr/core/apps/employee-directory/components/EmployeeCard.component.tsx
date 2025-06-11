@@ -8,7 +8,7 @@ import {
   PiBuildingsBold,
   PiOfficeChairBold
 } from 'react-icons/pi';
-import EmployeeAvatar from '@/business-apps/hr/components/employeeAvatar/EmployeeAvatar';
+import { Avatar } from '@newwork/gravity-ui-catalog';
 
 /**
  * Employee type definition for the card.
@@ -37,6 +37,15 @@ interface Employee {
 
 // EmployeeCard component
 export function EmployeeCard({ employee }: Readonly<{ employee: Employee }>) {
+  const initialsValue = employee.profilePicture
+    ? undefined
+    : `${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`.toUpperCase();
+
+  const avatarSrcValue = employee.profilePicture
+    ? `data:image/gif;base64,${employee.profilePicture}`
+    : undefined;
+
+  const avatarContentTypeValue = employee.profilePicture ? 'image' : 'initials';
   const profileUrl = `/platform/employee-profile/${employee.id}`;
   const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat();
   
@@ -75,13 +84,18 @@ export function EmployeeCard({ employee }: Readonly<{ employee: Employee }>) {
         <div className="gba:flex gba:mb-3">
           {/* Profile Picture */}
           <div className="gba:mr-3">
-            <EmployeeAvatar
-              profilePicture={employee.profilePicture}
-              firstName={employee.firstName}
-              lastName={employee.lastName}
-              employeeId={employee.id}
-              size={56}
-              randomizeStatus={true}
+            <Avatar
+              src={avatarSrcValue}
+              initials={initialsValue}
+              // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+              contentType={avatarContentTypeValue}
+              alt={`${employee.firstName} ${employee.lastName}`}
+              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              size="lg"
+              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              shape="rounded"
+              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              appearance="gradient"
             />
           </div>
 

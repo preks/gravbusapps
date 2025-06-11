@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
-import { useGraphqlClient } from '../../../../common/network/graphql/useGraphQLClient';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 
 /**
  * Job Position type definition for the list.

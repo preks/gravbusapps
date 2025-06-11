@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
-import { useGraphqlClient } from '../../../common/network/graphql/useGraphQLClient';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 
 /**
  * Employee type definition for the directory.

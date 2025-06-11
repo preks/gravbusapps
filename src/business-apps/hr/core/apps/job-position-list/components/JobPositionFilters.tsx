@@ -4,9 +4,9 @@ import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { Button, Input, Checkbox/* , FilterPanel */ } from '@newwork/gravity-ui-catalog';
 import { PiSlidersHorizontal } from 'react-icons/pi';
-import { useGraphqlClient } from '../../../../common/network/graphql/useGraphQLClient';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { formatDataTestId } from '@/modules/orgchart/utils';
-import { BusinessAppContextProps } from "../../../../common/BusinessAppContext";
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface JobPositionFiltersProps {
   filters: {
