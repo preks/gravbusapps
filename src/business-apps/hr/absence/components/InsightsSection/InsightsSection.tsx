@@ -53,3 +53,5 @@ export const InsightsSection = () => {
     </div>
   )
 }
+
+export default InsightsSection;

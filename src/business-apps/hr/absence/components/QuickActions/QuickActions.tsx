@@ -47,3 +47,5 @@ export const QuickActions = ({ onSectionChange }: { onSectionChange: (section: s
     </div>
   );
 }
+
+export default QuickActions;
