@@ -1,7 +1,7 @@
 /**
  * GraphQL client utility for making API requests
  */
-import { GRAPHQL_API_ENDPOINT } from '../ExpenseItemContext/constants';
+import { GRAPHQL_API_ENDPOINT } from '../context/constants';
 
 /**
  * Creates a GraphQL client for making API requests

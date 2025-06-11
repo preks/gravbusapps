@@ -2,7 +2,7 @@ import React from "react";
 import { Upload, message } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import styles from "../../ExpenseItem.module.css";
-import { useExpenseItem } from "../../ExpenseItemContext/ExpenseItemContext";
+import { useExpenseItem } from "../../context/ExpenseItemContext";
 
 interface UploadComponentProps {
   fileList: any[];

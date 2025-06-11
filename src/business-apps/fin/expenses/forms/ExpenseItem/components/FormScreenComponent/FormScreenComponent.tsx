@@ -20,7 +20,7 @@ import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, Custo
 import UploadComponent from "../UploadComponent";
 import SinglePositionComponent from "./SinglePositionComponent";
 import MultiPositionComponent from "./MultiPositionComponent";
-import { useExpenseItem } from "../../ExpenseItemContext/ExpenseItemContext";
+import { useExpenseItem } from "../../context/ExpenseItemContext";
 import { getDateFormat } from "../../utils/windowUtils";
 
 interface FormScreenComponentProps {

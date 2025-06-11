@@ -2,7 +2,7 @@
  * Currency utilities for the Expense Item module
  */
 import { Currency } from "../types";
-import { PRIORITY_CURRENCIES } from "../ExpenseItemContext/constants";
+import { PRIORITY_CURRENCIES } from "../context/constants";
 
 /**
  * API Currency type from the backend

@@ -1,14 +1,13 @@
 import React from "react";
 import styles from "./ExpenseItem.module.css";
 import { useTranslation } from "react-i18next";
-import { BusinessAppContextProps } from '../../../../common/BusinessAppContext';
-import { ExpenseItemProvider, useExpenseItem } from './ExpenseItemContext';
+import { ExpenseItemProvider, useExpenseItem } from './context';
 import { Button } from "@newwork/gravity-ui-catalog";
 import { Typography, Divider } from "antd";
-import { CloseOutlined } from "@ant-design/icons";
 import { ExpenseItemProps } from "./types";
 import StartScreenComponent from "./components/StartScreenComponent";
 import FormScreenComponent from "./components/FormScreenComponent";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
 const { Title } = Typography;
 

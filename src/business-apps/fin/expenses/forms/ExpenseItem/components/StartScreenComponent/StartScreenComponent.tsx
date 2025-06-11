@@ -3,7 +3,7 @@ import { Button } from "@newwork/gravity-ui-catalog";
 import { useTranslation } from "react-i18next";
 import styles from "../../ExpenseItem.module.css";
 import UploadComponent from "../UploadComponent";
-import { useExpenseItem } from "../../ExpenseItemContext/ExpenseItemContext";
+import { useExpenseItem } from "../../context/ExpenseItemContext";
 
 interface StartScreenComponentProps {
   fileList: any[];

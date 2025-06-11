@@ -17,7 +17,7 @@ import {
   CustomField,
 } from "../../types";
 import { getCatalogValue } from "../../utils/windowUtils";
-import { useExpenseItem } from "../../ExpenseItemContext/ExpenseItemContext";
+import { useExpenseItem } from "../../context/ExpenseItemContext";
 
 interface MultiPositionComponentProps {
   positions: ExpensePosition[];

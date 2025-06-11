@@ -11,7 +11,7 @@ import {
   Currency,
 } from "../../types";
 import { getCatalogValue } from "../../utils/windowUtils";
-import { useExpenseItem } from "../../ExpenseItemContext/ExpenseItemContext";
+import { useExpenseItem } from "../../context/ExpenseItemContext";
 import { Form } from "antd";
 
 interface SinglePositionComponentProps {
