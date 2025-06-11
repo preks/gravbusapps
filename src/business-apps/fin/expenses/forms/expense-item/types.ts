@@ -1,4 +1,4 @@
-import { BusinessAppContextProps } from '../../../../common/BusinessAppContext';
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
 export interface ExpenseItemProps extends BusinessAppContextProps {
   title?: string;
