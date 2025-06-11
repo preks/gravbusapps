@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { Calendar, Tag, Typography, Tabs } from "antd";
-import { AbsenceListDisplay } from "./AbsenceListDisplay";
+import { AbsenceListDisplay } from "./components/AbsenceListDisplay";
 import dayjs, { Dayjs } from "dayjs";
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import "./AbsenceCalendar.css";
 import {
   useGetEmployeeAbsences,
   EmployeeAbsence,
-} from "../../hooks/useGetEmployeeAbsences";
+} from "./hooks/useGetEmployeeAbsences";
 import { BusinessAppContextProps } from "../../../../common/BusinessAppContext";
 import calendarIcon from "../../../../assets/icons/calendarIcon.svg";
 import weekday from 'dayjs/plugin/weekday'
@@ -103,9 +103,9 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = (props) => {
                 item.tagColor ||
                 (item.status === "Approved" ? "green" : "orange")
               }
-              className={`absence-calendar-tag${item.status === 'PENDING' ? ' absence-pending' : ''}`}
+              className={`gba:absence-calendar-tag${item.status === 'PENDING' ? ' gba:absence-pending' : ''}`}
             >
-              <div className="absence-calendar-type">{item.type}</div>
+              <div className="gba:absence-calendar-type">{item.type}</div>
             </Tag>
           </li>
         ))}
@@ -115,13 +115,13 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = (props) => {
 
   if (loading) {
     return (
-      <div className="absence-calendar-loading">Loading absences...</div>
+      <div className="gba:absence-calendar-loading">Loading absences...</div>
     );
   }
 
   if (error) {
     return (
-      <div className="absence-calendar-error">Error loading absences.</div>
+      <div className="gba:absence-calendar-error">Error loading absences.</div>
     );
   }
 
@@ -132,31 +132,31 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = (props) => {
   const handleToday = () => setCalendarValue(dayjs());
 
   return (
-    <div className="absence-calendar-root">
+    <div className="gba:absence-calendar-root">
       <div className="gba:flex gba:items-center gba:gap-3 gba:mb-6">
         <img src={calendarIcon} alt="Calendar Icon" className="gba:w-8 gba:h-8" />
         <span className="gba:text-2xl gba:font-bold">My Absence Calendar</span>
       </div>
-      <Tabs defaultActiveKey="calendar" className="absence-calendar-tabs">
+      <Tabs defaultActiveKey="calendar" className="gba:absence-calendar-tabs">
         <TabPane tab="Month" key="calendar">
-          <div className="calendar-controls-bar">
-            <div className="calendar-controls-leftbar">
-              <button className="calendar-toggle-btn" onClick={handlePrevMonth}>
-                <LeftOutlined className="calendar-icon-thick" />
+          <div className="gba:calendar-controls-bar">
+            <div className="gba:calendar-controls-leftbar">
+              <button className="gba:calendar-toggle-btn" onClick={handlePrevMonth}>
+                <LeftOutlined className="gba:calendar-icon-thick" />
               </button>
-              <button className="calendar-today-btn" onClick={handleToday}>
+              <button className="gba:calendar-today-btn" onClick={handleToday}>
                 Today
               </button>
-              <button className="calendar-toggle-btn" onClick={handleNextMonth}>
-                <RightOutlined className="calendar-icon-thick" />
+              <button className="gba:calendar-toggle-btn" onClick={handleNextMonth}>
+                <RightOutlined className="gba:calendar-icon-thick" />
               </button>
-              <span className="calendar-toggle-group-label">
+              <span className="gba:calendar-toggle-group-label">
                 {calendarValue.format("MMMM YYYY")}
               </span>
             </div>
           </div>
           <Calendar
-            className="absence-calendar"
+            className="gba:absence-calendar"
             cellRender={dateCellRender}
             fullscreen={true}
             value={calendarValue}
