@@ -202,7 +202,7 @@ export const AbsenceOverview: React.FC<BusinessAppContextProps> = ({ accessToken
             <div className="gba:flex gba:justify-between gba:items-center gba:mb-3">
               <div>
                 <span className="gba:text-2xl gba:font-bold">{card.count}</span>
-                {card.title === 'Average Duration' && <span className="gba:ml-1 gba:text-sm">days</span>}
+                {card.title === 'Average Duration' ? <span className="gba:ml-1 gba:text-sm">days</span> : card.title === 'Approval Rate' ? <span className="gba:ml-1 gba:text-sm">%</span> : null}
               </div>
               {card.icon}
             </div>

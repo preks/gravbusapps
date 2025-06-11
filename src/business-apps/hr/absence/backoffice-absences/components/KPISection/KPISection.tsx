@@ -27,7 +27,6 @@ interface EmployeeAbsence {
     id: string;
     lastName: string;
     firstName: string;
-    pictureThumbnail: string;
     employeePosition: {
       organizationalUnit: {
         name: string;
@@ -53,15 +52,8 @@ interface EmployeeAbsence {
 }
 
 const GET_EMPLOYEE_ABSENCES = `
-  query GetEmployeeAbsences(
-    $page: Int!,
-    $limit: Int!,
-    $startDate: timestamp!,
-    $endDate: timestamp!
-  ) {
+  query GetEmployeeAbsences( $startDate: timestamp!,  $endDate: timestamp!) {
     EmployeeAbsence(
-      offset: $page
-      limit: $limit
       where: {
         _and: [
           { startDate: { _gte: $startDate } },
@@ -78,7 +70,6 @@ const GET_EMPLOYEE_ABSENCES = `
         id
         lastName
         firstName
-        pictureThumbnail
         employeePosition {
           organizationalUnit {
             name
@@ -108,7 +99,7 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [absences, setAbsences] = useState<EmployeeAbsence[]>([]);
-  const [, setAbsenceGroups] = useState<{ [typeId: string]: string }>({});
+  const [absenceGroups, setAbsenceGroups] = useState<{ [typeId: string]: string }>({});
   const [organizedAbsences, setOrganizedAbsences] = useState<{
     [month: string]: { [type: string]: number };
   }>({});
@@ -161,8 +152,6 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
         const result = await graphQLClient.request<{
           EmployeeAbsence: EmployeeAbsence[];
         }>(GET_EMPLOYEE_ABSENCES, { 
-          page: 0, 
-          limit: 100,
           startDate: firstDayOfMonth.toISOString(),
           endDate: lastDayOfMonth.toISOString()
         });
@@ -185,7 +174,6 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
           departmentMap[dept] = (departmentMap[dept] || 0) + (absence.effectiveDays || 0);
         });
 
-        console.log('Department map after processing:', departmentMap);
 
         const deptData = Object.entries(departmentMap)
           .map(([department, absences]) => ({

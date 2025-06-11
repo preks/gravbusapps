@@ -49,10 +49,16 @@ interface EmployeeAbsence {
 }
 
 const GET_EMPLOYEE_ABSENCES = `
-  query GetEmployeeAbsences($page: Int!, $limit: Int!) {
+  query GetEmployeeAbsences($startDate: timestamp!, $endDate: timestamp!) {
     EmployeeAbsence(
-      offset: $page
-      limit: $limit
+      where: {
+        _and: [
+          { startDate: { _gte: $startDate } },
+          { endDate: { _lte: $endDate } },
+          { status: { _in: ["PENDING", "APPROVED", "REJECTED"] } },
+          { isDeleted: { _eq: false } }
+        ]
+      }
     ) {
       id
       startDate
@@ -61,7 +67,6 @@ const GET_EMPLOYEE_ABSENCES = `
         id
         lastName
         firstName
-        pictureThumbnail
         employeePosition {
           organizationalUnit {
             name
@@ -86,11 +91,9 @@ const GET_EMPLOYEE_ABSENCES = `
 `;
 
 
-
-// Define the color palette with a single column color and line color
 const colorPalette = {
-  column: "#3498DB", // Sky Blue for all columns
-  totalLine: "#34495E"  // Darker shade for the trendline
+  column: "#3498DB",
+  totalLine: "#34495E" 
 };
 
 
@@ -127,6 +130,10 @@ const AbsenceTrends= ({accessToken}: BusinessAppContextProps) => {
       return monthNames[new Date(date).getMonth()];
     };
   
+    const formatDate = (date: Date) => {
+      return date.toISOString().split('T')[0];
+    };
+
     useEffect(() => {
       const fetchAbsences = async () => {
         try {
@@ -141,9 +148,18 @@ const AbsenceTrends= ({accessToken}: BusinessAppContextProps) => {
           });
           setAbsenceGroups(groupsMap);
   
+          const currentYear = new Date().getFullYear();
+          const firstDayOfYear = new Date(currentYear, 0, 1);
+          const lastDayOfYear = new Date(currentYear, 11, 31);
+          
+          const formatForGraphQL = (date: Date) => date.toISOString();
+          
           const result = await graphQLClient.request<{
             EmployeeAbsence: EmployeeAbsence[];
-          }>(GET_EMPLOYEE_ABSENCES, { page: 0, limit: 100 });
+          }>(GET_EMPLOYEE_ABSENCES, { 
+            startDate: formatForGraphQL(firstDayOfYear),
+            endDate: formatForGraphQL(lastDayOfYear)
+          });
   
           const enrichedAbsences = result.EmployeeAbsence.map((absence) => ({
             ...absence,
