@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState} from "react";
 import { useTranslation } from "react-i18next";
 import {
   Button,
@@ -21,6 +21,7 @@ import UploadComponent from "../UploadComponent";
 import SinglePositionComponent from "./SinglePositionComponent";
 import MultiPositionComponent from "./MultiPositionComponent";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
+import { Alert } from "antd";
 import { getDateFormat } from "../../utils/windowUtils";
 
 interface FormScreenComponentProps {
@@ -36,6 +37,7 @@ interface FormScreenComponentProps {
   currencies: Currency[];
   expenseRequests: any[];
   multiPosition: boolean;
+  setCurrentSelectedDate: (date:Date|null)=>void;
   setMultiPosition: (isMulti: boolean) => void;
   handleSubmit: () => Promise<void>;
   handleExpenseGroupChange: (value: string, positionIndex: number) => Promise<void>;
@@ -59,6 +61,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   currencies,
   expenseRequests,
   multiPosition,
+  setCurrentSelectedDate,
   setMultiPosition,
   handleSubmit,
   handleExpenseGroupChange,
@@ -68,12 +71,25 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   calculateTotal,
 }) => {
   const { t } = useTranslation();
-  const { isProcessingFiles, isFormDisabled } = useExpenseItem();
+  const {
+    isProcessingFiles,
+    isFormDisabled,
+    expenseRuleError,
+  } = useExpenseItem();
+
+  const [formIsValid, setFormIsValid] = useState(false);
 
   return (
     <Form
       form={form}
       layout="vertical"
+      
+      onFieldsChange={()=>{
+        const isFormValidValue = form
+    .getFieldsError()
+    .every((fieldErr:  any ) => fieldErr.errors.length === 0);
+    setFormIsValid(isFormValidValue)
+      }}
       validateTrigger={['onChange', 'onBlur']}
       initialValues={{
         date: new Date(),
@@ -128,15 +144,27 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                     "create_expense_type_item.current_date_placeholder",
                     "Select date"
                   )}
-                  onChange={(field) => {form.setFieldsValue({ date: field.value })
+                  onChange={(field) => {
+                    if(field.value)
+                    setCurrentSelectedDate(field.value as Date)
+                    form.setFieldsValue({ date: field.value }
+                    )
                 console.log(field.value,"-",form.getFieldValue('date'))}}
                   required={true}
                   format={getDateFormat('date.long')}
-                  value={form.getFieldValue('date') || null}
+                  value={form.getFieldValue('date')}
                 />
               </div>
             </div>
           </Form.Item>
+          {expenseRuleError && (
+            <Alert
+              message={t('create_expense_item.missing_expense_rule_message', 'No expense rule found for this date. Please contact your administrator.')}
+              type="error"
+              style={{ marginTop: 8 }}
+              showIcon
+            />
+          )}
         </div>
       </div>
 
@@ -317,7 +345,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <Button
           variant="primary"
           onClick={handleSubmit}
-          disabled={isProcessingFiles}
+          disabled={isProcessingFiles || !formIsValid || !!expenseRuleError}
           className={`${styles.submitButton} gba:submitButton`}
         >
           {t("expense_item.submit", "Submit")}

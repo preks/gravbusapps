@@ -30,6 +30,7 @@ const ExpenseItemContent: React.FC = () => {
     customFields,
     costCenters,
     multiPosition,
+    setCurrentSelectedDate,
     setMultiPosition,
     handleSubmit,
     handleExpenseGroupChange,
@@ -86,6 +87,7 @@ const ExpenseItemContent: React.FC = () => {
           currencies={currencies}
           expenseRequests={expenseRequests}
           multiPosition={multiPosition}
+          setCurrentSelectedDate={setCurrentSelectedDate}
           setMultiPosition={setMultiPosition}
           handleSubmit={handleSubmit}
           handleExpenseGroupChange={handleExpenseGroupChange}

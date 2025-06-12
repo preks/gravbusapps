@@ -1,15 +1,15 @@
 /**
  * Expense Request utilities for the Expense Item module
  */
-import { formatDateToDDMMYYYY } from "./dateUtils";
-
+import { getDateFormat } from "./windowUtils";
+import dayjs from 'dayjs'
 /**
  * Formats an expense request item with a formatted date in the title
  * @param item - The expense request item from the API
  * @returns Formatted expense request item with date in title
  */
 export const formatExpenseRequestItem = (item: any) => {
-  const formattedDate = formatDateToDDMMYYYY(item.createdAt);
+  const formattedDate = dayjs(item.createdAt).format(getDateFormat('date-long'));
   return {
     id: item.id,
     title: `${formattedDate} - ${item.title}`,

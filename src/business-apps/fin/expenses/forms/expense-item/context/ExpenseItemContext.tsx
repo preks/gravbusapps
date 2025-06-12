@@ -26,7 +26,6 @@ import {
 } from "../ExpenseItemQueries";
 import { fetchEmployeeRule } from "../ExpenseItemQueries";
 import { DEFAULT_EMPLOYEE_ID, DEFAULT_POSITION } from "./constants";
-import { formatDateToDDMMYYYY } from "../utils/dateUtils";
 import { transformCurrencies } from "../utils/currencyUtils";
 import { createGraphQLClient } from "../services/graphqlClient";
 import {
@@ -58,6 +57,7 @@ interface ExpenseItemContextProps {
   setIsFormDisabled: (isDisabled: boolean) => void;
   multiPosition: boolean;
   setMultiPosition: (isMulti: boolean) => void;
+  setCurrentSelectedDate:(date:Date|null)=> void;
 
   positions: ExpensePosition[];
   setPositions: (positions: ExpensePosition[]) => void;
@@ -69,6 +69,7 @@ interface ExpenseItemContextProps {
   expenseRequests: any[];
 
   employeeRuleId: string | null | object;
+  expenseRuleError: string | null;
 
   calculateTotal: () => number;
   handleFileUpload: (files: File[]) => Promise<any | null>;
@@ -104,7 +105,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   accessToken,
   userInfo,
   additionalData,
-}) => {
+}): React.ReactNode => {
   const { t } = useTranslation();
 
   const [form] = Form.useForm();
@@ -133,14 +134,15 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     null
   );
   const [firstRunVariable, setFirstRunVariable] = useState<boolean>(false);
+  const [expenseRuleError, setExpenseRuleError] = useState<string | null>(null);
   const [rerunRule, setRerunRule] = useState<boolean>(false);
 
   const [generalDataResponse, setGeneralDataResponse] = useState<any>(null);
   const [catalogueDataResponse, setCatalogueDataResponse] = useState<any>(null);
 
   const [, setStructureCostCenter] = useState<any>(null);
+  const [currentSelectedDate,setCurrentSelectedDate]= useState<Date |null>(null)
 
-  const [,/* setExpenseRequestByCurrency */] = useState<any>(null);
 
   const graphqlClient = useMemo(
     () => createGraphQLClient(accessToken),
@@ -148,185 +150,12 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   );
 
   useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        if (!accessToken) {
-          console.debug("Skipping GraphQL queries - No access token available");
-          return;
-        }
 
-        if (!userInfo) {
-          console.debug("Skipping GraphQL queries - No user info available");
-          return;
-        }
-
-        const currentDate = new Date().toISOString();
-        const employeeIdValue =
-          userInfo?.employeeDetails?.employeeId || DEFAULT_EMPLOYEE_ID;
-
-        if (!employeeIdValue) {
-          console.debug("Skipping GraphQL queries - No employee ID available");
-          return;
-        }
-
-        try {
-          const employeeRuleData = await fetchEmployeeRule(
-            employeeIdValue,
-            currentDate,
-            accessToken
-          );
-
-          if (employeeRuleData) {
-            setEmployeeRuleId(employeeRuleData.expenseRuleId);
-          } else {
-            console.debug("No employee rule data returned");
-          }
-        } catch (ruleError) {
-          console.error("Error fetching employee rule:", ruleError);
-        }
-
-        try {
-          const generalData = await graphqlClient.query({
-            query: fetchExpenseRuleGeneralData,
-            variables: {
-              expenseRuleId: employeeRuleId,
-              activeUserLocale: getCurrentActiveUserLocale(),
-              objectFilter: { useInExpense: true },
-            },
-          });
-          setGeneralDataResponse(generalData);
-        } catch (generalDataError) {
-          console.error("Error fetching general data:", generalDataError);
-        }
-
-        if (rerunRule === false) {
-          let catalogueData;
-          try {
-            catalogueData = await graphqlClient.query({
-              query: fetchExpenseCatalogueData,
-              variables: {
-                employeeId: employeeIdValue,
-                expenseRuleId: employeeRuleId,
-                activeUserLocale: getCurrentActiveUserLocale(),
-                objectFilter: { useInExpense: true },
-              },
-            });
-            setCatalogueDataResponse(catalogueData);
-          } catch (catalogueError) {
-            console.error("Error fetching catalogue data:", catalogueError);
-          }
-
-          const additionalDataMocked = {
-            psi_taskPayload: {
-              initialParameters: {
-                expenseId: "029a5366-28d0-463f-acaa-9e1a2a97d12b",//029a5366-28d0-463f-acaa-9e1a2a97d12b
-              },
-            },
-          };
-
-          const expenseIdValue =
-            additionalData?.psi_taskPayload?.initialParameters?.expenseId ||
-            additionalDataMocked.psi_taskPayload?.initialParameters?.expenseId;
-          if (expenseIdValue) {
-            await setByEdit(
-              expenseIdValue,
-              graphqlClient,
-              form,
-              setPositions,
-              setMultiPosition,
-              setExpenseRequests,
-              handleExpenseGroupChange,
-              handleExpenseTypeChange,
-              expenseTypes,
-              setExpenseTypes,
-              customFields,
-              setCustomFields,
-              employeeRuleId,
-              t
-            );
-          }
-
-          if (firstRunVariable === false && catalogueData?.data) {
-            const employeePosition =
-              catalogueData?.data?.EmployeePosition || [];
-            const structureId = employeePosition[0]?.structureId || "";
-
-            let costCenterData;
-            try {
-              costCenterData = await graphqlClient.query({
-                query: getStructureCostCenter,
-                variables: {
-                  structureId: structureId,
-                },
-              });
-              setStructureCostCenter(costCenterData);
-
-              const userCostCenters =
-                costCenterData?.data?.userCostCenters || [];
-              setCostCenters(userCostCenters);
-            } catch (costCenterError) {
-              console.error(
-                "Error fetching cost center data:",
-                costCenterError
-              );
-              setCostCenters([]);
-            }
-
-            try {
-              const updatedPositions = [...positions];
-
-              const employeePositionCostCenterId =
-                employeePosition[0]?.costCenterId;
-              const firstCostCenterId =
-                costCenterData?.data?.userCostCenters?.[0]?.id;
-
-              if (employeePositionCostCenterId) {
-                updatedPositions[0].costCenter = employeePositionCostCenterId;
-              } else if (firstCostCenterId) {
-                updatedPositions[0].costCenter = firstCostCenterId;
-              }
-
-              setPositions(updatedPositions);
-
-              if (form && updatedPositions[0]?.costCenter) {
-                form.setFieldsValue({
-                  [`positions[0].costCenter`]: updatedPositions[0].costCenter,
-                });
-              }
-            } catch (positionError) {
-              console.error(
-                "Error updating positions with cost center:",
-                positionError
-              );
-            }
-
-            try {
-              const currencyData = catalogueData?.data?.currency;
-              if (currencyData && Array.isArray(currencyData)) {
-                const finalCurrencies = transformCurrencies(currencyData);
-                setCurrencies(finalCurrencies);
-              } else {
-                setCurrencies([]);
-              }
-            } catch (currencyError) {
-              console.error("Error transforming currencies:", currencyError);
-              setCurrencies([]);
-            }
-
-            setFirstRunVariable(true);
-          }
-        }
-        setRerunRule(false);
-      } catch (error) {
-        console.error("Error fetching initial data:", error);
-        message.error("Failed to load expense data");
-      }
-    };
     fetchInitialData();
   }, [accessToken, userInfo, employeeRuleId, firstRunVariable, rerunRule]);
 
   useEffect(() => {
-    if (!accessToken || !generalDataResponse || !catalogueDataResponse) {
+    if (!accessToken || !generalDataResponse || !catalogueDataResponse || expenseRuleError) {
       return;
     }
 
@@ -355,17 +184,22 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
   }, [generalDataResponse, catalogueDataResponse, accessToken]);
 
+
   useEffect(() => {
-    if (catalogueDataResponse && accessToken) {
+    if (catalogueDataResponse && accessToken && !expenseRuleError) {
       addRequestsWrapper();
-      console.debug("Setting default expense request");
       form.setFieldsValue({ expenseRequestId: "0" });
     }
   }, [catalogueDataResponse, accessToken]);
 
+  useEffect(()=>{
+    if(firstRunVariable===true)
+    {
+      setRerunRule(true)
+      fetchInitialData()
+    }
+  },[currentSelectedDate])
   const aiGroupsAndTypes = useMemo(() => {
-    const today = formatDateToDDMMYYYY(new Date().toISOString());
-    console.debug(`Loading expense types data on ${today}`);
 
     if (
       typeof employeeRuleId === "object" ||
@@ -467,6 +301,180 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           name: t("create_expense_type_item.none", "None"),
         },
       ]);
+    }
+  };
+
+  const fetchInitialData = async () => {
+    try {
+      if (!accessToken) {
+        console.debug("Skipping GraphQL queries - No access token available");
+        return;
+      }
+
+      if (!userInfo) {
+        console.debug("Skipping GraphQL queries - No user info available");
+        return;
+      }
+
+      const currentDate = currentSelectedDate ? currentSelectedDate.toISOString() : new Date().toISOString();
+      const employeeIdValue =
+        userInfo?.employeeDetails?.employeeId || DEFAULT_EMPLOYEE_ID;
+
+      if (!employeeIdValue) {
+        console.debug("Skipping GraphQL queries - No employee ID available");
+        return;
+      }
+      try {
+        const employeeRuleData = await fetchEmployeeRule(
+          employeeIdValue,
+          currentDate,
+          accessToken
+        );
+
+        if (employeeRuleData && employeeRuleData.expenseRuleId) {
+          setEmployeeRuleId(employeeRuleData.expenseRuleId);
+          setExpenseRuleError(null);
+        } else {
+          setExpenseRuleError(t('create_expense_item.missing_expense_rule_message', 'There is no rule set for your user, please reach out to your administrator.'));
+        }
+      } catch (ruleError) {
+        setExpenseRuleError(t('create_expense_item.missing_expense_rule_message', 'There is no rule set for your user, please reach out to your administrator.'));
+      }
+
+      try {
+        const generalData = await graphqlClient.query({
+          query: fetchExpenseRuleGeneralData,
+          variables: {
+            expenseRuleId: employeeRuleId,
+            activeUserLocale: getCurrentActiveUserLocale(),
+            objectFilter: { useInExpense: true },
+          },
+        });
+        setGeneralDataResponse(generalData);
+      } catch (generalDataError) {
+        console.error("Error fetching general data:", generalDataError);
+      }
+
+      if (rerunRule === false) {
+        let catalogueData;
+        try {
+          catalogueData = await graphqlClient.query({
+            query: fetchExpenseCatalogueData,
+            variables: {
+              employeeId: employeeIdValue,
+              expenseRuleId: employeeRuleId,
+              activeUserLocale: getCurrentActiveUserLocale(),
+              objectFilter: { useInExpense: true },
+            },
+          });
+          setCatalogueDataResponse(catalogueData);
+        } catch (catalogueError) {
+          console.error("Error fetching catalogue data:", catalogueError);
+        }
+
+        const additionalDataMocked = {
+          psi_taskPayload: {
+            initialParameters: {
+              expenseId: "029a5366-28d0-463f-acaa-9e1a2a97d12b",//029a5366-28d0-463f-acaa-9e1a2a97d12b
+            },
+          },
+        };
+
+        
+
+        if (firstRunVariable === false && catalogueData?.data) {
+          const employeePosition =
+            catalogueData?.data?.EmployeePosition || [];
+          const structureId = employeePosition[0]?.structureId || "";
+          const expenseIdValue =
+          additionalData?.psi_taskPayload?.initialParameters?.expenseId ||
+          additionalDataMocked.psi_taskPayload?.initialParameters?.expenseId;
+        if (expenseIdValue) {
+          await setByEdit(
+            expenseIdValue,
+            graphqlClient,
+            form,
+            setPositions,
+            setMultiPosition,
+            setExpenseRequests,
+            handleExpenseGroupChange,
+            handleExpenseTypeChange,
+            expenseTypes,
+            setExpenseTypes,
+            customFields,
+            setCustomFields,
+            employeeRuleId,
+            t
+          );
+        }
+          let costCenterData;
+          try {
+            costCenterData = await graphqlClient.query({
+              query: getStructureCostCenter,
+              variables: {
+                structureId: structureId,
+              },
+            });
+            setStructureCostCenter(costCenterData);
+
+            const userCostCenters =
+              costCenterData?.data?.userCostCenters || [];
+            setCostCenters(userCostCenters);
+          } catch (costCenterError) {
+            console.error(
+              "Error fetching cost center data:",
+              costCenterError
+            );
+            setCostCenters([]);
+          }
+
+          try {
+            const updatedPositions = [...positions];
+
+            const employeePositionCostCenterId =
+              employeePosition[0]?.costCenterId;
+            const firstCostCenterId =
+              costCenterData?.data?.userCostCenters?.[0]?.id;
+
+            if (employeePositionCostCenterId) {
+              updatedPositions[0].costCenter = employeePositionCostCenterId;
+            } else if (firstCostCenterId) {
+              updatedPositions[0].costCenter = firstCostCenterId;
+            }
+
+            setPositions(updatedPositions);
+
+            if (form && updatedPositions[0]?.costCenter) {
+              form.setFieldsValue({
+                [`positions[0].costCenter`]: updatedPositions[0].costCenter,
+              });
+            }
+          } catch (positionError) {
+            console.error(
+              "Error updating positions with cost center:",
+              positionError
+            );
+          }
+
+          try {
+            const currencyData = catalogueData?.data?.currency;
+            if (currencyData && Array.isArray(currencyData)) {
+              const finalCurrencies = transformCurrencies(currencyData);
+              setCurrencies(finalCurrencies);
+            } else {
+              setCurrencies([]);
+            }
+          } catch (currencyError) {
+            console.error("Error transforming currencies:", currencyError);
+            setCurrencies([]);
+          }
+          setFirstRunVariable(true);
+        }
+      }
+      setRerunRule(false);
+    } catch (error) {
+      console.error("Error fetching initial data:", error);
+      message.error("Failed to load expense data");
     }
   };
 
@@ -811,11 +819,12 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     handleRemovePosition(positionId, positions, setPositions, t);
   };
 
-  const handleAmountChangeWrapper = (
-    value: number,
-    positionIndex: number
-  ): void => {
-    handleAmountChange(value, positionIndex, positions, setPositions);
+  const handleAmountChangeWrapper = (value: number, positionIndex: number): void => {
+    const updatedPositions = [...positions];
+    if (updatedPositions[positionIndex]) {
+      updatedPositions[positionIndex].amount = value;
+      setPositions(updatedPositions);
+    }
   };
 
   const contextValue: ExpenseItemContextProps = {
@@ -832,6 +841,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     setIsFormDisabled,
     multiPosition,
     setMultiPosition,
+    setCurrentSelectedDate,
     positions,
     setPositions,
     expenseGroups,
@@ -841,6 +851,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     currencies,
     expenseRequests,
     employeeRuleId,
+    expenseRuleError,
     calculateTotal: calculateTotalWrapper,
     handleFileUpload: handleFileUploadWrapper,
     handleSubmit: handleSubmitWrapper,
