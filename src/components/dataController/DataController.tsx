@@ -111,7 +111,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
 
         <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:gap-2">
           {/* Left: Filter and Search */}
-          <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:pb-5 gba:shrink-0">
+          <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:pb-1 gba:shrink-0">
             {!hideFilter && (
               <button
                 className={`gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:flex-none gba:order-0 gba:grow-0 ${showDataFilter          ? 'gba:bg-black gba:text-white' : 'gba:bg-black/[0.04] gba:text-black'}`}
