@@ -51,40 +51,52 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
     absences: 'absences'
   };
   
-  // Initialize active tab from URL hash or default to summary
-  const [activeTab, setActiveTab] = useState(TAB_KEYS.summary);
+  // Initialize active tab from URL query parameter if available, otherwise default to summary
+  const [activeTab, setActiveTab] = useState(() => {
+    // Try to get the tab from URL if we're in a browser environment
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const tabParam = searchParams.get('tab');
+      if (tabParam && Object.values(TAB_KEYS).includes(tabParam)) {
+        return tabParam;
+      }
+    }
+    return TAB_KEYS.summary;
+  });
   // Use employee ID from URL query parameter or default to user info
   const [employeeId, setEmployeeId] = useState(userInfo?.employeeDetails?.employeeId ?? '');
   
-  // Update the URL hash when the active tab changes
+  // Update the URL query parameter when the active tab changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Get the current hash without the # symbol
-      const currentHash = window.location.hash.replace('#', '');
+      const searchParams = new URLSearchParams(window.location.search);
+      const currentTab = searchParams.get('tab');
       
-      // Only update if the hash doesn't match the active tab
-      if (currentHash !== activeTab) {
-        window.location.hash = activeTab;
+      // Only update if the query param doesn't match the active tab
+      if (currentTab !== activeTab) {
+        searchParams.set('tab', activeTab);
+        
+        // Preserve other query parameters like employeeId
+        const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
+        window.history.pushState({}, '', newUrl);
       }
     }
   }, [activeTab]);
   
-  // Set the active tab based on the URL hash when the component mounts
+  // Set up initial URL parameters and employee ID when the component mounts
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const hash = window.location.hash.replace('#', '');
+      const searchParams = new URLSearchParams(window.location.search);
       
-      // Check if the hash corresponds to a valid tab
-      if (hash && Object.values(TAB_KEYS).includes(hash)) {
-        setActiveTab(hash);
-      } else if (!hash) {
-        // If no hash, set to default and update URL
-        setActiveTab(TAB_KEYS.summary);
-        window.location.hash = TAB_KEYS.summary;
+      // Ensure the default tab is set in URL if not already present
+      if (!searchParams.has('tab')) {
+        searchParams.set('tab', activeTab);
+        const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
+        window.history.pushState({}, '', newUrl);
       }
 
       // Set employee ID from URL query parameter
-      const employeeIdParam = new URLSearchParams(window.location.search).get('employeeId') ?? new URLSearchParams(window.location.search).get('id');
+      const employeeIdParam = searchParams.get('employeeId') ?? searchParams.get('id');
       if (employeeIdParam) {
         setEmployeeId(employeeIdParam);
       }

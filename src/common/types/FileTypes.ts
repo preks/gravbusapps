@@ -30,6 +30,11 @@ export type FileQueryParams = {
    * Folder path where the file is stored
    */
   folderPath?: string;
+
+  /**
+   * Encoding type for the file (e.g., 'base64')
+   */
+  encoding?: string;
 };
 
 /**
