@@ -3,7 +3,6 @@ import {
   Typography, 
   Button, 
   Input, 
-  Card, 
   Row, 
   Col, 
   Table, 
@@ -124,7 +123,6 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
   const graphQLClient = useGraphqlClient(accessToken);
 
   useEffect(() => {
-    console.log("Saved user info ", savedUserInfo);
     
     if (savedUserInfo) {
       try {
@@ -534,10 +532,10 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
 
       <Row gutter={16} style={{ marginBottom: '24px' }} className="gba-kpi-row">
         <Col span={6}>
-          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+          <div className="gba:p-6 gba:border gba:rounded-lg gba:bg-white gba:shadow-sm" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', height: '110px' }}>
             <div className="gba:flex gba:items-center">
-              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
-                <BankOutlined className="gba:h-5 gba:w-5 gba:text-blue-500" />
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-50 gba:flex gba:items-center gba:justify-center gba:mr-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <BankOutlined className="gba:h-5 gba:w-5 gba:text-blue-500" style={{ fontSize: '18px' }} />
               </div>
               <div>
                 <div className="gba:text-sm gba:text-gray-500">Total Companies</div>
@@ -547,10 +545,10 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
           </div>
         </Col>
         <Col span={6}>
-          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+          <div className="gba:p-6 gba:border gba:rounded-lg gba:bg-white gba:shadow-sm" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', height: '110px' }}>
             <div className="gba:flex gba:items-center">
-              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
-                <AreaChartOutlined className="gba:h-5 gba:w-5 gba:text-green-500" />
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-50 gba:flex gba:items-center gba:justify-center gba:mr-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AreaChartOutlined className="gba:h-5 gba:w-5 gba:text-green-500" style={{ fontSize: '18px' }} />
               </div>
               <div>
                 <div className="gba:text-sm gba:text-gray-500">Industries</div>
@@ -567,10 +565,10 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
           </div>
         </Col>
         <Col span={6}>
-          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+          <div className="gba:p-6 gba:border gba:rounded-lg gba:bg-white gba:shadow-sm" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', height: '110px' }}>
             <div className="gba:flex gba:items-center">
-              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-orange-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
-                <TeamOutlined className="gba:h-5 gba:w-5 gba:text-orange-500" />
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-orange-50 gba:flex gba:items-center gba:justify-center gba:mr-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <TeamOutlined className="gba:h-5 gba:w-5 gba:text-orange-500" style={{ fontSize: '18px' }} />
               </div>
               <div>
                 <div className="gba:text-sm gba:text-gray-500">Total Employees</div>
@@ -585,10 +583,10 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
           </div>
         </Col>
         <Col span={6}>
-          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+          <div className="gba:p-6 gba:border gba:rounded-lg gba:bg-white gba:shadow-sm" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', height: '110px' }}>
             <div className="gba:flex gba:items-center">
-              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-purple-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
-                <GlobalOutlined className="gba:h-5 gba:w-5 gba:text-purple-500" />
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-purple-50 gba:flex gba:items-center gba:justify-center gba:mr-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <GlobalOutlined className="gba:h-5 gba:w-5 gba:text-purple-500" style={{ fontSize: '18px' }} />
               </div>
               <div>
                 <div className="gba:text-sm gba:text-gray-500">Countries</div>
@@ -606,18 +604,20 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
         </Col>
       </Row>
 
-      <Row justify="space-between" style={{ marginBottom: '16px' }} className="gba-filter-row">
-        <Col span={12}>
+      <Row justify="start" style={{ marginBottom: '16px' }} className="gba-filter-row">
+        <Col span={6}>
           <Input 
             placeholder="Search companies (e.g., name, industry)"
             prefix={<SearchOutlined className="gba-search-icon" />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             className="gba-search-input"
+            style={{ 
+              width: '100%',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px'
+            }}
           />
-        </Col>
-        <Col>
-          <Button icon={<FilterOutlined />} className="gba-filter-button">Filters</Button> 
         </Col>
       </Row>
 
@@ -638,6 +638,12 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
             itemRender: itemRender
           }}
           className="gba-company-table"
+          style={{ 
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            overflow: 'hidden',
+            padding: '24px'
+          }}
           locale={{
             emptyText: 
               !loading && companiesData.length === 0 && debouncedSearchText ? 

@@ -22,6 +22,7 @@ import {
   UserOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import './styles/AddNewCompany.css';
 
 const { Title, Text } = Typography;
@@ -109,33 +110,68 @@ const AddNewCompany: React.FC<AddNewCompanyProps> = ({ accessToken, employeeDeta
   const [error, setError] = useState<string | null>(null);
   const [companyData, setCompanyData] = useState(emptyCompanyData);
   
-  const [industryOptions, setIndustryOptions] = useState<ReferenceData[]>([
-    { id: "IndustryClass:v1:A", code: "A", value: "Agriculture, forestry and fishing" },
-    { id: "IndustryClass:v1:I", code: "I", value: "Accommodation and food service activities" },
-    { id: "IndustryClass:v1:P", code: "P", value: "Education" },
-    { id: "IndustryClass:v1:R", code: "R", value: "Arts, entertainment and recreation" },
-    { id: "IndustryClass:v1:T", code: "T", value: "Activities of households as employers; undifferentiated goods- and services-producing activities of households for own use" },
-    { id: "IndustryClass:v1:U", code: "U", value: "Activities of extraterritorial organizations and bodies" }
-  ]);
-
-  const [legalFormOptions, setLegalFormOptions] = useState<ReferenceData[]>([
-    { id: "LegalForm:v1:LLC", code: "LLC", value: "Limited Liability Company LLC" },
-    { id: "LegalForm:v1:C-CORP", code: "C-CORP", value: "C Corporation" },
-    { id: "LegalForm:v1:S-CORP", code: "S-CORP", value: "S Corporation" },
-    { id: "LegalForm:v1:GP", code: "GP", value: "General Partnership (GP)" },
-    { id: "LegalForm:v1:LP", code: "LP", value: "Limited Partnerships (LP)" },
-    { id: "LegalForm:v1:PRIVATE", code: "PRIVATE", value: "Private Limited Company" }
-  ]);
-
-  const [numberOfEmployeesOptions, setNumberOfEmployeesOptions] = useState<NumberOfEmployeesOption[]>([
-    { id: "EmployeeSize:v1:10", code: "10", value: "1-10" },
-    { id: "EmployeeSize:v1:20", code: "20", value: "11-50" },
-    { id: "EmployeeSize:v1:30", code: "30", value: "51-100" },
-    { id: "EmployeeSize:v1:40", code: "40", value: "101-500" },
-    { id: "EmployeeSize:v1:50", code: "50", value: "501-1000" },
-    { id: "EmployeeSize:v1:60", code: "60", value: "1001-5000" },
-    { id: "EmployeeSize:v1:70", code: "70", value: "5001-10000" }
-  ]);
+  const [industryOptions, setIndustryOptions] = useState<ReferenceData[]>([]);
+  const [legalFormOptions, setLegalFormOptions] = useState<ReferenceData[]>([]);
+  const [numberOfEmployeesOptions, setNumberOfEmployeesOptions] = useState<NumberOfEmployeesOption[]>([]);
+  
+  const catalogClient = useCatalogManagerClient(accessToken);
+  
+  useEffect(() => {
+    const fetchCatalogData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch industry classes
+        const industryClassResponse = await catalogClient.getCatalogEntriesList({ 
+          catalogIdentifier: 'IndustryClass', 
+          version: 'v1' 
+        });
+        
+        if (industryClassResponse.data) {
+          setIndustryOptions(industryClassResponse.data.map((entry: any) => ({
+            id: entry.id,
+            code: entry.code,
+            value: entry.value
+          })));
+        }
+        
+        // Fetch legal forms
+        const legalFormResponse = await catalogClient.getCatalogEntriesList({ 
+          catalogIdentifier: 'LegalForm', 
+          version: 'v1' 
+        });
+        
+        if (legalFormResponse.data) {
+          setLegalFormOptions(legalFormResponse.data.map((entry: any) => ({
+            id: entry.id,
+            code: entry.code,
+            value: entry.value
+          })));
+        }
+        
+        // Fetch employee size options
+        const employeeSizeResponse = await catalogClient.getCatalogEntriesList({ 
+          catalogIdentifier: 'EmployeeSize', 
+          version: 'v1' 
+        });
+        
+        if (employeeSizeResponse.data) {
+          setNumberOfEmployeesOptions(employeeSizeResponse.data.map((entry: any) => ({
+            id: entry.id,
+            code: entry.code,
+            value: entry.value
+          })));
+        }
+      } catch (err) {
+        console.error('Error fetching catalog data:', err);
+        setError('Failed to load reference data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCatalogData();
+  }, [catalogClient]);
 
   const handleBack = () => {
     if (onBack) {
@@ -457,33 +493,22 @@ const AddNewCompany: React.FC<AddNewCompanyProps> = ({ accessToken, employeeDeta
 
                 <Col span={12}>
                   <Text strong>Region/State</Text>
-                  <Select
-                    placeholder="Select region"
-                    style={{ width: '100%' }}
-                    value={companyData.addresses.region.id}
-                    onChange={(value) => handleFieldChange('addresses.region.id', value)}
-                    className="gba:add-new-company-select-field"
-                  >
-                    <Option value="region1">California</Option>
-                    <Option value="region2">New York</Option>
-                    <Option value="region3">Texas</Option>
-                  </Select>
+                  <Input
+                    placeholder="Enter region or state" 
+                    value={companyData.addresses.region.value}
+                    onChange={(e) => handleFieldChange('addresses.region.value', e.target.value)}
+                    className="gba:add-new-company-input-field"
+                  />
                 </Col>
 
                 <Col span={12}>
                   <Text strong>Country</Text>
-                  <Select
-                    placeholder="Select country"
-                    style={{ width: '100%' }}
-                    value={companyData.addresses.country.id}
-                    onChange={(value) => handleFieldChange('addresses.country.id', value)}
-                    className="gba:add-new-company-select-field"
-                  >
-                    <Option value="country1">United States</Option>
-                    <Option value="country2">Germany</Option>
-                    <Option value="country3">United Kingdom</Option>
-                    <Option value="country4">France</Option>
-                  </Select>
+                  <Input
+                    placeholder="Enter country" 
+                    value={companyData.addresses.country.value}
+                    onChange={(e) => handleFieldChange('addresses.country.value', e.target.value)}
+                    className="gba:add-new-company-input-field"
+                  />
                 </Col>
               </Row>
             </Card>
