@@ -77,6 +77,7 @@ src
 # Project Development
 - Simplify the code as much as possible and keep it clean
 - Remove unused code
+- Remove commented code
 - Use the Conventional Commits specification for git commit messages
 
 # Publishing
