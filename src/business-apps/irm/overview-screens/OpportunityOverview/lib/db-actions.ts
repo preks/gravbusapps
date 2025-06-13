@@ -70,7 +70,7 @@ export interface Opportunity {
   description?: string
   attributes?: Record<string, any>
   investmentId?: string 
-  createdAt: string
+  createdAt?: string
   updatedAt: string
 }
 
@@ -134,7 +134,17 @@ export interface OpportunityWithRelations extends Opportunity {
   companyName?: string
   stageName?: string
   pipelineName?: string
-  investmentName?: string 
+  investmentName?: string
+  investmentId?: string
+  account?: string
+  contact?: string
+  lastInteraction?: string
+  createdAt?: string
+  closeDate?: string
+  owner?: string
+  estimatedAmount?: number
+  winningChance?: number
+  stage?: string
 }
 
 export interface DetailedOpportunity extends OpportunityWithRelations {
@@ -229,10 +239,11 @@ export interface Investment {
 export interface InvestmentWithRelations extends Investment {
   companyName?: string
   opportunities?: OpportunityWithRelations[] 
+}
 
 export interface DetailedInvestment extends InvestmentWithRelations {
   activities: Activity[]
-  documents: Document[]
+  documentDetails: Document[]
   decisions: Decision[]
   financials: InvestmentFinancial[]
   performance: InvestmentPerformance[]

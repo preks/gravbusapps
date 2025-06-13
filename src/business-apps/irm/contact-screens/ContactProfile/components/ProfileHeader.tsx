@@ -12,7 +12,7 @@ interface ProfileHeaderProps {
 export const ProfileHeader: FC<ProfileHeaderProps> = ({ contact }) => {
   return (
     <Card className="gba:rounded-xl gba:shadow-sm gba:overflow-hidden gba:md:col-span-2 gba:border-gray-300">
-      <div className="gba:bg-gradient-to-r from-blue-50 to-sky-50 gba:p-6">
+      <div className="gba:bg-gradient-to-r gba:from-blue-50 gba:to-sky-50 gba:p-6">
         {/* Profile Header + Contact Details */}
         <div className="gba:flex gba:flex-col gba:md:flex-row gba:gap-6">
           {/* Left section - Profile Photo */}

@@ -68,46 +68,46 @@ export function checkAllRequirementsMet(
 export function getStageColorClass(color: string): string {
   switch (color) {
     case "blue":
-      return "bg-blue-100 text-blue-800 border-blue-300"
+      return "gba:bg-blue-100 gba:text-blue-800 gba:border-blue-300"
     case "indigo":
-      return "bg-indigo-100 text-indigo-800 border-indigo-300"
+      return "gba:bg-indigo-100 gba:text-indigo-800 gba:border-indigo-300"
     case "violet":
-      return "bg-violet-100 text-violet-800 border-violet-300"
+      return "gba:bg-violet-100 gba:text-violet-800 gba:border-violet-300"
     case "purple":
-      return "bg-purple-100 text-purple-800 border-purple-300"
+      return "gba:bg-purple-100 gba:text-purple-800 gba:border-purple-300"
     case "green":
-      return "bg-green-100 text-green-800 border-green-300"
+      return "gba:bg-green-100 gba:text-green-800 gba:border-green-300"
     case "red":
-      return "bg-red-100 text-red-800 border-red-300"
+      return "gba:bg-red-100 gba:text-red-800 gba:border-red-300"
     case "yellow":
-      return "bg-yellow-100 text-yellow-800 border-yellow-300"
+      return "gba:bg-yellow-100 gba:text-yellow-800 gba:border-yellow-300"
     case "orange":
-      return "bg-orange-100 text-orange-800 border-orange-300"
+      return "gba:bg-orange-100 gba:text-orange-800 gba:border-orange-300"
     default:
-      return "bg-gray-100 text-gray-800 border-gray-300"
+      return "gba:bg-gray-100 gba:text-gray-800 gba:border-gray-300"
   }
 }
 
 export function getStageBgColorClass(color: string): string {
   switch (color) {
     case "blue":
-      return "bg-blue-500"
+      return "gba:bg-blue-500"
     case "indigo":
-      return "bg-indigo-500"
+      return "gba:bg-indigo-500"
     case "violet":
-      return "bg-violet-500"
+      return "gba:bg-violet-500"
     case "purple":
-      return "bg-purple-500"
+      return "gba:bg-purple-500"
     case "green":
-      return "bg-green-500"
+      return "gba:bg-green-500"
     case "red":
-      return "bg-red-500"
+      return "gba:bg-red-500"
     case "yellow":
-      return "bg-yellow-500"
+      return "gba:bg-yellow-500"
     case "orange":
-      return "bg-orange-500"
+      return "gba:bg-orange-500"
     default:
-      return "bg-gray-500"
+      return "gba:bg-gray-500"
   }
 }
 

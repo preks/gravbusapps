@@ -1,3 +1,17 @@
+/* Declare custom properties BEFORE any imports to ensure they take precedence */
+@property --tw-gradient-to {
+  syntax: "*";
+  inherits: false;
+  initial-value: #0000;
+}
+
+@property --tw-gradient-from {
+  syntax: "*";
+  inherits: false;
+  initial-value: #0000;
+}
+
+/* Now import Tailwind and other styles */
 @import "tailwindcss" prefix(gba);
 @config "../tailwind.config.js";
 
@@ -5,6 +19,7 @@
 @import "./business-apps/irm/kanban-board/KanbanBoard/kanban-styles.css";
 @import "./business-apps/crm/overview-screens/CompanyOverview/styles/CompanyOverview.css";
 @import "./business-apps/crm/detail-screens/CompanyDetail/styles/CompanyDetail.css";
+@import "@newwork/gravity-ui-catalog/dist/assets/style.css";
 
 @config "../tailwind.config.js";
 
