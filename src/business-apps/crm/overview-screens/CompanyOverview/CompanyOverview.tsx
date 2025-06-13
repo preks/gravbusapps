@@ -15,11 +15,12 @@ import AddNewCompany from './AddNewCompany';
 import { 
   PlusOutlined, 
   SearchOutlined, 
-  FilterOutlined,
   BankOutlined,
   AreaChartOutlined,
   TeamOutlined,
-  GlobalOutlined
+  GlobalOutlined,
+  CaretUpOutlined,
+  CaretDownOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -104,11 +105,11 @@ interface EmployeeDetails {
 }
 
 const STORAGE_KEY_USER_INFO = 'business-app-ide-user-info';
-  
-const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+
+const CompanyOverview: React.FC<BusinessAppContextProps> = ({ userInfo, accessToken }) => {
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<DisplayCompanyData | null>(null);
-  const savedUserInfo = localStorage.getItem(STORAGE_KEY_USER_INFO);
+  const savedUserInfo = userInfo;
   const [companiesData, setCompaniesData] = useState<DisplayCompanyData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,14 +120,17 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
   
   const [searchText, setSearchText] = useState<string>('');
   const [debouncedSearchText, setDebouncedSearchText] = useState<string>('');
+  
+  // Add sorting state
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | null>(null);
 
   const graphQLClient = useGraphqlClient(accessToken);
 
   useEffect(() => {
-    
     if (savedUserInfo) {
       try {
-        const userInfoObj = JSON.parse(savedUserInfo);
+        const userInfoObj = userInfo;
         if (userInfoObj?.employeeDetails) {
           try {
             const parsedDetails = typeof userInfoObj.employeeDetails === 'string' 
@@ -174,12 +178,25 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
         ];
       }
 
+      // Add order_by condition if a sort field is selected
+      const orderBy: any = {};
+      if (sortField && sortOrder) {
+        // Handle sorting for different fields
+        if (sortField === 'name') {
+          orderBy.name = sortOrder;
+        } else if (sortField === 'website') {
+          orderBy.website = sortOrder;
+        }
+      }
+      console.log(orderBy)
+      console.log("orderBy: ",orderBy)
       const result = await graphQLClient.request<GetCompaniesResponse>(
         GET_COMPANIES,
         {
           offset: (page - 1) * limit,
           limit: limit,
           where: whereCondition,
+          order_by: Object.keys(orderBy).length > 0 ? orderBy : null,
         }
       );
 
@@ -203,7 +220,7 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
 
   useEffect(() => {
     fetchCompanies(currentPage, debouncedSearchText, pageSize);
-  }, [currentPage, debouncedSearchText, graphQLClient, pageSize, accessToken]); 
+  }, [currentPage, debouncedSearchText, graphQLClient, pageSize, accessToken, sortField, sortOrder]); 
 
   const handleCreateCompany = () => {
     setIsCreatingCompany(true);
@@ -307,9 +324,49 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
     return originalElement; 
   }, [currentPage, totalItems, pageSize, enabledButtonStyle, disabledButtonStyle]);
 
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      if (sortOrder === 'ASC') {
+        setSortOrder('DESC');
+      } else if (sortOrder === 'DESC') {
+        setSortField(null);
+        setSortOrder(null);
+      }
+    } else {
+      setSortField(field);
+      setSortOrder('ASC');
+    }
+  };
+
+  const SortableColumnTitle = ({ title, dataIndex }: { title: string; dataIndex: string }) => {
+    const isActive = sortField === dataIndex;
+    return (
+      <div 
+        className="gba:sortable-column-title" 
+        onClick={() => handleSort(dataIndex)}
+        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+        data-testid={`${dataIndex}-sort-header`}
+      >
+        <span>{title}</span>
+        <span style={{ marginLeft: '5px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', width: '16px' }}>
+          {isActive && sortOrder === 'ASC' ? (
+            <CaretUpOutlined style={{ color: '#000000', fontSize: '14px' }} />
+          ) : (
+            <CaretUpOutlined style={{ color: isActive ? '#595959' : '#8c8c8c', fontSize: '12px' }} />
+          )}
+          {isActive && sortOrder === 'DESC' ? (
+            <CaretDownOutlined style={{ color: '#000000', fontSize: '14px' }} />
+          ) : (
+            <CaretDownOutlined style={{ color: isActive ? '#595959' : '#8c8c8c', fontSize: '12px' }} />
+          )}
+        </span>
+      </div>
+    );
+  };
+
   const columns: ColumnsType<DisplayCompanyData> = [
     {
-      title: 'Company Name',
+      title: <SortableColumnTitle title="Company Name" dataIndex="name" />,
       dataIndex: 'name',
       key: 'name',
       render: (name, record) => (
@@ -335,6 +392,23 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
       dataIndex: 'industry',
       key: 'industry',
       className: 'gba-industry-cell',
+    },
+    {
+      title: <SortableColumnTitle title="Website" dataIndex="website" />,
+      dataIndex: 'website',
+      key: 'website',
+      className: 'gba-website-cell',
+      render: (website: string) => {
+        if (website) {
+          const fullUrl = website.startsWith('http://') || website.startsWith('https://') ? website : `http://${website}`;
+          return (
+            <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="gba-text-primary hover:gba-underline">
+              {website}
+            </a>
+          );
+        }
+        return '';
+      },
     },
     {
       title: 'Contact',
@@ -428,23 +502,6 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
       dataIndex: 'accountOwnerName', 
       key: 'accountOwner',
       className: 'gba-account-owner-cell',
-    },
-    {
-      title: 'Website',
-      dataIndex: 'website',
-      key: 'website',
-      className: 'gba-website-cell',
-      render: (website: string) => {
-        if (website) {
-          const fullUrl = website.startsWith('http://') || website.startsWith('https://') ? website : `http://${website}`;
-          return (
-            <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="gba-text-primary hover:gba-underline">
-              {website}
-            </a>
-          );
-        }
-        return '';
-      },
     },
     {
       title: 'Legal Form',

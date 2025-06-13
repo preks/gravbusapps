@@ -310,7 +310,18 @@ const AddNewCompany: React.FC<AddNewCompanyProps> = ({ accessToken, employeeDeta
   };
 
   return (
-    <div className="gba:add-new-company-container" style={{ padding: '24px' }}>
+    <div 
+      className="gba:add-new-company-container" 
+      style={{ 
+        padding: '24px', 
+        backgroundColor: '#ffffff', 
+        width: '100%',
+        maxWidth: '100%',
+        margin: 0,
+        minHeight: '100vh'
+      }}
+      data-testid="add-new-company-container"
+    >
       <Spin spinning={loading} tip="Saving company...">
         <Row justify="space-between" align="middle" style={{ marginBottom: '24px' }}>
           <Col>
