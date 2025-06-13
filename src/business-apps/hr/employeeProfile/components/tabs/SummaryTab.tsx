@@ -193,8 +193,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
             <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
             Organization Chart
           </h3>
-          <Card className="gba:p-4 gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center">
-            <div className="gba:flex gba:flex-col gba:items-center gba:space-y-6" style={{ maxHeight: '580px', overflowY: 'auto', overflowX: 'hidden' }}>
+          <Card className="gba:p-4 gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center" style={{ minHeight: '420px' }}>
+            <div className="gba:flex gba:flex-col gba:items-center gba:space-y-6" style={{ maxHeight: '650px', overflowY: 'auto', overflowX: 'hidden' }}>
             {/* Supervisor */}
             {employee.employeePosition?.supervisor && employee.employeePosition.supervisor.id !== employee.id && (
               <div className="gba:flex gba:flex-col gba:items-center">
@@ -284,7 +284,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
             <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
             Job Information
           </h3>
-          <Card className="gba:p-4">
+          <Card className="gba:p-4" style={{ minHeight: '420px' }}>
             <div className="gba:space-y-4">
               <div className="gba:flex gba:items-center">
                 <PiBriefcase className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
@@ -336,7 +336,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
             <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
             Availability & Schedule
           </h3>
-          <Card className="gba:p-4">
+          <Card className="gba:p-4" style={{ minHeight: '420px' }}>
             <div className="gba:space-y-4">
               {/* Status display */}
               <div className="gba:flex gba:items-center">

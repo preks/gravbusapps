@@ -86,8 +86,11 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
       <div className="gba:grow">
         <div className="gba:text-xs gba:text-gray-500">{label}</div>
         {linkTo ? (
-          <a href={linkTo} className="gba:text-sm gba:text-blue-600 gba:hover:underline">
+          <a href={linkTo} className="gba:text-sm gba:text-blue-600 gba:inline-flex gba:items-center">
             {value}
+            <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-3 gba:w-3 gba:shrink-0 gba:ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
           </a>
         ) : (
           <div className="gba:text-sm gba:text-gray-700">{value}</div>
@@ -282,7 +285,6 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                   value={employee.employeePosition?.jobPosition?.name ?? "Not assigned"}
                   //linkTo={employee.employeePosition?.siteLocation?.id ? `/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}` : undefined}
                 />
-                
                 {/* Cost Center */}
                 <ProfileInfoItem 
                   icon={<PiCurrencyDollar className="gba:h-4 gba:w-4" />}
@@ -290,7 +292,6 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                   value={employee.employeePosition?.costCenter?.name ?? "Not assigned"}
                   linkTo={employee.employeePosition?.costCenter?.id ? `/orgchart/active/finance?costCenterDataId=${employee.employeePosition.costCenter.id}` : undefined}
                 />
-                
                 {/* Hire Date */}
                 <ProfileInfoItem 
                   icon={<PiCalendar className="gba:h-4 gba:w-4" />}

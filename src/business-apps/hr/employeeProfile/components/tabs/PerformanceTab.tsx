@@ -3,7 +3,7 @@
 import React from 'react';
 import dayjs from 'dayjs';
 import { Employee, EmployeeFeedback, EmployeePerformanceGoal } from '../../hooks/useEmployeeData';
-import { Card } from '@newwork/gravity-ui-catalog';
+import { Button, Card } from '@newwork/gravity-ui-catalog';
 
 interface PerformanceTabProps {
   employee: Employee;
@@ -82,8 +82,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
           <h2 className="gba:text-xl gba:font-medium">
             Set New Goal
           </h2>
-          <button 
-            className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
+          <Button 
             onClick={() => {
               // Trigger flow to add a goal
               if (typeof window !== 'undefined' && window.dispatchEvent) {
@@ -100,9 +99,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                 );
               }
             }}
+            className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
+            data-testid="set-new-goal-button"
+            variant="primary"
           >
             Set New Goal
-          </button>
+          </Button>
         </div>
 
         {employeePerformanceGoal.length === 0 ? (
@@ -163,8 +165,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
           <h2 className="gba:text-xl gba:font-medium">
             Feedback
           </h2>
-          <button 
-            className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
+          <Button 
             onClick={() => {
               // Trigger flow to give feedback
               if (typeof window !== 'undefined' && window.dispatchEvent) {
@@ -181,9 +182,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                 );
               }
             }}
+            className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
+            data-testid="give-feedback-button"
+            variant="primary"
           >
             Give Feedback
-          </button>
+          </Button>
         </div>
 
         {formattedFeedback.length === 0 ? (

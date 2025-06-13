@@ -184,6 +184,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
       children: (
         <DocumentsTab 
           employee={employee}
+          accessToken={accessToken}
         />
       )
     },

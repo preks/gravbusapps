@@ -22,8 +22,12 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
 
   // Find the academic titles that match the employee's title references
   const academicTitleName = useMemo(() => {
+    if (loadingTitles) {
+      return '';
+    }
+
     if (!employee.academicTitleRef || !Array.isArray(employee.academicTitleRef) || 
-        employee.academicTitleRef.length === 0 || loadingTitles || academicTitles.length === 0) {
+        employee.academicTitleRef.length === 0 || academicTitles.length === 0) {
       // Return the raw academicTitleRef if it's a string, or join them if it's an array
       return Array.isArray(employee.academicTitleRef) 
         ? employee.academicTitleRef.join(', ') 

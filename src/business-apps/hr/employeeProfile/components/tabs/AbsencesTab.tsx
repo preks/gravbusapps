@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeData';
-import { Card } from '@newwork/gravity-ui-catalog';
+import { Button, Card } from '@newwork/gravity-ui-catalog';
 
 interface AbsencesTabProps {
   employee: Employee;
@@ -45,15 +45,17 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           <h2 className="gba:text-xl gba:font-medium">
             Absence Entitlements
           </h2>
-          <button 
-            className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
+          <Button 
             onClick={() => {
               // Navigate to absences page
               window.location.href = '/platform/landing_screen/srn_absenceLandingScreen';
             }}
+            className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
+            data-testid="go-to-absences-button"
+            variant="primary"
           >
             Go to Absences
-          </button>
+          </Button>
         </div>
 
         {uniqueAbsenceEntitlements.length === 0 ? (
@@ -165,8 +167,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
               <p className="gba:text-sm gba:text-gray-500 gba:mb-4">
                 Submit a new vacation request.
               </p>
-              <button 
-                className="gba:w-full gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
+              <Button 
                 onClick={() => {
                   // Trigger flow to request vacation
                   if (typeof window !== 'undefined' && window.dispatchEvent) {
@@ -183,9 +184,12 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                     );
                   }
                 }}
+                className="gba:w-full gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
+                data-testid="request-vacation-button"
+                variant="primary"
               >
                 Submit Request
-              </button>
+              </Button>
             </div>
           </Card>
           
@@ -202,7 +206,9 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
               <p className="gba:text-sm gba:text-gray-500 gba:mb-4">
                 Report an instance of sick leave.
               </p>
-              <button 
+              <Button 
+                data-testid="report-sick-leave-button"
+                variant="primary"
                 className="gba:w-full gba:px-4 gba:py-2 gba:bg-red-600 gba:text-white gba:rounded gba:hover:bg-red-700 gba:transition-colors"
                 onClick={() => {
                   // Trigger flow to report sick leave
@@ -222,7 +228,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 }}
               >
                 Submit Report
-              </button>
+              </Button>
             </div>
           </Card>
           
@@ -239,7 +245,9 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
               <p className="gba:text-sm gba:text-gray-500 gba:mb-4">
                 Request special leave for specific circumstances.
               </p>
-              <button 
+              <Button 
+                data-testid="request-special-leave-button"
+                variant="primary"
                 className="gba:w-full gba:px-4 gba:py-2 gba:bg-purple-600 gba:text-white gba:rounded gba:hover:bg-purple-700 gba:transition-colors"
                 onClick={() => {
                   // Trigger flow to request special leave
@@ -259,7 +267,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 }}
               >
                 Submit Request
-              </button>
+              </Button>
             </div>
           </Card>
         </div>
