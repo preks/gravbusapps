@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { Employee } from '../../hooks/useEmployeeData';
 import { Card } from '@newwork/gravity-ui-catalog';
-import { DataCards } from '@/business-apps/hr/employeeProfile/components/DataCards';
+import { DataCards } from '../DataCards';
 
 interface DocumentsTabProps {
   employee: Employee;

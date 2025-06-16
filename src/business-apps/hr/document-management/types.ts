@@ -1,22 +1,27 @@
-export interface RolePermission {
-  upload: boolean;
-  download: boolean;
-  view: boolean;
-  edit: boolean;
-  delete: boolean;
+interface DocumentTypeObjectValue {
+  description?: string;
+  isActive?: boolean;
+  gdprRelevant?: boolean;
+  securityLevel?: string;
+  fileTypes?: string[];
+  maxSize?: number;
+  [key: string]: any; // Allow additional properties
 }
 
-import { JSONValue } from '@/common/types/i18nTypes';
+export interface TranslationValues {
+  localeCode: string;
+  value: string;
+}
 
 export interface DocumentType {
   parentEntryId: string;
-  code: string;
+  code: string; // e.g., "DEVELOPMENT"
   value: string;
-  additionalValue1: string;
-  objectValue: JSONValue | Record<string, any>; // Made more flexible
+  objectValue: DocumentTypeObjectValue;
   catalogEntryLocalId: string;
   localeCode: string;
-  id: string; // This will be constructed, e.g., DocumentType:v1:code
+  translations?: TranslationValues[];
+  id: string; // Format: "DocumentGroup:v1:{code}" (e.g., "DocumentGroup:v1:DEVELOPMENT")
 }
 
 export interface Module {

@@ -3,10 +3,11 @@ import { message } from 'antd';
 import { DocumentType } from '../document-management/types';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { CatalogEntry, GetCatalogEntriesParams, GetCatalogsParams } from '../../../common/types/CatalogTypes';
+import { env } from '@/common/env/EnvUtils';
 
-const PAGE_SIZE = 5; // Or make this configurable
+const PAGE_SIZE = 5;
 
-const useDocumentTypes = (accessToken: string, moduleFilter?: string) => {
+const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm?: string) => {
   const userLocale = 'en-US';
   const client = useCatalogManagerClient(accessToken);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
@@ -14,16 +15,12 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string) => {
   const [error, setError] = useState<Error | null>(null);
   const [totalDocumentTypes, setTotalDocumentTypes] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  // const [filteredModuleTotalCount, setFilteredModuleTotalCount] = useState<number | null>(null); // No longer needed
   const [allPossibleModules, setAllPossibleModules] = useState<string[]>([]);
 
-  // newPageSize is part of Ant Design's Table pagination onChange signature.
-  // We are not currently using it to change PAGE_SIZE, hence the lint warning.
   const handlePageChange = useCallback((page: number, _newPageSize?: number) => {
     setCurrentPage(page);
   }, []);
 
-  // Effect to fetch all unique module names once for the filter dropdown
   useEffect(() => {
     if (!accessToken || !client) {
       setAllPossibleModules([]); // Clear if no token or client
@@ -31,19 +28,15 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string) => {
     }
 
     const fetchAllEntriesForModuleExtraction = async () => {
-      // console.log('[useDocumentTypes] Attempting to fetch all entries for module names...');
       try {
         const pathParams: GetCatalogEntriesParams = {
           catalogIdentifier: 'DocumentType',
           version: 'v1',
         };
         const queryParamsForAllModules: GetCatalogsParams = {
-          // includeLocalizedVersions: false, // Not strictly needed for parentEntryId
-          includeChildCatalogEntries: true, // Essential for parentEntryId
-          limit: 1000, // Fetch a large number of entries to get all unique modules
+          includeChildCatalogEntries: true,
+          limit: 1000,
           offset: 0,
-          // No searchCriteria here, we want all parentEntryIds to extract modules
-          // No returnTotalRecords needed for this specific task either
         };
 
         const response = await client.getCatalogEntriesList(pathParams, queryParamsForAllModules);
@@ -53,16 +46,14 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string) => {
           response.data.forEach((entry: CatalogEntry) => {
             if (entry.parentEntryId) {
               const parts = entry.parentEntryId.split(':');
-              // Assuming module name is the last part, e.g., DocumentGroup:v1:MODULE_NAME
               if (parts.length > 0) {
                 const moduleName = parts[parts.length - 1];
-                if (moduleName) { // Ensure moduleName is not empty
+                if (moduleName) {
                   uniqueModules.add(moduleName);
                 }
               }
             }
           });
-          // console.log('[useDocumentTypes] Extracted unique modules:', Array.from(uniqueModules));
           setAllPossibleModules(Array.from(uniqueModules).sort());
         } else {
           setAllPossibleModules([]);
@@ -70,17 +61,14 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string) => {
       } catch (e) {
         console.error('[useDocumentTypes] Failed to fetch entries for module extraction:', e);
         setAllPossibleModules([]); // Clear on error
-        // Optionally, set a specific error state or display a message to the user
       }
     };
 
     fetchAllEntriesForModuleExtraction();
-  }, [accessToken, client]); // Runs when accessToken or client changes (effectively once on init)
+  }, [accessToken, client]);
 
   useEffect(() => {
     if (!accessToken || !client) {
-      // If there's no token or client, don't attempt to fetch.
-      // Optionally, clear existing data or set an appropriate state.
       setDocumentTypes([]); // Clear previous data if token becomes invalid
       setLoading(false);
       return;
@@ -91,7 +79,7 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string) => {
       setError(null);
       try {
         const pathParams: GetCatalogEntriesParams = {
-          catalogIdentifier: 'DocumentType', // Critical: Verify this identifier
+          catalogIdentifier: 'DocumentType',
           version: 'v1',
         };
         const offset = (currentPage - 1) * PAGE_SIZE;
@@ -104,10 +92,18 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string) => {
           offset: offset,
         };
 
-        if (moduleFilter) {
-          // If a module filter is active, apply it to the main data query
-          // This means totalDocumentTypes will also reflect the filtered count.
-          queryParams.searchCriteria = `DocumentGroup:v1:${moduleFilter}`;
+        if (moduleFilter || searchTerm) {
+          const criteria = [];
+          
+          if (moduleFilter) {
+            criteria.push(`parentEntryId:DocumentGroup:v1:${moduleFilter}`);
+          }
+          
+          if (searchTerm) {
+            criteria.push(`(value:*${searchTerm}* OR additionalValue1:*${searchTerm}*)`);
+          }
+          
+          queryParams.searchCriteria = criteria.join(' AND ');
         }
 
         const response = await client.getCatalogEntriesList(pathParams, queryParams);
@@ -120,7 +116,6 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string) => {
         
         const mappedDocumentTypes = fetchedEntries.map((entry: CatalogEntry): DocumentType | null => {
           try {
-            // Validate essential fields from CatalogEntry for mapping
             if (typeof entry.id !== 'string' || entry.id === '') {
               console.warn(`CatalogEntry is missing 'id' or it's not a string. Skipping entry.`);
               return null;
@@ -141,8 +136,7 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string) => {
               code: entry.code,
               value: entry.value,
               parentEntryId: entry.parentEntryId || '',
-              additionalValue1: entry.additionalValue1 || '',
-              objectValue: entry.objectValue || {},
+              objectValue: (entry.objectValue || {}) as DocumentType['objectValue'],
               catalogEntryLocalId: entry.id, // Map CatalogEntry.id to catalogEntryLocalId
               localeCode: entry.localeCode || userLocale,
             };
@@ -165,54 +159,233 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string) => {
     fetchAndSetDocumentTypes();
   }, [accessToken, client, userLocale, currentPage, moduleFilter]);
 
-  const createDocumentType = useCallback(async (documentType: Omit<DocumentType, 'id'>) => {
+  const createDocumentType = useCallback(async (documentType: Omit<DocumentType, 'id'> & { translations?: Array<{ localeCode: string; value: string }> }) => {
+    if (!client) {
+      throw new Error('Catalog manager client not available');
+    }
+
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Generate a code from the value (convert to uppercase and replace spaces with underscores)
+      const code = documentType.value
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '_')
+        .replace(/_{2,}/g, '_')
+        .replace(/^_+|_+$/g, '');
+      
+      const id = `DocumentType:v1:${code}`;
+      
+      // Ensure gdprRelevant is a boolean
+      const objectValue = {
+        ...documentType.objectValue,
+        gdprRelevant: Boolean(documentType.objectValue?.gdprRelevant)
+      };
+      
+      // Create the base entry with English (default) value
+      const newEntry = {
+        id: id,
+        code: code,
+        value: documentType.value,
+        parentEntryId: documentType.parentEntryId,
+        objectValue: objectValue,
+        localeCode: 'en-US', // Default locale
+      };
+    
+      // Create the document type
+      const createdEntry = await client.createCatalogEntry('DocumentType', 'v1', newEntry);
+      
+      if (!createdEntry || !createdEntry.id) {
+        throw new Error('Failed to create document type: Invalid response from server');
+      }
+      
+      // Process translations if any
+      if (documentType.translations && documentType.translations.length > 0) {
+        const translationPromises = documentType.translations.map(translation => {
+          if (translation.localeCode === 'en-US') return Promise.resolve(); // Skip English as it's already set
+          
+          const translationEntry = {
+            ...newEntry,
+            value: translation.value,
+            localeCode: translation.localeCode,
+            isLocalizedVersion: true
+          };
+          
+          return client.createCatalogEntry('DocumentType', 'v1', translationEntry);
+        });
+        
+        await Promise.all(translationPromises);
+      }
+      
       const newType: DocumentType = {
         ...documentType,
-        id: Math.random().toString(36).substr(2, 9),
+        id: id,
+        code: code,
+        catalogEntryLocalId: createdEntry.id,
+        translations: documentType.translations || [],
       };
+      
+      // Refresh the list to include the new entry
       setDocumentTypes(prev => [...prev, newType]);
+      
       message.success('Document type created successfully');
+      
       return newType;
-    } catch (err) {
-      message.error('Failed to create document type');
+    } catch (err: any) {
+      console.error('Failed to create document type:', err);
+      message.error(err.message || 'Failed to create document type');
       throw err;
     } finally {
-      setLoading(false);
     }
-  }, []);
+  }, [client, currentPage, totalDocumentTypes, userLocale]);
 
-  const updateDocumentType = useCallback(async (id: string, updates: Partial<DocumentType>) => {
+  const updateDocumentType = useCallback(async (id: string, updates: Partial<DocumentType> & { translations?: Array<{ localeCode: string; value: string }> }) => {
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setDocumentTypes(prev => 
-        prev.map(doc => doc.id === id ? { ...doc, ...updates } : doc)
+      
+      const existingDoc = documentTypes.find(doc => doc.id === id);
+      if (!existingDoc) {
+        throw new Error('Document type not found');
+      }
+      
+      let entryId = id;
+      if (!id.startsWith('DocumentType:')) {
+        if (existingDoc.catalogEntryLocalId) {
+          entryId = `DocumentType:v1:${existingDoc.catalogEntryLocalId}`;
+        } else {
+          const idParts = id.split(':');
+          entryId = `DocumentType:v1:${idParts[idParts.length - 1]}`;
+        }
+      }
+      
+      // Prepare the update payload with translations included
+      const updatePayload: any = {
+        // Only update value if it's explicitly provided in updates
+        ...(updates.value !== undefined ? { value: updates.value } : {}),
+        ...(updates.parentEntryId ? { parentEntryId: updates.parentEntryId } : {}),
+        ...(updates.objectValue ? {
+          objectValue: {
+            ...existingDoc.objectValue,
+            ...updates.objectValue,
+            gdprRelevant: Boolean(updates.objectValue.gdprRelevant)
+          }
+        } : {}),
+        // Keep these from existing doc
+        id: existingDoc.id,
+        code: existingDoc.code,
+        catalogEntryLocalId: existingDoc.catalogEntryLocalId,
+        // Include translations in the main payload if provided
+        ...(updates.translations ? {
+          translations: updates.translations.map(t => ({
+            localeCode: t.localeCode,
+            value: t.value
+          }))
+        } : {})
+      };
+      
+      // Remove undefined values
+      Object.keys(updatePayload).forEach(key => 
+        updatePayload[key] === undefined && delete updatePayload[key]
       );
+      
+      const baseUrl = env('NEXT_PUBLIC_CATALOG_API') || '';
+      const updateUrl = `${baseUrl}/api/v1/catalog-entries/${entryId}`;
+      
+      // Single API call to update the document type with translations
+      const response = await fetch(updateUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatePayload)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update document type');
+      }
+      
+      const updatedEntry = await response.json();
+      
+      // Update the local state with the new translations
+      setDocumentTypes(prev => 
+        prev.map(doc => 
+          doc.id === id 
+            ? { 
+                ...doc, 
+                ...updates, 
+                id: updatedEntry.id,
+                translations: updates.translations || doc.translations || []
+              } 
+            : doc
+        )
+      );
+      
       message.success('Document type updated successfully');
-    } catch (err) {
-      message.error('Failed to update document type');
+      return updatedEntry;
+    } catch (err: any) {
+      console.error('Failed to update document type:', err);
+      message.error(err.message || 'Failed to update document type');
       throw err;
     } finally {
       setLoading(false);
     }
-  }, []);
-
+  }, [documentTypes, accessToken]);
+  
   const deleteDocumentType = useCallback(async (id: string) => {
+    if (!client) {
+      throw new Error('Catalog manager client not available');
+    }
+
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const docToDelete = documentTypes.find(doc => doc.id === id);
+      if (!docToDelete) {
+        throw new Error('Document type not found');
+      }
+      
+      let entryId = id;
+      if (!id.startsWith('DocumentType:')) {
+        if (docToDelete.catalogEntryLocalId) {
+          entryId = `DocumentType:v1:${docToDelete.catalogEntryLocalId}`;
+        } else {
+          entryId = `DocumentType:v1:${id}`;
+        }
+      }
+      
+      const baseUrl = env('NEXT_PUBLIC_CATALOG_API') || '';
+      const deleteUrl = `${baseUrl}/api/v1/catalog-entries/${entryId}`;
+      
+      const response = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to delete document type');
+      }
+      
       setDocumentTypes(prev => prev.filter(doc => doc.id !== id));
+      
+      if (documentTypes.length % PAGE_SIZE === 1 && currentPage > 1) {
+        setCurrentPage(prev => Math.max(1, prev - 1));
+      }
+      
       message.success('Document type deleted successfully');
-    } catch (err) {
-      message.error('Failed to delete document type');
+    } catch (err: any) {
+      console.error('Failed to delete document type:', err);
+      message.error(err.message || 'Failed to delete document type');
       throw err;
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [client, currentPage, documentTypes, PAGE_SIZE]);
 
   return {
     documentTypes,
@@ -222,11 +395,10 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string) => {
     currentPage,
     PAGE_SIZE,
     handlePageChange,
-    // filteredModuleTotalCount, // No longer needed
     createDocumentType,
     updateDocumentType,
     deleteDocumentType,
-    allPossibleModules, // Add to return object
+    allPossibleModules,
   };
 };
 

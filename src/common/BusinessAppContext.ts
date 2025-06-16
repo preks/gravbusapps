@@ -22,9 +22,22 @@ export interface UserInfoProps {
     };
 }
 
+import React, { useContext } from 'react';
+
 export interface BusinessAppContextProps {
   accessToken: string;
   userInfo?: UserInfoProps;
   additionalData?: { [k: string]: any };
   activeStructureId?: string;
 }
+
+// Create and export the context object
+export const BusinessAppContext = React.createContext<BusinessAppContextProps | null>(null);
+
+export const useBusinessAppContext = (): BusinessAppContextProps => {
+  const context = useContext(BusinessAppContext);
+  if (context === null) {
+    throw new Error('useBusinessAppContext must be used within a BusinessAppProvider');
+  }
+  return context;
+};

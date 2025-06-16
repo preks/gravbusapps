@@ -32,6 +32,8 @@ export type GetCatalogEntriesParams = {
 };
 
 export type GetCatalogsParams = {
+  includeLocalizedVersions?: boolean,
+  includeChildCatalogEntries?: boolean,
   returnTotalRecords?: boolean;
   localeCode?: string;
   code?: string;

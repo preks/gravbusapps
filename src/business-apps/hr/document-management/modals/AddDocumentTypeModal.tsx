@@ -1,14 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, Select, Switch, Button, Tag, Row, Col, Divider, Tabs } from 'antd';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Modal, Form, Input, Select, Switch, Button, Tag, Row, Col, Tabs } from 'antd';
 import type { TabsProps } from 'antd';
 
 const { Option } = Select;
 const { TextArea } = Input;
-const { TabPane } = Tabs;
 
 import useDocumentGroups, { DocumentGroup } from '../../hooks/useDocumentGroups'; // Import the new hook
-import { BusinessAppContext } from '@/common/BusinessAppContext';
-import { useContext } from 'react'; // To use context
 
 interface AddDocumentTypeModalProps {
   visible: boolean;
@@ -16,7 +13,7 @@ interface AddDocumentTypeModalProps {
   onOk: (values: any) => void;
   initialValues?: any;
   isEditing?: boolean;
-  // accessToken: string; // Added prop for accessToken, or use context below
+  accessToken: string; // Added prop for accessToken
 }
 
 const fileTypes = [
@@ -31,69 +28,184 @@ const fileTypes = [
 
 
 
-const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = ({
-  visible,
-  onCancel,
-  onOk,
-  initialValues,
-  isEditing = false,
-}) => {
+const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
   const [form] = Form.useForm();
   const [selectedFileTypes, setSelectedFileTypes] = useState<string[]>([]);
-  const context = useContext(BusinessAppContext);
-  if (!context) {
-    // This should ideally not happen if the component is used within a provider
-    // You might want to throw an error or handle it more gracefully depending on your app's structure
-    console.error('BusinessAppContext not found. Ensure AddDocumentTypeModal is wrapped in a BusinessAppContext.Provider.');
-    // Depending on requirements, you might return null, a loading indicator, or throw.
-    // For now, let's throw an error to make it clear that the provider is missing.
-    throw new Error('BusinessAppContext not found');
-  }
-  const { accessToken } = context;
-  const { documentGroups, loading: documentGroupsLoading, error: documentGroupsError } = useDocumentGroups(accessToken || '');
+  const [initialValuesSet, setInitialValuesSet] = useState(false);
+  const [initialFormValues, setInitialFormValues] = useState<any>(null);
+  const [formValues, setFormValues] = useState<any>({});
+  
+  // Destructure props
+  const { accessToken, initialValues, isEditing = false, onCancel, onOk, visible } = props;
+  
+  // Handle form values change
+  const handleValuesChange = (_: any, allValues: any) => {
+    setFormValues((prev: any) => ({
+      ...prev,
+      ...allValues
+    }));
+  };
+  
+  // Check if form has been modified
+  const isFormDirty = useMemo(() => {
+    if (!initialFormValues || Object.keys(initialFormValues).length === 0) return false;
+    
+    const currentValues = {
+      ...initialFormValues,
+      ...formValues
+    };
+    
+    return Object.keys(initialFormValues).some(key => {
+      const initial = initialFormValues[key];
+      const current = currentValues[key];
+      
+      // Special handling for arrays (like fileTypes)
+      if (Array.isArray(initial) || Array.isArray(current)) {
+        return JSON.stringify(initial || []) !== JSON.stringify(current || []);
+      }
+      
+      // For other types, use strict equality
+      return initial !== current;
+    });
+  }, [formValues, initialFormValues]);
+  const { documentGroups, loading: documentGroupsLoading, error: documentGroupsError } = useDocumentGroups(accessToken);
 
   useEffect(() => {
-    if (visible && initialValues) {
-      form.setFieldsValue(initialValues);
-      if (initialValues.fileTypes) {
-        setSelectedFileTypes(initialValues.fileTypes);
-      }
-
-    } else if (visible) {
-      form.resetFields();
+    if (isEditing && initialValues) {
+      // Get file types from the new structure
+      const fileTypes = Array.isArray(initialValues.objectValue?.fileTypes) 
+        ? initialValues.objectValue.fileTypes 
+        : (initialValues.objectValue?.fileTypes ? [initialValues.objectValue.fileTypes] : []);
+      
+      // Get GDPR value from the new structure (should be boolean)
+      const gdprValue = initialValues.objectValue?.gdprRelevant || false;
+      
+      // Get description from the new structure
+      const description = initialValues.objectValue?.description || '';
+      
+      // Get maxSize with fallback to 5 if not set
+      const maxSize = initialValues.objectValue?.maxSize || 5;
+      
+      // Get isActive with default to true if not set
+      const isActive = initialValues.objectValue?.isActive !== false;
+      
+      // Find the English name from translations or fall back to value
+      const enName = initialValues.translations?.find((t: any) => t.localeCode === 'en-US')?.value || initialValues.value || '';
+      const deName = initialValues.translations?.find((t: any) => t.localeCode === 'de-DE')?.value || '';
+      const roName = initialValues.translations?.find((t: any) => t.localeCode === 'ro-RO')?.value || '';
+      
+      const formValues = {
+        name: enName,
+        name_de: deName,
+        name_ro: roName,
+        description: description,
+        documentGroup: initialValues.parentEntryId ? initialValues.parentEntryId.split(':').pop() : '',
+        isActive: isActive,
+        gdprRelevant: gdprValue,
+        maxSize: maxSize,
+        fileTypes: fileTypes,
+      };
+      
+      form.setFieldsValue(formValues);
+      // Update selected file types state
+      setSelectedFileTypes(fileTypes);
+      
+      // Store initial values for dirty checking - clone the object to avoid reference issues
+      setInitialFormValues(JSON.parse(JSON.stringify(formValues)));
+      setInitialValuesSet(true);
+      // Also set the current form values
+      setFormValues(JSON.parse(JSON.stringify(formValues)));
+    } else {
+      // Default values for new document type
+      const defaultValues = {
+        gdprRelevant: false,
+        isActive: true,
+        maxSize: 5,
+        fileTypes: []
+      };
+      form.setFieldsValue(defaultValues);
       setSelectedFileTypes([]);
+      
+      // Store initial values for dirty checking - clone the object to avoid reference issues
+      setInitialFormValues(JSON.parse(JSON.stringify(defaultValues)));
+      setInitialValuesSet(true);
+      // Also set the current form values
+      setFormValues(JSON.parse(JSON.stringify(defaultValues)));
     }
-  }, [visible, initialValues, form]);
+  }, [isEditing, initialValues, form]);
 
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
-      onOk({
+      
+      // Prepare translations array for document type name
+      const translations = [
+        { localeCode: 'en-US', value: values.name || '' },
+      ];
+      
+      // Add German translation if provided
+      if (values.name_de) {
+        translations.push({ localeCode: 'de-DE', value: values.name_de });
+      }
+      
+      // Add Romanian translation if provided
+      if (values.name_ro) {
+        translations.push({ localeCode: 'ro-RO', value: values.name_ro });
+      }
+      
+      // Convert GDPR relevance to string 'true'/'false' if it's a boolean
+      const formValues = {
         ...values,
+        gdprRelevant: values.gdprRelevant ? 'true' : 'false',
         fileTypes: selectedFileTypes,
-      });
-    } catch (error) {
-      console.error('Validation failed:', error);
+        isActive: values.isActive !== false, // Ensure isActive defaults to true
+        translations: translations,
+      };
+      onOk(formValues);
+    } catch (info) {
+      console.log('Validate Failed:', info);
     }
   };
 
   const toggleFileType = (fileType: string) => {
-    setSelectedFileTypes(prev => 
-      prev.includes(fileType)
-        ? prev.filter(type => type !== fileType)
-        : [...prev, fileType]
-    );
+    const newFileTypes = selectedFileTypes.includes(fileType)
+      ? selectedFileTypes.filter(type => type !== fileType)
+      : [...selectedFileTypes, fileType];
+    
+    setSelectedFileTypes(newFileTypes);
+    
+    // Update form values to trigger dirty check
+    form.setFieldsValue({ fileTypes: newFileTypes });
+    handleValuesChange({}, { ...form.getFieldsValue(), fileTypes: newFileTypes });
   };
 
   const renderBasicInfoTab = () => (
-    <Row gutter={[16, 16]}>
+    <Row gutter={[16, 6]}>
       <Col span={24}>
         <Form.Item
           name="name"
-          label="Document Type Name"
+          label="Document Type Name (Default: EN)"
           rules={[{ required: true, message: 'Please enter document type name' }]}
         >
           <Input placeholder="e.g., Employee Contract" />
+        </Form.Item>
+      </Col>
+
+      <Col span={12}>
+        <Form.Item
+          name="name_de"
+          label="Document Type Name (German - DE)"
+        >
+          <Input placeholder="e.g., Arbeitsvertrag" />
+        </Form.Item>
+      </Col>
+
+      <Col span={12}>
+        <Form.Item
+          name="name_ro"
+          label="Document Type Name (Romanian - RO)"
+        >
+          <Input placeholder="e.g., Contract de muncă" />
         </Form.Item>
       </Col>
 
@@ -103,7 +215,7 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = ({
           label="Description"
           rules={[{ required: true, message: 'Please enter a description' }]}
         >
-          <TextArea rows={3} placeholder="Enter a brief description of this document type" />
+          <TextArea rows={2} placeholder="Enter a brief description" />
         </Form.Item>
       </Col>
 
@@ -136,10 +248,18 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = ({
         >
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium">GDPR Relevant</div>
               <div className="text-xs text-gray-500">This document contains personal data</div>
             </div>
-            <Switch className="bg-gray-300" />
+            <Form.Item name="gdprRelevant" valuePropName="checked" noStyle>
+              <Switch 
+                checked={form.getFieldValue('gdprRelevant') || false}
+                onChange={(checked) => {
+                  form.setFieldsValue({ gdprRelevant: checked });
+                  handleValuesChange({}, { ...form.getFieldsValue(), gdprRelevant: checked });
+                }}
+                className={form.getFieldValue('gdprRelevant') ? 'bg-blue-500' : 'bg-gray-300'}
+              />
+            </Form.Item>
           </div>
         </Form.Item>
       </Col>
@@ -160,7 +280,16 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = ({
               <div className="font-medium">Active</div>
               <div className="text-xs text-gray-500">Document type will be available for use</div>
             </div>
-            <Switch defaultChecked />
+            <Form.Item name="isActive" valuePropName="checked" noStyle>
+              <Switch 
+                checked={form.getFieldValue('isActive')}
+                onChange={(checked) => {
+                  form.setFieldsValue({ isActive: checked });
+                  handleValuesChange({}, { ...form.getFieldsValue(), isActive: checked });
+                }}
+                className={form.getFieldValue('isActive') ? 'bg-blue-500' : 'bg-gray-300'}
+              />
+            </Form.Item>
           </div>
         </Form.Item>
       </Col>
@@ -225,10 +354,15 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = ({
       onCancel={onCancel}
       width={700}
       footer={[
-        <Button key="cancel" onClick={onCancel}>
+        <Button key="back" onClick={onCancel}>
           Cancel
         </Button>,
-        <Button key="submit" type="primary" onClick={handleOk}>
+        <Button 
+          key="submit" 
+          type="primary" 
+          onClick={handleOk}
+          disabled={isEditing && (!initialValuesSet || !isFormDirty)}
+        >
           {isEditing ? 'Update' : 'Create'} Document Type
         </Button>,
       ]}
@@ -236,15 +370,8 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = ({
       <Form
         form={form}
         layout="vertical"
-        initialValues={{
-          name: '',
-          description: '',
-          module: 'hr',
-          documentGroup: 'group1',
-          isActive: true,
-          gdprRelevant: false,
-          maxSize: 5,
-        }}
+        className="gba-document-type-form"
+        onValuesChange={handleValuesChange}
       >
         <Tabs defaultActiveKey="1" items={items} />
       </Form>
