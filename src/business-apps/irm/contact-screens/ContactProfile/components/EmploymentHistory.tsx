@@ -117,10 +117,10 @@ export const EmploymentHistory: FC<EmploymentHistoryProps> = ({
       </CardHeader>
       <CardContent className="gba:space-y-8 gba:pt-4">
         {/* AI-Generated Career Summary */}
-        <div className="gba:relative gba:p-[2px] gba:rounded-lg gba:bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500">
-          <div className="gba:bg-gradient-to-r from-blue-50 to-sky-50 gba:rounded-lg gba:p-4">
+        <div className="gba:relative gba:p-[2px] gba:rounded-lg gba:bg-gradient-to-r gba:from-blue-500 gba:via-indigo-500 gba:to-purple-500">
+          <div className="gba:bg-gradient-to-r gba:from-blue-50 gba:to-sky-50 gba:rounded-lg gba:p-4">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-              <div className="gba:bg-gradient-to-r from-blue-500 to-purple-500 gba:p-1.5 gba:rounded-full">
+              <div className="gba:bg-gradient-to-r gba:from-blue-500 gba:to-purple-500 gba:p-1.5 gba:rounded-full">
                 <Lightbulb className="gba:h-4 gba:w-4 gba:text-white" />
               </div>
               <h3 className="gba:font-medium gba:text-blue-800">AI-Generated Career Summary</h3>

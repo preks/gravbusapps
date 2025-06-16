@@ -1,6 +1,7 @@
 export interface CompanyData {
     id: string;
     name: string;
+    version:number;
     website:string;
     legalForm: {
       value: string;
@@ -13,15 +14,30 @@ export interface CompanyData {
     contact: {
       firstName: string;
       lastName: string;
-    };
+      email:string;
+      phone:string;
+    }[];
     addresses: {
       city: string;
+      countryRef: string;
+      version: number;
+      regionRef: string;
+      postalCode: string;
+      id: string;
+      addressType: string;
+      addressLine: string;
       country: {
         id: string;
         value: string;
         code: string;
       };
+      region: {
+        id: string;
+        value: string;
+        code: string;
+      };
     }[];
+    numberOfEmployeesRef: string;
     foundationDate: string;
     industry: {
       id: string;
@@ -43,19 +59,24 @@ export interface CompanyData {
       };
     };
   }
-  
+
+  export interface GetCompanyByIdResponse {
+    Account: CompanyData[];
+  }
+
 export const GET_COMPANIES = `
   query MyQuery (
-  $where: AccountBoolExp
-  $limit: Int 
-  $offset: Int
-) { 
-  Account(
-    where: $where 
-    limit: $limit 
-    offset: $offset
+    $where: AccountBoolExp
+    $limit: Int 
+    $offset: Int
+  ) { 
+    Account(
+      where: $where 
+      limit: $limit 
+      offset: $offset
 ) {
     id
+    version
     name
     website
     legalForm {
@@ -73,6 +94,11 @@ export const GET_COMPANIES = `
     addresses {
       city
       country {
+        id
+        value
+        code
+      }
+      region {
         id
         value
         code
@@ -96,4 +122,66 @@ export const GET_COMPANIES = `
     }
   }
 }
+`;
+
+export const GET_COMPANY_BY_ID = `
+  query GetCompanyById(
+    $id: uuid!
+  ) { 
+    Account(
+      where: { id: { _eq: $id } }
+    ) {
+      id
+      version
+      name
+      website
+      legalForm {
+        value
+        code
+        id
+      }
+      numberOfEmployeesRef
+      numberOfEmployees {
+        value
+      }
+      contact {
+        firstName
+        lastName
+        email
+        phone
+      }
+      addresses {
+        city
+        countryRef
+        version
+        regionRef
+        postalCode
+        id
+        addressType
+        addressLine
+        region {
+          id
+          value
+          code
+        }
+        country {
+          id
+          value
+          code
+        }
+      }
+
+      foundationDate
+      industry {
+        id
+        code
+        value
+      }
+      ownerEmployee {
+        id
+        lastName
+        firstName
+      }
+    }
+  }
 `;
