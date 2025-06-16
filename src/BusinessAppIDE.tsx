@@ -3,6 +3,7 @@ import { useState, useEffect, createElement, useCallback } from "react";
 import { Layout, Menu, Modal, Form, Input, Typography, Button, Tooltip } from "antd";
 import { SettingOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
+import ProcessEventListener from './common/components/ProcessEventListener';
 
 const modules = import.meta.glob('./business-apps/**/[A-Z]*.tsx', { eager: true });
 
@@ -190,6 +191,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
+      {/* Add the ProcessEventListener which handles process start events */}
+      <ProcessEventListener accessToken={accessToken} />
       <Sider
         width={250}
         collapsible

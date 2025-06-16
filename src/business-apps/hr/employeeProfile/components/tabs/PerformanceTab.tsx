@@ -1,14 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import dayjs from 'dayjs';
 import { Employee, EmployeeFeedback, EmployeePerformanceGoal } from '../../hooks/useEmployeeData';
 import { Button, Card } from '@newwork/gravity-ui-catalog';
+import { Modal, Form, Input, DatePicker, Select, message, InputNumber } from 'antd';
+import { startProcess } from '@/common/utils/start-process';
 
 interface PerformanceTabProps {
   employee: Employee;
   employeeFeedback: EmployeeFeedback[];
   employeePerformanceGoal: EmployeePerformanceGoal[];
+  accessToken: string; // Required by the parent component
 }
 
 /**
@@ -18,8 +21,58 @@ interface PerformanceTabProps {
 const PerformanceTab: React.FC<PerformanceTabProps> = ({ 
   employee, 
   employeeFeedback,
-  employeePerformanceGoal 
+  employeePerformanceGoal,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  accessToken // Required by parent but not used directly
 }) => {
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [form] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
+
+  // Open the modal to set a new goal
+  const showModal = () => {
+    form.resetFields();
+    setIsModalVisible(true);
+  };
+
+  // Close the modal
+  const handleCancel = () => {
+    form.resetFields();
+    setIsModalVisible(false);
+  };
+
+  // Handle form submission
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      setSubmitting(true);
+      
+      // Format dates for submission
+      const formattedValues = {
+        ...values,
+        startDate: values.startDate?.format('YYYY-MM-DD'),
+        dueDate: values.dueDate?.format('YYYY-MM-DD'),
+      };
+      
+      // Start process with the correct name
+      startProcess({
+        domain: 'employee',
+        processName: 'saveEmployeePerformanceGoal',
+        payload: {
+          employeeId: employee.id,
+          ...formattedValues
+        }
+      });
+      
+      message.success('Performance goal submission started');
+      setIsModalVisible(false);
+      form.resetFields();
+    } catch (error) {
+      console.error('Validation failed:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Map status to display values and styles
   const getStatusInfo = (status: string) => {
@@ -83,22 +136,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
             Set New Goal
           </h2>
           <Button 
-            onClick={() => {
-              // Trigger flow to add a goal
-              if (typeof window !== 'undefined' && window.dispatchEvent) {
-                window.dispatchEvent(
-                  new CustomEvent('com.newwork.process.start', {
-                    detail: {
-                      domain: 'employee',
-                      processName: 'createEmployeePerformanceGoal',
-                      startProcessBody: {
-                        employeeId: employee.id
-                      }
-                    }
-                  })
-                );
-              }
-            }}
+            onClick={showModal}
             className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
             data-testid="set-new-goal-button"
             variant="primary"
@@ -228,6 +266,109 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
           </div>
         )}
       </div>
+
+      {/* Set New Goal Modal */}
+      <Modal
+        title="Set New Goal"
+        open={isModalVisible}
+        onCancel={handleCancel}
+        footer={[
+          <Button 
+            key="cancel" 
+            onClick={handleCancel}
+            data-testid="cancel-goal-button"
+            variant="secondary"
+          >
+            Cancel
+          </Button>,
+          <Button
+            key="create"
+            onClick={handleSubmit}
+            loading={submitting}
+            data-testid="create-goal-button"
+            variant="primary"
+          >
+            Create
+          </Button>
+        ]}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          name="goalForm"
+          className="gba:goal-form"
+        >
+          <Form.Item
+            name="title"
+            label="Title"
+            rules={[{ required: true, message: 'Please enter a title for the goal' }]}
+          >
+            <Input placeholder="Enter Title" data-testid="goal-title-input" />
+          </Form.Item>
+          
+          <Form.Item
+            name="startDate"
+            label="Start Date"
+            rules={[{ required: true, message: 'Please select a start date' }]}
+          >
+            <DatePicker 
+              style={{ width: '100%' }}
+              placeholder="Select Date"
+              data-testid="goal-start-date-input"
+            />
+          </Form.Item>
+          
+          <Form.Item
+            name="dueDate"
+            label="Due Date"
+            rules={[{ required: true, message: 'Please select a due date' }]}
+          >
+            <DatePicker 
+              style={{ width: '100%' }}
+              placeholder="Select Date"
+              data-testid="goal-due-date-input"
+            />
+          </Form.Item>
+          
+          <Form.Item
+            name="status"
+            label="Status"
+          >
+            <Select 
+              placeholder="Select Status"
+              data-testid="goal-status-select"
+              options={[
+                { value: 'ON_TRACK', label: 'On Track' },
+                { value: 'AT_RISK', label: 'At Risk' },
+                { value: 'OFF_TRACK', label: 'Off Track' },
+                { value: 'COMPLETED', label: 'Completed' },
+                { value: 'NOT_ACHIEVED', label: 'Not Achieved' }
+              ]}
+            />
+          </Form.Item>
+          
+          <Form.Item
+            name="progressPercent"
+            label="Progress"
+            initialValue={0}
+          >
+            <InputNumber
+              min={0}
+              max={100}
+              // @ts-ignore - Bypassing type checking for formatter/parser functions
+              formatter={value => `${value}%`}
+              // @ts-ignore - Bypassing type checking for formatter/parser functions
+              parser={value => {
+                if (typeof value !== 'string') return 0;
+                const parsed = parseInt(value.replace('%', ''), 10);
+                return isNaN(parsed) ? 0 : parsed;
+              }}
+              style={{ width: '100%' }}
+              data-testid="goal-progress-input"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

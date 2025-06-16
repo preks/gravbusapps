@@ -3,7 +3,7 @@
  */
 
 export const employeeDocumentsQuery = `
-query screenData($employeeId: uuid!) {
+query screenData($employeeId: uuid!, $activeUserLocale: String = "en-US") {
   EmployeeDocument(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
     id
     employeeId
@@ -30,6 +30,25 @@ query screenData($employeeId: uuid!) {
     id
     value
     code
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
+    parentEntryId
+  }
+  documentGroup: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentGroup"}}, additionalValue1: {_eq: "HRM"}}) {
+    id
+    value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
   }
 }
 `;
