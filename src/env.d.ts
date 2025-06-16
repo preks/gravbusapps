@@ -19,7 +19,7 @@ declare const BUILD_INFO_JSON_STRING: string;
  * Contains the Git username of the publisher and the ISO timestamp of the publish.
  */
 declare var __APP_BUILD_INFO__: AppBuildInfo;
- // Using `declare var` makes it assignable on globalThis/window and accessible globally.
+// Using `declare var` makes it assignable on globalThis/window and accessible globally.
 
 // If you have other global types, you can add them here.
 // For example, if you use Vite's `import.meta.env` for other custom env variables:
@@ -31,3 +31,24 @@ declare var __APP_BUILD_INFO__: AppBuildInfo;
 // interface ImportMeta {
 //   readonly env: ImportMetaEnv;
 // }
+
+declare global {
+  interface Window {
+    printPerf: () => void;
+    __LOWCODER_ORG__?: {};
+    $lowcoder_sdk?: { [key: string]: any };
+    lowcoder: {
+      activeStructureId: string;
+      platformContext: {
+        employeeId: string;
+        structureId: string;
+        organizationalUnitId: string;
+        managerId: string;
+        locationId: string;
+      };
+      [key: string]: any;
+    };
+  }
+}
+
+export {};
