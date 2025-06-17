@@ -68,7 +68,7 @@ src
 - For all date and time related logic, use `dayjs` and import the plugins `weekday` and `localeData`.
 
 # Component Development
-- Always prefix all CSS classes with the `gba:` prefix.
+- Always start all CSS classes strictly with prefix `gba:` this means `gba:<tailwind-class>`.
 - Always add to all HTML elements in a component the `data-testid` attribute with a value which is unique and descriptive.
 
 - Whenever an input field is used to provide search by an user, use the existing `DebouncedInput` component to provide debounced search.
