@@ -67,9 +67,9 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
       className={`gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:bg-white gba:rounded-xl gba:shadow-md gba:overflow-hidden ${className}`.trim()}
       style={{ minHeight: "0", minWidth: "0" }}
     >
-      <header className="gba:h-24 gba:flex gba:items-center box-border gba:border-b gba:border-gray-200 gba:relative">
-        <div className="gba:h-24 gba:flex gba:items-center">
-          <div className="gba:flex gba:items-center gba:min-w-0 gba:flex-none">
+      <header className="gba:flex gba:flex-col gba:box-border gba:border-b gba:border-gray-200 gba:relative">
+        <div className="gba:h-24 gba:flex gba:flex-row gba:items-center gba:w-full">
+          <div className="gba:flex gba:flex-row gba:items-center gba:min-w-0 gba:flex-none">
             <span className={iconClasses}>{headerIcon}</span>
             <span className={labelClasses}>{headerLabel}</span>
           </div>
@@ -79,7 +79,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
             </div>
           )}
           {pageHeaderRight && (
-            <div className="gba:flex gba:items-center gba:min-w-0 gba:flex-none gba:justify-end">
+            <div className="gba:flex gba:flex-row gba:items-center gba:min-w-0 gba:flex-none gba:justify-end gba:ml-auto">
               {pageHeaderRight}
             </div>
           )}
@@ -90,7 +90,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
           </div>
         )}
       </header>
-      <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0">
+      <div className="flex flex-col flex-1 min-h-0">
         {contentHeader && (
           <div className="gba:py-2 gba:border-b gba:border-gray-200">
             {contentHeader}
