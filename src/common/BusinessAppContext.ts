@@ -27,4 +27,5 @@ export interface BusinessAppContextProps {
   userInfo?: UserInfoProps;
   additionalData?: { [k: string]: any };
   activeStructureId?: string;
+  activeUserLocale?: string;
 }
