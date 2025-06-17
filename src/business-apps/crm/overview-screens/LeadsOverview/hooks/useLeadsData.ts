@@ -54,12 +54,11 @@ export function useLeadsData(accessToken: string): UseLeadsDataResult {
       // Transform the GraphQL response to the Lead interface
       const transformedLeads = response.Lead.map((lead: any) => ({
         id: lead.id,
-        companyName: lead.companyName || 'Unknown Company',
-        contactName: 'No Contact', // Contact info not available in new query
+        companyName: lead.companyName || '-',
+        contactName: '-', 
         contactId: undefined,
-        ownerName: lead.ownerEmployee?.fullName || 'Unassigned',
-        ownerId: lead.ownerEmployee?.id || '',
-        ownerAvatar: undefined, // Avatar not available in new query
+        ownerName: lead.ownerEmployee?.fullName || '-',
+        ownerId: lead.ownerEmployee?.id || '-',
         createdAt: lead.createdAt,
         lastActivity: lead.updatedAt, // Using updatedAt as lastActivity
         tags: [], // Tags not available in new query

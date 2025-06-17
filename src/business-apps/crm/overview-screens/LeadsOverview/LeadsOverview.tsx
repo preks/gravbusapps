@@ -7,8 +7,8 @@ import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, MoreOutline
 import { Typography } from 'antd';
 import dayjs from 'dayjs';
 
-// Import useLeadsData hook
 import { useLeadsData } from './hooks/useLeadsData';
+import AddEditLead, { LeadFormData } from './components/AddEditLead';
 
 // Define BusinessAppContextProps interface if it's not available
 interface BusinessAppContextProps {
@@ -157,7 +157,7 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
   const handleAddLead = () => {
     setIsNewLead(true);
     setIsEditMode(true);
-    setIsLeadDetailVisible(true);
+    setIsLeadDetailVisible(false); // Hide lead detail view
     setSelectedLeadId(undefined);
   };
   
@@ -247,7 +247,7 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
       lead.companyName.toLowerCase().includes(query) ||
       lead.contactName.toLowerCase().includes(query) ||
       lead.ownerName.toLowerCase().includes(query) ||
-      (lead.tags && lead.tags.some(tag => tag.toLowerCase().includes(query)))
+      false
     );
   });
   
@@ -322,7 +322,7 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
       key: 'tags',
       render: (_: any, lead: LeadTableItem) => (
         <div>
-          <div style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>
+          {/* <div style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>
             {lead.companyName || '-'}
           </div>
           <div style={{ marginBottom: 4 }}>Contact: {lead.contactName || '-'}</div>
@@ -336,9 +336,7 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
             {lead.ownerName || 'Unassigned'}
           </div>
           <div style={{ marginBottom: 4 }}>Created: {formatDate(lead.createdAt)}</div>
-          <div style={{ marginBottom: 4 }}>Last Activity: {formatTimeDifference(lead.lastActivity)}</div>
-          
-          {/* No tags data as requested */}
+          <div style={{ marginBottom: 4 }}>Last Activity: {formatTimeDifference(lead.lastActivity)}</div> */}
           <div>-</div>
         </div>
       ),
@@ -440,7 +438,7 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
             <div style={{ marginBottom: 4 }}>Created: {formatDate(lead.createdAt)}</div>
             <div style={{ marginBottom: 4 }}>Last Activity: {formatTimeDifference(lead.lastActivity)}</div>
             
-            {/* No tags data as requested */}
+            {/* Tags data intentionally removed */}
           </div>
           <Dropdown
             overlay={
@@ -526,99 +524,127 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
         </div>
       ) : (
         <>
-          {/* Header Section */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }} data-testid="leads-header">
-            <div>
-              <Title level={2} style={{ margin: 0 }}>Leads</Title>
-              <Paragraph type="secondary">Manage leads that don't have linked opportunities or investments.</Paragraph>
-            </div>
-            <div>
-              {selectedRowKeys.length > 0 && (
-                <Button 
-                  icon={<EditOutlined />}
-                  onClick={handleBatchEdit}
-                  style={{ marginRight: 16 }}
-                  data-testid="batch-edit-button"
-                >
-                  Edit ({selectedRowKeys.length})
-                </Button>
-              )}
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />}
-                onClick={handleAddLead}
-                data-testid="add-lead-button"
-              >
-                Add Lead
-              </Button>
-            </div>
-          </div>
+          {/* Conditional rendering based on whether we're in add/edit mode */}
+          {(isNewLead || (isEditMode && !!selectedLeadId)) ? (
+            /* Add/Edit Lead Form */
+            <AddEditLead
+              onCancel={() => {
+                setIsNewLead(false);
+                setIsEditMode(false);
+                setSelectedLeadId(undefined);
+              }}
+              onSave={(leadData: LeadFormData) => {
+                console.log('Lead data saved:', leadData);
+                // Here you would typically save the data
+                setIsNewLead(false);
+                setIsEditMode(false);
+                setSelectedLeadId(undefined);
+                message.success(`Lead ${leadData.id ? 'updated' : 'created'} successfully!`);
+                // Refresh leads data
+                refetchLeads();
+              }}
+              initialData={selectedLeadId ? leads.find(lead => lead.id === selectedLeadId) : undefined}
+              isEditing={!!selectedLeadId}
+              userInfo={{}}
+              employeeId={''}
+            />
+          ) : (
+            <>
+              {/* Header Section */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }} data-testid="leads-header">
+                <div>
+                  <Title level={2} style={{ margin: 0 }}>Leads</Title>
+                  <Paragraph type="secondary">Manage leads that don't have linked opportunities or investments.</Paragraph>
+                </div>
+                <div>
+                  {selectedRowKeys.length > 0 && (
+                    <Button 
+                      icon={<EditOutlined />}
+                      onClick={handleBatchEdit}
+                      style={{ marginRight: 16 }}
+                      data-testid="batch-edit-button"
+                    >
+                      Edit ({selectedRowKeys.length})
+                    </Button>
+                  )}
+                  <Button 
+                    type="primary" 
+                    icon={<PlusOutlined />}
+                    onClick={handleAddLead}
+                    data-testid="add-lead-button"
+                  >
+                    Add Lead
+                  </Button>
+                </div>
+              </div>
 
-          {/* Search and Filter */}
-          <Card style={{ marginBottom: 24 }} data-testid="leads-search-card">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-                <Input
-                  placeholder="Search leads by company, contact, owner, or tags..."
-                  prefix={<SearchOutlined />}
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  allowClear
-                  style={{ width: 350 }}
-                  data-testid="leads-search-input"
-                />
-              </div>
-            </div>
-          </Card>
+              {/* Search and Filter */}
+              <Card style={{ marginBottom: 24 }} data-testid="leads-search-card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+                    <Input
+                      placeholder="Search leads by company, contact, owner, or tags..."
+                      prefix={<SearchOutlined />}
+                      value={searchText}
+                      onChange={(e) => setSearchText(e.target.value)}
+                      allowClear
+                      style={{ width: 350 }}
+                      data-testid="leads-search-input"
+                    />
+                  </div>
+                </div>
+              </Card>
 
-          {/* Leads Table/List */}
-          <Card data-testid="leads-content-card">
-            {loading ? (
-              <div style={{ textAlign: 'center', padding: '50px' }}>
-                <Spin size="large" />
-                <div style={{ marginTop: '20px' }}>Loading leads...</div>
-              </div>
-            ) : error ? (
-              <div style={{ textAlign: 'center', padding: '50px', color: 'red' }}>
-                <div>Error loading leads: {error.message}</div>
-                <Button type="primary" onClick={refetchLeads} style={{ marginTop: '20px' }}>
-                  Retry
-                </Button>
-              </div>
-            ) : filteredLeads.length === 0 ? (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={
-                  <span className="gba:empty-state-text">
-                    No leads found. {searchText ? 'Try adjusting your filters or ' : ''}
-                    <a onClick={handleAddLead}>add a new lead</a>.
-                  </span>
-                }
-                data-testid="leads-empty-state"
-              />
-            ) : isMobile ? (
-              <List
-                dataSource={filteredLeads}
-                renderItem={renderLeadCard}
-                pagination={{ pageSize: 10 }}
-                data-testid="leads-mobile-list"
-              />
-            ) : (
-              <Table
-                dataSource={filteredLeads}
-                columns={columns}
-                rowKey="id"
-                pagination={{ pageSize: 10 }}
-                scroll={{ x: 'max-content' }}
-                rowSelection={rowSelection}
-                onRow={(record) => ({
-                  onClick: () => handleRowClick(record),
-                  style: { cursor: 'pointer' }
-                })}
-                data-testid="leads-desktop-table"
-              />
-            )}
-          </Card>
+              {/* Leads Table/List */}
+              <Card data-testid="leads-content-card">
+                {loading ? (
+                  <div style={{ textAlign: 'center', padding: '50px' }}>
+                    <Spin size="large" />
+                    <div style={{ marginTop: '20px' }}>Loading leads...</div>
+                  </div>
+                ) : error ? (
+                  <div style={{ textAlign: 'center', padding: '50px', color: 'red' }}>
+                    <div>Error loading leads: {error.message}</div>
+                    <Button type="primary" onClick={refetchLeads} style={{ marginTop: '20px' }}>
+                      Retry
+                    </Button>
+                  </div>
+                ) : filteredLeads.length === 0 ? (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={
+                      <span className="gba:empty-state-text">
+                        No leads found. {searchText ? 'Try adjusting your filters or ' : ''}
+                        <a onClick={handleAddLead}>add a new lead</a>.
+                      </span>
+                    }
+                    data-testid="leads-empty-state"
+                  />
+                ) : isMobile ? (
+                  <List
+                    dataSource={filteredLeads}
+                    renderItem={renderLeadCard}
+                    pagination={{ pageSize: 10 }}
+                    data-testid="leads-mobile-list"
+                  />
+                ) : (
+                  <Table
+                    dataSource={filteredLeads}
+                    columns={columns}
+                    rowKey="id"
+                    pagination={{ pageSize: 10 }}
+                    scroll={{ x: 'max-content' }}
+                    rowSelection={rowSelection}
+                    onRow={(record) => ({
+                      onClick: () => handleRowClick(record),
+                      style: { cursor: 'pointer' }
+                    })}
+                    data-testid="leads-desktop-table"
+                  />
+                )}
+              </Card>
+            </>
+          )}
         </>
       )}
     </div>
