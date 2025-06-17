@@ -17,26 +17,17 @@ import {
   EditOutlined,
   SearchOutlined
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import AddDocumentModal from './modals/AddDocumentTypeModal';
 import useDocumentTypes from '../hooks/useDocumentTypes';
-import { DocumentType as HrDocumentType } from '../document-management/types'; // Aliased import
+import { DocumentType } from '../../../common/types/DocumentTypeObjectTypes'; // Aliased import
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 const { Title, Text } = Typography;
 
-interface Module {
-  id: string;
-  name: string;
-  color: string;
-}
-
-const modules: Module[] = [
-  { id: 'hr', name: 'Human Resources', color: 'blue' },
-  { id: 'crm', name: 'Customer Relations', color: 'green' },
-  { id: 'finance', name: 'Finance', color: 'gold' },
-];
-
 const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
+  const { t } = useTranslation();
+
   const { accessToken } = props;
   const [moduleFilter, setModuleFilter] = useState<string | undefined>(undefined); 
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,17 +56,19 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
   } = useDocumentTypes(accessToken, moduleFilter, searchTerm) || {}; 
 
   const [isAddModalVisible, setIsAddModalVisible] = useState<boolean>(false);
-  const [editingDocType, setEditingDocType] = useState<HrDocumentType | null>(null); 
+  const [editingDocType, setEditingDocType] = useState<DocumentType | null>(null); 
 
-  const showModal = (docType: HrDocumentType | null = null) => { 
+  const showModal = (docType: DocumentType | null = null) => { 
     setEditingDocType(docType); 
     setIsAddModalVisible(true);
   };
 
   const handleAddDocument = async (values: any) => {
     try {
-      // Prepare translations array with only non-English translations
-      const translations: Array<{ localeCode: string; value: string }> = [];
+      // Prepare translations array including the English name as the first item
+      const translations: Array<{ localeCode: string; value: string }> = [
+        { localeCode: 'en-US', value: values.name || '' }
+      ];
       
       // Add German translation if provided
       if (values.name_de) {
@@ -87,7 +80,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
         translations.push({ localeCode: 'ro-RO', value: values.name_ro });
       }
 
-      const documentType: Omit<HrDocumentType, 'id'> = {
+      const documentType: Omit<DocumentType, 'id'> = {
         parentEntryId: `DocumentGroup:v1:${values.documentGroup}`,
         value: values.name, // Keep the main value as is (English)
         code: values.name ? 
@@ -130,11 +123,19 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
         });
       }
       
-      message.success(`Document type ${editingDocType ? 'updated' : 'created'} successfully`);
+      message.success(
+        editingDocType 
+          ? t('documentManagement.messages.updateSuccess', 'Document type updated successfully')
+          : t('documentManagement.messages.createSuccess', 'Document type created successfully')
+      );
       handleCancel();
     } catch (error) {
       console.error('Error saving document type:', error);
-      message.error(`Failed to ${editingDocType ? 'update' : 'create'} document type`);
+      message.error(
+        editingDocType
+          ? t('documentManagement.errors.updateFailed', 'Failed to update document type')
+          : t('documentManagement.errors.createFailed', 'Failed to create document type')
+      );
     }
   };
 
@@ -155,13 +156,12 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
 
   // Use server-side filtering with the search term and module filter
   // The actual filtering is done in the useDocumentTypes hook
-
   const columns = [
     {
-      title: 'Name',
+      title: t('documentManagement.columns.name', 'Name'),
       dataIndex: 'value', 
       key: 'value', 
-      render: (text: string, record: HrDocumentType) => ( 
+      render: (text: string, record: DocumentType) => ( 
         <div>
           <div style={{ fontWeight: 600}}>{text}</div>
           {record.objectValue?.description && (
@@ -171,26 +171,21 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
       ),
     },
     {
-      title: 'Module',
+      title: t('documentManagement.columns.module', 'Module'),
       dataIndex: 'parentEntryId', 
       key: 'module',
       render: (parentEntryId: string) => {
-        if (!parentEntryId) return <Tag>Unknown</Tag>;
+        if (!parentEntryId) return <Tag>{t('documentManagement.unknown', 'Unknown')}</Tag>;
         const parts = parentEntryId.split(':');
         let moduleName = parts.length > 0 ? parts[parts.length -1] : parentEntryId;
         moduleName = moduleName.toLowerCase(); 
-        const moduleData = modules.find(m => m.id.toLowerCase() === moduleName || m.name.toLowerCase() === moduleName);
-        return moduleData ? (
-          <Tag color={moduleData.color}>
-            {moduleData.name} 
-          </Tag>
-        ) : <Tag>{moduleName.charAt(0).toUpperCase() + moduleName.slice(1)}</Tag>; 
+        return <Tag>{moduleName.charAt(0).toUpperCase() + moduleName.slice(1)}</Tag>; 
       },
     },
     {
-      title: 'File Types',
+      title: t('documentManagement.columns.fileTypes', 'File Types'),
       key: 'fileTypes',
-      render: (_: any, record: HrDocumentType) => {
+      render: (_: any, record: DocumentType) => {
         const fileTypes = Array.isArray(record.objectValue?.fileTypes) 
           ? record.objectValue.fileTypes 
           : (record.objectValue?.fileTypes ? [record.objectValue.fileTypes] : []);
@@ -212,16 +207,16 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
       },
     },
     {
-      title: 'Max Size (MB)',
+      title: t('documentManagement.columns.maxSize', 'Max Size (MB)'),
       key: 'maxSize',
-      render: (_: any, record: HrDocumentType) => (
+      render: (_: any, record: DocumentType) => (
         <span>{record.objectValue?.maxSize || '-'}</span>
       ),
     },
     {
-      title: 'GDPR',
+      title: t('documentManagement.columns.gdpr', 'GDPR'),
       key: 'gdpr',
-      render: (_: any, record: HrDocumentType) => {
+      render: (_: any, record: DocumentType) => {
         const isGdpr = record.objectValue?.gdprRelevant === true;
         return isGdpr ? (
           <Tag 
@@ -241,23 +236,23 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
       },
     },
     {
-      title: 'Status',
+      title: t('documentManagement.columns.status', 'Status'),
       key: 'status',
-      render: (_: any, record: HrDocumentType) => {
+      render: (_: any, record: DocumentType) => {
         const isActive = record.objectValue?.isActive !== false; // Default to true if not set
         return (
           <Tag color={isActive ? 'green' : 'red'}>
-            {isActive ? 'Active' : 'Inactive'}
+            {isActive ? t('common.active', 'Active') : t('common.inactive', 'Inactive')}
           </Tag>
         );
       },
     },
     {
-      title: 'Actions',
+      title: t('common.actions', 'Actions'),
       key: 'actions',
       fixed: 'right' as const,
       width: 120,
-      render: (_: any, record: HrDocumentType) => ( 
+      render: (_: any, record: DocumentType) => ( 
         <div className="flex gap-2">
           <Button 
             type="text" 
@@ -278,19 +273,27 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
   ];
 
   if (hookLoading) {
-    return <div className="p-6">Loading document types...</div>;
+    return <div className="p-6">{t('documentManagement.loading', 'Loading document types...')}</div>;
   }
 
   if (hookError) {
-    return <div className="p-6">Error loading document types: {hookError.message}</div>;
+    return (
+      <div className="p-6">
+        {t('documentManagement.errors.loadError', 'Error loading document types: {{error}}', { error: hookError.message })}
+      </div>
+    );
   }
 
   return (
     <div style={{ padding: '24px' }} className="gba-document-management-container">
       <Row justify="space-between" align="middle" style={{ marginBottom: '24px' }} className="gba-header-row">
         <Col>
-          <Title level={3} style={{ margin: 0 }} className="gba-page-title">Document Type Management</Title>
-          <Text type="secondary">Manage document types and their permissions</Text>
+          <Title level={3} style={{ margin: 0 }} className="gba-page-title">
+            {t('documentManagement.title', 'Document Type Management')}
+          </Title>
+          <Text type="secondary">
+            {t('documentManagement.subtitle', 'Manage document types and their permissions')}
+          </Text>
         </Col>
       </Row>
 
@@ -300,10 +303,16 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
           <Col span={10}>
             <div>
               <div className="text-sm text-gray-500">
-                {moduleFilter ? "Matching Document Types" : "Total Document Types"}
+                {moduleFilter 
+                  ? t('documentManagement.kpi.matching', 'Matching Document Types')
+                  : t('documentManagement.kpi.total', 'Total Document Types')}
               </div>
               <div style={{ fontWeight: 'bold', fontSize: '24px' }}>
-                {hookLoading ? <span style={{ fontWeight: 'normal', fontSize: '12px' }}>Loading...</span> : totalDocumentTypes}
+                {hookLoading 
+                  ? <span style={{ fontWeight: 'normal', fontSize: '12px' }}>
+                      {t('common.loading', 'Loading...')}
+                    </span> 
+                  : totalDocumentTypes}
               </div>
             </div>
           </Col>
@@ -314,7 +323,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
               onClick={() => showModal()}
               className="gba-create-button"
             >
-              Add Document Type
+              {t('documentManagement.actions.addDocumentType', 'Add Document Type')}
             </Button>
           </Col>
         </Row>
@@ -325,7 +334,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
         <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
           <Col span={5}>
             <Select
-              placeholder="Filter by Module"
+              placeholder={t('documentManagement.filters.module', 'Filter by Module')}
               className="w-full"
               value={moduleFilter}
               onChange={(value) => {
@@ -337,7 +346,9 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
               allowClear
               style={{ width: '100%' }}
             >
-              <Select.Option value={undefined}>All Modules</Select.Option>
+              <Select.Option value={undefined}>
+                {t('documentManagement.filters.allModules', 'All Modules')}
+              </Select.Option>
               {moduleOptions.map(opt => (
                 <Select.Option key={opt.value} value={opt.value}>
                   {opt.label}
@@ -347,7 +358,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
           </Col>
           <Col>
             <Input
-              placeholder="Search document types..."
+              placeholder={t('documentManagement.search.placeholder', 'Search document types...')}
               prefix={<SearchOutlined />}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -368,7 +379,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
             total: totalDocumentTypes,
             onChange: handlePageChange,
             showSizeChanger: false,
-            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
+            showTotal: undefined
           }}
         />
       </Card>

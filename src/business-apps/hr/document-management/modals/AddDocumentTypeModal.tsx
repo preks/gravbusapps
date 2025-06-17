@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Modal, Form, Input, Select, Switch, Button, Tag, Row, Col, Tabs } from 'antd';
 import type { TabsProps } from 'antd';
+import { useTranslation } from 'react-i18next';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -16,6 +17,7 @@ interface AddDocumentTypeModalProps {
   accessToken: string; // Added prop for accessToken
 }
 
+// File types don't need translation as they are technical terms
 const fileTypes = [
   { label: 'PDF', value: 'pdf' },
   { label: 'DOC', value: 'doc' },
@@ -29,6 +31,7 @@ const fileTypes = [
 
 
 const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [selectedFileTypes, setSelectedFileTypes] = useState<string[]>([]);
   const [initialValuesSet, setInitialValuesSet] = useState(false);
@@ -37,6 +40,13 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
   
   // Destructure props
   const { accessToken, initialValues, isEditing = false, onCancel, onOk, visible } = props;
+
+  // Reset form when visibility changes
+  useEffect(() => {
+    if (visible) {
+      form.resetFields();
+    }
+  }, [visible, form]);
   
   // Handle form values change
   const handleValuesChange = (_: any, allValues: any) => {
@@ -139,6 +149,7 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
       const values = await form.validateFields();
       
       // Prepare translations array for document type name
+      // Always include English as the first item
       const translations = [
         { localeCode: 'en-US', value: values.name || '' },
       ];
@@ -184,49 +195,49 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
       <Col span={24}>
         <Form.Item
           name="name"
-          label="Document Type Name (Default: EN)"
-          rules={[{ required: true, message: 'Please enter document type name' }]}
+          label={t('documentType.name_label', 'Document Type Name (Default: EN)')}
+          rules={[{ required: true, message: t('documentType.name_required', 'Please enter document type name') }]}
         >
-          <Input placeholder="e.g., Employee Contract" />
+          <Input placeholder={t('documentType.name_placeholder', 'e.g., Employee Contract')} />
         </Form.Item>
       </Col>
 
       <Col span={12}>
         <Form.Item
           name="name_de"
-          label="Document Type Name (German - DE)"
+          label={t('documentType.name_de_label', 'Document Type Name (German - DE)')}
         >
-          <Input placeholder="e.g., Arbeitsvertrag" />
+          <Input placeholder={t('documentType.name_de_placeholder', 'e.g., Arbeitsvertrag')} />
         </Form.Item>
       </Col>
 
       <Col span={12}>
         <Form.Item
           name="name_ro"
-          label="Document Type Name (Romanian - RO)"
+          label={t('documentType.name_ro_label', 'Document Type Name (Romanian - RO)')}
         >
-          <Input placeholder="e.g., Contract de muncă" />
+          <Input placeholder={t('documentType.name_ro_placeholder', 'e.g., Contract de muncă')} />
         </Form.Item>
       </Col>
 
       <Col span={24}>
         <Form.Item
           name="description"
-          label="Description"
-          rules={[{ required: true, message: 'Please enter a description' }]}
+          label={t('documentType.description_label', 'Description')}
+          rules={[{ required: true, message: t('documentType.description_required', 'Please enter a description') }]}
         >
-          <TextArea rows={2} placeholder="Enter a brief description" />
+          <TextArea rows={2} placeholder={t('documentType.description_placeholder', 'Enter a brief description')} />
         </Form.Item>
       </Col>
 
       <Col span={24}>
         <Form.Item
-          name="documentGroup" // This name is used to construct parentEntryId
-          label="Module" // Renamed label
-          rules={[{ required: true, message: 'Please select a module' }]}
+          name="documentGroup"
+          label={t('documentType.module_label', 'Module')}
+          rules={[{ required: true, message: t('documentType.module_required', 'Please select a module') }]}
         >
           <Select 
-            placeholder="Select module"
+            placeholder={t('documentType.module_placeholder', 'Select module')}
             loading={documentGroupsLoading}
             disabled={documentGroupsLoading || !!documentGroupsError}
           >
@@ -242,13 +253,15 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
       <Col span={24}>
         <Form.Item
           name="gdprRelevant"
-          label="GDPR Relevance"
+          label={t('documentType.gdpr_label', 'GDPR Relevance')}
           valuePropName="checked"
           className="mb-0"
         >
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-xs text-gray-500">This document contains personal data</div>
+              <div className="text-xs text-gray-500">
+                {t('documentType.gdpr_help', 'This document contains personal data')}
+              </div>
             </div>
             <Form.Item name="gdprRelevant" valuePropName="checked" noStyle>
               <Switch 
@@ -271,14 +284,16 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
       <Col span={24}>
         <Form.Item
           name="isActive"
-          label="Status"
+          label={t('documentType.status_label', 'Status')}
           valuePropName="checked"
           className="mb-0"
         >
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium">Active</div>
-              <div className="text-xs text-gray-500">Document type will be available for use</div>
+              <div className="font-medium">{t('documentType.active_label', 'Active')}</div>
+              <div className="text-xs text-gray-500">
+                {t('documentType.active_help', 'Document type will be available for use')}
+              </div>
             </div>
             <Form.Item name="isActive" valuePropName="checked" noStyle>
               <Switch 
@@ -295,7 +310,7 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
       </Col>
 
       <Col span={24}>
-        <Form.Item label="Allowed File Types" required>
+        <Form.Item label={t('documentType.allowed_file_types', 'Allowed File Types')} required>
           <div className="flex flex-wrap gap-2">
             {fileTypes.map(type => (
               <Tag.CheckableTag
@@ -314,10 +329,10 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
       <Col span={24}>
         <Form.Item
           name="maxSize"
-          label="Maximum File Size (MB)"
-          rules={[{ required: true, message: 'Please enter maximum file size' }]}
+          label={t('documentType.max_size_label', 'Maximum File Size (MB)')}
+          rules={[{ required: true, message: t('documentType.max_size_required', 'Please enter maximum file size') }]}
         >
-          <Input type="number" min={1} max={100} addonAfter="MB" />
+          <Input type="number" min={1} max={100} addonAfter={t('documentType.mb', 'MB')} />
         </Form.Item>
       </Col>
     </Row>
@@ -325,37 +340,37 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
 
   const renderPermissionsTab = () => (
     <div className="py-4 text-center text-gray-500">
-      Permissions configuration will be available soon.
+      {t('documentType.permissions_coming_soon', 'Permissions configuration will be available soon.')}
     </div>
   );
 
   const items: TabsProps['items'] = [
     {
       key: '1',
-      label: 'Basic Info',
+      label: t('documentType.tab_basic_info', 'Basic Info'),
       children: renderBasicInfoTab(),
     },
     {
       key: '2',
-      label: 'File Settings',
+      label: t('documentType.tab_file_settings', 'File Settings'),
       children: renderFileSettingsTab(),
     },
     {
       key: '3',
-      label: 'Permissions',
+      label: t('documentType.tab_permissions', 'Permissions'),
       children: renderPermissionsTab(),
     },
   ];
 
   return (
     <Modal
-      title={isEditing ? 'Edit Document Type' : 'Add New Document Type'}
+      title={isEditing ? t('documentType.edit_title', 'Edit Document Type') : t('documentType.add_title', 'Add New Document Type')}
       open={visible}
       onCancel={onCancel}
       width={700}
       footer={[
         <Button key="back" onClick={onCancel}>
-          Cancel
+          {t('common.cancel', 'Cancel')}
         </Button>,
         <Button 
           key="submit" 
@@ -363,7 +378,7 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
           onClick={handleOk}
           disabled={isEditing && (!initialValuesSet || !isFormDirty)}
         >
-          {isEditing ? 'Update' : 'Create'} Document Type
+          {isEditing ? t('common.update', 'Update') : t('common.create', 'Create')} {t('documentType.document_type', 'Document Type')}
         </Button>,
       ]}
     >

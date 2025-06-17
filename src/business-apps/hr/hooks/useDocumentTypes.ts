@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { message } from 'antd';
-import { DocumentType } from '../document-management/types';
+import { DocumentType } from '../../../common/types/DocumentTypeObjectTypes';
+import { DocumentTypeObjectValue } from '../../../common/types/DocumentTypeObjectTypes';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { CatalogEntry, GetCatalogEntriesParams, GetCatalogsParams } from '../../../common/types/CatalogTypes';
 import { env } from '@/common/env/EnvUtils';
@@ -15,57 +16,11 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
   const [error, setError] = useState<Error | null>(null);
   const [totalDocumentTypes, setTotalDocumentTypes] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [allPossibleModules, setAllPossibleModules] = useState<string[]>([]);
+  const [allPossibleModules] = useState<string[]>([]);
 
   const handlePageChange = useCallback((page: number, _newPageSize?: number) => {
     setCurrentPage(page);
   }, []);
-
-  useEffect(() => {
-    if (!accessToken || !client) {
-      setAllPossibleModules([]); // Clear if no token or client
-      return;
-    }
-
-    const fetchAllEntriesForModuleExtraction = async () => {
-      try {
-        const pathParams: GetCatalogEntriesParams = {
-          catalogIdentifier: 'DocumentType',
-          version: 'v1',
-        };
-        const queryParamsForAllModules: GetCatalogsParams = {
-          includeChildCatalogEntries: true,
-          limit: 1000,
-          offset: 0,
-        };
-
-        const response = await client.getCatalogEntriesList(pathParams, queryParamsForAllModules);
-
-        if (response && response.data) {
-          const uniqueModules = new Set<string>();
-          response.data.forEach((entry: CatalogEntry) => {
-            if (entry.parentEntryId) {
-              const parts = entry.parentEntryId.split(':');
-              if (parts.length > 0) {
-                const moduleName = parts[parts.length - 1];
-                if (moduleName) {
-                  uniqueModules.add(moduleName);
-                }
-              }
-            }
-          });
-          setAllPossibleModules(Array.from(uniqueModules).sort());
-        } else {
-          setAllPossibleModules([]);
-        }
-      } catch (e) {
-        console.error('[useDocumentTypes] Failed to fetch entries for module extraction:', e);
-        setAllPossibleModules([]); // Clear on error
-      }
-    };
-
-    fetchAllEntriesForModuleExtraction();
-  }, [accessToken, client]);
 
   useEffect(() => {
     if (!accessToken || !client) {
@@ -84,10 +39,8 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
         };
         const offset = (currentPage - 1) * PAGE_SIZE;
         const queryParams: GetCatalogsParams = { 
-          includeLocalizedVersions: true,
           includeChildCatalogEntries: true,
           returnTotalRecords: true,
-          localeCode: userLocale,
           limit: PAGE_SIZE,
           offset: offset,
         };
@@ -128,7 +81,6 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
               console.warn(`CatalogEntry (id: ${entry.id}) is missing 'value' or it's not a string. Skipping entry.`);
               return null;
             }
-
             const constructedId = `${pathParams.catalogIdentifier}:${pathParams.version}:${entry.code}`;
 
             return {
@@ -136,7 +88,7 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
               code: entry.code,
               value: entry.value,
               parentEntryId: entry.parentEntryId || '',
-              objectValue: (entry.objectValue || {}) as DocumentType['objectValue'],
+              objectValue: (entry.objectValue || {}) as DocumentTypeObjectValue,
               catalogEntryLocalId: entry.id, // Map CatalogEntry.id to catalogEntryLocalId
               localeCode: entry.localeCode || userLocale,
             };
@@ -146,7 +98,6 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
             return null;
           }
         }).filter((docType): docType is DocumentType => docType !== null);
-
         setDocumentTypes(mappedDocumentTypes);
       } catch (e: any) {
         setError(e);

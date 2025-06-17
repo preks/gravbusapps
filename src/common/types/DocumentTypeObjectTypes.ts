@@ -1,10 +1,10 @@
-interface DocumentTypeObjectValue {
+export interface DocumentTypeObjectValue {
   description?: string;
   isActive?: boolean;
   gdprRelevant?: boolean;
   securityLevel?: string;
   fileTypes?: string[];
-  maxSize?: number;
+  maxSize?: string;
   [key: string]: any; // Allow additional properties
 }
 
