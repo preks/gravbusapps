@@ -20,9 +20,12 @@ dayjs.extend(isSameOrAfter)
 const { Paragraph } = Typography;
 const { TabPane } = Tabs;
 
-interface AbsenceCalendarProps extends BusinessAppContextProps {}
+interface AbsenceCalendarProps extends BusinessAppContextProps {
+  showIconTitle?: boolean;
+  showTabsSwitch?: boolean;
+}
 
-const AbsenceCalendar: React.FC<AbsenceCalendarProps> = (props) => {
+const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({ showIconTitle = true, showTabsSwitch = true, ...props }) => {
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [upcomingPageSize, setUpcomingPageSize] = useState(10);
   const [pastPage, setPastPage] = useState(1);
@@ -132,13 +135,85 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = (props) => {
   const handleToday = () => setCalendarValue(dayjs());
 
   return (
-    <div className="gba:absence-calendar-root">
-      <div className="gba:flex gba:items-center gba:gap-3 gba:mb-6">
-        <img src={calendarIcon} alt="Calendar Icon" className="gba:w-8 gba:h-8" />
-        <span className="gba:text-2xl gba:font-bold">My Absence Calendar</span>
-      </div>
-      <Tabs defaultActiveKey="calendar" className="gba:absence-calendar-tabs">
-        <TabPane tab="Month" key="calendar">
+    <div className={showIconTitle ? "gba:absence-calendar-root" : ""}>
+      {showIconTitle && (
+        <div className="gba:flex gba:items-center gba:gap-3 gba:mb-6">
+          <img src={calendarIcon} alt="Calendar Icon" className="gba:w-8 gba:h-8" />
+          <span className="gba:text-2xl gba:font-bold">My Absence Calendar</span>
+        </div>
+      )}
+      {showTabsSwitch ? (
+        <Tabs defaultActiveKey="calendar" className="gba:absence-calendar-tabs">
+          <TabPane tab="Month" key="calendar">
+            <div className="gba:calendar-controls-bar">
+              <div className="gba:calendar-controls-leftbar">
+                <button className="gba:calendar-toggle-btn" onClick={handlePrevMonth}>
+                  <LeftOutlined className="gba:calendar-icon-thick" />
+                </button>
+                <button className="gba:calendar-today-btn" onClick={handleToday}>
+                  Today
+                </button>
+                <button className="gba:calendar-toggle-btn" onClick={handleNextMonth}>
+                  <RightOutlined className="gba:calendar-icon-thick" />
+                </button>
+                <span className="gba:calendar-toggle-group-label">
+                  {calendarValue.format("MMMM YYYY")}
+                </span>
+              </div>
+            </div>
+            <Calendar
+              className="gba:absence-calendar"
+              cellRender={dateCellRender}
+              fullscreen={true}
+              value={calendarValue}
+              onPanelChange={setCalendarValue}
+              onChange={setCalendarValue}
+              headerRender={() => null}
+            />
+          </TabPane>
+          <TabPane tab="Upcoming Absences" key="upcoming">
+            <Paragraph
+              className="gba:font-semibold gba:text-lg gba:mb-6"
+            >
+              These are your upcoming absences as recorded in the system.
+            </Paragraph>
+            <AbsenceListDisplay
+              absences={upcomingAbsences}
+              title={undefined}
+              page={upcomingPage}
+              pageSize={upcomingPageSize}
+              total={upcomingAbsences.length}
+              onPageChange={(page, pageSize) => {
+                setUpcomingPage(page);
+                setUpcomingPageSize(pageSize);
+              }}
+              accessToken={accessToken}
+              userInfo={userInfo}
+            />
+          </TabPane>
+          <TabPane tab="Past Absences" key="past">
+            <Paragraph
+              className="gba:font-semibold gba:text-lg gba:mb-6"
+            >
+              These are your past absences as recorded in the system.
+            </Paragraph>
+            <AbsenceListDisplay
+              absences={pastAbsences}
+              title={undefined}
+              page={pastPage}
+              pageSize={pastPageSize}
+              total={pastAbsences.length}
+              onPageChange={(page, pageSize) => {
+                setPastPage(page);
+                setPastPageSize(pageSize);
+              }}
+              accessToken={accessToken}
+              userInfo={userInfo}
+            />
+          </TabPane>
+        </Tabs>
+      ) : (
+        <>
           <div className="gba:calendar-controls-bar">
             <div className="gba:calendar-controls-leftbar">
               <button className="gba:calendar-toggle-btn" onClick={handlePrevMonth}>
@@ -164,48 +239,8 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = (props) => {
             onChange={setCalendarValue}
             headerRender={() => null}
           />
-        </TabPane>
-        <TabPane tab="Upcoming Absences" key="upcoming">
-          <Paragraph
-            className="gba:font-semibold gba:text-lg gba:mb-6"
-          >
-            These are your upcoming absences as recorded in the system.
-          </Paragraph>
-          <AbsenceListDisplay
-            absences={upcomingAbsences}
-            title={undefined}
-            page={upcomingPage}
-            pageSize={upcomingPageSize}
-            total={upcomingAbsences.length}
-            onPageChange={(page, pageSize) => {
-              setUpcomingPage(page);
-              setUpcomingPageSize(pageSize);
-            }}
-            accessToken={accessToken}
-            userInfo={userInfo}
-          />
-        </TabPane>
-        <TabPane tab="Past Absences" key="past">
-          <Paragraph
-            className="gba:font-semibold gba:text-lg gba:mb-6"
-          >
-            These are your past absences as recorded in the system.
-          </Paragraph>
-          <AbsenceListDisplay
-            absences={pastAbsences}
-            title={undefined}
-            page={pastPage}
-            pageSize={pastPageSize}
-            total={pastAbsences.length}
-            onPageChange={(page, pageSize) => {
-              setPastPage(page);
-              setPastPageSize(pageSize);
-            }}
-            accessToken={accessToken}
-            userInfo={userInfo}
-          />
-        </TabPane>
-      </Tabs>
+        </>
+      )}
     </div>
   );
 };
