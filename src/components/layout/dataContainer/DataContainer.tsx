@@ -69,6 +69,10 @@ export interface DataContainerProps<T extends DataControllerProps = DataControll
      * Optional footer with action buttons
      */
     footer?: React.ReactNode;
+    /**
+     * Optional callback to be invoked when the details panel is closed
+     */
+    onClose?: () => void;
   };
   
   /**
@@ -167,7 +171,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
           <DetailsDefault
             title={dataDetails.title}
             icon={dataDetails.icon}
-            onClose={onDetailsPanelClose}
+            onClose={dataDetails.onClose || handleCloseDataFilter} /* Use specific onClose for details if provided, else fallback */
             footer={dataDetails.footer}
           >
             {dataDetails.content}
