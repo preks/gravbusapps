@@ -1,12 +1,12 @@
 import React, { useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { startProcess } from '@/common/utils/start-process';
 import { 
-  Spin, 
   Alert, 
   Button, 
-  Table, 
   Empty
 } from 'antd';
+import { DataTable } from '@newwork/gravity-ui-catalog';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { useGetExpenseRequests } from '../../hooks/useGetExpenseRequests';
 import { useExpenseRequestFilters, ExpenseRequestFilter, ExpenseRequestStatus } from '../../hooks/useExpenseRequestFilters';
@@ -35,7 +35,6 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
   // Use the expense request filters hook
   const {
     search,
-    setSearch,
     selectedFilters,
     filterGroups,
     filterLabelMap,
@@ -138,28 +137,25 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     fetchItems(searchInput, 1, pageSize, updatedFilters);
   }, [addFilter, removeFilter, setCurrentPage, getFilters, fetchItems, debouncedSearchTerm, pageSize]);
 
-  // Handle page change
-  const handlePageChange = useCallback((page: number, pageSize?: number) => {
-    setCurrentPage(page);
-    const filters = getFilters();
-    // Use current search input to avoid debounce delay
-    fetchItems(searchInput, page, pageSize ?? 10, filters);
-  }, [fetchItems, searchInput, getFilters]);
-
-  // Handle page size change
-  const handlePageSizeChange = useCallback((_: number, size: number) => {
-    setPageSize(size);
-    setCurrentPage(1); // Reset to first page when changing page size
-    const filters = getFilters();
-    // Use current search input to avoid debounce delay
-    fetchItems(searchInput, 1, size, filters);
-  }, [fetchItems, searchInput, getFilters]);
+  // Unified table change handler for DataTable
+  const handleTableChange = useCallback((pagination: any, filters: any, sorter: any) => {
+    setCurrentPage(pagination.current);
+    setPageSize(pagination.pageSize);
+    fetchItems(debouncedSearchTerm, pagination.current, pagination.pageSize, getFilters());
+  }, [fetchItems, debouncedSearchTerm, getFilters]);
 
   // Handle adding a new expense request
   const handleAddExpenseRequest = useCallback(() => {
-    // Add logic to create a new expense request
-    console.log('Adding new expense request');
-  }, []);
+    if (contextProps.userInfo?.employeeDetails?.employeeId) {
+      startProcess({
+        domain: 'employee-expense',
+        processName: 'changeExpenseRequest',
+        payload: {
+          employeeId: contextProps.userInfo.employeeDetails.employeeId
+        }
+      });
+    }
+  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
   // Helper function to determine status display with memoization
   const getStatusDisplay = useCallback((status: string): { type: PillType; text: string } => {
@@ -210,30 +206,32 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
 
     return (
       <div className="expense-requests-table">
-        <Table
+        <DataTable
           rowKey="id"
           dataSource={items}
           loading={isLoading}
           rowSelection={{
             type: 'checkbox',
             selectedRowKeys,
-            onChange: handleRowSelectionChange
+            onChange: handleRowSelectionChange,
+            columnWidth: 48
           }}
           pagination={{
             current: currentPage,
             pageSize: pageSize,
             total: totalCount,
-            onChange: handlePageChange,
-            onShowSizeChange: handlePageSizeChange,
             showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50'],
             showTotal: (total) => `Total ${total} items`
           }}
+          onChange={handleTableChange}
+          data-testid="expense-requests-data-table"
           columns={[
             {
-              title: 'TITLE',
+              title: 'Title',
               dataIndex: 'title',
               key: 'title',
-              render: (text, record) => (
+              render: (text, record: any) => (
                 <div>
                   <div style={{ fontWeight: 'bold' }}>{text}</div>
                   <div style={{ fontSize: '12px', color: '#666' }}>
@@ -243,18 +241,18 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
               )
             },
             {
-              title: 'TYPE',
+              title: 'Type',
               key: 'requestType',
-              render: (_, record) => (
+              render: (_, record: any) => (
                 <div>
                   {record.requestType?.value ?? 'General Expense'}
                 </div>
               )
             },
             {
-              title: 'DATE RANGE',
+              title: 'Date Range',
               key: 'dateRange',
-              render: (_, record) => (
+              render: (_, record: any) => (
                 <div>
                   {(record.startDate && record.endDate) 
                     ? `${new Date(record.startDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})} - ${new Date(record.endDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})}`
@@ -263,59 +261,58 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
               )
             },
             {
-              title: 'STATUS',
+              title: 'Status',
               dataIndex: 'status',
               key: 'status',
-              render: (status) => {
+              render: (status: any) => {
                 const { type, text } = getStatusDisplay(status);
                 return <Pill type={type} label={text} />;
               }
             },
             {
-              title: 'TOTAL AMOUNT',
+              title: 'Total Amount',
               dataIndex: 'totalAmount',
               key: 'totalAmount',
               align: 'right',
-              render: (amount) => (
-                <div style={{ fontWeight: 'bold' }}>
-                  €{typeof amount === 'number' ? amount.toFixed(2) : '0.00'}
-                </div>
-              )
+              render: (amount, record: any) => {
+                const currencySymbol = record.currencyRef?.symbol || '€';
+                return <span style={{ fontWeight: 'bold' }}>{currencySymbol}{amount?.toFixed(2) || '0.00'}</span>;
+              }
             },
             {
-              title: 'REIMBURSABLE',
+              title: 'Reimbursable',
               dataIndex: 'reimbursableAmount',
               key: 'reimbursableAmount',
               align: 'right',
-              render: (amount) => (
+              render: (amount: number) => (
                 <div>
-                  €{typeof amount === 'number' ? amount.toFixed(2) : '0.00'}
+                  €{amount?.toFixed(2) || '0.00'}
                 </div>
               )
             },
             {
-              title: 'ACTIONS',
+              title: 'Actions',
               key: 'actions',
               width: 80,
-              render: (_, record) => (
+              render: (_, record: any) => (
                 <Button
                   type="text"
                   icon={<PiLightning size={16} />}
-                  onClick={() => handleEditExpenseRequest(record)}
+                  onClick={() => handleEditExpenseRequest(record as any)}
                   className="gba:transition-colors gba:duration-300 gba:hover:text-blue-500"
                   aria-label="Edit expense request"
                 />
               )
             }
           ]}
-          onRow={(record) => ({
-            onClick: () => handleSelectItem(record)
+          onRow={(record: any) => ({
+            onClick: () => handleSelectItem(record as any)
           })}
         />
       </div>
     );
   }, [items, isLoading, error, getStatusDisplay, currentPage, pageSize, totalCount, 
-      handlePageChange, handlePageSizeChange, selectedRowKeys, handleRowSelectionChange, 
+      handleTableChange, selectedRowKeys, handleRowSelectionChange, 
       handleEditExpenseRequest, handleSelectItem]);
       
   // Memoized details panel render function using the new component
@@ -413,6 +410,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
             'data-testid': 'add-expense-request-button'
           },
           listTitle: "My Expense Requests",
+          listAmount: totalCount ? `${totalCount}` : undefined,
           filterLabelMap: filterLabelMap,
         }}
         dataFilterProps={{

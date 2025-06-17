@@ -1,19 +1,25 @@
 import React, { useMemo } from 'react';
-import { Row, Col, Card, Statistic, Typography } from 'antd';
 import { 
   FileTextOutlined, 
   DollarOutlined, 
   CalendarOutlined, 
   CompassOutlined 
 } from '@ant-design/icons';
-
-const { Text } = Typography;
+import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 
 interface ExpensePlanStatisticsProps {
   plans: any[];
+  statsLoading?: boolean;
+  statsError?: Error | null;
+  fetchPlanStatistics?: () => void;
 }
 
-const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({ plans }) => {
+const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({ 
+  plans,
+  statsLoading = false,
+  statsError = null,
+  fetchPlanStatistics = () => {}
+}) => {
   // Calculate summary statistics with memoization
   const totalPlans = useMemo(() => plans?.length ?? 0, [plans]);
   
@@ -42,59 +48,58 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({ plans }) 
     return destinations.size || 2; // Default to 2 if no destinations found (for UI display)
   }, [plans]);
 
+  // Transform the stats data into widgets format
+  const widgets: WidgetItem[] = [
+    {
+      key: 'total-plans',
+      title: 'Total Plans',
+      value: totalPlans,
+      prefix: <FileTextOutlined />,
+      color: '#1677ff',
+      span: { xs: 24, sm: 12, md: 6 },
+      description: '+15% from last month'
+    },
+    {
+      key: 'total-estimated',
+      title: 'Total Estimated',
+      value: totalEstimated,
+      prefix: <DollarOutlined />,
+      suffix: '€',
+      color: '#3f8600',
+      precision: 2,
+      span: { xs: 24, sm: 12, md: 6 },
+      description: 'Across all plans'
+    },
+    {
+      key: 'pending-approval',
+      title: 'Pending Approval',
+      value: pendingApproval,
+      prefix: <CalendarOutlined />,
+      color: '#faad14',
+      span: { xs: 24, sm: 12, md: 6 },
+      description: 'Requires action'
+    },
+    {
+      key: 'top-destinations',
+      title: 'Top Destinations',
+      value: uniqueDestinations,
+      prefix: <CompassOutlined />,
+      color: '#722ed1',
+      span: { xs: 24, sm: 12, md: 6 },
+      description: 'Unique locations'
+    }
+  ];
+
   return (
-    <div className="gba:px-4">
-      <div className="expense-statistics-cards gba:mb-4 gba:mt-4">
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic 
-                title="Total Plans" 
-                value={totalPlans}
-                prefix={<FileTextOutlined />}
-                valueStyle={{ color: '#1677ff' }}
-              />
-              <Text type="success" style={{ fontSize: 12 }}>+15% from last month</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic 
-                title="Total Estimated" 
-                value={totalEstimated}
-                precision={2}
-                prefix={<DollarOutlined />}
-                suffix="€"
-                valueStyle={{ color: '#3f8600' }}
-              />
-              <Text type="secondary" style={{ fontSize: 12 }}>Across all plans</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic 
-                title="Pending Approval" 
-                value={pendingApproval}
-                prefix={<CalendarOutlined />}
-                valueStyle={{ color: '#faad14' }}
-              />
-              <Text type="secondary" style={{ fontSize: 12 }}>Requires action</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic 
-                title="Top Destinations" 
-                value={uniqueDestinations}
-                prefix={<CompassOutlined />}
-                valueStyle={{ color: '#722ed1' }}
-              />
-              <Text type="secondary" style={{ fontSize: 12 }}>Unique locations</Text>
-            </Card>
-          </Col>
-        </Row>
-      </div>
-    </div>
+    <WidgetGroup
+      widgets={widgets}
+      isLoading={statsLoading}
+      error={statsError}
+      onRetry={fetchPlanStatistics}
+      skeletonCount={4}
+      emptyText="No expense plan statistics available."
+      data-testid="expense-plan-statistics"
+    />
   );
 };
 

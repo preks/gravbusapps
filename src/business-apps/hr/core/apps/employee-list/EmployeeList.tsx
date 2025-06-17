@@ -1,17 +1,16 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageLayout } from '@/components/layout/pageLayout';
 import { DataContainer } from '@/components/layout/dataContainer';
-import { DebouncedDataController, DebouncedDataControllerProps } from '@/components/dataController';
+import { DataController, DataControllerProps } from '@/components/dataController';
 import { useGetEmployees, Employee } from '@/business-apps/hr/core/hooks/useGetEmployees';
 import { useEmployeeFilters } from '@/business-apps/hr/core/hooks/useEmployeeFilters';
 import { EmployeeTable } from './components/EmployeeTable';
 import EmployeeDetails from '@/business-apps/hr/components/employeeDetails';
 import { PiUsersThree } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-// Using import above
 
 /**
  * Employee List page component. Renders the employee list module with a table view.
@@ -41,40 +40,22 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
     selected ? addFilter(filterId) : removeFilter(filterId);
   }, [addFilter, removeFilter]);
 
-  // Memoize the filters to prevent unnecessary re-renders
-  const filters = React.useMemo(() => getFilters(), [
-    // Include all dependencies that getFilters() depends on
-    search, 
-    selectedFilters
-  ]);
-
   // Get employee data with filters from the centralized hook
   const { 
     employees, 
     total, 
     loading, 
     error, 
-    hasMore, 
-    loadMore, 
+    loadPage,
     retry 
-  } = useGetEmployees({ ...filters, accessToken });
+  } = useGetEmployees({ ...getFilters(), accessToken });
   
-  // Trigger initial data loading when component mounts or filters change
-  // We use a ref to ensure we only load data once per filter change
-  const initialLoadRef = React.useRef(false);
-  
-  useEffect(() => {
-    // Only load data if this is the first render or filters have changed
-    if (!initialLoadRef.current) {
-      loadMore();
-      initialLoadRef.current = true;
+  // Initial load effect - only runs when component mounts and accessToken is available
+  React.useEffect(() => {
+    if (accessToken && !loading && employees.length === 0) {
+      loadPage(1); // Load first page instead of loadMore for true pagination
     }
-  }, [filters, loadMore]);
-  
-  // Reset the initialLoadRef when filters change
-  useEffect(() => {
-    initialLoadRef.current = false;
-  }, [filters]);
+  }, [accessToken, loadPage, loading, employees.length]);
   
   // Handle employee selection
   const handleEmployeeSelect = useCallback((employee: Employee) => {
@@ -93,7 +74,7 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
   }, [selectedEmployee]);
   
   // Add and remove click listener for outside clicks
-  useEffect(() => {
+  React.useEffect(() => {
     document.addEventListener('click', handleOutsideClick);
     return () => {
       document.removeEventListener('click', handleOutsideClick);
@@ -107,19 +88,14 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
         headerIcon={<PiUsersThree size={32} />}
         headerLabel={t('employee.list_title', 'Employee List')}
         contentContainer={
-          <DataContainer<DebouncedDataControllerProps>
+          <DataContainer<DataControllerProps>
             contentBackground="white" // Set the content background to white
-            dataControllerComponent={DebouncedDataController}
+            dataControllerComponent={DataController}
             dataControllerProps={{
-              // Props for debounced controller
-              actualSearch: search,
-              setActualSearch: setSearch,
+              // Props with debounce functionality now built into DataController
+              search: search,
+              setSearch: setSearch,
               debounceDelay: 300, // 300ms debounce delay
-              
-              // These are required by the type system but won't actually be used
-              // The DebouncedDataController will override them with its own values
-              search: '', // Placeholder, will be ignored
-              setSearch: () => {}, // Placeholder, will be ignored
               
               // Regular DataController props
               filter: selectedFilters,
@@ -139,8 +115,7 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
                   employees={employees}
                   loading={loading}
                   error={error}
-                  hasMore={hasMore}
-                  loadMore={loadMore}
+                  loadPage={loadPage}
                   retry={retry}
                   total={total}
                   onSelectEmployee={handleEmployeeSelect}

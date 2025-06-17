@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
-import { Table, Button, Typography, Space, Spin, Alert } from 'antd';
+import { Button, Typography, Space, Spin, Alert } from 'antd';
+import { DataTable } from '@newwork/gravity-ui-catalog';
 import { FileTextOutlined, FileImageOutlined } from '@ant-design/icons';
 import { PiLightning } from 'react-icons/pi';
 import { useGetExpenseItems, ExpenseFilter } from '../../hooks/useGetExpenseItems';
@@ -8,6 +9,7 @@ import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_ITEMS_BY_EMPLOYEE } from '../../queries/expenseItems';
 import { getExpenseItemStatusDisplay, ExpenseStatus } from '../../utils';
+import { startProcess } from '@/common/utils/start-process';
 import ExpenseItemDetails from './ExpenseItemDetails';
 import ExpenseItemStatistics from './ExpenseItemStatistics';
 import { useExpenseFilters } from '../../hooks/useExpenseFilters';
@@ -17,6 +19,7 @@ const { Text } = Typography;
 
 export interface ExpenseItemsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
+  filter?: string;
 }
 
 const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
@@ -44,12 +47,16 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   // Use a single hook call for both filtered items and statistics
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps);
   
+  // All state declarations moved to the top for proper hoisting
   // State for storing all items for statistics
   const [allItems, setAllItems] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [hasLoadedAllItems, setHasLoadedAllItems] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
   
   // Ref to track if component is mounted
   const isMounted = useRef<boolean>(true);
@@ -263,10 +270,17 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   
   // Handle adding a new expense item
   const handleAddExpenseItem = useCallback(() => {
-    // Add logic to create a new expense item
-    console.log('Adding new expense item');
-  }, []);
-  
+    if (contextProps.userInfo?.employeeDetails?.employeeId) {
+      startProcess({
+        domain: 'employee-expense',
+        processName: 'changeExpenseItem',
+        payload: {
+          employeeId: contextProps.userInfo.employeeDetails.employeeId
+        }
+      });
+    }
+  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
+
   // Handle clicking on missing receipts card
   const handleMissingReceiptsClick = useCallback(() => {
     const isNoReceiptFilterActive = selectedFilters.includes('noreceiptfilter');
@@ -295,19 +309,100 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     }
   }, [addFilter, removeFilter, fetchItems, search, pageSize, selectedFilters, setCurrentPage]);
 
-  // Statistics are now handled by the ExpenseItemStatistics component
+  // Statistics are now handled by the ExpenseItemStatistics component with WidgetGroup
+
+  // Function to fetch statistics data specifically
+  const fetchItemStatistics = useCallback(async () => {
+    setStatsLoading(true);
+    setStatsError(null);
+    try {
+      console.log('Fetching all expense items for statistics...');
+      // Use GraphQL directly for all-items query to avoid state conflicts
+      const employeeId = contextProps?.userInfo?.employeeDetails?.employeeId;
+      const accessToken = contextProps?.accessToken;
+      
+      if (!employeeId || !accessToken) {
+        throw new Error('Missing employee ID or access token');
+      }
+      
+      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          query: GET_EXPENSE_ITEMS_BY_EMPLOYEE,
+          variables: {
+            employeeId: employeeId,
+            searchTerm: '%',
+            limit: 1000,
+            offset: 0,
+            status: Object.values(ExpenseStatus), // Include all statuses for statistics
+            expenseDateStart: null,
+            expenseDateEnd: null,
+            totalAmountMin: null,
+            totalAmountMax: null
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.errors) {
+        throw new Error(result.errors.map((e: any) => e.message).join(', '));
+      }
+      
+      // Map the response data to our format
+      const responseItems = result.data?.ExpenseItem || [];
+      
+      const mappedItems = responseItems.map((item: any) => ({
+        id: item.id,
+        description: item.description,
+        date: item.date,
+        status: item.status,
+        totalAmount: item.totalAmount,
+        reimbursableAmount: item.reimbursableAmount,
+        nonReimbursableAmount: (item.totalAmount ?? 0) - (item.deductibleAmount ?? 0),
+        deductibleAmount: item.deductibleAmount,
+        currencyRef: item.currencyRef,
+        costCenter: item.costCenter,
+        expenseClass: item.expenseClass,
+        additionalProperties: item.additionalProperties,
+        expenseItemFile: item.expenseItemFile,
+        employee: item.employee,
+      }));
+      
+      setAllItems(mappedItems);
+      setHasLoadedAllItems(true);
+      setStatsLoading(false);
+      console.log(`Loaded ${mappedItems.length} unfiltered items for statistics`);
+    } catch (error) {
+      console.error('Error fetching statistics data:', error);
+      setStatsError(error instanceof Error ? error.message : 'Unknown error fetching statistics');
+      setStatsLoading(false);
+    }
+  }, [contextProps?.userInfo?.employeeDetails?.employeeId, contextProps?.accessToken]);
 
   // Memoize the content header to prevent unnecessary re-renders
   // Use allItems for statistics instead of filtered items
   const contentHeader = useMemo(() => {
     const isNoReceiptFilterActive = selectedFilters.includes('noreceiptfilter');
-    return allItems && allItems.length > 0 ? 
+    return (
       <ExpenseItemStatistics 
-        items={allItems} 
+        items={allItems ?? []} 
         onMissingReceiptsClick={handleMissingReceiptsClick} 
-        isNoReceiptFilterActive={isNoReceiptFilterActive} 
-      /> : null;
-  }, [allItems, selectedFilters, handleMissingReceiptsClick]);
+        isNoReceiptFilterActive={isNoReceiptFilterActive}
+        statsLoading={statsLoading ?? !hasLoadedAllItems}
+        statsError={statsError}
+        fetchItemStatistics={fetchItemStatistics}
+      />
+    );
+  }, [allItems, selectedFilters, handleMissingReceiptsClick, statsLoading, statsError, fetchItemStatistics, hasLoadedAllItems]);
 
   // Update the content header only when it changes and when allItems is loaded
   const onContentHeaderChange = props.onContentHeaderChange;
@@ -331,8 +426,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     fetchItems(search, currentPage, pageSize, filters);
   }, []);
   
-  // Track if we've loaded the all items data for statistics
-  const [hasLoadedAllItems, setHasLoadedAllItems] = useState(false);
+  // Track states for statistics data already declared at the top
   
   // One-time effect to fetch all items for statistics without filters
   useEffect(() => {
@@ -384,7 +478,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
           }
           
           // Map the response data to our format
-          const responseItems = result.data?.ExpenseItem || [];
+          const responseItems = result.data?.ExpenseItem ?? [];
           
           const mappedItems = responseItems.map((item: any) => ({
             id: item.id,
@@ -425,10 +519,15 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   // Handle page size change
   const handlePageSizeChange = useCallback((_: number, size: number) => {
     setPageSize(size);
-    setCurrentPage(1);
-    const filters = getFilters();
-    fetchItems(search, 1, size, filters);
-  }, [search, fetchItems, getFilters]);
+  }, []);
+
+  // Handle table change for pagination, filters, and sorting
+  const handleTableChange = useCallback((pagination: any, _filters: any, _sorter: any) => {
+    handlePageChange(pagination.current);
+    if (pagination.pageSize !== pageSize) {
+      handlePageSizeChange(pagination.current, pagination.pageSize);
+    }
+  }, [handlePageChange, handlePageSizeChange, pageSize]);
 
   // Handle item selection
   const handleSelectItem = useCallback((item: any) => {
@@ -477,7 +576,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     }
 
     return (
-      <Table 
+      <DataTable 
         dataSource={items} 
         rowKey="id"
         rowSelection={{
@@ -486,7 +585,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
           onChange: handleRowSelectionChange,
           columnWidth: 48,
         }}
-        onRow={(record) => ({
+        onRow={(record: any) => ({
           onClick: (event) => {
             // Prevent row click from triggering when clicking on checkbox
             if ((event.target as HTMLElement).tagName !== 'INPUT') {
@@ -499,17 +598,18 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
           current: currentPage,
           pageSize: pageSize,
           total: totalCount,
-          onChange: handlePageChange,
-          onShowSizeChange: handlePageSizeChange,
           showSizeChanger: true,
+          pageSizeOptions: ['10', '20', '50'],
           showTotal: (total) => `Total ${total} items`
         }}
+        onChange={handleTableChange}
+        data-testid="expense-items-data-table"
         columns={[
           {
-            title: 'ITEM',
+            title: 'Item',
             dataIndex: 'title',
             key: 'title',
-            render: (text, record) => (
+            render: (text, record: any) => (
               <div>
                 <div style={{ fontWeight: 'bold' }}>{text}</div>
                 <div style={{ fontSize: '12px', color: '#666' }}>{record.invoiceDate}</div>
@@ -517,7 +617,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
             )
           },
           {
-            title: 'ATTACHMENT',
+            title: 'Attachment',
             dataIndex: 'expenseItemFile',
             key: 'attachment',
             width: 80,
@@ -535,7 +635,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
             )
           },
           {
-            title: 'AMOUNT',
+            title: 'Amount',
             dataIndex: 'reimbursableAmount',
             key: 'amount',
             align: 'right',
@@ -544,7 +644,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
             )
           },
           {
-            title: 'STATUS',
+            title: 'Status',
             dataIndex: 'status',
             key: 'status',
             render: (status) => {
@@ -559,7 +659,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
             }
           },
           {
-            title: 'ACTIONS',
+            title: 'Actions',
             key: 'actions',
             render: () => (
               <Space>
@@ -665,6 +765,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
             'data-testid': 'add-expense-item-button'
           },
           listTitle: "My Expense Items",
+          listAmount: totalCount ? `${totalCount}` : undefined,
           filterLabelMap: filterLabelMap,
         }}
         dataFilterProps={{

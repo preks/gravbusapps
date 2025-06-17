@@ -52,14 +52,16 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
 
   const iconClasses = cn(
     "gba:flex gba:items-center gba:justify-center",
-    isDisplay ? "gba:w-12 gba:h-12" : "gba:w-10 gba:h-10"
+    isDisplay ? "gba:w-12 gba:h-12" : "gba:w-8 gba:h-8"
   );
 
+  // Icon size will be controlled through the parent container size
+
   const labelClasses = cn(
-    "gba:text-black font-secondary gba:whitespace-nowrap",
+    "gba:text-[24px] gba:leading-none gba:font-medium",
     isDisplay
-      ? "gba:ml-4 gba:text-4xl gba:font-black"
-      : "gba:ml-2 gba:text-2xl gba:font-secondary"
+      ? "gba:text-4xl gba:font-black"
+      : "gba:text-2xl font-secondary"
   );
 
   return (
@@ -69,9 +71,15 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
     >
       <header className="gba:flex gba:flex-col gba:box-border gba:border-b gba:border-gray-200 gba:relative">
         <div className="gba:h-24 gba:flex gba:flex-row gba:items-center gba:w-full">
-          <div className="gba:flex gba:flex-row gba:items-center gba:min-w-0 gba:flex-none">
-            <span className={iconClasses}>{headerIcon}</span>
-            <span className={labelClasses}>{headerLabel}</span>
+          <div className="gba:flex gba:flex-row gba:items-center gba:gap-4 gba:min-w-0 gba:flex-none">
+            <span className={iconClasses} data-testid="page-header-icon">
+              {React.isValidElement(headerIcon)
+                ? React.cloneElement(headerIcon as React.ReactElement, {
+                    size: isDisplay ? 48 : 32,
+                  })
+                : headerIcon}
+            </span>
+            <p className={labelClasses}>{headerLabel}</p>
           </div>
           {pageHeaderCenter && (
             <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:pointer-events-none">
@@ -85,7 +93,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
           )}
         </div>
         {pageController && (
-          <div className="gba:flex gba:justify-center gba:py-2">
+          <div className="gba:flex gba:justify-start gba:py-2">
             {pageController}
           </div>
         )}
@@ -96,9 +104,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
             {contentHeader}
           </div>
         )}
-        <div className="gba:bg-gray-100 gba:flex-1 gba:min-h-0">
-          {contentContainer}
-        </div>
+        <div className="gba:flex-1 gba:min-h-0">{contentContainer}</div>
       </div>
     </div>
   );

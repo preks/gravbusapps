@@ -4,7 +4,7 @@ import { DataTable, Avatar } from '@newwork/gravity-ui-catalog';
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import { DebouncedDataController, DebouncedDataControllerProps } from '@/components/dataController';
+import { DataController, DataControllerProps } from '@/components/dataController';
 // DataFilter, DataFilterGroup, DataFilterValue are no longer directly used here as filter logic is in useExpensePlanFilters hook
 import Pill from '@/components/pill/Pill';
 import ExpensePlanDetails from './ExpensePlanDetails';
@@ -274,17 +274,15 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
 
   return (
     <>
-      <DataContainer<DebouncedDataControllerProps>
+      <DataContainer<DataControllerProps>
         contentBackground="white"
-        dataControllerComponent={DebouncedDataController}
+        dataControllerComponent={DataController}
         dataControllerProps={{
-          actualSearch: searchTerm,
-          setActualSearch: setSearchTerm,
+          search: searchTerm,
+          setSearch: setSearchTerm,
           debounceDelay: 300,
-          search: '', // kept as per DebouncedDataController expectation, though primary search is debouncedSearchTerm
-          setSearch: setSearchTerm, // allow DebouncedDataController to update the immediate search term if needed by its internal input
           filter: statusFilter ? [statusFilter] : [], // Pass the current status filter as an array of strings or empty array
-          setFilter: (newFilters: string[]) => { // DebouncedDataController likely passes string[]
+          setFilter: (newFilters: string[]) => { // DataController passes string[]
             // Assuming single filter selection for status for now
             // If newFilters has something, take the first one. Otherwise, set to null.
             // This might need adjustment based on how DebouncedDataController handles setFilter with single-select like filters

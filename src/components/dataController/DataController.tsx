@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useCallback, useEffect } from "react";
+import { useDebounce } from "@/common/hooks/useDebounce";
 import {
   PiFunnelSimple,
   PiFunnelSimpleX,
@@ -52,6 +53,7 @@ export interface DataControllerProps {
   onToggleDataFilter: () => void;
   search: string;
   setSearch: (v: string) => void;
+  debounceDelay?: number;
   filter: string[];
   setFilter: (v: string[]) => void;
   filterLabelMap?: Record<string, string>; // Maps filter values (IDs) to display labels
@@ -84,6 +86,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   onToggleDataFilter,
   search,
   setSearch,
+  debounceDelay = 300,
   filter = [],
   setFilter,
   filterLabelMap,
@@ -95,10 +98,35 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   addButton,
   hideFilter = false,
 }) => {
-  const [showSearchInput, setShowSearchInput] = React.useState(false);
+  const [showSearchInput, setShowSearchInput] = useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  
+  // Local state for immediate UI feedback
+  const [localSearch, setLocalSearch] = useState<string>(search || "");
+  
+  // Keep local search in sync with external changes to search prop
+  useEffect(() => {
+    setLocalSearch(search || "");
+  }, [search]);
+  
+  // Use the useDebounce hook to debounce the local search value
+  const debouncedSearch = useDebounce(localSearch, debounceDelay);
+  
+  // Call setSearch only when the debounced value changes and differs from current search
+  useEffect(() => {
+    // Only update if the debounced value differs from the current search prop
+    // This prevents recursion and unnecessary updates
+    if (debouncedSearch !== search) {
+      setSearch(debouncedSearch);
+    }
+  }, [debouncedSearch, search, setSearch]);
+  
+  // Simple handler for input changes - updates local state immediately
+  const handleSearchChange = useCallback((value: string) => {
+    setLocalSearch(value);
+  }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (showSearchInput && inputRef.current) {
       inputRef.current.focus();
     }
@@ -152,8 +180,8 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                 className="gba:bg-transparent gba:border-none gba:outline-none gba:w-full gba:text-sm"
                 type="text"
                 placeholder={placeholder}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={localSearch}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 onBlur={(e) => {
                   if (!e.target.value) setShowSearchInput(false);
                 }}

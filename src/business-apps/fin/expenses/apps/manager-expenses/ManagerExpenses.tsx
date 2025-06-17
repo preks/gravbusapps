@@ -1,7 +1,6 @@
 import React, { useEffect, useState, ReactNode } from 'react';
 import { Tabs, ActionButton } from '@newwork/gravity-ui-catalog';
-import { WalletOutlined } from '@ant-design/icons';
-import { PiGauge, PiPath, PiHandCoins, PiMoney, PiCalendarBlank } from 'react-icons/pi';
+import { PiGauge, PiPath, PiHandCoins, PiMoney, PiCalendarBlank, PiWallet } from 'react-icons/pi';
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -16,12 +15,7 @@ import ExpenseRequestsTab from './components/ExpenseRequestsTab';
 export interface ManagerExpensesProps extends BusinessAppContextProps {}
 
 const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
-  const [activeTab, setActiveTab] = useState('dashboard');
   const [contentHeader, setContentHeader] = useState<ReactNode | null>(null);
-
-  const handleTabChange = (key: string) => {
-    setActiveTab(key);
-  };
 
   const tabItems = [
     {
@@ -90,13 +84,55 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     },
   ];
 
+  // Get tab from URL query parameter or use first tab as default
+  const getInitialTab = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    const validTabs = tabItems.map(item => item.key);
+    
+    if (validTabs.includes(tabFromUrl ?? '')) {
+      return tabFromUrl!;
+    } else {
+      // No valid tab in URL, set default tab in URL
+      const defaultTab = tabItems[0].key;
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', defaultTab);
+      window.history.replaceState({}, '', url.toString());
+      return defaultTab;
+    }
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+
+  // Update URL when tab changes
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', key);
+    window.history.pushState({}, '', url.toString());
+  };
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabFromUrl = urlParams.get('tab');
+      const validTabs = tabItems.map(item => item.key);
+      const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : tabItems[0].key;
+      setActiveTab(newTab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const activeTabItem = tabItems.find(item => item.key === activeTab);
   const activeTabContent = activeTabItem?.children;
   const activeTabContentHeader = activeTabItem?.renderContentHeader();
 
   return (
     <PageLayout
-      headerIcon={<WalletOutlined size={32}/>}
+      headerIcon={<PiWallet/>}
       headerLabel="Team Expenses"
       pageHeaderRight={
         <ActionButton

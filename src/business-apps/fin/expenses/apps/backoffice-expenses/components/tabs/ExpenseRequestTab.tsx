@@ -3,106 +3,116 @@
  * Displays a table of expense requests with filtering and view capabilities
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useExpenseRequests } from '../../hooks/useExpenseRequests';
 import {
-  Card,
-  Table,
-  Typography,
   Button,
-  Space,
-  Tag,
-  DatePicker,
-  Select,
   Tooltip,
   Alert,
+  Typography,
+  Select,
 } from 'antd';
+import { DataTable } from '@newwork/gravity-ui-catalog';
+import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import {
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  FileExcelOutlined,
-  ReloadOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import { ExpenseData } from '../../types';
 import ExpenseDetailDrawer from '../details/ExpenseDetailDrawer';
+import Pill from '@/components/pill/Pill';
+import { getExpenseRequestStatusDisplay } from '../../utils/utils';
 
 const { Text } = Typography;
-const { RangePicker } = DatePicker;
 const { Option } = Select;
 
-interface ExpenseRequestTabProps extends BusinessAppContextProps {}
+interface ExpenseRequestTabProps extends BusinessAppContextProps {
+  onContentHeaderChange?: (header: React.ReactNode) => void;
+}
+
 
 const ExpenseRequestTab: React.FC<ExpenseRequestTabProps> = (props) => {
-  const { accessToken } = props;
-  const {
-    expenses,
-    loading,
+  const { accessToken, onContentHeaderChange } = props;
+  
+  const { 
+    expenses, 
+    loading, 
     error,
     departments,
     handleTableChange,
-    fetchData: onRefresh, // Renaming fetchData to onRefresh for clarity if used as such
     totalItems,
     currentPage,
     pageSize,
-    setFilters, // Assuming the hook provides this directly
-  } = useExpenseRequests({ accessToken });
+  } = useExpenseRequests(props);
 
-  const paginationConfig: TablePaginationConfig = {
-    current: currentPage,
-    pageSize: pageSize,
-    total: totalItems,
-  };
-  // State for drawer visibility and selected expense ID
-  const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
-  const [selectedExpenseId, setSelectedExpenseId] = useState<string>('');
+  const [searchText, setSearchText] = useState<string>('');
+  const [selectedExpense, setSelectedExpense] = useState<ExpenseData | null>(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
-  // Local state for filter controls
-  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
-  const [departmentFilter, setDepartmentFilter] = useState<string | undefined>(undefined);
+  // Create statistics header and pass to parent via onContentHeaderChange
+  useEffect(() => {
+    if (onContentHeaderChange) {
+      const header = (
+        <div className="gba:mb-4" data-testid="expense-request-stats-header">
+          <Alert
+            message={`${totalItems || 0} Total Expense Requests`}
+            type="info"
+            showIcon
+          />
+        </div>
+      );
+      onContentHeaderChange(header);
+    }
+  }, [onContentHeaderChange, totalItems]);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
 
-  // Handle viewing expense details
-  const handleViewDetails = (id: string) => {
-    setSelectedExpenseId(id);
-    setDrawerVisible(true);
-  };
+  // Handle search change
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchText(value);
+    // Add search logic here if supported by the hook
+  }, []);
 
   // Handle status filter change
-  const handleStatusChange = (value: string) => {
-    const statusValue = value === 'all' ? undefined : value;
-    setStatusFilter(statusValue);
-    setFilters(prev => ({ ...prev, status: statusValue ? { _eq: statusValue } : undefined })); // Ensure setFilters from hook works this way
-  };
+  const handleStatusChange = useCallback((value: string) => {
+    setStatusFilter(value);
+    // Add filter logic here
+  }, []);
 
   // Handle department filter change
-  const handleDepartmentChange = (value: string) => {
-    const departmentValue = value === 'all' ? undefined : value;
-    setDepartmentFilter(departmentValue);
-    setFilters(prev => ({ ...prev, department: departmentValue ? { _eq: departmentValue } : undefined })); // Ensure setFilters from hook works this way
+  const handleDepartmentChange = useCallback((value: string) => {
+    setDepartmentFilter(value);
+    // Add filter logic here
+  }, []);
+
+  // Handle expense selection
+  const handleSelectExpense = useCallback((expense: ExpenseData) => {
+    setSelectedExpense(expense);
+    setSelectedRowKeys([expense.id]);
+  }, []);
+
+  // Handle row selection change
+  const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
+    setSelectedRowKeys(newSelectedRowKeys);
+  }, []);
+
+  const handleViewDetails = (record: ExpenseData) => {
+    setSelectedExpense(record);
+    setSelectedRowKeys([record.id]);
   };
 
-  // Handle filter reset
-  const resetFilters = () => {
-    setStatusFilter(undefined);
-    setDepartmentFilter(undefined);
-    setFilters({}); // Ensure setFilters from hook works this way
-  };
-
-  // Table columns configuration
-  const columns: ColumnsType<ExpenseData> = [
+  const columns = [
     {
       title: 'Request Number',
       dataIndex: 'code',
       key: 'code',
-      sorter: true,
+      sortable: true,
     },
     {
       title: 'Employee',
-      dataIndex: 'employee',
+      dataIndex: 'employeeName',
       key: 'employee',
-      sorter: true,
+      sortable: true,
     },
     {
       title: 'SAP Number',
@@ -113,12 +123,11 @@ const ExpenseRequestTab: React.FC<ExpenseRequestTabProps> = (props) => {
       title: 'Title',
       dataIndex: 'title',
       key: 'title',
-      ellipsis: {
-        showTitle: false,
-      },
-      render: (title) => (
-        <Tooltip placement="topLeft" title={title}>
-          {title}
+      render: (title: string) => (
+        <Tooltip title={title}>
+          <div style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {title}
+          </div>
         </Tooltip>
       ),
     },
@@ -126,161 +135,155 @@ const ExpenseRequestTab: React.FC<ExpenseRequestTabProps> = (props) => {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status) => {
-        const statusLower = status?.toLowerCase() ?? '';
-        switch (statusLower) {
-          case 'approved':
-            return <Tag color="gold" icon={<CheckCircleOutlined />}>Verification Required</Tag>;
-          case 'rejected':
-            return <Tag color="red" icon={<CloseCircleOutlined />}>Rejected</Tag>;
-          case 'created':
-            return <Tag color="default">Draft</Tag>;
-          case 'pending':
-            return <Tag color="orange">In Approval</Tag>;
-          case 'in_review':
-            return <Tag color="gold">In Review</Tag>;
-          case 'booked':
-            return <Tag color="blue">Transfer Required</Tag>;
-          case 'verified':
-            return <Tag color="cyan">Booking Required</Tag>;
-          case 'paid':
-            return <Tag color="green" icon={<CheckCircleOutlined />}>Paid</Tag>;
-          case 'payment_pending':
-            return <Tag color="purple">Payment Pending</Tag>;
-          case 'cancelled':
-            return <Tag color="red" icon={<CloseCircleOutlined />}>Cancelled</Tag>;
-          case 'draft':
-            return <Tag color="default">Draft</Tag>;
-          default: {
-            const displayStatus = status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : 'Unknown';
-            return <Tag>{displayStatus}</Tag>;
-          }
-        }
-      }
+      render: (status: string) => {
+        const { label, type } = getExpenseRequestStatusDisplay(status);
+        return (
+          <Pill label={label} type={type} className="gba:text-center" />
+        );
+      },
     },
     {
       title: 'Department',
       dataIndex: 'department',
       key: 'department',
-      sorter: true,
+      sortable: true,
     },
     {
       title: 'Total Amount',
       dataIndex: 'amount',
       key: 'amount',
-      sorter: true,
+      sortable: true,
     },
     {
       title: 'Actions',
       key: 'actions',
-      render: (_, record) => (
+      render: (_: any, record: ExpenseData) => (
         <Button
           type="text"
           icon={<EyeOutlined />}
-          onClick={() => handleViewDetails(record.id)}
+          onClick={() => handleViewDetails(record)}
           title="View Details"
           aria-label="View expense details"
         />
       ),
     },
-  ];
+  ] as any;
 
-  return (
-    <>
-      {/* Filters */}
-      <Card className="gba:mb-6">
-        <Space size="large" wrap>
-          <div>
-            <Text strong>Date Range: </Text>
-            <RangePicker className="gba:ml-2" />
-          </div>
-          <div className="gba:flex gba:justify-between gba:items-center gba:mb-4 gba:flex-wrap gba:gap-4">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <Text strong>Status: </Text>
-              <Select
-                value={statusFilter}
-                style={{ width: 150 }}
-                onChange={handleStatusChange}
-                placeholder="Filter by status"
-                allowClear
-              >
-                <Option value="all">All Statuses</Option>
-                <Option value="PENDING">Pending</Option>
-                <Option value="APPROVED">Approved</Option>
-                <Option value="REJECTED">Rejected</Option>
-                <Option value="BOOKED">Booked</Option>
-              </Select>
-            </div>
+  // Render data body with DataTable
+  const renderDataBody = useMemo(() => {
+    if (error) {
+      return (
+        <Alert
+          message="API Error"
+          description={String(error)}
+          type="error"
+          showIcon
+          data-testid="expense-request-error-alert"
+        />
+      );
+    }
 
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <Text strong>Department: </Text>
-              <Select
-                value={departmentFilter}
-                style={{ width: 180 }}
-                onChange={handleDepartmentChange}
-                placeholder="Filter by department"
-                allowClear
-              >
-                <Option value="all">All Departments</Option>
-                {departments.map(dept => (
-                  <Option key={dept} value={dept}>{dept}</Option>
-                ))}
-              </Select>
-            </div>
-
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <Button onClick={resetFilters} icon={<ReloadOutlined />}>
-                Reset Filters
-              </Button>
-              <Button
-                type="primary"
-                icon={<FileExcelOutlined />}
-                className="gba:bg-green-600"
-              >
-                Export to Excel
-              </Button>
-              <Button
-                onClick={onRefresh}
-                icon={<ReloadOutlined />}
-                loading={loading}
-              >
-                Refresh Data
-              </Button>
-            </div>
-          </div>
-        </Space>
-      </Card>
-
-      {/* Error message */}
-      {error && (
-        <div className="gba:mb-6">
-          <Alert
-            message="API Error"
-            description={error}
-            type="error"
-            showIcon
-          />
-        </div>
-      )}
-
-      {/* Expense Requests Table */}
-      <Table
+    return (
+      <DataTable
         dataSource={expenses}
         columns={columns}
-        rowKey="id"
         loading={loading}
-        pagination={paginationConfig}
+        rowKey="id"
+        rowSelection={{
+          type: 'checkbox',
+          selectedRowKeys,
+          onChange: handleRowSelectionChange,
+          columnWidth: 48,
+        }}
+        onRow={(record: any) => ({
+          onClick: () => handleSelectExpense(record as ExpenseData),
+          style: { cursor: 'pointer' }
+        })}
+        pagination={{
+          current: currentPage,
+          pageSize,
+          total: totalItems,
+          showSizeChanger: true,
+          pageSizeOptions: ['10', '20', '50'],
+          showTotal: (total: number) => `Total ${total} requests`
+        }}
         onChange={handleTableChange}
       />
+    );
+  }, [
+    error, expenses, columns, loading, selectedRowKeys, handleRowSelectionChange,
+    handleSelectExpense, currentPage, pageSize, totalItems, handleTableChange
+  ]);
 
-      {/* Expense Detail Drawer */}
-      <ExpenseDetailDrawer
-        visible={drawerVisible}
-        onClose={() => setDrawerVisible(false)}
-        expenseId={selectedExpenseId}
-        accessToken={accessToken}
-      />
-    </>
+  // Filter controls
+  const filterControlsNode = useMemo(() => (
+    <div className="gba:flex gba:flex-wrap gba:gap-4">
+      <div className="gba:w-64">
+        <Text strong>Status</Text>
+        <Select 
+          className="gba:w-full gba:mt-1"
+          value={statusFilter}
+          onChange={handleStatusChange}
+        >
+          <Option value="all">All Statuses</Option>
+          <Option value="PENDING">Pending</Option>
+          <Option value="APPROVED">Approved</Option>
+          <Option value="REJECTED">Rejected</Option>
+          <Option value="BOOKED">Booked</Option>
+        </Select>
+      </div>
+      <div className="gba:w-64">
+        <Text strong>Department</Text>
+        <Select 
+          className="gba:w-full gba:mt-1"
+          value={departmentFilter}
+          onChange={handleDepartmentChange}
+        >
+          <Option value="all">All Departments</Option>
+          {departments.map(dept => (
+            <Option key={dept} value={dept}>{dept}</Option>
+          ))}
+        </Select>
+      </div>
+    </div>
+  ), [statusFilter, handleStatusChange, departmentFilter, handleDepartmentChange, departments]);
+
+  return (
+    <DataContainer
+      dataControllerProps={{
+        search: searchText,
+        setSearch: handleSearchChange,
+        placeholder: 'Search by request number, employee, title...',
+        filter: [],
+        setFilter: () => { /* Placeholder for DataContainer prop */ },
+        listTitle: 'Expense Requests',
+        listAmount: totalItems
+      }}
+      dataFilterProps={{
+        filterGroups: [],
+        children: filterControlsNode
+      }}
+      dataBody={renderDataBody}
+      contentBackground="white"
+      dataDetails={selectedExpense ? {
+        title: 'Expense Request Details',
+        content: (
+          <ExpenseDetailDrawer
+            visible={true}
+            onClose={() => {
+              setSelectedExpense(null);
+              setSelectedRowKeys([]);
+            }}
+            expenseId={selectedExpense.id}
+            accessToken={accessToken}
+          />
+        ),
+      } : undefined}
+      onDetailsPanelClose={() => {
+        setSelectedExpense(null);
+        setSelectedRowKeys([]);
+      }}
+    />
   );
 };
 

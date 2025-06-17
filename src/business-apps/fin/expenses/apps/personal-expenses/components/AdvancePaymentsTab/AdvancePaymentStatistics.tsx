@@ -1,15 +1,21 @@
 import React, { useMemo } from 'react';
-import { Card, Row, Col, Statistic, Typography } from 'antd';
 import { FileTextOutlined, DollarOutlined, CalendarOutlined, BankOutlined } from '@ant-design/icons';
 import { AdvancePayment } from '../../hooks/useGetAdvancePayments';
-
-const { Text } = Typography;
+import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 
 interface AdvancePaymentStatisticsProps {
   payments: AdvancePayment[] | undefined;
+  statsLoading?: boolean;
+  statsError?: string | null;
+  fetchAdvancePaymentStatistics?: () => Promise<void>;
 }
 
-const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({ payments }) => {
+const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({ 
+  payments,
+  statsLoading = false,
+  statsError = null,
+  fetchAdvancePaymentStatistics = () => Promise.resolve()
+}) => {
   // Calculate summary statistics
   const totalPayments = useMemo(() => payments?.length ?? 0, [payments]);
   
@@ -31,59 +37,58 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({ pay
     ).length ?? 0, 
   [payments]);
 
+  // Transform the stats data into widgets format
+  const widgets: WidgetItem[] = [
+    {
+      key: 'total-payments',
+      title: 'Total Advance Payments',
+      value: totalPayments,
+      prefix: <FileTextOutlined />,
+      color: '#1677ff',
+      span: { xs: 24, sm: 12, md: 6 },
+      description: 'All advance payments'
+    },
+    {
+      key: 'total-amount',
+      title: 'Total Amount',
+      value: totalAmount,
+      prefix: <DollarOutlined />,
+      suffix: '€',
+      color: '#3f8600',
+      precision: 2,
+      span: { xs: 24, sm: 12, md: 6 },
+      description: 'Across all payments'
+    },
+    {
+      key: 'pending-payments',
+      title: 'Pending Payments',
+      value: pendingPayments,
+      prefix: <CalendarOutlined />,
+      color: '#faad14',
+      span: { xs: 24, sm: 12, md: 6 },
+      description: 'Awaiting approval'
+    },
+    {
+      key: 'approved-payments',
+      title: 'Approved Payments',
+      value: approvedPayments,
+      prefix: <BankOutlined />,
+      color: '#52c41a',
+      span: { xs: 24, sm: 12, md: 6 },
+      description: 'Ready for processing'
+    }
+  ];
+
   return (
-    <div className="px-4">
-      <div className="advance-payment-statistics" style={{ marginBottom: 16, marginTop: 16 }}>
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic 
-                title="Total Advance Payments" 
-                value={totalPayments}
-                prefix={<FileTextOutlined />}
-                valueStyle={{ color: '#1677ff' }}
-              />
-              <Text type="secondary" style={{ fontSize: 12 }}>All advance payments</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic 
-                title="Total Amount" 
-                value={totalAmount}
-                precision={2}
-                prefix={<DollarOutlined />}
-                suffix="€"
-                valueStyle={{ color: '#3f8600' }}
-              />
-              <Text type="secondary" style={{ fontSize: 12 }}>Across all payments</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic 
-                title="Pending Payments" 
-                value={pendingPayments}
-                prefix={<CalendarOutlined />}
-                valueStyle={{ color: '#faad14' }}
-              />
-              <Text type="secondary" style={{ fontSize: 12 }}>Awaiting approval</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic 
-                title="Approved Payments" 
-                value={approvedPayments}
-                prefix={<BankOutlined />}
-                valueStyle={{ color: '#52c41a' }}
-              />
-              <Text type="secondary" style={{ fontSize: 12 }}>Ready for processing</Text>
-            </Card>
-          </Col>
-        </Row>
-      </div>
-    </div>
+    <WidgetGroup
+      widgets={widgets}
+      isLoading={statsLoading}
+      error={statsError}
+      onRetry={fetchAdvancePaymentStatistics}
+      skeletonCount={4}
+      emptyText="No advance payment statistics available."
+      data-testid="advance-payment-statistics"
+    />
   );
 };
 

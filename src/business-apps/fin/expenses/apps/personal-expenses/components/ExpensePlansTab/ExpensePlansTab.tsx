@@ -1,23 +1,29 @@
 import React, { useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetExpensePlans } from '../../hooks/useGetExpensePlans';
+import { useGetExpensePlans, ExpensePlan } from '../../hooks/useGetExpensePlans';
 import { getExpensePlanStatusDisplay } from '../../utils';
 import ExpensePlanDetails from './ExpensePlanDetails';
 import ExpensePlanStatistics from './ExpensePlanStatistics';
+import { startProcess } from '@/common/utils/start-process';
 import { 
   Spin, 
   Alert, 
-  Table, 
   Button, 
   Space, 
-  Typography 
+  Typography
 } from 'antd';
+import { DataTable } from '@newwork/gravity-ui-catalog';
 import { 
-  FileTextOutlined 
+  FileTextOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
-import { PiLightning } from 'react-icons/pi';
 import Pill from '@/components/pill/Pill';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
+
+// Helper function to format currency values
+const formatCurrency = (value: number): string => {
+  return value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 
 const { Text } = Typography;
 
@@ -63,29 +69,28 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     fetchItems(value, 1, pageSize);
   }, [fetchItems, pageSize]);
   
-  // Handle page change
-  const handlePageChange = useCallback((page: number, pageSize?: number) => {
-    setCurrentPage(page);
-    fetchItems(searchText, page, pageSize ?? 10);
-  }, [fetchItems, searchText]);
-  
-  // Handle page size change
-  const handlePageSizeChange = useCallback((_: number, size: number) => {
-    setPageSize(size);
-    setCurrentPage(1); // Reset to first page when changing page size
-    fetchItems(searchText, 1, size);
-  }, [fetchItems, searchText]);
-  
   // Create a memoized setFilter function to prevent re-renders
   const handleFilterChange = useCallback(() => {
     // This is empty as we're handling filters separately
   }, []);
-  
+
   // Handle adding a new expense plan
   const handleAddExpensePlan = useCallback(() => {
-    // Add logic to create a new expense plan
-    console.log('Adding new expense plan');
-  }, []);
+    if (contextProps.userInfo?.employeeDetails?.employeeId) {
+      startProcess({
+        domain: 'employee-expense',
+        processName: 'changeExpensePlan',
+        payload: {
+          employeeId: contextProps.userInfo.employeeDetails.employeeId
+        }
+      });
+    }
+  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
+
+  // Format currency for display
+  const formatCurrency = (amount: number) => {
+    return amount?.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+  };
   
   // Using getExpensePlanStatusDisplay directly from utils
   
@@ -110,6 +115,17 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     setSelectedItem(null);
   }, []);
   
+  // Handle table change for DataTable component
+  const handleTableChange = useCallback(
+    (pagination: any, _filters?: any, _sorter?: any) => {
+      const { current, pageSize } = pagination;
+      setCurrentPage(current);
+      setPageSize(pageSize);
+      fetchItems(searchText, current, pageSize);
+    },
+    [fetchItems, searchText]
+  );
+
   // Render the data body with memoization
   const renderDataBody = useCallback(() => {
     if (isLoading) {
@@ -134,20 +150,21 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     }
     
     return (
-      <Table 
+      <DataTable 
         dataSource={plans} 
         rowKey="id"
+        loading={isLoading}
         rowSelection={{
           type: 'checkbox',
           selectedRowKeys,
           onChange: handleRowSelectionChange,
           columnWidth: 48,
         }}
-        onRow={(record) => ({
+        onRow={(record: any) => ({
           onClick: (event) => {
             // Prevent row click from triggering when clicking on checkbox
             if ((event.target as HTMLElement).tagName !== 'INPUT') {
-              handleSelectItem(record);
+              handleSelectItem(record as ExpensePlan);
             }
           },
           style: { cursor: 'pointer' }
@@ -156,17 +173,18 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
           current: currentPage,
           pageSize: pageSize,
           total: totalCount,
-          onChange: handlePageChange,
-          onShowSizeChange: handlePageSizeChange,
           showSizeChanger: true,
+          pageSizeOptions: ['10', '20', '50'],
           showTotal: (total) => `Total ${total} items`
         }}
+        onChange={handleTableChange}
+        data-testid="expense-plans-data-table"
         columns={[
           {
-            title: 'TITLE',
+            title: 'Title',
             dataIndex: 'title',
             key: 'title',
-            render: (text, record) => (
+            render: (text, record: any) => (
               <div>
                 <div style={{ fontWeight: 'bold' }}>{text}</div>
                 {(record.startDate && record.endDate) && (
@@ -178,69 +196,73 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
             )
           },
           {
-            title: 'COST CENTER',
+            title: 'Cost Center',
             dataIndex: ['costCenter', 'name'],
             key: 'costCenter',
-            render: (text) => (
+            render: (text: string, record: any) => (
               <div>
                 {text ?? 'No Cost Center'}
               </div>
             )
           },
           {
-            title: 'TRIP TYPE',
+            title: 'Trip Type',
             key: 'tripType',
-            render: (_, record) => {
+            render: (_, record: any) => {
               // Try to get request type from the new field structure
               if (record.requestType?.value) {
-                return record.requestType.value;
+                return <span>{String(record.requestType.value)}</span>;
               }
-              // Fallback to additionalProperties if requestType is not available
-              const additionalProps = record.additionalProperties as Record<string, unknown> | null;
-              const tripType = additionalProps?.tripType ?? additionalProps?.travelType;
-              return tripType ?? 'Business Travel';
+              // Fall back to the old structure using additionalProperties
+              return <span>{record.requestType?.value ? String(record.requestType.value) : 'Unknown'}</span>;
             }
           },
 
           {
-            title: 'AMOUNT',
+            title: 'Amount',
             dataIndex: 'totalAmount',
             key: 'amount',
             align: 'right',
-            render: (amount, record) => {
+            render: (amount: number, record: any) => {
               let currencySymbol = '€'; // Default to Euro symbol
               if (record.currency?.value) {
                 currencySymbol = record.currency.value === 'European euro' ? '€' : record.currency.value.charAt(0);
               }
-              // Add null check for totalAmount
-              const formattedAmount = typeof amount === 'number' ? amount.toFixed(2) : '0.00';
-              return <span style={{ fontWeight: 'bold' }}>{currencySymbol}{formattedAmount}</span>;
+              return `${currencySymbol}${formatCurrency(amount)}`;
             }
           },
           {
-            title: 'STATUS',
+            title: 'Status',
             dataIndex: 'status',
             key: 'status',
-            render: (status) => {
+            render: (status: string) => {
               const statusConfig = getExpensePlanStatusDisplay(status);
               return <Pill type={statusConfig.type} label={statusConfig.label} />;
             }
           },
           {
-            title: 'ACTIONS',
+            title: 'Actions',
             key: 'actions',
-            render: () => (
-              <Space>
+            render: (_, record: any) => (
+              <Space size="small">
                 <Button 
-                  type="text" 
-                  size="small" 
-                  icon={<PiLightning size={18} />}
-                  className="gba:transition-colors gba:duration-300 hover:gba:text-blue-500"
-                  aria-label="Edit"
+                  icon={<FileTextOutlined />}
+                  shape="circle"
                   onClick={(e) => {
                     e.stopPropagation();
-                    // Add edit logic here
+                    // Handle view documents action
+                    console.log('View documents for', record.id);
                   }}
+                  data-testid={`view-documents-${record.id}`}
+                />
+                <Button 
+                  icon={<EyeOutlined />}
+                  shape="circle"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelectItem(record as ExpensePlan);
+                  }}
+                  data-testid={`view-details-${record.id}`}
                 />
               </Space>
             )
@@ -248,7 +270,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
         ]}
       />
     );
-  }, [plans, isLoading, error, currentPage, pageSize, totalCount, selectedRowKeys, handlePageChange, handlePageSizeChange, handleRowSelectionChange, handleSelectItem]);
+  }, [plans, isLoading, error, currentPage, pageSize, totalCount, selectedRowKeys, handleRowSelectionChange, handleSelectItem, handleTableChange]);
 
   // Render expense plan details using the separate component
   const renderExpensePlanDetails = useMemo(() => {
@@ -272,7 +294,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
             label: 'Add',
             'data-testid': 'add-expense-plan-button'
           },
-          listTitle: "My Expense Plans"
+          listTitle: "My Expense Plans",
+          listAmount: totalCount ? `${totalCount}` : undefined
         }}
         dataFilterProps={{}}
         hideFilter={true}

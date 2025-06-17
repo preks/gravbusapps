@@ -5,7 +5,7 @@ import { useGetEmployees, Employee } from '@/business-apps/hr/core/hooks/useGetE
 import { useEmployeeFilters } from '@/business-apps/hr/core/hooks/useEmployeeFilters';
 import { PageLayout } from '@/components/layout/pageLayout';
 import { DataContainer } from '@/components/layout/dataContainer';
-import { DebouncedDataController, DebouncedDataControllerProps } from '@/components/dataController';
+import { DataController, DataControllerProps } from '@/components/dataController';
 import { DataCards } from '@/components/dataCards';
 import { PiUsersThree } from 'react-icons/pi';
 import { EmployeeCard } from './components/EmployeeCard.component';
@@ -101,18 +101,13 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
         headerLabel={'Employee Directory'}
         contentHeader={null}
         contentContainer={
-          <DataContainer<DebouncedDataControllerProps>
-            dataControllerComponent={DebouncedDataController}
+          <DataContainer<DataControllerProps>
+            dataControllerComponent={DataController}
             dataControllerProps={{
-              // Props for debounced controller
-              actualSearch: search,
-              setActualSearch: setSearch,
+              // Props with debounce functionality now built into DataController
+              search: search,
+              setSearch: setSearch,
               debounceDelay: 300, // 300ms debounce delay
-              
-              // These are required by the type system but won't actually be used
-              // The DebouncedDataController will override them with its own values
-              search: '', // Placeholder, will be ignored
-              setSearch: () => {}, // Placeholder, will be ignored
               
               // Regular DataController props
               filter: selectedFilters,

@@ -1,19 +1,25 @@
 import React, { useMemo } from 'react';
-import { Card, Row, Col, Statistic, Typography } from 'antd';
 import { 
   FileTextOutlined, 
   DollarOutlined, 
   CalendarOutlined 
 } from '@ant-design/icons';
 import { ExpenseRequest } from '../../hooks/useGetExpenseRequests';
-
-const { Text } = Typography;
+import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 
 interface ExpenseRequestStatisticsProps {
   items: ExpenseRequest[];
+  statsLoading?: boolean;
+  statsError?: string | null;
+  fetchRequestStatistics?: () => Promise<void>;
 }
 
-const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({ items }) => {
+const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({ 
+  items,
+  statsLoading = false,
+  statsError = null,
+  fetchRequestStatistics = () => Promise.resolve()
+}) => {
   // Calculate summary statistics with memoization
   const totalRequests = useMemo(() => items?.length ?? 0, [items]);
   
@@ -29,61 +35,60 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({ ite
     items?.reduce((sum, request) => sum + (request.reimbursableAmount || 0), 0) ?? 0, 
   [items]);
 
+  // Transform the stats data into widgets format
+  const widgets: WidgetItem[] = [
+    {
+      key: 'total-requests',
+      title: 'Total Requests',
+      value: totalRequests,
+      prefix: <FileTextOutlined />,
+      color: '#1677ff',
+      span: { xs: 24, sm: 12, md: 6 },
+      description: '+8% from last month'
+    },
+    {
+      key: 'total-amount',
+      title: 'Total Amount',
+      value: totalAmount,
+      prefix: <DollarOutlined />,
+      suffix: '€',
+      color: '#3f8600',
+      precision: 2,
+      span: { xs: 24, sm: 12, md: 6 },
+      description: 'Across all requests'
+    },
+    {
+      key: 'pending-approval',
+      title: 'Pending Approval',
+      value: pendingApproval,
+      prefix: <CalendarOutlined />,
+      color: '#faad14',
+      span: { xs: 24, sm: 12, md: 6 },
+      description: 'Requires action'
+    },
+    {
+      key: 'reimbursable',
+      title: 'Reimbursable',
+      value: reimbursableAmount,
+      prefix: <DollarOutlined />,
+      suffix: '€',
+      color: '#722ed1',
+      precision: 2,
+      span: { xs: 24, sm: 12, md: 6 },
+      description: 'To be reimbursed'
+    }
+  ];
+
   return (
-    <div className="gba:px-4">
-      <div className="gba:expense-statistics-cards gba:mb-4 gba:mt-4">
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic 
-                title="Total Requests" 
-                value={totalRequests}
-                prefix={<FileTextOutlined />}
-                valueStyle={{ color: '#1677ff' }}
-              />
-              <Text type="success" style={{ fontSize: 12 }}>+8% from last month</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic 
-                title="Total Amount" 
-                value={totalAmount}
-                precision={2}
-                prefix={<DollarOutlined />}
-                suffix="€"
-                valueStyle={{ color: '#3f8600' }}
-              />
-              <Text type="secondary" style={{ fontSize: 12 }}>Across all requests</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic 
-                title="Pending Approval" 
-                value={pendingApproval}
-                prefix={<CalendarOutlined />}
-                valueStyle={{ color: '#faad14' }}
-              />
-              <Text type="secondary" style={{ fontSize: 12 }}>Requires action</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic 
-                title="Reimbursable" 
-                value={reimbursableAmount}
-                precision={2}
-                prefix={<DollarOutlined />}
-                suffix="€"
-                valueStyle={{ color: '#722ed1' }}
-              />
-              <Text type="secondary" style={{ fontSize: 12 }}>To be reimbursed</Text>
-            </Card>
-          </Col>
-        </Row>
-      </div>
-    </div>
+    <WidgetGroup
+      widgets={widgets}
+      isLoading={statsLoading}
+      error={statsError}
+      onRetry={fetchRequestStatistics}
+      skeletonCount={4}
+      emptyText="No expense request statistics available."
+      data-testid="expense-request-statistics"
+    />
   );
 };
 

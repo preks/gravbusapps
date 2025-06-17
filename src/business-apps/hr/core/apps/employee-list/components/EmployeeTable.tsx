@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable, Button } from '@newwork/gravity-ui-catalog';
-import { Employee } from '@/business-apps/hr/hooks/useGetEmployees';
+import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees';
 import EmployeeAvatar from '@/business-apps/hr/components/employeeAvatar/EmployeeAvatar';
 import { formatDataTestId } from '@/modules/orgchart/utils';
 
@@ -11,8 +11,7 @@ interface EmployeeTableProps {
   employees: Employee[];
   loading: boolean;
   error: Error | null;
-  hasMore: boolean;
-  loadMore: () => void;
+  loadPage: (page: number, pageSize?: number) => void;
   retry: () => void;
   total: number;
   onSelectEmployee?: (employee: Employee) => void;
@@ -25,8 +24,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   employees,
   loading,
   error,
-  hasMore,
-  loadMore,
+  loadPage,
   retry,
   total,
   onSelectEmployee,
@@ -34,11 +32,15 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  // State to track current pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
   // Handle view profile action
   const handleViewProfile = useCallback((employeeId: string) => {
     window.location.href = `/platform/landing_screen/srn_employeeProfile?id=${employeeId}`;
   }, []);
-  
+
   // Handle row click to select employee
   const handleRowClick = useCallback((employee: Employee) => {
     if (onSelectEmployee) {
@@ -119,13 +121,23 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
 
   // Handle pagination change
   const handleTableChange = (pagination: any) => {
-    // Calculate the offset based on the current page and page size
-    const offset = (pagination.current - 1) * pagination.pageSize;
+    console.log('Pagination changed:', { 
+      current: pagination.current, 
+      pageSize: pagination.pageSize,
+      total: pagination.total 
+    });
     
-    // Load the data for the selected page
-    if (offset >= employees.length && hasMore && !loading) {
-      loadMore();
-    }
+    // When page size changes, we should go to page 1
+    // When page changes, we use the current page
+    const targetPage = pagination.current ?? 1;
+    const targetPageSize = pagination.pageSize ?? 20;
+    
+    // Update state
+    setCurrentPage(targetPage);
+    setPageSize(targetPageSize);
+    
+    // Load the data for the selected page with the new page size
+    loadPage(targetPage, targetPageSize);
   };
 
   // Show error message if there's an error
@@ -144,13 +156,16 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
     <div data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'Container')}>
       <DataTable
         dataSource={employees}
-        columns={columns}
+        columns={columns as any}
         loading={loading}
         rowKey="id"
         pagination={{
-          pageSize: 20,
+          current: currentPage,
+          pageSize: pageSize,
           total: total,
-          showSizeChanger: false,
+          showSizeChanger: true,
+          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} employees`,
+          pageSizeOptions: ['10', '20', '50', '100'],
         }}
         onChange={handleTableChange}
         scroll={{ x: true }}

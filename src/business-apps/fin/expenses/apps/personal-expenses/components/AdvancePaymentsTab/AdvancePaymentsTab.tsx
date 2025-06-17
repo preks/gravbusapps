@@ -1,6 +1,8 @@
 import React, { useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Typography, Space, Button, Table, Alert, Spin } from 'antd';
+import { Typography, Space, Button, Alert, Spin } from 'antd';
+import { DataTable } from '@newwork/gravity-ui-catalog';
+import { startProcess } from '@/common/utils/start-process';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { useGetAdvancePayments, AdvancePayment } from '../../hooks/useGetAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../utils';
@@ -46,9 +48,16 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
   
   // Handle adding a new advance payment
   const handleAddAdvancePayment = useCallback(() => {
-    // Add logic to create a new advance payment
-    console.log('Adding new advance payment');
-  }, []);
+    if (contextProps.userInfo?.employeeDetails?.employeeId) {
+      startProcess({
+        domain: 'employee-expense',
+        processName: 'changeAdvancePayment',
+        payload: {
+          employeeId: contextProps.userInfo.employeeDetails.employeeId
+        }
+      });
+    }
+  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
   // Handle row selection change
   const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
@@ -65,17 +74,16 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     setSelectedItem(null);
   }, []);
 
-  // Handle page change
-  const handlePageChange = useCallback((page: number, pageSize?: number) => {
-    setCurrentPage(page);
-    fetchItems(searchText, page, pageSize ?? 10);
-  }, [fetchItems, searchText]);
-  
-  // Handle page size change
-  const handlePageSizeChange = useCallback((_: number, size: number) => {
-    setPageSize(size);
-    setCurrentPage(1); // Reset to first page when changing page size
-    fetchItems(searchText, 1, size);
+  // Handle table change for DataTable component
+  const handleTableChange = useCallback((
+    pagination: any,
+    _filters?: any,
+    _sorter?: any
+  ) => {
+    const { current, pageSize } = pagination;
+    setCurrentPage(current);
+    setPageSize(pageSize);
+    fetchItems(searchText, current, pageSize);
   }, [fetchItems, searchText]);
   
   // Create memoized content header with statistics cards
@@ -110,20 +118,21 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     }
 
     return (
-      <Table 
-        dataSource={items} 
+      <DataTable
+        dataSource={items}
         rowKey="id"
+        loading={isLoading}
         rowSelection={{
           type: 'checkbox',
           selectedRowKeys,
           onChange: handleRowSelectionChange,
           columnWidth: 48,
         }}
-        onRow={(record) => ({
+        onRow={(record: any) => ({
           onClick: (event) => {
             // Prevent row click from triggering when clicking on checkbox
             if ((event.target as HTMLElement).tagName !== 'INPUT') {
-              handleSelectItem(record);
+              handleSelectItem(record as AdvancePayment);
             }
           },
           style: { cursor: 'pointer' }
@@ -132,17 +141,18 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
           current: currentPage,
           pageSize: pageSize,
           total: totalCount,
-          onChange: handlePageChange,
-          onShowSizeChange: handlePageSizeChange,
           showSizeChanger: true,
+          pageSizeOptions: ['10', '20', '50'],
           showTotal: (total) => `Total ${total} items`
         }}
+        onChange={handleTableChange}
+        data-testid="advance-payments-data-table"
         columns={[
           {
-            title: 'EXPENSE PLAN',
+            title: 'Expense Plan',
             dataIndex: 'code',
             key: 'code',
-            render: (text, record) => (
+            render: (text, record: any) => (
               <div>
                 <div style={{ fontWeight: 'bold' }}>{text}</div>
                 <div style={{ fontSize: '12px', color: '#666' }}>
@@ -153,7 +163,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
           },
 
           {
-            title: 'PAYMENT METHOD',
+            title: 'Payment Method',
             dataIndex: 'paymentMethod',
             key: 'paymentMethod',
             render: (method) => (
@@ -163,7 +173,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
             )
           },
           {
-            title: 'AMOUNT',
+            title: 'Amount',
             dataIndex: 'amount',
             key: 'amount',
             align: 'right',
@@ -172,7 +182,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
             )
           },
           {
-            title: 'STATUS',
+            title: 'Status',
             dataIndex: 'status',
             key: 'status',
             render: (status) => {
@@ -181,7 +191,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
             }
           },
           {
-            title: 'ACTIONS',
+            title: 'Actions',
             key: 'actions',
             render: () => (
               <Space>
@@ -202,7 +212,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
         ]}
       />
     );
-  }, [items, isLoading, error, currentPage, pageSize, totalCount, selectedRowKeys, handlePageChange, handlePageSizeChange, handleRowSelectionChange, handleSelectItem]);
+  }, [items, isLoading, error, currentPage, pageSize, totalCount, selectedRowKeys, handleRowSelectionChange, handleSelectItem, handleTableChange]);
 
   // Render advance payment details panel
   const renderAdvancePaymentDetails = useMemo(() => {
@@ -223,7 +233,8 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
             label: 'Add',
             'data-testid': 'add-advance-payment-button'
           },
-          listTitle: "My Advance Payments"
+          listTitle: "My Advance Payments",
+          listAmount: totalCount ? `${totalCount}` : undefined
         }}
         dataFilterProps={{}}
         hideFilter={true}
