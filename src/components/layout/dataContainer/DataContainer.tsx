@@ -94,6 +94,11 @@ export interface DataContainerProps<T extends DataControllerProps = DataControll
    * If true, the details panel will float over the content instead of taking up space in the layout
    */
   floatingDetails?: boolean;
+
+  /**
+   * Optional callback function to be invoked when the details panel's close button is clicked.
+   */
+  onDetailsPanelClose?: () => void;
 }
 
 export const DataContainer = <T extends DataControllerProps = DataControllerProps>({
@@ -106,6 +111,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
   hideFilter = false,
   contentBackground = 'gray',
   floatingDetails = false,
+  onDetailsPanelClose = () => {},
 }: DataContainerProps<T>): JSX.Element => {
   // Sidebar open/close state
   const [showDataFilter, setShowDataFilter] = React.useState(false);

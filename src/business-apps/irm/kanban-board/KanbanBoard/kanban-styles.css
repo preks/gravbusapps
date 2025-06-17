@@ -1,17 +1,17 @@
 /* Custom scrollbar styling */
-.scrollbar-hide {
+.gba\:scrollbar-hide {
   -ms-overflow-style: none; 
   scrollbar-width: none;  
 }
 
-.scrollbar-hide::-webkit-scrollbar {
+.gba\:scrollbar-hide::-webkit-scrollbar {
   display: none;  
 }
 
-.overflow-x-auto, .overflow-y-auto {
+.gba\:overflow-x-auto, .gba\:overflow-y-auto {
   scroll-behavior: smooth;
 }
 
-.card {
+.gba\:card {
   overflow: hidden;
 }

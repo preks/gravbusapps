@@ -29,6 +29,7 @@ export interface PageLayoutProps {
   pageHeaderCenter?: React.ReactNode;
   pageHeaderRight?: React.ReactNode;
   pageController?: React.ReactNode;
+  pageController?: React.ReactNode;
   contentHeader?: React.ReactNode;
   contentContainer?: React.ReactNode;
   className?: string;
@@ -40,6 +41,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
   headerLabel,
   pageHeaderCenter,
   pageHeaderRight,
+  pageController,
   pageController,
   contentHeader,
   contentContainer,
@@ -89,7 +91,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
           </div>
         )}
       </header>
-      <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0">
+      <div className="flex flex-col flex-1 min-h-0">
         {contentHeader && (
           <div className="gba:py-2 gba:border-b gba:border-gray-200">
             {contentHeader}

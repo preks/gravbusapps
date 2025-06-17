@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../
 export function ProfileHeader() {
   return (
     <Card className="gba:rounded-xl gba:shadow-sm gba:overflow-hidden gba:md:col-span-2 gba:border-gray-300">
-      <div className="gba:bg-gradient-to-r from-blue-50 to-sky-50 gba:p-6">
+      <div className="gba:bg-gradient-to-r gba:from-blue-50 gba:to-sky-50 gba:p-6">
         {/* Profile Header + Contact Details */}
         <div className="gba:flex gba:flex-col gba:md:flex-row gba:gap-6">
           {/* Left section - Profile Photo */}
@@ -40,14 +40,14 @@ export function ProfileHeader() {
           <div className="gba:space-y-3">
             <div className="gba:flex gba:items-center gba:gap-2 gba:bg-blue-50 gba:p-2 gba:rounded-lg">
               <Mail className="gba:h-4 gba:w-4 gba:text-blue-600" />
-              <a href="mailto:emily.parker@example.com" className="gba:text-blue-700 hover:underline gba:font-medium">
+              <a href="mailto:emily.parker@example.com" className="gba:text-blue-700 gba:hover:underline gba:font-medium">
                 emily.parker@example.com
               </a>
             </div>
 
             <div className="gba:flex gba:items-center gba:gap-2 gba:bg-blue-50 gba:p-2 gba:rounded-lg">
               <Phone className="gba:h-4 gba:w-4 gba:text-blue-600" />
-              <a href="tel:+1234567890" className="gba:text-blue-700 hover:underline gba:font-medium">
+              <a href="tel:+1234567890" className="gba:text-blue-700 gba:hover:underline gba:font-medium">
                 +1 (234) 567-890
               </a>
             </div>
@@ -96,7 +96,7 @@ export function ProfileHeader() {
               </svg>
               <a
                 href="https://linkedin.com/in/emilyparker"
-                className="gba:text-primary hover:underline gba:flex gba:items-center gba:gap-1"
+                className="gba:text-primary gba:hover:underline gba:flex gba:items-center gba:gap-1"
                 target="_blank" 
                 rel="noopener noreferrer"
               >

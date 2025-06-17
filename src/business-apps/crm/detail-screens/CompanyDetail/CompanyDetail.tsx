@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState} from 'react';
 import {
   Typography,
   Button,
@@ -13,7 +13,8 @@ import {
   Input,
   Select,
   Space,
-  Spin
+  Spin,
+  message
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -75,6 +76,20 @@ interface Activity {
   cc?: string;
 }
 
+interface Contact {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+}
+
+interface MainContact {
+  name: string;
+  position: string;
+  email: string;
+  phone: string;
+}
+
 interface CompanyDetailProps {
   companyId?: string;
   onBack?: () => void;
@@ -84,6 +99,7 @@ interface CompanyDetailProps {
 const emptyCompanyData = {
   id: '',
   name: '',
+  version: 0,
   industry: '',
   description: '',
   founded: '',
@@ -93,13 +109,9 @@ const emptyCompanyData = {
   tags: [],
   website: '',
   linkedin: '',
-  mainContact: {
-    name: '',
-    position: '',
-    email: '',
-    phone: ''
-  },
+  mainContacts: [] as MainContact[],
   accountOwner: {
+    id: '',
     name: '',
     avatar: ''
   },
@@ -119,7 +131,27 @@ const emptyCompanyData = {
     registerId: '',
     vatId: ''
   },
-  geographicPresence: ''
+  geographicPresence: '',
+  addresses:{
+    city:'',
+    countryRef:'',
+    version: 0,
+    regionRef:'',
+    postalCode:'',
+    id:'',
+    addressType:'',
+    addressLine:'',
+    region:{
+      id:'',
+      value:'',
+      code:''
+    },
+    country:{
+      id:'',
+      value:'',
+      code:''
+    }
+  }
 };
 
 const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, onBack, accessToken }) => {
@@ -132,129 +164,9 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
 
   const graphQLClient = useGraphqlClient(accessToken);
 
-  const [searchCompany, setSearchCompany] = useState('');
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-
-  const mapChatGptJsonToForm = (json: any) => {
-    const companyOverview = json.company_overview || {};
-    const financial = json.financial_and_business_metrics || {};
-    const keyPeopleArr = Array.isArray(json.key_people) ? json.key_people : [];
-    const foundersArr = Array.isArray(companyOverview.founders)
-      ? companyOverview.founders.map((f: any) => ({
-          name: f.name || '',
-          title: f.title || 'Founder',
-          avatar: f.picture_url || ''
-        }))
-      : [];
-
-    const leadershipArr = keyPeopleArr.map((p: any) => ({
-      name: p.name || '',
-      title: p.title || '',
-      avatar: p.picture_url || ''
-    }));
-
-    let notableFacts = '';
-    if (Array.isArray(companyOverview.notable_facts)) {
-      notableFacts = companyOverview.notable_facts.map((fact: string) => `• ${fact}`).join('\n');
-    } else if (typeof companyOverview.notable_facts === 'string') {
-      notableFacts = companyOverview.notable_facts;
-    }
-
-    let revenue = '';
-    if (financial.estimated_revenue?.amount_local && financial.estimated_revenue?.currency_local) {
-      const amount = financial.estimated_revenue.amount_local;
-      let symbol = '';
-      if (financial.estimated_revenue.currency_local.toLowerCase().includes('eur')) symbol = '€';
-      else if (financial.estimated_revenue.currency_local.toLowerCase().includes('usd')) symbol = '$';
-      else symbol = financial.estimated_revenue.currency_local + ' ';
-      revenue = `${symbol}${(amount / 1_000_000).toLocaleString(undefined, {maximumFractionDigits: 1})}m`;
-    }
-
-    const funding = financial.total_funding_raised?.amount_local && financial.total_funding_raised?.currency_local
-      ? `${financial.total_funding_raised.amount_local} ${financial.total_funding_raised.currency_local}`
-      : '';
-    const valuation = financial.valuation?.amount_local && financial.valuation?.currency_local
-      ? `${financial.valuation.amount_local} ${financial.valuation.currency_local}`
-      : '';
-
-    const registerId = Array.isArray(companyOverview.commercial_register_ids) && companyOverview.commercial_register_ids.length > 0
-      ? companyOverview.commercial_register_ids[0]
-      : '';
-    const vatId = companyOverview.vat_id || '';
-
-    return {
-      ...emptyCompanyData,
-      name: companyOverview.name || '',
-      industry: companyOverview.industry || '',
-      description: companyOverview.specialty || companyOverview.description || '',
-      founded: companyOverview.founded || '',
-      headquarters: companyOverview.headquarters || companyOverview.location || '',
-      size: companyOverview.size || '',
-      legalForm: companyOverview.legal_form || '',
-      tags: Array.isArray(companyOverview.tags) ? companyOverview.tags : [],
-      website: companyOverview.website || '',
-      linkedin: companyOverview.linkedin || '',
-      mainContact: {
-        name: keyPeopleArr[0]?.name || '',
-        position: keyPeopleArr[0]?.title || '',
-        email: keyPeopleArr[0]?.email || '',
-        phone: keyPeopleArr[0]?.phone || ''
-      },
-      accountOwner: {
-        name: json.account_owner?.name || '',
-        avatar: json.account_owner?.avatar || ''
-      },
-      lastContacted: json.last_contacted || '',
-      notableFacts,
-      financialMetrics: {
-        revenue,
-        funding,
-        valuation
-      },
-      keyPeople: {
-        founders: foundersArr,
-        leadership: leadershipArr
-      },
-      activityTimeline: Array.isArray(json.activity_timeline) ? json.activity_timeline : [],
-      legalInformation: {
-        registerId,
-        vatId
-      },
-      geographicPresence: json.geographic_presence || ''
-    };
-  };
-
-  const handleSearch = async () => {
-    setSearchError(null);
-    setSearchLoading(true);
-    try {
-      const res = await fetch('http://127.0.0.1:5000/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `company_name=${encodeURIComponent(searchCompany)}&response_format=json`
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Unknown error');
-      }
-      const data = await res.json();
-      const json = data.company_data || data;
-      const mapped = mapChatGptJsonToForm(json);
-      setCompanyData(mapped);
-      setEditedData(mapped);
-      setHasChanges(true);
-    } catch (e: any) {
-      setSearchError(e.message || 'Failed to fetch company info');
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-  
   useEffect(() => {
     const fetchCompanyById = async () => {
       if (!_companyId) return;
-      
       try {
         setLoading(true);
         setError(null);
@@ -270,6 +182,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
           const transformedData = {
             id: apiData.id || '',
             name: apiData.name || '',
+            version: apiData.version || 0,
             industry: apiData.industry?.value || '',
             description: '', 
             founded: apiData.foundationDate || '',
@@ -279,17 +192,49 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
             tags: [], 
             website: apiData.website || '',
             linkedin: '',
-            mainContact: {
-              name: apiData.contact?.firstName && apiData.contact?.lastName ? 
-                `${apiData.contact.firstName} ${apiData.contact.lastName}` : '',
-              position: '',
-              email: '',
-              phone: ''
-            },
+            mainContacts: Array.isArray(apiData.contact) 
+              ? (apiData.contact as Contact[]).map((contact: Contact) => ({
+                  name: contact?.firstName && contact?.lastName ? 
+                    `${contact.firstName} ${contact.lastName}` : '',
+                  position: '',
+                  email: contact?.email || '',
+                  phone: contact?.phone || ''
+                }))
+              : apiData.contact
+                ? [{
+                    name: (apiData.contact as Contact)?.firstName && (apiData.contact as Contact)?.lastName ? 
+                      `${(apiData.contact as Contact).firstName} ${(apiData.contact as Contact).lastName}` : '',
+                    position: '',
+                    email: (apiData.contact as Contact)?.email || '',
+                    phone: (apiData.contact as Contact)?.phone || ''
+                  }]
+                : [],
             accountOwner: {
+              id:apiData.ownerEmployee?.id || '',
               name: apiData.ownerEmployee?.firstName && apiData.ownerEmployee?.lastName ?
-                `${apiData.ownerEmployee.firstName} ${apiData.ownerEmployee.lastName}` : '',
+                `${apiData.ownerEmployee?.firstName} ${apiData.ownerEmployee?.lastName}` : '',
               avatar: ''
+            },
+            numberOfEmployeesRef:apiData.numberOfEmployeesRef,
+            addresses:{
+              city:apiData.addresses[0]?.city,
+              countryRef:apiData.addresses[0]?.countryRef,
+              version:apiData.addresses[0]?.version,
+              regionRef:apiData.addresses[0]?.regionRef,
+              postalCode:apiData.addresses[0]?.postalCode,
+              id:apiData.addresses[0]?.id,
+              addressType:apiData.addresses[0]?.addressType,
+              addressLine:apiData.addresses[0]?.addressLine,
+              region:{
+                id:apiData.addresses[0]?.region?.id,
+                value:apiData.addresses[0]?.region?.value,
+                code:apiData.addresses[0]?.region?.code
+              },
+              country:{
+                id:apiData.addresses[0]?.country?.id,
+                value:apiData.addresses[0]?.country?.value,
+                code:apiData.addresses[0]?.country?.code
+              }
             },
             lastContacted: '',
             notableFacts: '',
@@ -307,7 +252,9 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
               registerId: '',
               vatId: ''
             },
-            geographicPresence: apiData.addresses?.[0]?.country?.value || ''
+            geographicPresence: [apiData.addresses?.[0]?.region?.value, apiData.addresses?.[0]?.country?.value]
+              .filter(Boolean)
+              .join(', ') || ''
           };
           setCompanyData(transformedData);
         } else {
@@ -350,27 +297,84 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
   const handleSave = async () => {
     try {
       setLoading(true);
+      const savePayload = {
+        changeMode: "UPDATE",
+        account: {
+          id: editedData.id,
+          version: editedData.version || 0,
+          name: editedData.name || "",
+          website: editedData.website,
+          foundationDate: editedData.founded ? new Date(editedData.founded).toISOString() : undefined,
+          liquidationDate: editedData.liquidationDate,
+          email: editedData.email,
+          phone: editedData.phone,
+          pictureUrl: editedData.logo,
+          ownerEmployee: editedData.accountOwner.id,
+          numberOfEmployeesRef: editedData.numberOfEmployeesRef,
+          addresses: Array.isArray(editedData?.addresses) 
+            ? editedData.addresses.map((addr: any) => ({
+                id: addr.id,
+                version: addr.version || 0,
+                addressType: addr.addressType || "UNKNOWN_ADDRESS",
+                addressLine: addr.addressLine,
+                postalCode: addr.postalCode,
+                city: addr.city,
+                regionRef: addr.region.id,
+                countryRef: addr.country.id
+              }))
+            : editedData?.addresses
+              ? [{
+                  id: editedData.addresses.id,
+                  version: editedData.addresses.version || 0,
+                  addressType: editedData.addresses.addressType || "UNKNOWN_ADDRESS",
+                  addressLine: editedData.addresses.addressLine,
+                  postalCode: editedData.addresses.postalCode,
+                  city: editedData.addresses.city,
+                  regionRef: editedData.addresses.region.id,
+                  countryRef: editedData.addresses.country.id
+                }]
+              : []
+        }
+      };
+
+      const response = await fetch(
+        'https://newwork-dev.newwork.com/processes/customer-relations/saveAccount',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(savePayload)
+        }
+      );
       
-      setCompanyData(editedData);
-      setIsEditing(false);
-      setHasChanges(false);
       
-      console.log('Company data to update:', {
-        id: editedData.id,
-        name: editedData.name,
-        website: editedData.website,
-        foundationDate: editedData.founded,
-        industry: editedData.industry,
-        description: editedData.description,
-        headquarters: editedData.headquarters,
-        size: editedData.size
-      });
+      const responseText = await response.text();
       
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (e) {
+        responseData = { message: responseText };
+      }
       
-      console.log('Company updated successfully in UI - backend update to be implemented when API is ready');
-      
+      if (response.ok || responseData?.account?.id) {
+        setCompanyData(editedData);
+        setIsEditing(false);
+        setHasChanges(false);
+        message.success('Company updated successfully');
+        
+        if (responseData?.account?.id) {
+          console.log('Updated company with ID:', responseData.account.id);
+        }
+      } else {
+        const errorMessage = responseData.message || response.statusText || 'Unknown error';
+        throw new Error(`Failed to update company: ${errorMessage}`);
+      }
     } catch (error) {
       console.error('Error updating company:', error);
+      message.error(`Failed to update company: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
     }
@@ -471,33 +475,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
                   placeholder="Company Name"
                 />
 
-                <div style={{ margin: '16px 0' }}>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    <Input
-                      placeholder="Search company name (e.g. Apple, Tesla)"
-                      value={searchCompany}
-                      onChange={e => setSearchCompany(e.target.value)}
-                      style={{ maxWidth: 300 }}
-                      disabled={searchLoading}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && !searchLoading) {
-                          handleSearch();
-                        }
-                      }}
-                    />
-                    <Button
-                      type="primary"
-                      loading={searchLoading}
-                      onClick={handleSearch}
-                      disabled={!searchCompany.trim() || searchLoading}
-                    >
-                      Search
-                    </Button>
-                  </div>
-                  {searchError && (
-                    <Alert message={searchError} type="error" showIcon style={{ marginTop: 12 }} />
-                  )}
-                </div>
                 <Input
                   value={editedData.industry}
                   onChange={e => handleFieldChange('industry', e.target.value)}
@@ -864,50 +841,50 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
               gap: '8px'
             }}>
               <UserOutlined className="gba:section-title-icon" /> 
-              Main Contact
+              Main Contacts
             </div>
             <div className="gba:contact-info" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <div className="gba:contact-name" style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px' }}>
-                  {companyData.mainContact.name}
+              {companyData.mainContacts.map((contact, index) => (
+                <div key={index}>
+                  <div className="gba:contact-name" style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px' }}>
+                    {contact.name}
+                  </div>
+                  <div className="gba:contact-position" style={{ fontSize: '14px', color: '#555', marginBottom: '12px' }}>
+                    {contact.position}
+                  </div>
+                  <a 
+                    href={`mailto:${contact.email}`} 
+                    className="gba:contact-link"
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '10px',
+                      color: '#1890ff',
+                      fontSize: '14px',
+                      marginBottom: '8px',
+                      textDecoration: 'none'
+                    }}
+                  >
+                    <MailOutlined className="gba:contact-link-icon" />
+                    {contact.email}
+                  </a>
+                  <a 
+                    href={`tel:${contact.phone}`} 
+                    className="gba:contact-link"
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '10px',
+                      color: '#1890ff',
+                      fontSize: '14px',
+                      textDecoration: 'none'
+                    }}
+                  >
+                    <PhoneOutlined className="gba:contact-link-icon" />
+                    {contact.phone}
+                  </a>
                 </div>
-                <div className="gba:contact-position" style={{ fontSize: '14px', color: '#555', marginBottom: '12px' }}>
-                  {companyData.mainContact.position}
-                </div>
-              </div>
-              
-              <a 
-                href={`mailto:${companyData.mainContact.email}`} 
-                className="gba:contact-link"
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '10px',
-                  color: '#1890ff',
-                  fontSize: '14px',
-                  marginBottom: '8px',
-                  textDecoration: 'none'
-                }}
-              >
-                <MailOutlined className="gba:contact-link-icon" />
-                {companyData.mainContact.email}
-              </a>
-              
-              <a 
-                href={`tel:${companyData.mainContact.phone}`} 
-                className="gba:contact-link"
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '10px',
-                  color: '#1890ff',
-                  fontSize: '14px',
-                  textDecoration: 'none'
-                }}
-              >
-                <PhoneOutlined className="gba:contact-link-icon" />
-                {companyData.mainContact.phone}
-              </a>
+              ))}
             </div>
           </Card>
 
