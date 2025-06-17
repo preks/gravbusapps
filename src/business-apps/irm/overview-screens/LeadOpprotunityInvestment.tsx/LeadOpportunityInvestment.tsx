@@ -40,6 +40,7 @@ import { KeyboardShortcutsHelp } from "./components/keyboard-shortcuts-help";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./common/ui/tooltip";
 import { useGraphqlClient } from "../../../../common/network/graphql/useGraphQLClient";
 import { GET_LEAD_BY_ID, GetLeadByIdResponse } from "./queries/getLeadById";
+import EditLead from "./EditLead";
 
 const { Title, Text } = Typography;
 
@@ -82,16 +83,38 @@ interface Lead {
   name: string;
   logo?: string;
   status: string;
-  industry: string;
+  version: string;
+  statusRef?: string;
+  industryRef?: string;
+  industry: {
+    value?: string;
+    type?: string;
+    id?: string;
+    code?: string;
+  };
   size: string;
+  numberOfEmployeesRef?: string;
+  numberOfEmployees?: {
+    value?: string;
+    type?: string;
+    id?: string;
+    code?: string;
+  };
   website: string;
   description: string;
   address: string;
   revenue: string;
-  founded: string;
+  annualRevenueRef?: string;
+  regionRef?: string;
+  legalForm?: string | {
+    value?: string;
+    type?: string;
+    id?: string;
+    code?: string;
+  };
+  legalFormRef?: string;
   contacts: Contact[];
   activities: Activity[];
-  score: number;
   opportunities: Opportunity[];
   aiSummary: {
     text: string;
@@ -102,6 +125,7 @@ interface Lead {
 
 const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => {
   const leadId = "e239bbd1-59d4-4647-abc2-f14b89de8c5a"
+  const [isEditing, setIsEditing] = useState<boolean>(false);
   
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -232,21 +256,34 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
           const transformedData: Lead = {
             id: apiData.id,
             name: apiData.companyName || `${apiData.firstName} ${apiData.lastName}`,
+            version: apiData.version,
             status: apiData.status?.value || "New",
-            industry: apiData.industry?.value || "",
+            statusRef: apiData.statusRef,
+            industry: {
+              value: apiData.industry?.value || "",
+              type: apiData.industry?.type || "",
+              id: apiData.industry?.id || "",
+              code: apiData.industry?.code || ""
+            },
+            industryRef: apiData.industryRef,
             size: apiData.numberOfEmployees?.value || "",
+            numberOfEmployeesRef: apiData.numberOfEmployeesRef,
             description: "",
             website: apiData.companyEmail || apiData.email || "",
-            address: `${apiData.city || ""}, ${apiData.postalCode || ""}, ${apiData.country?.value || ""}`,
+            address: [
+              apiData.city, 
+              apiData.postalCode, 
+              apiData.country?.value
+            ].filter(Boolean).join(", "),
             revenue: apiData.annualRevenue?.value || "",
-            founded: "",
-            logo: "", // Logo will be represented by the first letter initially
+            annualRevenueRef: apiData.annualRevenueRef,
+            regionRef: apiData.regionRef,
+            legalForm: apiData.legalForm?.value || "",
+            legalFormRef: apiData.legalFormRef,
             
-            // Use hardcoded data for these sections
             contacts: hardcodedContacts,
             activities: hardcodedActivities,
             opportunities: hardcodedOpportunities,
-            score: 85,
             aiSummary: hardcodedAiSummary
           };
           
@@ -262,19 +299,30 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
         // Fallback to a default lead object in case of error
         setLeadData({
           id: leadId,
+          version: "0",
           name: "Acme Corporation",
           status: "Qualified",
-          industry: "Technology",
+          statusRef: "",
+          industry: {
+            value: "Technology",
+            type: "",
+            id: "",
+            code: ""
+          },
+          industryRef: "",
           size: "Enterprise (1000+ employees)",
+          numberOfEmployeesRef: "",
           description: "A leading provider of innovative technology solutions for businesses of all sizes.",
           logo: "", 
           website: "acmecorp.example.com",
           address: "123 Tech Boulevard, San Francisco, CA 94105",
-          founded: "2005",
           revenue: "$50M - $100M",
+          annualRevenueRef: "",
+          regionRef: "",
+          legalForm: "Corporation",
+          legalFormRef: "",
           contacts: hardcodedContacts,
           activities: hardcodedActivities,
-          score: 85,
           opportunities: hardcodedOpportunities,
           aiSummary: hardcodedAiSummary
         });
@@ -333,21 +381,6 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
   // Now we can safely use leadData since it's either from API or fallback
   const lead = leadData!;
 
-  // Helper function to get the appropriate icon for a tab
-  const getTabIcon = (tab: string) => {
-    switch (tab) {
-      case "overview":
-        return <UserOutlined className="mr-2" />;
-      case "opportunities":
-        return <DollarOutlined className="mr-2" />;
-      case "activities":
-        return <BarChartOutlined className="mr-2" />;
-      default:
-        return null;
-    }
-  };
-
-  // CollapsibleCard component for consistent styling
   const CollapsibleCard: React.FC<{
     title: string;
     defaultOpen?: boolean;
@@ -410,6 +443,26 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
     );
   };
 
+  // If in editing mode, render the EditLead component
+  if (isEditing) {
+    return (
+      <EditLead 
+        {...props}
+        leadData={lead}
+        onCancel={() => setIsEditing(false)}
+        onSave={(updatedData) => {
+          // Update the lead data with the new values
+          setLeadData({
+            ...lead,
+            ...updatedData
+          });
+          // Exit edit mode
+          setIsEditing(false);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="gba:lead-details-container" data-testid="lead-opportunity-investment-detail" style={{ backgroundColor: 'white', padding: '16px' }}>
       {/* Back navigation */}
@@ -456,10 +509,10 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
               </div>
               <div style={{ color: '#8c8c8c', fontSize: '14px' }}>
                 <BulbOutlined style={{ marginRight: '4px' }} />
-                <span>{lead.industry || 'Unknown'}</span>
+                <span>{typeof lead.industry === 'object' ? lead?.industry?.value || 'Unknown' : lead.industry || 'Unknown'}</span>
                 <span style={{ margin: '0 8px' }}>•</span>
                 <TeamOutlined style={{ marginRight: '4px' }} />
-                <span>{lead.size || 'Unknown'}</span>
+                <span>{typeof lead.numberOfEmployees === 'object' ? lead?.numberOfEmployees?.value || 'Unknown' : lead.numberOfEmployees || 'Unknown'}</span>
               </div>
             </div>
           </div>
@@ -489,6 +542,7 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
                 borderRadius: '4px'
               }}
               data-testid="edit-lead-button"
+              onClick={() => setIsEditing(true)}
             >
               Edit Lead
             </Button>
@@ -535,14 +589,6 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
 
               <div style={{ display: 'flex', alignItems: 'flex-start' }}>
                 <CalendarOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
-                <div>
-                  <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Founded</div>
-                  <div style={{ fontSize: '16px', color: '#000000' }}>{lead.founded || '---'}</div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                <DollarOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
                 <div>
                   <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Annual Revenue</div>
                   <div style={{ fontSize: '16px', color: '#000000' }}>{lead.revenue || '---'}</div>

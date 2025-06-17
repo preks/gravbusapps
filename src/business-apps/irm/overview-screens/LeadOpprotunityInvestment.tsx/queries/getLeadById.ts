@@ -1,7 +1,10 @@
+import { StringHeaderIdentifier } from "@tanstack/react-table";
+
 export interface LeadData {
   id: string;
   code: string;
   city: string;
+  version: string;
   companyName: string;
   companyPhone: string;
   firstName: string;
@@ -11,6 +14,7 @@ export interface LeadData {
     value: string;
     code: string;
   };
+  annualRevenueRef: string;
   companyEmail: string;
   countryRef: string;
   country: {
@@ -26,11 +30,21 @@ export interface LeadData {
     id: string;
     code: string;
   };
+  industryRef: string;
+  legalForm: {
+    type: string;
+    value: string;
+    id: string;
+    code: string;
+  };
+  legalFormRef: string;
   numberOfEmployees: {
+    id:string;
     type: string;
     value: string;
     code: string;
   };
+  numberOfEmployeesRef: string;
   ownerEmployee: {
     firstName: string;
     lastName: string;
@@ -43,12 +57,14 @@ export interface LeadData {
     code: string;
     type: string;
   };
+  statusRef: string;
   region: {
     value: string;
     type: string;
     id: string;
     code: string;
   };
+  regionRef: string;
 }
 
 export interface GetLeadByIdResponse {
@@ -65,6 +81,7 @@ export const GET_LEAD_BY_ID = `
       id
       code
       city
+      version
       companyName
       companyPhone
       firstName
@@ -74,6 +91,7 @@ export const GET_LEAD_BY_ID = `
         value
         code
       }
+      annualRevenueRef
       companyEmail
       countryRef
       country {
@@ -89,11 +107,21 @@ export const GET_LEAD_BY_ID = `
         id
         code
       }
+      industryRef
+      legalForm {
+        type
+        value
+        id
+        code
+      }
+      legalFormRef
       numberOfEmployees {
+        id
         type
         value
         code
       }
+      numberOfEmployeesRef
       ownerEmployee {
         firstName
         lastName
@@ -106,12 +134,14 @@ export const GET_LEAD_BY_ID = `
         code
         type
       }
+      statusRef
       region {
         value
         type
         id
         code
       }
+      regionRef
     }
   }
 `;

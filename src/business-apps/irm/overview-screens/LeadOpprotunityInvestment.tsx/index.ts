@@ -1,4 +1,5 @@
 import LeadOpportunityInvestment from './LeadOpportunityInvestment';
+import EditLead from './EditLead';
 
-export { LeadOpportunityInvestment };
+export { LeadOpportunityInvestment, EditLead };
 export default LeadOpportunityInvestment;
