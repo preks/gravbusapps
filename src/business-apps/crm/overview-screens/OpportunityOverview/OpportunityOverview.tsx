@@ -136,8 +136,9 @@ export function OpportunityOverview({ accessToken }: BusinessAppContextProps) {
     <div style={{ padding: '24px' }} className="gba:opportunity-overview-container">
       <PageHeader
         title="Opportunities"
+        description="Manage your sales opportunities"
         primaryAction={{
-          label: "Create Opportunity",
+          label: "New Opportunity",
           icon: <PlusOutlined />,
           onClick: handleCreateOpportunity,
           testId: "create-opportunity-button"
@@ -217,20 +218,9 @@ export function OpportunityOverview({ accessToken }: BusinessAppContextProps) {
         currentPage={currentPage}
         pageSize={pageSize}
         searchPlaceholder="Search opportunities..."
-        title="Opportunities"
         onPageChange={handlePageChange}
         onSearch={handleSearch}
         onRowClick={(record) => console.log(`Clicked on opportunity: ${record.name}`)}
-        extraActions={
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />} 
-            onClick={handleCreateOpportunity}
-            data-testid="create-opportunity-button"
-          >
-            New Opportunity
-          </Button>
-        }
       />
     </div>
   );

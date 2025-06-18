@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Table, Input, Button, Tooltip, Empty, Spin } from "antd";
-import { SearchOutlined, SettingOutlined } from "@ant-design/icons";
+import { Table, Input, Empty, Spin } from "antd";
+import { SearchOutlined } from "@ant-design/icons";
 import type { TableProps, TablePaginationConfig } from "antd/es/table";
 import type { ColumnsType } from "antd/es/table";
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -48,11 +48,6 @@ export interface CrmDataTableProps<T extends object> extends BusinessAppContextP
   searchPlaceholder?: string;
   
   /**
-   * Optional title for the table
-   */
-  title?: string;
-  
-  /**
    * Callback when page changes
    */
   onPageChange?: (page: number, pageSize: number) => void;
@@ -71,16 +66,6 @@ export interface CrmDataTableProps<T extends object> extends BusinessAppContextP
    * Optional row selection configuration
    */
   rowSelection?: TableProps<T>["rowSelection"];
-  
-  /**
-   * Whether to show column visibility toggle
-   */
-  showColumnVisibility?: boolean;
-  
-  /**
-   * Additional actions to display next to search
-   */
-  extraActions?: React.ReactNode;
 }
 
 /**
@@ -95,19 +80,13 @@ export const CrmDataTable = <T extends object>({
   pageSize = 10,
   searchValue = "",
   searchPlaceholder = "Search...",
-  title,
   onPageChange,
   onSearch,
   onRowClick,
   rowSelection,
-  showColumnVisibility = true,
-  extraActions,
-  accessToken, // Required by BusinessAppContextProps but not used directly in this component
 }: CrmDataTableProps<T>) => {
   const [searchText, setSearchText] = useState(searchValue);
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(
-    columns.map((col) => (col.key || (col as any).dataIndex) as string)
-  );
+
 
   // Handle search value change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,29 +116,12 @@ export const CrmDataTable = <T extends object>({
     position: ["bottomCenter"],
   };
 
-  // Handle column visibility toggle
-  const handleColumnVisibilityToggle = (columnKey: string) => {
-    if (visibleColumns.includes(columnKey)) {
-      // If column is currently visible, hide it
-      setVisibleColumns(visibleColumns.filter(key => key !== columnKey));
-    } else {
-      // If column is currently hidden, show it
-      setVisibleColumns([...visibleColumns, columnKey]);
-    }
-  };
 
-  // Filter columns based on visibility settings
-  const visibleColumnsData = columns.filter((col) => {
-    const columnKey = col.key || (col as any).dataIndex;
-    return visibleColumns.includes(columnKey as string);
-  });
 
   return (
     <div className="gba:crm-data-table-container" data-testid="crm-data-table">
       {/* Table Header with Search and Actions */}
       <div className="gba:crm-data-table-header">
-        {title && <h3 className="gba:crm-data-table-title" data-testid="crm-data-table-title">{title}</h3>}
-        
         <div className="gba:crm-data-table-actions">
           <Input
             placeholder={searchPlaceholder}
@@ -169,26 +131,7 @@ export const CrmDataTable = <T extends object>({
             className="gba:crm-data-table-search"
             data-testid="crm-data-table-search"
           />
-          
-          {extraActions}
-          
-          {showColumnVisibility && (
-            <Tooltip title="Toggle columns">
-              <Button
-                icon={<SettingOutlined />}
-                onClick={() => {
-                  // Column visibility menu would be implemented here
-                  // For now, we're just toggling a sample column
-                  if (columns.length > 0) {
-                    const firstColumnKey = (columns[0].key || (columns[0] as any).dataIndex) as string;
-                    handleColumnVisibilityToggle(firstColumnKey);
-                  }
-                }}
-                className="gba:crm-data-table-column-toggle"
-                data-testid="crm-data-table-column-toggle"
-              />
-            </Tooltip>
-          )}
+
         </div>
       </div>
 
@@ -206,7 +149,7 @@ export const CrmDataTable = <T extends object>({
           />
         ) : (
           <Table<T>
-            columns={visibleColumnsData}
+            columns={columns}
             dataSource={data}
             rowKey={(record) => (record as any).id || Math.random().toString(36).substring(2, 9)}
             pagination={paginationConfig}
