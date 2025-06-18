@@ -1,0 +1,31 @@
+.gba\:crm-opportunities-table-container {
+  width: 100%;
+  margin-bottom: 24px;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 16px;
+}
+
+.gba\:table-header {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gba\:opportunity-name-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.gba\:opportunity-company {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.gba\:opportunity-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+}

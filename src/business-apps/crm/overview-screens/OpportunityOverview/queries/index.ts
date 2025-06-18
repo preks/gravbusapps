@@ -1,0 +1,1 @@
+export { getOpportunitiesQuery } from './getOpportunitiesQuery';
