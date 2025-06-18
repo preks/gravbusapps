@@ -64,9 +64,7 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
   
   useEffect(() => {
     if (leadsData && leadsData.length > 0) {
-      console.log('Lead data from API:', leadsData);
       setLeads(leadsData.map(lead => {
-        console.log('Processing lead:', lead.id, 'Tags:', lead.tags);
         return {
           ...lead,
           key: lead.id,
@@ -189,7 +187,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
   
   // Handle mark as lost
   const handleMarkAsLost = async (lead: LeadTableItem) => {
-    console.log('Marking lead as lost:', lead.id);
     try {
       // Placeholder for API call to mark lead as lost
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -534,7 +531,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
                 setSelectedLeadId(undefined);
               }}
               onSave={(leadData: LeadFormData) => {
-                console.log('Lead data saved:', leadData);
                 // Here you would typically save the data
                 setIsNewLead(false);
                 setIsEditMode(false);
