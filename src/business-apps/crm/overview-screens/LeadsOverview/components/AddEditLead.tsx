@@ -68,11 +68,15 @@ const AddEditLead: React.FC<AddEditLeadProps> = ({
     if (initialData) {
       // Format the data for the form
       const formattedData = {
-        ...initialData,
+        companyName: initialData.companyName,
+        contactName: initialData.contactName,
+        contactEmail: initialData.contactEmail,
+        contactPhone: initialData.contactPhone,
         accountId: initialData.accountId,
         contactId: initialData.contactId,
         ownerId: initialData.ownerId,
       };
+      
       form.setFieldsValue(formattedData);
     } else {
       // Set default values for new lead
@@ -105,20 +109,29 @@ const AddEditLead: React.FC<AddEditLeadProps> = ({
       const selectedEmployee = employees.find(employee => employee.id === values.ownerId);
       
       // Prepare data for saving
-      const savePayload = {
-        changeMode: isEditing ? "UPDATE" : "INSERT",
+      const savePayload = isEditing ? {
+        changeMode: "UPDATE",
         lead: {
-          id: isEditing ? initialData?.id : undefined,
-          version: isEditing ? initialData?.version : undefined,
+          id: initialData?.id,
+          version: initialData?.version || 0,
           companyName: selectedAccount?.name || values.companyName,
-          // Map selected IDs to proper object structure
-          ownerEmployee: values.ownerId ? values.ownerId : null,
-          account: values.accountId ? values.accountId : null,
-          contact: values.contactId ? values.contactId : null,
+          ownerEmployee: values.ownerId,
+          account: values.accountId,
+          contact: values.contactId,
+          createdAt: initialData?.createdAt,
+          updatedAt: new Date().toISOString(),
+          status: { id: 'ACTIVE' }, // Ensure status is included
+        }
+      } : {
+        changeMode: "INSERT",
+        lead: {
+          companyName: selectedAccount?.name || values.companyName,
+          ownerEmployee: values.ownerId || null,
+          account: values.accountId || null,
+          contact: values.contactId || null,
         }
       };
 
-      console.log('Sending payload:', JSON.stringify(savePayload, null, 2));
       
       try {
         // Make the API call using fetch
@@ -134,10 +147,8 @@ const AddEditLead: React.FC<AddEditLeadProps> = ({
           }
         );
         
-        console.log('Response status:', response.status);
         
         const responseText = await response.text();
-        console.log('Response text:', responseText);
         
         let responseData;
         try {

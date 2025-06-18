@@ -35,9 +35,12 @@ interface LeadTableItem {
   companyName: string;
   contactName: string;
   contactId?: string;
+  contactEmail?: string;
+  contactPhone?: string;
   ownerName: string;
   ownerId: string;
   ownerAvatar?: string;
+  accountId?: string;
   createdAt: string;
   lastActivity?: string;
   tags: string[];
@@ -53,6 +56,7 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
   const [isLeadDetailVisible, setIsLeadDetailVisible] = useState(false);
   const [isNewLead, setIsNewLead] = useState<boolean>(false); // Used for new lead creation
   const [isEditMode, setIsEditMode] = useState<boolean>(false); // Used for lead editing
+  const [editingLead, setEditingLead] = useState<LeadTableItem | undefined>(undefined); // Store the lead being edited
   const [leads, setLeads] = useState<LeadTableItem[]>([]);
   const screens = useBreakpoint();
   const [isMobile, setIsMobile] = useState(false);
@@ -160,6 +164,27 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
     setIsEditMode(true);
     setIsLeadDetailVisible(false);
     setSelectedLeadId(undefined);
+    setEditingLead(undefined); // Clear any previous editing state
+  };
+
+  // Handle edit selected lead
+  const handleEditLead = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('Please select a lead to edit');
+      return;
+    }
+    
+    const leadToEdit = leads.find(lead => lead.id === selectedRowKeys[0]);
+    if (!leadToEdit) {
+      message.error('Selected lead not found');
+      return;
+    }
+    
+    setEditingLead(leadToEdit);
+    setIsNewLead(false);
+    setIsEditMode(true);
+    setIsLeadDetailVisible(false);
+    setSelectedLeadId(undefined);
   };
   
   // Handle mark as lost
@@ -168,7 +193,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
       message.error('Cannot mark as lost: Lead information is missing');
       return;
     }
-    console.log(lead)
     try {
       const markAsLostPayload = {
         changeMode: "DELETE",
@@ -177,7 +201,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
           version: lead.version,
         }
       };
-      console.log(markAsLostPayload)
       
       // Make API call to mark lead as lost
       const response = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveLead', {
@@ -203,25 +226,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
       console.error('Error marking lead as lost:', error);
       message.error(`Failed to mark lead as lost: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  };
-  
-  // Row selection configuration
-  const rowSelection = {
-    selectedRowKeys,
-    onChange: (selectedKeys: React.Key[]) => {
-      setSelectedRowKeys(selectedKeys as string[]);
-    }
-  };
-  
-  // Handle batch edit
-  const handleBatchEdit = () => {
-    if (selectedRowKeys.length === 0) {
-      message.warning('Please select at least one lead to edit');
-      return;
-    }
-    
-    message.info(`Editing ${selectedRowKeys.length} leads...`);
-    // This would typically open a batch edit form or modal
   };
   
   // Filter leads based on search text
@@ -412,8 +416,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
     </List.Item>
   );
   
-  // No unused variable declaration needed - these states are used directly in the component
-
   return (
     <div style={{ padding: 24 }} data-testid="leads-overview-container">
       {isLeadDetailVisible ? (
@@ -427,24 +429,26 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
       ) : (
         <>
           {/* Conditional rendering based on whether we're in add/edit mode */}
-          {(isNewLead || (isEditMode && !!selectedLeadId)) ? (
+          {(isNewLead || isEditMode) ? (
             /* Add/Edit Lead Form */
             <AddEditLead
               onCancel={() => {
                 setIsNewLead(false);
                 setIsEditMode(false);
                 setSelectedLeadId(undefined);
+                setEditingLead(undefined);
               }}
               onSave={(_: LeadFormData) => {
                 // API call is now handled in the AddEditLead component
                 setIsNewLead(false);
                 setIsEditMode(false);
                 setSelectedLeadId(undefined);
+                setEditingLead(undefined);
                 // Refresh leads data
                 refetchLeads();
               }}
-              initialData={selectedLeadId ? leads.find(lead => lead.id === selectedLeadId) : undefined}
-              isEditing={!!selectedLeadId}
+              initialData={editingLead}
+              isEditing={!isNewLead && !!editingLead}
               accessToken={accessToken}
               employeeId={''}
             />
@@ -457,14 +461,14 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
                   <Paragraph type="secondary">Manage leads that don't have linked opportunities or investments.</Paragraph>
                 </div>
                 <div>
-                  {selectedRowKeys.length > 0 && (
+                  {selectedRowKeys.length > 0 && leads.length > 0 && (
                     <Button 
                       icon={<EditOutlined />}
-                      onClick={handleBatchEdit}
+                      onClick={handleEditLead}
                       style={{ marginRight: 16 }}
-                      data-testid="batch-edit-button"
+                      data-testid="edit-lead-button"
                     >
-                      Edit ({selectedRowKeys.length})
+                      Edit
                     </Button>
                   )}
                   <Button 
@@ -534,7 +538,22 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
                     rowKey="id"
                     pagination={{ pageSize: 10 }}
                     scroll={{ x: 'max-content' }}
-                    rowSelection={rowSelection}
+                    rowSelection={{
+                      type: 'checkbox',
+                      selectedRowKeys,
+                      onChange: (selectedKeys: React.Key[]) => {
+                        // If the same key is clicked again, deselect it
+                        if (selectedKeys.length === 1 && selectedRowKeys.includes(selectedKeys[0] as string)) {
+                          setSelectedRowKeys([]);
+                        } else if (selectedKeys.length > 0) {
+                          // Single-select behavior: only keep the most recently selected item
+                          setSelectedRowKeys([selectedKeys[selectedKeys.length - 1] as string]);
+                        } else {
+                          // Clear selection
+                          setSelectedRowKeys([]);
+                        }
+                      }
+                    }}
                     onRow={(record) => ({
                       onClick: () => handleRowClick(record),
                       style: { cursor: 'pointer' }

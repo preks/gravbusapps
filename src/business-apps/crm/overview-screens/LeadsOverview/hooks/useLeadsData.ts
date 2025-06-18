@@ -8,6 +8,8 @@ export interface Lead {
   companyName: string;
   contactName: string;
   contactId?: string;
+  contactEmail?: string;
+  contactPhone?: string;
   ownerName: string;
   ownerId: string;
   ownerAvatar?: string;
@@ -77,6 +79,8 @@ export function useLeadsData(accessToken: string): UseLeadsDataResult {
           companyName: lead.companyName || '-',
           contactName, 
           contactId: lead.contact?.id,
+          contactEmail: lead.contact?.email,
+          contactPhone: lead.contact?.phone,
           accountId: lead.account?.id,
           accountName: lead.account?.name,
           ownerName: lead.ownerEmployee?.fullName || '-',
@@ -84,8 +88,7 @@ export function useLeadsData(accessToken: string): UseLeadsDataResult {
           createdAt: lead.createdAt,
           lastActivity: lead.updatedAt, // Using updatedAt as lastActivity
           tags: [], // Tags not available in new query
-          status: lead.status?.id === 'ACTIVE' ? 'active' : 'lost',
-          version: lead.version || 1,
+          version: lead.version || 0,
           updatedBy: lead.updatedBy,
           updatedAt: lead.updatedAt
         };

@@ -11,6 +11,7 @@ export const getActiveLeadsQuery = `
       updatedBy
       updatedAt
       ownerEmployee {
+        id
         fullName
       }
       account {
@@ -18,9 +19,11 @@ export const getActiveLeadsQuery = `
         name
       }
       contact {
+        id
         lastName
         firstName
-        id
+        email
+        phone
       }
     }
   }
