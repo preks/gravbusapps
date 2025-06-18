@@ -1,7 +1,7 @@
 import React from 'react';
 import { Avatar as AntAvatar } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
-import { BusinessAppContextProps } from '../../../../../types';
+import { BusinessAppContextProps } from '../../../../types';
 
 interface AvatarProps extends React.ComponentProps<typeof AntAvatar> {
   className?: string;

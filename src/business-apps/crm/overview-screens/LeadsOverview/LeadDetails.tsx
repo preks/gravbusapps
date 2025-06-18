@@ -1,46 +1,29 @@
 import React, { useState, useEffect } from "react";
-import { Typography, Row, Col, Space, Divider, Spin, message } from 'antd';
+import { Typography, Row, Col, Spin, message } from 'antd';
 import { 
   MailOutlined, 
   PhoneOutlined, 
-  BankOutlined, 
-  DollarOutlined,
-  UserOutlined, 
   FileTextOutlined,
-  MessageOutlined, 
   VideoCameraOutlined, 
-  EditOutlined,
   PlusCircleOutlined,
-  BarChartOutlined,
   ArrowLeftOutlined,
   EnvironmentOutlined,
   GlobalOutlined,
   UserAddOutlined,
   BulbOutlined,
   TeamOutlined,
-  MenuOutlined,
   CalendarOutlined,
   CaretDownOutlined,
   CommentOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from "../../../../common/BusinessAppContext";
-import { Avatar, AvatarFallback, AvatarImage } from "./common/ui/avatar";
-import { Badge } from "./common/ui/badge";
+import { Avatar  } from "./common/ui/avatar";
 import { Button } from "./common/ui/button";
-import { Card, CardHeader } from "./common/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./common/ui/tabs";
-import { Progress } from "./common/ui/progress";
-import { LeadActivityTimeline } from "./components/lead-activity-timeline";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./common/ui/dropdown-menu";
-import { CollapsibleCard } from "./common/ui/collapsible-card";
-import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
-import { KeyboardShortcutsHelp } from "./components/keyboard-shortcuts-help";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./common/ui/tooltip";
 import { useGraphqlClient } from "../../../../common/network/graphql/useGraphQLClient";
 import { GET_LEAD_BY_ID, GetLeadByIdResponse } from "./queries/getLeadById";
 import EditLead from "./EditLead";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface Activity {
   id: string;
@@ -130,8 +113,12 @@ interface Lead {
   };
 }
 
-const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => {
-  const leadId = "e239bbd1-59d4-4647-abc2-f14b89de8c5a"
+interface LeadDetailsProps extends BusinessAppContextProps {
+  leadId: string;
+}
+
+const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
+  const { leadId } = props;
   const [isEditing, setIsEditing] = useState<boolean>(false);
   
   const [loading, setLoading] = useState<boolean>(true);
@@ -1791,4 +1778,4 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
   );
 };
 
-export default LeadOpportunityInvestment;
+export default LeadDetails;

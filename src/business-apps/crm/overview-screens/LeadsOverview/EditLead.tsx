@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Typography, Form, Input, Button, message, Spin, Select } from "antd";
-import { EnvironmentOutlined, CalendarOutlined, DollarOutlined, GlobalOutlined, ArrowLeftOutlined, TeamOutlined, BankOutlined } from "@ant-design/icons";
+import { DollarOutlined, GlobalOutlined, ArrowLeftOutlined, TeamOutlined, BankOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps } from "../../../../common/BusinessAppContext";
-import { useGraphqlClient } from "../../../../common/network/graphql/useGraphQLClient";
 import { useCatalogManagerClient } from "../../../../common/network/catalogs/useCatalogManagerClient";
 
 const { Title } = Typography;
