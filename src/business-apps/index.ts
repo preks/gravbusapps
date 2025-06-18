@@ -6,3 +6,5 @@ export { default as AbsenceManagementHub } from "./hr/absence/AbsenceManagementH
 export { KanbanBoard } from "./irm/kanban-board/KanbanBoard";
 export { default as ExpenseItems } from './expenses/ExpenseItems/ExpenseItems';
 export { ContactProfile } from "./irm/contact-screens/ContactProfile/ContactProfile";
+export { ContactsOverview } from "./crm/overview-screens/ContactsOverview/ContactsOverview";
+
