@@ -3,8 +3,15 @@
  * Export all hooks for easy importing
  */
 
-export { default as useDashboardStats } from './useDashboardStats';
-export { useExpenseRequests } from './useExpenseRequests';
+import { default as useDashboardStats } from './useDashboardStats';
+import { useExpenseRequests } from './useExpenseRequests';
+import { default as useExpenseRequestDetails } from './useExpenseRequestDetails';
+import { useAdvancePayments } from './useAdvancePayment';
 
-export { default as useExpenseRequestDetails } from './useExpenseRequestDetails';
+export { useDashboardStats };
+export { useExpenseRequests };
+export { useExpenseRequestDetails };
+export { useAdvancePayments };
+
+export { default } from './HooksComponent';
 
