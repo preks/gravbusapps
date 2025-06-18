@@ -1,19 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Input, Button, Card, message, Spin, Modal, Dropdown, Menu, List, Empty, Tag, Space, Avatar } from 'antd';
+import { Table, Input, Button, Card, message, Spin, Dropdown, List, Empty, Tag, Space, Avatar } from 'antd';
 import { Grid } from 'antd';
 const { useBreakpoint } = Grid;
-import { MenuInfo } from 'rc-menu/lib/interface';
-import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, MoreOutlined, CalendarOutlined, DollarOutlined, CloseCircleOutlined, UserOutlined } from '@ant-design/icons';
+import { SearchOutlined, PlusOutlined, EditOutlined, MoreOutlined, CloseCircleOutlined, UserOutlined } from '@ant-design/icons';
 import { Typography } from 'antd';
 import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
 
+// REST client will be used directly in the save function
 import { useLeadsData } from './hooks/useLeadsData';
 import AddEditLead, { LeadFormData } from './components/AddEditLead';
+
+// Initialize dayjs plugins
+dayjs.extend(relativeTime);
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 
 // Define BusinessAppContextProps interface if it's not available
 interface BusinessAppContextProps {
   accessToken: string;
-  userInfo?: any;
   employeeId?: string;
   structureId?: string;
 }
@@ -39,18 +46,13 @@ interface LeadTableItem {
 }
 
 function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
+  // State for UI operations
   const [searchText, setSearchText] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<string | undefined>();
   const [isLeadDetailVisible, setIsLeadDetailVisible] = useState(false);
-  /* 
-   * These states are currently unused but kept for future implementation
-   * They will be used when the lead creation and editing functionality is implemented
-   * Removing them would require significant changes to handler functions
-   */
-  const [isNewLead, setIsNewLead] = useState<boolean>(false); // Used in future for new lead creation
-  const [isEditMode, setIsEditMode] = useState<boolean>(false); // Used in future for lead editing
-  const [isDeletingLead, setIsDeletingLead] = useState(false);
+  const [isNewLead, setIsNewLead] = useState<boolean>(false); // Used for new lead creation
+  const [isEditMode, setIsEditMode] = useState<boolean>(false); // Used for lead editing
   const [leads, setLeads] = useState<LeadTableItem[]>([]);
   const screens = useBreakpoint();
   const [isMobile, setIsMobile] = useState(false);
@@ -64,16 +66,17 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
   
   useEffect(() => {
     if (leadsData && leadsData.length > 0) {
-      setLeads(leadsData.map(lead => {
+      const mappedLeads = leadsData.map(lead => {
         return {
           ...lead,
           key: lead.id,
           selected: false
         };
-      }));
+      });
+      
+      setLeads(mappedLeads);
     }
   }, [leadsData]);
-
   // Format relative time for last activity
   const formatTimeDifference = (dateString: string | undefined) => {
     if (!dateString) return 'No activity';
@@ -155,43 +158,44 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
   const handleAddLead = () => {
     setIsNewLead(true);
     setIsEditMode(true);
-    setIsLeadDetailVisible(false); // Hide lead detail view
+    setIsLeadDetailVisible(false);
     setSelectedLeadId(undefined);
-  };
-  
-  // Handle delete lead
-  const handleDeleteLead = async (lead: LeadTableItem) => {
-    if (!lead || !lead.id) {
-      message.error('Cannot delete: Lead information is missing');
-      return;
-    }
-    
-    try {
-      setIsDeletingLead(true);
-      
-      // Placeholder for API call to delete lead
-      // In a real implementation, we would call an API endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      message.success('Lead deleted successfully');
-      
-      // Refresh the leads list
-      refetchLeads();
-    } catch (error) {
-      console.error('Error deleting lead:', error);
-      message.error(`Failed to delete lead: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsDeletingLead(false);
-    }
   };
   
   // Handle mark as lost
   const handleMarkAsLost = async (lead: LeadTableItem) => {
+    if (!lead || !lead.id) {
+      message.error('Cannot mark as lost: Lead information is missing');
+      return;
+    }
+    console.log(lead)
     try {
-      // Placeholder for API call to mark lead as lost
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const markAsLostPayload = {
+        changeMode: "DELETE",
+        lead: {
+          id: lead.id,
+          version: lead.version,
+        }
+      };
+      console.log(markAsLostPayload)
       
-      message.success('Lead marked as lost');
+      // Make API call to mark lead as lost
+      const response = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveLead', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(markAsLostPayload)
+      });
+      
+      if (!response.ok) {
+        const responseText = await response.text();
+        console.error('Error response:', responseText);
+        throw new Error(`Failed to mark lead as lost: ${response.statusText}`);
+      }
+      
+      message.success(`${lead.companyName} marked as lost`);
       
       // Refresh the leads list
       refetchLeads();
@@ -199,18 +203,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
       console.error('Error marking lead as lost:', error);
       message.error(`Failed to mark lead as lost: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  };
-  
-  // Handle add activity
-  const handleAddActivity = (lead: LeadTableItem) => {
-    message.info(`Adding activity for ${lead.companyName}...`);
-    // This would typically navigate to an activity form or modal
-  };
-  
-  // Handle convert to opportunity
-  const handleConvertToOpportunity = (lead: LeadTableItem) => {
-    message.info(`Converting ${lead.companyName} to opportunity...`);
-    // This would typically navigate to a conversion form or modal
   };
   
   // Row selection configuration
@@ -301,6 +293,7 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
       },
       render: (date: string) => formatDate(date),
       responsive: ['md'] as ('md')[],
+      defaultSortOrder: 'descend' as const
     },
     {
       title: 'Last Activity',
@@ -345,61 +338,19 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
       width: 80,
       render: (_: any, record: LeadTableItem) => (
         <Dropdown
-          overlay={
-            <Menu
-              items={[
-                {
-                  key: '1',
-                  icon: <CloseCircleOutlined />,
-                  label: 'Mark as Lost',
-                  onClick: (info: MenuInfo) => {
-                    info.domEvent.stopPropagation();
-                    handleMarkAsLost(record);
-                  }
-                },
-                {
-                  key: '2',
-                  icon: <CalendarOutlined />,
-                  label: 'Add Activity',
-                  onClick: (info: MenuInfo) => {
-                    info.domEvent.stopPropagation();
-                    handleAddActivity(record);
-                  }
-                },
-                {
-                  key: '3',
-                  icon: <DollarOutlined />,
-                  label: 'Convert to Opportunity',
-                  onClick: (info: MenuInfo) => {
-                    info.domEvent.stopPropagation();
-                    handleConvertToOpportunity(record);
-                  }
-                },
-                {
-                  key: '4',
-                  icon: <DeleteOutlined />,
-                  label: 'Delete',
-                  danger: true,
-                  onClick: (info: MenuInfo) => {
-                    info.domEvent.stopPropagation();
-                    
-                    Modal.confirm({
-                      title: 'Delete Lead',
-                      content: 'Are you sure you want to delete this lead? This action cannot be undone.',
-                      okText: 'Delete',
-                      okType: 'danger',
-                      cancelText: 'Cancel',
-                      okButtonProps: { loading: isDeletingLead },
-                      onOk: () => {
-                        handleDeleteLead(record);
-                      },
-                      maskClosable: true,
-                    });
-                  }
+          menu={{
+            items: [
+              {
+                key: '1',
+                icon: <CloseCircleOutlined />,
+                label: 'Mark as Lost',
+                onClick: (info: any) => {
+                  info.domEvent.stopPropagation();
+                  handleMarkAsLost(record);
                 }
-              ]}
-            />
-          }
+              }
+            ]
+          }}
           trigger={['click']}
           placement='bottomRight'
         >
@@ -438,65 +389,19 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
             {/* Tags data intentionally removed */}
           </div>
           <Dropdown
-            overlay={
-              <Menu
-                items={[
-                  {
-                    key: '1',
-                    icon: <CloseCircleOutlined />,
-                    label: 'Mark as Lost',
-                    onClick: (e) => {
-                      e.domEvent.stopPropagation();
-                      handleMarkAsLost(lead);
-                    }
-                  },
-                  {
-                    key: '2',
-                    icon: <CalendarOutlined />,
-                    label: 'Add Activity',
-                    onClick: (e) => {
-                      e.domEvent.stopPropagation();
-                      handleAddActivity(lead);
-                    }
-                  },
-                  {
-                    key: '3',
-                    icon: <DollarOutlined />,
-                    label: 'Convert to Opportunity',
-                    onClick: (e) => {
-                      e.domEvent.stopPropagation();
-                      handleConvertToOpportunity(lead);
-                    }
-                  },
-                  {
-                    key: '4',
-                    icon: <DeleteOutlined />,
-                    label: (
-                      <span
-                        onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
-                          e.stopPropagation();
-                          Modal.confirm({
-                            title: 'Delete Lead',
-                            content: 'Are you sure you want to delete this lead? This action cannot be undone.',
-                            okText: 'Delete',
-                            okType: 'danger',
-                            cancelText: 'Cancel',
-                            okButtonProps: { loading: isDeletingLead },
-                            onOk: () => {
-                              handleDeleteLead(lead);
-                            },
-                            maskClosable: true,
-                          });
-                        }}
-                      >
-                        Delete
-                      </span>
-                    ),
-                    danger: true
+            menu={{
+              items: [
+                {
+                  key: '1',
+                  icon: <CloseCircleOutlined />,
+                  label: 'Mark as Lost',
+                  onClick: (e) => {
+                    e.domEvent.stopPropagation();
+                    handleMarkAsLost(lead);
                   }
-                ]}
-              />
-            }
+                }
+              ]
+            }}
             trigger={['click']}
             placement='bottomRight'
           >
@@ -530,18 +435,17 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
                 setIsEditMode(false);
                 setSelectedLeadId(undefined);
               }}
-              onSave={(leadData: LeadFormData) => {
-                // Here you would typically save the data
+              onSave={(_: LeadFormData) => {
+                // API call is now handled in the AddEditLead component
                 setIsNewLead(false);
                 setIsEditMode(false);
                 setSelectedLeadId(undefined);
-                message.success(`Lead ${leadData.id ? 'updated' : 'created'} successfully!`);
                 // Refresh leads data
                 refetchLeads();
               }}
               initialData={selectedLeadId ? leads.find(lead => lead.id === selectedLeadId) : undefined}
               isEditing={!!selectedLeadId}
-              userInfo={{}}
+              accessToken={accessToken}
               employeeId={''}
             />
           ) : (

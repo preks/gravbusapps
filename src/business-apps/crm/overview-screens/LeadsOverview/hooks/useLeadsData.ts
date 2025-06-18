@@ -18,6 +18,8 @@ export interface Lead {
   version: number;
   updatedBy?: string;
   updatedAt?: string;
+  accountId?: string;
+  accountName?: string;
 }
 
 interface UseLeadsDataResult {
@@ -38,6 +40,12 @@ export function useLeadsData(accessToken: string): UseLeadsDataResult {
   
   // Function to fetch leads
   const fetchLeads = useCallback(async () => {
+    if (!accessToken) {
+      console.warn('No access token available, skipping leads fetch');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
@@ -47,35 +55,57 @@ export function useLeadsData(accessToken: string): UseLeadsDataResult {
         getActiveLeadsQuery,
         {
           offset: 0,
-          limit: 20
         }
       );
       
-      // Transform the GraphQL response to the Lead interface
-      const transformedLeads = response.Lead.map((lead: any) => ({
-        id: lead.id,
-        companyName: lead.companyName || '-',
-        contactName: '-', 
-        contactId: undefined,
-        ownerName: lead.ownerEmployee?.fullName || '-',
-        ownerId: lead.ownerEmployee?.id || '-',
-        createdAt: lead.createdAt,
-        lastActivity: lead.updatedAt, // Using updatedAt as lastActivity
-        tags: [], // Tags not available in new query
-        status: lead.status?.id === 'ACTIVE' ? 'active' : 'lost',
-        version: lead.version || 1,
-        updatedBy: lead.updatedBy,
-        updatedAt: lead.updatedAt
-      }));
+      // Check if response has the expected structure
+      if (!response || !response.Lead) {
+        console.warn('Invalid response structure:', response);
+        setLeads([]);
+        return;
+      }
       
-      setLeads(transformedLeads);
+      // Transform the GraphQL response to the Lead interface
+      const transformedLeads = response.Lead.map((lead: any) => {
+        // Format contact name
+        const firstName = lead.contact?.firstName || '';
+        const lastName = lead.contact?.lastName || '';
+        const contactName = firstName || lastName ? `${firstName} ${lastName}`.trim() : '-';
+        
+        return {
+          id: lead.id,
+          companyName: lead.companyName || '-',
+          contactName, 
+          contactId: lead.contact?.id,
+          accountId: lead.account?.id,
+          accountName: lead.account?.name,
+          ownerName: lead.ownerEmployee?.fullName || '-',
+          ownerId: lead.ownerEmployee?.id || '-',
+          createdAt: lead.createdAt,
+          lastActivity: lead.updatedAt, // Using updatedAt as lastActivity
+          tags: [], // Tags not available in new query
+          status: lead.status?.id === 'ACTIVE' ? 'active' : 'lost',
+          version: lead.version || 1,
+          updatedBy: lead.updatedBy,
+          updatedAt: lead.updatedAt
+        };
+      });
+
+      // Sort by created date descending (newest first)
+      const sortedLeads = transformedLeads.sort((a: Lead, b: Lead) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA; // Descending order
+      });
+      
+      setLeads(sortedLeads);
     } catch (err) {
       console.error('Error fetching leads:', err);
       setError(err instanceof Error ? err : new Error('Failed to fetch leads'));
     } finally {
       setLoading(false);
     }
-  }, [graphQLClient]);
+  }, [graphQLClient, accessToken]);
   
   // Function to manually trigger refetch
   const refetch = useCallback(() => {
