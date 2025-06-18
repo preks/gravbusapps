@@ -7,7 +7,7 @@ import React, {
   useMemo,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Form, message } from "antd";
+import { Form, message, notification } from "antd";
 import {
   ExpensePosition,
   ExpenseType,
@@ -18,7 +18,6 @@ import {
 } from "../types";
 
 import { getCurrentActiveUserLocale } from "../utils/windowUtils";
-import { prepareExpenseRequestsList } from "../utils/expenseRequestUtils";
 import { getCatalogValue } from "../utils/windowUtils";
 import {
   fetchExpenseCatalogueData,
@@ -35,7 +34,6 @@ import {
   fetchCustomFields,
   fetchExpenseTypes,
   calculateTotal,
-  handleAmountChange,
   handleAddPosition,
   handleExpenseGroupChange,
   handleExpenseTypeChange,
@@ -146,6 +144,14 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [, setStructureCostCenter] = useState<any>(null);
   const [currentSelectedDate,setCurrentSelectedDate]= useState<Date |null>(null)
 
+  const additionalDataMocked = {
+    psi_taskPayload: {
+      initialParameters: {
+        expenseId: "",//029a5366-28d0-463f-acaa-9e1a2a97d12b
+        currencyData:"Currency:v1:EUR"
+      },
+    },
+  };
 
   const graphqlClient = useMemo(
     () => createGraphQLClient(accessToken),
@@ -372,13 +378,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           console.error("Error fetching catalogue data:", catalogueError);
         }
 
-        const additionalDataMocked = {
-          psi_taskPayload: {
-            initialParameters: {
-              expenseId: "",//029a5366-28d0-463f-acaa-9e1a2a97d12b
-            },
-          },
-        };
+
 
         
 
@@ -516,17 +516,21 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       const data = receiptData.data;
       console.debug("Processing receipt data:", data);
 
-      if (additionalData?.currencyData) {
+      if (additionalData?.psi_taskPayload?.initialParameters?.currencyData || additionalDataMocked?.psi_taskPayload?.initialParameters?.currencyData) {
         const requestCurrency = currencies.find(
-          (c) => c.id === additionalData.currencyData
+          (c) => c.id === additionalDataMocked.psi_taskPayload.initialParameters.currencyData
         );
         if (requestCurrency && requestCurrency.code !== data.currencyCode) {
-          message.error(
-            t(
+          notification.error({
+            message: t("expense_item.currency_mismatch_title", "Currency Mismatch"),
+            description: t(
               "expense_item.currency_mismatch",
               "The Receipt could not be added as it does not match the request currency"
-            )
-          );
+            ),
+            placement: "bottomRight",
+            duration: 5,
+            className: "gba:error-toast"
+          });
           return;
         }
       }
@@ -799,7 +803,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       console.debug("Skipping currency change handler - No access token or user info available");
       return;
     }
-    console.log("entered here",currencyCode)
     try {
       const employeeIdValue = userInfo?.employeeDetails?.employeeId || DEFAULT_EMPLOYEE_ID;
       
