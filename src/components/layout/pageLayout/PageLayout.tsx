@@ -29,7 +29,6 @@ export interface PageLayoutProps {
   pageHeaderCenter?: React.ReactNode;
   pageHeaderRight?: React.ReactNode;
   pageController?: React.ReactNode;
-  pageController?: React.ReactNode;
   contentHeader?: React.ReactNode;
   contentContainer?: React.ReactNode;
   className?: string;
@@ -41,7 +40,6 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
   headerLabel,
   pageHeaderCenter,
   pageHeaderRight,
-  pageController,
   pageController,
   contentHeader,
   contentContainer,
