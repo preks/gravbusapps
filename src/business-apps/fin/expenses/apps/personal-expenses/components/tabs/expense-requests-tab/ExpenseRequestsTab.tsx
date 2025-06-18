@@ -8,9 +8,9 @@ import {
 } from 'antd';
 import { DataTable } from '@newwork/gravity-ui-catalog';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import { useGetExpenseRequests } from '../../hooks/useGetExpenseRequests';
-import { useExpenseRequestFilters, ExpenseRequestFilter, ExpenseRequestStatus } from '../../hooks/useExpenseRequestFilters';
-import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../utils';
+import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests';
+import { useExpenseRequestFilters, ExpenseRequestFilter, ExpenseRequestStatus } from '../../../hooks/useExpenseRequestFilters';
+import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { PiLightning } from 'react-icons/pi';
 import Pill, { PillType } from '@/components/pill';

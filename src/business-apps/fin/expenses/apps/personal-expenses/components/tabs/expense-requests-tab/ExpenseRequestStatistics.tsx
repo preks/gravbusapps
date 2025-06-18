@@ -4,7 +4,7 @@ import {
   DollarOutlined, 
   CalendarOutlined 
 } from '@ant-design/icons';
-import { ExpenseRequest } from '../../hooks/useGetExpenseRequests';
+import { ExpenseRequest } from '../../../hooks/useGetExpenseRequests';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 
 interface ExpenseRequestStatisticsProps {

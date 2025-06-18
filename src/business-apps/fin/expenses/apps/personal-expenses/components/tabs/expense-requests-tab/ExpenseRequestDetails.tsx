@@ -1,8 +1,8 @@
 import React from 'react';
 import { Button, Descriptions, Divider } from 'antd';
-import { ExpenseRequest } from '../../hooks/useGetExpenseRequests';
+import { ExpenseRequest } from '../../../hooks/useGetExpenseRequests';
 import Pill from '@/components/pill';
-import { getExpenseRequestStatusDisplay } from '../../utils';
+import { getExpenseRequestStatusDisplay } from '../../../utils';
 
 interface ExpenseRequestDetailsProps {
   request: ExpenseRequest;

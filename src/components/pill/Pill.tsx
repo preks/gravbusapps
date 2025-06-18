@@ -27,7 +27,7 @@ export interface PillProps {
 const Pill: React.FC<PillProps> = ({ label, type, color, className = '' }) => {
   // Define color mapping for different types
   const typeColorMap: Record<PillType, string> = {
-    draft: '#376399',
+    draft: '#797d82',
     completed: '#0DBC7B',
     waiting: '#0094D1',
     task: '#FF9E02',
