@@ -1,53 +1,86 @@
-# Project Structure
+# Project Specifics
+- Unless stated differently create all components as React components in src\business-apps folder
+- Each component should extend its props from the `BusinessAppContextProps` interface.
+- Whenever an access token is required, use it from the `BusinessAppContextProps` interface.
+- Whenever an user, an user info or an employee ID is required, use it from the `BusinessAppContextProps` interface.
+- Whenever a structure id is required, use it from the `BusinessAppContextProps` interface.
 
-1. Component Creation
-Create all components as React components in the src\business-apps folder.
-Each component should extend its props from the `BusinessAppContextProps` interface.
-Whenever an access token is required, use it from the `BusinessAppContextProps` interface.
-Whenever an user, an user info or an employee ID is required, use it from the `BusinessAppContextProps` interface.
+# Naming Conventions
+- use kebab-case for folders (e.g. "src\business-apps\fin\expenses\personal-expenses"
+- use PascalCase for files like apps, forms, and components (e.g. PersonalExpenses.tsx, EmployeeRecord.tsx)
+- use camelCase for files like index.ts, hooks, utils, types, other functions, etc.
 
-All folders in src\business-apps folder are products that we have, e.g. crm, irm etc.
-All folders in src\business-apps\<product> are either named `components`, `modules`, `hooks`, `libs`, `utils`, `overview-screens`, `detail-screens`, `flow-screens` or contain the name of the component.
-All files in src\business-apps\<product>\<screenName> are files related to that screen where one `.tsx` with the name of screen is located and an `index.ts` file with a named export of the component and a default export of the component.
-Example of correctly create components:
-- src\business-apps\irm\detail-screens\LeadDetail\LeadDetail.tsx
-- src\business-apps\irm\overview-screens\LeadOverview\LeadOverview.tsx
-- src\business-apps\crm\overview-screens\OpportunityOverview\OpportunityOverview.tsx
+# Folder Structure for business apps
+- folders in src\business-apps represent modules (e.g. hr, fin, crm etc.)
+- folders in src\business-apps\<module> represent either sub-modules (e.g. core, absences, expenses, etc.) or shared resources for this module (e.g. `components`, `hooks`, `types`, `utils`, `queries`, etc.)
+- folders in src\business-apps\<module>\<sub-module> represent either `apps` (e.g. personal-expenses, manager-expenses, employee-record, etc.), `forms` (e.g. expense-item-form, expense-request-form, etc.) or shared resources for this sub-module (e.g. `components`, `hooks`, `types`, `utils`, `queries`, etc.)
+- files in src\business-apps\<module>\<sub-module>\apps\<app-name> are related to that single app where one `*.tsx` (PascalCase) with the name of app is located and an `index.ts` (camelCase) file with a named export of the component and a default export of the component.
+- files in src\business-apps\<module>\<sub-module>\forms\<form-name> are related to that single app where one `*.tsx` (PascalCase) with the name of form is located and an `index.ts` (camelCase) file with a named export of the component and a default export of the component.
 
-2. Component Dependencies
-Use react for UI components
-Use ant-design for React UI components
-Use @dnd-kit for drag and drop
-Use zustand for state management in React
-Use react-dom for working with the DOM
-Use react-router-dom for routing
-Use typescript for type safety
-Use prettier for code styling
-Use eslint for linting
+Folder Structure Examples for Apps and Forms:
+- src\business-apps\hr\hr-core\apps\employee-directory\EmployeeDirectory.tsx
+- src\business-apps\hr\hr-core\forms\employee-creation-form\EmployeeCreationForm.tsx
 
-Do not install other packages for UI themes, icons, etc. unless absolutely necessary or I request them.
-The list of required dependencies must be small and simple and must reuse existing packages.
+Folder Structure Visualization:
+src
+└──	business-apps
+	└──	<module>/
+		└──	<sub-module>/
+			├──	apps/
+			│	└──	<app>
+			│		├──	AppName.tsx
+			│		├──	index.ts
+			│		├──	components
+			│		├──	hooks
+			│		├──	types
+			│		├──	utils
+			│		├──	queries
+			│		└──	...
+			├── forms/
+			│	└──	<form>
+			│		├──	FormName.tsx
+			│		├──	index.ts
+			│		├──	components
+			│		├──	hooks
+			│		├──	types
+			│		├──	utils
+			│		├──	queries
+			│		└──	...
+			├── components/
+			├── hooks/
+			├── types/
+			├── utils/
+			└──	...
 
-3. Component Development
-Always prefix all CSS classes with the `gba:` prefix.
+# Component Dependencies
+- Use react for UI components
+- Use ant-design for React UI components
+- Use @dnd-kit for drag and drop
+- Use zustand for state management in React
+- Use react-dom for working with the DOM
+- Use typescript for type safety
+- Use prettier for code styling
+- Use eslint for linting
 
-Whenever an input field is used to provide search by an user, use the existing `DebouncedInput` component to provide debounced search.
+- Do not install other packages for UI themes, icons, etc. unless absolutely necessary or I request them.
+- The list of required dependencies must be small and simple and must reuse existing packages.
 
-When tab components are used, provide a unique hash for each tab to allow direct navigation to the tab via URLs.
+- For all date and time related logic, use `dayjs` and import the plugins `weekday` and `localeData`.
 
-Everytime data querying with GraphQL is needed, use the newwork-graphql-mcp plugin.
+# Component Development
+- Always prefix all CSS classes with the `gba:` prefix.
+- Always add to all HTML elements in a component the `data-testid` attribute with a value which is unique and descriptive.
 
-4. Component Publishing
-Use npm run publish:screen -- **/<ScreenFolder> to publish a screen
+- Whenever an input field is used to provide search by an user, use the existing `DebouncedInput` component to provide debounced search.
+- When tab components are used, provide a unique tab key for each tab and use this in a URL query parameter.
 
 # Project Development
+- Simplify the code as much as possible and keep it clean
+- Remove unused code
+- Remove commented code
+- Use the Conventional Commits specification for git commit messages
 
-1. Code Style
-Use prettier for code styling
-Use eslint for linting
-
-Simplify the code as much as possible and keep it clean
-Remove unused code
-
-2. Git Workflow
-Use the Conventional Commits specification for git commit messages
+# Publishing
+- apps and forms need to be published on a daily basis
+- apps: Use npm run publish:screen -- /<module>/<sub-module>/apps/<app-folder> to publish an app
+- forms: Use npm run publish:screen -- /<module>/<sub-module>/forms/<form-folder> to publish a form
