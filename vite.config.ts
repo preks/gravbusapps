@@ -460,7 +460,7 @@ export default wrapWithUiCatalog(OriginalComponent);
         input: isSingleBuild
           ? {
               // Use TEMP_INDEX_CSS if provided, otherwise fallback to default index.css
-              main: env.TEMP_INDEX_CSS ? env.TEMP_INDEX_CSS : resolve(projectRootDir, "src/index.css"),
+              main: env.TEMP_INDEX_CSS && env.SINGLE_SCREEN_CSS === 'true' ? env.TEMP_INDEX_CSS : resolve(projectRootDir, "src/index.css"),
               ...wrappedEntries,
             }
           : {
