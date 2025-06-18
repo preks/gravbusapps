@@ -1,5 +1,6 @@
-import { Row, Col, Tag, Button, Tooltip } from 'antd';
-import { PlusOutlined, DollarOutlined, TrophyOutlined, ClockCircleOutlined, RiseOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import React, { useState } from 'react';
+import { Row, Col, Tag, Button, Tooltip, Modal, message, Descriptions } from 'antd';
+import { PlusOutlined, DollarOutlined, TrophyOutlined, ClockCircleOutlined, RiseOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import { CrmDataTable } from '../../components/tables';
 import type { ColumnsType } from "antd/es/table";
 import "./styles/OpportunityOverview.css";
@@ -15,8 +16,13 @@ export function OpportunityOverview({ accessToken }: BusinessAppContextProps) {
     currentPage, 
     pageSize, 
     handlePageChange, 
-    handleSearch 
+    handleSearch,
+    deleteOpportunity 
   } = useOpportunitiesData(accessToken);
+  
+  const [isDeletingOpportunity, setIsDeletingOpportunity] = useState(false);
+  const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [selectedOpportunity, setSelectedOpportunity] = useState<OpportunityData | null>(null);
 
   // Column definitions for the opportunity table
   const opportunityColumns: ColumnsType<OpportunityData> = [
@@ -88,30 +94,20 @@ export function OpportunityOverview({ accessToken }: BusinessAppContextProps) {
               size="small"
               onClick={(e) => {
                 e.stopPropagation();
-                console.log(`View opportunity: ${record.name}`);
+                handleViewOpportunity(record);
               }}
               data-testid={`view-opportunity-${record.name}`}
-            />
-          </Tooltip>
-          <Tooltip title="Edit">
-            <Button 
-              icon={<EditOutlined />} 
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                console.log(`Edit opportunity: ${record.name}`);
-              }}
-              data-testid={`edit-opportunity-${record.name}`}
             />
           </Tooltip>
           <Tooltip title="Delete">
             <Button 
               icon={<DeleteOutlined />} 
               size="small"
-              danger
               onClick={(e) => {
                 e.stopPropagation();
-                console.log(`Delete opportunity: ${record.name}`);
+                console.log('Deleting opportunity record:', record);
+                console.log('Record ID:', record.id);
+                handleDeleteOpportunity(record.id, record.name);
               }}
               data-testid={`delete-opportunity-${record.name}`}
             />
@@ -121,9 +117,46 @@ export function OpportunityOverview({ accessToken }: BusinessAppContextProps) {
     },
   ];
   
+  // Function to handle creating a new opportunity
   const handleCreateOpportunity = () => {
-    // Will be implemented later with a proper modal
-    console.log('Create opportunity clicked');
+    message.info('Create Opportunity functionality will be available soon!');
+    // Note: In a real implementation, this would navigate to a create opportunity form
+    // or open a modal with the opportunity creation form
+  };
+  
+  // Function to handle viewing opportunity details
+  const handleViewOpportunity = (opportunity: OpportunityData) => {
+    setSelectedOpportunity(opportunity);
+    setViewModalVisible(true);
+  };
+
+  // Function to handle opportunity deletion with confirmation
+  const handleDeleteOpportunity = (id: string, name: string) => {
+    Modal.confirm({
+      title: 'Delete Opportunity',
+      content: `Are you sure you want to delete the opportunity "${name}"? This action cannot be undone.`,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      okButtonProps: { loading: isDeletingOpportunity },
+      onOk: async () => {
+        setIsDeletingOpportunity(true);
+        try {
+          const result = await deleteOpportunity(id);
+          if (result.success) {
+            message.success('Opportunity deleted successfully');
+          } else {
+            message.error(`Failed to delete opportunity: ${result.error}`);
+          }
+        } catch (error) {
+          console.error('Error in delete handler:', error);
+          message.error('An unexpected error occurred while deleting the opportunity');
+        } finally {
+          setIsDeletingOpportunity(false);
+        }
+      },
+      maskClosable: true
+    });
   };
 
   // Sample data for KPIs - in real implementation this would come from GraphQL
@@ -220,8 +253,51 @@ export function OpportunityOverview({ accessToken }: BusinessAppContextProps) {
         searchPlaceholder="Search opportunities..."
         onPageChange={handlePageChange}
         onSearch={handleSearch}
-        onRowClick={(record) => console.log(`Clicked on opportunity: ${record.name}`)}
+        onRowClick={(record) => handleViewOpportunity(record)}
       />
+      
+      {/* Opportunity Details Modal */}
+      <Modal
+        title={`Opportunity Details: ${selectedOpportunity?.name || ''}`}
+        open={viewModalVisible}
+        onCancel={() => setViewModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setViewModalVisible(false)}>
+            Close
+          </Button>
+        ]}
+        width={700}
+        data-testid="view-opportunity-modal"
+      >
+        {selectedOpportunity && (
+          <div className="gba:opportunity-details">
+            <Descriptions bordered column={2} size="middle">
+              <Descriptions.Item label="Name" span={2}>{selectedOpportunity.name}</Descriptions.Item>
+              <Descriptions.Item label="Account">{selectedOpportunity.account?.name || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Value">
+                {selectedOpportunity.currency?.value} {selectedOpportunity.estimatedAmount?.toLocaleString() || 0}
+              </Descriptions.Item>
+              <Descriptions.Item label="Pipeline">{selectedOpportunity.salesPipeline?.value || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Stage">
+                <Tag 
+                  color={
+                    selectedOpportunity.salesPipelineStage?.value?.toLowerCase().includes('won') ? 'green' :
+                    selectedOpportunity.salesPipelineStage?.value?.toLowerCase().includes('lost') ? 'red' :
+                    selectedOpportunity.salesPipelineStage?.value?.toLowerCase().includes('negotiation') ? 'gold' :
+                    selectedOpportunity.salesPipelineStage?.value?.toLowerCase().includes('proposal') ? 'orange' :
+                    selectedOpportunity.salesPipelineStage?.value?.toLowerCase().includes('discovery') ? 'cyan' :
+                    selectedOpportunity.salesPipelineStage?.value?.toLowerCase().includes('qualified') ? 'blue' : 'default'
+                  }
+                >
+                  {selectedOpportunity.salesPipelineStage?.value || 'N/A'}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Probability">{selectedOpportunity.winningChance}%</Descriptions.Item>
+              <Descriptions.Item label="Owner">{selectedOpportunity.ownerEmployee?.displayName || 'N/A'}</Descriptions.Item>
+            </Descriptions>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

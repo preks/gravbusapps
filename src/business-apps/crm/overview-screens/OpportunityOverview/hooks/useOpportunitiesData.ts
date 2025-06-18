@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { getOpportunitiesQuery } from '../queries';
+import { getOpportunitiesQuery, deleteOpportunityMutation } from '../queries';
 
 export interface OpportunityData {
+  id: string;
+  version?: number;
   name: string;
   account: {
     name: string;
@@ -98,6 +100,66 @@ export const useOpportunitiesData = (accessToken: string) => {
     fetchOpportunities();
   }, [accessToken, currentPage, pageSize, searchTerm]);
 
+  // Function to delete an opportunity
+  const deleteOpportunity = async (id: string) => {
+    console.log('Delete function called with ID:', id);
+    
+    if (!id) {
+      console.error('Cannot delete opportunity: ID is missing');
+      return { 
+        success: false, 
+        error: 'Opportunity ID is missing' 
+      };
+    }
+    
+    setLoading(true);
+    try {
+      // Create the variables object for the GraphQL mutation
+      const variables = { id };
+      console.log('Deleting opportunity with variables:', variables);
+      
+      // Execute the GraphQL mutation
+      const response = await graphQLClient.request(
+        deleteOpportunityMutation,
+        variables
+      );
+      
+      console.log('Delete response:', response);
+      
+      // Refresh opportunities list after deletion
+      await fetchOpportunities();
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting opportunity:', error);
+      
+      // If it's a GraphQL error, try to extract more specific details
+      let errorMessage = 'Unknown error';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Check if it contains a GraphQL errors array
+        const match = errorMessage.match(/\[.*\]/s);
+        if (match) {
+          try {
+            const parsedErrors = JSON.parse(match[0]);
+            if (Array.isArray(parsedErrors) && parsedErrors.length > 0) {
+              errorMessage = parsedErrors[0].message || errorMessage;
+            }
+          } catch (e) {
+            console.error('Error parsing GraphQL error message:', e);
+          }
+        }
+      }
+      
+      return { 
+        success: false, 
+        error: errorMessage 
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     opportunities,
     loading,
@@ -107,6 +169,7 @@ export const useOpportunitiesData = (accessToken: string) => {
     searchTerm,
     handlePageChange,
     handleSearch,
+    deleteOpportunity,
     refetch: fetchOpportunities
   };
 };

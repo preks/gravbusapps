@@ -1,6 +1,8 @@
 export const getOpportunitiesQuery = `
   query GetOpportunities($offset: Int, $limit: Int) {
     Opportunity(offset: $offset, limit: $limit) {
+      id
+      version
       name
       account {
         name
