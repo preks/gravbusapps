@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { FileTextOutlined, DollarOutlined, CalendarOutlined, BankOutlined } from '@ant-design/icons';
-import { AdvancePayment } from '../../hooks/useGetAdvancePayments';
+import { AdvancePayment } from '../../../hooks/useGetAdvancePayments';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 
 interface AdvancePaymentStatisticsProps {

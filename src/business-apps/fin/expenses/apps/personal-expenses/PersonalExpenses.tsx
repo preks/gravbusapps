@@ -18,12 +18,13 @@ import { PageLayout } from '@/components/layout/pageLayout/PageLayout'; // Adjus
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 // Import tab components (placeholders for now, will be created next)
-import DashboardTab from './components/DashboardTab';
-import ExpenseItemsTab from './components/ExpenseItemsTab';
-import ExpensePlansTab from './components/ExpensePlansTab';
-import AdvancePaymentsTab from './components/AdvancePaymentsTab';
-import ExpenseRequestsTab from './components/ExpenseRequestsTab';
-import ExpenseCalendarTab from './components/ExpenseCalendarTab';
+import DashboardTab from './components/tabs/dashboard-tab';
+import ExpenseItemsTab from './components/tabs/expense-items-tab';
+import ExpensePlansTab from './components/tabs/expense-plans-tab';
+import AdvancePaymentsTab from './components/tabs/advance-payments-tab';
+import ExpenseRequestsTab from './components/tabs/expense-requests-tab';
+import ExpenseCalendarTab from './components/tabs/expense-calendar-tab';
+import ExpenseAi from './components/expense-ai';
 
 export interface PersonalExpensesProps extends BusinessAppContextProps {}
 
@@ -176,6 +177,7 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
     <PageLayout
       headerIcon={<PiWalletDuotone color="#276A6C"/>}
       headerLabel="My Expenses"
+      pageHeaderCenter={<ExpenseAi />}
       pageController={
           <Tabs
             activeKey={activeTab}

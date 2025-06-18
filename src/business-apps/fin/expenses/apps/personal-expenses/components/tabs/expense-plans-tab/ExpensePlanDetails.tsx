@@ -1,7 +1,7 @@
 import React from 'react';
 import { Descriptions, Divider, Button } from 'antd';
 import Pill from '@/components/pill/Pill';
-import { getExpensePlanStatusDisplay } from '../../utils';
+import { getExpensePlanStatusDisplay } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {

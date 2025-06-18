@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Space } from 'antd';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import { useGetExpenseDashboard } from '../../hooks/useGetExpenseDashboard';
+import { useGetExpenseDashboard } from '../../../hooks/useGetExpenseDashboard';
 import { DataControllerProps } from '@/components/dataController/DataController';
 import {
   SummaryStatistics,

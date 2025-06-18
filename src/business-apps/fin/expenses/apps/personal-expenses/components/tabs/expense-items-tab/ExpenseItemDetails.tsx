@@ -4,8 +4,8 @@ import { Typography, Spin, Descriptions, Divider, Card, Image, Upload, Alert } f
 import { FileImageOutlined, LoadingOutlined } from '@ant-design/icons';
 import { FileClient } from '@/common/network/files/FileClient';
 import Pill from '@/components/pill/Pill';
-import { ExpenseItem, useGetExpenseItem } from '../../hooks/useGetExpenseItems';
-import { getExpenseItemStatusDisplay } from '../../utils';
+import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems';
+import { getExpenseItemStatusDisplay } from '../../../utils';
 import type { UploadFile } from 'antd/es/upload/interface';
 
 const { Text } = Typography;

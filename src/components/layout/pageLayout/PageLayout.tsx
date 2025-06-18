@@ -51,17 +51,15 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
   const isDisplay = variant === "display";
 
   const iconClasses = cn(
-    "gba:flex gba:items-center gba:justify-center",
+    "gba:flex gba:items-center gba:justify-center gba:shrink-0",
     isDisplay ? "gba:w-12 gba:h-12" : "gba:w-8 gba:h-8"
   );
 
   // Icon size will be controlled through the parent container size
 
   const labelClasses = cn(
-    "gba:text-[24px] gba:leading-none gba:font-medium",
-    isDisplay
-      ? "gba:text-4xl gba:font-black"
-      : "gba:text-2xl font-secondary"
+    "gba:leading-none gba:font-medium gba:self-center",
+    isDisplay ? "gba:text-4xl gba:font-black" : "gba:text-2xl font-secondary"
   );
 
   return (
@@ -70,27 +68,32 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
       style={{ minHeight: "0", minWidth: "0" }}
     >
       <header className="gba:flex gba:flex-col gba:box-border gba:border-b gba:border-gray-200 gba:relative">
-        <div className="gba:h-24 gba:flex gba:flex-row gba:items-center gba:w-full">
-          <div className="gba:flex gba:flex-row gba:items-center gba:gap-4 gba:min-w-0 gba:flex-none">
-            <span className={iconClasses} data-testid="page-header-icon">
-              {React.isValidElement(headerIcon)
-                ? React.cloneElement(headerIcon as React.ReactElement, {
-                    size: isDisplay ? 48 : 32,
-                  })
-                : headerIcon}
-            </span>
-            <p className={labelClasses}>{headerLabel}</p>
+        <div className="gba:h-24 gba:grid gba:grid-cols-3 gba:items-center gba:w-full">
+          {/* Left section: Icon + Label */}
+          <div className="gba:flex gba:items-center gba:h-full gba:gap-4 gba:justify-start">
+            <div className="gba:flex gba:items-center gba:h-full">
+              <span className={iconClasses} data-testid="page-header-icon">
+                {React.isValidElement(headerIcon)
+                  ? React.cloneElement(headerIcon as React.ReactElement, {
+                      size: isDisplay ? 48 : 32,
+                    })
+                  : headerIcon}
+              </span>
+            </div>
+            <div className="gba:flex gba:items-center gba:h-full">
+              <span className={labelClasses}>{headerLabel}</span>
+            </div>
           </div>
-          {pageHeaderCenter && (
-            <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:pointer-events-none">
-              <div className="gba:pointer-events-auto">{pageHeaderCenter}</div>
-            </div>
-          )}
-          {pageHeaderRight && (
-            <div className="gba:flex gba:flex-row gba:items-center gba:min-w-0 gba:flex-none gba:justify-end gba:ml-auto">
-              {pageHeaderRight}
-            </div>
-          )}
+          
+          {/* Center section: pageHeaderCenter - Perfectly centered */}
+          <div className="gba:flex gba:items-center gba:h-full gba:justify-center">
+            {pageHeaderCenter}
+          </div>
+          
+          {/* Right section: pageHeaderRight */}
+          <div className="gba:flex gba:items-center gba:h-full gba:justify-end">
+            {pageHeaderRight}
+          </div>
         </div>
         {pageController && (
           <div className="gba:flex gba:justify-start gba:py-2">

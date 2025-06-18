@@ -51,9 +51,7 @@ const DashboardTab: React.FC<DashboardTabProps> = (props) => {
   }
 
   return (
-    <div className="gba:p-6">
-      <Title level={4} className="gba:mb-6">Team Expenses Dashboard</Title>
-      
+    <div>
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
           <Card className="gba:h-full">

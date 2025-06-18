@@ -1,7 +1,7 @@
 import React from 'react';
 import { Descriptions, Button, Divider } from 'antd';
-import { AdvancePayment } from '../../hooks/useGetAdvancePayments';
-import { getAdvancePaymentStatusDisplay } from '../../utils';
+import { AdvancePayment } from '../../../hooks/useGetAdvancePayments';
+import { getAdvancePaymentStatusDisplay } from '../../../utils';
 import Pill from '@/components/pill';
 
 interface AdvancePaymentDetailsProps {

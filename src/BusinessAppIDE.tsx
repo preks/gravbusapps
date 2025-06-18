@@ -220,14 +220,15 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
         <Header style={{
           background: '#fff',
           padding: '0 16px',
-          display: 'flex',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
           alignItems: 'center',
-          justifyContent: 'space-between',
           height: 48,
           boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-          borderBottom: '1px solid #e8e8e8' // Added bottom border
+          borderBottom: '1px solid #e8e8e8'
         }}>
-          <div className="gba:flex gba:items-center gba:flex-nowrap">
+          {/* Left section: Menu + Package Info */}
+          <div className="gba:flex gba:items-center gba:flex-nowrap gba:justify-start">
             <Button
               type="text"
               icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
@@ -240,14 +241,49 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
               <span className="gba:ml-0 gba:sm:ml-1 gba:text-xs gba:text-[#333]"> - Version: {packageVersion}</span>
             </div>
           </div>
-          <Tooltip title="Settings">
-            <Button
-              type="text"
-              icon={<SettingOutlined />}
-              onClick={() => setSettingsModalVisible(true)}
-              style={{ fontSize: '16px' }}
-            />
-          </Tooltip>
+          
+          {/* Center section: Search Placeholder - Perfectly centered */}
+          <div className="gba:flex gba:items-center gba:justify-center">
+            <button 
+              className="gba:w-[219px] gba:h-8 gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF] gba:outline-none"
+              data-testid="GlobalSearchButton-Button"
+            >
+              <div className="gba:w-[418px] gba:h-[26px] gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF]">
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="16" 
+                  height="16" 
+                  className="gba:absolute gba:left-[10px]" 
+                  style={{fill: 'black'}}
+                >
+                  <defs>
+                    <clipPath id="search_16x16_svg__a">
+                      <path d="M0 0h16v16H0z"></path>
+                    </clipPath>
+                  </defs>
+                  <g clipPath="url(#search_16x16_svg__a)">
+                    <path d="m12.135 11.03 3.017 3.016-1 1-3.01-3.023a6.341 6.341 0 1 1 1-1Zm-1.413-.523a4.929 4.929 0 1 0-.106.106z"></path>
+                    <path fill="#fff" d="M0 0h16v16H0z" opacity="0.003"></path>
+                  </g>
+                </svg>
+                <div className="gba:text-sm gba:text-[#999999]" data-testid="GlobalSearchButton-Text">
+                  Search in NEWWORK
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* Right section: Settings Button */}
+          <div className="gba:flex gba:items-center gba:justify-end">
+            <Tooltip title="Settings">
+              <Button
+                type="text"
+                icon={<SettingOutlined />}
+                onClick={() => setSettingsModalVisible(true)}
+                style={{ fontSize: '16px' }}
+              />
+            </Tooltip>
+          </div>
         </Header>
         <Content style={{ overflow: 'initial', background: '#fff', minHeight: 280 }}>
           {selectedApp && (

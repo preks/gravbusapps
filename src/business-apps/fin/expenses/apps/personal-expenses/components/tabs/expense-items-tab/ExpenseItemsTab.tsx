@@ -3,16 +3,16 @@ import { Button, Typography, Space, Spin, Alert } from 'antd';
 import { DataTable } from '@newwork/gravity-ui-catalog';
 import { FileTextOutlined, FileImageOutlined } from '@ant-design/icons';
 import { PiLightning } from 'react-icons/pi';
-import { useGetExpenseItems, ExpenseFilter } from '../../hooks/useGetExpenseItems';
+import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { GET_EXPENSE_ITEMS_BY_EMPLOYEE } from '../../queries/expenseItems';
-import { getExpenseItemStatusDisplay, ExpenseStatus } from '../../utils';
+import { GET_EXPENSE_ITEMS_BY_EMPLOYEE } from '../../../queries/expenseItems';
+import { getExpenseItemStatusDisplay, ExpenseStatus } from '../../../utils';
 import { startProcess } from '@/common/utils/start-process';
 import ExpenseItemDetails from './ExpenseItemDetails';
 import ExpenseItemStatistics from './ExpenseItemStatistics';
-import { useExpenseFilters } from '../../hooks/useExpenseFilters';
+import { useExpenseFilters } from '../../../hooks/useExpenseFilters';
 // No longer using React Router for tab navigation
 
 const { Text } = Typography;

@@ -4,12 +4,12 @@ import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetExpenseItems, ExpenseItem } from '../../hooks/useGetExpenseItems';
-import { useGetExpensePlans, ExpensePlan } from '../../hooks/useGetExpensePlans';
-import { useGetExpenseRequests, ExpenseRequest } from '../../hooks/useGetExpenseRequests';
-import ExpenseItemDetails from '../ExpenseItemsTab/ExpenseItemDetails';
-import ExpensePlanDetails from '../ExpensePlansTab/ExpensePlanDetails';
-import ExpenseRequestDetails from '../ExpenseRequestsTab/ExpenseRequestDetails';
+import { useGetExpenseItems, ExpenseItem } from '../../../hooks/useGetExpenseItems';
+import { useGetExpensePlans, ExpensePlan } from '../../../hooks/useGetExpensePlans';
+import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests';
+import ExpenseItemDetails from '../expense-items-tab/ExpenseItemDetails';
+import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails';
+import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails';
 
 interface CalendarExpenseItem {
   id: string;

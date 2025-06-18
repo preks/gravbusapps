@@ -1,7 +1,7 @@
 import React, { useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetExpensePlans, ExpensePlan } from '../../hooks/useGetExpensePlans';
-import { getExpensePlanStatusDisplay } from '../../utils';
+import { useGetExpensePlans, ExpensePlan } from '../../../hooks/useGetExpensePlans';
+import { getExpensePlanStatusDisplay } from '../../../utils';
 import ExpensePlanDetails from './ExpensePlanDetails';
 import ExpensePlanStatistics from './ExpensePlanStatistics';
 import { startProcess } from '@/common/utils/start-process';
