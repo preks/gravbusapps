@@ -63,3 +63,16 @@
   align-items: center;
   justify-content: center;
 }
+
+/* Opportunity detail container styles */
+.gba\:opportunity-detail-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #fff;
+  z-index: 1000;
+  overflow-y: auto;
+  padding: 20px;
+}
