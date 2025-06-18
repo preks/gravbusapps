@@ -796,20 +796,20 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
                   companyData.keyPeople.founders.map((person, index) => (
                     <div key={index} className="gba:person-card">
                       <Avatar 
-                        size={40} 
-                        src={person?.avatar}
-                        className="gba:person-avatar"
-                        style={{ backgroundColor: stringToColor(person?.name) }}
-                      >
-                        {person?.name?.charAt(0)}
-                      </Avatar>
-                      <div className="gba:person-info">
-                        <Text className="gba:person-name">{person?.name}</Text>
-                        {person.title && <Text className="gba:person-title">{person.title}</Text>}
-                      </div>
-                    </div>
-                  ))
-                )}
+        size={40} 
+        src={person.avatar}
+        className="gba:person-avatar"
+        style={{ backgroundColor: stringToColor(person.name) }}
+      >
+        {person.name.charAt(0)}
+      </Avatar>
+      <div className="gba:person-info">
+        <Text className="gba:person-name">{person.name}</Text>
+        {person.title && <Text className="gba:person-title">{person.title}</Text>}
+      </div>
+    </div>
+  ))
+)}
               </div>
 
               <div className="gba:people-group">
