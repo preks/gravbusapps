@@ -98,32 +98,28 @@ export const CrmDataTable = <T extends object>({
     }
   };
 
-  // Handle pagination change
-  const handlePaginationChange = (page: number, pageSize: number) => {
+  // Handle table change for pagination
+  const handleTableChange = (pagination: TablePaginationConfig) => {
     // Call the parent's onPageChange handler if provided
-    onPageChange && onPageChange(page, pageSize);
-  };
-  
-  // Handle table change for combined pagination and sorting
-  const handleTableChange = (_pagination: any, _filters: any, _sorter: any) => {
-    if (_pagination && _pagination.current) {
-      handlePaginationChange(_pagination.current, _pagination.pageSize || pageSize);
+    if (pagination.current && pagination.pageSize) {
+      onPageChange && onPageChange(pagination.current, pagination.pageSize);
     }
   };
 
   // Define button styles for pagination
   const enabledButtonStyle: React.CSSProperties = {
-    border: '1px solid #d1d5db',
+    border: '1px solid #e2e8f0',
     color: '#4b5563',
-    borderRadius: '6px',
-    padding: '4px 15px',
-    height: '32px',
+    borderRadius: '0.375rem',
+    padding: '0.25rem 1rem',
+    height: '2rem',
     backgroundColor: '#ffffff',
     margin: '0 4px',
     lineHeight: '1.5',
-    minWidth: '80px',
+    minWidth: 'auto',
     textAlign: 'center',
     cursor: 'pointer',
+    fontSize: '0.875rem',
   };
 
   const disabledButtonStyle: React.CSSProperties = {
@@ -191,18 +187,15 @@ export const CrmDataTable = <T extends object>({
     return originalElement; 
   }, [currentPage, totalCount, pageSize, enabledButtonStyle, disabledButtonStyle]);
 
-  // Configure pagination
+  // Generate pagination config
   const paginationConfig: TablePaginationConfig = {
     current: currentPage,
-    pageSize,
+    pageSize: pageSize,
     total: totalCount,
     showSizeChanger: true,
     pageSizeOptions: ['10', '20', '50', '100'],
-    onChange: handlePaginationChange,
-    className: 'gba:custom-pagination',
-    itemRender: itemRender,
-    position: ["bottomCenter"],
-    showTotal: (total) => `Total ${total} items`,
+    className: 'gba-custom-pagination',
+    itemRender: itemRender
   };
 
 
@@ -243,7 +236,7 @@ export const CrmDataTable = <T extends object>({
             rowKey={(record) => (record as any).id || Math.random().toString(36).substring(2, 9)}
             pagination={paginationConfig}
             rowSelection={rowSelection}
-            onChange={handleTableChange}
+            onChange={(pagination) => handleTableChange(pagination)}
             onRow={(record) => ({
               onClick: () => onRowClick && onRowClick(record),
               className: "gba:crm-data-table-row",

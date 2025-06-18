@@ -22,6 +22,11 @@ export const getOpportunitiesQuery = `
         displayName
       }
     }
+    OpportunityAggregate {
+      aggregate {
+        count
+      }
+    }
   }
 `;
 

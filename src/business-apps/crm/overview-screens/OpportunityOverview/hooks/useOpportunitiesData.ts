@@ -27,6 +27,11 @@ export interface OpportunityData {
 
 export interface OpportunitiesQueryResponse {
   Opportunity: OpportunityData[];
+  OpportunityAggregate: {
+    aggregate: {
+      count: number;
+    };
+  };
 }
 
 export const useOpportunitiesData = (accessToken: string) => {
@@ -60,9 +65,14 @@ export const useOpportunitiesData = (accessToken: string) => {
 
       if (response?.Opportunity) {
         setOpportunities(response.Opportunity);
-        // For total count, this is an approximation - in a real implementation you'd
-        // either get a count from the API or use a separate query for the total count
-        setTotalCount(response.Opportunity.length + offset);
+        
+        // Use the actual total count from the aggregate query
+        if (response.OpportunityAggregate?.aggregate?.count !== undefined) {
+          setTotalCount(response.OpportunityAggregate.aggregate.count);
+        } else {
+          // Fallback in case aggregate count is not available
+          setTotalCount(response.Opportunity.length + offset);
+        }
       }
     } catch (error) {
       console.error('Error fetching opportunities:', error);
