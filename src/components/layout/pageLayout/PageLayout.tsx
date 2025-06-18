@@ -58,7 +58,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
   // Icon size will be controlled through the parent container size
 
   const labelClasses = cn(
-    "gba:leading-none gba:font-medium gba:self-center",
+    "gba:leading-none gba:font-medium gba:self-center gba:mb-[3px]",
     isDisplay ? "gba:text-4xl gba:font-black" : "gba:text-2xl font-secondary"
   );
 
