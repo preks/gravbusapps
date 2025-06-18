@@ -241,7 +241,6 @@ const AddNewCompany: React.FC<AddNewCompanyProps> = ({ accessToken, employeeDeta
   };
 
   const handleSave = async () => {
-    console.log(employeeDetails)
     try {
       setLoading(true);
       const savePayload = {

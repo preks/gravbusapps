@@ -188,8 +188,6 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ userInfo, accessTo
           orderBy.website = sortOrder;
         }
       }
-      console.log(orderBy)
-      console.log("orderBy: ",orderBy)
       const result = await graphQLClient.request<GetCompaniesResponse>(
         GET_COMPANIES,
         {
