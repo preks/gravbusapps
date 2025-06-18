@@ -497,15 +497,12 @@ export const setByEdit = async (
 };
 
 export const addRequests = (
-  catalogueDataResponse: any,
-  expenseRequestByCurrency: any,
-  multiPosition: boolean,
-  form: any,
+  requestData: any,
   setExpenseRequests: (requests: any[]) => void,
   t: (key: string, fallback: string) => string
 ) => {
   try {
-    if (!catalogueDataResponse || !catalogueDataResponse.data) {
+    if (!requestData || !requestData.data) {
       console.debug('addRequests: catalogueDataResponse or its data property is undefined');
       setExpenseRequests([{
         id: "0",
@@ -514,23 +511,10 @@ export const addRequests = (
       return;
     }
     
-    const expenseRequests = catalogueDataResponse.data.ExpenseRequest || [];
-    
-    let itemsWithCurrency: any[] = [];
-    
-    if (expenseRequestByCurrency?.data?.ExpenseRequest) {
-      if ((multiPosition === true || multiPosition === false) && form.getFieldValue("currency")) {
-        itemsWithCurrency = expenseRequestByCurrency.data.ExpenseRequest;
-      }
-    }
-
-    const allExpenseRequests = [
-      ...itemsWithCurrency,
-      ...expenseRequests,
-    ];
+    const expenseRequests = requestData.data.ExpenseRequest || [];
     
     const formattedRequests = prepareExpenseRequestsList(
-      allExpenseRequests,
+      expenseRequests,
       t("create_expense_type_item.none", "None")
     );
     

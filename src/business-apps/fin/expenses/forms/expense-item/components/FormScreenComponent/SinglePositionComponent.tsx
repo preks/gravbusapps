@@ -46,7 +46,7 @@ export const SinglePositionComponent: React.FC<
   handleExpenseTypeChange,
 }) => {
   const { t } = useTranslation();
-  const { isProcessingFiles, form } = useExpenseItem();
+  const { isProcessingFiles, form, handleCurrencyChange } = useExpenseItem();
 
   return (
     <div>
@@ -229,6 +229,10 @@ export const SinglePositionComponent: React.FC<
                     }))}
                     onChange={(value: any) => {
                       form.setFieldsValue({ currency: value.value });
+                      
+                      if (value && value.value) {
+                        handleCurrencyChange(value.value);
+                      }
                     }}
                     placeholder={t(
                       "create_expense_item.change_expense_item_container.current_currency_placeholder",

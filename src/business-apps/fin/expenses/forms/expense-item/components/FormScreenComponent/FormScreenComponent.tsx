@@ -75,6 +75,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     isProcessingFiles,
     isFormDisabled,
     expenseRuleError,
+    handleCurrencyChange,
   } = useExpenseItem();
 
   const [formIsValid, setFormIsValid] = useState(false);
@@ -85,9 +86,12 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       layout="vertical"
       
       onFieldsChange={()=>{
-        const isFormValidValue = form
-    .getFieldsError()
-    .every((fieldErr:  any ) => fieldErr.errors.length === 0);
+        const isFormValidValue = form.getFieldsError().every((fieldErr:  any ) => fieldErr.errors.length === 0);
+    setFormIsValid(isFormValidValue)
+      }}
+      onValuesChange={()=>{
+        form.validateFields()
+        const isFormValidValue = form.getFieldsError().every((fieldErr:  any ) => fieldErr.errors.length === 0);
     setFormIsValid(isFormValidValue)
       }}
       validateTrigger={['onChange', 'onBlur']}
@@ -299,6 +303,10 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                 }))}
                 onChange={(value: any) => {
                   form.setFieldsValue({ currency: value.value });
+                  
+                  if (value && value.value) {
+                    handleCurrencyChange(value.value);
+                  }
                 }}
                 placeholder={t(
                   "create_expense_item.change_expense_item_container.current_currency_placeholder",
@@ -320,7 +328,6 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           allowClear
           name="expenseRequestId"
           data={[
-            { id: "none", name: "None" },
             ...expenseRequests.map((request) => ({
               id: request.id,
               name: request.title || request.code,

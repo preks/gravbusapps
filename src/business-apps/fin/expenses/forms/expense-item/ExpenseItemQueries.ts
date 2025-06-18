@@ -138,7 +138,7 @@ export const fetchExpenseData =`query MyQuery($expenseId:uuid! ,$activeUserLocal
     source
   }
 }`
-export const fetchExpenseRuleGeneralData =`query fetchEmployee ($objectFilter: jsonb!,$activeUserLocale:String!,$expenseRuleId: uuid) {
+export const fetchExpenseRuleGeneralData =`query fetchExpenseRuleGeneralData ($objectFilter: jsonb!,$activeUserLocale:String!,$expenseRuleId: uuid) {
 ExpenseRuleGeneralExpense(
     where: {
       expenseRuleId: { _eq: $expenseRuleId }, 
@@ -167,7 +167,7 @@ ExpenseRuleGeneralExpense(
 
 }`
 
-export const fetchExpenseCatalogueData =`query fetchEmployee ($employeeId: uuid,$objectFilter: jsonb!,$activeUserLocale:String!,$expenseRuleId: uuid) {
+export const fetchExpenseCatalogueData =`query fetchExpenseCatalogueData ($employeeId: uuid,$objectFilter: jsonb!,$activeUserLocale:String!,$expenseRuleId: uuid) {
   EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
     structureId
     costCenterId
@@ -267,7 +267,7 @@ export const getCustomFields =`query MyQuery($expenseRuleGeneralId: [uuid!]) {
   }
 }
 `
-export const expenseRequestByCurrencyQuery =`query fetchEmployee ($employeeId: uuid,$givenCurrency: String) {
+export const expenseRequestByCurrencyQuery =`query fetchCurrency ($employeeId: uuid,$givenCurrency: String) {
   ExpenseRequest(where: { currencyRef:{_eq:$givenCurrency},isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}, status: {_in: ["CREATED"]}}) {
     id
     status

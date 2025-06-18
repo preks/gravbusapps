@@ -18,11 +18,13 @@ import {
 } from "../types";
 
 import { getCurrentActiveUserLocale } from "../utils/windowUtils";
+import { prepareExpenseRequestsList } from "../utils/expenseRequestUtils";
 import { getCatalogValue } from "../utils/windowUtils";
 import {
   fetchExpenseCatalogueData,
   fetchExpenseRuleGeneralData,
   getStructureCostCenter,
+  expenseRequestByCurrencyQuery,
 } from "../ExpenseItemQueries";
 import { fetchEmployeeRule } from "../ExpenseItemQueries";
 import { DEFAULT_EMPLOYEE_ID, DEFAULT_POSITION } from "./constants";
@@ -85,6 +87,7 @@ interface ExpenseItemContextProps {
   handleAddPosition: () => void;
   handleRemovePosition: (positionId: string) => void;
   handleAmountChange: (value: number, positionIndex: number) => void;
+  handleCurrencyChange: (currencyCode: string) => Promise<void>;
   fetchExpenseTypes: (classId: string) => Promise<ExpenseType[]>;
   fetchCustomFields: (expenseTypeIds: string[]) => Promise<CustomField[]>;
 }
@@ -286,9 +289,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     try {
       addRequests(
         catalogueDataResponse,
-        null,
-        multiPosition,
-        form,
         setExpenseRequests,
         t
       );
@@ -375,7 +375,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         const additionalDataMocked = {
           psi_taskPayload: {
             initialParameters: {
-              expenseId: "029a5366-28d0-463f-acaa-9e1a2a97d12b",//029a5366-28d0-463f-acaa-9e1a2a97d12b
+              expenseId: "",//029a5366-28d0-463f-acaa-9e1a2a97d12b
             },
           },
         };
@@ -446,7 +446,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
             if (form && updatedPositions[0]?.costCenter) {
               form.setFieldsValue({
-                [`positions[0].costCenter`]: updatedPositions[0].costCenter,
+                [`costCenter-0`]: updatedPositions[0].costCenter,
               });
             }
           } catch (positionError) {
@@ -794,6 +794,39 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     );
   };
 
+  const handleCurrencyChangeWrapper = async (currencyCode: string): Promise<void> => {
+    if (!accessToken || !userInfo) {
+      console.debug("Skipping currency change handler - No access token or user info available");
+      return;
+    }
+    console.log("entered here",currencyCode)
+    try {
+      const employeeIdValue = userInfo?.employeeDetails?.employeeId || DEFAULT_EMPLOYEE_ID;
+      
+      if (!employeeIdValue) {
+        console.debug("Skipping currency change handler - No employee ID available");
+        return;
+      }
+      const currencyId = currencies.find((el)=>el.code===currencyCode)?.id;
+      
+      const expenseRequestByCurrency = await graphqlClient.query({
+        query: expenseRequestByCurrencyQuery,
+        variables: {
+          employeeId: employeeIdValue,
+          givenCurrency: currencyId,
+        },
+      });
+
+      addRequests(
+        expenseRequestByCurrency,
+        setExpenseRequests,
+        t
+      );
+    } catch (error) {
+      console.error("Error fetching expense requests by currency:", error);
+    }
+  };
+
   const handleExpenseTypeChangeWrapper = async (
     value: string,
     positionIndex: number
@@ -860,6 +893,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     handleAddPosition: handleAddPositionWrapper,
     handleRemovePosition: handleRemovePositionWrapper,
     handleAmountChange: handleAmountChangeWrapper,
+    handleCurrencyChange: handleCurrencyChangeWrapper,
     fetchExpenseTypes: fetchExpenseTypesWrapper,
     fetchCustomFields: fetchCustomFieldsWrapper,
   };

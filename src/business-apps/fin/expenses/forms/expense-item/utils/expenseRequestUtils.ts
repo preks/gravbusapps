@@ -39,8 +39,6 @@ export const sortAndFormatExpenseRequests = (expenseRequests: any[]) => {
  */
 export const prepareExpenseRequestsList = (expenseRequests: any[], noneLabel: string) => {
   const formattedRequests = sortAndFormatExpenseRequests(expenseRequests);
-  
-  // Add "None" option at the beginning
   return [
     {
       id: "0",
