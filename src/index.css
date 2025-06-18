@@ -21,8 +21,6 @@
 @import "./business-apps/crm/detail-screens/CompanyDetail/styles/CompanyDetail.css";
 @import "@newwork/gravity-ui-catalog/dist/assets/style.css";
 
-@config "../tailwind.config.js";
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
