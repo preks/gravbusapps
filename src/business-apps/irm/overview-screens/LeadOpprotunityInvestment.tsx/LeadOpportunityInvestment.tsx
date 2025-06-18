@@ -13,8 +13,6 @@ import {
   PlusCircleOutlined,
   BarChartOutlined,
   ArrowLeftOutlined,
-  SyncOutlined,
-  PlusOutlined,
   EnvironmentOutlined,
   GlobalOutlined,
   UserAddOutlined,
@@ -69,13 +67,11 @@ interface Opportunity {
 }
 
 interface Contact {
-  id: string;
-  name: string;
-  position: string;
   email: string;
+  name: string;
   phone: string;
-  lastContact: string;
-  isPrimary: boolean;
+  pictureUrl: string;
+  jobTitle:string;
 }
 
 interface Lead {
@@ -92,7 +88,13 @@ interface Lead {
     id?: string;
     code?: string;
   };
-  size: string;
+  country?: {
+    value?: string;
+    type?: string;
+    id?: string;
+    code?: string;
+  };
+  countryRef?: string;
   numberOfEmployeesRef?: string;
   numberOfEmployees?: {
     value?: string;
@@ -100,11 +102,16 @@ interface Lead {
     id?: string;
     code?: string;
   };
-  website: string;
-  description: string;
+  companyWebsite: string;
   address: string;
   revenue: string;
   annualRevenueRef?: string;
+  annualRevenue?: {
+    value?: string;
+    type?: string;
+    id?: string;
+    code?: string;
+  };
   regionRef?: string;
   legalForm?: string | {
     value?: string;
@@ -113,7 +120,7 @@ interface Lead {
     code?: string;
   };
   legalFormRef?: string;
-  contacts: Contact[];
+  contact: Contact;
   activities: Activity[];
   opportunities: Opportunity[];
   aiSummary: {
@@ -130,29 +137,9 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [leadData, setLeadData] = useState<Lead | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
   
   const graphQLClient = useGraphqlClient(props.accessToken);
-  
-  const hardcodedContacts = [
-    {
-      id: "1",
-      name: "Jane Smith",
-      position: "Chief Technology Officer",
-      email: "jane.smith@acmecorp.example.com",
-      phone: "+1 (555) 123-4567",
-      lastContact: "2023-06-01",
-      isPrimary: true
-    },
-    {
-      id: "2",
-      name: "John Doe",
-      position: "Procurement Manager",
-      email: "john.doe@acmecorp.example.com",
-      phone: "+1 (555) 987-6543",
-      lastContact: "2023-05-15",
-      isPrimary: false
-    }
-  ];
   
   const hardcodedActivities: Activity[] = [
     {
@@ -235,9 +222,7 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
     ]
   };
 
-  // Fetch lead data
   useEffect(() => {
-    console.log("Fetch lead data!!!!")
     const fetchLeadData = async () => {
       try {
         setLoading(true);
@@ -251,8 +236,6 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
         );
         if (result && result.Lead && result.Lead[0]) {
           const apiData = result.Lead[0];
-          
-          // Transform the API data into our Lead interface
           const transformedData: Lead = {
             id: apiData.id,
             name: apiData.companyName || `${apiData.firstName} ${apiData.lastName}`,
@@ -265,11 +248,22 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
               id: apiData.industry?.id || "",
               code: apiData.industry?.code || ""
             },
+            country: {
+              value: apiData.country?.value || "",
+              type: apiData.country?.type || "",
+              id: apiData.country?.id || "",
+              code: apiData.country?.code || ""
+            },
+            countryRef: apiData.countryRef,
             industryRef: apiData.industryRef,
-            size: apiData.numberOfEmployees?.value || "",
+            numberOfEmployees: {
+              value: apiData.numberOfEmployees?.value || "",
+              type: apiData.numberOfEmployees?.type || "",
+              id: apiData.numberOfEmployees?.id || "",
+              code: apiData.numberOfEmployees?.code || ""
+            },
             numberOfEmployeesRef: apiData.numberOfEmployeesRef,
-            description: "",
-            website: apiData.companyEmail || apiData.email || "",
+            companyWebsite: apiData.companyWebsite,
             address: [
               apiData.city, 
               apiData.postalCode, 
@@ -277,11 +271,31 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
             ].filter(Boolean).join(", "),
             revenue: apiData.annualRevenue?.value || "",
             annualRevenueRef: apiData.annualRevenueRef,
+            annualRevenue: {
+              value: apiData.annualRevenue?.value || "",
+              type: apiData.annualRevenue?.type || "",
+              id: apiData.annualRevenue?.id || "",
+              code: apiData.annualRevenue?.code || ""
+            },
             regionRef: apiData.regionRef,
             legalForm: apiData.legalForm?.value || "",
             legalFormRef: apiData.legalFormRef,
             
-            contacts: hardcodedContacts,
+            contact: apiData.contact ? 
+              {
+                name: `${apiData.contact.firstName || ''} ${apiData.contact.lastName || ''}`.trim(),
+                email: apiData.contact.email || "",
+                phone: apiData.contact.phone || "",
+                jobTitle: apiData.contact.jobTitle || "",
+                pictureUrl: apiData.contact.pictureUrl || ""
+              } : 
+              {
+                name: "",
+                email: "",
+                phone: "",
+                jobTitle: "",
+                pictureUrl: ""
+              },
             activities: hardcodedActivities,
             opportunities: hardcodedOpportunities,
             aiSummary: hardcodedAiSummary
@@ -296,32 +310,53 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
         setError("Failed to load lead data. Please try again later.");
         message.error("Failed to load lead data");
         
-        // Fallback to a default lead object in case of error
         setLeadData({
-          id: leadId,
-          version: "0",
-          name: "Acme Corporation",
-          status: "Qualified",
-          statusRef: "",
+          id: leadData?.id || "",
+          version: leadData?.version || "",
+          name: leadData?.name || "",
+          status: leadData?.status || "",
+          statusRef: leadData?.statusRef || "",
           industry: {
-            value: "Technology",
-            type: "",
-            id: "",
-            code: ""
+            value: leadData?.industry?.value || "",
+            type: leadData?.industry?.type || "",
+            id: leadData?.industry?.id || "",
+            code: leadData?.industry?.code || ""
           },
-          industryRef: "",
-          size: "Enterprise (1000+ employees)",
-          numberOfEmployeesRef: "",
-          description: "A leading provider of innovative technology solutions for businesses of all sizes.",
-          logo: "", 
-          website: "acmecorp.example.com",
-          address: "123 Tech Boulevard, San Francisco, CA 94105",
-          revenue: "$50M - $100M",
-          annualRevenueRef: "",
-          regionRef: "",
-          legalForm: "Corporation",
-          legalFormRef: "",
-          contacts: hardcodedContacts,
+          industryRef: leadData?.industryRef || "",
+          numberOfEmployees: {
+            value: leadData?.numberOfEmployees?.value || "",
+            type: leadData?.numberOfEmployees?.type || "",
+            id: leadData?.numberOfEmployees?.id || "",
+            code: leadData?.numberOfEmployees?.code || ""
+          },
+          numberOfEmployeesRef: leadData?.numberOfEmployeesRef || "",
+          companyWebsite: leadData?.companyWebsite || "",
+          address: leadData?.address || "",
+          revenue: leadData?.revenue || "",
+          annualRevenueRef: leadData?.annualRevenueRef || "",
+          annualRevenue: {
+            value: leadData?.annualRevenue?.value || "",
+            type: leadData?.annualRevenue?.type || "",
+            id: leadData?.annualRevenue?.id || "",
+            code: leadData?.annualRevenue?.code || ""
+          },
+          regionRef: leadData?.regionRef || "",
+          legalForm: leadData?.legalForm || "",
+          legalFormRef: leadData?.legalFormRef || "",
+          contact: leadData?.contact || {
+            name: leadData?.contact?.name || "",
+            email: leadData?.contact?.email || "",
+            phone: leadData?.contact?.phone || "",
+            pictureUrl: leadData?.contact?.pictureUrl || "",
+            jobTitle: leadData?.contact?.jobTitle || ""
+          },
+          country: leadData?.country || {
+            value: leadData?.country?.value || "",
+            type: leadData?.country?.type || "",
+            id: leadData?.country?.id || "",
+            code: leadData?.country?.code || ""
+          },
+          countryRef: leadData?.countryRef || "",
           activities: hardcodedActivities,
           opportunities: hardcodedOpportunities,
           aiSummary: hardcodedAiSummary
@@ -332,23 +367,12 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
     };
     
     fetchLeadData();
-  }, [graphQLClient]);
+  }, [graphQLClient, refreshTrigger]);
 
   const [activeTab, setActiveTab] = useState("overview");
   const [activeActivityTab, setActiveActivityTab] = useState("activities");
   
-  // Keyboard shortcuts
-  const shortcuts = {
-    e: () => console.log("Edit lead details"),
-    n: () => console.log("Add note"),
-    c: () => console.log("Log call"),
-    m: () => console.log("Schedule meeting"),
-  };
-
-  // Use the custom hook
-  const { helpVisible, setHelpVisible } = useKeyboardShortcuts(shortcuts);
   
-  // If no lead data or still loading, show loading state
   if (loading) {
     return (
       <div className="gba:loading-container" data-testid="lead-loading-container" style={{ 
@@ -380,6 +404,13 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
   
   // Now we can safely use leadData since it's either from API or fallback
   const lead = leadData!;
+
+  const handleSaveLead = (updatedData: Partial<Lead>) => {
+    setIsEditing(false);
+    setLeadData(prev => prev ? { ...prev, ...updatedData } : null);
+    // Trigger a refetch from API to ensure we have the latest version
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   const CollapsibleCard: React.FC<{
     title: string;
@@ -444,21 +475,13 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
   };
 
   // If in editing mode, render the EditLead component
-  if (isEditing) {
+  if (isEditing && leadData) {
     return (
       <EditLead 
-        {...props}
-        leadData={lead}
-        onCancel={() => setIsEditing(false)}
-        onSave={(updatedData) => {
-          // Update the lead data with the new values
-          setLeadData({
-            ...lead,
-            ...updatedData
-          });
-          // Exit edit mode
-          setIsEditing(false);
-        }}
+        {...props} 
+        leadData={leadData} 
+        onCancel={() => setIsEditing(false)} 
+        onSave={handleSaveLead} 
       />
     );
   }
@@ -591,7 +614,7 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
                 <CalendarOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
                 <div>
                   <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Annual Revenue</div>
-                  <div style={{ fontSize: '16px', color: '#000000' }}>{lead.revenue || '---'}</div>
+                  <div style={{ fontSize: '16px', color: '#000000' }}>{lead.annualRevenue?.value || '---'}</div>
                 </div>
               </div>
 
@@ -599,9 +622,9 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
                 <GlobalOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
                 <div>
                   <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Website</div>
-                  {lead.website ? (
-                    <a href={`https://${lead.website}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '16px', color: '#1677ff' }}>
-                      {lead.website}
+                  {lead.companyWebsite ? (
+                    <a href={`https://${lead.companyWebsite}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '16px', color: '#1677ff' }}>
+                      {lead.companyWebsite}
                     </a>
                   ) : (
                     <div style={{ fontSize: '16px', color: '#000000' }}>---</div>
@@ -637,21 +660,17 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
             style={{ marginBottom: '24px' }}
             showArrow={true}
           >
-            <div data-testid="contacts-list" className="gba:contacts-list" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {lead.contacts.map((contact) => (
+            {lead.contact && lead.contact.name ? (
+              <div data-testid="contacts-list" className="gba:contacts-list" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div 
-                  key={contact.id} 
                   className="gba:contact-item"
-                  data-testid={`contact-item-${contact.id}`}
-                  style={{ 
-                    borderBottom: contact.id !== lead.contacts[lead.contacts.length - 1].id ? '1px solid #f0f0f0' : 'none', 
-                    paddingBottom: '24px' 
-                  }}
+                  data-testid="contact-item"
+                  style={{ paddingBottom: '24px' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '16px' }}>
                     <div
                       className="gba:contact-avatar"
-                      data-testid={`contact-avatar-${contact.id}`}
+                      data-testid="contact-avatar"
                       style={{
                         width: '48px',
                         height: '48px',
@@ -666,64 +685,62 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
                         fontWeight: 'bold',
                       }}
                     >
-                      {contact.name.split(' ').map(n => n[0]).join('')}
+                      {lead.contact.name.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div className="gba:contact-details" style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
                         <div 
                           className="gba:contact-name" 
-                          data-testid={`contact-name-${contact.id}`} 
+                          data-testid="contact-name" 
                           style={{ fontSize: '16px', fontWeight: '500', marginRight: '8px' }}
                         >
-                          {contact.name}
+                          {lead.contact.name}
                         </div>
-                        {contact.isPrimary && (
-                          <span
-                            className="gba:contact-primary-badge"
-                            data-testid="contact-primary-badge"
-                            style={{
-                              fontSize: '12px',
-                              padding: '2px 8px',
-                              backgroundColor: '#1677ff',
-                              color: 'white',
-                              borderRadius: '10px',
-                              fontWeight: 'normal',
-                            }}
-                          >
-                            Primary
-                          </span>
-                        )}
+                        <span
+                          className="gba:contact-primary-badge"
+                          data-testid="contact-primary-badge"
+                          style={{
+                            fontSize: '12px',
+                            padding: '2px 8px',
+                            backgroundColor: '#1677ff',
+                            color: 'white',
+                            borderRadius: '10px',
+                            fontWeight: 'normal',
+                          }}
+                        >
+                          Primary
+                        </span>
                       </div>
                       <div 
                         className="gba:contact-position" 
-                        data-testid={`contact-position-${contact.id}`}
+                        data-testid="contact-position"
                         style={{ color: '#8c8c8c', fontSize: '14px', marginBottom: '12px' }}
                       >
-                        {contact.position}
+                        {lead.contact.jobTitle}
                       </div>
                       
                       <div 
                         className="gba:contact-email"
-                        data-testid={`contact-email-${contact.id}`}
+                        data-testid="contact-email"
                         style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', color: '#595959' }}
                       >
                         <MailOutlined style={{ marginRight: '8px', fontSize: '14px', color: '#8c8c8c' }} />
-                        <div>{contact.email}</div>
+                        <div>{lead.contact.email}</div>
                       </div>
                       <div 
                         className="gba:contact-phone"
-                        data-testid={`contact-phone-${contact.id}`}
+                        data-testid="contact-phone"
                         style={{ display: 'flex', alignItems: 'center', color: '#595959' }}
                       >
                         <PhoneOutlined style={{ marginRight: '8px', fontSize: '14px', color: '#8c8c8c' }} />
-                        <div>{contact.phone}</div>
+                        <div>{lead.contact.phone}</div>
                       </div>
                     </div>
                   </div>
                   <div className="gba:contact-actions" style={{ display: 'flex', gap: '16px' }}>
                     <Button 
                       className="gba:contact-call-button"
-                      data-testid={`contact-call-button-${contact.id}`}
+                      data-testid="contact-call-button"
                       style={{ 
                         flex: 1, 
                         display: 'flex', 
@@ -737,7 +754,7 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
                     </Button>
                     <Button 
                       className="gba:contact-email-button"
-                      data-testid={`contact-email-button-${contact.id}`}
+                      data-testid="contact-email-button"
                       style={{ 
                         flex: 1, 
                         display: 'flex', 
@@ -751,8 +768,8 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
                     </Button>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : null}
           </CollapsibleCard>
           
           {/* Opportunities section */}
@@ -1770,8 +1787,6 @@ const LeadOpportunityInvestment: React.FC<BusinessAppContextProps> = (props) => 
         </Col>
       </Row>
 
-      {/* Keyboard shortcuts help modal */}
-      {helpVisible && <KeyboardShortcutsHelp open={helpVisible} onClose={() => setHelpVisible(false)} />}
     </div>
   );
 };

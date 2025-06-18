@@ -13,6 +13,7 @@ export interface LeadData {
     type: string;
     value: string;
     code: string;
+    id: string;
   };
   annualRevenueRef: string;
   companyEmail: string;
@@ -30,6 +31,7 @@ export interface LeadData {
     id: string;
     code: string;
   };
+  companyWebsite: string;
   industryRef: string;
   legalForm: {
     type: string;
@@ -65,6 +67,14 @@ export interface LeadData {
     code: string;
   };
   regionRef: string;
+  contact: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    pictureUrl: string;
+    jobTitle:string;
+  };
 }
 
 export interface GetLeadByIdResponse {
@@ -86,10 +96,19 @@ export const GET_LEAD_BY_ID = `
       companyPhone
       firstName
       lastName
+      contact {
+        email
+        firstName
+        lastName
+        phone
+        pictureUrl
+        jobTitle
+      } 
       annualRevenue {
         type
         value
         code
+        id
       }
       annualRevenueRef
       companyEmail
@@ -122,6 +141,7 @@ export const GET_LEAD_BY_ID = `
         code
       }
       numberOfEmployeesRef
+      companyWebsite
       ownerEmployee {
         firstName
         lastName
@@ -142,6 +162,13 @@ export const GET_LEAD_BY_ID = `
         code
       }
       regionRef
+      contact {
+        email
+        firstName
+        lastName
+        phone
+        pictureUrl
+      }
     }
   }
 `;

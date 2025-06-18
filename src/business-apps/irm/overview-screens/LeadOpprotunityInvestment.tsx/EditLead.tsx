@@ -63,7 +63,6 @@ interface Lead {
       id?: string;
       code?: string;
     };
-    size: string;
     numberOfEmployeesRef?: string;
     numberOfEmployees?: {
       value?: string;
@@ -71,11 +70,16 @@ interface Lead {
       id?: string;
       code?: string;
     };
-    website: string;
-    description: string;
+    companyWebsite: string;
     address: string;
     revenue: string;
     annualRevenueRef?: string;
+    annualRevenue?: {
+      value?: string;
+      type?: string;
+      id?: string;
+      code?: string;
+    };
     regionRef?: string;
     legalForm?: string | {
       value?: string;
@@ -84,7 +88,6 @@ interface Lead {
       code?: string;
     };
     legalFormRef?: string;
-    contacts: Contact[];
     activities: Activity[];
     opportunities: Opportunity[];
     aiSummary: {
@@ -92,6 +95,13 @@ interface Lead {
       insights: string[];
       recommendations: string[];
     };
+    country?: {
+      value?: string;
+      type?: string;
+      id?: string;
+      code?: string;
+    };
+    countryRef?: string;
   }
 
 interface EditLeadProps extends BusinessAppContextProps {
@@ -107,43 +117,62 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
   const [loading, setLoading] = useState<boolean>(true); // Start with loading true
   const [industryOptions, setIndustryOptions] = useState<ReferenceData[]>([]);
   const [numberOfEmployeesOptions, setNumberOfEmployeesOptions] = useState<ReferenceData[]>([]);
-  
-  const graphQLClient = useGraphqlClient(accessToken);
+  const [revenueSizeOptions, setRevenueSizeOptions] = useState<ReferenceData[]>([]);
+  const [countryOptions, setCountryOptions] = useState<ReferenceData[]>([]);
   const catalogClient = useCatalogManagerClient(accessToken);
 
-  // Fetch catalog data for industry and employee size options
   useEffect(() => {
     const fetchCatalogData = async () => {
       try {
         setLoading(true);
         
-        // Fetch industry classes
-        const industryClassResponse = await catalogClient.getCatalogEntriesList({ 
-          catalogIdentifier: 'IndustryClass', 
-          version: 'v1' 
-        });
+        const fetchAllCatalogEntries = async (catalogIdentifier: string, version: string = 'v1') => {
+          let allEntries: any[] = [];
+          let offset = 0;
+          const limit = 100; 
+          let hasMore = true;
+
+          while (hasMore) {
+            const response = await catalogClient.getCatalogEntriesList({
+              catalogIdentifier,
+              version
+            }, {
+              limit,
+              offset
+            });
+
+            if (response.data && response.data.length > 0) {
+              allEntries = [...allEntries, ...response.data];
+              offset += limit;
+              
+              if (response.data.length < limit) {
+                hasMore = false;
+              }
+            } else {
+              hasMore = false;
+            }
+          }
+
+          return allEntries
+            .map((entry: any) => ({
+              id: entry.id,
+              code: entry.code,
+              value: entry.value
+            }))
+            .sort((a, b) => a.value.localeCompare(b.value));
+        };
         
-        if (industryClassResponse.data) {
-          setIndustryOptions(industryClassResponse.data.map((entry: any) => ({
-            id: entry.id,
-            code: entry.code,
-            value: entry.value
-          })));
-        }
+        const [industryData, employeeSizeData, revenueSizeData, countryData] = await Promise.all([
+          fetchAllCatalogEntries('IndustryClass'),
+          fetchAllCatalogEntries('EmployeeSize'),
+          fetchAllCatalogEntries('RevenueSize'),
+          fetchAllCatalogEntries('Country')
+        ]);
         
-        // Fetch employee size options
-        const employeeSizeResponse = await catalogClient.getCatalogEntriesList({ 
-          catalogIdentifier: 'EmployeeSize', 
-          version: 'v1' 
-        });
-        
-        if (employeeSizeResponse.data) {
-          setNumberOfEmployeesOptions(employeeSizeResponse.data.map((entry: any) => ({
-            id: entry.id,
-            code: entry.code,
-            value: entry.value
-          })));
-        }
+        setIndustryOptions(industryData);
+        setNumberOfEmployeesOptions(employeeSizeData);
+        setRevenueSizeOptions(revenueSizeData);
+        setCountryOptions(countryData);
       } catch (err) {
         console.error('Error fetching catalog data:', err);
         message.error('Failed to load reference data');
@@ -155,10 +184,8 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
     fetchCatalogData();
   }, [catalogClient]);
 
-  // Prepare initial values for the form - these will be overridden by the useEffect after catalog data loads
   const initialValues = useMemo(() => {
     const logAndReturn = (values: any) => {
-      console.log('Initial form values:', values);
       return values;
     };
 
@@ -166,14 +193,15 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
       ...leadData,
       companyName: leadData?.name,
       industry: leadData?.industryRef,
-      numberOfEmployees: leadData?.numberOfEmployeesRef
+      numberOfEmployees: leadData?.numberOfEmployeesRef,
+      revenue: leadData?.annualRevenueRef,
+      country: leadData?.country?.value
     });
   }, [leadData]);
 
   // Apply form values once catalog data is loaded and we have lead data
   useEffect(() => {
     if (!loading && leadData && form) {
-      console.log('Applying catalog values to form. Lead data:', leadData);
       
       // Try to match industry by id first, then by code or value if needed
       if (leadData.industryRef) {
@@ -186,7 +214,6 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
         
         if (industryMatch) {
           form.setFieldsValue({ industry: industryMatch.id });
-          console.log('Setting industry field to:', industryMatch.id, industryMatch.value);
         }
       }
       
@@ -195,7 +222,6 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
       
       // First try to use the size field if it exists (THIS IS THE PRIORITY)
       if (leadData.numberOfEmployees) {
-        console.log('Trying to match size field value:', leadData.numberOfEmployees.value);
         const sizeValueMatch = numberOfEmployeesOptions.find(
           option => 
             option.value === leadData.numberOfEmployees?.value || 
@@ -205,13 +231,11 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
         if (sizeValueMatch) {
           form.setFieldsValue({ numberOfEmployees: sizeValueMatch.id });
           employeeValueSet = true;
-          console.log('Setting numberOfEmployees from size data:', sizeValueMatch.id, sizeValueMatch.value);
         }
       }
       
       // Only if size didn't match, try numberOfEmployees field
       if (!employeeValueSet && leadData.numberOfEmployeesRef) {
-        console.log('Trying to match numberOfEmployees field value:', leadData.numberOfEmployeesRef);
         const employeeMatch = numberOfEmployeesOptions.find(
           option => 
             option.code === leadData.numberOfEmployees?.code ||
@@ -220,31 +244,43 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
         
         if (employeeMatch) {
           form.setFieldsValue({ numberOfEmployees: employeeMatch.id });
-          console.log('Setting numberOfEmployees field using numberOfEmployees data:', employeeMatch.id, employeeMatch.value);
         }
       }
       
-      // After all matching attempts, log the final form values
-      console.log('Final form values after catalog matching:', form.getFieldsValue());
+      // Match annual revenue
+      if (leadData.annualRevenue || leadData.annualRevenueRef) {
+        const revenueMatch = revenueSizeOptions.find(
+          option => 
+            option.id === leadData.annualRevenueRef || 
+            option.code === leadData.annualRevenue?.code ||
+            option.value === leadData.annualRevenue?.value
+        );
+        
+        if (revenueMatch) {
+          form.setFieldsValue({ revenue: revenueMatch.id });
+        }
+      }
+      
+      // Match country
+      if (leadData.country || leadData.countryRef) {
+        const countryMatch = countryOptions.find(
+          option => 
+            option.id === leadData.countryRef || 
+            option.code === leadData.country?.code ||
+            option.value === leadData.country?.value
+        );
+        
+        if (countryMatch) {
+          form.setFieldsValue({ country: countryMatch.id });
+        }
+      }
+      
     }
-  }, [loading, leadData, form, industryOptions, numberOfEmployeesOptions]);
-
-  useEffect(() => {
-    if (leadData?.industry) {
-      console.log('Lead industry data:', leadData.industry);
-    }
-    if (leadData?.numberOfEmployees) {
-      console.log('Lead employees data:', leadData.numberOfEmployees);
-    }
-    if (leadData?.numberOfEmployees) {
-      console.log('Lead size data:', leadData.numberOfEmployees);
-    }
-  }, [leadData]);
+  }, [loading, leadData, form, industryOptions, numberOfEmployeesOptions, revenueSizeOptions, countryOptions]);
 
   const handleSave = async (values: any) => {
     try {
       setSaving(true);
-      console.log("Savaee?????")
       // Parse the address field to get city, postalCode, and country
       let city = "";
       let postalCode = "";
@@ -260,20 +296,40 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
       // Get the selected industry and employee size objects
       const selectedIndustry = industryOptions.find(option => option.id === values.industry);
       const selectedEmployeeSize = numberOfEmployeesOptions.find(option => option.id === values.numberOfEmployees);
-
-      console.log('Selected Industry ID:', values.industry);
-      console.log('Selected Industry Object:', selectedIndustry);
-      console.log('Selected Employee Size ID:', values.numberOfEmployees);
-      console.log('Selected Employee Size Object:', selectedEmployeeSize);
-
+      const selectedRevenueSize = revenueSizeOptions.find(option => option.id === values.revenue);
+      const selectedCountry = countryOptions.find(option => option.id === values.country);
       // Prepare the payload for the API
       const savePayload = {
         changeMode: "UPDATE", // Using UPDATE since we're editing an existing lead
-        id: leadData.id,
         lead: {
-          version: leadData?.version || 0,
+          id: leadData.id,
+          version: leadData?.version,
+          companyWebsite: values.companyWebsite,
           companyName: values.companyName,
-          companyWebsite: values.website || "",
+          numberOfEmployeesRef: values.numberOfEmployees,
+          numberOfEmployees: selectedEmployeeSize ? {
+            id: selectedEmployeeSize.id,
+            code: selectedEmployeeSize.code,
+            value: selectedEmployeeSize.value
+          } : undefined,
+          industryRef: values.industry,
+          industry: selectedIndustry ? {
+            id: selectedIndustry.id,
+            code: selectedIndustry.code,
+            value: selectedIndustry.value
+          } : undefined,
+          annualRevenue: values.revenue ? {
+            id: values.revenue,
+            code: values.revenue,
+            value: values.revenue
+          } : undefined,
+          annualRevenueRef: values.revenue,
+          countryRef: values.country,
+          country: selectedCountry ? {
+            id: selectedCountry.id,
+            code: selectedCountry.code,
+            value: selectedCountry.value
+          } : undefined
         //   city: city,
         //   postalCode: postalCode,
         //   countryRef: country,
@@ -285,8 +341,6 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
         //   legalFormRef: leadData.legalFormRef || ""
         }
       };
-      
-      console.log('Saving lead data with payload:', savePayload);
       
       // Call the REST API to save the lead data
       const response = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveLead', {
@@ -303,13 +357,17 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
         throw new Error(errorData?.message || 'Failed to save lead data');
       }
       
-      // Update the local data and UI
       onSave({
         ...leadData,
         name: values.companyName,
         address: values.address,
         revenue: values.revenue,
-        website: values.website,
+        companyWebsite: values.companyWebsite,
+        annualRevenue: values.annualRevenue ? {
+          id: values.annualRevenue,
+          code: values.annualRevenue,
+          value: values.annualRevenue
+        } : undefined,
         industryRef: values.industry,
         industry: selectedIndustry ? {
           id: selectedIndustry.id,
@@ -321,6 +379,12 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
           id: selectedEmployeeSize.id,
           code: selectedEmployeeSize.code,
           value: selectedEmployeeSize.value
+        } : undefined,
+        countryRef: values.country,
+        country: selectedCountry ? {
+          id: selectedCountry.id,
+          code: selectedCountry.code,
+          value: selectedCountry.value
         } : undefined,
         // Keep other reference fields
         statusRef: leadData.statusRef,
@@ -442,31 +506,6 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
             </Form.Item>
 
             <Form.Item
-              name="address"
-              label={
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <EnvironmentOutlined style={{ marginRight: '8px' }} />
-                  <span>Address</span>
-                </div>
-              }
-              rules={[{ required: true, message: 'Please enter the company address' }]}
-            >
-              <Input placeholder="Enter company address (City, Postal Code, Country)" data-testid="address-input" />
-            </Form.Item>
-            
-            <Form.Item
-              name="founded"
-              label={
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <CalendarOutlined style={{ marginRight: '8px' }} />
-                  <span>Founded</span>
-                </div>
-              }
-            >
-              <Input placeholder="Enter founding year" data-testid="founded-input" />
-            </Form.Item>
-            
-            <Form.Item
               name="revenue"
               label={
                 <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -475,11 +514,21 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
                 </div>
               }
             >
-              <Input placeholder="Enter annual revenue" data-testid="revenue-input" />
+              <Select 
+                placeholder="Select annual revenue" 
+                data-testid="revenue-select"
+                allowClear
+                loading={loading}
+                style={{ width: '100%' }}
+              >
+                {revenueSizeOptions.map(option => (
+                  <Option key={option.id} value={option.id}>{option.value}</Option>
+                ))}
+              </Select>
             </Form.Item>
             
             <Form.Item
-              name="website"
+              name="companyWebsite"
               label={
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <GlobalOutlined style={{ marginRight: '8px' }} />
@@ -531,6 +580,29 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
                 style={{ width: '100%' }}
               >
                 {numberOfEmployeesOptions.map(option => (
+                  <Option key={option.id} value={option.id}>{option.value}</Option>
+                ))}
+              </Select>
+            </Form.Item>
+            
+            {/* Country field */}
+            <Form.Item
+              name="country"
+              label={
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <GlobalOutlined style={{ marginRight: '8px' }} />
+                  <span>Country</span>
+                </div>
+              }
+            >
+              <Select 
+                placeholder="Select country" 
+                data-testid="country-select"
+                allowClear
+                loading={loading}
+                style={{ width: '100%' }}
+              >
+                {countryOptions.map(option => (
                   <Option key={option.id} value={option.id}>{option.value}</Option>
                 ))}
               </Select>
