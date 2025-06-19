@@ -3,7 +3,6 @@ import { Row, Col, Tag, Button, Tooltip, message, Modal, Drawer } from 'antd';
 import { PlusOutlined, DollarOutlined, TrophyOutlined, ClockCircleOutlined, RiseOutlined, DeleteOutlined } from '@ant-design/icons';
 import { CrmDataTable } from '../../components/tables';
 import type { ColumnsType } from "antd/es/table";
-import "./styles/OpportunityOverview.css";
 import { PageHeader } from '../../components/layout/PageHeader';
 import { BusinessAppContextProps } from '@/business-apps/types';
 import { useOpportunitiesData, OpportunityData } from './hooks';

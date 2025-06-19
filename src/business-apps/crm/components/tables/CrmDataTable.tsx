@@ -4,7 +4,6 @@ import { SearchOutlined } from "@ant-design/icons";
 import type { TableProps, TablePaginationConfig } from "antd/es/table";
 import type { ColumnsType } from "antd/es/table";
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import "./styles/CrmDataTable.css";
 
 export interface CrmDataTableProps<T extends object> extends BusinessAppContextProps {
   /**

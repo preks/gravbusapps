@@ -29,7 +29,6 @@ import {
   LinkOutlined,
   PaperClipOutlined
 } from '@ant-design/icons';
-import './styles/OpportunityDetail.css';
 import dayjs from 'dayjs';
 import { getOpportunityByIdQuery } from './queries';
 import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";

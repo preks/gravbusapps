@@ -1,6 +1,5 @@
 import { ReactNode } from 'react';
 import { Typography, Button, Row, Col } from 'antd';
-import './styles/PageHeader.css';
 
 const { Title, Paragraph } = Typography;
 

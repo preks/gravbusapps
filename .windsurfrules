@@ -74,6 +74,8 @@ src
 - Whenever an input field is used to provide search by an user, use the existing `DebouncedInput` component to provide debounced search.
 - When tab components are used, provide a unique tab key for each tab and use this in a URL query parameter.
 
+- Add all CSS files in `src/index.css`, so that they are included in `dist/assets/main.css` by the vite bundler. Only this way will they be applied on the NEWWORK platform.
+
 # Project Development
 - Simplify the code as much as possible and keep it clean
 - Remove unused code
