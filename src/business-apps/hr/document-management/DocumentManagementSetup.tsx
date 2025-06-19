@@ -253,19 +253,19 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
       fixed: 'right' as const,
       width: 120,
       render: (_: any, record: DocumentType) => ( 
-        <div className="flex gap-2">
+        <div className="gba:flex gba:gap-2">
           <Button 
             type="text" 
             icon={<EditOutlined />} 
             onClick={() => showModal(record)}
-            className="text-gray-500 hover:text-blue-500"
+            className="gba:text-gray-500 gba:hover:text-blue-500"
           />
           <Button 
             type="text" 
             danger 
             icon={<DeleteOutlined />} 
             onClick={() => handleDelete(record.id)}
-            className="hover:text-red-500"
+            className="gba:hover:text-red-500"
           />
         </div>
       ),
@@ -285,10 +285,10 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
   }
 
   return (
-    <div style={{ padding: '24px' }} className="gba-document-management-container">
-      <Row justify="space-between" align="middle" style={{ marginBottom: '24px' }} className="gba-header-row">
+    <div style={{ padding: '24px' }} className="gba:document-management-container">
+      <Row justify="space-between" align="middle" style={{ marginBottom: '24px' }} className="gba:header-row">
         <Col>
-          <Title level={3} style={{ margin: 0 }} className="gba-page-title">
+          <Title level={3} style={{ margin: 0 }} className="gba:page-title">
             {t('documentManagement.title', 'Document Type Management')}
           </Title>
           <Text type="secondary">
@@ -298,16 +298,16 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
       </Row>
 
       {/* KPI and Search Card */}
-      <Card style={{ marginBottom: '20px' }}>
+      <Card className="gba:mb-2">
         <Row gutter={16} align="middle" justify="space-between">
           <Col span={10}>
             <div>
-              <div className="text-sm text-gray-500">
+              <div className="gba:text-sm gba:text-gray-500">
                 {moduleFilter 
                   ? t('documentManagement.kpi.matching', 'Matching Document Types')
                   : t('documentManagement.kpi.total', 'Total Document Types')}
               </div>
-              <div style={{ fontWeight: 'bold', fontSize: '24px' }}>
+              <div className="gba:font-bold gba:text-2xl">
                 {hookLoading 
                   ? <span style={{ fontWeight: 'normal', fontSize: '12px' }}>
                       {t('common.loading', 'Loading...')}
@@ -321,7 +321,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
               type="primary" 
               icon={<PlusOutlined />} 
               onClick={() => showModal()}
-              className="gba-create-button"
+              className="gba:create-button"
             >
               {t('documentManagement.actions.addDocumentType', 'Add Document Type')}
             </Button>
@@ -331,7 +331,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
 
       {/* Filter and Table Card */}
       <Card>
-        <Row gutter={16} justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
+        <Row gutter={16} justify="space-between" align="middle" className="gba:mb-2">
           <Col span={5}>
             <Select
               placeholder={t('documentManagement.filters.module', 'Filter by Module')}
@@ -363,7 +363,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               allowClear
-              className="w-full"
+              className="gba:w-full"
             />
           </Col>
         </Row>
