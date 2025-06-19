@@ -115,23 +115,7 @@ const emptyCompanyData = {
     name: '',
     avatar: ''
   },
-  lastContacted: '',
-  notableFacts: '',
-  financialMetrics: {
-    revenue: '',
-    funding: '',
-    valuation: ''
-  },
-  keyPeople: {
-    founders: [] as Person[],
-    leadership: [] as Person[]
-  },
-  activityTimeline: [] as Activity[],
-  legalInformation: {
-    registerId: '',
-    vatId: ''
-  },
-  geographicPresence: '',
+  numberOfEmployeesRef: '',
   addresses:{
     city:'',
     countryRef:'',
@@ -151,7 +135,24 @@ const emptyCompanyData = {
       value:'',
       code:''
     }
-  }
+  },
+  lastContacted: '',
+  notableFacts: '',
+  financialMetrics: {
+    revenue: '',
+    funding: '',
+    valuation: ''
+  },
+  keyPeople: {
+    founders: [] as Person[],
+    leadership: [] as Person[]
+  },
+  activityTimeline: [] as Activity[],
+  legalInformation: {
+    registerId: '',
+    vatId: ''
+  },
+  geographicPresence: ''
 };
 
 const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, onBack, accessToken }) => {
@@ -411,7 +412,14 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
   };
 
   return (
-    <div className="gba:company-detail-container" style={{ padding: '0 12px', maxWidth: '1600px', margin: '0 auto' }}>
+    <div className="gba:company-detail-container" style={{ 
+      padding: '24px', 
+      backgroundColor: '#ffffff', 
+      width: '100%',
+      maxWidth: '100%',
+      boxSizing: 'border-box'
+    }}
+    data-testid="company-detail-container">
       {loading ? (
         <div className="gba:full-page-loading" style={{
           display: 'flex',
@@ -431,18 +439,19 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
       
       <div 
         className="gba:back-link" 
-        onClick={handleBack} 
         style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px', 
-          marginBottom: '20px',
-          cursor: 'pointer',
-          fontSize: '16px'
+          marginBottom: '20px'
         }}
       >
-        <ArrowLeftOutlined className="gba:back-icon" />
-        Back to Companies
+        <Button 
+          type="text" 
+          icon={<ArrowLeftOutlined />} 
+          onClick={handleBack}
+          className="gba:company-detail-back-button"
+          data-testid="back-to-companies-btn"
+        >
+          Back to Companies
+        </Button>
       </div>
 
       {isEditing && (
@@ -787,20 +796,20 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
                   companyData.keyPeople.founders.map((person, index) => (
                     <div key={index} className="gba:person-card">
                       <Avatar 
-                        size={40} 
-                        src={person?.avatar}
-                        className="gba:person-avatar"
-                        style={{ backgroundColor: stringToColor(person?.name) }}
-                      >
-                        {person?.name?.charAt(0)}
-                      </Avatar>
-                      <div className="gba:person-info">
-                        <Text className="gba:person-name">{person?.name}</Text>
-                        {person.title && <Text className="gba:person-title">{person.title}</Text>}
-                      </div>
-                    </div>
-                  ))
-                )}
+        size={40} 
+        src={person.avatar}
+        className="gba:person-avatar"
+        style={{ backgroundColor: stringToColor(person.name) }}
+      >
+        {person.name.charAt(0)}
+      </Avatar>
+      <div className="gba:person-info">
+        <Text className="gba:person-name">{person.name}</Text>
+        {person.title && <Text className="gba:person-title">{person.title}</Text>}
+      </div>
+    </div>
+  ))
+)}
               </div>
 
               <div className="gba:people-group">

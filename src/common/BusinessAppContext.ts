@@ -29,6 +29,7 @@ export interface BusinessAppContextProps {
   userInfo?: UserInfoProps;
   additionalData?: { [k: string]: any };
   activeStructureId?: string;
+  activeUserLocale?: string;
 }
 
 // Create and export the context object

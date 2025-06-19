@@ -17,10 +17,15 @@
 @import "tw-animate-css";
 @import "./business-apps/irm/kanban-board/KanbanBoard/kanban-styles.css";
 @import "./business-apps/crm/overview-screens/CompanyOverview/styles/CompanyOverview.css";
+@import "./business-apps/crm/overview-screens/CompanyOverview/AddNewCompany/styles/AddNewCompany.css";
+@import "./business-apps/crm/overview-screens/OpportunityOverview/styles/OpportunityOverview.css";
+@import "./business-apps/crm/components/tables/styles/CrmDataTable.css";
+@import "./business-apps/crm/components/layout/styles/PageHeader.css";
 @import "./business-apps/crm/detail-screens/CompanyDetail/styles/CompanyDetail.css";
+@import "./business-apps/crm/detail-screens/OpportunityDetail/styles/OpportunityDetail.css";
+@import "./business-apps/hr/absence/apps/AbsenceCalendar/styles/AbsenceCalendar.css";
+@import "./business-apps/fin/expenses/forms/expense-item/ExpenseItem.css";
 @import "@newwork/gravity-ui-catalog/dist/assets/style.css";
-
-@config "../tailwind.config.js";
 
 @custom-variant dark (&:is(.dark *));
 
