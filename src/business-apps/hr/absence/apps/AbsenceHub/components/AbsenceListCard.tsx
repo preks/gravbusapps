@@ -38,7 +38,7 @@ const AbsenceListCard: React.FC<AbsenceListCardProps> = ({ absence }) => {
       <div className="gba:absenceListCardTitle" data-testid="absence-list-card-title">{title}</div>
       <div className="gba:absenceListCardDetails" data-testid="absence-list-card-details">
         <span data-testid="absence-icon"><CalendarOutlined /></span>
-        <span className="gba:absenceDates" data-testid="absence-list-card-dates">{startDate} - {endDate}</span>
+        <span className="gba:absenceListDates" data-testid="absence-list-card-dates">{startDate} - {endDate}</span>
         <span className="gba:absenceDuration" data-testid="absence-list-card-duration">{duration}</span>
       </div>
       <div className="gba:absenceDescription" data-testid="absence-list-card-description">{description}</div>

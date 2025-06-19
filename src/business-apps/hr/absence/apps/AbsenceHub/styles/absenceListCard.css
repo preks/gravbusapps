@@ -167,8 +167,8 @@
   margin-right: 2px;
   color: #1976d2;
 }
-.gba\:absenceDates {
-  font-size: 0.95rem;
+.gba\:absenceListDates {
+  font-size: 14px;
   color: #6b7280;
 }
 .gba\:absenceDuration {

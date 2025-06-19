@@ -190,8 +190,8 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
       : upcomingAbsences.filter((a) => a.type === activeFilter);
 
   return (
-    <div className="gba:container" data-testid="absencehub-container">
-      <div className="gba:header" data-testid="absencehub-header">
+    <div className="gba:absence-container" data-testid="absencehub-container">
+      <div className="gba:absence-header" data-testid="absencehub-header">
         <div className="gba:font-bold gba:text-2xl" data-testid="absencehub-title">Absence Overview</div>
         <div className="gba:text-gray-500 gba:text-lg" data-testid="absencehub-description">View and manage your absences</div>
       </div>
