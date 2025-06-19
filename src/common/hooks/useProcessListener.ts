@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { useFlowClient } from '../network/flows/useFlowClient';
 
 interface ProcessStartEventDetail {
   domain: string;
@@ -15,12 +14,7 @@ interface ProcessStartEventDetail {
  *
  * @returns void
  */
-export const useProcessListener = (accessToken: string): void => {
-  // Create the flow client at the top level of the hook
-  const flowClient = useFlowClient({
-    accessToken
-  });
-  
+export const useProcessListener = (): void => {
   useEffect(() => {
     const handleProcessStartEvent = (event: CustomEvent<ProcessStartEventDetail>) => {
       const { domain, processName, startProcessBody, processInstanceId } = event.detail;
@@ -35,16 +29,6 @@ export const useProcessListener = (accessToken: string): void => {
           processName,
           startProcessBody,
           processInstanceId
-        });
-        
-        // Extract and remove structureId and platformContext if they exist
-        const { structureId, platformContext, ...cleanPayload } = startProcessBody;
-        
-        flowClient.executeFlow({
-          accessScope: domain,
-          context: processName
-        }, cleanPayload).catch(error => {
-          console.error('Error starting process:', error);
         });
       }
     };
@@ -62,5 +46,5 @@ export const useProcessListener = (accessToken: string): void => {
         handleProcessStartEvent as EventListener
       );
     };
-  }, [accessToken, flowClient]);
+  }, []);
 };

@@ -192,7 +192,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {/* Add the ProcessEventListener which handles process start events */}
-      <ProcessEventListener accessToken={accessToken} />
+      <ProcessEventListener />
       <Sider
         width={250}
         collapsible

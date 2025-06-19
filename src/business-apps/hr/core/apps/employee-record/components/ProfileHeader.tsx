@@ -14,11 +14,11 @@ import {
   PiChat,
   PiCurrencyDollar
 } from 'react-icons/pi';
-import EmployeeAvatar from '../../components/employeeAvatar/EmployeeAvatar';
-import { OnlineStatus } from '../../components/employeeAvatar/types';
+import EmployeeAvatar from '../../../../components/employeeAvatar/EmployeeAvatar';
+import { OnlineStatus } from '../../../../components/employeeAvatar/types';
 import { Employee } from '../hooks/useEmployeeData';
 import { formatPhoneNumber, getEmployeeFullName } from '../utils/formatters';
-import { BusinessAppContextProps } from '../../../../common/BusinessAppContext';
+import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext';
 //import { useProcessExecutorModalContext } from 'sdks/process-executor-sdk';
 
 // TO-DO: ADD TRANSLATION for new availability status labels
@@ -86,9 +86,9 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
       <div className="gba:grow">
         <div className="gba:text-xs gba:text-gray-500">{label}</div>
         {linkTo ? (
-          <a href={linkTo} className="gba:text-sm gba:text-blue-600 gba:inline-flex gba:items-center">
-            {value}
-            <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-3 gba:w-3 gba:shrink-0 gba:ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <a href={linkTo} className="gba:text-sm gba:text-blue-600 gba:inline-flex gba:items-baseline gba:flex-wrap">
+            <span className="gba:whitespace-normal">{value}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-3 gba:w-3 gba:shrink-0 gba:ml-0.5 gba:align-baseline gba:inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
           </a>
@@ -245,9 +245,9 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
             
             {/* Profile Info */}
             <div className="gba:grow gba:text-center">
-              <h1 className="gba:text-xl gba:font-bold gba:mb-1 gba:text-gray-800">
+              <div className="gba:text-xl gba:font-bold gba:mb-1 gba:text-gray-800" data-testid="employee-name">
                 {getEmployeeFullName(employee)}
-              </h1>
+              </div>
               <p className="gba:text-gray-600 gba:mb-4 gba:text-sm">
                 {employee.employeePosition?.jobPosition?.name ?? "Not assigned"}
               </p>
@@ -273,7 +273,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                   }
                   linkTo={
                     employee.employeePosition?.supervisor?.id && employee.employeePosition.supervisor.id !== employee.id
-                      ? `/platform/employee-profile?employeeId=${employee.employeePosition.supervisor.id}`
+                      ? `/platform/employee-record?employeeId=${employee.employeePosition.supervisor.id}`
                       : undefined
                   }
                 />

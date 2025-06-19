@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import { Employee } from '../../hooks/useEmployeeData';
 import { formatPhoneNumber } from '../../utils/formatters';
 import { ProfileSection } from '../ProfileSection';
-import { useGetAcademicTitles } from '../../../hooks/useGetAcademicTitles';
+import { useGetAcademicTitles } from '../../../../../hooks/useGetAcademicTitles';
 
 interface DetailsTabProps {
   employee: Employee;

@@ -3,17 +3,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Employee } from '../../hooks/useEmployeeData';
 import { Card } from '@newwork/gravity-ui-catalog';
-import { DataCards } from '@/business-apps/hr/employeeProfile/components/DataCards';
-import { Modal, Spin, Divider, Form, Upload, Select, Input, DatePicker, message } from 'antd';
+import { DataCards } from '@/business-apps/hr/core/apps/employee-record/components/DataCards';
+import { Modal, Spin, Divider } from 'antd';
 import { Button } from '@newwork/gravity-ui-catalog';
-import { UploadOutlined, PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import 'dayjs/plugin/weekday';
 import 'dayjs/plugin/localeData';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { useFileClient } from '@/common/network/files/useFileClient';
-import { useFlowClient } from '@/common/network/flows/useFlowClient';
-import { EmployeeDocumentFlowPayload } from '@/common/types/FlowTypes';
 import { employeeDocumentsQuery, documentTypeCatalogQuery } from '../../queries/documentQueries';
 import { startProcess } from '@/common/utils/start-process';
 
@@ -76,13 +74,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
   const [documentLoading, setDocumentLoading] = useState(false);
   const [documentBlob, setDocumentBlob] = useState<Blob | null>(null);
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [uploadLoading, setUploadLoading] = useState(false);
-  const [documentTypes, setDocumentTypes] = useState<{ id: string; value: string; code: string; parentEntryId?: string }[]>([]);
-  const [filteredDocumentTypes, setFilteredDocumentTypes] = useState<{ id: string; value: string; translations?: { localeCode: string; value: string }[], code: string; parentEntryId?: string }[]>([]);
-  const [documentGroups, setDocumentGroups] = useState<{ id: string; value: string; translations?: { localeCode: string; value: string }[] }[]>([]);
-  const [isDocTypeDisabled, setIsDocTypeDisabled] = useState<boolean>(true);
-  const [uploadForm] = Form.useForm();
   
   // For tracking if the component is mounted (to prevent state updates after unmount)
   const isMounted = useRef(true);
@@ -106,128 +97,20 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
     accessToken
   });
 
-  // FlowClient hook with proper BusinessAppContext for authentication
-  const flowClient = useFlowClient({
-    accessToken
-  });
+  // Using FileClient for document downloads
+  // Note: We no longer need flowClient as we're using startProcess directly
 
-  // Function to prepare the document upload modal
-  const prepareUploadModal = async () => {
-    // No need to fetch document types as they're already loaded in the main useEffect
-    // Just make sure we have the latest data
-    if (documentTypes.length === 0 || documentGroups.length === 0) {
-      try {
-        const screenDataResponse = await graphQLClient.request(employeeDocumentsQuery, {
-          employeeId: employee.id
-        });
-        
-        if (screenDataResponse?.documentType) {
-          setDocumentTypes(screenDataResponse.documentType);
-          setFilteredDocumentTypes(screenDataResponse.documentType); // Initially show all document types
-        }
-        
-        if (screenDataResponse?.documentGroup) {
-          setDocumentGroups(screenDataResponse.documentGroup);
-        }
-      } catch (error) {
-        console.error('Error preparing document upload modal:', error);
-        message.error('Failed to load document types and groups');
-      }
-    } else {
-      // If document types are already loaded, initialize filtered document types to show all
-      setFilteredDocumentTypes(documentTypes);
-    }
-    
-    // Reset form
-    uploadForm.resetFields();
-  };
-
-  // Handle document upload
-  const handleDocumentUpload = async (values: any) => {
-    setUploadLoading(true);
-
-    try {
-      // Get the file from the Upload component
-      const fileList = values.document;
-      if (!fileList || fileList.length === 0) {
-        message.error('No file selected');
-        setUploadLoading(false);
-        return;
-      }
-      
-      const file = fileList[0].originFileObj;
-
-      // Use the new uploadFile method we implemented in FileClient
-      const fileUploadResult = await fileClient.uploadFile(file, {
-          accessScope: "tenant"
-        },
-        {
-          appName: "employee-profile",
-          folderPath: `/documents/${employee?.id}`,
-          mimeType: file.type
-        });
-      
-      // The upload response should contain the file ID
-      if (!fileUploadResult || !fileUploadResult.fileInfo || !fileUploadResult.fileInfo.fileId) {
-        throw new Error('Failed to upload file: Invalid response');
-      }
-      
-      // Prepare the document data
-      const documentPayload: EmployeeDocumentFlowPayload = {
-        employeeDocument: {
-          employeeId: employee.id,
-          name: fileList[0].name,
-          file: fileUploadResult.fileInfo.fileId,
-          type: values.documentType,
-          documentGroup: values.documentGroup,
-          description: values.description || '',
-          mimeType: file.type,
-          fileSize: file.size,
-          validFrom: new Date().toISOString().split('T')[0], // Today's date in ISO format
-          validTo: values.expiryDate ? values.expiryDate.format('YYYY-MM-DD') : undefined
-        }
-      };
-      
-      startProcess({
-        domain: 'employee',
-        processName: 'employeeDocuments',
-        payload: documentPayload
-      });
-
-      /* await flowClient.executeFlow(
-        {
-          accessScope: 'employee',
-          context: 'employeeDocuments'
-        },
-        documentPayload
-      ); */
-      
-      // Success message and cleanup
-      message.success('Document uploaded successfully');
-      setIsUploadModalOpen(false);
-      uploadForm.resetFields();
-      
-      setTimeout(() => fetchDocuments(), 1000);
-    } catch (error) {
-      console.error('Error uploading document:', error);
-      message.error('Failed to upload document. Please try again.');
-    } finally {
-      setUploadLoading(false);
-    }
-  };
-
-  // Open the upload modal
+  // Function to trigger startProcess directly for uploading documents
   const showUploadModal = () => {
-    prepareUploadModal();
-    setIsUploadModalOpen(true);
-  };
-
-  // Close the upload modal
-  const closeUploadModal = () => {
-    setIsUploadModalOpen(false);
-    uploadForm.resetFields();
-    // Reset filtered document types
-    setFilteredDocumentTypes(documentTypes);
+    startProcess({
+      domain: 'employee',
+      processName: 'uploadEmployeeDocument',
+      payload: {
+        employeeDocument: {
+          employeeId: employee.id
+        }
+      }
+    });
   };
 
   // Function to fetch documents and document types/groups
@@ -245,14 +128,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
       
       // Extract document data and document types from the response
       const employeeDocuments: EmployeeDocument[] = screenDataResponse?.EmployeeDocument || [];
-      
-      // Extract document types and groups for dropdowns
-      const documentTypesList = screenDataResponse?.documentType || [];
-      const documentGroupsList = screenDataResponse?.documentGroup || [];
-      
-      // Set the document types and groups for the dropdowns
-      setDocumentTypes(documentTypesList);
-      setDocumentGroups(documentGroupsList);
       
       // Get type references to fetch detailed type information with second query
       const documentTypeRefs = employeeDocuments
@@ -322,14 +197,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
   useEffect(() => {
     fetchDocuments();
   }, [employee?.id]);
-
-  // Upload form normalization function
-  const normFile = (e: any) => {
-    if (Array.isArray(e)) {
-      return e;
-    }
-    return e?.fileList;
-  };
 
   // Function to handle opening a document in the viewer
   const openDocumentViewer = async (document: Document) => {
@@ -542,21 +409,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
       <div className="gba:flex gba:justify-end gba:mb-4">
         <Button
           onClick={showUploadModal}
-          /* onClick={() => {
-            if (typeof window !== 'undefined' && window.dispatchEvent) {
-              window.dispatchEvent(
-                new CustomEvent('com.newwork.process.start', {
-                  detail: {
-                    domain: 'employee',
-                    processName: 'uploadEmployeeDocument',
-                    startProcessBody: {
-                      employeeId: employee.id
-                    }
-                  }
-                })
-              );
-            }
-          }} */
           data-testid="upload-document-button"
           variant="primary"
           icon={<PlusOutlined />}
@@ -565,128 +417,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
           Upload Document
         </Button>
       </div>
-
-      {/* Document upload modal */}
-      <Modal
-        title="Upload Document"
-        open={isUploadModalOpen}
-        onCancel={closeUploadModal}
-        footer={null}
-        width={500}
-        destroyOnHidden
-      >
-        <Form
-          form={uploadForm}
-          layout="vertical"
-          onFinish={handleDocumentUpload}
-          data-testid="document-upload-form"
-        >
-          <Form.Item
-            name="document"
-            label="Upload Document"
-            valuePropName="file"
-            getValueFromEvent={normFile}
-            rules={[{ required: true, message: 'Please upload a document' }]}
-          >
-            <Upload.Dragger 
-              name="file" 
-              beforeUpload={() => false}
-              maxCount={1}
-              data-testid="document-upload-field"
-            >
-              <p className="ant-upload-drag-icon">
-                <UploadOutlined />
-              </p>
-              <p className="ant-upload-text">Click or drag file to this area to upload</p>
-            </Upload.Dragger>
-          </Form.Item>
-
-          <Form.Item
-            name="documentGroup"
-            label="Document Group"
-            rules={[{ required: true, message: 'Please select a document group' }]}
-          >
-            <Select 
-              placeholder="Select Document Group" 
-              data-testid="document-group-select"
-              onChange={(value) => {
-                // Reset the document type selection when group changes
-                uploadForm.setFieldValue('documentType', undefined);
-                
-                // If document group is empty, show all document types
-                if (!value) {
-                  setFilteredDocumentTypes(documentTypes);
-                  setIsDocTypeDisabled(true);
-                  return;
-                }
-                
-                // Otherwise, filter document types based on selected group
-                const filtered = documentTypes.filter(type => type.parentEntryId === value);
-                setFilteredDocumentTypes(filtered.length > 0 ? filtered : documentTypes);
-                setIsDocTypeDisabled(false);
-              }}
-            >
-              {documentGroups.map(group => {
-                // Get translated value if available, otherwise use default value
-                const translation = group.translations && group.translations.length > 0 ? 
-                  group.translations[0].value : group.value;
-                return (
-                  <Select.Option key={group.id} value={group.id}>{translation}</Select.Option>
-                );
-              })}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="documentType"
-            label="Document Type"
-            rules={[{ required: true, message: 'Please select a document type' }]}
-          >
-            <Select placeholder="Select Document Type" data-testid="document-type-select" disabled={isDocTypeDisabled}>
-              {filteredDocumentTypes.map(type => {
-                // Get translated value if available, otherwise use default value
-                const translation = type.translations && type.translations.length > 0 ? 
-                  type.translations[0].value : type.value;
-                return (
-                  <Select.Option key={type.id} value={type.id}>{translation}</Select.Option>
-                );
-              })}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="expiryDate"
-            label="Expiry Date"
-          >
-            <DatePicker 
-              format="DD-MM-YYYY" 
-              className="gba:w-full" 
-              data-testid="document-expiry-date"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label="Description"
-          >
-            <Input.TextArea rows={4} data-testid="document-description" />
-          </Form.Item>
-
-          <div className="gba:flex gba:justify-end gba:space-x-2">
-            <Button onClick={closeUploadModal} data-testid="document-upload-cancel-button">
-              Cancel
-            </Button>
-            <Button 
-              htmlType="submit" 
-              variant="primary" 
-              loading={uploadLoading}
-              data-testid="document-upload-submit-button"
-            >
-              Submit
-            </Button>
-          </div>
-        </Form>
-      </Modal>
 
       <DataCards
         data={documents}

@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Menu, Button, Divider } from '@newwork/gravity-ui-catalog';
-import { PiDotsThreeOutlineVertical } from 'react-icons/pi';
-import { Employee } from '../interfaces/employee.interface';
+import React, { useState } from 'react';
+import { Employee } from '../hooks/useEmployeeData';
 import { useNavigate } from 'react-router-dom';
 
 interface ActionMenuProps {
@@ -224,13 +222,13 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
         case 'goToManagerProfile':
           // Use React Router navigation instead of direct browser navigation
           // This prevents UI flashing when navigating between profiles
-          navigate(`/platform/employee-profile?employeeId=${employee.employeePosition.supervisor.id}`);
+          navigate(`/platform/employee-record?employeeId=${employee.employeePosition?.supervisor.id}`);
           break;
         case 'goToTeamAvailability':
           window.location.href = '/platform/landing_screen/srn_teamAvailability';
           break;
         case 'goToOrgUnit':
-          window.location.href = `/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}`;
+          window.location.href = `/orgchart/active/organization?organizationUnitId=${employee.employeePosition?.organizationalUnitId}`;
           break;
         default:
           break;

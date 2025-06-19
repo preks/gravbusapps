@@ -4,5 +4,5 @@ export { OpportunityOverview } from "./crm/overview-screens/OpportunityOverview/
 export { OpportunityOverviewComponent } from "./irm/overview-screens/OpportunityOverview";
 export { default as AbsenceManagementHub } from "./hr/absence/AbsenceManagementHub"
 export { KanbanBoard } from "./irm/kanban-board/KanbanBoard";
-export { default as ExpenseItems } from './expenses/ExpenseItems/ExpenseItems';
+export { default as ExpenseItems } from './expenses/expenseItems/ExpenseItems';
 export { ContactProfile } from "./irm/contact-screens/ContactProfile/ContactProfile";

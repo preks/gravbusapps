@@ -13,10 +13,10 @@ import EmploymentTab from './components/tabs/EmploymentTab';
 import DocumentsTab from './components/tabs/DocumentsTab';
 import PerformanceTab from './components/tabs/PerformanceTab';
 import AbsencesTab from './components/tabs/AbsencesTab';
-import { BusinessAppContextProps } from '../../../common/BusinessAppContext';
+import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
 
 /**
- * Employee Profile Module
+ * Employee Record Module
  * Displays detailed information about an employee
  */
 /**
@@ -35,7 +35,7 @@ import { BusinessAppContextProps } from '../../../common/BusinessAppContext';
  *
  * @param {string} employeeId - the ID of the employee to display.
  */
-export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({ 
+export const EmployeeRecord: React.FC<BusinessAppContextProps> = ({ 
   userInfo,
   accessToken,
   activeStructureId
@@ -103,7 +103,6 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
     }
   }, []);
   
-  // Fetch employee data using our custom GraphQL hook - we don't need to skip based on structureId anymore
   const { loading, error, employee, feedback, absenceEntitlements, performanceGoals } = useEmployeeData(
     accessToken,
     activeStructureId ?? '',
@@ -194,6 +193,7 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
       children: (
         <PerformanceTab 
           employee={employee}
+          accessToken={accessToken}
           employeeFeedback={feedback ?? []}
           employeePerformanceGoal={performanceGoals ?? []}
         />
@@ -251,4 +251,4 @@ export const EmployeeProfile: React.FC<BusinessAppContextProps> = ({
   );
 };
 
-export default EmployeeProfile;
+export default EmployeeRecord;

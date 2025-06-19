@@ -10,7 +10,8 @@ trigger: always_on
 
 - Everytime catalogs querying is needed, use the `useCatalogManagerClient` hook from `src/common/network/catalogs`.
 - Everytime files querying and upload is needed, use the `useFileClient` hook from `src/common/network/files`.
-- Everytime flows or flows registries are needed, use the `useFlowRegistryClient` hook from `src/common/network/flows`.
+- Everytime flow permissions or flow registries are needed, use the `useFlowRegistryClient` hook from `src/common/network/flows`.
+- Everytime flows or flow executions are needed, use the `useFlowClient` hook from `src/common/network/flows`.
 - When none of the provided catalogs, files, flows or graphql clients in `src/common/network` are matching, use the `useRestClient` hook from `src/common/network/rest`.
 
-- Do not generate mocked data. Instead, use the existing client in `src/common/network` to integrate real data.
+- Do not generate mocked data. Instead, use the existing clients in `src/common/network` to integrate real data.

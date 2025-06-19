@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from 'react';
-import { useGraphqlClient } from '../../../../common/network/graphql/useGraphQLClient';
+import { useGraphqlClient } from '../../../../../../common/network/graphql/useGraphQLClient';
 
 /**
  * GraphQL query to fetch employee data including:

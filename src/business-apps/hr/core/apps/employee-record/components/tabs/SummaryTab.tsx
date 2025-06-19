@@ -4,7 +4,6 @@ import React, { useMemo } from 'react';
 import dayjs from 'dayjs';
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData';
 import { Card } from '@newwork/gravity-ui-catalog';
-import { formatPhoneNumber, getEmployeeFullName } from '../../utils/formatters';
 import { ProfileSection } from '../ProfileSection';
 import Avatar from '@/business-apps/hr/components/employeeAvatar/EmployeeAvatar';
 import { 
@@ -13,9 +12,7 @@ import {
   PiListNumbers, 
   PiFunction, 
   PiClock, 
-  PiCalendarCheck, 
-  PiCurrencyDollar,
-  PiBuildings
+  PiCalendarCheck
 } from 'react-icons/pi';
 
 interface SummaryTabProps {
@@ -33,96 +30,6 @@ interface SummaryTabProps {
 // Specific schedule information should be retrieved from the API
 
 const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) => {
-
-  // Get business communication channels
-  const getBusinessCommunication = () => {
-    if (!employee.communication || !Array.isArray(employee.communication)) return { email: '', phone: '', mobile: '' };
-    
-    const businessComms = employee.communication.filter(
-      comm => comm?.purpose === 'INTERNAL'
-    );
-
-    const email = businessComms.find(comm => comm?.channel?.code === 'e-mail');
-    const phone = businessComms.find(comm => comm?.channel?.code === 'Phone');
-    const mobile = businessComms.find(comm => comm?.channel?.code === 'Mobile');
-
-    return {
-      email: email?.value ?? '',
-      phone: phone?.value ? formatPhoneNumber(phone.value) : '',
-      mobile: mobile?.value ? formatPhoneNumber(mobile.value) : ''
-    };
-  };
-
-  const businessComms = getBusinessCommunication();
-
-  // Prepare public profile data
-  const publicProfileData = [
-    {
-      label: "Full Name",
-      value: getEmployeeFullName(employee)
-    },
-    {
-      label: "Preferred Name",
-      value: employee.preferredName ?? ''
-    },
-    {
-      label: "Job Position",
-      value: employee.employeePosition?.jobPosition?.name ?? "Not assigned"
-    },
-    {
-      label: "Organizational Unit",
-      value: employee.employeePosition?.organizationalUnit?.name ?? "Not assigned"
-    },
-    {
-      label: "Hire Date",
-      value: employee.workingCondition[0]?.hireDate
-        ? dayjs(employee.workingCondition[0].hireDate).format('DD.MM.YYYY')
-        : ''
-    },
-    {
-      label: "Languages",
-      value: employee.language?.value ?? ''
-    },
-    {
-      label: "Business Email",
-      value: businessComms.email
-    },
-    {
-      label: "Business Phone",
-      value: businessComms.phone
-    },
-    {
-      label: "Business Mobile",
-      value: businessComms.mobile
-    },
-    {
-      label: "Manager",
-      value: employee.employeePosition?.supervisor?.id && employee.employeePosition.supervisor.id !== employee.id
-        ? `${employee.employeePosition.supervisor.firstName ?? ''} ${employee.employeePosition.supervisor.lastName ?? ''}`.trim() ?? "Not assigned"
-        : '-'
-    },
-    {
-      label: "Location",
-      value: employee.employeePosition?.siteLocation?.name ?? "Not assigned"
-    },
-    {
-      label: "Workspace",
-      value: employee.workspace ?? ''
-    },
-    {
-      label: "Business Email",
-      value: businessComms.email
-    },
-    {
-      label: "Business Phone",
-      value: businessComms.phone
-    },
-    {
-      label: "Business Mobile",
-      value: businessComms.mobile
-    }
-  ].filter(item => item.value);
-
   // Get additional attributes from additionalProperties
   const getAdditionalAttributes = () => {
     if (!employee.additionalProperties) return [];
@@ -199,7 +106,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
             {employee.employeePosition?.supervisor && employee.employeePosition.supervisor.id !== employee.id && (
               <div className="gba:flex gba:flex-col gba:items-center">
                 <a 
-                  href={`/platform/employee-profile?employeeId=${employee.employeePosition.supervisor.id}`}
+                  href={`/platform/employee-record?employeeId=${employee.employeePosition.supervisor.id}`}
                   className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
                   title={`View ${employee.employeePosition.supervisor.displayName}'s profile`}
                 >
@@ -249,7 +156,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                 {subordinates.map((member) => (
                   <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
                     <a 
-                      href={`/platform/employee-profile?employeeId=${member.id}`}
+                      href={`/platform/employee-record?employeeId=${member.id}`}
                       className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
                       title={`View ${member.displayName}'s profile`}
                     >

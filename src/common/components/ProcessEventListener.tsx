@@ -6,9 +6,9 @@ import { useProcessListener } from '../hooks/useProcessListener';
  * This component doesn't render anything visible but provides event handling functionality.
  * It should be placed high in the component tree to ensure it's always active.
  */
-export const ProcessEventListener: React.FC<{ accessToken: string }> = ({ accessToken }) => {
+export const ProcessEventListener: React.FC<{}> = () => {
   // Use the process listener hook to set up event handling
-  useProcessListener(accessToken);
+  useProcessListener();
   
   // This component doesn't render anything
   return null;
