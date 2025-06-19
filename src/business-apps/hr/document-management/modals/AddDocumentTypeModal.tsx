@@ -258,11 +258,11 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
           name="gdprRelevant"
           label={t('documentType.gdpr_label', 'GDPR Relevance')}
           valuePropName="checked"
-          className="mb-0"
+          className="gba:mb-0"
         >
-          <div className="flex items-center justify-between">
+          <div className="gba:flex gba:flex items-center gba:justify-between">
             <div>
-              <div className="text-xs text-gray-500">
+              <div className="gba:text-xs gba:text-gray-500">
                 {t('documentType.gdpr_help', 'This document contains personal data')}
               </div>
             </div>
@@ -273,7 +273,7 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
                   form.setFieldsValue({ gdprRelevant: checked });
                   handleValuesChange({}, { ...form.getFieldsValue(), gdprRelevant: checked });
                 }}
-                className={form.getFieldValue('gdprRelevant') ? 'bg-blue-500' : 'bg-gray-300'}
+                className={form.getFieldValue('gdprRelevant') ? 'gba:bg-blue-500' : 'gba:bg-gray-300'}
               />
             </Form.Item>
           </div>
@@ -289,12 +289,12 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
           name="isActive"
           label={t('documentType.status_label', 'Status')}
           valuePropName="checked"
-          className="mb-0"
+          className="gba:mb-0"
         >
-          <div className="flex items-center justify-between">
+          <div className="gba:flex gba:flex items-center gba:justify-between">
             <div>
-              <div className="font-medium">{t('documentType.active_label', 'Active')}</div>
-              <div className="text-xs text-gray-500">
+              <div className="gba:text-medium">{t('documentType.active_label', 'Active')}</div>
+              <div className="gba:text-xs gba:text-gray-500">
                 {t('documentType.active_help', 'Document type will be available for use')}
               </div>
             </div>
@@ -305,7 +305,7 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
                   form.setFieldsValue({ isActive: checked });
                   handleValuesChange({}, { ...form.getFieldsValue(), isActive: checked });
                 }}
-                className={form.getFieldValue('isActive') ? 'bg-blue-500' : 'bg-gray-300'}
+                className={form.getFieldValue('isActive') ? 'gba:bg-blue-500' : 'gba:bg-gray-300'}
               />
             </Form.Item>
           </div>
@@ -314,13 +314,13 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
 
       <Col span={24}>
         <Form.Item label={t('documentType.allowed_file_types', 'Allowed File Types')} required>
-          <div className="flex flex-wrap gap-2">
+          <div className="gba:flex gba:flex-wrap gba:gap-2">
             {fileTypes.map(type => (
               <Tag.CheckableTag
                 key={type.value}
                 checked={selectedFileTypes.includes(type.value)}
                 onChange={() => toggleFileType(type.value)}
-                className="px-3 py-1 border rounded-md"
+                className="gba:px-3 gba:py-1 gba:border gba:rounded-md"
               >
                 {type.label}
               </Tag.CheckableTag>
@@ -342,7 +342,7 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
   );
 
   const renderPermissionsTab = () => (
-    <div className="py-4 text-center text-gray-500">
+    <div className="gba:py-4 gba:text-center gba:text-gray-500">
       {t('documentType.permissions_coming_soon', 'Permissions configuration will be available soon.')}
     </div>
   );
@@ -388,7 +388,7 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
       <Form
         form={form}
         layout="vertical"
-        className="gba-document-type-form"
+        className="gba:document-type-form"
         onValuesChange={handleValuesChange}
       >
         <Tabs defaultActiveKey="1" items={items} />

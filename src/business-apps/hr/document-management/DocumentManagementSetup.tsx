@@ -165,7 +165,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
         <div>
           <div style={{ fontWeight: 600}}>{text}</div>
           {record.objectValue?.description && (
-            <div className="text-gray-500 text-xs">{record.objectValue.description}</div>
+            <div className="gba:text-gray-500 gba:text-xs">{record.objectValue.description}</div>
           )}
         </div>
       ),
@@ -190,7 +190,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
           ? record.objectValue.fileTypes 
           : (record.objectValue?.fileTypes ? [record.objectValue.fileTypes] : []);
         return (
-          <div className="flex flex-wrap gap-1">
+          <div className="gba:flex gba:flex-wrap gba:gap-1">
             {fileTypes.map((type: string, index: number) => (
               <Tag key={index} 
               color="white"
@@ -273,12 +273,12 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
   ];
 
   if (hookLoading) {
-    return <div className="p-6">{t('documentManagement.loading', 'Loading document types...')}</div>;
+    return <div className="gba:p-6">{t('documentManagement.loading', 'Loading document types...')}</div>;
   }
 
   if (hookError) {
     return (
-      <div className="p-6">
+      <div className="gba:p-6">
         {t('documentManagement.errors.loadError', 'Error loading document types: {{error}}', { error: hookError.message })}
       </div>
     );
@@ -298,7 +298,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
       </Row>
 
       {/* KPI and Search Card */}
-      <Card className="gba:mb-2">
+      <Card style={{ marginBottom: '24px' }}>
         <Row gutter={16} align="middle" justify="space-between">
           <Col span={10}>
             <div>
@@ -335,7 +335,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = (props) => {
           <Col span={5}>
             <Select
               placeholder={t('documentManagement.filters.module', 'Filter by Module')}
-              className="w-full"
+              className="gba:w-full"
               value={moduleFilter}
               onChange={(value) => {
                 setModuleFilter(value);
