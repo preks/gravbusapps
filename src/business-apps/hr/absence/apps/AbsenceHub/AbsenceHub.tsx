@@ -1,16 +1,13 @@
-import { Button, Tabs } from "antd";
+import { Tabs } from "antd";
 import {
   CalendarOutlined,
   UnorderedListOutlined,
   BarChartOutlined,
-  TrophyOutlined,
-  HeartOutlined,
   PaperClipOutlined,
 } from "@ant-design/icons";
 import { StatsCard } from "./components/StatsCard";
 import { UpcomingAbsenceCard } from "./components/UpcomingAbsenceCard";
 import AbsenceListCard from "./components/AbsenceListCard";
-import type { TabsProps } from "antd";
 import type {
   AbsenceItem,
   StatItem,
@@ -23,326 +20,378 @@ import EntitlementCard from "./components/EntitlementCard";
 import StatisticsTab from "./components/StatisticsTab";
 import type { Entitlement } from "./types/entitlementTypes";
 import { BusinessAppContextProps } from "../../../../../common/BusinessAppContext";
-import { useState } from "react";
-
-const absenceList: AbsenceListCardAbsence[] = [
-  {
-    type: "Vacation",
-    status: "Approved",
-    title: "Winter holidays",
-    dates: "Dec 20 - Dec 31, 2023",
-    duration: "12 days",
-    description: "Annual family trip",
-    requestedInfo:
-      "Requested on Nov 15, 2023 · Approved on Nov 20, 2023 by John Doe",
-    icon: <PaperClipOutlined style={{ color: "#27ae60" }} />,
-    typeColor: "green",
-    statusColor: "approved",
-    onViewDetails: () => {},
-  },
-  {
-    type: "Sick Leave",
-    status: "Approved",
-    title: "Flu",
-    dates: "Oct 5 - Oct 7, 2023",
-    duration: "3 days",
-    description: "Doctor's note provided",
-    requestedInfo:
-      "Requested on Oct 5, 2023 · Approved on Oct 5, 2023 by John Doe",
-    icon: <HeartOutlined style={{ color: "#e53935" }} />,
-    typeColor: "red",
-    statusColor: "approved",
-    onViewDetails: () => {},
-  },
-  {
-    type: "Special Leave",
-    status: "Pending",
-    title: "Family matters",
-    dates: "Feb 15 - Feb 16, 2024",
-    duration: "2 days",
-    description: "Personal family emergency",
-    requestedInfo: "Requested on Jan 25, 2024",
-    icon: <TrophyOutlined style={{ color: "#fb8c00" }} />,
-    typeColor: "yellow",
-    statusColor: "pending",
-    onViewDetails: () => {},
-  },
-];
-
-const upcomingAbsences: AbsenceItem[] = [
-  {
-    id: 1,
-    type: "Vacation",
-    icon: <PaperClipOutlined style={{ color: "#27ae60" }} />,
-    dates: "7/15/2025 - 7/25/2025",
-    description: "Summer vacation",
-    timeUntil: "In 37 days",
-    bgColor: "gba:absenceCard--green",
-  },
-  {
-    id: 2,
-    type: "Sick Leave",
-    icon: <HeartOutlined style={{ color: "#e53935" }} />,
-    dates: "8/5/2025 - 8/6/2025",
-    description: "Medical appointment",
-    timeUntil: "In 58 days",
-    bgColor: "gba:absenceCard--red",
-  },
-  {
-    id: 3,
-    type: "Work Leave",
-    icon: <PaperClipOutlined style={{ color: "#1976d2" }} />,
-    dates: "9/12/2025 - 9/15/2025",
-    description: "Conference attendance",
-    timeUntil: "In 95 days",
-    bgColor: "gba:absenceCard--blue",
-  },
-];
-
-const entitlements: Entitlement[] = [
-  {
-    type: "Relocation",
-    color: "purple",
-    used: 2,
-    year: 2025,
-  },
-  {
-    type: "Remote",
-    color: "blue",
-    used: 0,
-    year: 2025,
-  },
-  {
-    type: "Business Trip",
-    color: "blue",
-    used: 6,
-    total: 15,
-    pending: 5,
-    available: 9,
-    year: 2025,
-  },
-  {
-    type: "Annual Leave",
-    color: "green",
-    used: 9,
-    total: 30,
-    pending: 8,
-    available: 21,
-    year: 2025,
-  },
-  {
-    type: "Child Illness",
-    color: "orange",
-    used: 0,
-    year: 2025,
-  },
-  {
-    type: "Childbirth",
-    color: "orange",
-    used: 1,
-    total: 5,
-    available: 4,
-    year: 2025,
-  },
-  {
-    type: "Health Care",
-    color: "red",
-    used: 0,
-    year: 2025,
-  },
-];
-
-const stats: StatItem[] = [
-  {
-    title: "Sick Leave",
-    used: 3,
-    total: 10,
-    progress: 30,
-    icon: <HeartOutlined style={{ color: "#e53935" }} />,
-    color: "red",
-    textColor: "text-red-800",
-    daysLeft: 7,
-  },
-  {
-    title: "Vacation",
-    used: 12,
-    total: 25,
-    progress: 48,
-    icon: <PaperClipOutlined style={{ color: "#27ae60" }} />,
-    color: "green",
-    textColor: "text-green-800",
-    daysLeft: 8,
-  },
-  {
-    title: "Special Leave",
-    used: 1,
-    total: 5,
-    progress: 20,
-    icon: <TrophyOutlined style={{ color: "#fb8c00" }} />,
-    color: "orange",
-    textColor: "text-orange-800",
-    daysLeft: 4,
-  },
-  {
-    title: "Work Leave",
-    used: 8,
-    total: 15,
-    progress: 53,
-    icon: <PaperClipOutlined style={{ color: "#1976d2" }} />,
-    color: "blue",
-    textColor: "text-blue-800",
-    daysLeft: 5,
-  },
-];
-
-const items: TabsProps["items"] = [
-  {
-    key: "calendar",
-    label: (
-      <span className="gba:tabLabel">
-        <CalendarOutlined className="gba:tabIcon" />
-        Calendar
-      </span>
-    ),
-  },
-  {
-    key: "absence-list",
-    label: (
-      <span className="gba:tabLabel">
-        <UnorderedListOutlined className="gba:tabIcon" />
-        Absence List
-      </span>
-    ),
-  },
-  {
-    key: "entitlements",
-    label: (
-      <span className="gba:tabLabel">
-        <PaperClipOutlined className="gba:tabIcon" />
-        Entitlements
-      </span>
-    ),
-  },
-  {
-    key: "statistics",
-    label: (
-      <span className="gba:tabLabel">
-        <BarChartOutlined className="gba:tabIcon" />
-        Statistics
-      </span>
-    ),
-  },
-];
+import { useState, useEffect } from "react";
+import { useGraphqlClient } from "../../../../../common/network/graphql/useGraphQLClient";
+import {
+  GET_EMPLOYEE_ABSENCES,
+  GET_EMPLOYEE_ENTITLEMENTS,
+} from "./queries/graphql";
+import dayjs from "dayjs";
+import { Pagination } from "antd";
+import AbsenceTypeFilter from "./components/AbsenceTypeFilter";
 
 export const AbsenceHub = (props: BusinessAppContextProps) => {
   const [activeTab, setActiveTab] = useState("calendar");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [absenceList, setAbsenceList] = useState<AbsenceListCardAbsence[]>([]);
+  const [entitlements, setEntitlements] = useState<Entitlement[]>([]);
+  const [stats, setStats] = useState<StatItem[]>([]);
+  const [upcomingAbsences, setUpcomingAbsences] = useState<AbsenceItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const { accessToken, userInfo } = props;
+  const employeeId = userInfo?.employeeDetails?.employeeId;
+  const client = useGraphqlClient(accessToken);
+
+  useEffect(() => {
+    if (!employeeId) return;
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      client.request(GET_EMPLOYEE_ABSENCES, { employeeId }),
+      client.request(GET_EMPLOYEE_ENTITLEMENTS, { employeeId }),
+    ])
+      .then(([absenceRes, entitlementRes]) => {
+        const absences = absenceRes?.EmployeeAbsence || [];
+
+        setAbsenceList(
+          absences.map((absence: any) => ({
+            type: absence.type?.value || "",
+            status: absence.status || "",
+            title: absence.type?.value || "",
+            startDate: `${dayjs(absence.startDate).format("DD-MM-YYYY")}`,
+            endDate: `${dayjs(absence.endDate).format("DD-MM-YYYY")}`,
+            duration: absence.workingDays ? `${absence.workingDays} ${absence.workingDays === 1 ? "day" : "days"}` : "",
+            description: absence.description || "",
+            icon: (
+              <PaperClipOutlined
+                style={{
+                  color: absence.type?.objectValue?.color
+                    ? `#${absence.type.objectValue.color}`
+                    : "#1976d2",
+                }}
+              />
+            ),
+            typeColor: absence.type?.objectValue?.color
+              ? absence.type.objectValue.color
+              : "blue",
+            statusColor: (() => {
+              switch ((absence.status || "").toLowerCase()) {
+                case "pending":
+                  return "rgba(255, 158, 2, 0.55)";
+                case "approved":
+                  return "rgba(13, 188, 123, 0.55)";
+                case "rejected":
+                  return "rgba(222, 29, 73, 0.55)";
+                case "cancelled":
+                  return "rgba(141, 145, 153, 0.55)";
+                default:
+                  return "rgba(141, 145, 153, 0.55)";
+              }
+            })(),
+            requestDate: dayjs(absence.createdAt).format("DD-MM-YYYY"),
+          }))
+        );
+
+        setUpcomingAbsences(
+          absences
+            .filter((a: any) => dayjs(a.startDate).isAfter(dayjs()))
+            .map((a: any, idx: number) => ({
+              id: a.id || idx,
+              type: a.type?.value,
+              icon: <PaperClipOutlined style={{ color: "#1976d2" }} />,
+              dates: `${dayjs(a.startDate).format("DD-MM-YYYY")} - ${dayjs(
+                a.endDate
+              ).format("DD-MM-YYYY")}`,
+              description: a.description,
+              timeUntil: (() => {
+                const days = dayjs(a.startDate).diff(dayjs(), "day");
+                if (days === 0) return "Today";
+                if (days === 1) return "Tomorrow";
+                if (days < 0) return "Started";
+                return `In ${days} days`;
+              })(),
+              bgColor: a.type?.objectValue?.color,
+            }))
+        );
+
+        setEntitlements(
+          (entitlementRes?.EmployeeAbsenceEntitlement || []).map(
+            (ent: any) => ({
+              type: ent.type?.value || "",
+              color: ent.type?.objectValue?.color || "blue",
+              used: ent.approved,
+              total: ent.total,
+              pending: ent.pending,
+              available: ent.available,
+              icon: (
+                <PaperClipOutlined
+                  style={{
+                    color: ent.type?.objectValue?.color
+                      ? `#${ent.type.objectValue.color}`
+                      : "#1976d2",
+                  }}
+                />
+              ),
+              checkEntitlement: ent.type?.objectValue?.checkEntitlement,
+            })
+          )
+        );
+
+        setStats(
+          (entitlementRes?.EmployeeAbsenceEntitlement || []).map(
+            (ent: any) => ({
+              title: ent.type?.value,
+              used: ent.approved,
+              total: ent.total,
+              progress: ent.total
+                ? Math.round((ent.approved / ent.total) * 100)
+                : 0,
+              icon: <PaperClipOutlined style={{ color: "#1976d2" }} />,
+              color: ent.type?.objectValue?.color,
+              textColor: ent.type?.objectValue?.color,
+              daysLeft: ent.available,
+            })
+          )
+        );
+      })
+      .catch(() => setError("Failed to load absence data."))
+      .finally(() => setLoading(false));
+  }, [employeeId, accessToken]);
+
   const filterOptions = [
     "All",
-    "Sick Leave",
-    "Vacation",
-    "Special Leave",
-    "Work Leave",
+    ...Array.from(new Set(absenceList.map((a) => a.type).filter(Boolean))),
   ];
 
   const onChange = (key: string) => {
     setActiveTab(key);
   };
 
+  const filteredAbsenceList =
+    activeFilter === "All"
+      ? absenceList
+      : absenceList.filter((a) => a.type === activeFilter);
+
+  const paginatedAbsenceList = filteredAbsenceList.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  const filteredStats =
+    activeFilter === "All"
+      ? stats
+      : stats.filter((s) => s.title === activeFilter);
+
+  const filteredUpcomingAbsences =
+    activeFilter === "All"
+      ? upcomingAbsences
+      : upcomingAbsences.filter((a) => a.type === activeFilter);
+
   return (
-    <div className="gba:container">
-      <div className="gba:header">
-        <div className="gba:font-bold gba:text-2xl">Absence Overview</div>
-        <div className="gba:text-gray-500">View and manage your absences</div>
+    <div className="gba:container" data-testid="absencehub-container">
+      <div className="gba:header" data-testid="absencehub-header">
+        <div className="gba:font-bold gba:text-2xl" data-testid="absencehub-title">Absence Overview</div>
+        <div className="gba:text-gray-500 gba:text-lg" data-testid="absencehub-description">View and manage your absences</div>
       </div>
 
-      <div className="gba:tabsContainer">
+      <div className="gba:tabsContainer" data-testid="absencehub-tabs-container">
         <Tabs
           activeKey={activeTab}
-          items={items}
+          data-testid="absencehub-tabs"
+          items={[
+            {
+              key: "calendar",
+              label: (
+                <span className="gba:tabLabel">
+                  <CalendarOutlined className="gba:tabIcon" />
+                  Calendar
+                </span>
+              ),
+            },
+            {
+              key: "absence-list",
+              label: (
+                <span className="gba:tabLabel">
+                  <UnorderedListOutlined className="gba:tabIcon" />
+                  Absence List
+                </span>
+              ),
+            },
+            {
+              key: "entitlements",
+              label: (
+                <span className="gba:tabLabel">
+                  <PaperClipOutlined className="gba:tabIcon" />
+                  Entitlements
+                </span>
+              ),
+            },
+            {
+              key: "statistics",
+              label: (
+                <span className="gba:tabLabel">
+                  <BarChartOutlined className="gba:tabIcon" />
+                  Statistics
+                </span>
+              ),
+            },
+          ]}
           onChange={onChange}
           className="gba:tabs"
           type="card"
         />
       </div>
 
-      <div className="gba:content">
-        {activeTab === "statistics" ? (
-          <StatisticsTab />
-        ) : (
-          <>
-            <div className="gba:calendarContainer">
-            {activeTab === "calendar" && (
-              <>
-                <div className="gba:filters">
-                  {filterOptions.map((filter) => (
-                    <Button
-                      key={filter}
-                      type={activeFilter === filter ? "primary" : "default"}
-                      className="gba:filterButton"
-                    onClick={() => setActiveFilter(filter)}
-                  >
-                    {filter}
-                  </Button>
-                ))}
-              </div>
-              <AbsenceCalendar
-                accessToken={props.accessToken}
-                userInfo={props.userInfo}
-                showIconTitle={false}
-                showTabsSwitch={false}
-              />
-            </>
-          )}
-          {activeTab === "absence-list" && (
-            <div className="gba:absenceList">
-              <h3 className="gba:absenceListTitle">Absence History</h3>
-              <div className="gba:absenceListCards">
-                {absenceList.length > 0 ? (
-                  absenceList.map((absence, idx) => (
-                    <AbsenceListCard key={idx} absence={absence} />
-                  ))
-                ) : (
-                  <div
-                    className="gba:absenceListEmpty"
-                    data-testid="absence-list-empty"
-                  >
-                    No absences found.
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          {activeTab === "entitlements" && (
-            <div className="gba:entitlementsList">
-              {entitlements.map((ent, idx) => (
-                <EntitlementCard key={idx} entitlement={ent} />
-              ))}
-            </div>
-          )}
-        </div>
-        {activeTab !== "entitlements" && (
-          <div className="gba:sidebar">
-            <div className="gba:cardsContainer">
-              <div className="gba:timeOffBalanceCard">
-                <h3 className="gba:cardTitle">Time Off Balance</h3>
-                <div className="gba:statsGrid">
-                  {stats.map((stat, index) => (
-                    <StatsCard key={index} stat={stat} />
-                  ))}
-                </div>
-              </div>
-              <div className="gba:timeOffBalanceCard">
-                <h3 className="gba:cardTitle">Upcoming Time Off</h3>
-                <div className="gba:upcomingList">
-                  {upcomingAbsences.map((absence) => (
-                    <UpcomingAbsenceCard key={absence.id} absence={absence} />
-                  ))}
-                </div>
-              </div>
-            </div>
+      <div className="gba:content" data-testid="absencehub-content">
+        {loading && (
+          <div className="gba:loading" data-testid="absencehub-loading">
+            Loading...
           </div>
         )}
+        {error && (
+          <div className="gba:error" data-testid="absencehub-error">
+            {error}
+          </div>
+        )}
+        {!loading && !error && (
+          <>
+            {activeTab === "statistics" && (
+              <StatisticsTab absences={absenceList} />
+            )}
+            {activeTab !== "statistics" && (
+              <>
+                <div className="gba:calendarContainer" data-testid="absencehub-calendar-container">
+                  {activeTab === "calendar" && (
+                    <>
+                      <AbsenceTypeFilter
+                        filterOptions={filterOptions}
+                        activeFilter={activeFilter}
+                        onFilterChange={(filter) => {
+                          setActiveFilter(filter);
+                          setCurrentPage(1);
+                        }}
+                      />
+                      <AbsenceCalendar
+                        accessToken={props.accessToken}
+                        userInfo={props.userInfo}
+                        showIconTitle={false}
+                        showTabsSwitch={false}
+                        filterOptions={filterOptions}
+                        activeFilter={activeFilter}
+                        onFilterChange={(filter) => {
+                          setActiveFilter(filter);
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </>
+                  )}
+                  {activeTab === "absence-list" && (
+                    <div className="gba:absenceList" data-testid="absencehub-absence-list">
+                      <AbsenceTypeFilter
+                        filterOptions={filterOptions}
+                        activeFilter={activeFilter}
+                        onFilterChange={(filter) => {
+                          setActiveFilter(filter);
+                          setCurrentPage(1);
+                        }}
+                      />
+                      <h3 className="gba:absenceListTitle" data-testid="absencehub-absence-history-title">Absence History</h3>
+                      <div className="gba:absenceListCards" data-testid="absencehub-absence-list-cards">
+                        {filteredAbsenceList.length > 0 ? (
+                          paginatedAbsenceList.map((absence, idx) => (
+                            <AbsenceListCard
+                              key={idx + (currentPage - 1) * pageSize}
+                              absence={absence}
+                            />
+                          ))
+                        ) : (
+                          <div
+                            className="gba:absenceListEmpty"
+                            data-testid="absencehub-absence-list-empty"
+                          >
+                            No absences found.
+                          </div>
+                        )}
+                      </div>
+                      {filteredAbsenceList.length > pageSize && (
+                        <div
+                          className="gba:absenceListPagination"
+                          data-testid="absencehub-absence-list-pagination"
+                          style={{
+                            marginTop: 24,
+                            display: "flex",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Pagination
+                            current={currentPage}
+                            pageSize={pageSize}
+                            total={filteredAbsenceList.length}
+                            showSizeChanger
+                            pageSizeOptions={["10", "20", "50"]}
+                            onChange={(page: number, size?: number) => {
+                              setCurrentPage(page);
+                              if (size) setPageSize(size);
+                            }}
+                            showTotal={(
+                              total: number,
+                              range: [number, number]
+                            ) => `${range[0]}-${range[1]} of ${total}`}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {activeTab === "entitlements" && (
+                    <div className="gba:entitlementsList" data-testid="absencehub-entitlements-list">
+                      {entitlements.map((ent, idx) => (
+                        <EntitlementCard key={idx} entitlement={ent} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {activeTab !== "entitlements" && (
+                  <div className="gba:sidebar" data-testid="absencehub-sidebar">
+                    <div className="gba:cardsContainer" data-testid="absencehub-cards-container">
+                      <div className="gba:timeOffBalanceCard">
+                        <h3 className="gba:cardTitle" data-testid="absencehub-timeoff-balance-title">Time Off Balance</h3>
+                        <div className="gba:statsGrid" data-testid="absencehub-stats-grid">
+                          {filteredStats.map((stat, index) => (
+                            <StatsCard key={index} stat={stat} />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="gba:timeOffBalanceCard">
+                        <h3 className="gba:cardTitle" data-testid="absencehub-upcoming-title">Upcoming Time Off</h3>
+                        <div className="gba:upcomingList" data-testid="absencehub-upcoming-list">
+                          {filteredUpcomingAbsences.length > 0 ? (
+                            filteredUpcomingAbsences
+                              .slice(0, 5)
+                              .map((absence) => (
+                                <UpcomingAbsenceCard
+                                  key={absence.id}
+                                  absence={absence}
+                                />
+                              ))
+                          ) : (
+                            <div
+                              className="gba:absenceListEmpty"
+                              data-testid="upcoming-absence-empty"
+                            >
+                              No upcoming absences
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </>
         )}
       </div>

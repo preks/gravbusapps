@@ -12,14 +12,15 @@ export interface AbsenceListCardAbsence {
   type: string;
   status: string;
   title: string;
-  dates: string;
+  startDate: string;
+  endDate: string;
   duration: string;
   description: string;
   requestedInfo: string;
   icon: React.ReactNode;
   typeColor: string;
   statusColor: string;
-  onViewDetails: () => void;
+  requestDate: string;
 }
 
 export interface AbsenceListCardProps {

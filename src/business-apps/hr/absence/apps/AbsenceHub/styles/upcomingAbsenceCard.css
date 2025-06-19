@@ -1,12 +1,25 @@
 .gba\:upcomingAbsenceCard {
+  position: relative;
+  overflow: hidden;
   background: #fff;
   border-radius: 14px;
   padding: 24px 28px;
-  margin-bottom: 24px;
-  border: 2px solid #e5e7eb;
-  box-shadow: none;
-  display: flex;
-  flex-direction: column;
+}
+
+.gba\:upcomingAbsenceCard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--gba-bg, #f5f5f5);
+  opacity: 0.15;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.gba\:upcomingAbsenceCard > * {
+  position: relative;
+  z-index: 1;
 }
 
 .gba\:absenceCard--green {
@@ -38,7 +51,7 @@
 .gba\:absenceCardType {
   font-size: 18px;
   font-weight: 600;
-  color: #1a3a2b;
+  color: var(--gba-pill-color, #1a3a2b);
   margin-right: auto;
 }
 .gba\:absenceCard--red .gba\:absenceCardType {
@@ -49,40 +62,57 @@
 }
 
 .gba\:absenceCardPill {
-  background: #eafff3;
-  color: #1a3a2b;
+  position: relative;
+  color: var(--gba-pill-color, #1a3a2b);
   border-radius: 20px;
-  padding: 4px 16px;
+  padding: 4px 6px;
   font-size: 12px;
   font-weight: 600;
   margin-left: 10px;
   display: flex;
   align-items: center;
+  border: 1px solid var(--gba-pill-border, #ccc);
+  background: transparent;
+  z-index: 1;
 }
+
+.gba\:absenceCardPill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--gba-pill-bg, #f5f5f5);
+  opacity: 0.15;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.gba\:absenceCardPill > * {
+  position: relative;
+  z-index: 1;
+}
+
 .gba\:absenceCard--green .gba\:absenceCardPill {
   background: #eafff3;
-  color: #1a3a2b;
   border: 1px solid #27ae60;
 }
 .gba\:absenceCard--red .gba\:absenceCardPill {
   background: #fff4f4;
-  color: #b71c1c;
   border: 1px solid #b71c1c;
 }
 .gba\:absenceCard--blue .gba\:absenceCardPill {
   background: #f4f8ff;
-  color: #1443b7;
   border: 1px solid #1443b7;
 }
 
 .gba\:absenceCardDates {
   font-size: 16px;
+  color: var(--gba-pill-color);
   font-weight: 500;
   margin-top: 8px;
-  color: #1a3a2b;
 }
 .gba\:absenceCard--red .gba\:absenceCardDates {
-  color: #b71c1c;
+  color: var(--gba-pill-color);
 }
 .gba\:absenceCard--blue .gba\:absenceCardDates {
   color: #1443b7;

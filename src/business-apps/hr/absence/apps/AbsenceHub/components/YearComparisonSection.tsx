@@ -1,111 +1,135 @@
 import React from "react";
+import dayjs from "dayjs";
 
-const yearData = [
-  { year: 2025, label: "2025 (Current)", value: 18, color: "#3390ff" },
-  { year: 2024, label: "2024", value: 24, color: "#bfc7d1" },
-  { year: 2023, label: "2023", value: 21, color: "#bfc7d1" },
-];
-const leaveTypeData = [
-  {
-    year: 2025,
-    total: 18,
-    types: [
-      { label: "Sick", value: 3, color: "#ef5350" },
-      { label: "Vacation", value: 12, color: "#27ae60" },
-      { label: "Special", value: 1, color: "#f7b731" },
-      { label: "Work", value: 2, color: "#2980b9" },
-    ],
-  },
-  {
-    year: 2024,
-    total: 24,
-    types: [
-      { label: "Sick", value: 6, color: "#ef5350" },
-      { label: "Vacation", value: 12, color: "#27ae60" },
-      { label: "Special", value: 2, color: "#f7b731" },
-      { label: "Work", value: 4, color: "#2980b9" },
-    ],
-  },
-];
+interface YearComparisonSectionProps {
+  absences: any[];
+}
 
-const YearComparisonSection: React.FC = () => (
-  <div data-testid="year-comparison-section">
-    <h3 className="gba:statisticsSectionTitle">Year-over-Year Comparison</h3>
-    <div className="gba:statisticsSubTitle">How your absence patterns have changed over time</div>
-    <div className="gba:yearComparisonRows">
-      {yearData.map((row) => (
-        <div className="gba:yearComparisonRow" key={row.year}>
-          <span className="gba:yearComparisonLabel">{row.label}</span>
-          <div className="gba:yearComparisonBarBg">
-            <div
-              className="gba:yearComparisonBarFg"
-              style={{ width: `${row.value * 6}px`, background: row.color }}
-            />
+function getLastNYears(n: number) {
+  const currentYear = dayjs().year();
+  return Array.from({ length: n }, (_, i) => currentYear - i);
+}
+
+function getYearLabel(year: number, currentYear: number) {
+  return year === currentYear ? `${year} (Current)` : `${year}`;
+}
+
+const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ absences }) => {
+  const years = getLastNYears(3);
+  const currentYear = years[0];
+  const yearData = years.map((year, idx) => {
+    const value = absences.filter(a => dayjs(a.startDate).year() === year).length;
+    return {
+      year,
+      label: getYearLabel(year, currentYear),
+      value,
+      color: idx === 0 ? "#3390ff" : "#bfc7d1",
+    };
+  });
+
+  const leaveTypeData = years.map(year => {
+    const yearAbsences = absences.filter(a => dayjs(a.startDate).year() === year);
+    const total = yearAbsences.length;
+    const typeMap: Record<string, { label: string; value: number; color: string }> = {};
+    yearAbsences.forEach(a => {
+      const label = a.type || "Other";
+      const key = (label || "other").toLowerCase();
+      const color = `#${a.typeColor}`;
+      if (!typeMap[key]) {
+        typeMap[key] = { label, value: 0, color };
+      }
+      typeMap[key].value += 1;
+    });
+    const types = Object.values(typeMap).sort((a, b) => b.value - a.value);
+    return {
+      year,
+      total,
+      types,
+    };
+  });
+
+  const prev = yearData[1]?.value || 0;
+  const curr = yearData[0]?.value || 0;
+  let improvementMsg = "";
+  let improvementIcon = "";
+  if (prev === 0 && curr === 0) {
+    improvementMsg = "No change from last year";
+    improvementIcon = "";
+  } else if (prev === 0 && curr > 0) {
+    improvementMsg = "New absences this year";
+    improvementIcon = "↑";
+  } else if (prev > 0 && curr === 0) {
+    improvementMsg = "All absences cleared from last year";
+    improvementIcon = "↓";
+  } else {
+    const diffPct = Math.round(((curr - prev) / prev) * 100);
+    improvementMsg =
+      diffPct < 0
+        ? `${Math.abs(diffPct)}% decrease from last year – Good work-life balance improvement`
+        : diffPct > 0
+        ? `${diffPct}% increase from last year – More absences taken`
+        : `No change from last year`;
+    improvementIcon = diffPct < 0 ? "↓" : diffPct > 0 ? "↑" : "";
+  }
+
+  return (
+    <div data-testid="year-comparison-section">
+      <h3 className="gba:statisticsSectionTitle" data-testid="year-comparison-section-title">Year-over-Year Comparison</h3>
+      <div className="gba:statisticsSubTitle" data-testid="year-comparison-section-subtitle">How your absence patterns have changed over time</div>
+      <div className="gba:yearComparisonRows">
+        {yearData.map((row: { year: number; label: string; value: number; color: string }) => (
+          <div className="gba:yearComparisonRow gba:flex gba:items-center" key={row.year}>
+            <span className="gba:yearComparisonLabel gba:flex-1 gba:text-left">{row.label}</span>
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <div className="gba:yearComparisonBarBg">
+                <div
+                  className="gba:yearComparisonBarFg"
+                  style={{ width: `${row.value * 6}px`, background: row.color }}
+                />
+              </div>
+              <span className="gba:yearComparisonValue">{row.value} days</span>
+            </div>
           </div>
-          <span className="gba:yearComparisonValue">{row.value} days</span>
-        </div>
-      ))}
-    </div>
-    <div className="gba:yearComparisonImprovement">
-      <span className="gba:improvementIcon">↓</span> 25% decrease from last year – Good work-life balance improvement
-    </div>
-    <div className="gba:leaveTypeTitle">Leave Type Distribution by Year</div>
-    <div className="gba:leaveTypeRows">
-      {leaveTypeData.map((row) => (
-        <div className="gba:leaveTypeRow" key={row.year}>
-          <div className="gba:leaveTypeYear" style={{ marginBottom: 6 }}>{row.year}<span style={{
-              alignSelf: 'flex-end',
-              color: '#8a939b',
-              fontWeight: 500,
-              fontSize: 16,
-            }}>{row.total} days total</span></div>
-          
-          <div
-            className="gba:leaveTypeBarBg"
-            style={{
-              width: '100%',
-              maxWidth: '100%',
-              minWidth: 0,
-              boxSizing: 'border-box',
-            }}
-          >
-            {row.types.map((type, idx) => (
-              <div
-                key={type.label}
-                className="gba:leaveTypeBarFg"
-                style={{
-                  width: `${(type.value / row.total) * 100}%`,
-                  background: type.color,
-                  borderTopLeftRadius: idx === 0 ? 14 : 0,
-                  borderBottomLeftRadius: idx === 0 ? 14 : 0,
-                  borderTopRightRadius: idx === row.types.length - 1 ? 14 : 0,
-                  borderBottomRightRadius: idx === row.types.length - 1 ? 14 : 0,
-                }}
-              />
-            ))}
+        ))}
+      </div>
+      <div className="gba:yearComparisonImprovement" data-testid="year-comparison-section-improvement">
+        <span className="gba:improvementIcon">{improvementIcon}</span> {improvementMsg}
+      </div>
+      <div className="gba:leaveTypeTitle" data-testid="year-comparison-section-leave-type-title">Leave Type Distribution by Year</div>
+      <div className="gba:leaveTypeRows" data-testid="year-comparison-section-leave-type-rows">
+        {leaveTypeData.map((row: { year: number; total: number; types: { label: string; value: number; color: string }[] }) => (
+          <div className="gba:leaveTypeRow" key={row.year}>
+            <div className="gba:leaveTypeYear" data-testid="year-comparison-section-leave-type-year">{row.year}<span style={{
+                
+              }}>{row.total} days total</span></div>
+            <div className="gba:leaveTypeBarBg" data-testid="year-comparison-section-leave-type-bar-bg">
+              {row.types.map((type: { label: string; value: number; color: string }, idx: number) => (
+                <div
+                  key={type.label}
+                  className="gba:leaveTypeBarFg"
+                  style={{
+                    width: `${row.total > 0 ? (type.value / row.total) * 100 : 0}%`,
+                    background: type.color,
+                    borderTopLeftRadius: idx === 0 ? 14 : 0,
+                    borderBottomLeftRadius: idx === 0 ? 14 : 0,
+                    borderTopRightRadius: idx === row.types.length - 1 ? 14 : 0,
+                    borderBottomRightRadius: idx === row.types.length - 1 ? 14 : 0,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="gba:leaveTypeLegendTypes" data-testid="year-comparison-section-leave-type-legend-types">
+              {row.types.map((type: { label: string; value: number; color: string }) => (
+                <span key={type.label} className="gba:text-[#6b7683] gba:font-medium gba:text-[16px] gba:text-center gba:whitespace-nowrap" data-testid="year-comparison-section-leave-type-legend-type">
+                  {type.label}: {type.value}d
+                </span>
+              ))}
+            </div>
           </div>
-          <div
-            className="gba:leaveTypeLegendTypes"
-          >
-            {row.types.map((type) => (
-              <span
-                key={type.label}
-                style={{
-                  color: '#6b7683',
-                  fontWeight: 500,
-                  fontSize: 16,
-                  textAlign: 'center',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {type.label}: {type.value}d
-              </span>
-            ))}
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default YearComparisonSection;

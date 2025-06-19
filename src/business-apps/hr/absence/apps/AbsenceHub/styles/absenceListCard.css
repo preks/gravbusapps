@@ -1,8 +1,3 @@
-/* AbsenceListCard plain CSS with gba: prefix */
-.gba\:absenceList {
-  padding-left: 8px;
-  margin-top: 32px;
-}
 .gba\:absenceListTitle {
   text-align: left;
   margin-bottom: 28px;
@@ -44,21 +39,42 @@
 }
 .gba\:absenceType {
   display: inline-block;
-  padding: 2px 14px;
+  padding: 2px 12px;
   border-radius: 12px;
   font-size: 13px;
   font-weight: 600;
-  background: #eafff3;
-  color: #27ae60;
+  position: relative;
+  background: transparent;
+  color: var(--gba-pill-color, #27ae60);
+  border: 1px solid var(--gba-pill-border, #27ae60);
   margin-right: 6px;
   vertical-align: middle;
   line-height: normal;
+  z-index: 1;
+}
+
+.gba\:absenceType::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--gba-pill-bg, #eafff3);
+  opacity: 0.15;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.gba\:absenceType > * {
+  position: relative;
+  z-index: 1;
 }
 .gba\:absenceType--red {
-  background: #ffebee;
+  background: transparent;
   color: #e53935;
+  border: 1px solid #e53935;
 }
 .gba\:absenceType--blue {
+  background: transparent;
   background: #e3f0ff;
   color: #1976d2;
 }
@@ -78,6 +94,27 @@
   font-weight: 500;
   vertical-align: middle;
   line-height: normal;
+  position: relative;
+  background: transparent;
+  color: var(--gba-pill-color, #27ae60);
+  border: 1px solid var(--gba-pill-border, #27ae60);
+  z-index: 1;
+}
+
+.gba\:absenceStatus::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--gba-pill-bg, #eafff3);
+  opacity: 0.15;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.gba\:absenceStatus > * {
+  position: relative;
+  z-index: 1;
 }
 .gba\:status--approved {
   background: #e6f9f0;
@@ -120,7 +157,7 @@
 .gba\:absenceListCardDetails {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
   font-size: 0.98rem;
   color: #6b7280;
   margin-bottom: 2px;

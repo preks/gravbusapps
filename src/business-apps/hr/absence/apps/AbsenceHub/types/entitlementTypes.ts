@@ -11,4 +11,5 @@ export interface Entitlement {
   available?: number;
   year?: number;
   icon?: React.ReactNode;
+  checkEntitlement?: boolean; // Optional flag for entitlement display logic
 }

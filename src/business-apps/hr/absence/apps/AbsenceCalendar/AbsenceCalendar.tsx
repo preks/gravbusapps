@@ -23,9 +23,19 @@ const { TabPane } = Tabs;
 interface AbsenceCalendarProps extends BusinessAppContextProps {
   showIconTitle?: boolean;
   showTabsSwitch?: boolean;
+  filterOptions?: string[];
+  activeFilter?: string;
+  onFilterChange?: (filter: string) => void;
 }
 
-const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({ showIconTitle = true, showTabsSwitch = true, ...props }) => {
+const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
+  showIconTitle = true,
+  showTabsSwitch = true,
+  filterOptions,
+  activeFilter,
+  onFilterChange,
+  ...props
+}) => {
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [upcomingPageSize, setUpcomingPageSize] = useState(10);
   const [pastPage, setPastPage] = useState(1);
@@ -68,39 +78,43 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({ showIconTitle = true,
     ? absences.map(mapAbsence)
     : [];
 
+  const filteredAbsences = (Array.isArray(absences) && filterOptions && activeFilter && activeFilter !== "All")
+    ? mappedAbsences.filter(a => a.type === activeFilter)
+    : mappedAbsences;
+
   const upcomingAbsences = useMemo(
     () =>
-      mappedAbsences
+      filteredAbsences
         .filter((absence) => absence.endDate && dayjs(absence.endDate).isSameOrAfter(now, 'day'))
         .sort((sDate, eDate) => {
           const startDate = dayjs(sDate.startDate ?? '').valueOf();
           const endDate = dayjs(eDate.endDate ?? '').valueOf();
           return startDate - endDate;
         }),
-    [mappedAbsences, now]
+    [filteredAbsences, now]
   );
 
   const pastAbsences = useMemo(
     () =>
-      mappedAbsences
+      filteredAbsences
         .filter((absence) => absence.endDate && dayjs(absence.endDate).isBefore(now, 'day'))
         .sort((sDate, eDate) => {
           const endDate = dayjs(eDate.endDate ?? '').valueOf();
           const startDate = dayjs(sDate.startDate ?? '').valueOf();
           return endDate - startDate;
         }),
-    [mappedAbsences, now]
+    [filteredAbsences, now]
   );
 
   const dateCellRender = (value: any) => {
     const dateStr = value.format("YYYY-MM-DD");
-    const items = mappedAbsences.filter(
+    const items = filteredAbsences.filter(
       (absence) => dateStr >= absence.startDate && dateStr <= absence.endDate
     );
     return items.length ? (
-      <ul>
+      <ul data-testid={`absence-calendar-cell-list-${dateStr}`}> 
         {items.map((item) => (
-          <li key={item.id}>
+          <li key={item.id} data-testid={`absence-calendar-cell-list-item-${item.id}`}> 
             <Tag
               color={
                 item.tagColor ||
@@ -118,13 +132,13 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({ showIconTitle = true,
 
   if (loading) {
     return (
-      <div className="gba:absence-calendar-loading">Loading absences...</div>
+      <div className="gba:absence-calendar-loading" data-testid="absence-calendar-loading">Loading absences...</div>
     );
   }
 
   if (error) {
     return (
-      <div className="gba:absence-calendar-error">Error loading absences.</div>
+      <div className="gba:absence-calendar-error" data-testid="absence-calendar-error">Error loading absences.</div>
     );
   }
 
@@ -135,13 +149,14 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({ showIconTitle = true,
   const handleToday = () => setCalendarValue(dayjs());
 
   return (
-    <div className={showIconTitle ? "gba:absence-calendar-root" : ""}>
+    <div className={showIconTitle ? "gba:absence-calendar-root" : ""} data-testid="absence-calendar-root">
       {showIconTitle && (
-        <div className="gba:flex gba:items-center gba:gap-3 gba:mb-6">
-          <img src={calendarIcon} alt="Calendar Icon" className="gba:w-8 gba:h-8" />
-          <span className="gba:text-2xl gba:font-bold">My Absence Calendar</span>
+        <div className="gba:flex gba:items-center gba:gap-3 gba:mb-6" data-testid="absence-calendar-header">
+          <img src={calendarIcon} alt="Calendar Icon" className="gba:w-8 gba:h-8" data-testid="absence-calendar-header-icon" />
+          <span className="gba:text-2xl gba:font-bold" data-testid="absence-calendar-header-title">My Absence Calendar</span>
         </div>
       )}
+
       {showTabsSwitch ? (
         <Tabs defaultActiveKey="calendar" className="gba:absence-calendar-tabs">
           <TabPane tab="Month" key="calendar">

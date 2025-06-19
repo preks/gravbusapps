@@ -12,6 +12,46 @@
   width: 100%;
 }
 
+.gba\:entitlementCard--simple {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  min-height: 48px;
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 8px;
+  border: 1.5px solid #e5e7eb;
+  margin-bottom: 12px;
+}
+.gba\:entitlementSimpleTitle {
+  font-weight: 500;
+  color: #222;
+  font-size: 15px;
+  flex: 1;
+  padding-left: 12px;
+}
+.gba\:entitlementSimpleRight {
+  text-align: right;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.gba\:entitlementSimpleValue {
+  font-weight: 700;
+  font-size: 22px;
+  color: #222;
+  line-height: 1.1;
+}
+.gba\:entitlementSimpleYear {
+  font-size: 13px;
+  color: #8c8c8c;
+  margin-top: 0;
+  line-height: 1.1;
+}
+
 .gba\:entitlementCardHeader {
   display: flex;
   align-items: center;
@@ -74,17 +114,21 @@
 }
 
 .gba\:entitlementUsedTotal {
-  font-size: 13px;
+  font-size: 14px;
   color: #222;
-  margin-left: 0;
   font-weight: 400;
+  flex: 1;
+  text-align: left;
+  margin-left: 0;
 }
 
 .gba\:entitlementPending {
-  font-size: 13px;
+  font-size: 14px;
   color: #fb8c00;
-  margin-left: 18px;
   font-weight: 500;
+  flex: 1;
+  text-align: center;
+  margin-left: 0;
 }
 
 .gba\:entitlementProgressBar {
@@ -129,9 +173,5 @@
   font-weight: 600;
   flex: 1;
   text-align: right;
-}
-
-.gba\:entitlementAvailable {
-  color: #222;
-  font-weight: 500;
+  margin-left: 0;
 }

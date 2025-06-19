@@ -1,55 +1,87 @@
-import React from 'react';
-import '../styles/entitlementCard.css';
-import type { EntitlementCardProps } from '../types/entitlementTypes';
+import React from "react";
+import "../styles/entitlementCard.css";
+import type { EntitlementCardProps } from "../types/entitlementTypes";
+import dayjs from "dayjs";
 
 const EntitlementCard: React.FC<EntitlementCardProps> = ({ entitlement }) => {
-  const {
-    type,
-    color,
-    used,
-    total,
-    pending,
-    available,
-    year,
-    icon
-  } = entitlement;
+  const { type, color, used, total, pending, available, checkEntitlement } = entitlement;
 
-  // Card with just a used number (no total, no pending):
-  if (typeof used === 'number' && total === undefined && pending === undefined) {
+  if (checkEntitlement === false) {
     return (
-      <div className="gba:entitlementCard" data-testid="entitlement-card">
-        <div className="gba:entitlementCardHeader">
-          {icon && <span className={`gba:entitlementIcon gba:entitlementIcon--${color}`}>{icon}</span>}
-          <span className="gba:entitlementTitle">{type}</span>
-          <span className="gba:entitlementRightNumber">{used}</span>
+      <div
+        className="gba:entitlementCard gba:entitlementCard--simple"
+        data-testid="entitlement-card-simple"
+        
+      >
+        <span
+          className="gba:entitlementSimpleTitle"
+          data-testid="entitlement-title-simple"
+          style={{
+            borderLeft: `4px solid ${
+              color ? (color.startsWith("#") ? color : `#${color}`) : "#a78bfa"
+            }`,
+          }}
+        >
+          {type}
+        </span>
+        <div className="gba:entitlementSimpleRight">
+          <div
+            className="gba:entitlementSimpleValue"
+            data-testid="entitlement-value-simple"
+          >
+            {used}
+          </div>
+
+          <div
+            className="gba:entitlementSimpleYear"
+            data-testid="entitlement-year-simple"
+          >
+            {used === 1 ? "day" : "days"} reported in {dayjs().year()}
+          </div>
         </div>
-        <div className="gba:entitlementYear" style={{ marginTop: 2 }}>{year ? `days reported in ${year}` : ''}</div>
       </div>
     );
   }
 
-  // Card with used/total/pending (progress bar):
   return (
     <div className="gba:entitlementCard" data-testid="entitlement-card">
       <div className="gba:entitlementCardHeader">
-        {icon && <span className={`gba:entitlementIcon gba:entitlementIcon--${color}`}>{icon}</span>}
         <span className="gba:entitlementTitle">{type}</span>
         <span className="gba:entitlementHeaderSummary">
-          <span className="gba:entitlementHeaderUsed">{used}/{total} days used</span>
-          {pending !== undefined && <span className="gba:entitlementHeaderPending">{pending} days pending</span>}
+          <span className="gba:entitlementHeaderUsed">
+            {used}/{total} {used === 1 ? "day" : "days"} used
+          </span>
+          {pending !== undefined && (
+            <span className="gba:entitlementHeaderPending">
+              {pending} {pending === 1 ? "day" : "days"} pending
+            </span>
+          )}
         </span>
       </div>
       <div className="gba:entitlementProgressBar">
-        <div className="gba:entitlementProgressBarFill" style={{ width: `${(used! / total!) * 100}%` }} />
+        <div
+          className="gba:entitlementProgressBarFill"
+          style={{ width: `${(used! / total!) * 100}%` }}
+        />
       </div>
       <div className="gba:entitlementCardDetails">
-        <span className="gba:entitlementUsedTotal">Used: {used} days</span>
+        <span className="gba:entitlementUsedTotal">
+          Used: {used} {used === 1 ? "day" : "days"}
+        </span>
         {pending !== undefined ? (
-          <span className="gba:entitlementPending">Pending: {pending} days</span>
-        ) : <span />}
-        {typeof available === 'number' ? (
-          <span className="gba:entitlementAvailable">Available: {available} days</span>
-        ) : <span />}
+          <span className="gba:entitlementPending">
+            Pending: {pending} {pending === 1 ? "day" : "days"}
+          </span>
+        ) : (
+          <span />
+        )}
+        {typeof available === "number" ? (
+          <span className="gba:entitlementAvailable">
+            Available: {available} {available === 1 ? "day" : "days"}
+          </span>
+        ) : (
+          <span />
+        )}
       </div>
     </div>
   );
