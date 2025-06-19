@@ -66,6 +66,5 @@ export function useGetContractTypes(accessToken: string, searchRegex: string, of
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchRegex, offset, userLocale, client]);
-
   return { types, loading: false, error, hasMore };
 }

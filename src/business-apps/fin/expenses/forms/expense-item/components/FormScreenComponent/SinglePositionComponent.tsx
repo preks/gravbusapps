@@ -9,7 +9,7 @@ import {
   CustomField,
   Currency,
 } from "../../types";
-import { getCatalogValue } from "../../utils/windowUtils";
+import { getCatalogValue } from "../../../../../../../common/utils/windowUtils";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
 import { Form } from "antd";
 

@@ -15,7 +15,7 @@ import {
   CostCenter,
   CustomField,
 } from "../../types";
-import { getCatalogValue } from "../../utils/windowUtils";
+import { getCatalogValue } from "../../../../../../../common/utils/windowUtils";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
 
 interface MultiPositionComponentProps {

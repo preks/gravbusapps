@@ -2,7 +2,7 @@ import { UiCatalogProvider } from '@newwork/gravity-ui-catalog';
 import { useState, useEffect, createElement, useCallback } from "react";
 import { Layout, Menu, Modal, Form, Input, Typography, Button, Tooltip } from "antd";
 import { SettingOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
-import { BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
+import { BusinessAppContext, BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
 import ProcessEventListener from './common/components/ProcessEventListener';
 
 const modules = import.meta.glob('./business-apps/**/[A-Z]*.tsx', { eager: true });

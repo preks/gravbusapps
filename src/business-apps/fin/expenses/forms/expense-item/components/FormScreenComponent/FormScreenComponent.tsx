@@ -21,7 +21,7 @@ import SinglePositionComponent from "./SinglePositionComponent";
 import MultiPositionComponent from "./MultiPositionComponent";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
 import { Alert } from "antd";
-import { getDateFormat } from "../../utils/windowUtils";
+import { getDateFormat } from "../../../../../../../common/utils/windowUtils";
 
 interface FormScreenComponentProps {
   form: any;

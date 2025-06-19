@@ -2,35 +2,35 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 
 /* Remove spinner arrows from number inputs */
-:global(.gba\:no-spinner input[type=number]) {
+.gba\:no-spinner input[type=number] {
   appearance: textfield;
   -moz-appearance: textfield;
 }
 
-:global(.gba\:no-spinner input[type=number]::-webkit-outer-spin-button),
-:global(.gba\:no-spinner input[type=number]::-webkit-inner-spin-button) {
+.gba\:no-spinner input[type=number]::-webkit-outer-spin-button,
+.gba\:no-spinner input[type=number]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
 /* Amount-currency row layout */
-:global(.gba\:amountCurrencyRow) {
+.gba\:amountCurrencyRow {
   display: flex;
   gap: 16px;
 }
 
-:global(.gba\:amountField),
-:global(.gba\:currencyField) {
+.gba\:amountField,
+.gba\:currencyField {
   width: 50%;
 }
 
 /* Make sure both fields in the row have proper alignment */
-:global(.gba\:amountCurrencyRow .ant-form-item) {
+.gba\:amountCurrencyRow .ant-form-item {
   margin-bottom: 0;
 }
 
 /* Add padding to all error messages */
-:global(.ant-form-item-explain-error) {
+.ant-form-item-explain-error {
   padding-left: 16px;
 }
 
@@ -209,7 +209,8 @@
 
 /* Main container */
 .gba\:mainContainer {
-  max-width: 600px;
+  max-width: 544px;
+  width: 544px;
   margin: 0 auto;
   font-family: 'Roboto', sans-serif;
 }
@@ -363,8 +364,8 @@
 }
 
 /* Ensure the ant-upload container takes full height and centers content vertically */
-.gba\:uploadContainerForm :global(.ant-upload-wrapper),
-.gba\:uploadContainerStart :global(.ant-upload-wrapper) {
+.gba\:uploadContainerForm .ant-upload-wrapper,
+.gba\:uploadContainerStart .ant-upload-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -391,8 +392,8 @@
   height: 18px;
 }
 
-.gba\:uploadContainerForm :global(.ant-upload.ant-upload-select),
-.gba\:uploadContainerStart :global(.ant-upload.ant-upload-select) {
+.gba\:uploadContainerForm .ant-upload.ant-upload-select,
+.gba\:uploadContainerStart .ant-upload.ant-upload-select {
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
@@ -508,11 +509,11 @@
 }
 
 /* Upload list styles */
-.gba\:uploadComponent :global(.ant-upload-list) {
+.gba\:uploadComponent .ant-upload-list {
   margin-top: 16px;
 }
 
-.gba\:uploadComponent :global(.ant-upload-list-item) {
+.gba\:uploadComponent .ant-upload-list-item {
   border-radius: 48px;
   padding: 12px 20px;
   margin-top: 16px;
@@ -520,17 +521,17 @@
   border: 1px solid #EFEFEF;
 }
 
-.gba\:uploadComponent :global(.ant-upload-list-item-name) {
+.gba\:uploadComponent .ant-upload-list-item-name {
   padding-left: 0;
   text-align: left !important;
 }
 
-.gba\:uploadComponent :global(.ant-upload) {
+.gba\:uploadComponent .ant-upload {
   width: 100%;
   height: 100%;
 }
 
-.gba\:uploadComponent :global(.ant-upload-select) {
+.gba\:uploadComponent .ant-upload-select {
   width: 100%;
   height: 100%;
 }
