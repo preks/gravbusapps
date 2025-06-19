@@ -3,6 +3,7 @@
 import React from 'react';
 import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeData';
 import { Button, Card } from '@newwork/gravity-ui-catalog';
+import { startProcess } from '../../../../../../../common/utils/start-process';
 
 interface AbsencesTabProps {
   employee: Employee;
@@ -169,20 +170,18 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
               </p>
               <Button 
                 onClick={() => {
+                  // Find vacation entitlement type
+                  const vacationEntitlement = employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001');
+                  
                   // Trigger flow to request vacation
-                  if (typeof window !== 'undefined' && window.dispatchEvent) {
-                    window.dispatchEvent(
-                      new CustomEvent('com.newwork.process.start', {
-                        detail: {
-                          domain: 'employee_time',
-                          processName: 'requestVacation',
-                          startProcessBody: {
-                            employeeId: employee.id
-                          }
-                        }
-                      })
-                    );
-                  }
+                  startProcess({
+                    domain: 'employee-time',
+                    processName: 'createEmployeeVacation',
+                    payload: {
+                      employeeId: employee.id,
+                      absenceType: vacationEntitlement?.type?.id
+                    }
+                  });
                 }}
                 className="gba:w-full gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors"
                 data-testid="request-vacation-button"
@@ -212,19 +211,13 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 className="gba:w-full gba:px-4 gba:py-2 gba:bg-red-600 gba:text-white gba:rounded gba:hover:bg-red-700 gba:transition-colors"
                 onClick={() => {
                   // Trigger flow to report sick leave
-                  if (typeof window !== 'undefined' && window.dispatchEvent) {
-                    window.dispatchEvent(
-                      new CustomEvent('com.newwork.process.start', {
-                        detail: {
-                          domain: 'employee_time',
-                          processName: 'reportSickLeave',
-                          startProcessBody: {
-                            employeeId: employee.id
-                          }
-                        }
-                      })
-                    );
-                  }
+                  startProcess({
+                    domain: 'employee-time',
+                    processName: 'createEmployeeSickLeave',
+                    payload: {
+                      employeeId: employee.id
+                    }
+                  });
                 }}
               >
                 Submit Report
@@ -250,20 +243,18 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 variant="primary"
                 className="gba:w-full gba:px-4 gba:py-2 gba:bg-purple-600 gba:text-white gba:rounded gba:hover:bg-purple-700 gba:transition-colors"
                 onClick={() => {
+                  // Find special leave entitlement type
+                  const specialLeaveEntitlement = employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A010');
+                  
                   // Trigger flow to request special leave
-                  if (typeof window !== 'undefined' && window.dispatchEvent) {
-                    window.dispatchEvent(
-                      new CustomEvent('com.newwork.process.start', {
-                        detail: {
-                          domain: 'employee_time',
-                          processName: 'requestSpecialLeave',
-                          startProcessBody: {
-                            employeeId: employee.id
-                          }
-                        }
-                      })
-                    );
-                  }
+                  startProcess({
+                    domain: 'employee-time',
+                    processName: 'createEmployeeSpecialLeave',
+                    payload: {
+                      employeeId: employee.id,
+                      absenceType: specialLeaveEntitlement?.type?.id
+                    }
+                  });
                 }}
               >
                 Submit Request

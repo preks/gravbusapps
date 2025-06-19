@@ -70,13 +70,15 @@ interface ProfileInfoItemProps {
   label: string;
   value: string;
   linkTo?: string;
+  onClick?: () => void;
 }
 
 const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ 
   icon, 
   label, 
   value, 
-  linkTo 
+  linkTo,
+  onClick
 }) => {
   return (
     <div className="gba:flex gba:items-center gba:gap-2">
@@ -87,6 +89,13 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
         <div className="gba:text-xs gba:text-gray-500">{label}</div>
         {linkTo ? (
           <a href={linkTo} className="gba:text-sm gba:text-blue-600 gba:inline-flex gba:items-baseline gba:flex-wrap">
+            <span className="gba:whitespace-normal">{value}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-3 gba:w-3 gba:shrink-0 gba:ml-0.5 gba:align-baseline gba:inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        ) : onClick ? (
+          <a href="#" onClick={(e) => { e.preventDefault(); onClick(); }} className="gba:text-sm gba:text-blue-600 gba:inline-flex gba:items-baseline gba:flex-wrap" data-testid={`profile-info-${label.toLowerCase()}-link`}>
             <span className="gba:whitespace-normal">{value}</span>
             <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-3 gba:w-3 gba:shrink-0 gba:ml-0.5 gba:align-baseline gba:inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -271,9 +280,14 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                       ? employee.employeePosition.supervisor.displayName || `${employee.employeePosition.supervisor.firstName ?? ''} ${employee.employeePosition.supervisor.lastName ?? ''}`.trim() || "Not assigned"
                       : "No manager"
                   }
-                  linkTo={
+                  linkTo={undefined}
+                  onClick={
                     employee.employeePosition?.supervisor?.id && employee.employeePosition.supervisor.id !== employee.id
-                      ? `/platform/employee-record?employeeId=${employee.employeePosition.supervisor.id}`
+                      ? () => {
+                          const url = new URL(window.location.href);
+                          url.searchParams.set('employeeId', employee.employeePosition?.supervisor?.id || '');
+                          window.history.pushState({}, '', url.toString());
+                        }
                       : undefined
                   }
                 />

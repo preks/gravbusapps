@@ -74,8 +74,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     }
   };
 
+  const isGoalValid = (goal: EmployeePerformanceGoal) => {
+    return goal.title && goal.startDate && goal.dueDate;
+  };
+
   // Map status to display values and styles
-  const getStatusInfo = (status: string) => {  
+  const getStatusInfo: (status: string) => { label: string, color: string } = (status: string) => {  
     return statusMap[status] || { label: status, color: 'gba:bg-gray-100 gba:text-gray-800' };
 };
 
@@ -128,56 +132,61 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
               </Button>
             </div>
 
-        {localPerformanceGoals.length === 0 ? (
-          <div className="gba:text-center gba:text-gray-500 gba:py-8">
-            <p>No goals found.</p>
-          </div>
-        ) : (
-          <div className="gba:space-y-4">
-            {localPerformanceGoals.map((goal) => {
-              const statusInfo = getStatusInfo(goal.status);
-              
-              return (
-                <Card key={`goal-${goal.title ?? ''}-${goal.status ?? ''}`} bordered>
-                  <div className="gba:flex gba:flex-col gba:md:flex-row gba:md:items-center gba:justify-between gba:mb-4">
-                    <h3 className="gba:text-lg gba:font-medium">{goal.title}</h3>
-                    <span className={`gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:mt-2 gba:md:mt-0 ${statusInfo.color}`}>
-                      {statusInfo.label}
-                    </span>
-                  </div>
+            {!localPerformanceGoals?.length ? (
+              <Empty 
+                description="No goals available" 
+                className="gba:py-10" 
+                data-testid="empty-goals-state"
+              />
+            ) : (
+              <div className="gba:space-y-4">
+                {localPerformanceGoals.map((goal) => {
+                  if (!isGoalValid(goal)) {
+                    return null;
+                  }
+                  const statusInfo = getStatusInfo(goal.status);
                   
-                  <div className="gba:mb-4">
-                    <div className="gba:w-full gba:bg-gray-200 gba:rounded-full gba:h-2.5">
-                      <div 
-                        className="gba:bg-blue-600 gba:h-2.5 gba:rounded-full" 
-                        style={{ width: `${goal.progressPercent}%` }}
-                      ></div>
-                    </div>
-                    <div className="gba:flex gba:justify-between gba:mt-1 gba:text-sm gba:text-gray-600">
-                      <span>progress</span>
-                      <span>{goal.progressPercent}%</span>
-                    </div>
-                  </div>
-                  
-                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:text-sm">
-                    <div>
-                      <span className="gba:block gba:text-gray-500">Start Date</span>
-                      <span>{dayjs(goal.startDate).format('MMM D, YYYY')}</span>
-                    </div>
-                    <div>
-                      <span className="gba:block gba:text-gray-500">Due Date</span>
-                      <span>{dayjs(goal.dueDate).format('MMM D, YYYY')}</span>
-                    </div>
-                    <div>
-                      <span className="gba:block gba:text-gray-500">Completion Date</span>
-                      <span>{goal.completionDate ? dayjs(goal.completionDate).format('MMM D, YYYY') : '-'}</span>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+                  return (
+                    <Card key={`goal-${goal.title ?? ''}-${goal.status ?? ''}`} variant='outlined'>
+                      <div className="gba:flex gba:flex-col gba:md:flex-row gba:md:items-center gba:justify-between gba:mb-4">
+                        <h3 className="gba:text-lg gba:font-medium">{goal.title}</h3>
+                        <span className={`gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:mt-2 gba:md:mt-0 ${statusInfo.color}`}>
+                          {statusInfo.label}
+                        </span>
+                      </div>
+                      
+                      <div className="gba:mb-4">
+                        <div className="gba:w-full gba:bg-gray-200 gba:rounded-full gba:h-2.5">
+                          <div 
+                            className="gba:bg-blue-600 gba:h-2.5 gba:rounded-full" 
+                            style={{ width: `${goal.progressPercent}%` }}
+                          ></div>
+                        </div>
+                        <div className="gba:flex gba:justify-between gba:mt-1 gba:text-sm gba:text-gray-600">
+                          <span>progress</span>
+                          <span>{goal.progressPercent}%</span>
+                        </div>
+                      </div>
+                      
+                      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:text-sm">
+                        <div>
+                          <span className="gba:block gba:text-gray-500">Start Date</span>
+                          <span>{dayjs(goal.startDate).format('MMM D, YYYY')}</span>
+                        </div>
+                        <div>
+                          <span className="gba:block gba:text-gray-500">Due Date</span>
+                          <span>{dayjs(goal.dueDate).format('MMM D, YYYY')}</span>
+                        </div>
+                        <div>
+                          <span className="gba:block gba:text-gray-500">Completion Date</span>
+                          <span>{goal.completionDate ? dayjs(goal.completionDate).format('MMM D, YYYY') : '-'}</span>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </section>
         </div>
 

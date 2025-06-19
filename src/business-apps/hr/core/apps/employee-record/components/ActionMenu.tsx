@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Employee } from '../hooks/useEmployeeData';
-import { useNavigate } from 'react-router-dom';
 
 interface ActionMenuProps {
   employee: Employee;
@@ -24,7 +23,6 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   isLoggedUser 
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const navigate = useNavigate();
   
   // Toggle dropdown
   const toggleDropdown = () => {
@@ -220,9 +218,12 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
           window.location.href = '/platform/landing_screen/srn_absenceLandingScreen';
           break;
         case 'goToManagerProfile':
-          // Use React Router navigation instead of direct browser navigation
-          // This prevents UI flashing when navigating between profiles
-          navigate(`/platform/employee-record?employeeId=${employee.employeePosition?.supervisor.id}`);
+          // Modify only the URL parameter instead of full navigation
+          if (employee.employeePosition?.supervisor?.id) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('employeeId', employee.employeePosition.supervisor.id);
+            window.history.pushState({}, '', url.toString());
+          }
           break;
         case 'goToTeamAvailability':
           window.location.href = '/platform/landing_screen/srn_teamAvailability';

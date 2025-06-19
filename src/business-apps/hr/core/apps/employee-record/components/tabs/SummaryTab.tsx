@@ -6,6 +6,7 @@ import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData';
 import { Card } from '@newwork/gravity-ui-catalog';
 import { ProfileSection } from '../ProfileSection';
 import Avatar from '@/business-apps/hr/components/employeeAvatar/EmployeeAvatar';
+import { Empty } from 'antd';
 import { 
   PiBriefcase, 
   PiStack, 
@@ -103,12 +104,19 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
           <Card className="gba:p-4 gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center" style={{ minHeight: '420px' }}>
             <div className="gba:flex gba:flex-col gba:items-center gba:space-y-6" style={{ maxHeight: '650px', overflowY: 'auto', overflowX: 'hidden' }}>
             {/* Supervisor */}
-            {employee.employeePosition?.supervisor && employee.employeePosition.supervisor.id !== employee.id && (
+            {employee.employeePosition?.supervisor && employee.employeePosition?.supervisor.id !== employee.id && (
               <div className="gba:flex gba:flex-col gba:items-center">
                 <a 
-                  href={`/platform/employee-record?employeeId=${employee.employeePosition.supervisor.id}`}
+                  //className="gba:flex gba:flex-col gba:gap-1 gba:text-sm gba:text-center gba:flex-col gba:hover:text-blue-600"
                   className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
-                  title={`View ${employee.employeePosition.supervisor.displayName}'s profile`}
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('employeeId', employee.employeePosition?.supervisor?.id || '');
+                    window.history.pushState({}, '', url.toString());
+                  }}
+                  data-testid="supervisor-link"
                 >
                   <Avatar
                     profilePicture={employee.employeePosition.supervisor.pictureThumbnail}
@@ -156,9 +164,16 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                 {subordinates.map((member) => (
                   <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
                     <a 
-                      href={`/platform/employee-record?employeeId=${member.id}`}
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('employeeId', member.id);
+                        window.history.pushState({}, '', url.toString());
+                      }}
                       className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
                       title={`View ${member.displayName}'s profile`}
+                      data-testid={`team-member-link-${member.id}`}
                     >
                       <Avatar
                         profilePicture={member.profilePicture}
@@ -349,8 +364,16 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
       )}
 
       {formattedFeedback.length === 0 && (
-        <div className="gba:mt-6 gba:text-center gba:text-gray-500">
-          No feedback data available.
+        <div className="gba:mb-8 gba:mt-6">
+          <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
+            <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
+            Feedback
+          </h3>
+          <Empty 
+            description="No feedback available" 
+            className="gba:py-10" 
+            data-testid="empty-feedback-state"
+          />
         </div>
       )}
     </div>

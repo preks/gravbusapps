@@ -19,6 +19,60 @@ import { BusinessAppContextProps } from '../../../../../common/BusinessAppContex
  * Employee Record Module
  * Displays detailed information about an employee
  */
+// Define tab keys - keep outside of component to avoid recreating on each render
+const TAB_KEYS = {
+  summary: 'summary',
+  details: 'details',
+  employment: 'employment',
+  documents: 'documents',
+  performance: 'performance',
+  absences: 'absences'
+};
+
+// Helper to read URL parameters
+const getUrlParams = () => {
+  if (typeof window === 'undefined') return { tab: null, employeeId: null };
+  const searchParams = new URLSearchParams(window.location.search);
+  return {
+    tab: searchParams.get('tab'),
+    employeeId: searchParams.get('employeeId') ?? searchParams.get('id')
+  };
+};
+
+// Handle loading UI
+const LoadingUI = () => (
+  <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
+    <Spinner size="large" />
+    <p>Loading...</p>
+  </div>
+);
+
+// Handle error UI
+const ErrorUI = () => {
+  // Show error notification
+  React.useEffect(() => {
+    notification.error({
+      message: "Error",
+      description: "Error loading employee data."
+    });
+  }, []);
+
+  return (
+    <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-red-600">
+      <p className="gba:text-xl gba:font-medium">Error</p>
+      <p>Error loading employee data.</p>
+    </div>
+  );
+};
+
+// Handle not found UI
+const NotFoundUI = () => (
+  <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-gray-600">
+    <p className="gba:text-xl gba:font-medium">Not Found</p>
+    <p>Employee not found.</p>
+  </div>
+);
+
 /**
  * Displays detailed information about an employee.
  *
@@ -35,119 +89,126 @@ import { BusinessAppContextProps } from '../../../../../common/BusinessAppContex
  *
  * @param {string} employeeId - the ID of the employee to display.
  */
-export const EmployeeRecord: React.FC<BusinessAppContextProps> = ({ 
-  userInfo,
-  accessToken,
-  activeStructureId
-}) => {
+/**
+ * Employee Record Component Wrapper
+ * This wrapper ensures proper handling of URL parameters and employee ID
+ */
+export const EmployeeRecord: React.FC<BusinessAppContextProps> = (props) => {
+  // Get current URL parameters on each render
+  const urlParams = getUrlParams();
   
-  // Define tab keys
-  const TAB_KEYS = {
-    summary: 'summary',
-    details: 'details',
-    employment: 'employment',
-    documents: 'documents',
-    performance: 'performance',
-    absences: 'absences'
-  };
+  // Determine which employee to show
+  const urlEmployeeId = urlParams.employeeId;
+  const currentUserEmployeeId = props.userInfo?.employeeDetails?.employeeId || '';
   
-  // Initialize active tab from URL query parameter if available, otherwise default to summary
-  const [activeTab, setActiveTab] = useState(() => {
-    // Try to get the tab from URL if we're in a browser environment
-    if (typeof window !== 'undefined') {
-      const searchParams = new URLSearchParams(window.location.search);
-      const tabParam = searchParams.get('tab');
-      if (tabParam && Object.values(TAB_KEYS).includes(tabParam)) {
-        return tabParam;
-      }
-    }
-    return TAB_KEYS.summary;
-  });
-  // Use employee ID from URL query parameter or default to user info
-  const [employeeId, setEmployeeId] = useState(userInfo?.employeeDetails?.employeeId ?? '');
+  // If URL has employeeId parameter, show that employee, otherwise show current user
+  const employeeIdToShow = urlEmployeeId || currentUserEmployeeId;
   
-  // Update the URL query parameter when the active tab changes
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const searchParams = new URLSearchParams(window.location.search);
-      const currentTab = searchParams.get('tab');
-      
-      // Only update if the query param doesn't match the active tab
-      if (currentTab !== activeTab) {
-        searchParams.set('tab', activeTab);
-        
-        // Preserve other query parameters like employeeId
-        const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
-        window.history.pushState({}, '', newUrl);
-      }
-    }
-  }, [activeTab]);
-  
-  // Set up initial URL parameters and employee ID when the component mounts
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const searchParams = new URLSearchParams(window.location.search);
-      
-      // Ensure the default tab is set in URL if not already present
-      if (!searchParams.has('tab')) {
-        searchParams.set('tab', activeTab);
-        const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
-        window.history.pushState({}, '', newUrl);
-      }
+  // Get active tab from URL or use default
+  const initialActiveTab = urlParams.tab && Object.values(TAB_KEYS).includes(urlParams.tab) 
+    ? urlParams.tab 
+    : TAB_KEYS.summary;
 
-      // Set employee ID from URL query parameter
-      const employeeIdParam = searchParams.get('employeeId') ?? searchParams.get('id');
-      if (employeeIdParam) {
-        setEmployeeId(employeeIdParam);
-      }
-    }
-  }, []);
+  // Render the actual employee record content
+  return <EmployeeRecordContent 
+    {...props}
+    urlEmployeeId={urlEmployeeId}
+    currentUserEmployeeId={currentUserEmployeeId}
+    employeeIdToShow={employeeIdToShow}
+    initialActiveTab={initialActiveTab}
+  />;
+};
+
+interface EmployeeRecordContentProps extends BusinessAppContextProps {
+  urlEmployeeId: string | null;
+  currentUserEmployeeId: string;
+  employeeIdToShow: string;
+  initialActiveTab: string;
+}
+
+/**
+ * The actual employee record implementation
+ */
+const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({ 
+  accessToken,
+  activeStructureId,
+  currentUserEmployeeId,
+  employeeIdToShow,
+  initialActiveTab
+}) => {
+  // Track active tab for the UI
+  const [activeTab, setActiveTab] = useState(initialActiveTab);
   
+  // Update URL when active tab changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const searchParams = new URLSearchParams(window.location.search);
+    searchParams.set('tab', activeTab);
+    
+    // Handle employee ID in URL
+    if (employeeIdToShow && employeeIdToShow !== currentUserEmployeeId) {
+      // Only add employeeId to URL if it's not the current user
+      searchParams.set('employeeId', employeeIdToShow);
+    } else {
+      // If viewing own profile, remove employeeId from URL for cleaner URLs
+      searchParams.delete('employeeId');
+      searchParams.delete('id');
+    }
+    
+    const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
+    window.history.replaceState({}, '', newUrl);
+  }, [activeTab, employeeIdToShow, currentUserEmployeeId]);
+  
+  // Always fetch the employee data for the employee ID we want to show
   const { loading, error, employee, feedback, absenceEntitlements, performanceGoals } = useEmployeeData(
     accessToken,
     activeStructureId ?? '',
-    employeeId
+    employeeIdToShow // Use the determined employeeId directly
   );
 
-  // We can add additional initialization logic here if needed in the future
-
-  // Handle loading state
-  if (loading) {
+  // Define tab content components
+  const renderContent = () => {
+    // Return appropriate UI based on data loading state
+    if (loading) {
+      return <LoadingUI />;
+    }
+    
+    if (error) {
+      return <ErrorUI />;
+    }
+    
+    if (!employee) {
+      return <NotFoundUI />;
+    }
+    
+    // We have employee data, render the main UI
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-        <Spinner size="large" />
-        <p>Loading...</p>
+      <div className="gba:employee-profile gba:w-full gba:h-full">
+        <ScreenBody className="gba:h-full gba:w-full">
+          <ProfileLayout
+            headerContent={
+              <ProfileHeader
+                accessToken={accessToken}
+                employee={employee}
+              />
+            }
+            contentHeader={tabNavigation}
+            contentContainer={getTabContent()}
+            headerPlacement="left"
+            className="gba:w-full gba:max-w-full gba:mx-auto gba:px-4"
+          />
+        </ScreenBody>
       </div>
     );
-  }
-
-  // Handle error state
-  if (error) {
-    // Show error notification
-    notification.error({
-      message: "Error",
-      description: "Error loading employee data."
-    });
-    return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-red-600">
-        <p className="gba:text-xl gba:font-medium">Error</p>
-        <p>Error loading employee data.</p>
-      </div>
-    );
-  }
-
-  // Handle no data
-  if (!employee) {
-    return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-gray-600">
-        <p className="gba:text-xl gba:font-medium">Not Found</p>
-        <p>Employee not found.</p>
-      </div>
-    );
-  }
+  };
 
   // Define tab items for the Tabs component
-  const getTabItems = () => [
+  const getTabItems = () => {
+    // Ensure employee is not null before creating tab items
+    if (!employee) return [];
+    
+    return [
     {
       key: TAB_KEYS.summary,
       label: "Summary",
@@ -210,6 +271,7 @@ export const EmployeeRecord: React.FC<BusinessAppContextProps> = ({
       )
     }
   ];
+  };
   
   // Tab items for the Tabs component
   const tabItems = getTabItems();
@@ -231,24 +293,8 @@ export const EmployeeRecord: React.FC<BusinessAppContextProps> = ({
     return activeTabItem ? activeTabItem.children : null;
   };
 
-  return (
-    <div className="gba:employee-profile gba:w-full gba:h-full">
-      <ScreenBody className="gba:h-full gba:w-full">
-        <ProfileLayout
-          headerContent={
-            <ProfileHeader
-              accessToken={accessToken}
-              employee={employee}
-            />
-          }
-          contentHeader={tabNavigation}
-          contentContainer={getTabContent()}
-          headerPlacement="left"
-          className="gba:w-full gba:max-w-full gba:mx-auto gba:px-4"
-        />
-      </ScreenBody>
-    </div>
-  );
+  // Return the current UI state
+  return renderContent();
 };
 
 export default EmployeeRecord;

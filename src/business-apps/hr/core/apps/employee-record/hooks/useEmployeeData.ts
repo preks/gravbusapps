@@ -248,6 +248,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/`
     }) {
       employeeId
       type {
+        id
         value
       }
       available
@@ -613,6 +614,7 @@ export interface EmployeeFeedback {
 export interface EmployeeAbsenceEntitlement {
   employeeId: string;
   type: {
+    id: string;
     value: string;
     translations: {
       localeCode: string;
