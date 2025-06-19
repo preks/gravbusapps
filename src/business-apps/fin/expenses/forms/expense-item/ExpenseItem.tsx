@@ -47,8 +47,12 @@ const ExpenseItemContent: React.FC = () => {
         {currentStep === "form" && (
           <Button
             variant="ghost"
-            onClick={() => setCurrentStep("start")}
+            onClick={() => {
+              setCurrentStep("start");
+              setFileList([]);
+            }}
             className={`${styles.backButton} gba:backButton`}
+            data-testid="back-button"
           >
             <img 
               src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/arrow-left-s-line.svg" 

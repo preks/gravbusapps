@@ -1,15 +1,15 @@
-import React from "react";
-import { Upload, message } from "antd";
+import React, { useRef, useState, useCallback } from "react";
+import { Upload, message, Modal } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import styles from "../../ExpenseItem.module.css";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
+import { Button } from "@newwork/gravity-ui-catalog";
 
 interface UploadComponentProps {
   fileList: any[];
   setFileList: (files: any[]) => void;
 }
 
-// Allowed file types
 const ALLOWED_FILE_TYPES = [".pdf", ".PDF", ".jpg", ".JPG", ".jpeg", ".JPEG", ".png", ".PNG"];
 
 export const UploadComponent: React.FC<UploadComponentProps> = ({ 
@@ -22,7 +22,19 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
     isProcessingFiles
   } = useExpenseItem();
   
-  // Validate file type
+
+  const [isHandlingUpload, setIsHandlingUpload] = useState<boolean>(false);
+  
+
+  const lastUploadTimestampRef = useRef<number>(0);
+  
+
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  
+
+  const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
+  
+
   const validateFileType = (file: File) => {
     const isValidType = ALLOWED_FILE_TYPES.some(type => {
       const extension = `.${file.name.split('.').pop()}`;
@@ -36,56 +48,101 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
     return isValidType;
   };
   
-  // Handle file upload for a single file
+
   const handleBeforeUpload = (file: File) => {
     if (!validateFileType(file)) {
       return Upload.LIST_IGNORE;
     }
-    
-    // If valid, process the file immediately
-    if (!isProcessingFiles) {
-      // Add the file to the fileList
+
+    if (fileList.length > 0 && !isProcessingFiles && !isHandlingUpload) {
+      setPendingFiles([file]);
+      setTimeout(() => setIsModalVisible(true), 0);
+      return Upload.LIST_IGNORE;
+    }
+
+    if (!isProcessingFiles && !isHandlingUpload) {
       const newFile = {
         uid: Date.now().toString(),
         name: file.name,
         status: 'done',
         originFileObj: file
       };
-      
       const newFileList = [...fileList, newFile];
       setFileList(newFileList);
-      
-      // Process the file upload
-      setTimeout(() => {
-        handleFileUpload([file]);
-      }, 0);
+      processFiles([file]);
     }
-    
-    return false; // Prevent auto upload
+
+    return false;
   };
-  
-  // Handle file upload for multiple files
+
+  const processFiles = useCallback((files: File[]) => {
+    if (isHandlingUpload || isProcessingFiles || files.length === 0) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastUploadTimestampRef.current < 500) {
+      return;
+    }
+
+    lastUploadTimestampRef.current = now;
+    setIsHandlingUpload(true);
+
+    setTimeout(() => {
+      handleFileUpload(files).finally(() => {
+        setIsHandlingUpload(false);
+      });
+    }, 0);
+  }, [handleFileUpload, isHandlingUpload, isProcessingFiles]);
+
+  const handleModalConfirm = useCallback((keepExisting: boolean) => {
+    if (!pendingFiles.length) return;
+
+    setIsModalVisible(false);
+
+    if (keepExisting) {
+      const existingFiles = fileList.map(f => f.originFileObj).filter(Boolean);
+      const newFileListItems = pendingFiles.map(file => ({
+        uid: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+        name: file.name,
+        status: 'done',
+        originFileObj: file
+      }));
+      setFileList([...fileList, ...newFileListItems]);
+      processFiles([...existingFiles, ...pendingFiles]);
+    } else {
+      const newFileListItems = pendingFiles.map(file => ({
+        uid: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+        name: file.name,
+        status: 'done',
+        originFileObj: file
+      }));
+      setFileList(newFileListItems);
+      processFiles(pendingFiles);
+    }
+
+    setPendingFiles([]);
+  }, [fileList, pendingFiles, processFiles, setFileList]);
+
   const handleChange = (info: any) => {
-    // Filter out any files that might have been rejected by validateFileType
     const validFiles = info.fileList.filter((file: any) => {
-      // If the file has just been added and doesn't have a response, validate it
       if (!file.response && file.status !== 'error') {
         return validateFileType(file.originFileObj);
       }
-      return true; // Keep existing files
+      return true;
     });
-    
-    setFileList(validFiles);
+
+    if (!isModalVisible) {
+      setFileList(validFiles);
+    }
   };
-  
-  // Handle file removal
+
   const handleRemove = (file: any) => {
     const newFileList = fileList.filter(item => item.uid !== file.uid);
     setFileList(newFileList);
   };
-  
+
   const getButtonContent = () => {
-    // Start screen with empty file list (Image 1)
     if (fileList.length === 0 && currentStep === "start") {
       return (
         <div className={`${styles.uploadButtonStart} gba:uploadButtonStart`}>
@@ -109,8 +166,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
         </div>
       );
     }
-    
-    // Form screen with empty file list (Image 4)
+
     if (fileList.length === 0) {
       return (
         <div className={`${styles.uploadButtonFormEmpty} gba:uploadButtonFormEmpty`}>
@@ -134,8 +190,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
         </div>
       );
     }
-    
-    // With files attached (Image 5) - this will be rendered below the file list
+
     return null;
   };
 
@@ -143,19 +198,17 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
     if (fileList.length > 0) {
       return `${styles.uploadContainerWithFiles} gba:uploadContainerWithFiles`;
     }
-    
+
     return currentStep === "start" 
       ? `${styles.uploadContainerStart} gba:uploadContainerStart`
       : `${styles.uploadContainerForm} gba:uploadContainerForm`;
   };
 
-  // Define accepted file types for the file dialog
   const acceptedFileTypes = "application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG";
-  
+
   return (
     <div className={getContainerClass()}>
       {fileList.length === 0 ? (
-        // When there are no attachments, make the whole component clickable
         <Upload
           listType="text"
           fileList={fileList}
@@ -170,9 +223,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
           {getButtonContent()}
         </Upload>
       ) : (
-        // When there are attachments, use a flex container with two rows
         <div className={`${styles.filesFlexContainer} gba:filesFlexContainer`}>
-          {/* Row 1: File list display */}
           <div className={`${styles.fileListRow} gba:fileListRow`}>
             <Upload
               listType="text"
@@ -190,8 +241,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
               }}
             />
           </div>
-          
-          {/* Row 2: Attach Receipt button */}
+
           <div className={`${styles.attachButtonRow} gba:attachButtonRow`}>
             <Upload
               showUploadList={false}
@@ -223,6 +273,46 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
             </Upload>
           </div>
         </div>
+      )}
+
+      {isModalVisible && (
+        <Modal
+          title="Attach Additional Files"
+          open={true}
+          onCancel={() => {
+            setIsModalVisible(false);
+            setPendingFiles([]);
+          }}
+          footer={null}
+          maskClosable={false}
+          centered
+          data-testid="upload-confirmation-modal"
+          style={{ zIndex: 1050 }}
+          destroyOnClose={true}
+          width={500}
+        >
+          <div className={`${styles.modalContent} gba:modalContent`}>
+            <p>Do you want to keep the current {fileList.length > 1 ? 'files' : 'file'} as well?</p>
+            <div className={`${styles.modalButtons} gba:modalButtons`}>
+              <Button 
+                variant="secondary"
+                onClick={() => handleModalConfirm(false)}
+                data-testid="modal-no-button"
+                className="min-w-[120px]"
+              >
+                No
+              </Button>
+              <Button 
+                variant="primary"
+                onClick={() => handleModalConfirm(true)}
+                data-testid="modal-yes-button"
+                className="min-w-[120px]"
+              >
+                Yes
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
