@@ -3,7 +3,6 @@ import YearComparisonSection from "./YearComparisonSection";
 import KeyInsightsSection from "./KeyInsightsSection";
 import WorkPatternsSection from "./WorkPatternsSection";
 import UsageTrendsSection from "./UsageTrendsSection";
-import "../styles/statisticsTab.css";
 export interface StatisticsTabProps {
   absences: any[];
 }

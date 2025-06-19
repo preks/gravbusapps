@@ -1,6 +1,5 @@
 import React from 'react';
 import type { AbsenceListCardProps } from '../types/absenceTypes';
-import '../styles/absenceListCard.css';
 import { CalendarOutlined } from '@ant-design/icons';
 
 const AbsenceListCard: React.FC<AbsenceListCardProps> = ({ absence }) => {

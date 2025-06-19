@@ -1,5 +1,4 @@
 import type { UpcomingAbsenceCardProps } from '../types/absenceTypes';
-import '../styles/upcomingAbsenceCard.css';
 import { CalendarOutlined } from '@ant-design/icons';
 
 export const UpcomingAbsenceCard = ({ absence }: UpcomingAbsenceCardProps) => {

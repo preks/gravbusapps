@@ -1,5 +1,4 @@
 import type { StatsCardProps } from "../types/absenceTypes"
-import '../styles/statsCard.css'
 import { CalendarOutlined } from '@ant-design/icons';
 
 export const StatsCard = ({ stat }: StatsCardProps) => {

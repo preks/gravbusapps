@@ -13,8 +13,6 @@ import type {
   StatItem,
   AbsenceListCardAbsence,
 } from "./types/absenceTypes";
-import "./styles/absenceHub.css";
-import "./styles/absenceListCard.css";
 import AbsenceCalendar from "../AbsenceCalendar";
 import EntitlementCard from "./components/EntitlementCard";
 import StatisticsTab from "./components/StatisticsTab";

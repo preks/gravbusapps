@@ -1,5 +1,4 @@
 import React from "react";
-import "../styles/entitlementCard.css";
 import type { EntitlementCardProps } from "../types/entitlementTypes";
 import dayjs from "dayjs";
 
