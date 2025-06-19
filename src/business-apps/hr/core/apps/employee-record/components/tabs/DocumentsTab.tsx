@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Employee } from '../../hooks/useEmployeeData';
 import { Card } from '@newwork/gravity-ui-catalog';
-import { DataCards } from '@/business-apps/hr/core/apps/employee-record/components/DataCards';
+import { DataCards } from '../DataCards';
 import { Modal, Spin, Divider } from 'antd';
 import { Button } from '@newwork/gravity-ui-catalog';
 import { PlusOutlined } from '@ant-design/icons';
