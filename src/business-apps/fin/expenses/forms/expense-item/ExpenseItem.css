@@ -1,0 +1,558 @@
+/* Import Roboto font - scoped to ExpenseItem component */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+/* Remove spinner arrows from number inputs */
+:global(.gba\:no-spinner input[type=number]) {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+:global(.gba\:no-spinner input[type=number]::-webkit-outer-spin-button),
+:global(.gba\:no-spinner input[type=number]::-webkit-inner-spin-button) {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Amount-currency row layout */
+:global(.gba\:amountCurrencyRow) {
+  display: flex;
+  gap: 16px;
+}
+
+:global(.gba\:amountField),
+:global(.gba\:currencyField) {
+  width: 50%;
+}
+
+/* Make sure both fields in the row have proper alignment */
+:global(.gba\:amountCurrencyRow .ant-form-item) {
+  margin-bottom: 0;
+}
+
+/* Add padding to all error messages */
+:global(.ant-form-item-explain-error) {
+  padding-left: 16px;
+}
+
+/* Form field container styles */
+.gba\:formFieldContainer {
+  width: 100%;
+  background: #f5f5f5;
+  border: none;
+  border-radius: 0;
+  padding: 8px 10px;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Date field container with extra padding for the calendar icon */
+.gba\:dateFieldContainer {
+  width: 100%;
+  background: #f5f5f5;
+  border: none;
+  border-radius: 0;
+  padding: 8px 40px 8px 10px; /* Extra padding on right for calendar icon */
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-family: 'Roboto', sans-serif;
+  position: relative;
+}
+
+/* Label styles */
+.gba\:formFieldLabel {
+  color: #707070;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  font-family: 'Roboto', sans-serif;
+  letter-spacing: 0px;
+  margin-bottom: 4px;
+  position: relative;
+  padding-right: 15px;
+}
+
+/* Switch label styles */
+.gba\:switchLabel {
+  color: #707070;
+  font-size: 14px;
+  margin-left: 8px;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Card styles */
+.gba\:positionCard {
+  margin-bottom: 16px;
+  font-family: 'Roboto', sans-serif;
+}
+
+.gba\:antCardHead {
+  border-bottom: 0px;
+}
+
+.gba\:singlePositionContainer {
+  margin-bottom: 16px;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Required field asterisk */
+.gba\:requiredAsterisk {
+  color: #aaa;
+  margin-left: 2px;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+/* Input field styles */
+.gba\:formFieldInput {
+  width: 100%;
+  height: 16px;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0px;
+  color: #000000;
+  text-align: left;
+  opacity: 1;
+}
+
+/* Custom InputField styling to match our guidelines */
+.gba\:customInputField {
+  background: #f5f5f5;
+  border: none;
+  border-radius: 0;
+  min-height: 60px;
+}
+
+.gba\:customInputField label {
+  color: #707070;
+  font-size: 12px;
+  padding-right: 15px;
+  position: relative;
+}
+
+.gba\:customInputField input {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* Dropdown style for Select components */
+.gba\:dropdownStyle {
+  border-radius: 0;
+}
+
+/* Common margin utilities */
+.gba\:marginBottom16 {
+  margin-bottom: 16px;
+}
+
+.gba\:marginBottom0 {
+  margin-bottom: 0;
+}
+
+.gba\:marginTop16 {
+  margin-top: 16px;
+}
+
+/* Position utilities */
+.gba\:relativePosition {
+  position: relative;
+}
+
+/* Calendar icon positioning */
+.gba\:calendarIcon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #707070;
+  font-size: 16px;
+  pointer-events: none; /* Ensure the icon doesn't interfere with clicks */
+}
+
+/* Switch container styles */
+.gba\:switchContainer {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+/* Switch label styles */
+.gba\:switchLabel {
+  margin-left: 8px;
+  font-family: 'Roboto', sans-serif;
+  color: #707070;
+}
+
+/* Card styles */
+.gba\:card {
+  margin-bottom: 16px;
+}
+
+/* Continue button */
+.gba\:continueButton {
+  margin-top: 16px;
+}
+
+/* Main container */
+.gba\:mainContainer {
+  max-width: 600px;
+  margin: 0 auto;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Header styles */
+.gba\:headerContainer {
+  display: flex;
+  align-items: center;
+  padding: 16px 0;
+  font-family: 'Roboto', sans-serif;
+  position: relative;
+  height: 56px; /* Fixed height for consistency */
+}
+
+.gba\:titleContainer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.gba\:headerTitle {
+  margin: 0;
+  text-align: center;
+  font-family: 'Roboto', sans-serif;
+  pointer-events: auto;
+}
+
+.gba\:backButton {
+  z-index: 1;
+  position: relative;
+}
+
+.gba\:backIcon {
+  width: 24px;
+  height: 24px;
+}
+
+.gba\:headerDivider {
+  margin: 0 0 16px 0;
+}
+
+/* Button styles */
+.gba\:button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gba\:submitButton {
+  width: 100%;
+}
+
+.gba\:deleteButton {
+  color: #f5222d;
+}
+
+.gba\:deleteButton:hover {
+  color: #cf1322;
+  background-color: rgba(245, 34, 45, 0.1);
+}
+
+/* Upload styles */
+.gba\:uploadDragContainer {
+  border: 1px dashed #d9d9d9;
+  border-radius: 2px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Upload container styles */
+.gba\:uploadContainer {
+  margin-bottom: 20px;
+}
+
+/* Upload component styles */
+.gba\:uploadComponent {
+  width: 100%;
+}
+
+/* Upload container styles for different states */
+.gba\:uploadContainerStart {
+  border: 2px solid #EFEFEF;
+  border-radius: 4px;
+  padding: 0;
+  margin-bottom: 16px;
+  height: 204px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+}
+
+.gba\:uploadContainerForm {
+  border: 2px solid #EFEFEF;
+  border-radius: 4px;
+  padding: 0;
+  margin-bottom: 16px;
+  background-color: #fff;
+}
+
+.gba\:uploadContainerWithFiles {
+  border: 2px solid #EFEFEF;
+  border-radius: 4px;
+  padding: 20px 28px;
+  margin-bottom: 16px;
+  position: relative;
+  background-color: #fff;
+  min-height: 80px;
+}
+
+/* Upload button styles */
+.gba\:uploadButtonStart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  cursor: pointer;
+  padding: 20px;
+  width: 100%;
+  height: 100%;
+}
+
+.gba\:uploadButtonProcessing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px;
+  width: 100%;
+  height: 100%;
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.gba\:uploadButtonFormEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 20px 28px;
+  width: 100%;
+  height: 100%;
+  gap: 16px;
+}
+
+/* Ensure the ant-upload container takes full height and centers content vertically */
+.gba\:uploadContainerForm :global(.ant-upload-wrapper),
+.gba\:uploadContainerStart :global(.ant-upload-wrapper) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* Button with icon styles */
+.gba\:buttonWithIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.gba\:arrowIcon {
+  width: 24px;
+  height: 24px;
+}
+
+/* Upload icon styles */
+.gba\:uploadIconSmall {
+  width: 18px;
+  height: 18px;
+}
+
+.gba\:uploadContainerForm :global(.ant-upload.ant-upload-select),
+.gba\:uploadContainerStart :global(.ant-upload.ant-upload-select) {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100%;
+}
+
+/* Modal styles */
+.gba\:modalContent {
+  padding: 16px 0;
+  font-family: 'Roboto', sans-serif;
+}
+
+.gba\:modalContent p {
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: #333;
+  text-align: center;
+}
+
+.gba\:modalButtons {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+.gba\:modalButton {
+  min-width: 100px;
+  height: 36px;
+  border-radius: 4px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.gba\:primaryButton {
+  background-color: #1890ff;
+  color: white;
+}
+
+.gba\:primaryButton:hover {
+  background-color: #40a9ff;
+}
+
+.gba\:secondaryButton {
+  background-color: #f5f5f5;
+  color: #333;
+  border: 1px solid #d9d9d9;
+}
+
+.gba\:secondaryButton:hover {
+  background-color: #e6e6e6;
+}
+
+
+
+.gba\:filesFlexContainer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.gba\:fileListRow {
+  width: 100%;
+}
+
+.gba\:attachButtonRow {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.gba\:attachMoreContainer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  cursor: pointer;
+  gap: 16px;
+}
+
+/* Upload icon styles */
+.gba\:uploadIcon {
+  width: 36px;
+  height: 36px;
+  color: #1890ff;
+}
+
+.gba\:loadingIcon {
+  font-size: 16px;
+  margin-right: 8px;
+  color: #1890ff;
+}
+
+.gba\:buttonContainer {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 16px;
+}
+
+.gba\:uploadIconSmall {
+  width: 28px;
+  height: 28px;
+  margin-left: 16px;
+  color: #000;
+}
+
+/* Upload list styles */
+.gba\:uploadComponent :global(.ant-upload-list) {
+  margin-top: 16px;
+}
+
+.gba\:uploadComponent :global(.ant-upload-list-item) {
+  border-radius: 48px;
+  padding: 12px 20px;
+  margin-top: 16px;
+  min-height: 40px;
+  border: 1px solid #EFEFEF;
+}
+
+.gba\:uploadComponent :global(.ant-upload-list-item-name) {
+  padding-left: 0;
+  text-align: left !important;
+}
+
+.gba\:uploadComponent :global(.ant-upload) {
+  width: 100%;
+  height: 100%;
+}
+
+.gba\:uploadComponent :global(.ant-upload-select) {
+  width: 100%;
+  height: 100%;
+}
+
+/* Start screen container styles */
+.gba\:startScreenContainer {
+  text-align: center;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Upload wrapper styles */
+.gba\:uploadWrapper {
+  width: 100%;
+  max-width: 600px;
+}
+
+/* Form layout styles */
+.gba\:formContainer {
+  max-width: 600px;
+  margin: 0 auto;
+}
