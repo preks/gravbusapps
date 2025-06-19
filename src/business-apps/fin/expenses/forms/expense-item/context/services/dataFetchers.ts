@@ -2,7 +2,7 @@ import { message } from "antd";
 import { ExpenseType, CustomField } from "../../types";
 import { getNewTypes, getCustomFields, fetchExpenseData } from "../../ExpenseItemQueries";
 import { prepareExpenseRequestsList } from "../../utils/expenseRequestUtils";
-import { getCurrentActiveUserLocale } from "../../utils/windowUtils";
+import { getCurrentActiveUserLocale } from "../../../../../../../common/utils/windowUtils";
 import dayjs from 'dayjs'
 
 export const fetchExpenseTypes = async (

@@ -17,8 +17,8 @@ import {
   CustomField,
 } from "../types";
 
-import { getCurrentActiveUserLocale } from "../utils/windowUtils";
-import { getCatalogValue } from "../utils/windowUtils";
+import { getCurrentActiveUserLocale } from "../../../../../../common/utils/windowUtils";
+import { getCatalogValue } from "../../../../../../common/utils/windowUtils";
 import {
   fetchExpenseCatalogueData,
   fetchExpenseRuleGeneralData,
