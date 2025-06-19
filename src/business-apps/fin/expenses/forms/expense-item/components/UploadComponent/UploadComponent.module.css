@@ -1,0 +1,173 @@
+.file-component-files {
+  border: 2px solid #EFEFEF;
+  padding: 20px 28px !important;
+  position: relative;
+}
+
+.file-component-files :global(.ant-upload-list-item.ant-upload-list-item-done) {
+  width: fit-content;
+  background-color: #F7F7F7;
+  border-radius: 48px;
+  padding: 12px 20px;
+  margin-top: 16px;
+  min-height: 40px;
+}
+
+.file-component-files :global(.ant-upload-list-item-name) {
+  display: inline-block;
+  width: fit-content;
+  max-width: 300px;
+  word-wrap: break-word;
+}
+
+.file-component-files :global(.ant-upload-list-item-actions>button) {
+  align-items: flex-end;
+  width: auto;
+  opacity: 1;
+  background-color: #F7F7F7;
+  border-radius: 48px;
+}
+
+.file-component-files :global(.ant-upload-list-item-actions>button svg) {
+  margin: 0px;
+}
+
+.file-component-files :global(.ant-upload-wrapper) {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: 28px;
+}
+
+.file-component-files :global(.ant-upload.ant-upload-select),
+.file-component-files :global(.button),
+.file-component-files :global(.ant-upload) {
+  width: 100%;
+  height: 100%;
+}
+
+.file-component-files :global(.ant-upload.ant-upload-select button) {
+  justify-content: flex-end;
+}
+
+.file-component-files :global(.ant-upload-list.ant-upload-list-text) {
+  align-self: flex-start;
+}
+
+.file-component-files :global(.ant-upload) {
+  padding-bottom: 10px;
+  justify-content: flex-end;
+}
+
+.file-component-files :global(.ant-btn.ant-btn-default) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: transparent !important;
+  color: #000;
+  box-shadow: none;
+}
+
+.file-component-files :global(.ant-btn.ant-btn-default>span) {
+  flex-direction: row-reverse;
+  padding-top: 20px;
+  padding-right: 28px;
+  padding-bottom: 20px;
+  align-self: flex-end;
+}
+
+.file-component-files :global(.ant-btn.ant-btn-default img) {
+  width: 18px;
+  height: 18px;
+}
+
+.file-component-files :global(.ant-btn.ant-btn-default span) {
+  font-weight: 500;
+}
+
+/* Empty state in form screen */
+.file-component-empty {
+  border: 2px solid #EFEFEF;
+  display: flex;
+  justify-items: center;
+  justify-content: center;
+  align-content: center;
+  align-items: center;
+}
+
+.file-component-empty :global(.ant-btn.ant-btn-default) {
+  color: #000;
+  background-color: transparent !important;
+  box-shadow: none;
+  height: 204px !important;
+}
+
+.file-component-empty :global(.ant-btn.ant-btn-default img) {
+  width: 36px;
+  height: 36px;
+}
+
+.file-component-empty :global(.ant-btn.ant-btn-default) {
+  font-weight: 500;
+}
+
+.file-component-empty :global(.ant-upload.ant-upload-select),
+.file-component-empty :global(.button),
+.file-component-empty :global(.ant-upload),
+.file-component-empty :global(.ant-upload-wrapper) {
+  width: 100%;
+  height: 100%;
+}
+
+.file-component-empty :global(.ant-btn.ant-btn-default>span) {
+  flex-direction: column;
+}
+
+/* Empty state in start screen */
+.file-component-empty-create {
+  border: 2px solid #EFEFEF;
+  display: flex;
+  justify-items: center;
+  justify-content: center;
+  align-content: center;
+  align-items: center;
+}
+
+.file-component-empty-create :global(.ant-btn.ant-btn-default) {
+  padding: 20px 0px;
+  color: #000;
+  font-weight: 500;
+  height: 56px !important;
+  background-color: transparent !important;
+  box-shadow: none;
+}
+
+.file-component-empty-create :global(.ant-btn.ant-btn-default img) {
+  width: 18px;
+  height: 18px;
+}
+
+.file-component-empty-create :global(.ant-upload.ant-upload-select),
+.file-component-empty-create :global(.button),
+.file-component-empty-create :global(.ant-upload),
+.file-component-empty-create :global(.ant-upload-wrapper) {
+  width: 100%;
+  height: 100%;
+}
+
+.file-component-empty-create :global(.ant-btn.ant-btn-default>span) {
+  gap: 16px;
+  flex-direction: row-reverse;
+}
+
+/* Icon styles */
+.fullSizeIcon {
+  font-size: 36px;
+}
+
+.smallIcon {
+  font-size: 18px;
+  margin-left: 16px;
+}

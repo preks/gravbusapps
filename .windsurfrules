@@ -54,6 +54,7 @@ src
 
 # Component Dependencies
 - Use react for UI components
+- Use tailwind v4 for all styling (utility classes)
 - Use ant-design for React UI components
 - Use @dnd-kit for drag and drop
 - Use zustand for state management in React
@@ -73,6 +74,12 @@ src
 
 - Whenever an input field is used to provide search by an user, use the existing `DebouncedInput` component to provide debounced search.
 - When tab components are used, provide a unique tab key for each tab and use this in a URL query parameter.
+
+- Add all CSS files in `src/index.css`, so that they are included in `dist/assets/main.css` by the vite bundler. Only this way will they be applied on the NEWWORK platform.
+
+- For Graphql API requests, use src\common\network\graphql\useGraphQLClient.ts
+- For REST API requests, use src\common\network\rest\useRestClient.ts
+- For all API requests to a service, check if already exists in src\common\network, or create a new folder for that service.
 
 # Project Development
 - Simplify the code as much as possible and keep it clean
