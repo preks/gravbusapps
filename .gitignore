@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 wrapped-entries
+temp_build
+temp_build_files

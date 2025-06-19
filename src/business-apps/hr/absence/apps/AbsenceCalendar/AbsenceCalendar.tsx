@@ -4,7 +4,6 @@ import { Calendar, Tag, Typography, Tabs } from "antd";
 import { AbsenceListDisplay } from "./components/AbsenceListDisplay";
 import dayjs, { Dayjs } from "dayjs";
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
-import "./styles/AbsenceCalendar.css";
 import {
   useGetEmployeeAbsences,
   EmployeeAbsence,

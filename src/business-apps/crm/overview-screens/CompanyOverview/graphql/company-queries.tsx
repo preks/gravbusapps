@@ -69,11 +69,13 @@ export const GET_COMPANIES = `
     $where: AccountBoolExp
     $limit: Int 
     $offset: Int
+    $order_by: [AccountOrderBy!]
   ) { 
     Account(
       where: $where 
       limit: $limit 
       offset: $offset
+      orderBy: $order_by
 ) {
     id
     version

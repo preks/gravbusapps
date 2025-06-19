@@ -1,0 +1,88 @@
+.gba\:opportunity-detail-container {
+  padding: 24px;
+}
+
+.gba\:header {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gba\:header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gba\:card-container {
+  margin-bottom: 24px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+.gba\:section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gba\:section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.gba\:opportunity-info-item {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: flex-start;
+}
+
+.gba\:opportunity-info-label {
+  font-weight: 500;
+  width: 140px;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.gba\:opportunity-info-value {
+  flex: 1;
+}
+
+.gba\:tab-content {
+  padding: 8px;
+  min-height: 200px;
+}
+
+.gba\:stage-tag {
+  margin-left: 8px;
+}
+
+.gba\:timeline-container {
+  margin-top: 16px;
+}
+
+.gba\:field-row {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.gba\:field {
+  flex: 1;
+}
+
+.gba\:field-label {
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.gba\:amount-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
