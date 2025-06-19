@@ -21,7 +21,7 @@ export type CatalogEntry = {
   type: string;
   objectValue?: JSONValue;
   parentEntryId?: string;
-  translations?: CatalogEntry[] | TranslationValues[];
+  translations: TranslationValues[];
   children?: CatalogEntry[];
   needTranslationIcon?: boolean;
 };
@@ -32,7 +32,10 @@ export type GetCatalogEntriesParams = {
 };
 
 export type GetCatalogsParams = {
+  includeLocalizedVersions?: boolean;
+  includeChildCatalogEntries?: boolean;
   returnTotalRecords?: boolean;
+  includeTranslations?: boolean;
   localeCode?: string;
   code?: string;
   searchCriteria?: string;
@@ -42,6 +45,7 @@ export type GetCatalogsParams = {
 
 export interface GetCatalogEntriesResponse {
   data: CatalogEntry[];
+  test: string;
   paging: {
     limit: number;
     offset: number;
@@ -55,6 +59,7 @@ export interface Catalog {
   identifier: string;
   name: string;
   version: string;
+  translations: TranslationValues[];
   children?: Catalog[];
   parentId?: string;
   validFrom?: string;
@@ -62,7 +67,7 @@ export interface Catalog {
 }
 
 export interface GetCatalogsResponse {
-  data: Catalog[];
+  data: CatalogEntry[];
   paging: {
     limit: number;
     offset: number;
