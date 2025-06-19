@@ -20,7 +20,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import AddDocumentModal from './modals/AddDocumentTypeModal';
 import useDocumentTypes from '../hooks/useDocumentTypes';
-import { DocumentType } from '../../../common/types/DocumentTypeObjectTypes'; // Aliased import
+import { DocumentType } from '@/common/types/DocumentTypeObjectTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 const { Title, Text } = Typography;

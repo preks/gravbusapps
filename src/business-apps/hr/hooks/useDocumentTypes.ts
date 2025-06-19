@@ -53,7 +53,7 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
           }
           
           if (searchTerm) {
-            criteria.push(`(value:*${searchTerm}* OR additionalValue1:*${searchTerm}*)`);
+            criteria.push(`(value:*${searchTerm}*)`);
           }
           
           queryParams.searchCriteria = criteria.join(' AND ');
@@ -66,7 +66,6 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
 
         setTotalDocumentTypes(response.paging?.totalRecords || 0);
         const fetchedEntries: CatalogEntry[] = response.data || [];
-        
         const mappedDocumentTypes = fetchedEntries.map((entry: CatalogEntry): DocumentType | null => {
           try {
             if (typeof entry.id !== 'string' || entry.id === '') {
@@ -82,16 +81,22 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
               return null;
             }
             const constructedId = `${pathParams.catalogIdentifier}:${pathParams.version}:${entry.code}`;
-
-            return {
+            // Create base document type without translations
+            const docType: DocumentType = {
               id: constructedId,
               code: entry.code,
               value: entry.value,
               parentEntryId: entry.parentEntryId || '',
+              translations: (entry.translations || []).map(t => ({
+                localeCode: t.localeCode || 'en-US',
+                value: t.value || ''
+              })),
               objectValue: (entry.objectValue || {}) as DocumentTypeObjectValue,
-              catalogEntryLocalId: entry.id, // Map CatalogEntry.id to catalogEntryLocalId
+              catalogEntryLocalId: entry.id,
               localeCode: entry.localeCode || userLocale,
             };
+
+            return docType;
           } catch (mapError: any) {
             console.error(`Error mapping CatalogEntry (id: ${entry.id || 'N/A'}) to DocumentType:`, mapError);
             message.error(`Error processing document entry: ${entry.value || entry.code || entry.id || 'Unknown Entry'}`);
@@ -138,6 +143,7 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
         id: id,
         code: code,
         value: documentType.value,
+        translations: documentType.translations || [],
         parentEntryId: documentType.parentEntryId,
         objectValue: objectValue,
         localeCode: 'en-US', // Default locale

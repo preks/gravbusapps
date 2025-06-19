@@ -1,3 +1,5 @@
+import { JSONValue } from "./i18nTypes";
+
 export interface DocumentTypeObjectValue {
   description?: string;
   isActive?: boolean;
@@ -5,10 +7,11 @@ export interface DocumentTypeObjectValue {
   securityLevel?: string;
   fileTypes?: string[];
   maxSize?: string;
+  translations?: TranslationValues[];
   [key: string]: any; // Allow additional properties
 }
 
-export interface TranslationValues {
+export interface TranslationValues extends Record<string, JSONValue> {
   localeCode: string;
   value: string;
 }

@@ -198,7 +198,10 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = (props) => {
           label={t('documentType.name_label', 'Document Type Name (Default: EN)')}
           rules={[{ required: true, message: t('documentType.name_required', 'Please enter document type name') }]}
         >
-          <Input placeholder={t('documentType.name_placeholder', 'e.g., Employee Contract')} />
+          <Input 
+            placeholder={t('documentType.name_placeholder', 'e.g., Employee Contract')} 
+            disabled={isEditing}
+          />
         </Form.Item>
       </Col>
 
