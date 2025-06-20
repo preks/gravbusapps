@@ -27,12 +27,13 @@ if [[ "${BITBUCKET_PIPELINE_TYPE}" == "CUSTOM" ]]; then
 # For develop branch or hotfix branches
 elif [[ "$BITBUCKET_BRANCH" == "develop" || "$BITBUCKET_BRANCH" == hotfix/* ]]; then
   echo "Publishing changes on ${BITBUCKET_BRANCH} branch..."
-  # Look only at latest commit to avoid publishing old screens
+  # For develop branch, we only want the most recent commit
   CHANGED_FILES=$(git log -1 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
 # For other branches (PR builds, etc)
 else
-  echo "Checking files changed against develop..."
-  CHANGED_FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  echo "Checking files changed in this branch (compared to develop)..."
+  # Look only at commits unique to this branch (not in develop)
+  CHANGED_FILES=$(git diff --name-only origin/develop..HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
 fi
 
 # Show what we found
