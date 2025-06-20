@@ -1,5 +1,6 @@
 import React from "react";
 import dayjs from "dayjs";
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface YearComparisonSectionProps {
   absences: any[];
@@ -53,29 +54,29 @@ const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ absences 
   let improvementMsg = "";
   let improvementIcon = "";
   if (prev === 0 && curr === 0) {
-    improvementMsg = "No change from last year";
+    improvementMsg = getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.no_change_last_year', 'No change from last year');
     improvementIcon = "";
   } else if (prev === 0 && curr > 0) {
-    improvementMsg = "New absences this year";
+    improvementMsg = getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.new_absences_this_year', 'New absences this year');
     improvementIcon = "↑";
   } else if (prev > 0 && curr === 0) {
-    improvementMsg = "All absences cleared from last year";
+    improvementMsg = getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.all_absences_cleared_last_year', 'All absences cleared from last year');
     improvementIcon = "↓";
   } else {
     const diffPct = Math.round(((curr - prev) / prev) * 100);
     improvementMsg =
       diffPct < 0
-        ? `${Math.abs(diffPct)}% decrease from last year – Good work-life balance improvement`
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.decrease_from_last_year', '{{pct}}% decrease from last year – Good work-life balance improvement', { pct: Math.abs(diffPct) })
         : diffPct > 0
-        ? `${diffPct}% increase from last year – More absences taken`
-        : `No change from last year`;
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.increase_from_last_year', '{{pct}}% increase from last year – More absences taken', { pct: diffPct })
+        : getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.no_change_last_year', 'No change from last year');
     improvementIcon = diffPct < 0 ? "↓" : diffPct > 0 ? "↑" : "";
   }
 
   return (
     <div data-testid="year-comparison-section">
-      <h3 className="gba:statisticsSectionTitle" data-testid="year-comparison-section-title">Year-over-Year Comparison</h3>
-      <div className="gba:statisticsSubTitle" data-testid="year-comparison-section-subtitle">How your absence patterns have changed over time</div>
+      <h3 className="gba:statisticsSectionTitle" data-testid="year-comparison-section-title">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.year_over_year_comparison', 'Year-over-Year Comparison')}</h3>
+      <div className="gba:statisticsSubTitle" data-testid="year-comparison-section-subtitle">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.absence_patterns_changed', 'How your absence patterns have changed over time')}</div>
       <div className="gba:yearComparisonRows">
         {yearData.map((row: { year: number; label: string; value: number; color: string }) => (
           <div className="gba:yearComparisonRow gba:flex gba:items-center" key={row.year}>
@@ -87,7 +88,7 @@ const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ absences 
                   style={{ width: `${row.value * 6}px`, background: row.color }}
                 />
               </div>
-              <span className="gba:yearComparisonValue">{row.value} days</span>
+              <span className="gba:yearComparisonValue">{row.value} {getTranslationFromI18nKeyAndLabel(row.value === 1 ? 'lowcoder:absence_hub.day' : 'lowcoder:absence_hub.days', row.value === 1 ? 'day' : 'days')}</span>
             </div>
           </div>
         ))}
@@ -120,7 +121,7 @@ const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ absences 
             </div>
             <div className="gba:leaveTypeLegendTypes" data-testid="year-comparison-section-leave-type-legend-types">
               {row.types.map((type: { label: string; value: number; color: string }) => (
-                <span key={type.label} className="gba:text-[#6b7683] gba:font-medium gba:text-[16px] gba:text-center gba:whitespace-nowrap" data-testid="year-comparison-section-leave-type-legend-type">
+                <span key={type.label} className="gba:text-[#6b7683] gba:font-medium gba:text-[12px] gba:text-center gba:whitespace-nowrap" data-testid="year-comparison-section-leave-type-legend-type">
                   {type.label}: {type.value}d
                 </span>
               ))}

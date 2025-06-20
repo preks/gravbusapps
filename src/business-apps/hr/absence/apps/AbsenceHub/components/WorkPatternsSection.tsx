@@ -1,6 +1,7 @@
 import React from "react";
 import dayjs from "dayjs";
 import { ExclamationCircleOutlined, CheckCircleOutlined } from "@ant-design/icons";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 interface WorkPatternsSectionProps {
   absences: Array<{
@@ -57,49 +58,49 @@ const WorkPatternsSection: React.FC<WorkPatternsSectionProps> = ({ absences }) =
 
   return (
     <div data-testid="work-patterns-section">
-      <h3 className="gba:statisticsSectionTitle" data-testid="work-patterns-section-title">Work Patterns</h3>
-      <div className="gba:statisticsSubTitle" data-testid="work-patterns-section-subtitle">Your consecutive work day analysis</div>
+      <h3 className="gba:statisticsSectionTitle" data-testid="work-patterns-section-title">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.work_patterns', 'Work Patterns')}</h3>
+      <div className="gba:statisticsSubTitle" data-testid="work-patterns-section-subtitle">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.your_consecutive_work_day_analysis', 'Your consecutive work day analysis')}</div>
       <div className="gba:workPatternsCurrentStreakCard">
         <div className="gba:workPatternsCurrentStreakValue" data-testid="current-streak-value">{currentStreak}</div>
-        <div className="gba:workPatternsCurrentStreakLabel" data-testid="work-patterns-section-current-streak-label">Current consecutive work days</div>
-        <div className="gba:workPatternsCurrentStreakSub">Since last time off</div>
+        <div className="gba:workPatternsCurrentStreakLabel" data-testid="work-patterns-section-current-streak-label">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.current_consecutive_work_days', 'Current consecutive work days')}</div>
+        <div className="gba:workPatternsCurrentStreakSub">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.since_last_time_off', 'Since last time off')}</div>
       </div>
       <div className="gba:workPatternsStats">
         <div className="gba:workPatternsStat">
           <div className="gba:workPatternsStatRow">
-            <div className="gba:workPatternsStatLabel" data-testid="work-patterns-section-longest-streak-label">Longest Streak ({thisYear})</div>
+            <div className="gba:workPatternsStatLabel" data-testid="work-patterns-section-longest-streak-label">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.longest_streak', `Longest Streak (${thisYear})`, { thisYear })}</div>
             <span className="gba:workPatternsStatValue gba:workPatternsStatValue--red" data-testid="longest-streak-value">{longestStreak}</span>
           </div>
           <div className="gba:workPatternsStatRow">
             <div className="gba:workPatternsStatSub" data-testid="work-patterns-section-longest-streak-sub">{longestStreakRange}</div>
-            <span className="gba:workPatternsStatUnit" data-testid="work-patterns-section-longest-streak-unit">days</span>
+            <span className="gba:workPatternsStatUnit" data-testid="work-patterns-section-longest-streak-unit">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.days', 'days')}</span>
           </div>
         </div>
         <div className="gba:workPatternsStat">
           <div className="gba:workPatternsStatRow">
-            <div className="gba:workPatternsStatLabel" data-testid="work-patterns-section-average-streak-label">Average Streak</div>
+            <div className="gba:workPatternsStatLabel" data-testid="work-patterns-section-average-streak-label">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.average_streak', 'Average Streak')}</div>
             <span className="gba:workPatternsStatValue gba:workPatternsStatValue--blue" data-testid="average-streak-value">{avgStreak}</span>
           </div>
           <div className="gba:workPatternsStatRow">
-            <div className="gba:workPatternsStatSub" data-testid="work-patterns-section-average-streak-sub">Typical work period</div>
-            <span className="gba:workPatternsStatUnit" data-testid="work-patterns-section-average-streak-unit">days</span>
+            <div className="gba:workPatternsStatSub" data-testid="work-patterns-section-average-streak-sub">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.typical_work_period', 'Typical work period')}</div>
+            <span className="gba:workPatternsStatUnit" data-testid="work-patterns-section-average-streak-unit">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.days', 'days')}</span>
           </div>
         </div>
         <div className="gba:workPatternsStat">
           <div className="gba:workPatternsStatRow">
-            <div className="gba:workPatternsStatLabel" data-testid="work-patterns-section-shortest-break-label">Shortest Break</div>
+            <div className="gba:workPatternsStatLabel" data-testid="work-patterns-section-shortest-break-label">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.shortest_break', 'Shortest Break')}</div>
             <span className="gba:workPatternsStatValue gba:workPatternsStatValue--green" data-testid="shortest-break-value">{shortestBreak}</span>
           </div>
           <div className="gba:workPatternsStatRow">
-            <div className="gba:workPatternsStatSub" data-testid="work-patterns-section-shortest-break-sub">Between work periods</div>
-            <span className="gba:workPatternsStatUnit" data-testid="work-patterns-section-shortest-break-unit">day</span>
+            <div className="gba:workPatternsStatSub" data-testid="work-patterns-section-shortest-break-sub">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.between_work_periods', 'Between work periods')}</div>
+            <span className="gba:workPatternsStatUnit" data-testid="work-patterns-section-shortest-break-unit">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.days', 'days')}</span>
           </div>
         </div>
       </div>
       <div className="gba:workPatternsRecommendation">
         <div className="gba:workPatternsRecommendationIcon">{recommendationIcon}</div>
         <div className="gba:workPatternsRecommendationText">
-          <span className="gba:workPatternsRecommendationTitle" data-testid="work-patterns-section-recommendation-title">Recommendation</span>
+          <span className="gba:workPatternsRecommendationTitle" data-testid="work-patterns-section-recommendation-title">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.recommendation', 'Recommendation')}</span>
           <span className="gba:workPatternsRecommendationBody" data-testid="work-patterns-section-recommendation-body">{recommendation}</span>
         </div>
       </div>

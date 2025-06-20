@@ -1,4 +1,5 @@
 import React from "react";
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface KeyInsightsSectionProps {
   absences: any[];
@@ -17,8 +18,8 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({ absences }) => 
       return (
         <div className="gba:insightCard gba:insightCard--blue" data-testid="key-insights-section-planned-absences">
           <div className="gba:insightValue">{plannedPct}%</div>
-          <div className="gba:insightTitle">Planned Absences</div>
-          <div className="gba:insightSub">vs {unplannedPct}% unplanned (sick leave)</div>
+          <div className="gba:insightTitle">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.planned_absences', 'Planned Absences')}</div>
+          <div className="gba:insightSub">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.vs_unplanned', `vs ${unplannedPct}% unplanned (sick leave)`, { unplannedPct })}</div>
         </div>
       );
     })()}
@@ -34,8 +35,8 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({ absences }) => 
       return (
         <div className="gba:insightCard gba:insightCard--green" data-testid="key-insights-section-avg-days-per-request">
           <div className="gba:insightValue">{avg}</div>
-          <div className="gba:insightTitle">Avg Days per Request</div>
-          <div className="gba:insightSub">Efficient leave planning</div>
+          <div className="gba:insightTitle">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.avg_days_per_request', 'Avg Days per Request')}</div>
+          <div className="gba:insightSub">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.efficient_leave_planning', 'Efficient leave planning')}</div>
         </div>
       );
     })()}
@@ -47,8 +48,8 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({ absences }) => 
       return (
         <div className="gba:insightCard gba:insightCard--purple" data-testid="key-insights-section-approval-rate">
           <div className="gba:insightValue">{rate}%</div>
-          <div className="gba:insightTitle">Approval Rate</div>
-          <div className="gba:insightSub">Excellent planning & timing</div>
+          <div className="gba:insightTitle">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.approval_rate', 'Approval Rate')}</div>
+          <div className="gba:insightSub">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.excellent_planning_and_timing', 'Excellent planning & timing')}</div>
         </div>
       );
     })()}

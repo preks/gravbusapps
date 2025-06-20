@@ -1,6 +1,7 @@
 import React from "react";
 import type { EntitlementCardProps } from "../types/entitlementTypes";
-import dayjs from "dayjs";
+import dayjs from 'dayjs';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const EntitlementCard: React.FC<EntitlementCardProps> = ({ entitlement }) => {
   const { type, color, used, total, pending, available, checkEntitlement } = entitlement;
@@ -35,7 +36,10 @@ const EntitlementCard: React.FC<EntitlementCardProps> = ({ entitlement }) => {
             className="gba:entitlementSimpleYear"
             data-testid="entitlement-year-simple"
           >
-            {used === 1 ? "day" : "days"} reported in {dayjs().year()}
+            {getTranslationFromI18nKeyAndLabel(
+              used === 1 ? 'lowcoder:absence_hub.day' : 'lowcoder:absence_hub.days',
+              used === 1 ? 'day' : 'days'
+            )} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used', 'used')} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.in_year', 'in {{year}}', { year: dayjs().year() })}
           </div>
         </div>
       </div>
@@ -48,11 +52,11 @@ const EntitlementCard: React.FC<EntitlementCardProps> = ({ entitlement }) => {
         <span className="gba:entitlementTitle">{type}</span>
         <span className="gba:entitlementHeaderSummary">
           <span className="gba:entitlementHeaderUsed">
-            {used}/{total} {used === 1 ? "day" : "days"} used
+            {used}/{total} {getTranslationFromI18nKeyAndLabel(used === 1 ? 'lowcoder:absence_hub.day' : 'lowcoder:absence_hub.days', used === 1 ? 'day' : 'days')} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used', 'used')}
           </span>
           {pending !== undefined && (
             <span className="gba:entitlementHeaderPending">
-              {pending} {pending === 1 ? "day" : "days"} pending
+              {pending} {getTranslationFromI18nKeyAndLabel(pending === 1 ? 'lowcoder:absence_hub.day' : 'lowcoder:absence_hub.days', pending === 1 ? 'day' : 'days')} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.pending', 'pending')}
             </span>
           )}
         </span>
@@ -65,18 +69,18 @@ const EntitlementCard: React.FC<EntitlementCardProps> = ({ entitlement }) => {
       </div>
       <div className="gba:entitlementCardDetails">
         <span className="gba:entitlementUsedTotal">
-          Used: {used} {used === 1 ? "day" : "days"}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used', 'used')}: {used} {getTranslationFromI18nKeyAndLabel(used === 1 ? 'lowcoder:absence_hub.day' : 'lowcoder:absence_hub.days', used === 1 ? 'day' : 'days')}
         </span>
         {pending !== undefined ? (
           <span className="gba:entitlementPending">
-            Pending: {pending} {pending === 1 ? "day" : "days"}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.pending', 'pending')}: {pending} {getTranslationFromI18nKeyAndLabel(pending === 1 ? 'lowcoder:absence_hub.day' : 'lowcoder:absence_hub.days', pending === 1 ? 'day' : 'days')}
           </span>
         ) : (
           <span />
         )}
         {typeof available === "number" ? (
           <span className="gba:entitlementAvailable">
-            Available: {available} {available === 1 ? "day" : "days"}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.available_colon', 'Available:')} {available} {getTranslationFromI18nKeyAndLabel(available === 1 ? 'lowcoder:absence_hub.day' : 'lowcoder:absence_hub.days', available === 1 ? 'day' : 'days')}
           </span>
         ) : (
           <span />

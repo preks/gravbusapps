@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { AbsenceListCardProps } from '../types/absenceTypes';
 import { CalendarOutlined } from '@ant-design/icons';
 
@@ -38,12 +39,14 @@ const AbsenceListCard: React.FC<AbsenceListCardProps> = ({ absence }) => {
       <div className="gba:absenceListCardTitle" data-testid="absence-list-card-title">{title}</div>
       <div className="gba:absenceListCardDetails" data-testid="absence-list-card-details">
         <span data-testid="absence-icon"><CalendarOutlined /></span>
-        <span className="gba:absenceListDates" data-testid="absence-list-card-dates">{startDate} - {endDate}</span>
+        <div className="gba:absenceListDates" data-testid="absence-dates">
+          {formatDate(startDate, 'date.long')} - {formatDate(endDate, 'date.long')}
+        </div>
         <span className="gba:absenceDuration" data-testid="absence-list-card-duration">{duration}</span>
       </div>
       <div className="gba:absenceDescription" data-testid="absence-list-card-description">{description}</div>
       <div className="gba:absenceRequestedInfo" data-testid="absence-list-card-requested-info">{requestedInfo}</div>
-      <div className="gba:absenceRequestedInfo" data-testid="absence-list-card-requested-info">Requested on {requestDate}</div>
+      <div className="gba:absenceRequestedInfo" data-testid="absence-list-card-requested-info">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.requested_on', 'Requested on')} {formatDate(requestDate, 'date.long')}</div>
     </div>
   );
 };

@@ -64,8 +64,8 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
     }
     return {
       id: absence.id,
-      startDate: absence.startDate?.slice(0, 10),
-      endDate: absence.endDate?.slice(0, 10),
+      startDate: absence.startDate,
+      endDate: absence.endDate,
       type: absence.type.value,
       status: absence.status || '',
       tagColor,
@@ -108,7 +108,7 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
   const dateCellRender = (value: any) => {
     const dateStr = value.format("YYYY-MM-DD");
     const items = filteredAbsences.filter(
-      (absence) => dateStr >= absence.startDate && dateStr <= absence.endDate
+      (absence) => absence.startDate && absence.endDate && dateStr >= absence.startDate && dateStr <= absence.endDate
     );
     return items.length ? (
       <ul data-testid={`absence-calendar-cell-list-${dateStr}`}> 

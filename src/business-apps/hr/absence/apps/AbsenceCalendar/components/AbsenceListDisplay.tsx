@@ -1,6 +1,6 @@
 import React from "react";
 import { List, Tag } from "antd";
-import dayjs from "dayjs";
+import { formatDate } from '@/common/utils/windowUtils';
 import { BusinessAppContextProps } from "../../../../../../common/BusinessAppContext";
 
 export interface AbsenceListDisplayItem {
@@ -52,8 +52,8 @@ export const AbsenceListDisplay: React.FC<AbsenceListDisplayProps> = ({
               <div className="gba:absence-event-row">
                 <div className="gba:absence-event-date" data-testid={`absence-calendar-list-item-date-${item.id}`}>
                   {isSameDay
-                    ? `Date: ${dayjs(item.startDate).format('DD.MM.YYYY')}`
-                    : `From: ${dayjs(item.startDate).format('DD.MM.YYYY')} - To: ${dayjs(item.endDate).format('DD.MM.YYYY')}`}
+                    ? `Date: ${formatDate(item.startDate, 'date.long')}`
+                    : `From: ${formatDate(item.startDate, 'date.long')} - To: ${formatDate(item.endDate, 'date.long')}`}
                 </div>
                 <span>Type: </span>
                 <Tag

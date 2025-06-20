@@ -1,25 +1,34 @@
 import React from "react";
 import dayjs from "dayjs";
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface UsageTrendsSectionProps {
   absences: any[];
 }
 
 const months = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.month_jan', 'Jan'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.month_feb', 'Feb'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.month_mar', 'Mar'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.month_apr', 'Apr'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.month_may', 'May'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.month_jun', 'Jun'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.month_jul', 'Jul'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.month_aug', 'Aug'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.month_sep', 'Sep'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.month_oct', 'Oct'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.month_nov', 'Nov'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.month_dec', 'Dec'),
 ];
-const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const days = [
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_mon', 'Mon'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_tue', 'Tue'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_wed', 'Wed'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_thu', 'Thu'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_fri', 'Fri'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_sat', 'Sat'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_sun', 'Sun'),
+];
 
 function getMonthlyUsage(absences: any[], year: number) {
   const usage = Array(12).fill(0);
@@ -57,16 +66,18 @@ const UsageTrendsSection: React.FC<UsageTrendsSectionProps> = ({
   return (
     <section
       className="gba:statisticsTrends"
-      aria-label="usage-trends-section"
+      aria-label={getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.usage_trends_patterns', 'Usage Trends & Patterns')}
       data-testid="usage-trends-section"
     >
-      <h3 className="gba:statisticsSectionTitle" data-testid="usage-trends-section-title">Usage Trends & Patterns</h3>
+      <h3 className="gba:statisticsSectionTitle" data-testid="usage-trends-section-title">
+        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.usage_trends_patterns', 'Usage Trends & Patterns')}
+      </h3>
       <div className="gba:statisticsSubTitle" data-testid="usage-trends-section-subtitle">
-        Your absence patterns over time
+        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.your_absence_patterns_over_time', 'Your absence patterns over time')}
       </div>
       <div className="gba:statisticsSubSection" data-testid="usage-trends-section-subsection">
         <div className="gba:statisticsSubSectionTitle" data-testid="usage-trends-section-subsection-title">
-          Monthly Usage ({currentYear})
+          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.monthly_usage', 'Monthly Usage')} ({currentYear})
         </div>
         <div className="gba:statisticsMonthlyBarChart" data-testid="usage-trends-section-subsection-bar-chart">
           {monthlyUsage.map((val, i) => (
@@ -128,7 +139,7 @@ const UsageTrendsSection: React.FC<UsageTrendsSectionProps> = ({
                 />
               </div>
               <div className="gba:weekBarDay" data-testid="usage-trends-section-subsection-week-bar-chart-day">{days[i]}</div>
-              <div className="gba:weekBarValue" data-testid="usage-trends-section-subsection-week-bar-chart-value">{val} days</div>
+              <div className="gba:weekBarValue" data-testid="usage-trends-section-subsection-week-bar-chart-value">{val} {getTranslationFromI18nKeyAndLabel(val === 1 ? 'lowcoder:absence_hub.day' : 'lowcoder:absence_hub.days', val === 1 ? 'day' : 'days')}</div>
             </div>
           ))}
         </div>

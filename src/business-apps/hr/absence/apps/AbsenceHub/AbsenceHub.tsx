@@ -27,6 +27,12 @@ import {
 import dayjs from "dayjs";
 import { Pagination } from "antd";
 import AbsenceTypeFilter from "./components/AbsenceTypeFilter";
+import {
+  formatDate,
+  getCurrentActiveUserLocale,
+  getTranslationFromI18nKeyAndLabel,
+  getCatalogValue,
+} from "@/common/utils/windowUtils";
 
 export const AbsenceHub = (props: BusinessAppContextProps) => {
   const [activeTab, setActiveTab] = useState("calendar");
@@ -49,20 +55,55 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
     setLoading(true);
     setError(null);
     Promise.all([
-      client.request(GET_EMPLOYEE_ABSENCES, { employeeId }),
-      client.request(GET_EMPLOYEE_ENTITLEMENTS, { employeeId }),
+      client.request(GET_EMPLOYEE_ABSENCES, {
+        employeeId,
+        activeUserLocale: getCurrentActiveUserLocale(),
+      }),
+      client.request(GET_EMPLOYEE_ENTITLEMENTS, {
+        employeeId,
+        activeUserLocale: getCurrentActiveUserLocale(),
+      }),
     ])
       .then(([absenceRes, entitlementRes]) => {
         const absences = absenceRes?.EmployeeAbsence || [];
 
         setAbsenceList(
           absences.map((absence: any) => ({
-            type: absence.type?.value || "",
-            status: absence.status || "",
-            title: absence.type?.value || "",
-            startDate: `${dayjs(absence.startDate).format("DD-MM-YYYY")}`,
-            endDate: `${dayjs(absence.endDate).format("DD-MM-YYYY")}`,
-            duration: absence.workingDays ? `${absence.workingDays} ${absence.workingDays === 1 ? "day" : "days"}` : "",
+            type: getCatalogValue(absence.type) || "",
+            status: (() => {
+              switch ((absence.status || "").toUpperCase()) {
+                case "PENDING":
+                  return getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:expense_statuses.action_required",
+                    "Action Required"
+                  );
+                case "APPROVED":
+                  return getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:expense_statuses.approved",
+                    "Approved"
+                  );
+                case "REJECTED":
+                  return getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:expense_statuses.rejected",
+                    "Rejected"
+                  );
+                case "CANCELLED":
+                  return getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absences_overview_entry_screen.cancelled_status",
+                    "Cancelled"
+                  );
+                default:
+                  return absence.status;
+              }
+            })(),
+            title: getCatalogValue(absence.type) || "",
+            startDate: absence.startDate,
+            endDate: absence.endDate,
+            duration: absence.workingDays
+              ? `${absence.workingDays} ${
+                  absence.workingDays === 1 ? "day" : "days"
+                }`
+              : "",
             description: absence.description || "",
             icon: (
               <PaperClipOutlined
@@ -90,7 +131,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                   return "rgba(141, 145, 153, 0.55)";
               }
             })(),
-            requestDate: dayjs(absence.createdAt).format("DD-MM-YYYY"),
+            requestDate: absence.createdAt,
           }))
         );
 
@@ -99,11 +140,12 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
             .filter((a: any) => dayjs(a.startDate).isAfter(dayjs()))
             .map((a: any, idx: number) => ({
               id: a.id || idx,
-              type: a.type?.value,
+              type: getCatalogValue(a.type),
               icon: <PaperClipOutlined style={{ color: "#1976d2" }} />,
-              dates: `${dayjs(a.startDate).format("DD-MM-YYYY")} - ${dayjs(
-                a.endDate
-              ).format("DD-MM-YYYY")}`,
+              dates: `${formatDate(a.startDate, "date.long")} - ${formatDate(
+                a.endDate,
+                "date.long"
+              )}`,
               description: a.description,
               timeUntil: (() => {
                 const days = dayjs(a.startDate).diff(dayjs(), "day");
@@ -119,7 +161,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
         setEntitlements(
           (entitlementRes?.EmployeeAbsenceEntitlement || []).map(
             (ent: any) => ({
-              type: ent.type?.value || "",
+              type: getCatalogValue(ent.type),
               color: ent.type?.objectValue?.color || "blue",
               used: ent.approved,
               total: ent.total,
@@ -142,7 +184,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
         setStats(
           (entitlementRes?.EmployeeAbsenceEntitlement || []).map(
             (ent: any) => ({
-              title: ent.type?.value,
+              title: getCatalogValue(ent.type),
               used: ent.approved,
               total: ent.total,
               progress: ent.total
@@ -159,6 +201,8 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
       .catch(() => setError("Failed to load absence data."))
       .finally(() => setLoading(false));
   }, [employeeId, accessToken]);
+
+  console.log(getCurrentActiveUserLocale());
 
   const filterOptions = [
     "All",
@@ -192,11 +236,30 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
   return (
     <div className="gba:absence-container" data-testid="absencehub-container">
       <div className="gba:absence-header" data-testid="absencehub-header">
-        <div className="gba:font-bold gba:text-2xl" data-testid="absencehub-title">Absence Overview</div>
-        <div className="gba:text-gray-500 gba:text-lg" data-testid="absencehub-description">View and manage your absences</div>
+        <div
+          className="gba:font-bold gba:text-2xl"
+          data-testid="absencehub-title"
+        >
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:hr_absences.absence_overview",
+            "Absence Overview"
+          )}
+        </div>
+        <div
+          className="gba:text-gray-500 gba:text-lg"
+          data-testid="absencehub-description"
+        >
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:absence_hub.absence_description",
+            "View and manage your absences"
+          )}
+        </div>
       </div>
 
-      <div className="gba:tabsContainer" data-testid="absencehub-tabs-container">
+      <div
+        className="gba:tabsContainer"
+        data-testid="absencehub-tabs-container"
+      >
         <Tabs
           activeKey={activeTab}
           data-testid="absencehub-tabs"
@@ -206,7 +269,10 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
               label: (
                 <span className="gba:tabLabel">
                   <CalendarOutlined className="gba:tabIcon" />
-                  Calendar
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.calendar",
+                    "Calendar"
+                  )}
                 </span>
               ),
             },
@@ -215,7 +281,10 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
               label: (
                 <span className="gba:tabLabel">
                   <UnorderedListOutlined className="gba:tabIcon" />
-                  Absence List
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.absence_list",
+                    "Absence List"
+                  )}
                 </span>
               ),
             },
@@ -224,7 +293,10 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
               label: (
                 <span className="gba:tabLabel">
                   <PaperClipOutlined className="gba:tabIcon" />
-                  Entitlements
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.entitlements",
+                    "Entitlements"
+                  )}
                 </span>
               ),
             },
@@ -233,7 +305,10 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
               label: (
                 <span className="gba:tabLabel">
                   <BarChartOutlined className="gba:tabIcon" />
-                  Statistics
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.statistics",
+                    "Statistics"
+                  )}
                 </span>
               ),
             },
@@ -247,12 +322,18 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
       <div className="gba:content" data-testid="absencehub-content">
         {loading && (
           <div className="gba:loading" data-testid="absencehub-loading">
-            Loading...
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:absence_hub.loading",
+              "Loading..."
+            )}
           </div>
         )}
         {error && (
           <div className="gba:error" data-testid="absencehub-error">
-            {error}
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:absence_hub.error_loading",
+              "Failed to load absence data."
+            )}
           </div>
         )}
         {!loading && !error && (
@@ -262,7 +343,10 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
             )}
             {activeTab !== "statistics" && (
               <>
-                <div className="gba:calendarContainer" data-testid="absencehub-calendar-container">
+                <div
+                  className="gba:calendarContainer"
+                  data-testid="absencehub-calendar-container"
+                >
                   {activeTab === "calendar" && (
                     <>
                       <AbsenceTypeFilter
@@ -288,7 +372,10 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                     </>
                   )}
                   {activeTab === "absence-list" && (
-                    <div className="gba:absenceList" data-testid="absencehub-absence-list">
+                    <div
+                      className="gba:absenceList"
+                      data-testid="absencehub-absence-list"
+                    >
                       <AbsenceTypeFilter
                         filterOptions={filterOptions}
                         activeFilter={activeFilter}
@@ -297,8 +384,19 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                           setCurrentPage(1);
                         }}
                       />
-                      <h3 className="gba:absenceListTitle" data-testid="absencehub-absence-history-title">Absence History</h3>
-                      <div className="gba:absenceListCards" data-testid="absencehub-absence-list-cards">
+                      <h3
+                        className="gba:absenceListTitle"
+                        data-testid="absencehub-absence-history-title"
+                      >
+                        {getTranslationFromI18nKeyAndLabel(
+                          "lowcoder:absence_hub.absence_history",
+                          "Absence History"
+                        )}
+                      </h3>
+                      <div
+                        className="gba:absenceListCards"
+                        data-testid="absencehub-absence-list-cards"
+                      >
                         {filteredAbsenceList.length > 0 ? (
                           paginatedAbsenceList.map((absence, idx) => (
                             <AbsenceListCard
@@ -311,7 +409,10 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                             className="gba:absenceListEmpty"
                             data-testid="absencehub-absence-list-empty"
                           >
-                            No absences found.
+                            {getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:absence_hub.no_absences_found",
+                              "No absences found."
+                            )}
                           </div>
                         )}
                       </div>
@@ -338,14 +439,23 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                             showTotal={(
                               total: number,
                               range: [number, number]
-                            ) => `${range[0]}-${range[1]} of ${total}`}
+                            ) =>
+                              getTranslationFromI18nKeyAndLabel(
+                                "lowcoder:absence_hub.pagination",
+                                "{{range0}}-{{range1}} of {{total}}",
+                                { range0: range[0], range1: range[1], total }
+                              )
+                            }
                           />
                         </div>
                       )}
                     </div>
                   )}
                   {activeTab === "entitlements" && (
-                    <div className="gba:entitlementsList" data-testid="absencehub-entitlements-list">
+                    <div
+                      className="gba:entitlementsList"
+                      data-testid="absencehub-entitlements-list"
+                    >
                       {entitlements.map((ent, idx) => (
                         <EntitlementCard key={idx} entitlement={ent} />
                       ))}
@@ -354,18 +464,43 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                 </div>
                 {activeTab !== "entitlements" && (
                   <div className="gba:sidebar" data-testid="absencehub-sidebar">
-                    <div className="gba:cardsContainer" data-testid="absencehub-cards-container">
+                    <div
+                      className="gba:cardsContainer"
+                      data-testid="absencehub-cards-container"
+                    >
                       <div className="gba:timeOffBalanceCard">
-                        <h3 className="gba:cardTitle" data-testid="absencehub-timeoff-balance-title">Time Off Balance</h3>
-                        <div className="gba:statsGrid" data-testid="absencehub-stats-grid">
+                        <h3
+                          className="gba:cardTitle"
+                          data-testid="absencehub-timeoff-balance-title"
+                        >
+                          {getTranslationFromI18nKeyAndLabel(
+                            "lowcoder:absence_hub.time_off_balance",
+                            "Time Off Balance"
+                          )}
+                        </h3>
+                        <div
+                          className="gba:statsGrid"
+                          data-testid="absencehub-stats-grid"
+                        >
                           {filteredStats.map((stat, index) => (
                             <StatsCard key={index} stat={stat} />
                           ))}
                         </div>
                       </div>
                       <div className="gba:timeOffBalanceCard">
-                        <h3 className="gba:cardTitle" data-testid="absencehub-upcoming-title">Upcoming Time Off</h3>
-                        <div className="gba:upcomingList" data-testid="absencehub-upcoming-list">
+                        <h3
+                          className="gba:cardTitle"
+                          data-testid="absencehub-upcoming-title"
+                        >
+                          {getTranslationFromI18nKeyAndLabel(
+                            "lowcoder:absence_hub.upcoming_time_off",
+                            "Upcoming Time Off"
+                          )}
+                        </h3>
+                        <div
+                          className="gba:upcomingList"
+                          data-testid="absencehub-upcoming-list"
+                        >
                           {filteredUpcomingAbsences.length > 0 ? (
                             filteredUpcomingAbsences
                               .slice(0, 5)
@@ -380,7 +515,10 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                               className="gba:absenceListEmpty"
                               data-testid="upcoming-absence-empty"
                             >
-                              No upcoming absences
+                              {getTranslationFromI18nKeyAndLabel(
+                                "lowcoder:absence_hub.no_upcoming_absences",
+                                "No upcoming absences"
+                              )}
                             </div>
                           )}
                         </div>
