@@ -3,6 +3,9 @@
 - Each component should extend its props from the `BusinessAppContextProps` interface.
 - Whenever an access token is required, use it from the `BusinessAppContextProps` interface.
 - Whenever an user, an user info or an employee ID is required, use it from the `BusinessAppContextProps` interface.
+- Whenever an active user locale is required, use `getCurrentActiveUserLocale` from `src\common\utils\windowUtils.ts`.
+- Whenever an active structure ID is required, use `getCurrentActiveStructureId` from `src\common\utils\windowUtils.ts`.
+- Whenever text translation is required, avoid usage of plain text and use `getTranslationFromI18nKeyAndLabel` from `src\common\utils\windowUtils.ts` instead.
 
 # Naming Conventions
 - use kebab-case for folders (e.g. "src\business-apps\fin\expenses\personal-expenses"
@@ -51,6 +54,11 @@ src
 			├── utils/
 			└──	...
 
+- No single file should exceed 300 lines of code (excluding imports and blank lines).
+- When a file approaches this size, break out logic, UI, hooks, or utility functions into separate, logically named files.
+- Prefer splitting code by component, feature, or responsibility to support clarity and reuse.
+- If splitting is not obvious, prompt the user for suggestions on how to divide the code.
+
 # Component Dependencies
 - Use react for UI components
 - Use tailwind v4 for all styling (utility classes)
@@ -68,25 +76,32 @@ src
 - For all date and time related logic, use `dayjs` and import the plugins `weekday` and `localeData`.
 
 # Component Development
-- Always prefix all CSS classes with the `gba:` prefix.
+- Always start all CSS classes strictly with prefix `gba:`, this means `gba:<tailwind-class>`.
 - Always add to all HTML elements in a component the `data-testid` attribute with a value which is unique and descriptive.
 
-- Whenever an input field is used to provide search by an user, use the existing `DebouncedInput` component to provide debounced search.
+- Use always the existing `DebouncedInput` component for search fields to provide debounced search.
 - When tab components are used, provide a unique tab key for each tab and use this in a URL query parameter.
 
 - Add all CSS files in `src/index.css`, so that they are included in `dist/assets/main.css` by the vite bundler. Only this way will they be applied on the NEWWORK platform.
 
 - For Graphql API requests, use src\common\network\graphql\useGraphQLClient.ts. Analyze the file first, and its dependency.
 - For REST API requests, use src\common\network\rest\useRestClient.ts. Analyze the file first, and its dependency.
-- For all API requests to a service, check if already exists in src\common\network, or create a new folder for that entity type. Example: `src\common\network/catalog-entry`, `src\common\network/expense-plan` folders, named in camelCase, and exported as named exports.
+- For all API requests to a service, check if already exists in src\common\network, or create a new folder for that entity type. Example: `src\common\network\catalog-entry`, `src\common\network\expense-plan` folders, named in camelCase, and exported as named exports.
 - If the API request is REST, use a singleton client class that extends RestClient. Example: src\common\network\catalogs\CatalogManagerClient.ts
+- If the API request is Catalog, search for existing hooks and use them, otherwise create a new one. Example: src\business-apps\hr\hooks\useGetContractTypes.ts
 - In the singleton client REST class, the URL key is in the `.env` file. Example: `env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')`, NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT is in `.env`.
 - For all API requests, make sure accessToken exists.
 
 # Project Development
 - Simplify the code as much as possible and keep it clean
+- Make code changes minimal and focused
+- Focus on clear separation of code and its responsibilities
+- Make usage of existing code, functions or components
 - Remove unused code
 - Remove commented code
+- Keep usage of `console.log` minimal and avoid `console.log` when user data, access tokens, responses or any other sensitive data are used
+- Keep usage of code comments minimal and only describe React components, utility functions and complex code blocks
+- Remove unused imports or imports that are not used
 - Use the Conventional Commits specification for git commit messages
 
 # Publishing

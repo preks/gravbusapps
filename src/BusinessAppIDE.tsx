@@ -1,9 +1,9 @@
 import { UiCatalogProvider } from '@newwork/gravity-ui-catalog';
 import { useState, useEffect, createElement, useCallback } from "react";
-import { Layout, Menu, Modal, Form, Input, Typography, Button, Tooltip } from "antd";
+import { Layout, Menu, Modal, Form, Input, Typography, Button, Tooltip, notification } from "antd";
 import { SettingOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
-import { BusinessAppContext, BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
-import ProcessEventListener from './common/components/ProcessEventListener';
+import { BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
+import ProcessEventListener, { ProcessLocalDevEvent } from './common/components/ProcessEventListener';
 
 const modules = import.meta.glob('./business-apps/**/[A-Z]*.tsx', { eager: true });
 
@@ -60,6 +60,19 @@ export interface CompMeta {
   name: string;
   layoutInfo?: any;
 }
+
+// Handle process events in the local development environment
+const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
+  const { domain, processName, processInstanceId, startProcessBody } = event;
+  
+  // Display a notification for the process event
+  notification.info({
+    message: 'Process Start Event Detected',
+    description: `Domain: ${domain}, Process: ${processName}${processInstanceId ? `, ID: ${processInstanceId}` : ''}\nProcess body: ${startProcessBody}`,
+    duration: 5,
+    placement: 'topRight'
+  });
+};
 
 export interface BusinessAppIDEProps {
   readonly packageName: string;
@@ -191,8 +204,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {/* Add the ProcessEventListener which handles process start events */}
-      <ProcessEventListener />
+      <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />
       <Sider
         width={250}
         collapsible
