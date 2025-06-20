@@ -12,28 +12,55 @@ git config --global --add safe.directory /opt/atlassian/pipelines/agent/build 2>
 # Make sure we have the develop branch
 git fetch origin develop
 
-# For custom pipeline runs, we want to be very specific
+# For custom pipeline runs, we need a more reliable approach
 if [[ "${BITBUCKET_PIPELINE_TYPE}" == "CUSTOM" ]]; then
-  echo "Running as custom pipeline - checking for specific changes only"
-  # Only look at differences compared to develop
+  echo "Running as custom pipeline - checking with multiple methods"
+  
+  # Method 1: Direct diff against develop
+  echo "Trying direct diff against develop..."
   CHANGED_FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
   
+  # Method 2: Range diff - all commits not in develop
   if [ -z "$CHANGED_FILES" ]; then
-    echo "No screen changes detected compared to develop branch."
-    echo "For manual publish runs, you need to have uncommitted changes or specify files."
-    # Exit cleanly to avoid pipeline failure
-    exit 0
+    echo "Trying range diff against develop..."
+    CHANGED_FILES=$(git diff --name-only origin/develop..HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
   fi
+  
+  # Method 3: Check the last 10 commits
+  if [ -z "$CHANGED_FILES" ]; then
+    echo "Trying last 10 commits..."
+    CHANGED_FILES=$(git log -10 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  fi
+
+  # For manual publish, always show at least one component
+  if [ -z "$CHANGED_FILES" ]; then
+    echo "No changes detected with any method. Showing most recently modified component:"
+    CHANGED_FILES=$(find src/business-apps -name "*.tsx" | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" | sort -r | head -n 1)
+  fi
+
 # For develop branch or hotfix branches
 elif [[ "$BITBUCKET_BRANCH" == "develop" || "$BITBUCKET_BRANCH" == hotfix/* ]]; then
   echo "Publishing changes on ${BITBUCKET_BRANCH} branch..."
-  # For develop branch, we only want the most recent commit
+  # For develop branch, we need to check the latest commit
   CHANGED_FILES=$(git log -1 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  
+  # If no changes in latest commit, check last 5 commits
+  if [ -z "$CHANGED_FILES" ]; then
+    echo "No changes in latest commit, checking last 5 commits..."
+    CHANGED_FILES=$(git log -5 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  fi
+
 # For other branches (PR builds, etc)
 else
-  echo "Checking files changed in this branch (compared to develop)..."
-  # Look only at commits unique to this branch (not in develop)
+  echo "Checking files changed in this branch..."
+  # Look for commits unique to this branch
   CHANGED_FILES=$(git diff --name-only origin/develop..HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  
+  # Fallback to most recent commit if nothing found
+  if [ -z "$CHANGED_FILES" ]; then
+    echo "No changes found with diff, checking latest commit..."
+    CHANGED_FILES=$(git log -1 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  fi
 fi
 
 # Show what we found

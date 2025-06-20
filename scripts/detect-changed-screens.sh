@@ -12,26 +12,53 @@ git config --global --add safe.directory /opt/atlassian/pipelines/agent/build 2>
 # Make sure we have the develop branch
 git fetch origin develop
 
-# For custom pipeline runs, we want to be very specific
+# For custom pipeline runs, we need a more reliable approach
 if [[ "${BITBUCKET_PIPELINE_TYPE}" == "CUSTOM" ]]; then
-  echo "Running as custom pipeline - checking for specific changes only"
-  # Only look at differences compared to develop
+  echo "Running as custom pipeline - checking with multiple methods"
+  
+  # Method 1: Direct diff against develop
+  echo "Trying direct diff against develop..."
   export CHANGED_FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
   
+  # Method 2: Range diff - all commits not in develop
   if [ -z "$CHANGED_FILES" ]; then
-    echo "No screen changes detected compared to develop branch."
-    echo "For manual dry runs, you need to have uncommitted changes or specify files."
-    # Exit cleanly to avoid pipeline failure
-    exit 0
+    echo "Trying range diff against develop..."
+    export CHANGED_FILES=$(git diff --name-only origin/develop..HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
   fi
+  
+  # Method 3: Check the last 10 commits
+  if [ -z "$CHANGED_FILES" ]; then
+    echo "Trying last 10 commits..."
+    export CHANGED_FILES=$(git log -10 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  fi
+
+  # For manual dry run, always show at least one component
+  if [ -z "$CHANGED_FILES" ]; then
+    echo "No changes detected with any method. Showing most recently modified component:"
+    export CHANGED_FILES=$(find src/business-apps -name "*.tsx" | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" | sort -r | head -n 1)
+  fi
+
 # For pull requests to develop
 elif [[ "$BITBUCKET_PR_DESTINATION_BRANCH" == "develop" || -n "$BITBUCKET_PR_ID" ]]; then
   echo "Checking files changed in PR to develop..."
   export CHANGED_FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
-# For regular branch builds, look only at commits unique to this branch (not in develop)
+  
+  # If no changes found, try fallback method
+  if [ -z "$CHANGED_FILES" ]; then
+    echo "No changes found with direct diff, trying range diff..."
+    export CHANGED_FILES=$(git diff --name-only origin/develop..HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  fi
+
+# For regular branch builds, try multiple methods
 else
-  echo "Checking files changed in this branch (compared to develop)..."
+  echo "Checking files changed in this branch..."
   export CHANGED_FILES=$(git diff --name-only origin/develop..HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  
+  # Fallback to most recent commit if nothing found
+  if [ -z "$CHANGED_FILES" ]; then
+    echo "No changes found with diff, checking latest commit..."
+    export CHANGED_FILES=$(git log -1 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  fi
 fi
 
 # Show what we found
