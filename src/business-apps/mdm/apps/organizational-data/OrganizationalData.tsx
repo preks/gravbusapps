@@ -7,11 +7,19 @@ import { Tabs } from 'antd';
 import { CompaniesTab } from './components/tabs/CompaniesTab';
 import { ProjectsTab } from './components/tabs/ProjectsTab';
 import { SiteLocationsTab } from './components/tabs/SiteLocationsTab';
+import { CapabilitiesTab } from './components/tabs/CapabilitiesTab';
+import { CostCentersTab } from './components/tabs/CostCentersTab';
+import { DepartmentsTab } from './components/tabs/DepartmentsTab';
+import { TeamsTab } from './components/tabs/TeamsTab';
 
 export enum OrganizationalDataTabs {
   COMPANIES = 'companies',
   PROJECTS = 'projects',
-  SITE_LOCATIONS = 'site-locations'
+  SITE_LOCATIONS = 'site-locations',
+  CAPABILITIES = 'capabilities',
+  COST_CENTERS = 'cost-centers',
+  DEPARTMENTS = 'departments',
+  TEAMS = 'teams'
 }
 
 export interface OrganizationalDataProps extends BusinessAppContextProps {
@@ -81,6 +89,46 @@ const OrganizationalData: React.FC<OrganizationalDataProps> = ({
       label: t('hr.site_locations', 'Site Locations'),
       children: (
         <SiteLocationsTab 
+          {...contextProps}
+          prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+        />
+      ),
+    },
+    {
+      key: OrganizationalDataTabs.CAPABILITIES,
+      label: t('hr.capabilities', 'Capabilities'),
+      children: (
+        <CapabilitiesTab 
+          {...contextProps}
+          prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+        />
+      ),
+    },
+    {
+      key: OrganizationalDataTabs.COST_CENTERS,
+      label: t('hr.cost_centers', 'Cost Centers'),
+      children: (
+        <CostCentersTab 
+          {...contextProps}
+          prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+        />
+      ),
+    },
+    {
+      key: OrganizationalDataTabs.DEPARTMENTS,
+      label: t('hr.departments', 'Departments'),
+      children: (
+        <DepartmentsTab 
+          {...contextProps}
+          prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+        />
+      ),
+    },
+    {
+      key: OrganizationalDataTabs.TEAMS,
+      label: t('hr.teams', 'Teams'),
+      children: (
+        <TeamsTab 
           {...contextProps}
           prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
         />

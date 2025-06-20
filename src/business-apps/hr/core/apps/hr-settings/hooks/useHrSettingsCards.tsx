@@ -57,7 +57,7 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
     },
     {
       title: t('hr.organizational_data', 'Organizational Data'),
-      description: t('hr.organizational_data_description', 'Manage company information, projects, and site locations'),
+      description: t('hr.organizational_data_description', 'Manage company information, projects, site locations, capabilities, cost centers, departments, and teams'),
       icon: <RiBuilding2Line />,
       entries: [
         {
@@ -71,6 +71,22 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
         {
           label: t('hr.site_locations', 'Site Locations'),
           url: '/mdm/apps/organizational-data?tab=site-locations'
+        },
+        {
+          label: t('hr.capabilities', 'Capabilities'),
+          url: '/mdm/apps/organizational-data?tab=capabilities'
+        },
+        {
+          label: t('hr.cost_centers', 'Cost Centers'),
+          url: '/mdm/apps/organizational-data?tab=cost-centers'
+        },
+        {
+          label: t('hr.departments', 'Departments'),
+          url: '/mdm/apps/organizational-data?tab=departments'
+        },
+        {
+          label: t('hr.teams', 'Teams'),
+          url: '/mdm/apps/organizational-data?tab=teams'
         }
       ]
     }
