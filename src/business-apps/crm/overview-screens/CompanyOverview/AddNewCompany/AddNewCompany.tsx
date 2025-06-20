@@ -23,7 +23,6 @@ import {
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import './styles/AddNewCompany.css';
 
 const { Title, Text } = Typography;
 const { Option } = Select;

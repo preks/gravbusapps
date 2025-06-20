@@ -8,7 +8,6 @@ import {
 } from "@newwork/gravity-ui-catalog";
 import { Card, Form } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
-import styles from "../../ExpenseItem.module.css";
 import {
   ExpensePosition,
   ExpenseGroup,
@@ -16,7 +15,7 @@ import {
   CostCenter,
   CustomField,
 } from "../../types";
-import { getCatalogValue } from "../../utils/windowUtils";
+import { getCatalogValue } from "../../../../../../../common/utils/windowUtils";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
 
 interface MultiPositionComponentProps {
@@ -57,13 +56,13 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
         <Card
           key={index}
           title={`Position ${index + 1}`}
-          className={`${styles.marginBottom16} gba:marginBottom16`}
+          className={`gba:marginBottom16`}
           extra={
             positions.length > 1 && (
               <Button
                 variant="ghost"
                 onClick={() => handleRemovePosition(position.id)}
-                className={`${styles.deleteButton} gba:deleteButton`}
+                className={`gba:deleteButton`}
                 disabled={isProcessingFiles}
               >
                 <DeleteOutlined />
@@ -72,8 +71,8 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
           }
           headStyle={{ borderBottom: "none" }}
         >
-          <div className={`${styles.marginBottom16} gba:marginBottom16`}>
-            <div className={`${styles.relativePosition} gba:relativePosition`}>
+          <div className={`gba:marginBottom16`}>
+            <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`expenseGroup-${index}`}
                 rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_expense_group_custom_rule', 'Please select an expense group') }]}
@@ -105,8 +104,8 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
             </div>
           </div>
 
-          <div className={`${styles.marginBottom16} gba:marginBottom16`}>
-            <div className={`${styles.relativePosition} gba:relativePosition`}>
+          <div className={`gba:marginBottom16`}>
+            <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`expenseType-${index}`}
                 rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_expense_type_custom_rule', 'Please select an expense type') }]}
@@ -144,9 +143,9 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
           {position.expenseType &&
             customFields[position.expenseType] &&
             customFields[position.expenseType].length > 0 && (
-              <div className={`${styles.marginBottom16} gba:marginBottom16`}>
+              <div className={`gba:marginBottom16`}>
                 <div
-                  className={`${styles.relativePosition} gba:relativePosition`}
+                  className={`gba:relativePosition`}
                 >
                   <Form.Item
                     name={`customField-${index}`}
@@ -184,8 +183,8 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                 </div>
               </div>
             )}
-          <div className={`${styles.marginBottom16} gba:marginBottom16`}>
-            <div className={`${styles.relativePosition} gba:relativePosition`}>
+          <div className={`gba:marginBottom16`}>
+            <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`amount-${index}`}
                 rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_amount_custom_rule', 'Please enter an amount') }]}
@@ -225,8 +224,8 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
             </div>
           </div>
 
-          <div className={`${styles.marginBottom16} gba:marginBottom16`}>
-            <div className={`${styles.relativePosition} gba:relativePosition`}>
+          <div className={`gba:marginBottom16`}>
+            <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`costCenter-${index}`}
                 rules={[{ required: true, message: t('create_expense_request.expense_request_container.current_cost_center_custom_rule', 'Please select a cost center') }]}
@@ -260,7 +259,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
             </div>
           </div>
 
-          <div className={`${styles.marginBottom16} gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`}>
             <div style={{ marginBottom: "16px" }}>
               <Switch
                 label={t(

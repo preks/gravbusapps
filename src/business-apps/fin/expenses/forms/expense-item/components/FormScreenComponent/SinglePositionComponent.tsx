@@ -1,7 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { InputField, SelectField, Switch } from "@newwork/gravity-ui-catalog";
-import styles from "../../ExpenseItem.module.css";
 import {
   ExpensePosition,
   ExpenseGroup,
@@ -10,7 +9,7 @@ import {
   CustomField,
   Currency,
 } from "../../types";
-import { getCatalogValue } from "../../utils/windowUtils";
+import { getCatalogValue } from "../../../../../../../common/utils/windowUtils";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
 import { Form } from "antd";
 
@@ -52,8 +51,8 @@ export const SinglePositionComponent: React.FC<
     <div>
       {positions.map((position, index) => (
         <React.Fragment key={index}>
-          <div className={`${styles.marginBottom16} gba:marginBottom16`}>
-            <div className={`${styles.relativePosition} gba:relativePosition`}>
+          <div className={`gba:marginBottom16`}>
+            <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`expenseGroup-${index}`}
                 rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_expense_group_custom_rule', 'Please select an expense group') }]}
@@ -89,8 +88,8 @@ export const SinglePositionComponent: React.FC<
             </div>
           </div>
 
-          <div className={`${styles.marginBottom16} gba:marginBottom16`}>
-            <div className={`${styles.relativePosition} gba:relativePosition`}>
+          <div className={`gba:marginBottom16`}>
+            <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`expenseType-${index}`}
                 rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_expense_type_custom_rule', 'Please select an expense type') }]}
@@ -128,9 +127,9 @@ export const SinglePositionComponent: React.FC<
           {position.expenseType &&
             customFields[position.expenseType] &&
             customFields[position.expenseType].length > 0 && (
-              <div className={`${styles.marginBottom16} gba:marginBottom16`}>
+              <div className={`gba:marginBottom16`}>
                 <div
-                  className={`${styles.relativePosition} gba:relativePosition`}
+                  className={`gba:relativePosition`}
                 >
                   <Form.Item
                     name={`customField-${index}`}
@@ -168,7 +167,7 @@ export const SinglePositionComponent: React.FC<
                 </div>
               </div>
             )}
-          <div className={`${styles.marginBottom16} gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`}>
             <div className="gba:amountCurrencyRow">
               <div className="gba:amountField">
                 <Form.Item
@@ -245,8 +244,8 @@ export const SinglePositionComponent: React.FC<
             </div>
           </div>
 
-          <div className={`${styles.marginBottom16} gba:marginBottom16`}>
-            <div className={`${styles.relativePosition} gba:relativePosition`}>
+          <div className={`gba:marginBottom16`}>
+            <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`costCenter-${index}`}
                 rules={[{ required: true, message: t('create_expense_request.expense_request_container.current_cost_center_custom_rule', 'Please select a cost center') }]}
@@ -280,7 +279,7 @@ export const SinglePositionComponent: React.FC<
             </div>
           </div>
 
-          <div className={`${styles.marginBottom16} gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`}>
             <div style={{ marginBottom: "16px" }}>
               <Switch
                 label={t(

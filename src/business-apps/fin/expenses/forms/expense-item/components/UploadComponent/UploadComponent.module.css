@@ -4,7 +4,7 @@
   position: relative;
 }
 
-.file-component-files :global(.ant-upload-list-item.ant-upload-list-item-done) {
+.file-component-files .ant-upload-list-item.ant-upload-list-item-done {
   width: fit-content;
   background-color: #F7F7F7;
   border-radius: 48px;
@@ -13,15 +13,14 @@
   min-height: 40px;
 }
 
-.file-component-files :global(.ant-upload-list-item-name) {
+.file-component-files .ant-upload-list-item-name {
   display: inline-block;
   width: fit-content;
   max-width: 300px;
   word-wrap: break-word;
-  background: #F7F7F7;
 }
 
-.file-component-files :global(.ant-upload-list-item-actions>button) {
+.file-component-files .ant-upload-list-item-actions>button {
   align-items: flex-end;
   width: auto;
   opacity: 1;
@@ -29,38 +28,38 @@
   border-radius: 48px;
 }
 
-.file-component-files :global(.ant-upload-list-item-actions>button svg) {
+.file-component-files .ant-upload-list-item-actions>button svg {
   margin: 0px;
 }
 
-.file-component-files :global(.ant-upload-wrapper) {
+.file-component-files .ant-upload-wrapper {
   display: flex;
   flex-direction: column-reverse;
   align-items: flex-end;
   gap: 28px;
 }
 
-.file-component-files :global(.ant-upload.ant-upload-select),
-.file-component-files :global(.button),
-.file-component-files :global(.ant-upload) {
+.file-component-files .ant-upload.ant-upload-select,
+.file-component-files .button,
+.file-component-files .ant-upload {
   width: 100%;
   height: 100%;
 }
 
-.file-component-files :global(.ant-upload.ant-upload-select button) {
+.file-component-files .ant-upload.ant-upload-select button {
   justify-content: flex-end;
 }
 
-.file-component-files :global(.ant-upload-list.ant-upload-list-text) {
+.file-component-files .ant-upload-list.ant-upload-list-text {
   align-self: flex-start;
 }
 
-.file-component-files :global(.ant-upload) {
+.file-component-files .ant-upload {
   padding-bottom: 10px;
   justify-content: flex-end;
 }
 
-.file-component-files :global(.ant-btn.ant-btn-default) {
+.file-component-files .ant-btn.ant-btn-default {
   position: absolute;
   top: 0;
   left: 0;
@@ -71,7 +70,7 @@
   box-shadow: none;
 }
 
-.file-component-files :global(.ant-btn.ant-btn-default>span) {
+.file-component-files .ant-btn.ant-btn-default>span {
   flex-direction: row-reverse;
   padding-top: 20px;
   padding-right: 28px;
@@ -79,12 +78,12 @@
   align-self: flex-end;
 }
 
-.file-component-files :global(.ant-btn.ant-btn-default img) {
+.file-component-files .ant-btn.ant-btn-default img {
   width: 18px;
   height: 18px;
 }
 
-.file-component-files :global(.ant-btn.ant-btn-default span) {
+.file-component-files .ant-btn.ant-btn-default span {
   font-weight: 500;
 }
 
@@ -98,31 +97,31 @@
   align-items: center;
 }
 
-.file-component-empty :global(.ant-btn.ant-btn-default) {
+.file-component-empty .ant-btn.ant-btn-default {
   color: #000;
   background-color: transparent !important;
   box-shadow: none;
   height: 204px !important;
 }
 
-.file-component-empty :global(.ant-btn.ant-btn-default img) {
+.file-component-empty .ant-btn.ant-btn-default img {
   width: 36px;
   height: 36px;
 }
 
-.file-component-empty :global(.ant-btn.ant-btn-default) {
+.file-component-empty .ant-btn.ant-btn-default {
   font-weight: 500;
 }
 
-.file-component-empty :global(.ant-upload.ant-upload-select),
-.file-component-empty :global(.button),
-.file-component-empty :global(.ant-upload),
-.file-component-empty :global(.ant-upload-wrapper) {
+.file-component-empty .ant-upload.ant-upload-select,
+.file-component-empty .button,
+.file-component-empty .ant-upload,
+.file-component-empty .ant-upload-wrapper {
   width: 100%;
   height: 100%;
 }
 
-.file-component-empty :global(.ant-btn.ant-btn-default>span) {
+.file-component-empty .ant-btn.ant-btn-default>span {
   flex-direction: column;
 }
 
@@ -136,7 +135,7 @@
   align-items: center;
 }
 
-.file-component-empty-create :global(.ant-btn.ant-btn-default) {
+.file-component-empty-create .ant-btn.ant-btn-default {
   padding: 20px 0px;
   color: #000;
   font-weight: 500;
@@ -145,20 +144,20 @@
   box-shadow: none;
 }
 
-.file-component-empty-create :global(.ant-btn.ant-btn-default img) {
+.file-component-empty-create .ant-btn.ant-btn-default img {
   width: 18px;
   height: 18px;
 }
 
-.file-component-empty-create :global(.ant-upload.ant-upload-select),
-.file-component-empty-create :global(.button),
-.file-component-empty-create :global(.ant-upload),
-.file-component-empty-create :global(.ant-upload-wrapper) {
+.file-component-empty-create .ant-upload.ant-upload-select,
+.file-component-empty-create .button,
+.file-component-empty-create .ant-upload,
+.file-component-empty-create .ant-upload-wrapper {
   width: 100%;
   height: 100%;
 }
 
-.file-component-empty-create :global(.ant-btn.ant-btn-default>span) {
+.file-component-empty-create .ant-btn.ant-btn-default>span {
   gap: 16px;
   flex-direction: row-reverse;
 }

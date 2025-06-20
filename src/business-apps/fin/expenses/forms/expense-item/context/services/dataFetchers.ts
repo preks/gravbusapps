@@ -2,7 +2,7 @@ import { message } from "antd";
 import { ExpenseType, CustomField } from "../../types";
 import { getNewTypes, getCustomFields, fetchExpenseData } from "../../ExpenseItemQueries";
 import { prepareExpenseRequestsList } from "../../utils/expenseRequestUtils";
-import { getCurrentActiveUserLocale } from "../../utils/windowUtils";
+import { getCurrentActiveUserLocale } from "../../../../../../../common/utils/windowUtils";
 import { showToast } from "../../utils/notificationUtils";
 import dayjs from 'dayjs'
 
@@ -202,7 +202,6 @@ export const setOnePositionItem = async (
   }
   
   if (position) {
-    // Generate a unique ID for the position
     const positionId = `position-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     
     const newPosition = {
@@ -214,8 +213,6 @@ export const setOnePositionItem = async (
       costCenter: position.costCenter?.id || item.costCenter?.id,
       customField: "",
     };
-
-    // Extract custom field value if available
     if (position.additionalProperties?.customFields && 
         Array.isArray(position.additionalProperties.customFields) && 
         position.additionalProperties.customFields.length > 0) {
@@ -234,7 +231,6 @@ export const setOnePositionItem = async (
     
     if (position.expenseGroup?.id) {
       try {
-        // First, fetch expense types for this group
         await fetchExpenseTypes(
           position.expenseGroup.id,
           [newPosition],
@@ -244,7 +240,6 @@ export const setOnePositionItem = async (
           t
         );
         
-        // Then update the position with the expense group
         await handleExpenseGroupChange(
           position.expenseGroup.id, 
           0, 
@@ -258,19 +253,16 @@ export const setOnePositionItem = async (
           form
         );
         
-        // Set the expense type value after a short delay to ensure the expense types are loaded
         setTimeout(() => {
           if (position.expenseRuleGeneralExpenseId) {
             form.setFieldsValue({
               [`expenseType-0`]: position.expenseRuleGeneralExpenseId
             });
             
-            // Update the position with the expense type
             const updatedPositions = [...form.getFieldValue('positions') || [newPosition]];
             updatedPositions[0].expenseType = position.expenseRuleGeneralExpenseId;
             setPositions(updatedPositions);
             
-            // If there's a custom field, set it as well
             if (newPosition.customField) {
               form.setFieldsValue({
                 [`customField-0`]: newPosition.customField

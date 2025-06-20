@@ -15,14 +15,13 @@ import {
 import {
   PlusCircleOutlined,
 } from "@ant-design/icons";
-import styles from "../../ExpenseItem.module.css";
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from "../../types";
 import UploadComponent from "../UploadComponent";
 import SinglePositionComponent from "./SinglePositionComponent";
 import MultiPositionComponent from "./MultiPositionComponent";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
 import { Alert } from "antd";
-import { getDateFormat } from "../../utils/windowUtils";
+import { getDateFormat } from "../../../../../../../common/utils/windowUtils";
 
 interface FormScreenComponentProps {
   form: any;
@@ -100,14 +99,14 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         currency: "Currency:v1:EUR",
       }}
     >
-      <div className={`${styles.marginBottom16} gba:marginBottom16`}>
+      <div className={`gba:marginBottom16`}>
         <UploadComponent 
           fileList={fileList} 
           setFileList={setFileList} 
         />
       </div>
 
-      <div className={`${styles.marginBottom16} gba:marginBottom16`}>
+      <div className={`gba:marginBottom16`}>
         <div>
           <Form.Item
             name="title"
@@ -128,7 +127,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         </div>
       </div>
 
-      <div className={`${styles.marginBottom16} gba:marginBottom16`}>
+      <div className={`gba:marginBottom16`}>
         <div style={{ position: "relative" }}>
           <Form.Item
           shouldUpdate
@@ -136,7 +135,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             rules={[{ required: true, message: t('create_expense_type_item.current_date_custom_rule', 'Please select a date') }]}
             style={{ marginBottom: 0 }}
           >
-            <div className={`${styles.relativePosition} gba:relativePosition`}>
+            <div className={`gba:relativePosition`}>
               <div>
                 <DateInputField
                   label={t(
@@ -172,8 +171,8 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         </div>
       </div>
 
-      <div className={`${styles.marginBottom16} gba:marginBottom16`}>
-        <div className={`${styles.relativePosition} gba:relativePosition`}>
+      <div className={`gba:marginBottom16`}>
+        <div className={`gba:relativePosition`}>
           <div>
             <Switch
               label={t(
@@ -248,7 +247,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           variant="ghost" 
           onClick={handleAddPosition}
           disabled={isProcessingFiles}
-          className={`${styles.marginBottom16} gba:marginBottom16`}
+          className={`gba:marginBottom16`}
         >
           <PlusCircleOutlined style={{ width: "17px", height: "17px" }} /> 
           {isProcessingFiles ? "Processing..." : "Add Position"}
@@ -259,10 +258,10 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       {multiPosition && (
         <Row
           gutter={16}
-          className={`${styles.marginTop16} ${styles.marginBottom16} gba:marginTop16 gba:marginBottom16`}
+          className={`gba:marginTop16 gba:marginBottom16`}
         >
           <Col span={12}>
-            <Form.Item className={`${styles.marginBottom0} gba:marginBottom0`}>
+            <Form.Item className={`gba:marginBottom0`}>
               <InputField
                 label={t(
                   "create_expense_item.change_expense_item_container.current_amount_label",
@@ -283,7 +282,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
               name="currency"
               rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_currency_custom_rule', 'Please select a currency') }]}
 
-              className={`${styles.marginBottom0} gba:marginBottom0`}
+              className={`gba:marginBottom0`}
             >
               <SelectField
                 allowClear
@@ -319,7 +318,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       <Form.Item
         name="expenseRequestId"
         rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_request_custom_rule', 'Please select a request') }]}
-        className={`${styles.marginBottom16} gba:marginBottom16`}
+        className={`gba:marginBottom16`}
       >
         <SelectField
           allowClear
@@ -350,7 +349,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           variant="primary"
           onClick={handleSubmit}
           disabled={isProcessingFiles || !formIsValid || !!expenseRuleError}
-          className={`${styles.submitButton} gba:submitButton`}
+          className={`gba:submitButton`}
         >
           {t("expense_item.submit", "Submit")}
         </Button>

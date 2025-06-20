@@ -1,7 +1,6 @@
 import React from "react";
 import { Button } from "@newwork/gravity-ui-catalog";
 import { useTranslation } from "react-i18next";
-import styles from "../../ExpenseItem.module.css";
 import UploadComponent from "../UploadComponent";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
 
@@ -20,26 +19,26 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
   const { isProcessingFiles } = useExpenseItem();
 
   return (
-    <div className={`${styles.startScreenContainer} gba:startScreenContainer`}>
-      <div className={`${styles.uploadWrapper} gba:uploadWrapper`}>
+    <div className={`gba:startScreenContainer`}>
+      <div className={`gba:uploadWrapper`}>
         <UploadComponent 
           fileList={fileList} 
           setFileList={setFileList} 
         />
       </div>
-      <div className={`${styles.buttonContainer} gba:buttonContainer`}>
+      <div className={`gba:buttonContainer`}>
         <Button
           variant="ghost"
           onClick={() => setCurrentStep("form")}
-          className={`${styles.continueButton} gba:continueButton`}
+          className={`gba:continueButton`}
           disabled={isProcessingFiles}
         >
-          <div className={`${styles.buttonWithIcon} gba:buttonWithIcon`}>
+          <div className={`gba:buttonWithIcon`}>
             <span>{t("expense_item.continue_without_receipt", "Continue without receipt")}</span>
             <img 
               src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/ArrowRightSLine.svg" 
               alt="Continue" 
-              className={`${styles.arrowIcon} gba:arrowIcon`}
+              className={`gba:arrowIcon`}
             />
           </div>
         </Button>

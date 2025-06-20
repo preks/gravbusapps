@@ -1,5 +1,4 @@
 import React from "react";
-import styles from "./ExpenseItem.module.css";
 import { useTranslation } from "react-i18next";
 import { ExpenseItemProvider, useExpenseItem } from './context';
 import { Button } from "@newwork/gravity-ui-catalog";
@@ -42,8 +41,8 @@ const ExpenseItemContent: React.FC = () => {
   } = useExpenseItem();
 
   return (
-    <div className={`${styles.mainContainer} gba:mainContainer`}>
-      <div className={`${styles.headerContainer} gba:headerContainer`}>
+    <div className={`gba:mainContainer`}>
+      <div className={`gba:headerContainer`}>
         {currentStep === "form" && (
           <Button
             variant="ghost"
@@ -51,25 +50,25 @@ const ExpenseItemContent: React.FC = () => {
               setCurrentStep("start");
               setFileList([]);
             }}
-            className={`${styles.backButton} gba:backButton`}
+            className={`gba:backButton`}
             data-testid="back-button"
           >
             <img 
               src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/arrow-left-s-line.svg" 
               alt="Back" 
-              className={`${styles.backIcon} gba:backIcon`}
+              className={`gba:backIcon`}
               width="24"
               height="24"
             />
           </Button>
         )}
-        <div className={`${styles.titleContainer} gba:titleContainer`}>
-          <Title level={4} className={`${styles.headerTitle} gba:headerTitle`}>
+        <div className={`gba:titleContainer`}>
+          <Title level={4} className={`gba:headerTitle`}>
             {t("expense_item.title", "New Expense Item")}
           </Title>
         </div>
       </div>
-      <Divider className={`${styles.headerDivider} gba:headerDivider`} />
+      <Divider className={`gba:headerDivider`} />
 
       {currentStep === "start" ? (
         <StartScreenComponent 

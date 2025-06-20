@@ -1,7 +1,6 @@
 import React, { useRef, useState, useCallback } from "react";
 import { Upload, message, Modal } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
-import styles from "../../ExpenseItem.module.css";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
 import { Button } from "@newwork/gravity-ui-catalog";
 
@@ -145,10 +144,10 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
   const getButtonContent = () => {
     if (fileList.length === 0 && currentStep === "start") {
       return (
-        <div className={`${styles.uploadButtonStart} gba:uploadButtonStart`}>
+        <div className={`gba:uploadButtonStart`}>
           {isProcessingFiles ? (
             <>
-              <LoadingOutlined className={styles.uploadIcon} />
+              <LoadingOutlined className="gba:uploadIcon" />
               <span>Processing the receipt...</span>
             </>
           ) : (
@@ -156,7 +155,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
               <img 
                 src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
                 alt="Focus" 
-                className={`${styles.uploadIcon} gba:uploadIcon`}
+                className={`gba:uploadIcon`}
                 width="36"
                 height="36"
               />
@@ -169,10 +168,10 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
 
     if (fileList.length === 0) {
       return (
-        <div className={`${styles.uploadButtonFormEmpty} gba:uploadButtonFormEmpty`}>
+        <div className={`gba:uploadButtonFormEmpty`}>
           {isProcessingFiles ? (
             <>
-              <LoadingOutlined className={styles.uploadIconSmall} />
+              <LoadingOutlined className="gba:uploadIconSmall" />
               <span>Processing...</span>
             </>
           ) : (
@@ -181,7 +180,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
               <img 
                 src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
                 alt="Focus" 
-                className={`${styles.uploadIconSmall} gba:uploadIconSmall`}
+                className={`gba:uploadIconSmall`}
                 width="18"
                 height="18"
               />
@@ -196,12 +195,12 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
 
   const getContainerClass = () => {
     if (fileList.length > 0) {
-      return `${styles.uploadContainerWithFiles} gba:uploadContainerWithFiles`;
+      return `gba:uploadContainerWithFiles`;
     }
 
     return currentStep === "start" 
-      ? `${styles.uploadContainerStart} gba:uploadContainerStart`
-      : `${styles.uploadContainerForm} gba:uploadContainerForm`;
+      ? `gba:uploadContainerStart`
+      : `gba:uploadContainerForm`;
   };
 
   const acceptedFileTypes = "application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG";
@@ -217,14 +216,14 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
           onRemove={handleRemove}
           multiple={true}
           accept={acceptedFileTypes}
-          className={`${styles.uploadComponent} gba:uploadComponent`}
+          className={`gba:uploadComponent`}
           disabled={isProcessingFiles}
         >
           {getButtonContent()}
         </Upload>
       ) : (
-        <div className={`${styles.filesFlexContainer} gba:filesFlexContainer`}>
-          <div className={`${styles.fileListRow} gba:fileListRow`}>
+        <div className={`gba:filesFlexContainer`}>
+          <div className={`gba:fileListRow`}>
             <Upload
               listType="text"
               fileList={fileList}
@@ -233,7 +232,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
               onRemove={handleRemove}
               multiple={true}
               accept={acceptedFileTypes}
-              className={`${styles.uploadComponent} gba:uploadComponent`}
+              className={`gba:uploadComponent`}
               showUploadList={{
                 showPreviewIcon: false,
                 showDownloadIcon: false,
@@ -242,7 +241,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
             />
           </div>
 
-          <div className={`${styles.attachButtonRow} gba:attachButtonRow`}>
+          <div className={`gba:attachButtonRow`}>
             <Upload
               showUploadList={false}
               beforeUpload={handleBeforeUpload}
@@ -251,11 +250,11 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
               accept={acceptedFileTypes}
               disabled={isProcessingFiles}
             >
-              <div className={`${styles.attachMoreContainer} gba:attachMoreContainer`}>
+              <div className={`gba:attachMoreContainer`}>
                 {isProcessingFiles ? (
                   <>
                     <span>Processing...</span>
-                    <LoadingOutlined className={styles.uploadIconSmall} />
+                    <LoadingOutlined className="gba:uploadIconSmall" />
                   </>
                 ) : (
                   <>
@@ -263,7 +262,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
                     <img 
                       src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
                       alt="Focus" 
-                      className={`${styles.uploadIconSmall} gba:uploadIconSmall`}
+                      className={`gba:uploadIconSmall`}
                       width="18"
                       height="18"
                     />
@@ -291,14 +290,14 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
           destroyOnClose={true}
           width={500}
         >
-          <div className={`${styles.modalContent} gba:modalContent`}>
+          <div className={`gba:modalContent`}>
             <p>Do you want to keep the current {fileList.length > 1 ? 'files' : 'file'} as well?</p>
-            <div className={`${styles.modalButtons} gba:modalButtons`}>
+            <div className={`gba:modalButtons`}>
               <Button 
                 variant="secondary"
                 onClick={() => handleModalConfirm(false)}
                 data-testid="modal-no-button"
-                className="min-w-[120px]"
+                className="gba:min-w-[120px]"
               >
                 No
               </Button>
@@ -306,7 +305,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
                 variant="primary"
                 onClick={() => handleModalConfirm(true)}
                 data-testid="modal-yes-button"
-                className="min-w-[120px]"
+                className="gba:min-w-[120px]"
               >
                 Yes
               </Button>

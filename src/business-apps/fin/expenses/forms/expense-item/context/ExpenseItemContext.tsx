@@ -18,8 +18,8 @@ import {
   CustomField,
 } from "../types";
 
-import { getCurrentActiveUserLocale } from "../utils/windowUtils";
-import { getCatalogValue } from "../utils/windowUtils";
+import { getCurrentActiveUserLocale } from "../../../../../../common/utils/windowUtils";
+import { getCatalogValue } from "../../../../../../common/utils/windowUtils";
 import {
   fetchExpenseCatalogueData,
   fetchExpenseRuleGeneralData,
@@ -170,7 +170,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const additionalDataMocked = {
     psi_taskPayload: {
       initialParameters: {
-        expenseId: "ddcbc304-c9c3-4b5f-b1c2-512985a47c5d",//029a5366-28d0-463f-acaa-9e1a2a97d12b
+        expenseId: "",//029a5366-28d0-463f-acaa-9e1a2a97d12b
         expenseRequest:"23017ff9-ecde-442a-8e85-572551b00bff",
         currencyData:"Currency:v1:EUR"
       },
@@ -703,8 +703,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           }
         });
       }
-
-      // Receipt data processed successfully
     } catch (error) {
       showToast(
         t("expense_item.receipt_error", "Error processing receipt data"),
