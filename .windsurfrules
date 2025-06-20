@@ -3,7 +3,6 @@
 - Each component should extend its props from the `BusinessAppContextProps` interface.
 - Whenever an access token is required, use it from the `BusinessAppContextProps` interface.
 - Whenever an user, an user info or an employee ID is required, use it from the `BusinessAppContextProps` interface.
-- Whenever a structure id is required, use it from the `BusinessAppContextProps` interface.
 
 # Naming Conventions
 - use kebab-case for folders (e.g. "src\business-apps\fin\expenses\personal-expenses"

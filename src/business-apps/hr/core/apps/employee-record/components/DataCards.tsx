@@ -65,7 +65,7 @@ export function DataCards<T extends Record<string, any>>({
 
   return (
     <div
-      className={mergeClasses('w-full', className)}
+      className={mergeClasses('gba:w-full', className)}
       style={{
         padding: '16px', // Consistent padding as per memory
       }}

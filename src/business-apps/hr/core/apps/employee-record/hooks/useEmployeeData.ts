@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useGraphqlClient } from '../../../../common/network/graphql/useGraphQLClient';
+import { useEffect, useCallback, useState } from 'react';
+import { useGraphqlClient } from '../../../../../../common/network/graphql/useGraphQLClient';
 
 /**
  * GraphQL query to fetch employee data including:
@@ -22,6 +22,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/`
       supervisor {
         firstName
         lastName
+        displayName
         id
         pictureThumbnail
         employeePosition{
@@ -247,6 +248,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/`
     }) {
       employeeId
       type {
+        id
         value
       }
       available
@@ -282,20 +284,21 @@ export const useEmployeeData = (accessToken: string, activeStructureId: string, 
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Define fetchData outside useEffect to make it available for refetch
-  const fetchData = async () => {
-    if (skipRequest || !employeeId) return;
+  const fetchData = useCallback(async () => {
+    if (skipRequest || !accessToken || !employeeId) {
+      setData(null);
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
 
     try {
-      setIsLoading(true);
-      setError(null);
-
       const variables = {
         employeeId,
         structureId: structureId ?? '',
         hasStructureId: !!structureId
       };
-
       const result = await client.request<EmployeeData>(GET_EMPLOYEE_DATA, variables);
       setData(result);
     } catch (err) {
@@ -303,11 +306,11 @@ export const useEmployeeData = (accessToken: string, activeStructureId: string, 
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [accessToken, client, employeeId, structureId, skipRequest, setData, setIsLoading, setError]); // Added state setters to dependencies as they are used, though stable
 
   useEffect(() => {
     fetchData();
-  }, [accessToken, employeeId, structureId, skipRequest, client]);
+  }, [fetchData]);
 
   // Extract data from the result
   const employeePosition = data?.EmployeePosition?.[0];
@@ -335,7 +338,7 @@ export const useEmployeeData = (accessToken: string, activeStructureId: string, 
     performanceGoals: data?.EmployeePerformanceGoal || [],
     loading: isLoading,
     error,
-    refetch: fetchData // Now fetchData is properly defined and available
+    refetch: fetchData
   };
 };
 
@@ -393,6 +396,7 @@ export interface Employee {
   birthDate: string;
   birthName: string;
   lastName: string;
+  displayName: string;
   ethnicity: CodeValue;
   birthPlace: CodeValue;
   nationality: CodeValue;
@@ -419,6 +423,7 @@ interface EmployeePosition {
     firstName: string;
     lastName: string;
     id: string;
+    displayName: string;
     pictureThumbnail?: string;
     employeePosition?: {
       jobPosition?: {
@@ -609,6 +614,7 @@ export interface EmployeeFeedback {
 export interface EmployeeAbsenceEntitlement {
   employeeId: string;
   type: {
+    id: string;
     value: string;
     translations: {
       localeCode: string;
