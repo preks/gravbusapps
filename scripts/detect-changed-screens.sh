@@ -28,10 +28,10 @@ if [[ "${BITBUCKET_PIPELINE_TYPE}" == "CUSTOM" ]]; then
 elif [[ "$BITBUCKET_PR_DESTINATION_BRANCH" == "develop" || -n "$BITBUCKET_PR_ID" ]]; then
   echo "Checking files changed in PR to develop..."
   export CHANGED_FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
-# For regular branch builds, only look at the latest commit
+# For regular branch builds, look at the last 50 commits
 else
-  echo "Checking files changed in latest commit only..."
-  export CHANGED_FILES=$(git log -1 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  echo "Checking files changed in latest commits..."
+  export CHANGED_FILES=$(git log -50 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
 fi
 
 # Show what we found
