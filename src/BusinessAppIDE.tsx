@@ -68,7 +68,7 @@ const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
   // Display a notification for the process event
   notification.info({
     message: 'Process Start Event Detected',
-    description: `Domain: ${domain}, Process: ${processName}${processInstanceId ? `, ID: ${processInstanceId}` : ''}\nProcess body: ${startProcessBody}`,
+    description: `Domain: ${domain}, \nProcess: ${processName}${processInstanceId ? `, ID: ${processInstanceId}` : ''}\nProcess body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`,
     duration: 5,
     placement: 'topRight'
   });
