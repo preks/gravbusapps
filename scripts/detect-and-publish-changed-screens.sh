@@ -1,11 +1,22 @@
 #!/bin/bash
+set -e
+
+# Output more information for debugging
+echo "Current branch: ${BITBUCKET_BRANCH}"
+echo "Target branch: origin/develop"
+
+# Make sure we have the develop branch
+git fetch origin develop
 
 # Get the list of files that were changed between the current branch and develop
-export CHANGED_FILES=$(git diff --name-only origin/develop...${BITBUCKET_BRANCH} | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+# Use git diff to get a reliable list of changes
+echo "Detecting changed files..."
+export CHANGED_FILES=$(git diff --name-only origin/develop HEAD | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
 
 # Extract the unique app/form directories that were modified
 if [ ! -z "$CHANGED_FILES" ]; then
   echo "Changed screens detected:"
+  echo "$CHANGED_FILES"
               
   # For each changed file, extract components based on the project folder structure
   for FILE in $CHANGED_FILES; do
