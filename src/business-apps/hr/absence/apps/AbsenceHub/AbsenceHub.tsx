@@ -202,8 +202,6 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
       .finally(() => setLoading(false));
   }, [employeeId, accessToken]);
 
-  console.log(getCurrentActiveUserLocale());
-
   const filterOptions = [
     "All",
     ...Array.from(new Set(absenceList.map((a) => a.type).filter(Boolean))),
