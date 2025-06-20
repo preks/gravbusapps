@@ -77,9 +77,12 @@ src
 
 - Add all CSS files in `src/index.css`, so that they are included in `dist/assets/main.css` by the vite bundler. Only this way will they be applied on the NEWWORK platform.
 
-- For Graphql API requests, use src\common\network\graphql\useGraphQLClient.ts
-- For REST API requests, use src\common\network\rest\useRestClient.ts
-- For all API requests to a service, check if already exists in src\common\network, or create a new folder for that service.
+- For Graphql API requests, use src\common\network\graphql\useGraphQLClient.ts. Analyze the file first, and its dependency.
+- For REST API requests, use src\common\network\rest\useRestClient.ts. Analyze the file first, and its dependency.
+- For all API requests to a service, check if already exists in src\common\network, or create a new folder for that entity type. Example: `src\common\network/catalog-entry`, `src\common\network/expense-plan` folders, named in camelCase, and exported as named exports.
+- If the API request is REST, use a singleton client class that extends RestClient. Example: src\common\network\catalogs\CatalogManagerClient.ts
+- In the singleton client REST class, the URL key is in the `.env` file. Example: `env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')`, NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT is in `.env`.
+- For all API requests, make sure accessToken exists.
 
 # Project Development
 - Simplify the code as much as possible and keep it clean
