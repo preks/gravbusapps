@@ -19,7 +19,6 @@ import { OnlineStatus } from '../../../../components/employeeAvatar/types';
 import { Employee } from '../hooks/useEmployeeData';
 import { formatPhoneNumber, getEmployeeFullName } from '../utils/formatters';
 import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext';
-//import { useProcessExecutorModalContext } from 'sdks/process-executor-sdk';
 
 // TO-DO: ADD TRANSLATION for new availability status labels
 
@@ -110,14 +109,38 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
 };
 
 const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({ 
+  userInfo,
   employee, 
   availabilityStatus = 'available' // Default to available if not provided
 }) => {
   const [isHovering, setIsHovering] = useState(false);
-  //const { openModal } = useProcessExecutorModalContext();
-  const { openModal } = { openModal: (args: any) => {} };
-
   const { hasPermission: hasPermissionToEditPicture } = { hasPermission: false };
+  
+  // Communication handlers
+  const handleCommunication = (eventType: string) => {
+    if (!employee.additionalProperties?.userId) return;
+    
+    const customEvent = new CustomEvent(eventType, {
+      detail: {
+        userId: employee.additionalProperties.userId,
+        displayName: getEmployeeFullName(employee)
+      }
+    });
+    
+    window.dispatchEvent(customEvent);
+  };
+  
+  const handleChat = () => {
+    handleCommunication('custom:event:openChatWithUser');
+  };
+  
+  const handleAudioCall = () => {
+    handleCommunication('custom:event:openAudioConferenceWithUser');
+  };
+  
+  const handleVideoCall = () => {
+    handleCommunication('custom:event:openVideoConferenceWithUser');
+  };
   
   const calculateTimeSince = () => {
     if (!employee.workingCondition[0]?.hireDate) return '';
@@ -156,26 +179,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
   
   const handleEditPicture = useCallback(() => {
     if (hasPermissionToEditPicture) {
-      openModal({
-        processName: 'profile-picture-upload',
-        startProcessBody: {
-          employeeId: employee.id
-        }
-      });
     }
-  }, [employee.id, openModal, hasPermissionToEditPicture]);
-  
-  const handleChat = useCallback(() => {
-    console.log('Chat with', employee.id);
-  }, [employee.id]);
-  
-  const handleCall = useCallback(() => {
-    console.log('Call', employee.id);
-  }, [employee.id]);
-  
-  const handleVideoCall = useCallback(() => {
-    console.log('Video call', employee.id);
-  }, [employee.id]);
+  }, [employee.id, hasPermissionToEditPicture]);
 
   return (
     <div className="gba:w-full gba:relative gba:overflow-hidden">
@@ -217,34 +222,32 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                   </div>
                 </div>
                 
-
-                
                 {/* Communication Actions - Always visible */}
                 <div className="gba:mt-3 gba:flex gba:justify-center gba:gap-3">
                   <button 
                     onClick={handleChat}
                     className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                    title="Chat" /* TO-DO: ADD TRANSLATION */
+                    title="Chat"
                     aria-label="Chat"
-                    disabled={!employee.additionalProperties?.userId}
+                    disabled={!userInfo?.id}
                   >
                     <PiChat className="gba:h-5 gba:w-5" />
                   </button>
                   <button 
-                    onClick={handleCall}
+                    onClick={handleAudioCall}
                     className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                    title="Call" /* TO-DO: ADD TRANSLATION */
-                    aria-label="Call"
-                    disabled={!employee.additionalProperties?.userId}
+                    title="Audio Call"
+                    aria-label="Audio Call"
+                    disabled={!userInfo?.id}
                   >
                     <PiPhone className="gba:h-5 gba:w-5" />
                   </button>
                   <button 
                     onClick={handleVideoCall}
                     className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                    title="Video Call" /* TO-DO: ADD TRANSLATION */
+                    title="Video Call"
                     aria-label="Video Call"
-                    disabled={!employee.additionalProperties?.userId}
+                    disabled={!userInfo?.id}
                   >
                     <PiVideoCamera className="gba:h-5 gba:w-5" />
                   </button>

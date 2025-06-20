@@ -14,6 +14,7 @@ import DocumentsTab from './components/tabs/DocumentsTab';
 import PerformanceTab from './components/tabs/PerformanceTab';
 import AbsencesTab from './components/tabs/AbsencesTab';
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
 
 /**
  * Employee Record Module
@@ -43,7 +44,6 @@ const getUrlParams = () => {
 const LoadingUI = () => (
   <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
     <Spinner size="large" />
-    <p>Loading...</p>
   </div>
 );
 
@@ -131,13 +131,13 @@ interface EmployeeRecordContentProps extends BusinessAppContextProps {
  */
 const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({ 
   accessToken,
-  activeStructureId,
   currentUserEmployeeId,
   employeeIdToShow,
   initialActiveTab
 }) => {
   // Track active tab for the UI
   const [activeTab, setActiveTab] = useState(initialActiveTab);
+  const activeStructureId = getCurrentActiveStructureId();
   
   // Update URL when active tab changes
   useEffect(() => {
@@ -163,7 +163,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   // Always fetch the employee data for the employee ID we want to show
   const { loading, error, employee, feedback, absenceEntitlements, performanceGoals } = useEmployeeData(
     accessToken,
-    activeStructureId ?? '',
+    activeStructureId,
     employeeIdToShow // Use the determined employeeId directly
   );
 
