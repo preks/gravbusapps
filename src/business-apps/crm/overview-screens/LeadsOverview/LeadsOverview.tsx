@@ -1,26 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Table, Input, Button, Card, message, Dropdown, List, Empty, Avatar } from 'antd';
+import { Table, Input, Button, Card, message, Dropdown, List, Empty, Avatar, Row, Col } from 'antd';
 import { Grid } from 'antd';
 const { useBreakpoint } = Grid;
 import { SearchOutlined, PlusOutlined, EditOutlined, MoreOutlined, CloseCircleOutlined, UserOutlined } from '@ant-design/icons';
 import { Typography } from 'antd';
 import dayjs from 'dayjs';
+import { PieChartOutlined, TeamOutlined, FieldTimeOutlined, StarOutlined } from '@ant-design/icons';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import weekday from 'dayjs/plugin/weekday';
 import localeData from 'dayjs/plugin/localeData';
 
-// REST client will be used directly in the save function
 import { useLeadsData } from './hooks/useLeadsData';
 import AddEditLead, { LeadFormData } from './components/AddEditLead';
 import LeadDetails from './LeadDetails';
-import { useLeadCatalogs } from './hooks/useLeadCatalogs';
 
-// Initialize dayjs plugins
 dayjs.extend(relativeTime);
 dayjs.extend(weekday);
 dayjs.extend(localeData);
 
-// Define BusinessAppContextProps interface if it's not available
 interface BusinessAppContextProps {
   accessToken: string;
   employeeId?: string;
@@ -29,7 +26,6 @@ interface BusinessAppContextProps {
 
 const { Title, Paragraph } = Typography;
 
-// LeadTableItem interface for the table
 interface LeadTableItem {
   id: string;
   key?: string;
@@ -64,14 +60,13 @@ interface LeadTableItem {
 }
 
 function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
-  // State for UI operations
   const [searchText, setSearchText] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<string | undefined>();
   const [isLeadDetailVisible, setIsLeadDetailVisible] = useState(false);
-  const [isNewLead, setIsNewLead] = useState<boolean>(false); // Used for new lead creation
-  const [isEditMode, setIsEditMode] = useState<boolean>(false); // Used for lead editing
-  const [editingLead, setEditingLead] = useState<LeadTableItem | undefined>(undefined); // Store the lead being edited
+  const [isNewLead, setIsNewLead] = useState<boolean>(false);
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  const [editingLead, setEditingLead] = useState<LeadTableItem | undefined>(undefined);
   const [leads, setLeads] = useState<LeadTableItem[]>([]);
   const screens = useBreakpoint();
   const [isMobile, setIsMobile] = useState(false);
@@ -80,7 +75,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
     setIsMobile(!screens.md);
   }, [screens]);
   
-  // Fetch leads data
   const { leads: leadsData, loading, refetch: refetchLeads } = useLeadsData(accessToken);
   console.log(leadsData)
   useEffect(() => {
@@ -96,7 +90,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
       setLeads(mappedLeads);
     }
   }, [leadsData]);
-  // Format relative time for last activity
   const formatTimeDifference = (dateString: string | undefined) => {
     if (!dateString) return 'No activity';
     
@@ -111,7 +104,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
       const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     
       if (diffInSeconds < 60) {
-        // Handle edge cases: negative or zero seconds should show as "just now"
         if (diffInSeconds <= 0) {
           return 'Just now';
         }
@@ -151,34 +143,29 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
     }
   };
   
-  // Format date in readable format
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
     return dayjs(dateString).format('MMM D, YYYY');
   };
   
-  // Handle row click to view lead detail
   const handleRowClick = (record: LeadTableItem) => {
     setSelectedLeadId(record.id);
     setIsLeadDetailVisible(true);
   };
   
-  // Handle back button click in lead detail
   const handleLeadDetailBack = () => {
     setIsLeadDetailVisible(false);
     setSelectedLeadId(undefined);
   };
   
-  // Handle add new lead
   const handleAddLead = () => {
     setIsNewLead(true);
     setIsEditMode(true);
     setIsLeadDetailVisible(false);
     setSelectedLeadId(undefined);
-    setEditingLead(undefined); // Clear any previous editing state
+    setEditingLead(undefined); 
   };
 
-  // Handle edit selected lead
   const handleEditLead = () => {
     if (selectedRowKeys.length === 0) {
       message.warning('Please select a lead to edit');
@@ -198,7 +185,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
     setSelectedLeadId(undefined);
   };
   
-  // Handle mark as lost
   const handleMarkAsLost = async (lead: LeadTableItem) => {
     if (!lead || !lead.id) {
       message.error('Cannot mark as lost: Lead information is missing');
@@ -213,7 +199,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
         }
       };
       
-      // Make API call to mark lead as lost
       const response = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveLead', {
         method: 'POST',
         headers: {
@@ -231,7 +216,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
       
       message.success(`${lead.companyName} marked as lost`);
       
-      // Refresh the leads list
       refetchLeads();
     } catch (error) {
       console.error('Error marking lead as lost:', error);
@@ -239,10 +223,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
     }
   };
   
-  
-  // Direct onChange handler is used instead of a separate function
-  
-  // Table columns configuration
   const columns = [
     {
       title: 'Name',
@@ -349,24 +329,7 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
       title: 'Tags',
       key: 'tags',
       render: (_: any, lead: LeadTableItem) => (
-        <div>
-          {/* <div style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>
-            {lead.companyName || '-'}
-          </div>
-          <div style={{ marginBottom: 4 }}>Contact: {lead.contactName || '-'}</div>
-          <div style={{ marginBottom: 4, display: 'flex', alignItems: 'center' }}>
-            Owner: 
-            {lead.ownerAvatar ? (
-              <Avatar src={lead.ownerAvatar} size="small" style={{ margin: '0 8px' }} />
-            ) : (
-              <Avatar icon={<UserOutlined />} size="small" style={{ margin: '0 8px' }} />
-            )}
-            {lead.ownerName || 'Unassigned'}
-          </div>
-          <div style={{ marginBottom: 4 }}>Created: {formatDate(lead.createdAt)}</div>
-          <div style={{ marginBottom: 4 }}>Last Activity: {formatTimeDifference(lead.lastActivity)}</div> */}
-          <div>-</div>
-        </div>
+        <div>-</div>
       ),
       responsive: ['lg'] as ('lg')[]
     },
@@ -398,7 +361,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
     },
   ];
 
-  // Function to render a card for mobile view
   const renderLeadCard = (lead: LeadTableItem) => (
     <List.Item 
       key={lead.id}
@@ -424,7 +386,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
             <div style={{ marginBottom: 4 }}>Created: {formatDate(lead.createdAt)}</div>
             <div style={{ marginBottom: 4 }}>Last Activity: {formatTimeDifference(lead.lastActivity)}</div>
             
-            {/* Tags data intentionally removed */}
           </div>
           <Dropdown
             menu={{
@@ -467,12 +428,10 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
             setEditingLead(undefined);
           }}
           onSave={(_: LeadFormData) => {
-            // API call is now handled in the AddEditLead component
             setIsNewLead(false);
             setIsEditMode(false);
             setSelectedLeadId(undefined);
             setEditingLead(undefined);
-            // Refresh leads data
             refetchLeads();
           }}
           initialData={editingLead}
@@ -482,7 +441,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
         />
       ) : (
         <>
-          {/* Header Section */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }} data-testid="leads-header">
             <div>
               <Title level={2} style={{ margin: 0 }}>Leads</Title>
@@ -509,8 +467,111 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
               </Button>
             </div>
           </div>
+
+          {/* KPI Cards */}
+          <Row gutter={16} className="gba:mb-6" data-testid="leads-kpi-cards">
+            <Col xs={24} sm={12} md={6} className="gba:pb-4">
+              <div className="gba:p-4 gba:bg-white gba:shadow-sm gba:rounded gba:border gba:border-gray-200">
+                <div className="gba:flex gba:items-center">
+                  <div className="gba:mr-3">
+                    <span className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-50">
+                      <PieChartOutlined style={{ color: '#1890ff', fontSize: '18px' }} />
+                    </span>
+                  </div>
+                  <div>
+                    <div className="gba:text-sm gba:text-gray-500">Total Leads</div>
+                    <div className="gba:text-2xl gba:font-semibold gba:text-blue-500">
+                      {leads.length}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Col>
+            <Col xs={24} sm={12} md={6} className="gba:pb-4">
+              <div className="gba:p-4 gba:bg-white gba:shadow-sm gba:rounded gba:border gba:border-gray-200">
+                <div className="gba:flex gba:items-center">
+                  <div className="gba:mr-3">
+                    <span className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-50">
+                      <TeamOutlined style={{ color: '#52c41a', fontSize: '18px' }} />
+                    </span>
+                  </div>
+                  <div>
+                    <div className="gba:text-sm gba:text-gray-500">Lead Sources</div>
+                    <div className="gba:text-2xl gba:font-semibold gba:text-green-500">
+                      {(() => {
+                        const sourceMap = new Map();
+                        leads.forEach(lead => {
+                          if (lead.leadSource?.value) {
+                            sourceMap.set(lead.leadSource.value, true);
+                          }
+                        });
+                        return sourceMap.size;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Col>
+            <Col xs={24} sm={12} md={6} className="gba:pb-4">
+              <div className="gba:p-4 gba:bg-white gba:shadow-sm gba:rounded gba:border gba:border-gray-200">
+                <div className="gba:flex gba:items-center">
+                  <div className="gba:mr-3">
+                    <span className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-yellow-50">
+                      <FieldTimeOutlined style={{ color: '#faad14', fontSize: '18px' }} />
+                    </span>
+                  </div>
+                  <div>
+                    <div className="gba:text-sm gba:text-gray-500">Recent Leads</div>
+                    <div className="gba:text-2xl gba:font-semibold gba:text-yellow-500">
+                      {(() => {
+                        const now = dayjs();
+                        return leads.filter(lead => 
+                          dayjs(lead.createdAt).isAfter(now.subtract(30, 'day'))
+                        ).length;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Col>
+            <Col xs={24} sm={12} md={6} className="gba:pb-4">
+              <div className="gba:p-4 gba:bg-white gba:shadow-sm gba:rounded gba:border gba:border-gray-200">
+                <div className="gba:flex gba:items-center">
+                  <div className="gba:mr-3">
+                    <span className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-red-50">
+                      <StarOutlined style={{ color: '#ff4d4f', fontSize: '18px' }} />
+                    </span>
+                  </div>
+                  <div>
+                    <div className="gba:text-sm gba:text-gray-500">Top Rating</div>
+                    <div className="gba:text-2xl gba:font-semibold gba:text-red-500">
+                      {(() => {
+                        const ratingMap = new Map();
+                        leads.forEach(lead => {
+                          if (lead.leadRating?.value) {
+                            ratingMap.set(lead.leadRating.value, (ratingMap.get(lead.leadRating.value) || 0) + 1);
+                          }
+                        });
+                        
+                        let topRating = 'None';
+                        let maxCount = 0;
+                        
+                        ratingMap.forEach((count, rating) => {
+                          if (count > maxCount) {
+                            maxCount = count;
+                            topRating = rating;
+                          }
+                        });
+                        
+                        return topRating;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Col>
+          </Row>
           
-          {/* Search Section */}
           <div style={{ marginBottom: 16 }} data-testid="leads-search">
             <Input
               placeholder="Search leads..."
