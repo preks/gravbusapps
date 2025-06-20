@@ -1,4 +1,4 @@
-import { message } from "antd";
+import { showToast } from "../../utils/notificationUtils";
 import { TFunction } from "i18next";
 import { parseFileUpload } from "./fileUploadService";
 import { calculateTotalAmount } from "../../utils/calculationUtils";
@@ -20,17 +20,21 @@ export const handleFileUpload = async (
   t: TFunction
 ) => {
   if (!files || files.length === 0) {
-    message.error(t("expense_item.no_files", "No files selected for upload"));
+    showToast(
+      t("expense_item.no_files", "No files selected for upload"),
+      "error"
+    );
     return null;
   }
 
   try {
-    // Call the parseFileUpload service to process the files
     const result = await parseFileUpload(files, accessToken, aiGroupsAndTypes, t);
     return result;
   } catch (error) {
-    console.error("Error uploading file:", error);
-    message.error(t("expense_item.file_upload_error", "Failed to upload receipt"));
+    showToast(
+      t("expense_item.file_upload_error", "Failed to upload receipt"),
+      "error"
+    );
     return null;
   }
 };

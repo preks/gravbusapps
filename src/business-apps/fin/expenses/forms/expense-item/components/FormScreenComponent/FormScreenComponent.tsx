@@ -97,7 +97,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       validateTrigger={['onChange', 'onBlur']}
       initialValues={{
         date: new Date(),
-        currency: "EUR",
+        currency: "Currency:v1:EUR",
       }}
     >
       <div className={`${styles.marginBottom16} gba:marginBottom16`}>
@@ -153,7 +153,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                     setCurrentSelectedDate(field.value as Date)
                     form.setFieldsValue({ date: field.value }
                     )
-                console.log(field.value,"-",form.getFieldValue('date'))}}
+                }}
                   required={true}
                   format={getDateFormat('date.long')}
                   value={form.getFieldValue('date')}
@@ -274,9 +274,6 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                   "create_expense_item.change_expense_item_container.current_amount_placeholder",
                   "Enter Amount"
                 )}
-                onChange={() => {
-                  console.log("changed");
-                }}
                 required={true}
               />
             </Form.Item>
@@ -298,7 +295,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                 name="currency"
                 isDataSorted={false}
                 data={currencies.map((currency) => ({
-                  id: currency.code,
+                  id: currency.id,
                   name: currency.code,
                 }))}
                 onChange={(value: any) => {

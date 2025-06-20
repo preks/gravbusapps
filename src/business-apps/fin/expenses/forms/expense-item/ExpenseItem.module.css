@@ -99,6 +99,11 @@
   font-family: 'Roboto', sans-serif;
 }
 
+/* Card border style */
+:global(.ant-card-bordered) {
+  border: 3px solid #EFEFEF;
+}
+
 /* Required field asterisk */
 .requiredAsterisk {
   color: #aaa;
@@ -513,16 +518,18 @@
 }
 
 .uploadComponent :global(.ant-upload-list-item) {
-  border-radius: 48px;
   padding: 12px 20px;
   margin-top: 16px;
   min-height: 40px;
   border: 1px solid #EFEFEF;
+  border-radius: 48px;
+  background: #F7F7F7;
 }
 
 .uploadComponent :global(.ant-upload-list-item-name) {
   padding-left: 0;
   text-align: left !important;
+  background: #F7F7F7;
 }
 
 .uploadComponent :global(.ant-upload) {

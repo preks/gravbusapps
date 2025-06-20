@@ -3,6 +3,7 @@ import { ExpenseType, CustomField } from "../../types";
 import { getNewTypes, getCustomFields, fetchExpenseData } from "../../ExpenseItemQueries";
 import { prepareExpenseRequestsList } from "../../utils/expenseRequestUtils";
 import { getCurrentActiveUserLocale } from "../../utils/windowUtils";
+import { showToast } from "../../utils/notificationUtils";
 import dayjs from 'dayjs'
 
 export const fetchExpenseTypes = async (
@@ -15,7 +16,6 @@ export const fetchExpenseTypes = async (
 ) => {
   try {
     if (typeof employeeRuleId === "object" || !employeeRuleId) {
-      console.error("Invalid employeeRuleId for fetching expense types");
       return [];
     }
 
@@ -41,7 +41,10 @@ export const fetchExpenseTypes = async (
     });
 
     if (!response?.data?.ExpenseRuleGeneralExpense) {
-      console.error("Invalid response structure for expense types");
+      showToast(
+        t("expense_item.invalid_response", "Invalid response structure for expense types"),
+        "error"
+      );
       return [];
     }
 
@@ -70,8 +73,10 @@ export const fetchExpenseTypes = async (
 
     return expenseTypesList;
   } catch (error) {
-    console.error("Error fetching expense types:", error);
-    message.error(t("expense_item.error_message", "Failed to load expense types"));
+    showToast(
+      t("expense_item.fetch_error", "Error fetching expense types"),
+      "error"
+    );
     return [];
   }
 };
@@ -96,7 +101,10 @@ export const fetchCustomFields = async (
     });
 
     if (!response?.data?.ExpenseRuleOtherInfo) {
-      console.error("Invalid response structure for custom fields");
+      showToast(
+        t("expense_item.invalid_response", "Invalid response structure for custom fields"),
+        "error"
+      );
       return [];
     }
 
@@ -129,8 +137,10 @@ export const fetchCustomFields = async (
 
     return customFieldsList;
   } catch (error) {
-    console.error("Error fetching custom fields:", error);
-    message.error(t("expense_item.error_message", "Failed to load custom fields"));
+    showToast(
+      t("expense_item.fetch_error", "Error fetching custom fields"),
+      "error"
+    );
     return [];
   }
 };
@@ -169,35 +179,48 @@ export const setOnePositionItem = async (
         });
       }
     } catch (error) {
-      console.error('Error setting date field:', error);
+      showToast(
+        t("expense_item.date_error", "Error setting date field"),
+        "error"
+      );
     }
   }
 
   const isMultiPosition = item.multiplePositions || (item.expensePosition && item.expensePosition.length > 1);
   setMultiPosition(isMultiPosition);
 
-  if (item.currency?.code) {
+  if (item.currency?.id) {
     form.setFieldsValue({
-      currency: item.currency.code
+      currency: item.currency.id
     });
   }
   
   if (item.expenseRequest) {
- form.setFieldsValue({
+    form.setFieldsValue({
       expenseRequestId: item.expenseRequest.id
     });
-    
-   }
+  }
   
   if (position) {
+    // Generate a unique ID for the position
+    const positionId = `position-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
     const newPosition = {
+      id: positionId,
       expenseGroup: position.expenseGroup?.id,
       expenseType: position.expenseRuleGeneralExpenseId,
       amount: position.totalAmount,
       isReimbursable: position.reimbursable !== undefined ? position.reimbursable : true,
       costCenter: position.costCenter?.id || item.costCenter?.id,
-      customField: position.additionalProperties?.customFields || [],
+      customField: "",
     };
+
+    // Extract custom field value if available
+    if (position.additionalProperties?.customFields && 
+        Array.isArray(position.additionalProperties.customFields) && 
+        position.additionalProperties.customFields.length > 0) {
+      newPosition.customField = position.additionalProperties.customFields[0]?.value || "";
+    }
 
     setPositions([newPosition]);
 
@@ -211,14 +234,21 @@ export const setOnePositionItem = async (
     
     if (position.expenseGroup?.id) {
       try {
-        const positionsForQuery = [{
-          ...newPosition,
-          expenseGroup: position.expenseGroup?.id
-        }];
+        // First, fetch expense types for this group
+        await fetchExpenseTypes(
+          position.expenseGroup.id,
+          [newPosition],
+          employeeRuleId,
+          graphqlClient,
+          setExpenseTypes,
+          t
+        );
+        
+        // Then update the position with the expense group
         await handleExpenseGroupChange(
           position.expenseGroup.id, 
           0, 
-          positionsForQuery, 
+          [newPosition], 
           setPositions, 
           expenseTypes,
           employeeRuleId, 
@@ -228,15 +258,31 @@ export const setOnePositionItem = async (
           form
         );
         
+        // Set the expense type value after a short delay to ensure the expense types are loaded
         setTimeout(() => {
           if (position.expenseRuleGeneralExpenseId) {
             form.setFieldsValue({
               [`expenseType-0`]: position.expenseRuleGeneralExpenseId
             });
+            
+            // Update the position with the expense type
+            const updatedPositions = [...form.getFieldValue('positions') || [newPosition]];
+            updatedPositions[0].expenseType = position.expenseRuleGeneralExpenseId;
+            setPositions(updatedPositions);
+            
+            // If there's a custom field, set it as well
+            if (newPosition.customField) {
+              form.setFieldsValue({
+                [`customField-0`]: newPosition.customField
+              });
+            }
           }
-        }, 1000); 
+        }, 500); 
       } catch (error) {
-        console.error('Error fetching expense types:', error);
+        showToast(
+          t("expense_item.fetch_error", "Error fetching expense types"),
+          "error"
+        );
       }
     }
   }
@@ -284,7 +330,10 @@ export const setMultiPositionItem = async (
         });
       }
     } catch (error) {
-      console.error('Error setting date field:', error);
+      showToast(
+        t("expense_item.date_error", "Error setting date field"),
+        "error"
+      );
     }
   }
 
@@ -292,9 +341,9 @@ export const setMultiPositionItem = async (
   setMultiPosition(true);
 
 
-  if (item.currency?.code) {
+  if (item.currency?.id) {
     form.setFieldsValue({
-      currency: item.currency.code
+      currency: item.currency.id
     });
   }
   
@@ -363,7 +412,10 @@ export const setMultiPositionItem = async (
               form
             );
           } catch (error) {
-            console.error(`Error processing expense group for position ${i}:`, error);
+            showToast(
+              t("expense_item.position_error", `Error processing expense group for position ${i}`),
+              "error"
+            );
           }
         }
       }
@@ -503,7 +555,6 @@ export const addRequests = (
 ) => {
   try {
     if (!requestData || !requestData.data) {
-      console.debug('addRequests: catalogueDataResponse or its data property is undefined');
       setExpenseRequests([{
         id: "0",
         name: t("create_expense_type_item.none", "None")
@@ -520,7 +571,10 @@ export const addRequests = (
     
     setExpenseRequests(formattedRequests);
   } catch (error) {
-    console.error('Error in addRequests:', error);
+    showToast(
+      t("expense_item.add_requests_error", "Error processing expense requests"),
+      "error"
+    );
     setExpenseRequests([{
       id: "0",
       name: t("create_expense_type_item.none", "None")

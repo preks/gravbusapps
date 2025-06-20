@@ -7,7 +7,8 @@ import React, {
   useMemo,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Form, message, notification } from "antd";
+import { Form, message } from "antd";
+import { showToast } from "../utils/notificationUtils";
 import {
   ExpensePosition,
   ExpenseType,
@@ -85,7 +86,7 @@ interface ExpenseItemContextProps {
   handleAddPosition: () => void;
   handleRemovePosition: (positionId: string) => void;
   handleAmountChange: (value: number, positionIndex: number) => void;
-  handleCurrencyChange: (currencyCode: string) => Promise<void>;
+  handleCurrencyChange: (currencyId: string) => Promise<void>;
   fetchExpenseTypes: (classId: string) => Promise<ExpenseType[]>;
   fetchCustomFields: (expenseTypeIds: string[]) => Promise<CustomField[]>;
 }
@@ -144,10 +145,33 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [, setStructureCostCenter] = useState<any>(null);
   const [currentSelectedDate,setCurrentSelectedDate]= useState<Date |null>(null)
 
+  const userInfoMocked ={
+    "id": "2999c7b5-1b62-4887-ae86-2efb10909246",
+    "userName": "niancu@newwork.com",
+    "givenName": "Norbert",
+    "familyName": "Iancu",
+    "nickName": "",
+    "employeeDetails": {
+      "employeeId": "86a8317d-34ef-4e04-951b-b0bb9754dea0",
+      "firstName": "Norbert",
+      "lastName": "Iancu",
+      "supervisor": {
+        "id": "0f6dc184-70aa-459c-9cc9-586e728ca6a4",
+        "firstName": "Mihaela-Diana",
+        "lastName": "Lozneanu",
+        "userId": "7f94699d-3fd6-422c-8553-ab54da15889c"
+      },
+      "organizationalUnit": {
+        "id": "24dcf339-9959-4ceb-9867-680d3dddd3c4",
+        "name": "Quality Assurance"
+      }
+    }
+  }
   const additionalDataMocked = {
     psi_taskPayload: {
       initialParameters: {
-        expenseId: "",//029a5366-28d0-463f-acaa-9e1a2a97d12b
+        expenseId: "ddcbc304-c9c3-4b5f-b1c2-512985a47c5d",//029a5366-28d0-463f-acaa-9e1a2a97d12b
+        expenseRequest:"23017ff9-ecde-442a-8e85-572551b00bff",
         currencyData:"Currency:v1:EUR"
       },
     },
@@ -188,7 +212,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
       setExpenseGroups(matchingItems);
     } catch (error) {
-      console.error("Error processing expense groups:", error);
+      showToast(
+        t("expense_item.process_error", "Error processing expense groups"),
+        "error"
+      );
       setExpenseGroups([]);
     }
   }, [generalDataResponse, catalogueDataResponse, accessToken]);
@@ -232,10 +259,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       generalDataResponse.data.ExpenseRuleGeneralExpense.forEach(
         (item: any) => {
           if (!item || !item.name || !item.code || !item.expenseGroup) {
-            console.debug(
-              "Skipping expense item with missing properties:",
-              item
-            );
             return;
           }
 
@@ -268,7 +291,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         }
       );
     } catch (error) {
-      console.error("Error processing expense AI items:", error);
+      showToast(
+        t("expense_item.ai_process_error", "Error processing expense AI items"),
+        "error"
+      );
     }
 
     return result;
@@ -276,12 +302,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
   const addRequestsWrapper = () => {
     if (!accessToken) {
-      console.debug("Skipping addRequests - No access token available");
       return;
     }
 
     if (!catalogueDataResponse) {
-      console.debug("Skipping addRequests - No catalogue data available");
 
       setExpenseRequests([
         {
@@ -299,7 +323,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         t
       );
     } catch (error) {
-      console.error("Error in addRequestsWrapper:", error);
+      showToast(
+        t("expense_item.add_requests_error", "Error processing expense requests"),
+        "error"
+      );
 
       setExpenseRequests([
         {
@@ -313,12 +340,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const fetchInitialData = async () => {
     try {
       if (!accessToken) {
-        console.debug("Skipping GraphQL queries - No access token available");
         return;
       }
 
       if (!userInfo) {
-        console.debug("Skipping GraphQL queries - No user info available");
         return;
       }
 
@@ -327,7 +352,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         userInfo?.employeeDetails?.employeeId || DEFAULT_EMPLOYEE_ID;
 
       if (!employeeIdValue) {
-        console.debug("Skipping GraphQL queries - No employee ID available");
         return;
       }
       try {
@@ -358,7 +382,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         });
         setGeneralDataResponse(generalData);
       } catch (generalDataError) {
-        console.error("Error fetching general data:", generalDataError);
+        showToast(
+          t("expense_item.general_data_error", "Error fetching general data"),
+          "error"
+        );
       }
 
       if (rerunRule === false) {
@@ -375,12 +402,11 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           });
           setCatalogueDataResponse(catalogueData);
         } catch (catalogueError) {
-          console.error("Error fetching catalogue data:", catalogueError);
+          showToast(
+            t("expense_item.catalogue_error", "Error fetching catalogue data"),
+            "error"
+          );
         }
-
-
-
-        
 
         if (firstRunVariable === false && catalogueData?.data) {
           const employeePosition =
@@ -390,6 +416,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           additionalData?.psi_taskPayload?.initialParameters?.expenseId ||
           additionalDataMocked.psi_taskPayload?.initialParameters?.expenseId;
         if (expenseIdValue) {
+          setCurrentStep("form");
+          
           await setByEdit(
             expenseIdValue,
             graphqlClient,
@@ -421,10 +449,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
               costCenterData?.data?.userCostCenters || [];
             setCostCenters(userCostCenters);
           } catch (costCenterError) {
-            console.error(
-              "Error fetching cost center data:",
-              costCenterError
-            );
             setCostCenters([]);
           }
 
@@ -450,10 +474,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
               });
             }
           } catch (positionError) {
-            console.error(
-              "Error updating positions with cost center:",
-              positionError
-            );
+           
           }
 
           try {
@@ -465,7 +486,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
               setCurrencies([]);
             }
           } catch (currencyError) {
-            console.error("Error transforming currencies:", currencyError);
             setCurrencies([]);
           }
           setFirstRunVariable(true);
@@ -473,8 +493,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       }
       setRerunRule(false);
     } catch (error) {
-      console.error("Error fetching initial data:", error);
-      message.error("Failed to load expense data");
+      showToast(
+        t("expense_item.initial_data_error", "Error fetching initial data"),
+        "error"
+      );
     }
   };
 
@@ -508,29 +530,26 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
   const setByReceipts = (receiptData: any): void => {
     if (!receiptData || !receiptData.data) {
-      console.debug("No receipt data to process");
       return;
     }
 
     try {
       const data = receiptData.data;
-      console.debug("Processing receipt data:", data);
 
       if (additionalData?.psi_taskPayload?.initialParameters?.currencyData || additionalDataMocked?.psi_taskPayload?.initialParameters?.currencyData) {
         const requestCurrency = currencies.find(
           (c) => c.id === additionalDataMocked.psi_taskPayload.initialParameters.currencyData
         );
         if (requestCurrency && requestCurrency.code !== data.currencyCode) {
-          notification.error({
-            message: t("expense_item.currency_mismatch_title", "Currency Mismatch"),
-            description: t(
+          showToast(
+            t(
               "expense_item.currency_mismatch",
               "The Receipt could not be added as it does not match the request currency"
             ),
-            placement: "bottomRight",
-            duration: 5,
-            className: "gba:error-toast"
-          });
+            "error",
+            t("expense_item.currency_mismatch_title", "Currency Mismatch")
+          );
+
           return;
         }
       }
@@ -557,13 +576,18 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           }
 
           if (!isNaN(dateValue.getTime())) {
-            console.debug(`Setting date value: ${dateValue}`);
             form.setFieldsValue({ date: dateValue });
           } else {
-            console.error(`Invalid date format: ${data.invoiceDate}`);
+            showToast(
+              t("expense_item.invalid_date", `Invalid date format: ${data.invoiceDate}`),
+              "error"
+            );
           }
         } catch (error) {
-          console.error(`Error parsing date ${data.invoiceDate}:`, error);
+          showToast(
+            t("expense_item.date_parse_error", `Error parsing date ${data.invoiceDate}`),
+            "error"
+          );
         }
       }
 
@@ -600,9 +624,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
               if (matchingGroup) {
                 newPosition.expenseGroup = matchingGroup.id;
-                console.debug(
-                  `Mapped expense group code ${item.expenseDetails.expenseGroupCode} to ID ${matchingGroup.id}`
-                );
 
                 if (
                   item.expenseDetails.expenseCode &&
@@ -614,19 +635,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
                   if (matchingType) {
                     newPosition.expenseType = matchingType.id;
-                    console.debug(
-                      `Mapped expense type code ${item.expenseDetails.expenseCode} to ID ${matchingType.id}`
-                    );
-                  } else {
-                    console.debug(
-                      `Expense type with code ${item.expenseDetails.expenseCode} not found in loaded types, will try to fetch`
-                    );
                   }
                 }
-              } else {
-                console.debug(
-                  `Expense group with code ${item.expenseDetails.expenseGroupCode} not found`
-                );
               }
             }
           }
@@ -642,9 +652,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             );
 
             if (aiMatch) {
-              console.debug(
-                `Found AI match for group ${aiMatch.expenseGroupCode} and type ${aiMatch.expenseCode}`
-              );
 
               const matchingGroup = expenseGroups.find(
                 (group) => group.code === aiMatch.expenseGroupCode
@@ -684,24 +691,25 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
                   const updatedPositions = [...newPositions];
                   updatedPositions[index].expenseType = matchingType.id;
                   setPositions(updatedPositions);
-                  console.debug(
-                    `Updated position ${index} with expense type ${matchingType.id}`
-                  );
                 }
               }
             } catch (error) {
-              console.error(
-                `Error fetching expense types for group ${position.expenseGroup}:`,
-                error
+              showToast(
+                t("expense_item.receipt_field_error", "Error processing receipt field"),
+                "error"
               );
+
             }
           }
         });
       }
 
-      console.debug("Receipt data processed successfully");
+      // Receipt data processed successfully
     } catch (error) {
-      console.error("Error processing receipt data:", error);
+      showToast(
+        t("expense_item.receipt_error", "Error processing receipt data"),
+        "error"
+      );
       message.error(
         t(
           "expense_item.receipt_processing_error",
@@ -723,7 +731,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setIsProcessingFiles(true);
       setIsFormDisabled(true);
 
-      console.debug(`Starting file upload process with ${files.length} files`);
 
       const result = await handleFileUpload(
         files,
@@ -733,12 +740,9 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       );
 
       if (result) {
-        console.debug("File upload completed successfully");
 
         setByReceipts(result);
-      } else {
-        console.debug("File upload completed but returned no data");
-      }
+      } 
 
       setCurrentStep("form");
 
@@ -747,12 +751,12 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
       return result;
     } catch (error) {
-      console.error("Error in file upload:", error);
-      message.error(
+      showToast(
         t(
           "expense_item.upload_error",
           "Error processing receipt. Continuing without receipt data."
-        )
+        ),
+        "error"
       );
 
       setIsProcessingFiles(false);
@@ -770,13 +774,18 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       positions,
       customFields,
       employeeRuleId,
-      generalDataResponse,
+      catalogueDataResponse,
       multiPosition,
       setPositions,
       setFileList,
       setCurrentStep,
       setLoading,
-      t
+      t,
+      fileList,
+      accessToken,
+      userInfo?.employeeDetails?.employeeId,
+      additionalData || additionalDataMocked,
+      userInfoMocked
     );
   };
 
@@ -794,23 +803,20 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       graphqlClient,
       setExpenseTypes,
       t,
-      form // Pass the form to reset fields
+      form
     );
   };
 
-  const handleCurrencyChangeWrapper = async (currencyCode: string): Promise<void> => {
+  const handleCurrencyChangeWrapper = async (currencyId: string): Promise<void> => {
     if (!accessToken || !userInfo) {
-      console.debug("Skipping currency change handler - No access token or user info available");
       return;
     }
     try {
       const employeeIdValue = userInfo?.employeeDetails?.employeeId || DEFAULT_EMPLOYEE_ID;
       
       if (!employeeIdValue) {
-        console.debug("Skipping currency change handler - No employee ID available");
         return;
       }
-      const currencyId = currencies.find((el)=>el.code===currencyCode)?.id;
       
       const expenseRequestByCurrency = await graphqlClient.query({
         query: expenseRequestByCurrencyQuery,
@@ -826,7 +832,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         t
       );
     } catch (error) {
-      console.error("Error fetching expense requests by currency:", error);
+      showToast(
+        t("expense_item.currency_requests_error", "Error fetching expense requests by currency"),
+        "error"
+      );
     }
   };
 

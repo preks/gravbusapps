@@ -1,4 +1,5 @@
 // GraphQL queries for the ExpenseItem component
+import { showToast } from "./utils/notificationUtils";
 
 // Function to fetch employee rule data
 export const fetchEmployeeRule = async (employeeId: string, date: string, accessToken: string) => {
@@ -16,11 +17,17 @@ export const fetchEmployeeRule = async (employeeId: string, date: string, access
     if (response.ok) {
       return await response.json();
     } else {
-      console.error('Error fetching employee rule:', response.statusText);
+      showToast(
+        `Error fetching employee rule: ${response.statusText}`,
+        "error"
+      );
       return null;
     }
   } catch (error) {
-    console.error('Exception fetching employee rule:', error);
+    showToast(
+      'Failed to fetch employee rule data',
+      "error"
+    );
     return null;
   }
 };

@@ -224,7 +224,7 @@ export const SinglePositionComponent: React.FC<
                     isDataSorted={false}
                     allowClear
                     data={currencies.map((currency) => ({
-                      id: currency.code,
+                      id: currency.id,
                       name: currency.code,
                     }))}
                     onChange={(value: any) => {

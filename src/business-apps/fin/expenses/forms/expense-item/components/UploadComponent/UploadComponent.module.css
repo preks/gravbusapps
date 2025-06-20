@@ -18,6 +18,7 @@
   width: fit-content;
   max-width: 300px;
   word-wrap: break-word;
+  background: #F7F7F7;
 }
 
 .file-component-files :global(.ant-upload-list-item-actions>button) {

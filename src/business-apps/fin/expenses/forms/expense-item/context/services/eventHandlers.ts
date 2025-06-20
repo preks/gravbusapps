@@ -1,8 +1,95 @@
-import { message } from "antd";
+import { showToast } from "../../utils/notificationUtils";
 import { DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE } from "../constants";
 import { formatDateToISOString } from "../../utils/dateUtils";
 import { calculateTotalAmount } from "../../utils/calculationUtils";
 import { fetchExpenseTypes, fetchCustomFields } from "./dataFetchers";
+import { initiateFlow, getOpenedTaskFlow, completeTaskFlow } from "./flowHandlers";
+
+/**
+ * Uploads documents to the file server
+ * @param fileList Array of file objects to upload
+ * @param accessToken Access token for authentication
+ * @param employeeId Employee ID for the folder path
+ * @param t Translation function
+ * @returns Promise with the formatted file data or empty array if no files to upload
+ */
+export const uploadDocuments = async (
+  fileList: any[],
+  accessToken: string,
+  employeeId: string,
+  t: (key: string, fallback: string) => string
+): Promise<Array<{ fileType: string; fileUrl: string; fileName: string }>> => {
+  if (!fileList || fileList.length === 0) {
+    return [];
+  }
+
+  if (!employeeId) {
+    showToast(
+      t("expense_item.employee_id_missing", "Cannot upload files: Employee ID not available"),
+      "error"
+    );
+    return [];
+  }
+
+  try {
+    const files = fileList.map(f => f.originFileObj).filter(Boolean);
+    
+    if (files.length === 0) {
+      showToast(
+        t("expense_item.no_valid_files", "No valid files to upload"),
+        "info"
+      );
+      return [];
+    }
+
+
+    const formData = new FormData();
+    formData.append("appName", "expenses");
+    formData.append("folderPath", `expenses/${employeeId}`);
+    
+    files.forEach((file, index) => {
+      formData.append(`file[${index}]`, file);
+      formData.append(`filename[${index}]`, file.name);
+      formData.append(`mimeType[${index}]`, file.type);
+    });
+
+    const response = await fetch(
+      "http://file-server.newwork-dev.svc.cluster.local:8080/api/v1/tenant/files",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`File upload failed with status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    const formattedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = [];
+    if (result && result.files && Array.isArray(result.files)) {
+      result.files.forEach((file: any) => {
+        formattedFiles.push({
+          fileType: file.fileMetadata.mimeType,
+          fileUrl: `/api/v1/tenant/files/${file.fileId}`,
+          fileName: file.fileMetadata.originalFileName
+        });
+      });
+    }
+    
+    return formattedFiles;
+  } catch (error) {
+    showToast(
+      t("expense_item.file_upload_error", "Error uploading files"),
+      "error"
+    );
+    return [];
+  }
+};
 
 
 export const handleExpenseGroupChange = async (
@@ -30,24 +117,18 @@ export const handleExpenseGroupChange = async (
       form.setFieldsValue({
         [`expenseType-${positionIndex}`]: undefined
       });
-      
-
     }
-
-
     const hasExpenseTypesForGroup = Object.keys(expenseTypes).includes(value);
-
-
     if (!hasExpenseTypesForGroup) {
       await fetchExpenseTypes(value, positions, employeeRuleId, graphqlClient, setExpenseTypes, t);
     }
   } catch (error) {
-    console.error("Error handling expense group change:", error);
-    message.error(
+    showToast(
       t(
         "expense_item.error_message",
         "Failed to update expense types. Please try again."
-      )
+      ),
+      "error"
     );
   }
 };
@@ -91,7 +172,6 @@ export const handleExpenseTypeChange = async (
       }
     }
 
-    // Check if we already have custom fields for this expense type
     const hasCustomFieldsForType = Object.keys(customFields).includes(value);
 
 
@@ -109,12 +189,12 @@ export const handleExpenseTypeChange = async (
       await fetchCustomFields(expenseTypeIds, graphqlClient, setCustomFields, t);
     }
   } catch (error) {
-    console.error("Error handling expense type change:", error);
-    message.error(
+    showToast(
       t(
         "expense_item.error_message",
         "Failed to update custom fields. Please try again."
-      )
+      ),
+      "error"
     );
   }
 };
@@ -124,9 +204,14 @@ export const handleAddPosition = (
   positions: any[],
   setPositions: (positions: any[]) => void
 ) => {
+  const newPosition = {
+    ...DEFAULT_POSITION,
+    id: `position-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+  };
+  
   setPositions([
     ...positions,
-    DEFAULT_POSITION,
+    newPosition,
   ]);
 };
 
@@ -138,7 +223,10 @@ export const handleRemovePosition = (
   t: (key: string, fallback: string) => string
 ) => {
   if (positions.length === 1) {
-    message.warning(t("expense_item.at_least_one_position", "At least one position is required"));
+    showToast(
+      t("expense_item.at_least_one_position", "At least one position is required"),
+      "warning"
+    );
     return;
   }
 
@@ -169,19 +257,62 @@ export const handleSubmit = async (
   setFileList: (files: any[]) => void,
   setCurrentStep: (step: "start" | "form") => void,
   setLoading: (loading: boolean) => void,
-  t: (key: string, fallback: string) => string
+  t: (key: string, fallback: string) => string,
+  fileList?: any[],
+  accessToken?: string,
+  employeeId?: string,
+  additionalData?: any,
+  userInfo?: any
 ) => {
-  setLoading(true);
   try {
+    setLoading(true);
 
     await form.validateFields();
 
-
     const values = form.getFieldsValue();
 
+    let uploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = [];
+    if (fileList && fileList.length > 0 && accessToken && employeeId) {
+      uploadedFiles = await uploadDocuments(fileList, accessToken, employeeId, t);
+    }
+    
+    const hasExpenseRequest = additionalData?.psi_taskPayload?.initialParameters?.expenseRequest;
+    
+    let flowProcessId: string | null = null;
+    let taskId: string | null = null;
+    let taskName: string | null = null;
+    
+    if (accessToken && employeeId && hasExpenseRequest) {
+      try {
+        const flowResult = await initiateFlow(accessToken, employeeId, t);
+        if (flowResult && flowResult && flowResult.id) {
+          flowProcessId = flowResult.id;
+          const userId = userInfo?.id || "c813b143-360d-491f-a8f5-a4ac6b769fe9";
+
+          const tasksResult = await getOpenedTaskFlow(
+            accessToken,
+            userId,
+            flowProcessId as string,
+            t
+          );
+          
+          if (tasksResult && Array.isArray(tasksResult) && tasksResult.length > 0) {
+            const firstTask = tasksResult[0];
+            if (firstTask && typeof firstTask.id === 'string' && typeof firstTask.name === 'string') {
+              taskId = firstTask.id;
+              taskName = firstTask.name;
+            }
+          }
+        }
+      } catch (flowError) {
+        showToast(
+          t("expense_item.workflow_error", "Error in workflow process"),
+          "error"
+        );
+      }
+    }
 
     const formattedPositions = positions.map((position, index) => {
-
       const customFieldsArray = [];
       if (
         position.expenseType &&
@@ -203,7 +334,7 @@ export const handleSubmit = async (
         expenseGroupRef: position.expenseGroup,
         expenseTypeRef: position.expenseType,
         totalAmount: position.amount || 0,
-        positionOrder: index,
+        positionOrder: index + 1,
         expenseRuleGeneralExpense: position.expenseType,
         costCenter: position.costCenter,
         reimbursable: position.isReimbursable,
@@ -214,8 +345,6 @@ export const handleSubmit = async (
         expenseRule: employeeRuleId as string,
       };
     });
-
-
     const submitData = {
       expenseItem: {
         title: values.title,
@@ -224,14 +353,14 @@ export const handleSubmit = async (
           : formatDateToISOString(new Date()),
         totalAmount: calculateTotalAmount(positions),
         source: DEFAULT_EXPENSE_SOURCE,
-        currencyRef: values.currency || "EUR",
+        currencyRef: values.currency || "Currency:v1:EUR",
         costCenter: positions[0]?.costCenter || "",
         reimbursable: positions[0]?.isReimbursable || false,
         expenseClassRef: "ExpenseClass:v1:EXPENSE",
         status: DEFAULT_EXPENSE_STATUS,
         multiplePositions: multiPosition,
         expenseRequest: values.expenseRequest || "",
-        employee: generalDataResponse?.data?.Employee?.[0]?.id || "",
+        employee: generalDataResponse?.data?.Employee?.[0]?.id || employeeId || "",
         expenseRule: employeeRuleId as string,
       },
       event: "pse_submit",
@@ -239,29 +368,46 @@ export const handleSubmit = async (
         expensePositions: formattedPositions,
       },
       expenseItemFiles: {
-        expenseFiles: [],
+        expenseFiles: uploadedFiles,
       },
     };
 
-    console.log("Submitting data:", submitData);
+    if (flowProcessId && taskId && taskName && hasExpenseRequest && accessToken) {
+      try {
+        const userId = userInfo?.id || "2999c7b5-1b62-4887-ae86-2efb10909246";
+        await completeTaskFlow(
+          accessToken,
+          userId,
+          flowProcessId as string,
+          taskName as string,
+          taskId as string,
+          submitData,
+          t
+        );
+      } catch (completeError) {
+        showToast(
+          t("expense_item.complete_task_flow_error", "Error completing workflow task"),
+          "error"
+        );
+      }
+    }
 
-
-    message.success(
-      t("expense_item.success_message", "Expense item created successfully!")
+    showToast(
+      t("expense_item.success_message", "Expense item created successfully!"),
+      "success"
     );
 
-
-    form.resetFields();
-    setPositions([DEFAULT_POSITION]);
-    setFileList([]);
-    setCurrentStep("start");
+    // form.resetFields();
+    // setPositions([DEFAULT_POSITION]);
+    // setFileList([]);
+    // setCurrentStep("start");
   } catch (error) {
-    console.error("Submit error:", error);
-    message.error(
+    showToast(
       t(
         "expense_item.error_message",
         "Failed to create expense item. Please try again."
-      )
+      ),
+      "error"
     );
   } finally {
     setLoading(false);

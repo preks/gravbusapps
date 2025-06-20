@@ -1,4 +1,4 @@
-import { message } from "antd";
+import { showToast } from "../../utils/notificationUtils";
 import { TFunction } from "i18next";
 
 /**
@@ -16,7 +16,10 @@ export const parseFileUpload = async (
   t: TFunction
 ) => {
   if (!files || files.length === 0) {
-    message.error(t("expense_item.no_files", "No files selected for upload"));
+    showToast(
+      t("expense_item.no_files", "No files selected for upload"),
+      "error"
+    );
     return null;
   }
 
@@ -48,16 +51,20 @@ export const parseFileUpload = async (
     );
 
     if (!response.ok) {
-      console.error("Error uploading file:", response.statusText);
-      message.error(t("expense_item.upload_error", "Error processing receipt. Continuing without receipt data."));
+      showToast(
+        t("expense_item.upload_error", "Error processing receipt. Continuing without receipt data."),
+        "error"
+      );
       return null;
     }
 
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error("Error uploading file:", error);
-    message.error(t("expense_item.upload_error", "Error processing receipt. Continuing without receipt data."));
+    showToast(
+      t("expense_item.upload_error", "Error processing receipt. Continuing without receipt data."),
+      "error"
+    );
     return null;
   }
 };
