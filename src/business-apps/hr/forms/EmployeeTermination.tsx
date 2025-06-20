@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import { Button, Checkbox, Avatar, DatePicker } from "antd";
 import flowSmall from "../../../assets/icons/flowSmall.svg";
 
-import { useGetEmployeeData } from ".././core/hooks/useGetEmployeeData";
+import { useGetEmployeeData } from "../core/hooks/useGetEmployeeData";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import "./EmployeeTermination.css";
 
