@@ -3,16 +3,14 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { startProcess } from '@/common/utils/start-process';
 import { 
   Alert, 
-  Button, 
   Empty
 } from 'antd';
-import { DataTable } from '@newwork/gravity-ui-catalog';
+import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests';
 import { useExpenseRequestFilters, ExpenseRequestFilter, ExpenseRequestStatus } from '../../../hooks/useExpenseRequestFilters';
 import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils';
 import { InfoCircleOutlined } from '@ant-design/icons';
-import { PiLightning } from 'react-icons/pi';
 import Pill, { PillType } from '@/components/pill';
 import ExpenseRequestStatistics from './ExpenseRequestStatistics';
 import ExpenseRequestDetails from './ExpenseRequestDetails';
@@ -291,16 +289,42 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
               )
             },
             {
-              title: 'Actions',
+              title: '',
               key: 'actions',
-              width: 80,
-              render: (_, record: any) => (
-                <Button
-                  type="text"
-                  icon={<PiLightning size={16} />}
-                  onClick={() => handleEditExpenseRequest(record as any)}
-                  className="gba:transition-colors gba:duration-300 gba:hover:text-blue-500"
-                  aria-label="Edit expense request"
+              width: 60,
+              align: 'center',
+              render: (_: any, record: any) => (
+                <ActionButton
+                  onClick={(e) => e.stopPropagation()}
+                  flowData={[
+                    {
+                      key: 'edit',
+                      label: 'Edit',
+                      onClick: (e?: React.MouseEvent) => {
+                        e?.stopPropagation();
+                        handleEditExpenseRequest(record as any);
+                      }
+                    },
+                    {
+                      key: 'view',
+                      label: 'View Details',
+                      onClick: (e?: React.MouseEvent) => {
+                        e?.stopPropagation();
+                        handleSelectItem(record as any);
+                      }
+                    },
+                    {
+                      key: 'delete',
+                      label: 'Delete',
+                      onClick: (e?: React.MouseEvent) => {
+                        e?.stopPropagation();
+                        console.log('Delete expense request:', record.id);
+                      }
+                    }
+                  ]}
+                  portalContainer={document.body}
+                  data-testid={`actions-${record.id}`}
+                  size="md"
                 />
               )
             }

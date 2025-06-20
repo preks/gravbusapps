@@ -7,14 +7,11 @@ import { startProcess } from '@/common/utils/start-process';
 import { 
   Spin, 
   Alert, 
-  Button, 
-  Space, 
   Typography
 } from 'antd';
-import { DataTable } from '@newwork/gravity-ui-catalog';
+import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
 import { 
-  FileTextOutlined,
-  EyeOutlined
+  FileTextOutlined
 } from '@ant-design/icons';
 import Pill from '@/components/pill/Pill';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
@@ -41,7 +38,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   const { items: plans, isLoading, error, totalCount, fetchItems } = useGetExpensePlans(contextProps);
   
   // Search and pagination states
-  const [search, setSearch] = useState<string>(props.search || '');
+  const [search, setSearch] = useState<string>(props.search ?? '');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
   
@@ -245,30 +242,43 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             }
           },
           {
-            title: 'Actions',
+            title: '',
             key: 'actions',
+            align: 'center',
+            width: 60,
             render: (_: any, record: ExpensePlan) => (
-              <Space size="small">
-                <Button 
-                  icon={<FileTextOutlined />}
-                  shape="circle"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Handle view documents action
-                    console.log('View documents for', record.id);
-                  }}
-                  data-testid={`view-documents-${record.id}`}
-                />
-                <Button 
-                  icon={<EyeOutlined />}
-                  shape="circle"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSelectItem(record);
-                  }}
-                  data-testid={`view-details-${record.id}`}
-                />
-              </Space>
+              <ActionButton
+                onClick={(e) => e.stopPropagation()}
+                flowData={[
+                  {
+                    key: 'view-details',
+                    label: 'View Details',
+                    onClick: (e?: React.MouseEvent) => {
+                      e?.stopPropagation();
+                      handleSelectItem(record);
+                    }
+                  },
+                  {
+                    key: 'view-documents',
+                    label: 'View Documents',
+                    onClick: (e?: React.MouseEvent) => {
+                      e?.stopPropagation();
+                      console.log('View documents for', record.id);
+                    }
+                  },
+                  {
+                    key: 'edit',
+                    label: 'Edit',
+                    onClick: (e?: React.MouseEvent) => {
+                      e?.stopPropagation();
+                      console.log('Edit expense plan:', record.id);
+                    }
+                  }
+                ]}
+                portalContainer={document.body}
+                data-testid={`actions-${record.id}`}
+                size="md"
+              />
             )
           }
         ] as any}
@@ -291,7 +301,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   }, [selectedItem, handleCloseDetails, props.accessToken, props.userInfo]);
 
   return (
-    <>
       <DataContainer
         dataControllerProps={{
           search: search,
@@ -318,7 +327,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
           footer: null // Remove footer close button as it's now in the details component
         } : undefined}
       />
-    </>
   );
 };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Typography, Space, Button, Alert, Spin } from 'antd';
-import { DataTable } from '@newwork/gravity-ui-catalog';
+import { Typography, Alert, Spin } from 'antd';
+import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
 import { startProcess } from '@/common/utils/start-process';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -8,7 +8,6 @@ import { useGetAdvancePayments, AdvancePayment } from '../../../hooks/useGetAdva
 import { getAdvancePaymentStatusDisplay } from '../../../utils';
 import Pill from '@/components/pill';
 import { DollarOutlined } from '@ant-design/icons';
-import { PiLightning } from 'react-icons/pi';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
 
 const { Text } = Typography;
@@ -209,26 +208,46 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             }
           },
           {
-            title: 'Actions',
+            title: '',
             key: 'actions',
-            render: () => (
-              <Space data-testid="advance-payment-actions">
-                <Button 
-                  type="text" 
-                  size="small" 
-                  icon={<PiLightning size={18} />}
-                  className="gba:transition-colors gba:duration-300 hover:gba:text-blue-500"
-                  aria-label="Edit"
-                  data-testid="edit-advance-payment-button"
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    // Add edit logic here
-                  }}
-                />
-              </Space>
+            align: 'center',
+            width: 60,
+            render: (_: any, record: AdvancePayment) => (
+              <ActionButton
+                onClick={(e) => e.stopPropagation()}
+                flowData={[
+                  {
+                    key: 'edit',
+                    label: 'Edit',
+                    onClick: (e?: React.MouseEvent) => {
+                      e?.stopPropagation();
+                      console.log('Edit advance payment:', record.id);
+                    }
+                  },
+                  {
+                    key: 'view',
+                    label: 'View Details',
+                    onClick: (e?: React.MouseEvent) => {
+                      e?.stopPropagation();
+                      handleSelectItem(record);
+                    }
+                  },
+                  {
+                    key: 'delete',
+                    label: 'Delete',
+                    onClick: (e?: React.MouseEvent) => {
+                      e?.stopPropagation();
+                      console.log('Delete advance payment:', record.id);
+                    }
+                  }
+                ]}
+                portalContainer={document.body}
+                data-testid="advance-payment-actions"
+                size="md"
+              />
             )
           }
-        ]}
+        ] as any}
       />
     );
   }, [

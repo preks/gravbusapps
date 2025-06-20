@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Button, Typography, Space, Spin, Alert } from 'antd';
-import { DataTable } from '@newwork/gravity-ui-catalog';
+import { Typography, Spin, Alert } from 'antd';
+import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
 import { FileTextOutlined, FileImageOutlined } from '@ant-design/icons';
-import { PiLightning } from 'react-icons/pi';
 import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
@@ -44,7 +43,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
   } = useExpenseFilters();
 
   // Use shared filter state or fallback to local state
-  const currentSelectedFilters = props.selectedFilters || localSelectedFilters;
+  const currentSelectedFilters = props.selectedFilters ?? localSelectedFilters;
 
   // Create filter groups with the current selected filters
   const currentFilterGroups = useMemo(() => {
@@ -71,7 +70,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
     const OTHER_OPTIONS = ['noreceiptfilter'];
     
     // Extract filters by types
-    const timePeriod = activeFilters.find(f => TIME_PERIOD_OPTIONS.includes(f)) || null;
+    const timePeriod = activeFilters.find(f => TIME_PERIOD_OPTIONS.includes(f)) ?? null;
     const statusFilters = activeFilters.filter(f => 
       Object.values(ExpenseStatus).map(s => s.toLowerCase()).includes(f));
     const expenseTypes = activeFilters.filter(f => EXPENSE_TYPE_OPTIONS.includes(f));
@@ -348,18 +347,43 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
             }
           },
           {
-            title: 'Actions',
+            title: '',
             key: 'actions',
-            render: () => (
-              <Space>
-                <Button 
-                  type="text" 
-                  size="small" 
-                  icon={<PiLightning size={18} />}
-                  className="gba:transition-colors gba:duration-300 hover:gba:text-blue-500"
-                  aria-label="Edit"
-                />
-              </Space>
+            align: 'center',
+            width: 60,
+            render: (_: any, record: any) => (
+              <ActionButton
+                onClick={(e) => e.stopPropagation()}
+                flowData={[
+                  {
+                    key: 'edit',
+                    label: 'Edit',
+                    onClick: (e?: React.MouseEvent) => {
+                      e?.stopPropagation();
+                      console.log('Edit expense item:', record.id);
+                    }
+                  },
+                  {
+                    key: 'view',
+                    label: 'View Details',
+                    onClick: (e?: React.MouseEvent) => {
+                      e?.stopPropagation();
+                      handleSelectItem(record);
+                    }
+                  },
+                  {
+                    key: 'delete',
+                    label: 'Delete',
+                    onClick: (e?: React.MouseEvent) => {
+                      e?.stopPropagation();
+                      console.log('Delete expense item:', record.id);
+                    }
+                  }
+                ]}
+                portalContainer={document.body}
+                data-testid={`actions-${record.id}`}
+                size="md"
+              />
             )
           }
         ] as any}
@@ -381,7 +405,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
   }, [selectedItem, handleCloseDetails, contextProps]);
 
   return (
-    <>
       <DataContainer
         dataControllerProps={{
           search: search,
@@ -425,7 +448,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
           onClose: handleCloseDetails
         } : undefined}
       />
-    </>
   );
 };
 
