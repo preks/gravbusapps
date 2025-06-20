@@ -5,6 +5,7 @@ export interface ProcessStartInfo {
   processName: string;
   payload?: { [key: string]: any };
   processInstanceId?: string;
+  builderType?: "NATIVE_SCREEN" | "LOWCODER";
 }
 
 export function getCurrentActiveStructureId() {
@@ -35,6 +36,7 @@ export function startProcess({
   processName,
   payload,
   processInstanceId,
+  builderType = "LOWCODER",
 }: ProcessStartInfo) {
   window.dispatchEvent(
     new CustomEvent("com.newwork.process.start", {
@@ -43,6 +45,7 @@ export function startProcess({
         processName,
         startProcessBody: { ...getPlatformContext(), ...payload },
         processInstanceId,
+        builderType,
       },
     })
   );
