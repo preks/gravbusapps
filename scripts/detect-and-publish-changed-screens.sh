@@ -1,17 +1,42 @@
 #!/bin/bash
 set -e
 
+# For debugging
+set -x
+
 # Output more information for debugging
 echo "Current branch: ${BITBUCKET_BRANCH}"
+echo "PR destination: ${BITBUCKET_PR_DESTINATION_BRANCH:-none}"
 echo "Target branch: origin/develop"
+
+# Ensure we're in a safe working directory for git
+git config --global --add safe.directory /opt/atlassian/pipelines/agent/build 2>/dev/null || true
 
 # Make sure we have the develop branch
 git fetch origin develop
 
-# Get the list of files that were changed between the current branch and develop
-# Use git diff to get a reliable list of changes
-echo "Detecting changed files..."
-export CHANGED_FILES=$(git diff --name-only origin/develop HEAD | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+# Try a simpler approach
+echo "Detecting changed files with multiple methods..."
+
+# Method 1: Standard diff with origin/develop
+echo "Trying method 1: git diff with origin/develop"
+CHANGED_FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+
+# If no files found, try method 2
+if [ -z "$CHANGED_FILES" ]; then
+  echo "Method 1 found no changes, trying method 2..."
+  CHANGED_FILES=$(git log -1 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+fi
+
+# If still no files, try method 3
+if [ -z "$CHANGED_FILES" ]; then
+  echo "Method 2 found no changes, falling back to method 3..."
+  CHANGED_FILES=$(find src/business-apps -name "*.tsx" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+fi
+
+# Show what we found
+echo "Files found:"
+echo "$CHANGED_FILES"
 
 # Extract the unique app/form directories that were modified
 if [ ! -z "$CHANGED_FILES" ]; then
