@@ -8,6 +8,7 @@ import { OrganizationCard } from "./components/OrganizationCard"
 import { BioCard } from "./components/BioCard"
 import { useContactData } from "./hooks/useContactData"
 import { useEmployeesData } from "./hooks/useEmployeesData"
+import { useAccountsData, Account } from "./hooks/useAccountsData"
 import { BusinessAppContextProps } from "../../../types"
 
 const { Title } = Typography;
@@ -51,6 +52,7 @@ export const ContactProfile: FC<ContactProfileProps> = ({ accessToken, employeeI
   
   const { contact, loading, error, refetchContact } = useContactData(accessToken, isNewContact ? undefined : contactId);
   const { employees, loading: loadingEmployees } = useEmployeesData(accessToken);
+  const { accounts, loading: loadingAccounts } = useAccountsData(accessToken);
   
   // Initialize form with contact data when available
   useEffect(() => {
@@ -66,7 +68,8 @@ export const ContactProfile: FC<ContactProfileProps> = ({ accessToken, employeeI
         birthDate: contact.birthDate ? dayjs(contact.birthDate) : undefined,
         linkedinUrl: contact.linkedinUrl,
         xingUrl: contact.xingUrl,
-        employeeId: contact.employeeId
+        employeeId: contact.employeeId,
+        accountId: contact.accountId
       });
     }
   }, [contact, form, isNewContact]);
@@ -146,17 +149,16 @@ export const ContactProfile: FC<ContactProfileProps> = ({ accessToken, employeeI
           jobTitle: values.jobTitle,
           department: values.department,
           bio: values.bio,
+          account: values.accountId,
           birthDate: values.birthDate ? values.birthDate.format('YYYY-MM-DD') : undefined,
           linkedinUrl: values.linkedinUrl,
           xingUrl: values.xingUrl,
-          // Use selected employee ID as owner or fall back to current employee ID
-          employeeId: values.employeeId || currentEmployeeId
+          ownerEmployee: values.employeeId 
         }
       };
 
       console.log('Sending payload:', JSON.stringify(savePayload, null, 2));
       
-      // Make the API call using fetch
       const response = await fetch(
         'https://newwork-dev.newwork.com/processes/customer-relations/saveContact',
         {
@@ -185,29 +187,22 @@ export const ContactProfile: FC<ContactProfileProps> = ({ accessToken, employeeI
         message.success(`Contact ${isNewContact ? 'created' : 'updated'} successfully`);
         
         if (isNewContact) {
-          // If this is a new contact and we have an ID, update it
           if (responseData?.contact?.id) {
             setContactId(responseData.contact.id);
             setIsNewContact(false);
-            // Refetch contact data to show the updated information
             refetchContact();
-            // Exit edit mode
             setIsEditMode(false);
           } else {
-            // Go back to contacts list using the onBack callback
             handleBack();
           }
           
-          // If onDelete is provided, call it to refresh the contacts list
           if (onDelete) {
             onDelete();
           }
         } else {
-          // For existing contacts, refetch the data and exit edit mode
           refetchContact();
           setIsEditMode(false);
           
-          // If onDelete is provided, call it to refresh the contact data
           if (onDelete) {
             onDelete();
           }
@@ -226,15 +221,12 @@ export const ContactProfile: FC<ContactProfileProps> = ({ accessToken, employeeI
   
   const handleCancel = () => {
     if (isNewContact) {
-      // Go back to contacts list using the onBack callback
       handleBack();
     } else {
-      // Just switch back to view mode
       setIsEditMode(false);
     }
   };
 
-  // Render the edit form for contact creation/editing
   const renderEditForm = () => {
     return (
       <Form
@@ -312,14 +304,36 @@ export const ContactProfile: FC<ContactProfileProps> = ({ accessToken, employeeI
               allowClear
               showSearch
               optionFilterProp="children"
-              filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-              options={employees.map(employee => ({
-                value: employee.id,
-                label: employee.fullName
-              }))}
-            />
+              data-testid="contact-owner-select"
+            >
+              {employees.map((employee) => (
+                <Select.Option key={employee.id} value={employee.id}>
+                  {employee.fullName}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          
+          <Form.Item
+            name="accountId"
+            label="Company/Account"
+            rules={[
+              { required: true, message: 'Please select an account' }
+            ]}
+          >
+            <Select
+              placeholder="Select an account"
+              loading={loadingAccounts}
+              showSearch
+              optionFilterProp="children"
+              data-testid="contact-account-select"
+            >
+              {accounts.map((account: Account) => (
+                <Select.Option key={account.id} value={account.id}>
+                  {account.name}
+                </Select.Option>
+              ))}
+            </Select>
           </Form.Item>
           
           <Form.Item

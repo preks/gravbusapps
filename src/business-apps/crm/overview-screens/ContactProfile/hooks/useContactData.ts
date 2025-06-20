@@ -15,11 +15,11 @@ export interface Contact {
   company?: string;
   version?: string;
   employeeId?: string;
+  accountId?: string;
   ownerEmployee?: {
     fullName?: string;
     id?: string;
   };
-  // Added for OrganizationCard
   accountOwner?: string;
   sourceSystems?: string[];
   owner?: string;
@@ -36,7 +36,6 @@ export interface Contact {
   lastContacted?: string;
 }
 
-// GraphQL query to fetch contact data
 const CONTACT_QUERY = `
   query GetContact($id: uuid!) {
     ContactByPk(id: $id) {
@@ -52,6 +51,7 @@ const CONTACT_QUERY = `
         fullName
         id
       }
+      accountId
       bio
       linkedinUrl
       xingUrl
@@ -68,7 +68,6 @@ export const useContactData = (accessToken: string, contactId?: string) => {
   
   const client = useGraphqlClient(accessToken);
 
-  // Function to force a refetch of the contact data
   const refetchContact = () => {
     setRefreshKey(prevKey => prevKey + 1);
   };
@@ -77,7 +76,6 @@ export const useContactData = (accessToken: string, contactId?: string) => {
     const fetchContact = async () => {
       try {
         setLoading(true);
-        // If no contactId is provided, don't fetch anything
         if (!contactId) {
           setLoading(false);
           return;
