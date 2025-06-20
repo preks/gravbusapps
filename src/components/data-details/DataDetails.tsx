@@ -66,7 +66,7 @@ export const DataDetails: React.FC<DataDetailsProps> = ({
   //const { t } = useTranslation();
 
   return (
-    <div className={`flex flex-col h-full bg-white ${className}`.trim()}>
+    <div className={`gba:flex gba:flex-col gba:h-full gba:bg-white ${className}`.trim()}>
       {/* Header with title and close button */}
       <div className="gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b gba:border-gray-200">
         <div className="gba:flex gba:items-center gba:gap-2">

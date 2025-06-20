@@ -9,7 +9,7 @@ import { useGetEmployees, Employee } from '@/business-apps/hr/core/hooks/useGetE
 import { useEmployeeFilters } from '@/business-apps/hr/core/hooks/useEmployeeFilters';
 import { EmployeeTable } from './components/EmployeeTable';
 import EmployeeDetails from '@/business-apps/hr/components/employeeDetails';
-import { PiUsersThree } from 'react-icons/pi';
+import { PiUsersThree,PiUsersThreeDuotone } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 /**
@@ -62,6 +62,11 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
     setSelectedEmployee(employee);
   }, []);
   
+  // Handle details panel close
+  const handleDetailsPanelClose = useCallback(() => {
+    setSelectedEmployee(null);
+  }, []);
+  
   // Handle click outside of employee table to close details
   const handleOutsideClick = useCallback((e: MouseEvent) => {
     // Check if the click is outside of the employee table
@@ -85,11 +90,13 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
     <div >
       <PageLayout
         variant="default"
-        headerIcon={<PiUsersThree size={32} />}
+        headerIcon={<PiUsersThreeDuotone color='#254469'/>}
         headerLabel={t('employee.list_title', 'Employee List')}
         contentContainer={
           <DataContainer<DataControllerProps>
             contentBackground="white" // Set the content background to white
+            floatingDetails={true} // Enable floating details variant
+            onDetailsPanelClose={handleDetailsPanelClose} // Handle details panel close
             dataControllerComponent={DataController}
             dataControllerProps={{
               // Props with debounce functionality now built into DataController
@@ -128,6 +135,7 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
                 title: t('employee.details_title', 'Employee Details'),
                 icon: <PiUsersThree size={20} />,
                 content: <EmployeeDetails employee={selectedEmployee} />,
+                onClose: handleDetailsPanelClose,
               } : undefined
             }
           />

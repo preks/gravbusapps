@@ -7,7 +7,7 @@ import { PageLayout } from '@/components/layout/pageLayout';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { DataController, DataControllerProps } from '@/components/dataController';
 import { DataCards } from '@/components/dataCards';
-import { PiUsersThree } from 'react-icons/pi';
+import { PiUsersThree, PiUsersThreeDuotone } from 'react-icons/pi';
 import { EmployeeCard } from './components/EmployeeCard.component';
 import EmployeeDetails from '@/business-apps/hr/components/employeeDetails';
 //import { useTranslation } from 'react-i18next';
@@ -97,7 +97,7 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
 
   return (
       <PageLayout
-        headerIcon={<PiUsersThree size={32}/>}
+        headerIcon={<PiUsersThreeDuotone color='#254469'/>}
         headerLabel={'Employee Directory'}
         contentHeader={null}
         contentContainer={
