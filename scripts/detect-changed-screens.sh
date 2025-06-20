@@ -12,8 +12,8 @@ git config --global --add safe.directory /opt/atlassian/pipelines/agent/build 2>
 # Make sure we have the develop branch
 git fetch origin develop
 
-# For custom pipeline runs, we need a more reliable approach
-if [[ "${BITBUCKET_PIPELINE_TYPE}" == "CUSTOM" ]]; then
+# Check if this is a custom pipeline run (could be CUSTOM or unknown)
+if [[ "${BITBUCKET_PIPELINE_TYPE}" == "CUSTOM" || -z "$BITBUCKET_PR_ID" && -n "$BITBUCKET_PIPELINE_UUID" ]]; then
   echo "Running as custom pipeline - checking with multiple methods"
   
   # Method 1: Direct diff against develop
