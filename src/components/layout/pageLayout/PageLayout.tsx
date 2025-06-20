@@ -59,7 +59,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
 
   const labelClasses = cn(
     "gba:leading-none gba:font-medium gba:self-center",
-    isDisplay ? "gba:text-4xl gba:font-black" : "gba:text-2xl font-secondary"
+    isDisplay ? "gba:text-4xl gba:font-secondary gba:mb-2" : "gba:text-2xl font-secondary gba:mb-1"
   );
 
   return (

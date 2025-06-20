@@ -249,23 +249,6 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
               data-testid="GlobalSearchButton-Button"
             >
               <div className="gba:w-[418px] gba:h-[26px] gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF]">
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="16" 
-                  height="16" 
-                  className="gba:absolute gba:left-[10px]" 
-                  style={{fill: 'black'}}
-                >
-                  <defs>
-                    <clipPath id="search_16x16_svg__a">
-                      <path d="M0 0h16v16H0z"></path>
-                    </clipPath>
-                  </defs>
-                  <g clipPath="url(#search_16x16_svg__a)">
-                    <path d="m12.135 11.03 3.017 3.016-1 1-3.01-3.023a6.341 6.341 0 1 1 1-1Zm-1.413-.523a4.929 4.929 0 1 0-.106.106z"></path>
-                    <path fill="#fff" d="M0 0h16v16H0z" opacity="0.003"></path>
-                  </g>
-                </svg>
                 <div className="gba:text-sm gba:text-[#999999]" data-testid="GlobalSearchButton-Text">
                   Search in NEWWORK
                 </div>

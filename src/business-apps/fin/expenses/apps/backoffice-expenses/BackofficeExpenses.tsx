@@ -7,15 +7,15 @@
 
 import React, { useState, ReactNode, useEffect } from 'react';
 import { Tabs } from '@newwork/gravity-ui-catalog';
-import { PiGauge, PiMoney, PiHandCoins, PiWallet } from 'react-icons/pi';
+import { PiGauge, PiMoney, PiHandCoins, PiWalletDuotone } from 'react-icons/pi';
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 // Import tab components
-import DashboardTab from './components/tabs/DashboardTab';
-import ExpenseRequestTab from './components/tabs/ExpenseRequestTab';
-import AdvancePaymentTab from './components/tabs/AdvancePaymentTab';
+import ExpenseDashboardTab from './components/tabs/expense-dashboard-tab/ExpenseDashboardTab';
+import ExpenseRequestTab from './components/tabs/expence-requests-tab/ExpenseRequestTab';
+import AdvancePaymentTab from './components/tabs/advance-payments-tab/AdvancePaymentTab';
 
 interface BackofficeExpensesProps extends BusinessAppContextProps {}
 
@@ -31,7 +31,7 @@ const BackofficeExpenses: React.FC<BackofficeExpensesProps> = (props) => {
           <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Dashboard</span>
         </div>
       ),
-      children: <DashboardTab {...props} />,
+      children: <ExpenseDashboardTab {...props} />,
       renderContentHeader: () => null,
     },
     {
@@ -112,7 +112,7 @@ const BackofficeExpenses: React.FC<BackofficeExpensesProps> = (props) => {
 
   return (
     <PageLayout
-      headerIcon={<PiWallet/>}
+      headerIcon={<PiWalletDuotone color="#0dbc7bff"/>}
       headerLabel="Expense Management"
       pageController={
           <Tabs

@@ -18,7 +18,7 @@ import { PageLayout } from '@/components/layout/pageLayout/PageLayout'; // Adjus
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 // Import tab components (placeholders for now, will be created next)
-import DashboardTab from './components/tabs/dashboard-tab';
+import ExpenseDashboardTab from './components/tabs/expense-dashboard-tab';
 import ExpenseItemsTab from './components/tabs/expense-items-tab';
 import ExpensePlansTab from './components/tabs/expense-plans-tab';
 import AdvancePaymentsTab from './components/tabs/advance-payments-tab';
@@ -40,7 +40,7 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
           <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Dashboard</span>
         </div>
       ),
-      children: <DashboardTab {...props} />,
+      children: <ExpenseDashboardTab {...props} />,
       renderContentHeader: () => null,
     },
     {
@@ -175,7 +175,7 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
 
   return (
     <PageLayout
-      headerIcon={<PiWalletDuotone color="#276A6C"/>}
+      headerIcon={<PiWalletDuotone color="#c92559"/>}
       headerLabel="My Expenses"
       pageHeaderCenter={<ExpenseAi />}
       pageController={

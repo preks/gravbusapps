@@ -136,7 +136,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
     <div className="gba:w-full gba:bg-white gba:px-6">
       <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:gap-2">
         {/* Left: Filter and Search */}
-        <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:pb-5 gba:shrink-0">
+        <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:shrink-0">
           {!hideFilter && (
             <button
               className={`gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:flex-none gba:order-0 gba:grow-0 ${
@@ -210,7 +210,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
         {/* Right: Actions */}
         {(addButton || actions) && (
           // All actions including Add are right-aligned (ml-auto)
-          <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:pb-5 gba:w-full gba:justify-end">
+          <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:w-full gba:justify-end">
             {/* Add Button: match design, no frame, no background, icon left, label right */}
             {addButton && (
               <button
@@ -257,7 +257,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
       </div>
       {/* Filter pills row: always below the bar group, left-aligned */}
       {filter && filter.length > 0 && setFilter && (
-        <div className="gba:flex gba:items-center gba:gap-2 gba:self-start gba:mb-5">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:self-start gba:mt-4">
           {filter.map((val) => (
             <div
               key={val}

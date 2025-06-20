@@ -1,4 +1,5 @@
 import ExpensePlansTab from './ExpensePlansTab';
+import ExpensePlansTable from './ExpensePlansTable';
 
-export { ExpensePlansTab };
+export { ExpensePlansTab, ExpensePlansTable };
 export default ExpensePlansTab;

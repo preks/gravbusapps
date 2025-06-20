@@ -1,21 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
-import { Button, Typography, Space, Spin, Alert } from 'antd';
-import { DataTable } from '@newwork/gravity-ui-catalog';
-import { FileTextOutlined, FileImageOutlined } from '@ant-design/icons';
-import { PiLightning } from 'react-icons/pi';
-import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems';
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_ITEMS_BY_EMPLOYEE } from '../../../queries/expenseItems';
-import { getExpenseItemStatusDisplay, ExpenseStatus } from '../../../utils';
-import { startProcess } from '@/common/utils/start-process';
-import ExpenseItemDetails from './ExpenseItemDetails';
+import { ExpenseStatus } from '../../../utils';
 import ExpenseItemStatistics from './ExpenseItemStatistics';
+import ExpenseItemsTable from './ExpenseItemsTable';
 import { useExpenseFilters } from '../../../hooks/useExpenseFilters';
-// No longer using React Router for tab navigation
-
-const { Text } = Typography;
+import { startProcess } from '@/common/utils/start-process';
 
 export interface ExpenseItemsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -29,31 +19,15 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
-  // No longer using location for navigation
-  
   // Use our simplified expense filters hook
   const {
-    search,
-    setSearch,
-    selectedFilters,
-    filterGroups,
-    filterLabelMap,
     addFilter,
     removeFilter,
-    getFilters
+    selectedFilters
   } = useExpenseFilters();
   
-  // Get expense items with the filters
-  // Use a single hook call for both filtered items and statistics
-  const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps);
-  
-  // All state declarations moved to the top for proper hoisting
   // State for storing all items for statistics
   const [allItems, setAllItems] = useState<any[]>([]);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
-  const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [hasLoadedAllItems, setHasLoadedAllItems] = useState(false);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
@@ -82,19 +56,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       // Add the filter from sessionStorage
       addFilter(storedFilter);
       
-      // Create filter object for the API
-      const filter: ExpenseFilter = {};
-      
-      // Handle specific filters
-      if (storedFilter === 'noreceiptfilter') {
-        filter.noReceipt = true;
-        console.log('Setting noReceipt filter to true');
-      }
-      
-      // Apply the filter directly
-      console.log('Applying filter to fetchItems:', filter);
-      fetchItems(search, 1, pageSize, filter);
-      
       // Clear the sessionStorage after using it
       sessionStorage.removeItem('expenseItemsFilter');
     }
@@ -115,19 +76,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
         
         // Add the filter from global API
         addFilter(apiFilter);
-        
-        // Create filter object for the API
-        const filter: ExpenseFilter = {};
-        
-        // Handle specific filters
-        if (apiFilter === 'noreceiptfilter') {
-          filter.noReceipt = true;
-          console.log('Setting noReceipt filter to true from global API');
-        }
-        
-        // Apply the filter directly
-        console.log('Applying filter to fetchItems from global API:', filter);
-        fetchItems(search, 1, pageSize, filter);
         
         // Clear the filter from the global API after using it
         if (window.tabNavigationAPI) {
@@ -156,160 +104,25 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     return () => {
       observer.disconnect();
     };
-  }, [addFilter, removeFilter, fetchItems, search, pageSize, selectedFilters]);
-  
-  // Create a memoized search change handler
-  const handleSearchChange = useCallback((value: string) => {
-    setSearch(value);
-    setCurrentPage(1); // Reset to first page on new search
-    // Apply filters when search changes
-    const filters = getFilters();
-    fetchItems(value, 1, pageSize, filters);
-  }, [fetchItems, pageSize, getFilters]);
-  
-  // Define constants for filter options to avoid TypeScript errors
-  const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
-  const EXPENSE_TYPE_OPTIONS = ['expense', 'trip'];
-  const OTHER_OPTIONS = ['noreceiptfilter'];
-
-  // Handle filter changes
-  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    // Initialize with the current selected filters
-    let newSelectedFilters: string[] = [...selectedFilters];
-    
-    // Apply the filter change based on selection
-    if (selected) {
-      // Special handling for radio filter types (time period)
-      if (TIME_PERIOD_OPTIONS.includes(filterId)) {
-        // Remove any existing time period filter
-        newSelectedFilters = [...newSelectedFilters.filter(f => !TIME_PERIOD_OPTIONS.includes(f)), filterId];
-      } else if (!newSelectedFilters.includes(filterId)) {
-        // For multi-select filters, just add if not already selected
-        newSelectedFilters.push(filterId);
-      }
-      
-      // Also call the original function to keep state consistent
-      addFilter(filterId);
-    } else {
-      // Remove the filter
-      newSelectedFilters = newSelectedFilters.filter(f => f !== filterId);
-      
-      // Also call the original function to keep state consistent
-      removeFilter(filterId);
-    }
-    
-    setCurrentPage(1); // Reset to first page when filters change
-    
-    // Apply filter immediately without waiting for state update
-    const filter: ExpenseFilter = {};
-    
-    // Extract filters by types using our immediate newSelectedFilters
-    const timePeriod = newSelectedFilters.find(f => TIME_PERIOD_OPTIONS.includes(f)) || null;
-    
-    // Get status filters and convert back to uppercase (as they're stored in ExpenseStatus enum)
-    const statusFilters = newSelectedFilters.filter(f => 
-      Object.values(ExpenseStatus).map(s => s.toLowerCase()).includes(f));
-    
-    // Map the lowercase status filters back to their uppercase enum values
-    const statuses = statusFilters.map(f => f.toUpperCase());
-    
-    const expenseTypes = newSelectedFilters.filter(f => EXPENSE_TYPE_OPTIONS.includes(f));
-    const otherFilters = newSelectedFilters.filter(f => OTHER_OPTIONS.includes(f));
-    
-    // Process status filters
-    if (statuses.length > 0) {
-      // Use all selected statuses, not just the first one
-      filter.status = statuses;
-      console.log('Applying multiple status filters:', statuses);
-    }
-    
-    // Process Other filters (No receipt)
-    if (otherFilters.includes('noreceiptfilter')) {
-      filter.noReceipt = true;
-      console.log('Adding No Receipt filter');
-    }
-    
-    // Process time period filters
-    if (timePeriod) {
-      const today = new Date();
-      const endDate = new Date(today).toISOString().split('T')[0]; 
-      
-      // Calculate start date based on selected time period
-      let startDate = new Date(today);
-      if (timePeriod === 'last30days') {
-        startDate.setDate(today.getDate() - 30);
-      } else if (timePeriod === 'last90days') {
-        startDate.setDate(today.getDate() - 90);
-      } else if (timePeriod === 'last180days') {
-        startDate.setDate(today.getDate() - 180);
-      }
-      
-      filter.expenseDateStart = startDate.toISOString().split('T')[0];
-      filter.expenseDateEnd = endDate;
-    }
-    
-    // Process expense type filters
-    if (expenseTypes.length > 0) {
-      // For now, use only the first selected expense type since expenseClass doesn't support multiple values
-      const selectedType = expenseTypes[0];
-      
-      // Map UI expense types to the expected API values
-      if (selectedType === 'expense') {
-        filter.expenseClass = { value: 'Expense' };
-      } else if (selectedType === 'trip') {
-        filter.expenseClass = { value: 'Trip' };
-      }
-    }
-    
-    console.log('Applying immediate filter:', filter, 'from selected filters:', newSelectedFilters);
-    
-    // Apply the updated filters immediately
-    fetchItems(search, 1, pageSize, filter);
-  }, [addFilter, removeFilter, search, pageSize, fetchItems]);
-  
-  
-  // Handle adding a new expense item
-  const handleAddExpenseItem = useCallback(() => {
-    if (contextProps.userInfo?.employeeDetails?.employeeId) {
-      startProcess({
-        domain: 'employee-expense',
-        processName: 'changeExpenseItem',
-        payload: {
-          employeeId: contextProps.userInfo.employeeDetails.employeeId
-        }
-      });
-    }
-  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
+  }, [addFilter, removeFilter, selectedFilters]);
 
   // Handle clicking on missing receipts card
   const handleMissingReceiptsClick = useCallback(() => {
     const isNoReceiptFilterActive = selectedFilters.includes('noreceiptfilter');
-    let filter: ExpenseFilter = {};
     
     if (isNoReceiptFilterActive) {
       // If filter is already active, remove it
       removeFilter('noreceiptfilter');
       console.log('Removing Missing Receipts filter');
-      
-      // Apply with no filters
-      setCurrentPage(1); // Reset to first page
-      fetchItems(search, 1, pageSize, filter);
     } else {
       // Clear existing filters first to avoid multiple filters
       selectedFilters.forEach(f => removeFilter(f));
       
       // Add the no receipt filter
       addFilter('noreceiptfilter');
-      filter.noReceipt = true;
       console.log('Applying Missing Receipts filter');
-      
-      // Apply the filter directly
-      setCurrentPage(1); // Reset to first page
-      fetchItems(search, 1, pageSize, filter);
     }
-  }, [addFilter, removeFilter, fetchItems, search, pageSize, selectedFilters, setCurrentPage]);
-
-  // Statistics are now handled by the ExpenseItemStatistics component with WidgetGroup
+  }, [addFilter, removeFilter, selectedFilters]);
 
   // Function to fetch statistics data specifically
   const fetchItemStatistics = useCallback(async () => {
@@ -417,17 +230,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     }
   }, [onContentHeaderChange, contentHeader, allItems]);
 
-
-
-
-  // Load initial data with filters for the table
-  useEffect(() => {
-    const filters = getFilters();
-    fetchItems(search, currentPage, pageSize, filters);
-  }, []);
-  
-  // Track states for statistics data already declared at the top
-  
   // One-time effect to fetch all items for statistics without filters
   useEffect(() => {
     // Only fetch all items once
@@ -508,286 +310,29 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       fetchAllItemsForStats();
     }
   }, [contextProps?.userInfo?.employeeDetails?.employeeId, contextProps?.accessToken, hasLoadedAllItems]);
-  
-  // Handle pagination changes
-  const handlePageChange = useCallback((page: number, pageSize?: number) => {
-    setCurrentPage(page);
-    const filters = getFilters();
-    fetchItems(search, page, pageSize || 10, filters);
-  }, [search, fetchItems, getFilters]);
-  
-  // Handle page size change
-  const handlePageSizeChange = useCallback((_: number, size: number) => {
-    setPageSize(size);
-  }, []);
 
-  // Handle table change for pagination, filters, and sorting
-  const handleTableChange = useCallback((pagination: any, _filters: any, _sorter: any) => {
-    handlePageChange(pagination.current);
-    if (pagination.pageSize !== pageSize) {
-      handlePageSizeChange(pagination.current, pagination.pageSize);
+  // Handle adding a new expense item
+  const handleAddExpenseItem = useCallback(() => {
+    if (contextProps.userInfo?.employeeDetails?.employeeId) {
+      startProcess({
+        domain: 'employee-expense',
+        processName: 'changeExpenseItem',
+        payload: {
+          employeeId: contextProps.userInfo.employeeDetails.employeeId
+        }
+      });
     }
-  }, [handlePageChange, handlePageSizeChange, pageSize]);
-
-  // Handle item selection
-  const handleSelectItem = useCallback((item: any) => {
-    setSelectedItem(item);
-    setSelectedRowKeys([item.id]);
-  }, []);
-  
-  // Handle row selection change
-  const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
-    
-    // If a single row is selected, find and set the selected item
-    if (newSelectedRowKeys.length === 1) {
-      const selectedItemId = newSelectedRowKeys[0];
-      const item = items?.find(item => item.id === selectedItemId);
-      if (item) {
-        setSelectedItem(item);
-      }
-    } else {
-      // If multiple or no rows selected, clear the selected item
-      setSelectedItem(null);
-    }
-  }, [items]);
-  
-  // Handle closing the details panel
-  const handleCloseDetails = useCallback(() => {
-    setSelectedItem(null);
-    setSelectedRowKeys([]);
-  }, []);
-
-  const renderDataBody = useCallback(() => {
-    if (isLoading) {
-      return <div style={{ padding: 24, textAlign: 'center' }}><Spin size="large" /></div>;
-    }
-
-    if (error) {
-      return <Alert message="Error" description={error} type="error" showIcon />;
-    }
-
-    if (!items || items.length === 0) {
-      return (
-        <div style={{ padding: 24, textAlign: 'center' }}>
-          <Text>No expense items found. Create your first expense item to get started.</Text>
-        </div>
-      );
-    }
-
-    return (
-      <DataTable 
-        dataSource={items} 
-        rowKey="id"
-        rowSelection={{
-          type: 'checkbox',
-          selectedRowKeys,
-          onChange: handleRowSelectionChange,
-          columnWidth: 48,
-        }}
-        onRow={(record: any) => ({
-          onClick: (event) => {
-            // Prevent row click from triggering when clicking on checkbox
-            if ((event.target as HTMLElement).tagName !== 'INPUT') {
-              handleSelectItem(record);
-            }
-          },
-          style: { cursor: 'pointer' }
-        })}
-        pagination={{
-          current: currentPage,
-          pageSize: pageSize,
-          total: totalCount,
-          showSizeChanger: true,
-          pageSizeOptions: ['10', '20', '50'],
-          showTotal: (total) => `Total ${total} items`
-        }}
-        onChange={handleTableChange}
-        data-testid="expense-items-data-table"
-        columns={[
-          {
-            title: 'Item',
-            dataIndex: 'title',
-            key: 'title',
-            render: (text, record: any) => (
-              <div>
-                <div style={{ fontWeight: 'bold' }}>{text}</div>
-                <div style={{ fontSize: '12px', color: '#666' }}>{record.invoiceDate}</div>
-              </div>
-            )
-          },
-          {
-            title: 'Attachment',
-            dataIndex: 'expenseItemFile',
-            key: 'attachment',
-            width: 80,
-            align: 'center',
-            render: (expenseItemFile) => (
-              expenseItemFile && expenseItemFile.length > 0 ? (
-                <div className="gba:flex gba:items-center gba:justify-center">
-                  <FileImageOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
-                </div>
-              ) : (
-                <div className="gba:flex gba:items-center gba:justify-center">
-                  <FileImageOutlined style={{ fontSize: '24px', color: '#d9d9d9' }} />
-                </div>
-              )
-            )
-          },
-          {
-            title: 'Amount',
-            dataIndex: 'reimbursableAmount',
-            key: 'amount',
-            align: 'right',
-            render: (amount) => (
-              <span style={{ fontWeight: 'bold' }}>€{amount?.toFixed(2) ?? '0.00'}</span>
-            )
-          },
-          {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            render: (status) => {
-              const { label, type } = getExpenseItemStatusDisplay(status);
-              return (
-                <Pill 
-                  label={label} 
-                  type={type} 
-                  className="gba:text-center"
-                />
-              );
-            }
-          },
-          {
-            title: 'Actions',
-            key: 'actions',
-            render: () => (
-              <Space>
-                <Button 
-                  type="text" 
-                  size="small" 
-                  icon={<PiLightning size={18} />}
-                  className="gba:transition-colors gba:duration-300 hover:gba:text-blue-500"
-                  aria-label="Edit"
-                />
-              </Space>
-            )
-          }
-        ]}
-      />
-    );
-  }, [items, currentPage, pageSize, handlePageChange, handlePageSizeChange]);
-
-  // Render expense details panel using the ExpenseItemDetails component
-  const renderExpenseDetails = useMemo(() => {
-    if (!selectedItem) return null;
-
-    return (
-      <ExpenseItemDetails 
-        selectedItem={selectedItem} 
-        onClose={handleCloseDetails}
-        {...contextProps}
-      />
-    );
-  }, [selectedItem, handleCloseDetails, contextProps]);
+  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
   return (
-    <>
-      <DataContainer
-        dataControllerProps={{
-          search: search,
-          filter: selectedFilters,
-          setSearch: handleSearchChange,
-          setFilter: (newFilters) => {
-            // Handle filter removal when X is clicked or filters are cleared
-            const filtersToRemove = selectedFilters.filter(f => !newFilters.includes(f));
-            filtersToRemove.forEach(filterId => removeFilter(filterId));
-            console.log('Filters removed:', filtersToRemove);
-            
-            // Always fetch new data with the remaining filters
-            setCurrentPage(1); // Reset to first page
-            
-            // Build filters based on newFilters (remaining filters)
-            const filter: ExpenseFilter = {};
-            
-            // Extract filters by types using our immediate newFilters
-            const timePeriod = newFilters.find(f => TIME_PERIOD_OPTIONS.includes(f)) || null;
-            
-            // Get status filters and convert back to uppercase
-            const statusFilters = newFilters.filter(f => 
-              Object.values(ExpenseStatus).map(s => s.toLowerCase()).includes(f));
-            const statuses = statusFilters.map(f => f.toUpperCase());
-            
-            // Process status filters
-            if (statuses.length > 0) {
-              filter.status = statuses;
-            }
-            
-            // Process time period filters
-            if (timePeriod) {
-              const today = new Date();
-              const endDate = new Date(today).toISOString().split('T')[0];
-              
-              // Calculate start date based on selected time period
-              let startDate = new Date(today);
-              if (timePeriod === 'last30days') {
-                startDate.setDate(today.getDate() - 30);
-              } else if (timePeriod === 'last90days') {
-                startDate.setDate(today.getDate() - 90);
-              } else if (timePeriod === 'last180days') {
-                startDate.setDate(today.getDate() - 180);
-              }
-              
-              filter.expenseDateStart = startDate.toISOString().split('T')[0];
-              filter.expenseDateEnd = endDate;
-            }
-            
-            // Process expense type filters
-            const expenseTypes = newFilters.filter(f => EXPENSE_TYPE_OPTIONS.includes(f));
-            if (expenseTypes.length > 0) {
-              const selectedType = expenseTypes[0];
-              filter.expenseClass = { value: selectedType === 'expense' ? 'Expense' : 'Trip' };
-            }
-            
-            // Process Other filters (No receipt)
-            const otherFilters = newFilters.filter(f => OTHER_OPTIONS.includes(f));
-            if (otherFilters.includes('noreceiptfilter')) {
-              filter.noReceipt = true;
-              console.log('Preserving No Receipt filter');
-            }
-            
-            console.log('Fetching with remaining filters:', filter);
-            fetchItems(search, 1, pageSize, filter);
-          },
-          addButton: {
-            onClick: handleAddExpenseItem,
-            label: 'Add',
-            'data-testid': 'add-expense-item-button'
-          },
-          listTitle: "My Expense Items",
-          listAmount: totalCount ? `${totalCount}` : undefined,
-          filterLabelMap: filterLabelMap,
-        }}
-        dataFilterProps={{
-          filterGroups: filterGroups,
-          onFilterChange: handleFilterChange,
-        }}
-        hideFilter={false}
-        dataBody={renderDataBody()}
-        contentBackground="white"
-        dataDetails={selectedItem ? {
-          title: selectedItem.title,
-          icon: <FileTextOutlined />,
-          content: renderExpenseDetails,
-          onClose: handleCloseDetails
-        } : undefined}
-      />
-      {items.length > 0 && (
-        <div style={{ textAlign: 'right', padding: '16px 24px' }}>
-          <Text type="secondary">Showing {items.length} of {totalCount} items</Text>
-        </div>
-      )}
-    </>
+    <ExpenseItemsTable 
+      {...contextProps}
+      onAddExpenseItem={handleAddExpenseItem}
+      // Pass the shared filter state to ensure toggle works
+      selectedFilters={selectedFilters}
+      addFilter={addFilter}
+      removeFilter={removeFilter}
+    />
   );
 };
 

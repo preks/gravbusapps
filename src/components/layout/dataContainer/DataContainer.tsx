@@ -1,7 +1,7 @@
 import React from 'react';
 import { DataController, DataControllerProps } from '@/components/dataController';
 import { DataFilter, DataFilterProps } from '@/components/data-filter';
-import { DetailsDefault } from '@/components/details';
+import { DataDetails } from '@/components/data-details';
 import { cn } from '../../../common/utils/cn';
 
 /**
@@ -168,14 +168,14 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
             "gba:z-10 gba:absolute gba:right-0 gba:top-0 gba:bottom-0 gba:shadow-lg": floatingDetails
           }
         )}>
-          <DetailsDefault
+          <DataDetails
             title={dataDetails.title}
             icon={dataDetails.icon}
             onClose={dataDetails.onClose || handleCloseDataFilter} /* Use specific onClose for details if provided, else fallback */
             footer={dataDetails.footer}
           >
             {dataDetails.content}
-          </DetailsDefault>
+          </DataDetails>
         </div>
       )}
     </div>

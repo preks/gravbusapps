@@ -1,16 +1,16 @@
 import React, { useEffect, useState, ReactNode } from 'react';
 import { Tabs, ActionButton } from '@newwork/gravity-ui-catalog';
-import { PiGauge, PiPath, PiHandCoins, PiMoney, PiCalendarBlank, PiWallet } from 'react-icons/pi';
+import { PiGauge, PiPath, PiHandCoins, PiMoney, PiCalendarBlank, PiWalletDuotone } from 'react-icons/pi';
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 // Import tab components
-import DashboardTab from './components/DashboardTab';
-import ExpensePlansTab from './components/ExpensePlansTab';
-import ExpenseCalendarTab from './components/ExpenseCalendarTab';
-import AdvancePaymentsTab from './components/AdvancePaymentsTab';
-import ExpenseRequestsTab from './components/ExpenseRequestsTab';
+import ExpenseDashboardTab from './components/tabs/expense-dashboard-tab';
+import ExpensePlansTab from './components/tabs/expense-plans-tab';
+import ExpenseCalendarTab from './components/tabs/expense-calendar-tab';
+import AdvancePaymentsTab from './components/tabs/advance-payments-tab';
+import ExpenseRequestsTab from './components/tabs/expense-requests-tab';
 
 export interface ManagerExpensesProps extends BusinessAppContextProps {}
 
@@ -26,7 +26,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
           <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Dashboard</span>
         </div>
       ),
-      children: <DashboardTab {...props} />,
+      children: <ExpenseDashboardTab {...props} />,
       renderContentHeader: () => null,
     },
     {
@@ -132,7 +132,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
 
   return (
     <PageLayout
-      headerIcon={<PiWallet/>}
+      headerIcon={<PiWalletDuotone color="#a3519aff"/>}
       headerLabel="Team Expenses"
       pageHeaderRight={
         <ActionButton

@@ -72,7 +72,8 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
       prefix: <FileExclamationOutlined />,
       color: isNoReceiptFilterActive ? '#1890ff' : '#faad14',
       span: { xs: 24, sm: 12, md: 6 },
-      description: isNoReceiptFilterActive ? 'Filter active' : 'Action required'
+      description: isNoReceiptFilterActive ? 'Filter active' : 'Action required',
+      onClick: onMissingReceiptsClick
     },
     {
       key: 'categories-used',
@@ -85,44 +86,24 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     }
   ];
 
-  // No need for handleWidgetClick function as we're using direct onClick handler
+  const handleWidgetClick = (widgetKey: string) => {
+    if (widgetKey === 'missing-receipts' && onMissingReceiptsClick) {
+      onMissingReceiptsClick();
+    }
+  };
 
   return (
-    <div className="gba:relative" data-testid="expense-item-statistics-container">
+    <div data-testid="expense-item-statistics-container">
       <WidgetGroup
         widgets={widgets}
         isLoading={statsLoading}
         error={statsError}
         onRetry={fetchItemStatistics}
+        onWidgetClick={handleWidgetClick}
         skeletonCount={4}
         emptyText="No expense item statistics available."
         data-testid="expense-item-statistics"
       />
-      {/* Overlay for clickable widgets */}
-      <div className="gba:absolute gba:top-0 gba:left-0 gba:right-0 gba:bottom-0 gba:grid gba:grid-cols-1 gba:grid-cols-2 sm:gba:grid-cols-2 md:gba:grid-cols-4" style={{ pointerEvents: 'none' }}>
-        <div className="gba:col-span-1" /> {/* Total Expenses - not clickable */}
-        <div className="gba:col-span-1" /> {/* Pending Reimbursement - not clickable */}
-        <button 
-          className="gba:col-span-1 gba:cursor-pointer gba:border-0 gba:bg-transparent" 
-          style={{ 
-            pointerEvents: onMissingReceiptsClick ? 'auto' : 'none',
-            background: isNoReceiptFilterActive ? 'rgba(24, 144, 255, 0.05)' : 'transparent',
-            outline: isNoReceiptFilterActive ? '2px solid rgba(24, 144, 255, 0.2)' : 'none',
-            borderRadius: '8px'
-          }}
-          onClick={() => onMissingReceiptsClick && onMissingReceiptsClick()}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onMissingReceiptsClick && onMissingReceiptsClick();
-            }
-          }}
-          disabled={!onMissingReceiptsClick}
-          aria-label="Filter by missing receipts"
-          data-testid="missing-receipts-widget"
-        />
-        <div className="gba:col-span-1" /> {/* Categories Used - not clickable */}
-      </div>
     </div>
   );
 };
