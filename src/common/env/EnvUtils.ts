@@ -14,5 +14,9 @@ export function env(key: string): string | undefined {
         }
     }
 
-    return process.env[key];
+    if (typeof process !== 'undefined' && process.env && process.env[key]) {
+        return process.env[key];
+    }
+
+    return undefined;
 }

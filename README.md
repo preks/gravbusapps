@@ -38,7 +38,7 @@ npm run build
 **Usage:**
 
 ```bash
-npm run publish:screen -- <product>/<path-to-screen>/<screen-name>
+npm run publish:screen -- /<product>/<path-to-screen>/<screen-name>
 ```
 
 **Examples:**
@@ -46,10 +46,10 @@ npm run publish:screen -- <product>/<path-to-screen>/<screen-name>
 ```bash
 # Publish the LeadOverview screen from the IRM product
 # (Ensure .env is configured with AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_SAS_TOKEN)
-npm run publish:screen -- irm/overview-screens/LeadOverview
+npm run publish:screen -- /irm/overview-screens/LeadOverview
 
 # Publish the OpportunityDetail screen from the CRM product
-npm run publish:screen -- crm/detail-screens/OpportunityDetail
+npm run publish:screen -- /crm/detail-screens/OpportunityDetail
 ```
 
 

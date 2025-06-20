@@ -139,21 +139,34 @@ async function publishMainCss() {
 }
 
 async function main() {
-  const screenPathArg = process.argv[2];
+  let screenPathArg = process.argv[2];
 
   if (!screenPathArg) {
     console.error("Error: Screen path argument is missing.");
     console.log(
-      "Usage: npm run publish:screen -- <product>/[path/to/]/<ScreenName>"
+      "Usage: npm run publish:screen -- /<product>/[path/to/]/<ScreenName>"
     );
     console.log(
-      "Example: npm run publish:screen -- irm/overview-screens/LeadOverview"
+      "Example: npm run publish:screen -- /irm/overview-screens/LeadOverview"
     );
-    console.log("Example: npm run publish:screen -- .debug/DebugView");
+    console.log("Example: npm run publish:screen -- /.debug/DebugView");
+
     console.log(
-      "Example: npm run publish:screen -- assets/main.css (to publish the main CSS file)"
+      "Example: npm run publish:screen -- /assets/main.css (to publish the main CSS file)"
     );
     process.exit(1);
+  }
+
+  console.log(`Original screenPathArg: ${screenPathArg}`);
+
+  // Remove leading slash if present
+  if (screenPathArg.startsWith("/")) {
+    screenPathArg = screenPathArg.substring(1);
+  }
+  
+  // Fix Git Bash path issue: detect and handle C:/Program Files/Git prefix
+  if (screenPathArg.startsWith("C:/Program Files/Git/")) {
+    screenPathArg = screenPathArg.substring("C:/Program Files/Git/".length);
   }
 
   // Special case for publishing main.css
@@ -164,12 +177,12 @@ async function main() {
   const screenPathParts = screenPathArg.split("/");
   if (screenPathParts.length < 2) {
     console.error(
-      "Error: Invalid screen path format. Expected at least <product>/<ScreenName>"
+      "Error: Invalid screen path format. Expected at least /<product>/<ScreenName>"
     );
     console.log(
-      "Example: npm run publish:screen -- irm/overview-screens/LeadOverview"
+      "Example: npm run publish:screen -- /irm/overview-screens/LeadOverview"
     );
-    console.log("Example: npm run publish:screen -- .debug/DebugView");
+    console.log("Example: npm run publish:screen -- /.debug/DebugView");
     process.exit(1);
   }
 
