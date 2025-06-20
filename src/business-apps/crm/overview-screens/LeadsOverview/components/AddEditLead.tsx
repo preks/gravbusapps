@@ -15,6 +15,7 @@ import { PhoneOutlined, MailOutlined } from '@ant-design/icons';
 import { useAccountsData } from '../hooks/useAccountsData';
 import { useContactsData } from '../hooks/useContactsData';
 import { useEmployeesData } from '../hooks/useEmployeesData';
+import { useLeadCatalogs } from '../hooks/useLeadCatalogs';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -32,6 +33,7 @@ interface AddEditLeadProps {
 // Interface for the lead form data
 export interface LeadFormData {
   id?: string;
+  name?: string;
   companyName: string;
   contactName: string;
   contactEmail?: string;
@@ -43,6 +45,12 @@ export interface LeadFormData {
   createdAt?: string;
   lastActivity?: string;
   version?: number;
+  leadSourceId?: string;
+  leadStatusId?: string;
+  leadRatingId?: string;
+  leadSource?: { id: string; value: string };
+  leadStatus?: { id: string; value: string };
+  leadRating?: { id: string; value: string };
 }
 
 const AddEditLead: React.FC<AddEditLeadProps> = ({
@@ -60,7 +68,8 @@ const AddEditLead: React.FC<AddEditLeadProps> = ({
   const { accounts, loading: accountsLoading } = useAccountsData(accessToken);
   const { contacts, loading: contactsLoading } = useContactsData(accessToken);
   const { employees, loading: employeesLoading } = useEmployeesData(accessToken);
-
+  const { leadSources, leadStatuses, leadRatings, loading: catalogsLoading } = useLeadCatalogs(accessToken);
+  console.log(leadSources, leadStatuses, leadRatings)
   // Reset form when component mounts or initialData changes
   useEffect(() => {
     form.resetFields();
@@ -68,10 +77,14 @@ const AddEditLead: React.FC<AddEditLeadProps> = ({
     if (initialData) {
       // Format the data for the form
       const formattedData = {
+        name: initialData.name,
         companyName: initialData.companyName,
         contactName: initialData.contactName,
         contactEmail: initialData.contactEmail,
         contactPhone: initialData.contactPhone,
+        leadSourceId: initialData.leadSource?.id || initialData.leadSourceId,
+        leadStatusId: initialData.leadStatus?.id || initialData.leadStatusId,
+        leadRatingId: initialData.leadRating?.id || initialData.leadRatingId,
         accountId: initialData.accountId,
         contactId: initialData.contactId,
         ownerId: initialData.ownerId,
@@ -107,31 +120,37 @@ const AddEditLead: React.FC<AddEditLeadProps> = ({
       const selectedAccount = accounts.find(account => account.id === values.accountId);
       const selectedContact = contacts.find(contact => contact.id === values.contactId);
       const selectedEmployee = employees.find(employee => employee.id === values.ownerId);
-      
+      console.log("values", values)
       // Prepare data for saving
       const savePayload = isEditing ? {
         changeMode: "UPDATE",
         lead: {
           id: initialData?.id,
-          version: initialData?.version || 0,
-          companyName: selectedAccount?.name || values.companyName,
-          ownerEmployee: values.ownerId,
-          account: values.accountId,
-          contact: values.contactId,
-          createdAt: initialData?.createdAt,
-          updatedAt: new Date().toISOString(),
-          status: { id: 'ACTIVE' }, // Ensure status is included
-        }
-      } : {
-        changeMode: "INSERT",
-        lead: {
+          name: values.name,
           companyName: selectedAccount?.name || values.companyName,
           ownerEmployee: values.ownerId || null,
           account: values.accountId || null,
           contact: values.contactId || null,
+          version: initialData?.version || 0,
+          leadSourceRef: values.leadSourceId || null,
+          leadStatusRef: values.leadStatusId || null,
+          leadRatingRef: values.leadRatingId || null,
+        }
+      } : {
+        changeMode: "INSERT",
+        lead: {
+          name: values.name,
+          companyName: selectedAccount?.name || values.companyName,
+          ownerEmployee: values.ownerId || null,
+          account: values.accountId || null,
+          contact: values.contactId || null,
+          leadSourceRef: values.leadSourceId || null,
+          leadStatusRef: values.leadStatusId || null,
+          leadRatingRef: values.leadRatingId || null,
         }
       };
-
+      
+      console.log(savePayload)
       
       try {
         // Make the API call using fetch
@@ -161,6 +180,10 @@ const AddEditLead: React.FC<AddEditLeadProps> = ({
           message.success(`Lead ${isEditing ? 'updated' : 'created'} successfully!`);
           
           // Prepare the lead data to pass back to the parent component
+          const selectedSource = leadSources.find(source => source.id === values.leadSourceId);
+          const selectedStatus = leadStatuses.find(status => status.id === values.leadStatusId);
+          const selectedRating = leadRatings.find(rating => rating.id === values.leadRatingId);
+          
           const leadData: LeadFormData = {
             ...values,
             id: responseData?.lead?.id || initialData?.id,
@@ -168,10 +191,13 @@ const AddEditLead: React.FC<AddEditLeadProps> = ({
             companyName: selectedAccount?.name || values.companyName,
             contactName: selectedContact?.fullName || values.contactName,
             ownerName: selectedEmployee?.fullName,
+            leadSource: selectedSource ? { id: selectedSource.id, value: selectedSource.value } : undefined,
+            leadStatus: selectedStatus ? { id: selectedStatus.id, value: selectedStatus.value } : undefined,
+            leadRating: selectedRating ? { id: selectedRating.id, value: selectedRating.value } : undefined,
             createdAt: initialData?.createdAt || new Date().toISOString(),
             lastActivity: new Date().toISOString(),
           };
-          
+          console.log('Lead data being returned:', leadData);
           // Call the onSave callback to update the UI
           onSave(leadData);
         } else {
@@ -295,6 +321,82 @@ const AddEditLead: React.FC<AddEditLeadProps> = ({
         </Row>
 
         <Divider orientation="left">Lead Details</Divider>
+        <Row gutter={16}>
+          <Col span={24}>
+            <Form.Item
+              name="name"
+              label="Lead Name"
+              rules={[{ required: true, message: 'Please enter a lead name' }]}
+              data-testid="lead-name-field"
+            >
+              <Input 
+                placeholder="Enter lead name"
+                data-testid="lead-name-input"
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+        
+        <Row gutter={16}>
+          <Col span={8}>
+            <Form.Item
+              name="leadStatusId"
+              label="Lead Status"
+              data-testid="lead-status-field"
+            >
+              <Select
+                placeholder="Select lead status"
+                data-testid="lead-status-select"
+                loading={catalogsLoading}
+              >
+                {leadStatuses.map(status => (
+                  <Option key={status.id} value={status.id}>
+                    {status.value}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item
+              name="leadSourceId"
+              label="Lead Source"
+              data-testid="lead-source-field"
+            >
+              <Select
+                placeholder="Select lead source"
+                data-testid="lead-source-select"
+                loading={catalogsLoading}
+              >
+                {leadSources.map(source => (
+                  <Option key={source.id} value={source.id}>
+                    {source.value}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item
+              name="leadRatingId"
+              label="Lead Rating"
+              data-testid="lead-rating-field"
+            >
+              <Select
+                placeholder="Select lead rating"
+                data-testid="lead-rating-select"
+                loading={catalogsLoading}
+              >
+                {leadRatings.map(rating => (
+                  <Option key={rating.id} value={rating.id}>
+                    {rating.value}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+        </Row>
+        
         <Row gutter={16}>
           <Col span={24}>
             <Form.Item

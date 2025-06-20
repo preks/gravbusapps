@@ -2,6 +2,7 @@ export const getActiveLeadsQuery = `
   query GetActiveLeads($offset: Int, $limit: Int) {
     Lead(offset: $offset, limit: $limit, where: { isDeleted: { _eq: false } }) {
       id
+      name
       createdAt
       status {
         id
@@ -24,6 +25,18 @@ export const getActiveLeadsQuery = `
         firstName
         email
         phone
+      }
+      leadSource {
+        value
+        id
+      }
+      leadStatus {
+        value
+        id
+      }
+      leadRating {
+        value
+        id
       }
     }
   }

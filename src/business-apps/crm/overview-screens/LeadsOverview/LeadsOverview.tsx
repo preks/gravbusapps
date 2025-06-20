@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Input, Button, Card, message, Spin, Dropdown, List, Empty, Tag, Space, Avatar } from 'antd';
+import { useState, useEffect } from 'react';
+import { Table, Input, Button, Card, message, Dropdown, List, Empty, Avatar } from 'antd';
 import { Grid } from 'antd';
 const { useBreakpoint } = Grid;
 import { SearchOutlined, PlusOutlined, EditOutlined, MoreOutlined, CloseCircleOutlined, UserOutlined } from '@ant-design/icons';
@@ -13,6 +13,7 @@ import localeData from 'dayjs/plugin/localeData';
 import { useLeadsData } from './hooks/useLeadsData';
 import AddEditLead, { LeadFormData } from './components/AddEditLead';
 import LeadDetails from './LeadDetails';
+import { useLeadCatalogs } from './hooks/useLeadCatalogs';
 
 // Initialize dayjs plugins
 dayjs.extend(relativeTime);
@@ -33,6 +34,7 @@ interface LeadTableItem {
   id: string;
   key?: string;
   selected?: boolean;
+  name: string;
   companyName: string;
   contactName: string;
   contactId?: string;
@@ -47,6 +49,18 @@ interface LeadTableItem {
   tags: string[];
   status: 'active' | 'lost' | 'converted';
   version: number;
+  leadSource?: {
+    id: string;
+    value: string;
+  };
+  leadStatus?: {
+    id: string;
+    value: string;
+  };
+  leadRating?: {
+    id: string;
+    value: string;
+  };
 }
 
 function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
@@ -67,8 +81,8 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
   }, [screens]);
   
   // Fetch leads data
-  const { leads: leadsData, loading, error, refetch: refetchLeads } = useLeadsData(accessToken);
-  
+  const { leads: leadsData, loading, refetch: refetchLeads } = useLeadsData(accessToken);
+  console.log(leadsData)
   useEffect(() => {
     if (leadsData && leadsData.length > 0) {
       const mappedLeads = leadsData.map(lead => {
@@ -225,26 +239,22 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
     }
   };
   
-  // Filter leads based on search text
-  const filteredLeads = leads.filter(lead => {
-    if (!searchText.trim()) {
-      return true;
-    }
-    
-    const query = searchText.toLowerCase().trim();
-    
-    return (
-      lead.companyName.toLowerCase().includes(query) ||
-      lead.contactName.toLowerCase().includes(query) ||
-      lead.ownerName.toLowerCase().includes(query) ||
-      false
-    );
-  });
   
   // Direct onChange handler is used instead of a separate function
   
   // Table columns configuration
   const columns = [
+    {
+      title: 'Name',
+      key: 'name',
+      dataIndex: 'name',
+      sorter: (a: LeadTableItem, b: LeadTableItem) => a.name.localeCompare(b.name),
+      render: (text: string, record: LeadTableItem) => (
+        <a onClick={(e) => { e.stopPropagation(); handleRowClick(record); }}>
+          {text || '-'}
+        </a>
+      ),
+    },
     {
       title: 'Company',
       key: 'companyName',
@@ -266,6 +276,33 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
           {text || '-'}
         </a>
       ),
+    },
+    {
+      title: 'Status',
+      key: 'leadStatus',
+      dataIndex: 'leadStatus',
+      render: (status: any, record: LeadTableItem) => (
+        <span>{record.leadStatus?.value || '-'}</span>
+      ),
+      responsive: ['md'] as ('md')[],
+    },
+    {
+      title: 'Source',
+      key: 'leadSource',
+      dataIndex: 'leadSource',
+      render: (source: any, record: LeadTableItem) => (
+        <span>{record.leadSource?.value || '-'}</span>
+      ),
+      responsive: ['md'] as ('md')[],
+    },
+    {
+      title: 'Rating',
+      key: 'leadRating',
+      dataIndex: 'leadRating',
+      render: (rating: any, record: LeadTableItem) => (
+        <span>{record.leadRating?.value || '-'}</span>
+      ),
+      responsive: ['md'] as ('md')[],
     },
     {
       title: 'Owner',

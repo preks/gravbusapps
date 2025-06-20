@@ -5,6 +5,7 @@ import { getActiveLeadsQuery } from '../queries/getActiveLeadsQuery';
 // Define the lead interface
 export interface Lead {
   id: string;
+  name: string;
   companyName: string;
   contactName: string;
   contactId?: string;
@@ -22,6 +23,18 @@ export interface Lead {
   updatedAt?: string;
   accountId?: string;
   accountName?: string;
+  leadSource?: {
+    id: string;
+    value: string;
+  };
+  leadStatus?: {
+    id: string;
+    value: string;
+  };
+  leadRating?: {
+    id: string;
+    value: string;
+  };
 }
 
 interface UseLeadsDataResult {
@@ -76,6 +89,7 @@ export function useLeadsData(accessToken: string): UseLeadsDataResult {
         
         return {
           id: lead.id,
+          name: lead.name || '-',
           companyName: lead.companyName || '-',
           contactName, 
           contactId: lead.contact?.id,
@@ -90,7 +104,19 @@ export function useLeadsData(accessToken: string): UseLeadsDataResult {
           tags: [], // Tags not available in new query
           version: lead.version || 0,
           updatedBy: lead.updatedBy,
-          updatedAt: lead.updatedAt
+          updatedAt: lead.updatedAt,
+          leadSource: lead.leadSource ? {
+            id: lead.leadSource.id,
+            value: lead.leadSource.value || '-'
+          } : undefined,
+          leadStatus: lead.leadStatus ? {
+            id: lead.leadStatus.id,
+            value: lead.leadStatus.value || '-'
+          } : undefined,
+          leadRating: lead.leadRating ? {
+            id: lead.leadRating.id,
+            value: lead.leadRating.value || '-'
+          } : undefined
         };
       });
 
