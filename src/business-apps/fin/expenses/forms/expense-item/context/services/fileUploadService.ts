@@ -26,17 +26,14 @@ export const parseFileUpload = async (
   try {
     const formData = new FormData();
     
-    // Add files to form data
     files.forEach(file => {
       formData.append(`file`, file);
     });
     
-    // Add expense type definitions for AI processing
     formData.append("expense_type_definition", JSON.stringify(aiGroupsAndTypes));
     
 
     
-    // Make API call to invoice extraction endpoint
     const response = await fetch(
       "https://dev.newwork.com/docs-engine/api/v1/invoices/from-file",
       {
@@ -44,7 +41,6 @@ export const parseFileUpload = async (
         headers: {
           Authorization: `Bearer ${accessToken}`,
           Accept: "application/json",
-          // Do not set Content-Type header as it will be set automatically with the boundary
         },
         body: formData,
       }

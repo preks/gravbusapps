@@ -142,7 +142,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [generalDataResponse, setGeneralDataResponse] = useState<any>(null);
   const [catalogueDataResponse, setCatalogueDataResponse] = useState<any>(null);
 
-  const [, setStructureCostCenter] = useState<any>(null);
+  const [userCostCenter, setUserCostCenter] = useState<string>("");
   const [currentSelectedDate,setCurrentSelectedDate]= useState<Date |null>(null)
 
   const userInfoMocked ={
@@ -443,7 +443,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
                 structureId: structureId,
               },
             });
-            setStructureCostCenter(costCenterData);
 
             const userCostCenters =
               costCenterData?.data?.userCostCenters || [];
@@ -462,8 +461,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
             if (employeePositionCostCenterId) {
               updatedPositions[0].costCenter = employeePositionCostCenterId;
+              setUserCostCenter(employeePositionCostCenterId)
             } else if (firstCostCenterId) {
               updatedPositions[0].costCenter = firstCostCenterId;
+              setUserCostCenter(firstCostCenterId)
             }
 
             setPositions(updatedPositions);
@@ -850,16 +851,64 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       graphqlClient,
       setCustomFields,
       t,
-      form // Pass the form to reset custom fields
+      form
     );
   };
 
   const handleAddPositionWrapper = (): void => {
-    handleAddPosition(positions, setPositions);
+    handleAddPosition(positions, setPositions, userCostCenter, form);
   };
 
   const handleRemovePositionWrapper = (positionId: string): void => {
-    handleRemovePosition(positionId, positions, setPositions, t);
+    if (positions.length <= 1) {
+      showToast(
+        t("expense_item.at_least_one_position", "At least one position is required"),
+        "warning"
+      );
+      return;
+    }
+    
+    const positionIndex = positions.findIndex(pos => pos.id === positionId);
+    if (positionIndex === -1) return;
+    
+    const updatedPositions = positions.filter(pos => pos.id !== positionId);
+    
+    const formValues = form.getFieldsValue();
+    
+    const fieldsToReset = [];
+    for (let i = 0; i < positions.length; i++) {
+      fieldsToReset.push(
+        `expenseGroup-${i}`,
+        `expenseType-${i}`,
+        `amount-${i}`,
+        `currency-${i}`,
+        `costCenter-${i}`,
+        `description-${i}`,
+        `date-${i}`,
+        `isReimbursable-${i}`
+      );
+    }
+    form.resetFields(fieldsToReset);
+    
+    setPositions(updatedPositions);
+    
+    const newFormValues: Record<string, any> = {};
+    
+    updatedPositions.forEach((position, newIndex) => {
+      const oldIndex = positions.findIndex(pos => pos.id === position.id);
+      if (oldIndex !== -1) {
+        newFormValues[`expenseGroup-${newIndex}`] = formValues[`expenseGroup-${oldIndex}`];
+        newFormValues[`expenseType-${newIndex}`] = formValues[`expenseType-${oldIndex}`];
+        newFormValues[`amount-${newIndex}`] = formValues[`amount-${oldIndex}`];
+        newFormValues[`currency-${newIndex}`] = formValues[`currency-${oldIndex}`];
+        newFormValues[`costCenter-${newIndex}`] = formValues[`costCenter-${oldIndex}`];
+        newFormValues[`description-${newIndex}`] = formValues[`description-${oldIndex}`];
+        newFormValues[`date-${newIndex}`] = formValues[`date-${oldIndex}`];
+        newFormValues[`isReimbursable-${newIndex}`] = formValues[`isReimbursable-${oldIndex}`];
+      }
+    });
+    
+    form.setFieldsValue(newFormValues);
   };
 
   const handleAmountChangeWrapper = (value: number, positionIndex: number): void => {

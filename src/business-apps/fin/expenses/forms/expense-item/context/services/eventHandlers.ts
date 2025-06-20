@@ -42,44 +42,41 @@ export const uploadDocuments = async (
       return [];
     }
 
-
-    const formData = new FormData();
-    formData.append("appName", "expenses");
-    formData.append("folderPath", `expenses/${employeeId}`);
-    
-    files.forEach((file, index) => {
-      formData.append(`file[${index}]`, file);
-      formData.append(`filename[${index}]`, file.name);
-      formData.append(`mimeType[${index}]`, file.type);
-    });
-
-    const response = await fetch(
-      "http://file-server.newwork-dev.svc.cluster.local:8080/api/v1/tenant/files",
-      {
+    const uploadPromises = files.map(async (file: File) => {
+      const folderPath = encodeURIComponent(`/expenseItemsDocuments/${employeeId}`);
+      const mimeType = encodeURIComponent(file.type);
+      const url = `https://newwork-dev.newwork.com/files/api/v1/tenant/files?appName=expenses&folderPath=${folderPath}&mimeType=${mimeType}`;
+      const formData = new FormData();
+      formData.append('fileContent', file);
+      
+      const response = await fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
         body: formData,
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`File upload failed with status: ${response.status}`);
-    }
-
-    const result = await response.json();
-    
-    const formattedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = [];
-    if (result && result.files && Array.isArray(result.files)) {
-      result.files.forEach((file: any) => {
-        formattedFiles.push({
-          fileType: file.fileMetadata.mimeType,
-          fileUrl: `/api/v1/tenant/files/${file.fileId}`,
-          fileName: file.fileMetadata.originalFileName
-        });
       });
-    }
+      
+      if (!response.ok) {
+        throw new Error(`File upload failed for ${file.name}: ${response.status} ${response.statusText}`);
+      }
+      
+      const responseData = await response.json();
+      return responseData;
+    });
+    
+    const results = await Promise.all(uploadPromises);
+    const formattedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = [];
+    
+    results.forEach((result: any) => {
+      if (result && result.fileId) {
+        formattedFiles.push({
+          fileType: result.fileMetadata?.mimeType || 'application/octet-stream',
+          fileUrl: `/api/v1/tenant/files/${result.fileId}`,
+          fileName: result.fileMetadata?.originalFileName || 'file'
+        });
+      }
+    });
     
     return formattedFiles;
   } catch (error) {
@@ -202,17 +199,25 @@ export const handleExpenseTypeChange = async (
 
 export const handleAddPosition = (
   positions: any[],
-  setPositions: (positions: any[]) => void
+  setPositions: (positions: any[]) => void,
+  defaultCostCenter?: string,
+  form?: any
 ) => {
   const newPosition = {
     ...DEFAULT_POSITION,
     id: `position-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+    costCenter: defaultCostCenter || ""
   };
   
-  setPositions([
-    ...positions,
-    newPosition,
-  ]);
+  const newPositions = [...positions, newPosition];
+  setPositions(newPositions);
+  
+  if (form && defaultCostCenter) {
+    const newPositionIndex = newPositions.length - 1;
+    form.setFieldsValue({
+      [`costCenter-${newPositionIndex}`]: defaultCostCenter
+    });
+  }
 };
 
 
@@ -397,10 +402,10 @@ export const handleSubmit = async (
       "success"
     );
 
-    // form.resetFields();
-    // setPositions([DEFAULT_POSITION]);
-    // setFileList([]);
-    // setCurrentStep("start");
+    form.resetFields();
+    setPositions([DEFAULT_POSITION]);
+    setFileList([]);
+    setCurrentStep("start");
   } catch (error) {
     showToast(
       t(

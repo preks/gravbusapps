@@ -150,14 +150,16 @@ export const SinglePositionComponent: React.FC<
                         )
                       }
                       onChange={(field) => {
+                        form.setFieldsValue({ [`customField-${index}`]: field.value });
+                        
                         const updatedPositions = [...positions];
                         updatedPositions[index].customField = field.value as string;
                         setPositions(updatedPositions);
                       }}
-                      placeholder={t(
-                        "create_expense_item.change_expense_item_container.custom_field_placeholder",
-                        "Enter custom field value"
-                      )}
+                      placeholder={t('lowcoder:create_expense_type_item.enter', 'Enter') + ' ' + 
+                        (customFields[position.expenseType][0]?.infoValue || 
+                         t("create_expense_item.change_expense_item_container.custom_field_label", "Custom Field"))
+                      }
                       required={
                         customFields[position.expenseType][0]?.mandatory || false
                       }
