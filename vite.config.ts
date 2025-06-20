@@ -405,6 +405,8 @@ export default wrapWithUiCatalog(OriginalComponent);
     wrappedEntries[entryKey] = wrappedEntryPath;
   });
 
+  console.log("[vite.config.ts] wrappedEntries:", wrappedEntries);
+
   return {
     plugins: [
       react(),
@@ -451,14 +453,23 @@ export default wrapWithUiCatalog(OriginalComponent);
       css: {
         devSourcemap: true,
       },
-      // Enable CSS code splitting so component CSS stays with the component
       cssCodeSplit: true,
       rollupOptions: {
-        // Include all CSS files from the project along with component entries
-        input: {
-          main: resolve(projectRootDir, "src/index.css"),
-          ...wrappedEntries,
-        },
+        // For single screen builds, use the temporary index.css file created by publish-dev-screen.js
+        // Otherwise, use the standard src/index.css file
+        input: isSingleBuild
+          ? {
+              // Use TEMP_INDEX_CSS if provided, otherwise fallback to default index.css
+              main:
+                env.TEMP_INDEX_CSS && env.SINGLE_SCREEN_CSS === "true"
+                  ? env.TEMP_INDEX_CSS
+                  : resolve(projectRootDir, "src/index.css"),
+              ...wrappedEntries,
+            }
+          : {
+              main: resolve(projectRootDir, "src/index.css"),
+              ...wrappedEntries,
+            },
 
         // Only keep React-related packages as external
         // All other imports will be bundled into the main file
@@ -466,6 +477,8 @@ export default wrapWithUiCatalog(OriginalComponent);
           "react",
           "react-dom",
           "antd",
+          "@ant-design/icons",
+          "react-icons/pi",
           "react/jsx-runtime",
           "@dnd-kit/core",
           "@dnd-kit/sortable",
@@ -493,15 +506,17 @@ export default wrapWithUiCatalog(OriginalComponent);
           "@radix-ui/react-slot",
           "@radix-ui/react-tabs",
           "@tanstack/react-table",
-          "react-router-dom"
+          "react-router-dom",
         ],
         output: {
           globals: {
             react: "React",
             "react-dom": "ReactDOM",
             antd: "antd",
+            "@ant-design/icons": "antDesignIcons",
             "react-i18next": "reactI18next",
             "react-icons": "reactIcons",
+            "react-icons/pi": "reactIconsPi",
             clsx: "clsx",
             "tailwind-merge": "tailwindMerge",
             "@dnd-kit/core": "DNDKitCore",
@@ -526,7 +541,7 @@ export default wrapWithUiCatalog(OriginalComponent);
             "@radix-ui/react-slot": "RadixSlot",
             "@radix-ui/react-tabs": "RadixTabs",
             "@tanstack/react-table": "TanstackTable",
-            "react-router-dom": "reactRouterDom"
+            "react-router-dom": "reactRouterDom",
           },
           // entryFileNames will now always output a predictable name;
           // the sha256ContentHashPlugin will handle renaming for deployment builds.

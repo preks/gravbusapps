@@ -3,7 +3,6 @@ import {
   Typography, 
   Button, 
   Input, 
-  Card, 
   Row, 
   Col, 
   Table, 
@@ -12,21 +11,22 @@ import {
   Popover
 } from 'antd';
 import CompanyDetail from '../../detail-screens/CompanyDetail/CompanyDetail';
+import AddNewCompany from './AddNewCompany';
 import { 
   PlusOutlined, 
   SearchOutlined, 
-  FilterOutlined,
   BankOutlined,
   AreaChartOutlined,
   TeamOutlined,
-  GlobalOutlined
+  GlobalOutlined,
+  CaretUpOutlined,
+  CaretDownOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { GET_COMPANIES, CompanyData, GetCompaniesResponse } from './graphql/company-queries';
-import './styles/CompanyOverview.css';
 
 const { Title, Text } = Typography;
 
@@ -87,22 +87,65 @@ const transformCompanyData = (apiCompany: CompanyData): DisplayCompanyData => {
   };
 };
 
-  
-const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+interface EmployeeDetails {
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  organizationalUnit: {
+    id: string;
+    name: string;
+  };
+  supervisor: {
+    firstName: string;
+    id: string;
+    lastName: string;
+    userId: string;
+  };
+}
+
+const STORAGE_KEY_USER_INFO = 'business-app-ide-user-info';
+
+const CompanyOverview: React.FC<BusinessAppContextProps> = ({ userInfo, accessToken }) => {
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<DisplayCompanyData | null>(null);
-  
+  const savedUserInfo = userInfo;
   const [companiesData, setCompaniesData] = useState<DisplayCompanyData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
+  const [employeeDetails, setEmployeeDetails ] = useState<EmployeeDetails | null>(null);
   
   const [searchText, setSearchText] = useState<string>('');
   const [debouncedSearchText, setDebouncedSearchText] = useState<string>('');
+  
+  // Add sorting state
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | null>(null);
 
   const graphQLClient = useGraphqlClient(accessToken);
+
+  useEffect(() => {
+    if (savedUserInfo) {
+      try {
+        const userInfoObj = userInfo;
+        if (userInfoObj?.employeeDetails) {
+          try {
+            const parsedDetails = typeof userInfoObj.employeeDetails === 'string' 
+              ? JSON.parse(userInfoObj.employeeDetails) 
+              : userInfoObj.employeeDetails;
+            
+            setEmployeeDetails(parsedDetails);
+          } catch (e) {
+            console.error('Error parsing employee details:', e);
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing user info:", error);
+      }
+    }
+  }, [savedUserInfo]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -134,12 +177,23 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
         ];
       }
 
+      // Add order_by condition if a sort field is selected
+      const orderBy: any = {};
+      if (sortField && sortOrder) {
+        // Handle sorting for different fields
+        if (sortField === 'name') {
+          orderBy.name = sortOrder;
+        } else if (sortField === 'website') {
+          orderBy.website = sortOrder;
+        }
+      }
       const result = await graphQLClient.request<GetCompaniesResponse>(
         GET_COMPANIES,
         {
           offset: (page - 1) * limit,
           limit: limit,
           where: whereCondition,
+          order_by: Object.keys(orderBy).length > 0 ? orderBy : null,
         }
       );
 
@@ -163,7 +217,7 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
 
   useEffect(() => {
     fetchCompanies(currentPage, debouncedSearchText, pageSize);
-  }, [currentPage, debouncedSearchText, graphQLClient, pageSize, accessToken]); 
+  }, [currentPage, debouncedSearchText, graphQLClient, pageSize, accessToken, sortField, sortOrder]); 
 
   const handleCreateCompany = () => {
     setIsCreatingCompany(true);
@@ -171,6 +225,11 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
 
   const handleBackFromDetail = useCallback(() => {
     setSelectedCompany(null);
+    fetchCompanies(currentPage, debouncedSearchText, pageSize);
+  }, [currentPage, debouncedSearchText, pageSize]);
+
+  const handleCancelCreateCompany = useCallback(() => {
+    setIsCreatingCompany(false);
     fetchCompanies(currentPage, debouncedSearchText, pageSize);
   }, [currentPage, debouncedSearchText, pageSize]);
 
@@ -262,9 +321,49 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
     return originalElement; 
   }, [currentPage, totalItems, pageSize, enabledButtonStyle, disabledButtonStyle]);
 
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      if (sortOrder === 'ASC') {
+        setSortOrder('DESC');
+      } else if (sortOrder === 'DESC') {
+        setSortField(null);
+        setSortOrder(null);
+      }
+    } else {
+      setSortField(field);
+      setSortOrder('ASC');
+    }
+  };
+
+  const SortableColumnTitle = ({ title, dataIndex }: { title: string; dataIndex: string }) => {
+    const isActive = sortField === dataIndex;
+    return (
+      <div 
+        className="gba:sortable-column-title" 
+        onClick={() => handleSort(dataIndex)}
+        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+        data-testid={`${dataIndex}-sort-header`}
+      >
+        <span>{title}</span>
+        <span style={{ marginLeft: '5px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', width: '16px' }}>
+          {isActive && sortOrder === 'ASC' ? (
+            <CaretUpOutlined style={{ color: '#000000', fontSize: '14px' }} />
+          ) : (
+            <CaretUpOutlined style={{ color: isActive ? '#595959' : '#8c8c8c', fontSize: '12px' }} />
+          )}
+          {isActive && sortOrder === 'DESC' ? (
+            <CaretDownOutlined style={{ color: '#000000', fontSize: '14px' }} />
+          ) : (
+            <CaretDownOutlined style={{ color: isActive ? '#595959' : '#8c8c8c', fontSize: '12px' }} />
+          )}
+        </span>
+      </div>
+    );
+  };
+
   const columns: ColumnsType<DisplayCompanyData> = [
     {
-      title: 'Company Name',
+      title: <SortableColumnTitle title="Company Name" dataIndex="name" />,
       dataIndex: 'name',
       key: 'name',
       render: (name, record) => (
@@ -290,6 +389,23 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
       dataIndex: 'industry',
       key: 'industry',
       className: 'gba-industry-cell',
+    },
+    {
+      title: <SortableColumnTitle title="Website" dataIndex="website" />,
+      dataIndex: 'website',
+      key: 'website',
+      className: 'gba-website-cell',
+      render: (website: string) => {
+        if (website) {
+          const fullUrl = website.startsWith('http://') || website.startsWith('https://') ? website : `http://${website}`;
+          return (
+            <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="gba-text-primary hover:gba-underline">
+              {website}
+            </a>
+          );
+        }
+        return '';
+      },
     },
     {
       title: 'Contact',
@@ -385,23 +501,6 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
       className: 'gba-account-owner-cell',
     },
     {
-      title: 'Website',
-      dataIndex: 'website',
-      key: 'website',
-      className: 'gba-website-cell',
-      render: (website: string) => {
-        if (website) {
-          const fullUrl = website.startsWith('http://') || website.startsWith('https://') ? website : `http://${website}`;
-          return (
-            <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="gba-text-primary hover:gba-underline">
-              {website}
-            </a>
-          );
-        }
-        return '';
-      },
-    },
-    {
       title: 'Legal Form',
       dataIndex: 'legalForm',
       key: 'legalForm',
@@ -457,6 +556,16 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
     );
   }
 
+  if (isCreatingCompany) {
+    return (
+      <AddNewCompany
+        accessToken={accessToken}
+        employeeDetails={employeeDetails || undefined}
+        onBack={handleCancelCreateCompany}
+      />
+    );
+  }
+
   return (
     <div style={{ padding: '24px' }} className="gba-company-overview-container">
       <Row justify="space-between" align="middle" style={{ marginBottom: '24px' }} className="gba-header-row">
@@ -477,10 +586,10 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
 
       <Row gutter={16} style={{ marginBottom: '24px' }} className="gba-kpi-row">
         <Col span={6}>
-          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+          <div className="gba:p-6 gba:border gba:rounded-lg gba:bg-white gba:shadow-sm" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', height: '110px' }}>
             <div className="gba:flex gba:items-center">
-              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
-                <BankOutlined className="gba:h-5 gba:w-5 gba:text-blue-500" />
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-50 gba:flex gba:items-center gba:justify-center gba:mr-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <BankOutlined className="gba:h-5 gba:w-5 gba:text-blue-500" style={{ fontSize: '18px' }} />
               </div>
               <div>
                 <div className="gba:text-sm gba:text-gray-500">Total Companies</div>
@@ -490,10 +599,10 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
           </div>
         </Col>
         <Col span={6}>
-          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+          <div className="gba:p-6 gba:border gba:rounded-lg gba:bg-white gba:shadow-sm" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', height: '110px' }}>
             <div className="gba:flex gba:items-center">
-              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
-                <AreaChartOutlined className="gba:h-5 gba:w-5 gba:text-green-500" />
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-50 gba:flex gba:items-center gba:justify-center gba:mr-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AreaChartOutlined className="gba:h-5 gba:w-5 gba:text-green-500" style={{ fontSize: '18px' }} />
               </div>
               <div>
                 <div className="gba:text-sm gba:text-gray-500">Industries</div>
@@ -510,10 +619,10 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
           </div>
         </Col>
         <Col span={6}>
-          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+          <div className="gba:p-6 gba:border gba:rounded-lg gba:bg-white gba:shadow-sm" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', height: '110px' }}>
             <div className="gba:flex gba:items-center">
-              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-orange-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
-                <TeamOutlined className="gba:h-5 gba:w-5 gba:text-orange-500" />
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-orange-50 gba:flex gba:items-center gba:justify-center gba:mr-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <TeamOutlined className="gba:h-5 gba:w-5 gba:text-orange-500" style={{ fontSize: '18px' }} />
               </div>
               <div>
                 <div className="gba:text-sm gba:text-gray-500">Total Employees</div>
@@ -528,10 +637,10 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
           </div>
         </Col>
         <Col span={6}>
-          <div className="gba:p-4 gba:border gba:border-gray-300 gba:rounded-lg gba:bg-white">
+          <div className="gba:p-6 gba:border gba:rounded-lg gba:bg-white gba:shadow-sm" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', height: '110px' }}>
             <div className="gba:flex gba:items-center">
-              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-purple-50 gba:flex gba:items-center gba:justify-center gba:mr-4">
-                <GlobalOutlined className="gba:h-5 gba:w-5 gba:text-purple-500" />
+              <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-purple-50 gba:flex gba:items-center gba:justify-center gba:mr-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <GlobalOutlined className="gba:h-5 gba:w-5 gba:text-purple-500" style={{ fontSize: '18px' }} />
               </div>
               <div>
                 <div className="gba:text-sm gba:text-gray-500">Countries</div>
@@ -549,18 +658,20 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
         </Col>
       </Row>
 
-      <Row justify="space-between" style={{ marginBottom: '16px' }} className="gba-filter-row">
-        <Col span={12}>
+      <Row justify="start" style={{ marginBottom: '16px' }} className="gba-filter-row">
+        <Col span={6}>
           <Input 
             placeholder="Search companies (e.g., name, industry)"
             prefix={<SearchOutlined className="gba-search-icon" />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             className="gba-search-input"
+            style={{ 
+              width: '100%',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px'
+            }}
           />
-        </Col>
-        <Col>
-          <Button icon={<FilterOutlined />} className="gba-filter-button">Filters</Button> 
         </Col>
       </Row>
 
@@ -581,6 +692,12 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
             itemRender: itemRender
           }}
           className="gba-company-table"
+          style={{ 
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            overflow: 'hidden',
+            padding: '24px'
+          }}
           locale={{
             emptyText: 
               !loading && companiesData.length === 0 && debouncedSearchText ? 
@@ -592,14 +709,6 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ accessToken }) => 
         />
       </Spin>
 
-      {isCreatingCompany && (
-        <div className="gba-modal-placeholder"> 
-          <Card title="Create New Company" style={{ marginTop: 20 }} className="gba-create-modal-card">
-            <p>Company creation form will be here.</p>
-            <Button onClick={() => setIsCreatingCompany(false)} className="gba-cancel-button">Cancel</Button>
-          </Card>
-        </div>
-      )}
     </div>
   );
 };
