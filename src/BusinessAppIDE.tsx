@@ -1,8 +1,9 @@
 import { UiCatalogProvider } from '@newwork/gravity-ui-catalog';
-import { useState, useEffect, createElement } from "react";
-import { Layout, Menu, Modal, Form, Input, Typography, Button, Tooltip } from "antd";
+import { useState, useEffect, createElement, useCallback } from "react";
+import { Layout, Menu, Modal, Form, Input, Typography, Button, Tooltip, notification } from "antd";
 import { SettingOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
-import { BusinessAppContext, BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
+import { BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
+import ProcessEventListener, { ProcessLocalDevEvent } from './common/components/ProcessEventListener';
 
 const modules = import.meta.glob('./business-apps/**/[A-Z]*.tsx', { eager: true });
 
@@ -59,6 +60,19 @@ export interface CompMeta {
   name: string;
   layoutInfo?: any;
 }
+
+// Handle process events in the local development environment
+const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
+  const { domain, processName, processInstanceId, startProcessBody } = event;
+  
+  // Display a notification for the process event
+  notification.info({
+    message: 'Process Start Event Detected',
+    description: `Domain: ${domain}, \nProcess: ${processName}${processInstanceId ? `, ID: ${processInstanceId}` : ''}\nProcess body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`,
+    duration: 5,
+    placement: 'topRight'
+  });
+};
 
 export interface BusinessAppIDEProps {
   readonly packageName: string;
@@ -122,6 +136,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     }
   };
 
+  // Save settings to localStorage and close modal
   const saveSettings = () => {
     localStorage.setItem(STORAGE_KEY_USER_INFO, userInfo);
     localStorage.setItem(STORAGE_KEY_ACCESS_TOKEN, accessToken);
@@ -174,7 +189,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     });
   };
 
-  const parsedUserInfo = (): UserInfoProps | undefined => {
+  // Parse userInfo string to UserInfoProps object
+  const parsedUserInfo = useCallback((): UserInfoProps | undefined => {
     if (userInfo?.length > 2) {
       try {
         return JSON.parse(userInfo);
@@ -184,10 +200,11 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       }
     }
     return undefined;
-  };
+  }, [userInfo]);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
+      <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />
       <Sider
         width={250}
         collapsible
@@ -252,7 +269,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             <div className="gba:w-full gba:h-full gba:overflow-auto">
               {createElement(selectedApp.component, {
                 userInfo: parsedUserInfo(),
-                accessToken: accessToken ?? undefined
+                accessToken: accessToken ?? undefined,
+                key: `${selectedApp.name}-${JSON.stringify(parsedUserInfo())}-${accessToken}`
               })}
             </div>
           )}

@@ -1,12 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Employee } from '../hooks/useEmployeeData';
 
 interface ActionMenuProps {
   employee: Employee;
   isLoggedUser: boolean;
+}
+
+interface ActionItem {
+  id: string;
+  label: string;
+  isHeader?: boolean;
 }
 
 /**
@@ -17,7 +22,6 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   employee, 
   isLoggedUser 
 }) => {
-  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   
   // Toggle dropdown
@@ -214,13 +218,18 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
           window.location.href = '/platform/landing_screen/srn_absenceLandingScreen';
           break;
         case 'goToManagerProfile':
-          window.location.href = `/platform/employee-profile/${employee.employeePosition.supervisor.id}`;
+          // Modify only the URL parameter instead of full navigation
+          if (employee.employeePosition?.supervisor?.id) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('employeeId', employee.employeePosition.supervisor.id);
+            window.history.pushState({}, '', url.toString());
+          }
           break;
         case 'goToTeamAvailability':
           window.location.href = '/platform/landing_screen/srn_teamAvailability';
           break;
         case 'goToOrgUnit':
-          window.location.href = `/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}`;
+          window.location.href = `/orgchart/active/organization?organizationUnitId=${employee.employeePosition?.organizationalUnitId}`;
           break;
         default:
           break;
@@ -229,50 +238,50 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   };
   
   // Define actions based on whether the user is viewing their own profile
-  const getActions = () => {
-    const commonActions = [
-      { id: 'addSkills', label: t('employee_profile:actions.add_skills') },
-      { id: 'uploadDocument', label: t('employee_profile:actions.upload_document') },
+  const getActions = (): ActionItem[] => {
+    const commonActions: ActionItem[] = [
+      { id: 'addSkills', label: "Add/Change Skills" },
+      { id: 'uploadDocument', label: "Upload Document" },
     ];
     
-    const personalActions = [
-      { id: 'changeAddress', label: t('employee_profile:actions.change_address') },
-      { id: 'changeBankAccount', label: t('employee_profile:actions.change_bank_account') },
-      { id: 'changePersonalData', label: t('employee_profile:actions.change_personal_data') },
-      { id: 'changeCommunication', label: t('employee_profile:actions.change_communication') },
-      { id: 'changeProfilePicture', label: t('employee_profile:actions.change_profile_picture') },
-      { id: 'changeRelationship', label: t('employee_profile:actions.change_relationship') },
-      { id: 'createExpense', label: t('employee_profile:actions.create_expense') },
-      { id: 'reportSickLeave', label: t('employee_profile:actions.report_sick_leave') },
-      { id: 'requestSpecialLeave', label: t('employee_profile:actions.request_special_leave') },
-      { id: 'requestVacation', label: t('employee_profile:actions.request_vacation') },
+    const personalActions: ActionItem[] = [
+      { id: 'changeAddress', label: "Change Address" },
+      { id: 'changeBankAccount', label: "Change Bank Account" },
+      { id: 'changePersonalData', label: "Change Personal Data" },
+      { id: 'changeCommunication', label: "Change Communication" },
+      { id: 'changeProfilePicture', label: "Change Profile Picture" },
+      { id: 'changeRelationship', label: "Change Relationship Status" },
+      { id: 'createExpense', label: "Create Expense Report" },
+      { id: 'reportSickLeave', label: "Report Sick Leave" },
+      { id: 'requestSpecialLeave', label: "Request Special Leave" },
+      { id: 'requestVacation', label: "Request Vacation" },
     ];
     
-    const managerActions = [
-      { id: 'giveFeedback', label: t('employee_profile:actions.give_feedback') },
-      { id: 'updateOrganizationalData', label: t('employee_profile:actions.update_organizational_data') },
+    const managerActions: ActionItem[] = [
+      { id: 'giveFeedback', label: "Give Feedback" },
+      { id: 'updateOrganizationalData', label: "Update Organizational Data" },
     ];
     
-    const navigationActions = [
-      { id: 'goToAbsences', label: t('employee_profile:actions.go_to_absences') },
-      { id: 'goToManagerProfile', label: t('employee_profile:actions.go_to_manager_profile') },
-      { id: 'goToTeamAvailability', label: t('employee_profile:actions.go_to_team_availability') },
-      { id: 'goToOrgUnit', label: t('employee_profile:actions.go_to_org_unit') },
+    const navigationActions: ActionItem[] = [
+      { id: 'goToAbsences', label: "Go to Absences" },
+      { id: 'goToManagerProfile', label: "Go to Manager Profile" },
+      { id: 'goToTeamAvailability', label: "Go to Team Availability" },
+      { id: 'goToOrgUnit', label: "Go to Organizational Unit" },
     ];
     
     if (isLoggedUser) {
       return [
-        { id: 'actions', label: t('employee_profile:actions.actions'), isHeader: true },
+        { id: 'actions', label: "Actions", isHeader: true },
         ...personalActions,
-        { id: 'navigation', label: t('employee_profile:actions.navigation'), isHeader: true },
+        { id: 'navigation', label: "Navigation", isHeader: true },
         ...navigationActions
       ];
     } else {
       return [
-        { id: 'actions', label: t('employee_profile:actions.actions'), isHeader: true },
+        { id: 'actions', label: "Actions", isHeader: true },
         ...commonActions,
         ...managerActions,
-        { id: 'navigation', label: t('employee_profile:actions.navigation'), isHeader: true },
+        { id: 'navigation', label: "Navigation", isHeader: true },
         ...navigationActions
       ];
     }
@@ -288,7 +297,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
           className="gba:inline-flex gba:justify-center gba:w-full gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:text-white gba:bg-blue-600 gba:rounded-md gba:hover:bg-blue-700 gba:focus:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-white/75"
           onClick={toggleDropdown}
         >
-          {t('employee_profile:actions.menu_label')}
+          Actions
           <svg
             className="gba:-mr-1 gba:ml-2 gba:h-5 gba:w-5"
             xmlns="http://www.w3.org/2000/svg"

@@ -46,6 +46,12 @@ declare global {
         managerId: string;
         locationId: string;
       };
+      getActiveUserLocale?: () => string;
+      getCatalogValue?: (value: any) => string;
+      getDateFormat?: (format:string)=>string;
+      i18n?: {
+        t: (key: string, label?: string) => string;
+      };
       [key: string]: any;
     };
   }
