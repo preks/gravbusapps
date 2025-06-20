@@ -11,6 +11,7 @@ definitions:
           - node
           - yarn
         script:
+          - yarn install
           - bash scripts/detect-changed-screens.sh
     
     - step: &publish-changed-screens
@@ -19,6 +20,7 @@ definitions:
           - node
           - yarn
         script:
+          - yarn install
           - bash scripts/detect-and-publish-changed-screens.sh
 pipelines:
   pull-requests:
