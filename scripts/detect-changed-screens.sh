@@ -1,9 +1,6 @@
 #!/bin/bash
 set -e
 
-# Enable debug mode to see commands being executed
-set -x
-
 # Output more information for debugging
 echo "Current branch: ${BITBUCKET_BRANCH}"
 echo "PR destination: ${BITBUCKET_PR_DESTINATION_BRANCH:-none}"
@@ -15,23 +12,33 @@ git config --global --add safe.directory /opt/atlassian/pipelines/agent/build 2>
 # Make sure we have the develop branch
 git fetch origin develop
 
-# Try multiple methods to find changed files
-echo "Detecting changed files with multiple methods..."
+# Try different methods to find changed files
+echo "Detecting changed files..."
 
-# Method 1: Standard diff with origin/develop
-echo "Trying method 1: git diff with origin/develop"
-export CHANGED_FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
-
-# If no files found, try method 2
-if [ -z "$CHANGED_FILES" ]; then
-  echo "Method 1 found no changes, trying method 2..."
-  export CHANGED_FILES=$(git log -1 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+# For custom runs or PR checks, we want to compare with develop
+if [[ "$BITBUCKET_PR_DESTINATION_BRANCH" == "develop" || -n "$BITBUCKET_PR_ID" ]]; then
+  echo "Checking files changed in PR to develop..."
+  export CHANGED_FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+else
+  # For branch builds, look at the latest commit
+  echo "Checking files changed in latest commit..."
+  export CHANGED_FILES=$(git log -50 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
 fi
 
-# If still no files, try method 3
-if [ -z "$CHANGED_FILES" ]; then
-  echo "Method 2 found no changes, falling back to method 3..."
-  export CHANGED_FILES=$(find src/business-apps -name "*.tsx" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+# If running a custom pipeline manually, we need to be more selective
+# Let's check if it's a custom pipeline run
+if [[ -z "$CHANGED_FILES" && -n "$BITBUCKET_PIPELINE_UUID" && -z "$BITBUCKET_PR_ID" ]]; then
+  echo "Manual run detected, checking changes against develop..."
+  # First try comparing with develop
+  export CHANGED_FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  
+  # If still nothing, prompt for more specific action rather than showing everything
+  if [ -z "$CHANGED_FILES" ]; then
+    echo "No changes detected against develop branch."
+    echo "For manual runs, please commit your changes first or specify files to publish."
+    # Exiting with 0 to avoid pipeline failure, but not proceeding with all files
+    exit 0
+  fi
 fi
 
 # Show what we found

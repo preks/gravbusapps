@@ -1,37 +1,44 @@
 #!/bin/bash
 set -e
 
-# For debugging
-set -x
-
 # Output more information for debugging
 echo "Current branch: ${BITBUCKET_BRANCH}"
 echo "PR destination: ${BITBUCKET_PR_DESTINATION_BRANCH:-none}"
 echo "Target branch: origin/develop"
 
-# Ensure we're in a safe working directory for git
+# Setup for Bitbucket Pipelines
 git config --global --add safe.directory /opt/atlassian/pipelines/agent/build 2>/dev/null || true
 
 # Make sure we have the develop branch
 git fetch origin develop
 
-# Try a simpler approach
-echo "Detecting changed files with multiple methods..."
+# Try different methods to find changed files
+echo "Detecting changed files..."
 
-# Method 1: Standard diff with origin/develop
-echo "Trying method 1: git diff with origin/develop"
-CHANGED_FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
-
-# If no files found, try method 2
-if [ -z "$CHANGED_FILES" ]; then
-  echo "Method 1 found no changes, trying method 2..."
-  CHANGED_FILES=$(git log -1 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+# For develop branch or hotfix branches, look for changes relative to develop
+if [[ "$BITBUCKET_BRANCH" == "develop" || "$BITBUCKET_BRANCH" == hotfix/* ]]; then
+  echo "Publishing changes on ${BITBUCKET_BRANCH} branch..."
+  CHANGED_FILES=$(git log -50 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+else
+  # For other branches, compare with develop
+  echo "Checking files changed against develop..."
+  CHANGED_FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
 fi
 
-# If still no files, try method 3
-if [ -z "$CHANGED_FILES" ]; then
-  echo "Method 2 found no changes, falling back to method 3..."
-  CHANGED_FILES=$(find src/business-apps -name "*.tsx" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+# If running a custom pipeline manually, we need to be more selective
+# Let's check if it's a custom pipeline run
+if [[ -z "$CHANGED_FILES" && -n "$BITBUCKET_PIPELINE_UUID" && "$BITBUCKET_BRANCH" != "develop" ]]; then
+  echo "Manual run detected, checking changes against develop..."
+  # Try comparing with develop again using a different method
+  CHANGED_FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  
+  # If still nothing, prompt for more specific action rather than showing everything
+  if [ -z "$CHANGED_FILES" ]; then
+    echo "No changes detected against develop branch."
+    echo "For manual runs, please commit your changes first or specify files to publish."
+    # Exiting with 0 to avoid pipeline failure, but not proceeding with all files
+    exit 0
+  fi
 fi
 
 # Show what we found
