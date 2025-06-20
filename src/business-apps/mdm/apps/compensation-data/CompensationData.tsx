@@ -3,9 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { RiMoneyDollarCircleLine } from '@remixicon/react';
-import { CompensationBandsTab } from './components/tabs/CompensationBandsTab';
+import { Tabs } from 'antd';
+import { PayGradesTab, CareerBandsTab, CompensationBandsTab } from './components/tabs';
 
 export enum CompensationDataTabs {
+  PAY_GRADES = 'pay-grades',
+  CAREER_BANDS = 'career-bands',
   COMPENSATION_BANDS = 'compensation-bands'
 }
 
@@ -22,7 +25,7 @@ const CompensationData: React.FC<CompensationDataProps> = ({
   ...contextProps 
 }) => {
   const { t } = useTranslation();
-  const [selectedTab, setSelectedTab] = useState<CompensationDataTabs>(CompensationDataTabs.COMPENSATION_BANDS);
+  const [selectedTab, setSelectedTab] = useState<CompensationDataTabs>(CompensationDataTabs.PAY_GRADES);
 
   useEffect(() => {
     const setTabFromUrl = () => {
@@ -50,16 +53,57 @@ const CompensationData: React.FC<CompensationDataProps> = ({
     setSelectedTab(value as CompensationDataTabs);
   };
 
+  const tabItems = [
+    {
+      key: CompensationDataTabs.PAY_GRADES,
+      label: t('hr.pay_grades', 'Pay Grades'),
+      children: (
+        <PayGradesTab 
+          {...contextProps}
+          prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+        />
+      ),
+    },
+    {
+      key: CompensationDataTabs.CAREER_BANDS,
+      label: t('hr.career_bands', 'Career Bands'),
+      children: (
+        <CareerBandsTab 
+          {...contextProps}
+          prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+        />
+      ),
+    },
+    {
+      key: CompensationDataTabs.COMPENSATION_BANDS,
+      label: t('hr.compensation_bands', 'Compensation Bands'),
+      children: (
+        <CompensationBandsTab 
+          {...contextProps}
+          prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+        />
+      ),
+    },
+  ];
+
   return (
     <PageLayout
       headerIcon={<RiMoneyDollarCircleLine />}
       headerLabel={t('hr.compensation_data', 'Compensation Data')}
       className={className}
       contentContainer={
-        <div className="w-full h-full">
-          <CompensationBandsTab 
-            {...contextProps}
-            prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+        <div className="gba:w-full gba:h-full" style={{ padding: '24px' }}>
+          <Tabs
+            activeKey={selectedTab}
+            onChange={onChangeTab}
+            items={tabItems}
+            data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Tabs`}
+            style={{
+              background: 'white',
+              borderRadius: '8px',
+              padding: '16px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            }}
           />
         </div>
       }

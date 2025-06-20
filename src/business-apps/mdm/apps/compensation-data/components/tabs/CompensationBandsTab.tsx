@@ -1,80 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, message, Modal, Form, Spin, InputNumber, Select } from 'antd';
+import { Table, Button, Input, Space, Typography, message, Modal, Form, Spin, InputNumber, Select, Alert } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useUserLocale } from '@/common/locale/useUserLocale';
+import { useCompensationDataIntegration } from '../../hooks/useCompensationDataIntegration';
+import { PayGrade } from './PayGradesTab';
 
 const { Title } = Typography;
-
-export interface CompensationBand {
-  id: string;
-  name: string;
-  payGrade: number;
-  minSalary: number;
-  maxSalary: number;
-  currency: string;
-  description?: string;
-  version?: number;
-}
 
 export interface CompensationBandsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
-
-// Mock data for demonstration - in real implementation this would come from API
-const mockCompensationBands: CompensationBand[] = [
-  {
-    id: '1',
-    name: 'Entry Level',
-    payGrade: 1,
-    minSalary: 35000,
-    maxSalary: 45000,
-    currency: 'EUR',
-    description: 'Entry level compensation band for new graduates',
-    version: 1
-  },
-  {
-    id: '2', 
-    name: 'Junior',
-    payGrade: 2,
-    minSalary: 40000,
-    maxSalary: 55000,
-    currency: 'EUR',
-    description: 'Junior level compensation band',
-    version: 1
-  },
-  {
-    id: '3',
-    name: 'Mid-Level',
-    payGrade: 3,
-    minSalary: 50000,
-    maxSalary: 70000,
-    currency: 'EUR',
-    description: 'Mid-level compensation band',
-    version: 1
-  },
-  {
-    id: '4',
-    name: 'Senior',
-    payGrade: 4,
-    minSalary: 65000,
-    maxSalary: 90000,
-    currency: 'EUR',
-    description: 'Senior level compensation band',
-    version: 1
-  },
-  {
-    id: '5',
-    name: 'Lead',
-    payGrade: 5,
-    minSalary: 80000,
-    maxSalary: 120000,
-    currency: 'EUR',
-    description: 'Lead level compensation band',
-    version: 1
-  }
-];
 
 const currencies = [
   { value: 'EUR', label: 'Euro (EUR)' },
@@ -83,30 +20,36 @@ const currencies = [
   { value: 'CHF', label: 'Swiss Franc (CHF)' }
 ];
 
-const CompensationBandsTab: React.FC<CompensationBandsTabProps> = ({ 
-  accessToken, 
-  prefixDataTestId 
-}) => {
+const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
   const { t } = useTranslation();
+  const { prefixDataTestId } = context;
   const userLocale = useUserLocale() ?? 'en-US';
   
-  const [compensationBands, setCompensationBands] = useState<CompensationBand[]>(mockCompensationBands);
-  const [loading, setLoading] = useState(false);
+  // Use real data integration
+  const { payGrades, isLoading, error, refetch } = useCompensationDataIntegration(context);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingBand, setEditingBand] = useState<CompensationBand | null>(null);
+  const [editingBand, setEditingBand] = useState<PayGrade | null>(null);
   const [form] = Form.useForm();
 
-  const filteredBands = compensationBands.filter(band => 
+  const filteredBands = payGrades.filter(band => 
     band.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    band.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    band.payGrade.toString().includes(searchTerm)
+    band.code?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const formatCurrency = (amount: number, currency: string) => {
+  const formatCurrency = (amount: number, currency?: { id: string; value: string } | string) => {
+    let currencyCode = typeof currency === 'string' ? currency : currency?.id || 'EUR';
+    
+    // Extract currency code from format like "Currency:v1:EUR" -> "EUR"
+    if (currencyCode.includes(':')) {
+      const parts = currencyCode.split(':');
+      currencyCode = parts[parts.length - 1]; // Get the last part
+    }
+    
     return new Intl.NumberFormat(userLocale, {
       style: 'currency',
-      currency: currency
+      currency: currencyCode,
+      minimumFractionDigits: 2,
     }).format(amount);
   };
 
@@ -116,20 +59,20 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = ({
     setIsModalVisible(true);
   };
 
-  const handleEdit = (record: CompensationBand) => {
+  const handleEdit = (record: PayGrade) => {
     setEditingBand(record);
     form.setFieldsValue({
       name: record.name,
-      payGrade: record.payGrade,
+      code: record.code,
       minSalary: record.minSalary,
       maxSalary: record.maxSalary,
-      currency: record.currency,
-      description: record.description,
+      standardSalary: record.standardSalary,
+      currency: typeof record.currency === 'string' ? record.currency : record.currency?.id,
     });
     setIsModalVisible(true);
   };
 
-  const handleDelete = async (record: CompensationBand) => {
+  const handleDelete = async (record: PayGrade) => {
     Modal.confirm({
       title: 'Delete Compensation Band',
       content: `Are you sure you want to delete "${record.name}"?`,
@@ -137,14 +80,10 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = ({
       okType: 'danger',
       cancelText: 'Cancel',
       onOk: async () => {
-        try {
-          // In real implementation, this would call the API
-          setCompensationBands(prev => prev.filter(band => band.id !== record.id));
-          message.success('Compensation band deleted successfully');
-        } catch (error) {
-          console.error('Error deleting compensation band:', error);
-          message.error('Failed to delete compensation band');
-        }
+        // TODO: Implement API call to delete compensation band
+        message.warning('Delete functionality will be implemented with process API integration');
+        // Optionally refetch data
+        await refetch();
       },
     });
   };
@@ -159,28 +98,17 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = ({
         return;
       }
       
-      if (editingBand) {
-        // Update existing band
-        setCompensationBands(prev => 
-          prev.map(band => 
-            band.id === editingBand.id 
-              ? { ...band, ...values }
-              : band
-          )
-        );
-        message.success('Compensation band updated successfully');
-      } else {
-        // Create new band
-        const newBand: CompensationBand = {
-          id: Date.now().toString(),
-          ...values,
-          version: 1
-        };
-        setCompensationBands(prev => [...prev, newBand]);
-        message.success('Compensation band created successfully');
+      if (values.standardSalary < values.minSalary || values.standardSalary > values.maxSalary) {
+        message.error('Standard salary must be between minimum and maximum salary');
+        return;
       }
       
+      // TODO: Implement API calls for saving compensation bands
+      message.warning('Save functionality will be implemented with process API integration');
+      
       setIsModalVisible(false);
+      // Optionally refetch data
+      await refetch();
     } catch (error) {
       console.error('Error saving compensation band:', error);
       message.error('Failed to save compensation band');
@@ -192,47 +120,83 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = ({
     form.resetFields();
   };
 
+  if (isLoading) {
+    return (
+      <div data-testid={`${prefixDataTestId}-CompensationBandsTab`} className="gba:flex gba:justify-center gba:items-center gba:h-64">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div data-testid={`${prefixDataTestId}-CompensationBandsTab`} className="gba:p-4">
+        <Alert
+          message="Error Loading Data"
+          description={error}
+          type="error"
+          showIcon
+          action={
+            <Button size="small" danger onClick={() => refetch()}>
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   const columns = [
     {
-      title: 'Pay Grade',
-      dataIndex: 'payGrade',
-      key: 'payGrade',
+      title: 'Code',
+      dataIndex: 'code',
+      key: 'code',
       width: 100,
-      sorter: (a: CompensationBand, b: CompensationBand) => a.payGrade - b.payGrade,
+      sorter: (a: PayGrade, b: PayGrade) => (a.code || '').localeCompare(b.code || ''),
     },
     {
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      sorter: (a: CompensationBand, b: CompensationBand) => a.name.localeCompare(b.name),
+      sorter: (a: PayGrade, b: PayGrade) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Salary Range',
-      key: 'salaryRange',
-      render: (_: any, record: CompensationBand) => (
-        <span>
-          {formatCurrency(record.minSalary, record.currency)} - {formatCurrency(record.maxSalary, record.currency)}
+      title: 'Minimum Salary',
+      key: 'minSalary',
+      width: 150,
+      render: (_: any, record: PayGrade) => formatCurrency(record.minSalary, record.currency),
+      sorter: (a: PayGrade, b: PayGrade) => a.minSalary - b.minSalary,
+    },
+    {
+      title: 'Standard Salary',
+      key: 'standardSalary',
+      width: 150,
+      render: (_: any, record: PayGrade) => (
+        <span className="gba:font-medium">
+          {formatCurrency(record.standardSalary, record.currency)}
         </span>
       ),
-      sorter: (a: CompensationBand, b: CompensationBand) => a.minSalary - b.minSalary,
+      sorter: (a: PayGrade, b: PayGrade) => a.standardSalary - b.standardSalary,
     },
     {
-      title: 'Currency',
-      dataIndex: 'currency',
-      key: 'currency',
-      width: 100,
+      title: 'Maximum Salary',
+      key: 'maxSalary',
+      width: 150,
+      render: (_: any, record: PayGrade) => formatCurrency(record.maxSalary, record.currency),
+      sorter: (a: PayGrade, b: PayGrade) => a.maxSalary - b.maxSalary,
     },
     {
-      title: 'Description',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
+      title: 'Range',
+      key: 'range',
+      width: 150,
+      render: (_: any, record: PayGrade) => formatCurrency(record.maxSalary - record.minSalary, record.currency),
+      sorter: (a: PayGrade, b: PayGrade) => (a.maxSalary - a.minSalary) - (b.maxSalary - b.minSalary),
     },
     {
       title: 'Actions',
       key: 'actions',
       width: 120,
-      render: (_: any, record: CompensationBand) => (
+      render: (_: any, record: PayGrade) => (
         <Space size="small">
           <Button
             type="text"
@@ -253,24 +217,15 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = ({
   ];
 
   return (
-    <div
-      data-testid={`${prefixDataTestId || ''}-CompensationBandsTab`}
-      style={{ 
-        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-        minHeight: '100%',
-        padding: '24px'
-      }}
-    >
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: '16px'
-        }}>
-          <Title level={3} style={{ margin: 0 }}>
-            {t('hr.compensation_bands', 'Compensation Bands')}
-          </Title>
+    <div data-testid={`${prefixDataTestId || ''}-CompensationBandsTab`} className="gba:p-6">
+      <div className="gba:mb-6">
+        <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+          <div>
+            <Title level={2} className="gba:mb-2">Compensation Bands</Title>
+            <p className="gba:text-gray-600">
+              Manage compensation bands and salary ranges for different pay grades
+            </p>
+          </div>
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -292,25 +247,19 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = ({
         />
       </div>
 
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-          <Spin size="large" />
-        </div>
-      ) : (
-        <Table
-          columns={columns}
-          dataSource={filteredBands}
-          rowKey="id"
-          pagination={{
-            pageSize: 20,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => 
-              `${range[0]}-${range[1]} of ${total} compensation bands`,
-          }}
-          data-testid={`${prefixDataTestId || ''}-CompensationBandsTab-Table`}
-        />
-      )}
+      <Table
+        columns={columns}
+        dataSource={filteredBands}
+        rowKey="id"
+        pagination={{
+          pageSize: 20,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total, range) => 
+            `${range[0]}-${range[1]} of ${total} compensation bands`,
+        }}
+        data-testid={`${prefixDataTestId || ''}-CompensationBandsTab-Table`}
+      />
 
       <Modal
         title={editingBand ? 'Edit Compensation Band' : 'Add Compensation Band'}
@@ -334,19 +283,14 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = ({
           </Form.Item>
           
           <Form.Item
-            label="Pay Grade"
-            name="payGrade"
-            rules={[{ required: true, message: 'Please enter a pay grade' }]}
+            label="Code"
+            name="code"
+            rules={[{ required: true, message: 'Please enter a code' }]}
           >
-            <InputNumber 
-              placeholder="Enter pay grade" 
-              min={1} 
-              max={20}
-              style={{ width: '100%' }}
-            />
+            <Input placeholder="Enter pay grade code (e.g., K/T7, AT4)" />
           </Form.Item>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+          <div className="gba:grid gba:grid-cols-3 gba:gap-4">
             <Form.Item
               label="Minimum Salary"
               name="minSalary"
@@ -356,6 +300,20 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = ({
                 placeholder="Min salary" 
                 min={0}
                 style={{ width: '100%' }}
+                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              />
+            </Form.Item>
+            
+            <Form.Item
+              label="Standard Salary"
+              name="standardSalary"
+              rules={[{ required: true, message: 'Please enter standard salary' }]}
+            >
+              <InputNumber 
+                placeholder="Standard salary" 
+                min={0}
+                style={{ width: '100%' }}
+                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
               />
             </Form.Item>
             
@@ -368,32 +326,24 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = ({
                 placeholder="Max salary" 
                 min={0}
                 style={{ width: '100%' }}
+                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
               />
-            </Form.Item>
-            
-            <Form.Item
-              label="Currency"
-              name="currency"
-              rules={[{ required: true, message: 'Please select a currency' }]}
-            >
-              <Select placeholder="Select currency">
-                {currencies.map(currency => (
-                  <Select.Option key={currency.value} value={currency.value}>
-                    {currency.label}
-                  </Select.Option>
-                ))}
-              </Select>
             </Form.Item>
           </div>
           
           <Form.Item
-            label="Description"
-            name="description"
+            label="Currency"
+            name="currency"
+            rules={[{ required: true, message: 'Please select a currency' }]}
+            initialValue="EUR"
           >
-            <Input.TextArea 
-              placeholder="Enter description (optional)" 
-              rows={3}
-            />
+            <Select placeholder="Select currency">
+              {currencies.map(currency => (
+                <Select.Option key={currency.value} value={currency.value}>
+                  {currency.label}
+                </Select.Option>
+              ))}
+            </Select>
           </Form.Item>
         </Form>
       </Modal>
@@ -401,4 +351,5 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = ({
   );
 };
 
+export default CompensationBandsTab;
 export { CompensationBandsTab }; 

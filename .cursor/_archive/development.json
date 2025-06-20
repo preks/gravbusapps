@@ -1,0 +1,17 @@
+{
+  "principles": {
+    "codeQuality": {
+      "simplify": true,
+      "cleanCode": true,
+      "removeUnused": true,
+      "removeCommented": true
+    },
+    "git": {
+      "commitFormat": "Conventional Commits"
+    },
+    "css": {
+      "globalFile": "src/index.css",
+      "viteBundler": "includes in dist/assets/main.css"
+    }
+  }
+} 
