@@ -1,3 +1,5 @@
+import { getCurrentActiveStructureId as  WindowUtilsGetCurrentActiveStructureId } from "./windowUtils";
+
 export interface ProcessStartInfo {
   domain: string;
   processName: string;
@@ -6,10 +8,7 @@ export interface ProcessStartInfo {
 }
 
 export function getCurrentActiveStructureId() {
-  if (window?.lowcoder?.activeStructureId) {
-    return window.lowcoder.activeStructureId;
-  }
-  return "99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf";
+  return WindowUtilsGetCurrentActiveStructureId();
 }
 
 /**

@@ -14,7 +14,6 @@
 /* Now import Tailwind and other styles */
 @import "tailwindcss" prefix(gba);
 @config "../tailwind.config.js";
-
 @import "tw-animate-css";
 @import "./business-apps/irm/kanban-board/KanbanBoard/kanban-styles.css";
 @import "./business-apps/crm/overview-screens/CompanyOverview/styles/CompanyOverview.css";
