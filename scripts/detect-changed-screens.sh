@@ -1,17 +1,46 @@
 #!/bin/bash
 set -e
 
-# Output more information for debugging
-echo "Current branch: ${BITBUCKET_BRANCH}"
-echo "Target branch: origin/develop"
+echo "====== Screen Change Detector (DRY RUN) ======"
+echo "Running on branch: ${BITBUCKET_BRANCH}"
 
-# Make sure we have the develop branch
-git fetch origin develop
+# Set up Bitbucket Pipelines environment
+echo "Setting up environment..."
+git config --global --add safe.directory /opt/atlassian/pipelines/agent/build 2>/dev/null || true
 
-# Get the list of files that were changed between the current branch and develop
-# Use git diff-tree to get a reliable list of changes
-echo "Detecting changed files..."
-export CHANGED_FILES=$(git diff --name-only origin/develop HEAD | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+# To handle different merge commit scenarios, we'll use a more flexible approach
+
+# 1. Find changed files using git
+find_changed_files() {
+  # Try different git methods until we find one that works
+  
+  # First try: most common case - difference between current HEAD and develop
+  echo "Attempt 1: Comparing with origin/develop..."
+  git fetch -q origin develop 2>/dev/null || true
+  FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  
+  if [ ! -z "$FILES" ]; then
+    echo "Found changes via method 1"
+    return 0
+  fi
+  
+  # Second try: fallback to log method (works in many CI environments)
+  echo "Attempt 2: Using git log method..."
+  FILES=$(git log -1 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  
+  if [ ! -z "$FILES" ]; then
+    echo "Found changes via method 2"
+    return 0
+  fi
+
+  return 0
+}
+
+# Run the function to find changed files
+export CHANGED_FILES=$(find_changed_files)
+
+echo "Detected files:"
+echo "$CHANGED_FILES"
 
 # Extract the unique app/form directories that were modified
 if [ ! -z "$CHANGED_FILES" ]; then
