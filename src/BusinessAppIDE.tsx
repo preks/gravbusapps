@@ -1,8 +1,9 @@
 import { UiCatalogProvider } from '@newwork/gravity-ui-catalog';
-import { useState, useEffect, createElement } from "react";
+import { useState, useEffect, createElement, useCallback } from "react";
 import { Layout, Menu, Modal, Form, Input, Typography, Button, Tooltip } from "antd";
 import { SettingOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
-import { BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
+import { BusinessAppContext, BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
+import ProcessEventListener from './common/components/ProcessEventListener';
 
 const modules = import.meta.glob('./business-apps/**/[A-Z]*.tsx', { eager: true });
 
@@ -122,6 +123,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     }
   };
 
+  // Save settings to localStorage and close modal
   const saveSettings = () => {
     localStorage.setItem(STORAGE_KEY_USER_INFO, userInfo);
     localStorage.setItem(STORAGE_KEY_ACCESS_TOKEN, accessToken);
@@ -174,7 +176,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     });
   };
 
-  const parsedUserInfo = (): UserInfoProps | undefined => {
+  // Parse userInfo string to UserInfoProps object
+  const parsedUserInfo = useCallback((): UserInfoProps | undefined => {
     if (userInfo?.length > 2) {
       try {
         return JSON.parse(userInfo);
@@ -184,10 +187,12 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       }
     }
     return undefined;
-  };
+  }, [userInfo]);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
+      {/* Add the ProcessEventListener which handles process start events */}
+      <ProcessEventListener />
       <Sider
         width={250}
         collapsible
@@ -252,7 +257,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             <div className="gba:w-full gba:h-full gba:overflow-auto">
               {createElement(selectedApp.component, {
                 userInfo: parsedUserInfo(),
-                accessToken: accessToken ?? undefined
+                accessToken: accessToken ?? undefined,
+                key: `${selectedApp.name}-${JSON.stringify(parsedUserInfo())}-${accessToken}`
               })}
             </div>
           )}

@@ -302,22 +302,26 @@ async function main() {
   // The temp directory is already created and files are directly written there
 
   // Use cross-env compatible approach for Windows with additional env vars for temp files
-  const viteBuildCommand = `cross-env PROJECT_ROOT_DIR="${projectRootDir.replace(
-    /\\/g,
-    "/"
-  )}" VITE_GIT_USER="${
-    process.env.VITE_GIT_USER ||
-    execSync("git config user.name").toString().trim()
-  }" VITE_PUBLISH_TIME="${new Date().toISOString()}" TARGET_ENTRY_FILE=${sourceEntryFile} TARGET_ENTRY_KEY=${viteEntryKey} TEMP_INDEX_CSS=${path
-    .join(tempDir, "index.css")
-    .replace(/\\/g, "/")} SINGLE_SCREEN_CSS=true vite build`;
+  // Create an object with all environment variables to pass to execSync
+  const buildEnv = {
+    ...process.env,
+    PROJECT_ROOT_DIR: projectRootDir,
+    VITE_GIT_USER: process.env.VITE_GIT_USER || execSync("git config user.name").toString().trim(),
+    VITE_PUBLISH_TIME: new Date().toISOString(),
+    TARGET_ENTRY_FILE: sourceEntryFile,
+    TARGET_ENTRY_KEY: viteEntryKey,
+    TEMP_INDEX_CSS: tempIndexCssPath.replace(/\\/g, "/"),
+    SINGLE_SCREEN_CSS: "true"
+  };
+  
+  const viteBuildCommand = `vite build`;
 
   console.log(`   Executing: ${viteBuildCommand} with environment variables`);
   try {
     execSync(viteBuildCommand, {
       stdio: "inherit",
       cwd: projectRootDir,
-      env: { ...process.env },
+      env: buildEnv,
     });
     console.log("✅ Screen built successfully.");
 
