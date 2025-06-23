@@ -36,7 +36,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({ employee, icon
   const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat();
   
   // Determine profile URL based on the context
-  const profileUrl = `/platform/employee-profile/${employee.id}`;
+  const profileUrl = `/platform/employee-record/${employee.id}`;
 
   // Handler functions for actions
   const handleChat = useCallback(() => {

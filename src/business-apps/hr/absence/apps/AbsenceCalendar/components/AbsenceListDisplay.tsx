@@ -2,7 +2,6 @@ import React from "react";
 import { List, Tag } from "antd";
 import dayjs from "dayjs";
 import { BusinessAppContextProps } from "../../../../../../common/BusinessAppContext";
-import "../styles/AbsenceCalendar.css"
 
 export interface AbsenceListDisplayItem {
   id: string;

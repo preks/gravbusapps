@@ -1,5 +1,5 @@
-import React from 'react';
-import { cn } from '../../../common/utils/cn';
+import React from "react";
+import { cn } from "../../../common/utils/cn";
 
 /**
  * PageLayout provides a consistent frame and layout for all screens, with a configurable header style.
@@ -32,7 +32,7 @@ export interface PageLayoutProps {
   contentHeader?: React.ReactNode;
   contentContainer?: React.ReactNode;
   className?: string;
-  variant?: 'default' | 'display';
+  variant?: "default" | "display";
 }
 
 export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
@@ -43,63 +43,75 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
   pageController,
   contentHeader,
   contentContainer,
-  className = '',
-  variant = 'default',
+  className = "",
+  variant = "default",
 }) => {
   // Determine styles based on variant
-  const isDisplay = variant === 'display';
-  
+  const isDisplay = variant === "display";
+
   const iconClasses = cn(
-    "flex items-center justify-center",
-    isDisplay ? "w-48 h-48" : "w-32 h-32"
+    "gba:flex gba:items-center gba:justify-center",
+    isDisplay ? "gba:w-12 gba:h-12" : "gba:w-10 gba:h-10"
   );
-  
+
   const labelClasses = cn(
-    "text-black font-secondary whitespace-nowrap",
-    isDisplay ? "ml-4 text-4xl font-black" : "ml-2 text-2xl font-normal"
+    "gba:text-black gba:font-secondary gba:whitespace-nowrap",
+    isDisplay
+      ? "gba:ml-4 gba:text-4xl gba:font-black"
+      : "gba:ml-2 gba:text-2xl gba:font-normal"
   );
 
   return (
     <div
-      className={`page-layout p-6 w-full h-full flex flex-col bg-white rounded-xl shadow-md overflow-hidden ${className}`.trim()}
-      style={{ minHeight: '0', minWidth: '0' }}
+      className={`gba:page-layout gba:w-full gba:h-full gba:flex gba:flex-col gba:bg-white gba:rounded-xl gba:shadow-md gba:overflow-hidden ${className}`.trim()}
+      style={{ minHeight: "0", minWidth: "0" }}
     >
-      <header className="flex flex-col box-border border-b border-gray-200 relative">
-        <div className="h-24 p-2 px-4 flex items-center">
-          <div className="flex items-center min-w-0 flex-none">
+      <header className="gba:flex gba:flex-col gba:box-border gba:border-b gba:border-gray-200 gba:relative">
+        <div className="gba:h-24 gba:p-2 gba:px-4 gba:flex gba:items-center">
+          <div className="gba:flex gba:items-center gba:min-w-0 gba:flex-none">
             <span className={iconClasses}>{headerIcon}</span>
             <span className={labelClasses}>{headerLabel}</span>
           </div>
           {pageHeaderCenter && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="pointer-events-auto">{pageHeaderCenter}</div>
+            <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:pointer-events-none">
+              <div className="gba:pointer-events-auto">{pageHeaderCenter}</div>
             </div>
           )}
           {pageHeaderRight && (
-            <div className="flex items-center min-w-0 flex-none justify-end">
+            <div className="gba:flex gba:items-center gba:min-w-0 gba:flex-none gba:justify-end">
               {pageHeaderRight}
             </div>
           )}
         </div>
         {pageController && (
-          <div className="flex justify-center py-2">{pageController}</div>
+          <div className="gba:flex gba:justify-center gba:py-2">
+            {pageController}
+          </div>
         )}
       </header>
       <div className="flex flex-col flex-1 min-h-0">
         {contentHeader && (
-          <div>{contentHeader}</div>
+          <div className="gba:py-2 gba:border-b gba:border-gray-200">
+            {contentHeader}
+          </div>
         )}
-        <div className="bg-gray-100 flex-1 min-h-0">{contentContainer}</div>
+        <div className="gba:bg-gray-100 gba:flex-1 gba:min-h-0">
+          {contentContainer}
+        </div>
       </div>
     </div>
   );
 };
 
 // For backward compatibility
-export const PageLayoutDefault: React.FC<Readonly<Omit<PageLayoutProps, 'variant'>>> = (props) => {
+export const PageLayoutDefault: React.FC<
+  Readonly<Omit<PageLayoutProps, "variant">>
+> = (props) => {
   return <PageLayout {...props} variant="default" />;
 };
 
-export const PageLayoutDisplay: React.FC<Readonly<Omit<PageLayoutProps, 'variant'>>> = (props) => {
+export const PageLayoutDisplay: React.FC<
+  Readonly<Omit<PageLayoutProps, "variant">>
+> = (props) => {
   return <PageLayout {...props} variant="display" />;
 };

@@ -37,7 +37,7 @@ interface Employee {
 
 // EmployeeCard component
 export function EmployeeCard({ employee }: Readonly<{ employee: Employee }>) {
-  const profileUrl = `/platform/employee-profile/${employee.id}`;
+  const profileUrl = `/platform/employee-record/${employee.id}`;
   const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat();
   
   // No longer calculating time spent
