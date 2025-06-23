@@ -2,17 +2,22 @@
 export { default as JobStructureData } from './JobStructureData';
 
 // Tab Components
-export { JobFamiliesTab } from './components/tabs/JobFamiliesTab';
+export { default as JobFamiliesTab } from './components/tabs/JobFamiliesTab';
 export { JobLevelsTab } from './components/tabs/JobLevelsTab';
 export { JobFunctionsTab } from './components/tabs/JobFunctionsTab';
 export { JobProfilesTab } from './components/tabs/JobProfilesTab';
 
-// Types
-export type { JobFamily } from './components/tabs/JobFamiliesTab';
-export type { JobLevel, JobLevelGroup } from './components/tabs/JobLevelsTab';
-export type { JobFunction } from './components/tabs/JobFunctionsTab';
-export type { JobProfile } from './components/tabs/JobProfilesTab';
+// Types - Export from centralized types folder
+export type * from './types';
+
+// Export hooks
+export { useJobFunctions } from './hooks/useJobFunctions';
+export { useJobProfiles } from './hooks/useJobProfiles';
 
 // Export queries
 export { useGetJobLevelData } from './queries/JobLevelQueries';
-export type { JobLevelByJobLevelGroupIdData, JobLevelDataVariables } from './queries/JobLevelQueries'; 
+export type { JobLevelByJobLevelGroupIdData, JobLevelDataVariables } from './queries/JobLevelQueries';
+export { useGetJobFunctionData } from './queries/JobFunctionQueries';
+export type { JobFunctionByIdData, JobFunctionDataVariables } from './queries/JobFunctionQueries';
+export { useGetJobProfileData } from './queries/JobProfileQueries';
+export type { JobProfileByIdData, JobProfileDataVariables } from './queries/JobProfileQueries'; 

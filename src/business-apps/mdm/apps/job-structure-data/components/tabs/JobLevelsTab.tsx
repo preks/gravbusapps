@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Table, Button, Input, Space, Typography, message, Modal, Form, Tag, Spin, Alert } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useJobStructureDataIntegration, EnhancedJobLevel, EnhancedJobLevelGroup } from '../../hooks';
+import { useJobLevels } from '../../hooks';
+import { JobLevel, JobLevelGroup } from '../../types';
 
 const { Title } = Typography;
 
@@ -11,18 +12,17 @@ export interface JobLevelsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
-// Re-export types for external usage
-export type { EnhancedJobLevel as JobLevel, EnhancedJobLevelGroup as JobLevelGroup } from '../../hooks';
+
 
 const JobLevelsTab: React.FC<JobLevelsTabProps> = (context) => {
   const { t } = useTranslation();
   const { prefixDataTestId } = context;
   
   // Use real data integration
-  const { jobLevelGroups, isLoading, error, refetch } = useJobStructureDataIntegration(context);
+  const { jobLevelGroups, isLoading, error, refetch } = useJobLevels(context);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<EnhancedJobLevelGroup | null>(null);
+  const [editingGroup, setEditingGroup] = useState<JobLevelGroup | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [form] = Form.useForm();
 
@@ -33,7 +33,7 @@ const JobLevelsTab: React.FC<JobLevelsTabProps> = (context) => {
     group.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleExpand = (expanded: boolean, record: EnhancedJobLevelGroup) => {
+  const handleExpand = (expanded: boolean, record: JobLevelGroup) => {
     setExpandedGroups(prev => {
       const newSet = new Set(prev);
       if (expanded) {
@@ -51,7 +51,7 @@ const JobLevelsTab: React.FC<JobLevelsTabProps> = (context) => {
     setIsModalVisible(true);
   };
 
-  const handleEdit = (record: EnhancedJobLevelGroup) => {
+  const handleEdit = (record: JobLevelGroup) => {
     setEditingGroup(record);
     form.setFieldsValue({
       name: record.name,
@@ -63,7 +63,7 @@ const JobLevelsTab: React.FC<JobLevelsTabProps> = (context) => {
     setIsModalVisible(true);
   };
 
-  const handleDelete = async (record: EnhancedJobLevelGroup) => {
+  const handleDelete = async (record: JobLevelGroup) => {
     Modal.confirm({
       title: 'Delete Job Level Group',
       content: `Are you sure you want to delete "${record.name}"? This will also delete all associated job levels.`,
@@ -100,7 +100,7 @@ const JobLevelsTab: React.FC<JobLevelsTabProps> = (context) => {
     form.resetFields();
   };
 
-  const expandedRowRender = (record: EnhancedJobLevelGroup) => {
+  const expandedRowRender = (record: JobLevelGroup) => {
     const levelColumns = [
       {
         title: 'Level',
@@ -123,7 +123,7 @@ const JobLevelsTab: React.FC<JobLevelsTabProps> = (context) => {
         title: 'Compensation Band',
         key: 'compensationBand',
         width: 150,
-        render: (_: any, jobLevel: EnhancedJobLevel) => (
+        render: (_: any, jobLevel: JobLevel) => (
           jobLevel.compensationBand ? (
             <Tag color="green">{jobLevel.compensationBand.name}</Tag>
           ) : (
@@ -175,26 +175,26 @@ const JobLevelsTab: React.FC<JobLevelsTabProps> = (context) => {
       dataIndex: 'code',
       key: 'code',
       width: 100,
-      sorter: (a: EnhancedJobLevelGroup, b: EnhancedJobLevelGroup) => a.code.localeCompare(b.code),
+      sorter: (a: JobLevelGroup, b: JobLevelGroup) => a.code.localeCompare(b.code),
     },
     {
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      sorter: (a: EnhancedJobLevelGroup, b: EnhancedJobLevelGroup) => a.name.localeCompare(b.name),
+      sorter: (a: JobLevelGroup, b: JobLevelGroup) => a.name.localeCompare(b.name),
     },
     {
       title: 'Category',
       dataIndex: 'category',
       key: 'category',
       width: 120,
-      sorter: (a: EnhancedJobLevelGroup, b: EnhancedJobLevelGroup) => a.category.localeCompare(b.category),
+      sorter: (a: JobLevelGroup, b: JobLevelGroup) => a.category.localeCompare(b.category),
     },
     {
       title: 'Job Levels',
       key: 'jobLevelsCount',
       width: 120,
-      render: (_: any, record: EnhancedJobLevelGroup) => (
+      render: (_: any, record: JobLevelGroup) => (
         <Tag color="blue">{record.jobLevelCount} levels</Tag>
       ),
     },
@@ -222,7 +222,7 @@ const JobLevelsTab: React.FC<JobLevelsTabProps> = (context) => {
       title: 'Actions',
       key: 'actions',
       width: 120,
-      render: (_: any, record: EnhancedJobLevelGroup) => (
+      render: (_: any, record: JobLevelGroup) => (
         <Space size="small">
           <Button
             type="text"

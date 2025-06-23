@@ -1,163 +1,124 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, message, Modal, Form, Select, Tag } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, TeamOutlined } from '@ant-design/icons';
+import { 
+  Table, 
+  Button, 
+  Input, 
+  Space, 
+  Typography, 
+  message, 
+  Modal, 
+  Form, 
+  Tag, 
+  Spin, 
+  Alert,
+  Avatar,
+  Card,
+  Tooltip,
+  Select,
+  Row,
+  Col,
+  Empty
+} from 'antd';
+import { 
+  PlusOutlined, 
+  EditOutlined, 
+  DeleteOutlined, 
+  TeamOutlined,
+  UserOutlined,
+  CrownOutlined,
+  CalendarOutlined,
+  SearchOutlined,
+  AppstoreOutlined,
+  BarsOutlined,
+  FileImageOutlined
+} from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useTeams } from '../../hooks';
+import { Team } from '../../types';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { Option } = Select;
-
-export interface Team {
-  id: string;
-  name: string;
-  code: string;
-  description?: string;
-  teamLead: string;
-  department: string;
-  memberCount: number;
-  focus: string;
-  status: 'Active' | 'Inactive';
-  createdDate: string;
-  location: string;
-  teamType: string;
-}
 
 export interface TeamsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
-// Mock data for demonstration
-const mockTeams: Team[] = [
-  {
-    id: '1',
-    name: 'Frontend Development',
-    code: 'FE001',
-    description: 'User interface and experience development',
-    teamLead: 'Alice Johnson',
-    department: 'Engineering',
-    memberCount: 8,
-    focus: 'Web Development',
-    status: 'Active',
-    createdDate: '2020-01-15',
-    location: 'Hamburg',
-    teamType: 'Development'
-  },
-  {
-    id: '2',
-    name: 'Backend Development',
-    code: 'BE001',
-    description: 'Server-side development and APIs',
-    teamLead: 'Bob Smith',
-    department: 'Engineering',
-    memberCount: 12,
-    focus: 'Backend Systems',
-    status: 'Active',
-    createdDate: '2019-03-10',
-    location: 'Hamburg',
-    teamType: 'Development'
-  },
-  {
-    id: '3',
-    name: 'DevOps',
-    code: 'DEVOPS001',
-    description: 'Infrastructure and deployment automation',
-    teamLead: 'Charlie Brown',
-    department: 'Engineering',
-    memberCount: 6,
-    focus: 'Infrastructure',
-    status: 'Active',
-    createdDate: '2021-06-01',
-    location: 'Berlin',
-    teamType: 'Operations'
-  },
-  {
-    id: '4',
-    name: 'Product Strategy',
-    code: 'PS001',
-    description: 'Product planning and strategy',
-    teamLead: 'Diana Wilson',
-    department: 'Product',
-    memberCount: 5,
-    focus: 'Strategy',
-    status: 'Active',
-    createdDate: '2020-09-15',
-    location: 'Vienna',
-    teamType: 'Strategy'
-  },
-  {
-    id: '5',
-    name: 'QA Team',
-    code: 'QA001',
-    description: 'Quality assurance and testing',
-    teamLead: 'Eva Garcia',
-    department: 'Engineering',
-    memberCount: 10,
-    focus: 'Quality Assurance',
-    status: 'Inactive',
-    createdDate: '2018-11-20',
-    location: 'Munich',
-    teamType: 'Quality'
-  }
-];
-
-const TeamsTab: React.FC<TeamsTabProps> = ({ 
-  prefixDataTestId 
-}) => {
+const TeamsTab: React.FC<TeamsTabProps> = (context) => {
   const { t } = useTranslation();
+  const { prefixDataTestId } = context;
   
-  const [teams, setTeams] = useState<Team[]>(mockTeams);
-  const [searchTerm, setSearchTerm] = useState('');
+  const {
+    teams,
+    isLoading,
+    error,
+    refetch,
+    searchTeams,
+    getTeamsByStatus,
+    getSortedTeams,
+    totalTeams,
+    activeTeams,
+    inactiveTeams,
+    teamsWithLeaders,
+    teamsWithoutLeaders
+  } = useTeams(context);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Inactive'>('All');
+  const [sortBy, setSortBy] = useState<'name' | 'rank' | 'created' | 'leader'>('rank');
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [form] = Form.useForm();
 
-  const filteredTeams = teams.filter(team => 
-    team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    team.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    team.teamLead.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    team.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    team.focus.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Get filtered and sorted teams
+  const getDisplayTeams = (): Team[] => {
+    let displayTeams = teams;
+    
+    // Apply search filter
+    if (searchQuery) {
+      displayTeams = searchTeams(searchQuery);
+    }
+    
+    // Apply status filter
+    if (statusFilter !== 'All') {
+      displayTeams = displayTeams.filter(team => team.status === statusFilter);
+    }
+    
+    // Apply sorting
+    return getSortedTeams(sortBy).filter(team => 
+      searchQuery ? searchTeams(searchQuery).includes(team) : true
+    ).filter(team =>
+      statusFilter === 'All' ? true : team.status === statusFilter
+    );
+  };
 
-  const handleAdd = () => {
+  const handleAddTeam = () => {
     setEditingTeam(null);
     form.resetFields();
     setIsModalVisible(true);
   };
 
-  const handleEdit = (record: Team) => {
-    setEditingTeam(record);
+  const handleEditTeam = (team: Team) => {
+    setEditingTeam(team);
     form.setFieldsValue({
-      name: record.name,
-      code: record.code,
-      description: record.description,
-      teamLead: record.teamLead,
-      department: record.department,
-      memberCount: record.memberCount,
-      focus: record.focus,
-      status: record.status,
-      createdDate: record.createdDate,
-      location: record.location,
-      teamType: record.teamType,
+      name: team.name,
+      description: team.description,
+      rank: team.rank
     });
     setIsModalVisible(true);
   };
 
-  const handleDelete = async (record: Team) => {
+  const handleDeleteTeam = (team: Team) => {
     Modal.confirm({
-      title: 'Delete Team',
-      content: `Are you sure you want to delete "${record.name}"?`,
+      title: 'Delete Matrix Team',
+      content: `Are you sure you want to delete matrix team "${team.name}"?`,
       okText: 'Delete',
       okType: 'danger',
       cancelText: 'Cancel',
       onOk: async () => {
-        try {
-          setTeams(prev => prev.filter(team => team.id !== record.id));
-          message.success('Team deleted successfully');
-        } catch (error) {
-          console.error('Error deleting team:', error);
-          message.error('Failed to delete team');
-        }
+        message.warning('Delete team functionality will be implemented with process API integration');
+        await refetch();
       },
     });
   };
@@ -167,27 +128,14 @@ const TeamsTab: React.FC<TeamsTabProps> = ({
       const values = await form.validateFields();
       
       if (editingTeam) {
-        // Update existing team
-        setTeams(prev => 
-          prev.map(team => 
-            team.id === editingTeam.id 
-              ? { ...team, ...values }
-              : team
-          )
-        );
-        message.success('Team updated successfully');
+        message.warning('Edit team functionality will be implemented with process API integration');
       } else {
-        // Create new team
-        const newTeam: Team = {
-          id: Date.now().toString(),
-          ...values
-        };
-        setTeams(prev => [...prev, newTeam]);
-        message.success('Team created successfully');
+        message.warning('Add team functionality will be implemented with process API integration');
       }
       
       setIsModalVisible(false);
       form.resetFields();
+      await refetch();
     } catch (error) {
       console.error('Validation failed:', error);
     }
@@ -198,63 +146,60 @@ const TeamsTab: React.FC<TeamsTabProps> = ({
     form.resetFields();
   };
 
+  const parseImageUrl = (pictureUrl: string): string | null => {
+    try {
+      if (!pictureUrl) return null;
+      const parsed = JSON.parse(pictureUrl);
+      return parsed.path || null;
+    } catch {
+      return pictureUrl || null;
+    }
+  };
+
+  // Table columns for table view
   const columns = [
     {
-      title: 'Name',
+      title: 'Team',
       dataIndex: 'name',
       key: 'name',
+      render: (text: string, record: Team) => (
+        <div>
+          <Text strong>{text}</Text>
+          {record.description && (
+            <div>
+              <Text type="secondary" className="gba:text-sm">{record.description}</Text>
+            </div>
+          )}
+        </div>
+      ),
       sorter: (a: Team, b: Team) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Code',
-      dataIndex: 'code',
-      key: 'code',
-      sorter: (a: Team, b: Team) => a.code.localeCompare(b.code),
-    },
-    {
-      title: 'Team Lead',
-      dataIndex: 'teamLead',
-      key: 'teamLead',
-    },
-    {
-      title: 'Department',
-      dataIndex: 'department',
-      key: 'department',
-      filters: [
-        { text: 'Engineering', value: 'Engineering' },
-        { text: 'Product', value: 'Product' },
-        { text: 'Marketing', value: 'Marketing' },
-        { text: 'Sales', value: 'Sales' },
-      ],
-      onFilter: (value: any, record: Team) => record.department === value,
-    },
-    {
-      title: 'Members',
-      dataIndex: 'memberCount',
-      key: 'memberCount',
-      sorter: (a: Team, b: Team) => a.memberCount - b.memberCount,
-    },
-    {
-      title: 'Focus',
-      dataIndex: 'focus',
-      key: 'focus',
-    },
-    {
-      title: 'Type',
-      dataIndex: 'teamType',
-      key: 'teamType',
-      render: (type: string) => {
-        const color = 
-          type === 'Development' ? 'blue' : 
-          type === 'Operations' ? 'green' : 
-          type === 'Strategy' ? 'purple' : 'orange';
-        return <Tag color={color}>{type}</Tag>;
+      title: 'Leader',
+      key: 'leader',
+      render: (record: Team) => {
+        if (!record.hasLeader) {
+          return <Text type="secondary">No leader assigned</Text>;
+        }
+
+        const imageUrl = parseImageUrl(record.leaderPictureUrl || '');
+        
+        return (
+          <div className="gba:flex gba:items-center gba:space-x-2">
+            <Avatar 
+              size="small"
+              src={imageUrl}
+              icon={<UserOutlined />}
+            />
+            <div>
+              <Text strong>{record.leaderName}</Text>
+              <div>
+                <Text type="secondary" className="gba:text-xs">{record.leaderJobPosition}</Text>
+              </div>
+            </div>
+          </div>
+        );
       },
-    },
-    {
-      title: 'Location',
-      dataIndex: 'location',
-      key: 'location',
     },
     {
       title: 'Status',
@@ -272,194 +217,342 @@ const TeamsTab: React.FC<TeamsTabProps> = ({
       onFilter: (value: any, record: Team) => record.status === value,
     },
     {
+      title: 'Rank',
+      dataIndex: 'rank',
+      key: 'rank',
+      sorter: (a: Team, b: Team) => a.rank - b.rank,
+    },
+    {
+      title: 'Created',
+      dataIndex: 'age',
+      key: 'age',
+      render: (age: string, record: Team) => (
+        <Tooltip title={new Date(record.createdAt).toLocaleDateString()}>
+          <Text type="secondary">{age}</Text>
+        </Tooltip>
+      ),
+    },
+    {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: Team) => (
-        <Space size="middle">
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-            data-testid={`${prefixDataTestId}-edit-team-${record.id}`}
-          >
-            Edit
-          </Button>
-          <Button
-            type="link"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            data-testid={`${prefixDataTestId}-delete-team-${record.id}`}
-          >
-            Delete
-          </Button>
+      render: (record: Team) => (
+        <Space size="small">
+          <Tooltip title="Edit Team">
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleEditTeam(record)}
+              data-testid={`${prefixDataTestId}-edit-team-${record.id}`}
+            />
+          </Tooltip>
+          <Tooltip title="Delete Team">
+            <Button
+              type="text"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDeleteTeam(record)}
+              data-testid={`${prefixDataTestId}-delete-team-${record.id}`}
+            />
+          </Tooltip>
         </Space>
       ),
     },
   ];
 
-  return (
-    <div data-testid={`${prefixDataTestId}-TeamsTab`}>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={3} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <TeamOutlined />
-          {t('hr.teams', 'Teams')}
-        </Title>
-        <Space>
-          <Input
-            placeholder="Search teams..."
-            prefix={<SearchOutlined />}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ width: 250 }}
-            data-testid={`${prefixDataTestId}-search-teams`}
-          />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            data-testid={`${prefixDataTestId}-add-team`}
-          >
-            Add Team
+  // Render team card for cards view
+  const renderTeamCard = (team: Team) => {
+    const imageUrl = parseImageUrl(team.leaderPictureUrl || '');
+    
+    return (
+      <Card
+        key={team.id}
+        className="gba:h-full"
+        actions={[
+          <Tooltip title="Edit Team" key="edit">
+            <EditOutlined onClick={() => handleEditTeam(team)} />
+          </Tooltip>,
+          <Tooltip title="Delete Team" key="delete">
+            <DeleteOutlined onClick={() => handleDeleteTeam(team)} />
+          </Tooltip>
+        ]}
+        data-testid={`${prefixDataTestId}-team-card-${team.id}`}
+      >
+        <Card.Meta
+          avatar={<TeamOutlined className="gba:text-2xl gba:text-blue-500" />}
+          title={
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <Text strong className="gba:text-base">{team.name}</Text>
+              <Tag color={team.status === 'Active' ? 'green' : 'red'} className="gba:text-xs">
+                {team.status}
+              </Tag>
+            </div>
+          }
+          description={
+            <div className="gba:space-y-2">
+              {team.description && (
+                <Text type="secondary" className="gba:text-sm gba:block">
+                  {team.description}
+                </Text>
+              )}
+              
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <Tag color="blue" className="gba:text-xs">
+                  Rank {team.rank}
+                </Tag>
+                <Text type="secondary" className="gba:text-xs">
+                  <CalendarOutlined className="gba:mr-1" />
+                  {team.age}
+                </Text>
+              </div>
+
+              {team.hasLeader ? (
+                <div className="gba:flex gba:items-center gba:space-x-2 gba:pt-2 gba:border-t gba:border-gray-200">
+                  <Avatar 
+                    size="small"
+                    src={imageUrl}
+                    icon={imageUrl ? <FileImageOutlined /> : <UserOutlined />}
+                  />
+                  <div className="gba:flex-1">
+                    <div className="gba:flex gba:items-center gba:space-x-1">
+                      <CrownOutlined className="gba:text-yellow-500 gba:text-xs" />
+                      <Text strong className="gba:text-sm">{team.leaderName}</Text>
+                    </div>
+                    <Text type="secondary" className="gba:text-xs gba:block">
+                      {team.leaderJobPosition}
+                    </Text>
+                    {team.leaderMatrixUnitName && (
+                      <Tag color="purple" className="gba:text-xs gba:mt-1">
+                        {team.leaderMatrixUnitName}
+                      </Tag>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="gba:pt-2 gba:border-t gba:border-gray-200">
+                  <Text type="secondary" className="gba:text-sm">
+                    <UserOutlined className="gba:mr-1" />
+                    No leader assigned
+                  </Text>
+                </div>
+              )}
+            </div>
+          }
+        />
+      </Card>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert
+        message="Error Loading Teams"
+        description={error}
+        type="error"
+        showIcon
+        action={
+          <Button size="small" onClick={refetch}>
+            Retry
           </Button>
-        </Space>
+        }
+      />
+    );
+  }
+
+  const displayTeams = getDisplayTeams();
+
+  return (
+    <div
+      data-testid={`${prefixDataTestId || ''}-TeamsTab`}
+      style={{ 
+        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
+        minHeight: '100%',
+        padding: '24px',
+        borderRadius: '8px'
+      }}
+    >
+      {/* Header */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        marginBottom: '16px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Title level={4} style={{ margin: 0, color: '#1f2937' }}>
+            Matrix Teams
+          </Title>
+          <Tag color="blue">{totalTeams} total</Tag>
+          <Tag color="green">{activeTeams} active</Tag>
+          <Tag color="red">{inactiveTeams} inactive</Tag>
+          <Tag color="orange">{teamsWithLeaders} with leaders</Tag>
+          <Tag color="gray">{teamsWithoutLeaders} without leaders</Tag>
+        </div>
+        <Button 
+          type="primary" 
+          icon={<PlusOutlined />} 
+          onClick={handleAddTeam}
+          data-testid={`${prefixDataTestId || ''}-TeamsTab-AddButton`}
+        >
+          Add Team
+        </Button>
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={filteredTeams}
-        rowKey="id"
-        pagination={{
-          total: filteredTeams.length,
-          pageSize: 10,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} teams`,
-        }}
-        data-testid={`${prefixDataTestId}-teams-table`}
-      />
+      {/* Controls */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '16px',
+        gap: '16px'
+      }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <Input
+            placeholder={t('mdm.search_teams', 'Search teams...')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            prefix={<SearchOutlined />}
+            style={{ width: 300 }}
+            allowClear
+            data-testid={`${prefixDataTestId || ''}-TeamsTab-SearchInput`}
+          />
+          
+          <Select
+            value={statusFilter}
+            onChange={setStatusFilter}
+            style={{ width: 120 }}
+            data-testid={`${prefixDataTestId || ''}-TeamsTab-StatusFilter`}
+          >
+            <Option value="All">All</Option>
+            <Option value="Active">Active</Option>
+            <Option value="Inactive">Inactive</Option>
+          </Select>
 
+          <Select
+            value={sortBy}
+            onChange={setSortBy}
+            style={{ width: 150 }}
+            data-testid={`${prefixDataTestId || ''}-TeamsTab-SortBy`}
+          >
+            <Option value="rank">By Rank</Option>
+            <Option value="name">By Name</Option>
+            <Option value="created">By Created Date</Option>
+            <Option value="leader">By Leader</Option>
+          </Select>
+        </div>
+        
+        <div>
+          <Button.Group>
+            <Button
+              icon={<AppstoreOutlined />}
+              type={viewMode === 'cards' ? 'primary' : 'default'}
+              onClick={() => setViewMode('cards')}
+              data-testid={`${prefixDataTestId || ''}-TeamsTab-CardsView`}
+            >
+              Cards
+            </Button>
+            <Button
+              icon={<BarsOutlined />}
+              type={viewMode === 'table' ? 'primary' : 'default'}
+              onClick={() => setViewMode('table')}
+              data-testid={`${prefixDataTestId || ''}-TeamsTab-TableView`}
+            >
+              Table
+            </Button>
+          </Button.Group>
+        </div>
+      </div>
+
+      {/* Content */}
+      {displayTeams.length > 0 ? (
+        <div style={{
+          background: 'white',
+          borderRadius: '8px',
+          padding: viewMode === 'cards' ? '24px' : '0',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}>
+          {viewMode === 'cards' ? (
+            <Row gutter={[16, 16]}>
+              {displayTeams.map(team => (
+                <Col xs={24} sm={12} md={8} lg={6} key={team.id}>
+                  {renderTeamCard(team)}
+                </Col>
+              ))}
+            </Row>
+          ) : (
+            <Table
+              columns={columns}
+              dataSource={displayTeams}
+              rowKey="id"
+              pagination={{
+                pageSize: 20,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) => 
+                  `${range[0]}-${range[1]} of ${total} teams`,
+              }}
+              data-testid={`${prefixDataTestId || ''}-TeamsTab-Table`}
+            />
+          )}
+        </div>
+      ) : (
+        <Empty
+          description="No teams found"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        >
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAddTeam}>
+            Add First Team
+          </Button>
+        </Empty>
+      )}
+
+      {/* Modal for Add/Edit */}
       <Modal
-        title={editingTeam ? 'Edit Team' : 'Add New Team'}
+        title={editingTeam ? 'Edit Matrix Team' : 'Add Matrix Team'}
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
         width={600}
-        data-testid={`${prefixDataTestId}-team-modal`}
+        data-testid={`${prefixDataTestId || ''}-TeamsTab-Modal`}
       >
         <Form
           form={form}
           layout="vertical"
-          data-testid={`${prefixDataTestId}-team-form`}
+          data-testid={`${prefixDataTestId || ''}-TeamsTab-Form`}
         >
           <Form.Item
-            label="Name"
+            label="Team Name"
             name="name"
-            rules={[{ required: true, message: 'Please input the team name!' }]}
+            rules={[{ required: true, message: 'Please enter team name' }]}
           >
             <Input placeholder="Enter team name" />
           </Form.Item>
-
-          <Form.Item
-            label="Code"
-            name="code"
-            rules={[{ required: true, message: 'Please input the team code!' }]}
-          >
-            <Input placeholder="Enter team code" />
-          </Form.Item>
-
-          <Form.Item
-            label="Team Lead"
-            name="teamLead"
-            rules={[{ required: true, message: 'Please input the team lead!' }]}
-          >
-            <Input placeholder="Enter team lead name" />
-          </Form.Item>
-
-          <Form.Item
-            label="Department"
-            name="department"
-            rules={[{ required: true, message: 'Please select the department!' }]}
-          >
-            <Select placeholder="Select department">
-              <Option value="Engineering">Engineering</Option>
-              <Option value="Product">Product</Option>
-              <Option value="Marketing">Marketing</Option>
-              <Option value="Sales">Sales</Option>
-              <Option value="HR">HR</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="Member Count"
-            name="memberCount"
-            rules={[{ required: true, message: 'Please input the member count!' }]}
-          >
-            <Input type="number" placeholder="Enter member count" />
-          </Form.Item>
-
-          <Form.Item
-            label="Focus"
-            name="focus"
-            rules={[{ required: true, message: 'Please input the team focus!' }]}
-          >
-            <Input placeholder="Enter team focus area" />
-          </Form.Item>
-
-          <Form.Item
-            label="Team Type"
-            name="teamType"
-            rules={[{ required: true, message: 'Please select the team type!' }]}
-          >
-            <Select placeholder="Select team type">
-              <Option value="Development">Development</Option>
-              <Option value="Operations">Operations</Option>
-              <Option value="Strategy">Strategy</Option>
-              <Option value="Quality">Quality</Option>
-              <Option value="Support">Support</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="Location"
-            name="location"
-            rules={[{ required: true, message: 'Please select the location!' }]}
-          >
-            <Select placeholder="Select location">
-              <Option value="Hamburg">Hamburg</Option>
-              <Option value="Berlin">Berlin</Option>
-              <Option value="Vienna">Vienna</Option>
-              <Option value="Munich">Munich</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="Created Date"
-            name="createdDate"
-            rules={[{ required: true, message: 'Please input the created date!' }]}
-          >
-            <Input type="date" />
-          </Form.Item>
-
-          <Form.Item
-            label="Status"
-            name="status"
-            rules={[{ required: true, message: 'Please select the status!' }]}
-          >
-            <Select placeholder="Select status">
-              <Option value="Active">Active</Option>
-              <Option value="Inactive">Inactive</Option>
-            </Select>
-          </Form.Item>
-
+          
           <Form.Item
             label="Description"
             name="description"
           >
-            <Input.TextArea
-              placeholder="Enter team description"
+            <Input.TextArea 
+              placeholder="Enter team description (optional)" 
               rows={3}
             />
+          </Form.Item>
+
+          <Form.Item
+            label="Rank"
+            name="rank"
+            rules={[{ required: true, message: 'Please enter team rank' }]}
+          >
+            <Input type="number" placeholder="Enter team rank" />
           </Form.Item>
         </Form>
       </Modal>

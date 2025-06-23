@@ -1,143 +1,80 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, message, Modal, Form, Select, Tag } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, DollarOutlined } from '@ant-design/icons';
+import { 
+  Table, 
+  Button, 
+  Space, 
+  Typography, 
+  message, 
+  Modal, 
+  Form, 
+  Tag, 
+  Spin, 
+  Alert,
+  Tooltip,
+  Empty,
+  Divider,
+  Input
+} from 'antd';
+import { 
+  PlusOutlined, 
+  EditOutlined, 
+  DeleteOutlined, 
+  BankOutlined,
+  UserOutlined,
+  TeamOutlined,
+  EnvironmentOutlined,
+  DownOutlined,
+  RightOutlined
+} from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCostCenters } from '../../hooks';
+import { CostCenter, CostCenterEmployee, CostCenterOrganizationalUnit } from '../../types';
 
-const { Title } = Typography;
-const { Option } = Select;
-
-export interface CostCenter {
-  id: string;
-  name: string;
-  code: string;
-  description?: string;
-  department: string;
-  manager: string;
-  budget: number;
-  currency: string;
-  status: 'Active' | 'Inactive';
-  validFrom: string;
-  validTo?: string;
-  parentCostCenter?: string;
-}
+const { Title, Text } = Typography;
 
 export interface CostCentersTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
-// Mock data for demonstration
-const mockCostCenters: CostCenter[] = [
-  {
-    id: '1',
-    name: 'Engineering',
-    code: 'ENG001',
-    description: 'Software engineering and development',
-    department: 'Technology',
-    manager: 'John Smith',
-    budget: 500000,
-    currency: 'EUR',
-    status: 'Active',
-    validFrom: '2024-01-01',
-    validTo: '2024-12-31'
-  },
-  {
-    id: '2',
-    name: 'Marketing',
-    code: 'MKT001',
-    description: 'Marketing and brand management',
-    department: 'Marketing',
-    manager: 'Jane Doe',
-    budget: 250000,
-    currency: 'EUR',
-    status: 'Active',
-    validFrom: '2024-01-01',
-    validTo: '2024-12-31'
-  },
-  {
-    id: '3',
-    name: 'Human Resources',
-    code: 'HR001',
-    description: 'HR operations and talent management',
-    department: 'Human Resources',
-    manager: 'Mike Johnson',
-    budget: 150000,
-    currency: 'EUR',
-    status: 'Active',
-    validFrom: '2024-01-01',
-    validTo: '2024-12-31'
-  },
-  {
-    id: '4',
-    name: 'Sales Europe',
-    code: 'SAL001',
-    description: 'European sales operations',
-    department: 'Sales',
-    manager: 'Sarah Wilson',
-    budget: 300000,
-    currency: 'EUR',
-    status: 'Active',
-    validFrom: '2024-01-01',
-    validTo: '2024-12-31'
-  },
-  {
-    id: '5',
-    name: 'Research & Development',
-    code: 'RND001',
-    description: 'Product research and development',
-    department: 'Technology',
-    manager: 'David Brown',
-    budget: 400000,
-    currency: 'EUR',
-    status: 'Inactive',
-    validFrom: '2023-01-01',
-    validTo: '2023-12-31'
-  }
-];
-
-const CostCentersTab: React.FC<CostCentersTabProps> = ({ 
-  prefixDataTestId 
-}) => {
+const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
   const { t } = useTranslation();
+  const { prefixDataTestId } = context;
   
-  const [costCenters, setCostCenters] = useState<CostCenter[]>(mockCostCenters);
+  const {
+    costCenters,
+    isLoading,
+    error,
+    refetch,
+    totalCostCenters,
+    activeCostCenters,
+    costCentersWithLocation,
+    totalEmployeeCount
+  } = useCostCenters(context);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingCostCenter, setEditingCostCenter] = useState<CostCenter | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [form] = Form.useForm();
 
   const filteredCostCenters = costCenters.filter(costCenter => 
     costCenter.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     costCenter.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    costCenter.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    costCenter.manager.toLowerCase().includes(searchTerm.toLowerCase())
+    costCenter.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (costCenter.siteLocationName && costCenter.siteLocationName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleAdd = () => {
-    setEditingCostCenter(null);
-    form.resetFields();
-    setIsModalVisible(true);
+    message.warning('Add cost center functionality will be implemented with process API integration');
   };
 
   const handleEdit = (record: CostCenter) => {
-    setEditingCostCenter(record);
-    form.setFieldsValue({
-      name: record.name,
-      code: record.code,
-      description: record.description,
-      department: record.department,
-      manager: record.manager,
-      budget: record.budget,
-      currency: record.currency,
-      status: record.status,
-      validFrom: record.validFrom,
-      validTo: record.validTo,
-      parentCostCenter: record.parentCostCenter,
-    });
-    setIsModalVisible(true);
+    message.warning('Edit cost center functionality will be implemented with process API integration');
   };
 
-  const handleDelete = async (record: CostCenter) => {
+  const handleDelete = (record: CostCenter) => {
     Modal.confirm({
       title: 'Delete Cost Center',
       content: `Are you sure you want to delete "${record.name}"?`,
@@ -145,297 +82,319 @@ const CostCentersTab: React.FC<CostCentersTabProps> = ({
       okType: 'danger',
       cancelText: 'Cancel',
       onOk: async () => {
-        try {
-          setCostCenters(prev => prev.filter(costCenter => costCenter.id !== record.id));
-          message.success('Cost center deleted successfully');
-        } catch (error) {
-          console.error('Error deleting cost center:', error);
-          message.error('Failed to delete cost center');
-        }
+        message.warning('Delete functionality will be implemented with process API integration');
+        await refetch();
       },
     });
   };
 
-  const handleModalOk = async () => {
-    try {
-      const values = await form.validateFields();
-      
-      if (editingCostCenter) {
-        // Update existing cost center
-        setCostCenters(prev => 
-          prev.map(costCenter => 
-            costCenter.id === editingCostCenter.id 
-              ? { ...costCenter, ...values }
-              : costCenter
-          )
-        );
-        message.success('Cost center updated successfully');
-      } else {
-        // Create new cost center
-        const newCostCenter: CostCenter = {
-          id: Date.now().toString(),
-          ...values
-        };
-        setCostCenters(prev => [...prev, newCostCenter]);
-        message.success('Cost center created successfully');
-      }
-      
-      setIsModalVisible(false);
-      form.resetFields();
-    } catch (error) {
-      console.error('Validation failed:', error);
+  const handleExpandRow = (costCenterId: string) => {
+    const newExpandedRows = new Set(expandedRows);
+    if (newExpandedRows.has(costCenterId)) {
+      newExpandedRows.delete(costCenterId);
+    } else {
+      newExpandedRows.add(costCenterId);
+    }
+    setExpandedRows(newExpandedRows);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Active':
+        return 'green';
+      case 'Inactive':
+        return 'red';
+      default:
+        return 'default';
     }
   };
 
-  const handleModalCancel = () => {
-    setIsModalVisible(false);
-    form.resetFields();
+  const renderEmployeeList = (employees: CostCenterEmployee[]) => {
+    if (employees.length === 0) {
+      return <Empty description="No employees assigned" />;
+    }
+
+    return (
+      <div className="gba:space-y-2">
+        {employees.map((employee, index) => (
+          <div key={`${employee.employeeId}-${index}`} className="gba:flex gba:items-center gba:space-x-3 gba:p-2 gba:bg-gray-50 gba:rounded">
+            <UserOutlined className="gba:text-blue-500" />
+            <div className="gba:flex-1">
+              <Text strong>{employee.employeeFirstName} {employee.employeeLastName}</Text>
+              <div className="gba:text-sm gba:text-gray-600">
+                ID: {employee.employeeId}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
-  const columns = [
+  const renderOrganizationalUnitList = (orgUnits: CostCenterOrganizationalUnit[]) => {
+    if (orgUnits.length === 0) {
+      return <Empty description="No organizational units assigned" />;
+    }
+
+    return (
+      <div className="gba:space-y-2">
+        {orgUnits.map((orgUnit) => (
+          <div key={orgUnit.organizationalUnitId} className="gba:flex gba:items-center gba:space-x-3 gba:p-2 gba:bg-gray-50 gba:rounded">
+            <TeamOutlined className="gba:text-purple-500" />
+            <div className="gba:flex-1">
+              <Text strong>{orgUnit.organizationalUnitName}</Text>
+              <div className="gba:text-sm gba:text-gray-600">
+                ID: {orgUnit.organizationalUnitId}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const columns: ColumnsType<CostCenter> = [
     {
-      title: 'Name',
+      title: '',
+      key: 'expand',
+      width: 40,
+      render: (_, record) => (
+        <Button
+          type="text"
+          size="small"
+          icon={expandedRows.has(record.id) ? <DownOutlined /> : <RightOutlined />}
+          onClick={() => handleExpandRow(record.id)}
+          data-testid={`${prefixDataTestId}-expand-${record.id}`}
+        />
+      ),
+    },
+    {
+      title: 'Cost Center',
       dataIndex: 'name',
       key: 'name',
-      sorter: (a: CostCenter, b: CostCenter) => a.name.localeCompare(b.name),
+      sorter: (a, b) => a.name.localeCompare(b.name),
+      render: (text: string, record: CostCenter) => (
+        <div className="gba:flex gba:items-center gba:space-x-3">
+          <BankOutlined className="gba:text-green-500" />
+          <div>
+            <Text strong className="gba:text-base">{text}</Text>
+            <Tag color="blue" className="gba:ml-2 gba:text-xs">
+              {record.code}
+            </Tag>
+            {record.description && (
+              <div className="gba:text-sm gba:text-gray-600 gba:mt-1">
+                <Tooltip title={record.description}>
+                  <Text ellipsis style={{ maxWidth: 200 }}>
+                    {record.description}
+                  </Text>
+                </Tooltip>
+              </div>
+            )}
+          </div>
+        </div>
+      ),
     },
     {
-      title: 'Code',
-      dataIndex: 'code',
-      key: 'code',
-      sorter: (a: CostCenter, b: CostCenter) => a.code.localeCompare(b.code),
+      title: 'Location',
+      key: 'location',
+      render: (_, record: CostCenter) => (
+        <div className="gba:space-y-1">
+          {record.siteLocationName ? (
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <EnvironmentOutlined className="gba:text-green-500" />
+              <Text>{record.siteLocationName}</Text>
+            </div>
+          ) : (
+            <Text type="secondary" italic>No location assigned</Text>
+          )}
+        </div>
+      ),
     },
     {
-      title: 'Department',
-      dataIndex: 'department',
-      key: 'department',
-      filters: [
-        { text: 'Technology', value: 'Technology' },
-        { text: 'Marketing', value: 'Marketing' },
-        { text: 'Human Resources', value: 'Human Resources' },
-        { text: 'Sales', value: 'Sales' },
-      ],
-      onFilter: (value: any, record: CostCenter) => record.department === value,
-    },
-    {
-      title: 'Manager',
-      dataIndex: 'manager',
-      key: 'manager',
-    },
-    {
-      title: 'Budget',
-      dataIndex: 'budget',
-      key: 'budget',
-      render: (budget: number, record: CostCenter) => 
-        `${budget.toLocaleString()} ${record.currency}`,
-      sorter: (a: CostCenter, b: CostCenter) => a.budget - b.budget,
-    },
-    {
-      title: 'Valid Period',
-      key: 'validPeriod',
-      render: (_: any, record: CostCenter) => 
-        `${record.validFrom} - ${record.validTo || 'Ongoing'}`,
+      title: 'Statistics',
+      key: 'statistics',
+      render: (_, record: CostCenter) => (
+        <div className="gba:flex gba:flex-col gba:space-y-1">
+          <Tag color="blue" icon={<UserOutlined />}>
+            {record.employeeCount} employees
+          </Tag>
+          <Tag color="purple" icon={<TeamOutlined />}>
+            {record.organizationalUnitCount} org units
+          </Tag>
+        </div>
+      ),
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => (
-        <Tag color={status === 'Active' ? 'green' : 'red'}>
-          {status}
-        </Tag>
-      ),
       filters: [
         { text: 'Active', value: 'Active' },
         { text: 'Inactive', value: 'Inactive' },
       ],
-      onFilter: (value: any, record: CostCenter) => record.status === value,
+      onFilter: (value, record) => record.status === value,
+      render: (status: string) => (
+        <Tag color={getStatusColor(status)}>{status}</Tag>
+      ),
     },
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: CostCenter) => (
-        <Space size="middle">
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-            data-testid={`${prefixDataTestId}-edit-cost-center-${record.id}`}
-          >
-            Edit
-          </Button>
-          <Button
-            type="link"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            data-testid={`${prefixDataTestId}-delete-cost-center-${record.id}`}
-          >
-            Delete
-          </Button>
+      width: 120,
+      render: (_, record: CostCenter) => (
+        <Space size="small">
+          <Tooltip title="Edit Cost Center">
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+              data-testid={`${prefixDataTestId}-edit-${record.id}`}
+            />
+          </Tooltip>
+          <Tooltip title="Delete Cost Center">
+            <Button
+              type="text"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record)}
+              data-testid={`${prefixDataTestId}-delete-${record.id}`}
+            />
+          </Tooltip>
         </Space>
       ),
     },
   ];
 
-  return (
-    <div data-testid={`${prefixDataTestId}-CostCentersTab`}>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={3} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <DollarOutlined />
-          {t('hr.cost_centers', 'Cost Centers')}
-        </Title>
-        <Space>
-          <Input
-            placeholder="Search cost centers..."
-            prefix={<SearchOutlined />}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ width: 250 }}
-            data-testid={`${prefixDataTestId}-search-cost-centers`}
-          />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            data-testid={`${prefixDataTestId}-add-cost-center`}
-          >
-            Add Cost Center
+  if (isLoading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert
+        message="Error Loading Cost Centers"
+        description={error}
+        type="error"
+        showIcon
+        action={
+          <Button size="small" onClick={refetch}>
+            Retry
           </Button>
-        </Space>
+        }
+      />
+    );
+  }
+
+  return (
+    <div
+      data-testid={`${prefixDataTestId || ''}-CostCentersTab`}
+      style={{ 
+        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
+        minHeight: '100%',
+        padding: '24px',
+        borderRadius: '8px'
+      }}
+    >
+      {/* Header */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        marginBottom: '16px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Title level={4} style={{ margin: 0, color: '#1f2937' }}>
+            Cost Centers
+          </Title>
+          <Tag color="blue">{totalCostCenters} cost centers</Tag>
+          <Tag color="green">{activeCostCenters} active</Tag>
+          <Tag color="orange">{costCentersWithLocation} with location</Tag>
+          <Tag color="purple">{totalEmployeeCount} total employees</Tag>
+        </div>
+        <Button 
+          type="primary" 
+          icon={<PlusOutlined />} 
+          onClick={handleAdd}
+          data-testid={`${prefixDataTestId || ''}-CostCentersTab-AddButton`}
+        >
+          Add Cost Center
+        </Button>
       </div>
 
+      {/* Search */}
+      <div style={{ marginBottom: '16px' }}>
+        <Input
+          placeholder={t('hr.search_cost_centers', 'Search cost centers...')}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          prefix={<BankOutlined />}
+          style={{ width: 300 }}
+          allowClear
+          data-testid={`${prefixDataTestId || ''}-CostCentersTab-SearchInput`}
+        />
+      </div>
+
+      {/* Table */}
       <Table
         columns={columns}
         dataSource={filteredCostCenters}
         rowKey="id"
+        loading={isLoading}
         pagination={{
-          total: filteredCostCenters.length,
-          pageSize: 10,
+          pageSize: 20,
           showSizeChanger: true,
           showQuickJumper: true,
-          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} cost centers`,
+          showTotal: (total, range) => 
+            `${range[0]}-${range[1]} of ${total} cost centers`,
         }}
-        data-testid={`${prefixDataTestId}-cost-centers-table`}
+        expandable={{
+          expandedRowKeys: Array.from(expandedRows),
+          onExpand: (expanded, record) => handleExpandRow(record.id),
+          expandRowByClick: false,
+          expandedRowRender: (record) => (
+            <div style={{ padding: '16px', backgroundColor: '#f8f9fa' }}>
+              <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-6">
+                <div>
+                  <Title level={5} className="gba:flex gba:items-center gba:gap-2">
+                    <UserOutlined className="gba:text-blue-500" />
+                    Employees ({record.employeeCount})
+                  </Title>
+                  {renderEmployeeList(record.employees)}
+                </div>
+                <div>
+                  <Title level={5} className="gba:flex gba:items-center gba:gap-2">
+                    <TeamOutlined className="gba:text-purple-500" />
+                    Organizational Units ({record.organizationalUnitCount})
+                  </Title>
+                  {renderOrganizationalUnitList(record.organizationalUnits)}
+                </div>
+              </div>
+              {record.additionalProperties && Object.keys(record.additionalProperties).length > 0 && (
+                <div className="gba:mt-4">
+                  <Title level={5}>Additional Properties</Title>
+                  <div className="gba:bg-gray-50 gba:p-3 gba:rounded">
+                    <pre className="gba:text-sm gba:text-gray-700">
+                      {JSON.stringify(record.additionalProperties, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          ),
+        }}
+        data-testid={`${prefixDataTestId || ''}-CostCentersTab-Table`}
+        style={{
+          background: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}
       />
-
-      <Modal
-        title={editingCostCenter ? 'Edit Cost Center' : 'Add New Cost Center'}
-        open={isModalVisible}
-        onOk={handleModalOk}
-        onCancel={handleModalCancel}
-        width={600}
-        data-testid={`${prefixDataTestId}-cost-center-modal`}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          data-testid={`${prefixDataTestId}-cost-center-form`}
-        >
-          <Form.Item
-            label="Name"
-            name="name"
-            rules={[{ required: true, message: 'Please input the cost center name!' }]}
-          >
-            <Input placeholder="Enter cost center name" />
-          </Form.Item>
-
-          <Form.Item
-            label="Code"
-            name="code"
-            rules={[{ required: true, message: 'Please input the cost center code!' }]}
-          >
-            <Input placeholder="Enter cost center code" />
-          </Form.Item>
-
-          <Form.Item
-            label="Department"
-            name="department"
-            rules={[{ required: true, message: 'Please select the department!' }]}
-          >
-            <Select placeholder="Select department">
-              <Option value="Technology">Technology</Option>
-              <Option value="Marketing">Marketing</Option>
-              <Option value="Human Resources">Human Resources</Option>
-              <Option value="Sales">Sales</Option>
-              <Option value="Finance">Finance</Option>
-              <Option value="Operations">Operations</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="Manager"
-            name="manager"
-            rules={[{ required: true, message: 'Please input the manager name!' }]}
-          >
-            <Input placeholder="Enter manager name" />
-          </Form.Item>
-
-          <Form.Item
-            label="Budget"
-            name="budget"
-            rules={[{ required: true, message: 'Please input the budget!' }]}
-          >
-            <Input type="number" placeholder="Enter budget amount" />
-          </Form.Item>
-
-          <Form.Item
-            label="Currency"
-            name="currency"
-            initialValue="EUR"
-            rules={[{ required: true, message: 'Please select the currency!' }]}
-          >
-            <Select placeholder="Select currency">
-              <Option value="EUR">EUR</Option>
-              <Option value="USD">USD</Option>
-              <Option value="GBP">GBP</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="Valid From"
-            name="validFrom"
-            rules={[{ required: true, message: 'Please input the valid from date!' }]}
-          >
-            <Input type="date" />
-          </Form.Item>
-
-          <Form.Item
-            label="Valid To"
-            name="validTo"
-          >
-            <Input type="date" />
-          </Form.Item>
-
-          <Form.Item
-            label="Status"
-            name="status"
-            rules={[{ required: true, message: 'Please select the status!' }]}
-          >
-            <Select placeholder="Select status">
-              <Option value="Active">Active</Option>
-              <Option value="Inactive">Inactive</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="Parent Cost Center"
-            name="parentCostCenter"
-          >
-            <Input placeholder="Enter parent cost center (optional)" />
-          </Form.Item>
-
-          <Form.Item
-            label="Description"
-            name="description"
-          >
-            <Input.TextArea
-              placeholder="Enter cost center description"
-              rows={3}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   );
 };

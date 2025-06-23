@@ -20,7 +20,7 @@ const GROUP_COLORS = [
   'gba:bg-red-400'
 ];
 
-export const useJobStructureDataIntegration = (context: BusinessAppContextProps) => {
+export const useJobLevels = (context: BusinessAppContextProps) => {
   const [jobLevelGroups, setJobLevelGroups] = useState<JobLevelGroup[]>([]);
   const [jobLevels, setJobLevels] = useState<JobLevel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -129,7 +129,7 @@ export const useJobStructureDataIntegration = (context: BusinessAppContextProps)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setError(errorMessage);
-      console.error('Error loading job structure data:', err);
+      console.error('Error loading job levels data:', err);
     } finally {
       setIsLoading(false);
     }

@@ -50,6 +50,7 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
     toggleFamilyExpansion,
     expandToLevel,
     collapseAll,
+    setExpandedIds,
     getFamilyById,
     searchFamilies
   } = useJobFamilies(context);
@@ -73,7 +74,7 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
                 <Tag color="blue" className="gba:text-xs">
                   {family.code}
                 </Tag>
-                {family.hasChildren && (
+                {family.children.length > 0 && (
                   <Tag color="green" className="gba:text-xs">
                     {family.children.length} children
                   </Tag>
@@ -121,11 +122,11 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
           </Space>
         </div>
       ),
-      icon: family.hasChildren 
+      icon: family.children.length > 0 
         ? (expandedIds.has(family.id) ? <FolderOpenOutlined /> : <FolderOutlined />)
         : <FolderOutlined />,
-      children: family.hasChildren ? convertToTreeData(family.children) : undefined,
-      isLeaf: !family.hasChildren
+      children: family.children.length > 0 ? convertToTreeData(family.children) : undefined,
+      isLeaf: family.children.length === 0
     }));
   };
 
@@ -203,19 +204,9 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
   };
 
   const handleExpand = (expandedKeys: React.Key[]) => {
-    // Update expansion state based on tree interaction
-    expandedKeys.forEach(key => {
-      if (!expandedIds.has(key as string)) {
-        toggleFamilyExpansion(key as string);
-      }
-    });
-    
-    // Handle collapse
-    Array.from(expandedIds).forEach(id => {
-      if (!expandedKeys.includes(id)) {
-        toggleFamilyExpansion(id);
-      }
-    });
+    // Directly set the expanded IDs to match the tree component
+    const newExpandedIds = new Set(expandedKeys.map(key => key.toString()));
+    setExpandedIds(newExpandedIds);
   };
 
   // Filter tree data based on search

@@ -1,158 +1,55 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, message, Modal, Form, Spin } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
+import { Table, Button, Input, Space, Typography, Modal, Form, Spin, Alert } from 'antd';
+import { SearchOutlined, EyeOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useJobFunctions } from '../../hooks/useJobFunctions';
+import { JobFunction } from '../../types';
 
 const { Title } = Typography;
-
-export interface JobFunction {
-  id: string;
-  name: string;
-  code: string;
-  description?: string;
-  level: number;
-  category: string;
-}
 
 export interface JobFunctionsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
-// Mock data for demonstration
-const mockJobFunctions: JobFunction[] = [
-  {
-    id: '1',
-    name: 'Software Engineering',
-    code: 'SE',
-    description: 'Design, develop, and maintain software applications',
-    level: 3,
-    category: 'Technology'
-  },
-  {
-    id: '2',
-    name: 'Product Management',
-    code: 'PM',
-    description: 'Define product strategy and manage product lifecycle',
-    level: 4,
-    category: 'Product'
-  },
-  {
-    id: '3',
-    name: 'Human Resources',
-    code: 'HR',
-    description: 'Manage employee relations and organizational development',
-    level: 3,
-    category: 'Operations'
-  },
-  {
-    id: '4',
-    name: 'Sales',
-    code: 'SA',
-    description: 'Drive revenue through customer acquisition and retention',
-    level: 2,
-    category: 'Business'
-  },
-  {
-    id: '5',
-    name: 'Marketing',
-    code: 'MK',
-    description: 'Develop and execute marketing strategies',
-    level: 3,
-    category: 'Business'
-  }
-];
-
-const JobFunctionsTab: React.FC<JobFunctionsTabProps> = ({ 
-  prefixDataTestId 
-}) => {
+const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
   const { t } = useTranslation();
+  const { prefixDataTestId } = context;
   
-  const [jobFunctions, setJobFunctions] = useState<JobFunction[]>(mockJobFunctions);
-  const [loading, setLoading] = useState(false);
+  const { 
+    jobFunctions, 
+    totalCount, 
+    isLoading, 
+    error, 
+    refetch,
+    searchJobFunctions 
+  } = useJobFunctions(context);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingFunction, setEditingFunction] = useState<JobFunction | null>(null);
+  const [viewingFunction, setViewingFunction] = useState<JobFunction | null>(null);
   const [form] = Form.useForm();
 
-  const filteredFunctions = jobFunctions.filter(func => 
-    func.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    func.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    func.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    func.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredFunctions = searchTerm 
+    ? searchJobFunctions(searchTerm)
+    : jobFunctions;
 
-  const handleAdd = () => {
-    setEditingFunction(null);
-    form.resetFields();
-    setIsModalVisible(true);
-  };
-
-  const handleEdit = (record: JobFunction) => {
-    setEditingFunction(record);
+  const handleView = (record: JobFunction) => {
+    setViewingFunction(record);
     form.setFieldsValue({
       name: record.name,
-      code: record.code,
-      description: record.description,
-      level: record.level,
-      category: record.category,
+      code: record.code || '',
+      description: record.description || '',
+      jobFamily: record.jobFamily?.value || 'Not assigned',
+      jobLevelGroup: record.jobLevelGroup?.value || 'Not assigned',
     });
     setIsModalVisible(true);
-  };
-
-  const handleDelete = async (record: JobFunction) => {
-    Modal.confirm({
-      title: 'Delete Job Function',
-      content: `Are you sure you want to delete "${record.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          setJobFunctions(prev => prev.filter(func => func.id !== record.id));
-          message.success('Job function deleted successfully');
-        } catch (error) {
-          console.error('Error deleting job function:', error);
-          message.error('Failed to delete job function');
-        }
-      },
-    });
-  };
-
-  const handleModalOk = async () => {
-    try {
-      const values = await form.validateFields();
-      
-      if (editingFunction) {
-        // Update existing function
-        setJobFunctions(prev => 
-          prev.map(func => 
-            func.id === editingFunction.id 
-              ? { ...func, ...values }
-              : func
-          )
-        );
-        message.success('Job function updated successfully');
-      } else {
-        // Create new function
-        const newFunction: JobFunction = {
-          id: Date.now().toString(),
-          ...values
-        };
-        setJobFunctions(prev => [...prev, newFunction]);
-        message.success('Job function created successfully');
-      }
-      
-      setIsModalVisible(false);
-    } catch (error) {
-      console.error('Error saving job function:', error);
-      message.error('Failed to save job function');
-    }
   };
 
   const handleModalCancel = () => {
     setIsModalVisible(false);
     form.resetFields();
+    setViewingFunction(null);
   };
 
   const columns = [
@@ -161,7 +58,8 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = ({
       dataIndex: 'code',
       key: 'code',
       width: 100,
-      sorter: (a: JobFunction, b: JobFunction) => a.code.localeCompare(b.code),
+      sorter: (a: JobFunction, b: JobFunction) => (a.code || '').localeCompare(b.code || ''),
+      render: (code: string) => code || 'N/A'
     },
     {
       title: 'Name',
@@ -170,48 +68,59 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = ({
       sorter: (a: JobFunction, b: JobFunction) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Category',
-      dataIndex: 'category',
-      key: 'category',
-      width: 120,
-      sorter: (a: JobFunction, b: JobFunction) => a.category.localeCompare(b.category),
+      title: 'Job Family',
+      dataIndex: ['jobFamily', 'value'],
+      key: 'jobFamily',
+      width: 150,
+      render: (value: string) => value || 'Not assigned',
     },
     {
-      title: 'Level',
-      dataIndex: 'level',
-      key: 'level',
-      width: 80,
-      sorter: (a: JobFunction, b: JobFunction) => a.level - b.level,
+      title: 'Job Level Group',
+      dataIndex: ['jobLevelGroup', 'value'],
+      key: 'jobLevelGroup',
+      width: 150,
+      render: (value: string) => value || 'Not assigned',
     },
     {
       title: 'Description',
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
+      render: (description: string) => description || 'No description',
     },
     {
       title: 'Actions',
       key: 'actions',
-      width: 120,
+      width: 80,
       render: (_: any, record: JobFunction) => (
-        <Space size="small">
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-            size="small"
-          />
-          <Button
-            type="text"
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            size="small"
-            danger
-          />
-        </Space>
+        <Button
+          type="text"
+          icon={<EyeOutlined />}
+          onClick={() => handleView(record)}
+          size="small"
+          title="View Details"
+        />
       ),
     },
   ];
+
+  if (error) {
+    return (
+      <div style={{ padding: '24px' }}>
+        <Alert
+          message="Error Loading Job Functions"
+          description={error}
+          type="error"
+          showIcon
+          action={
+            <Button size="small" onClick={() => refetch()}>
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -231,16 +140,8 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = ({
           marginBottom: '16px'
         }}>
           <Title level={4} style={{ margin: 0, color: '#1f2937' }}>
-            {t('hr.job_functions', 'Job Functions')}
+            {t('hr.job_functions', 'Job Functions')} ({totalCount})
           </Title>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            data-testid={`${prefixDataTestId || ''}-JobFunctionsTab-AddButton`}
-          >
-            Add Job Function
-          </Button>
         </div>
         
         <Input
@@ -254,7 +155,7 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = ({
         />
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div style={{ textAlign: 'center', padding: '40px' }}>
           <Spin size="large" />
         </div>
@@ -276,10 +177,14 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = ({
       )}
 
       <Modal
-        title={editingFunction ? 'Edit Job Function' : 'Add Job Function'}
+        title="Job Function Details"
         open={isModalVisible}
-        onOk={handleModalOk}
         onCancel={handleModalCancel}
+        footer={[
+          <Button key="close" onClick={handleModalCancel}>
+            Close
+          </Button>
+        ]}
         width={600}
         data-testid={`${prefixDataTestId || ''}-JobFunctionsTab-Modal`}
       >
@@ -289,54 +194,27 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = ({
           data-testid={`${prefixDataTestId || ''}-JobFunctionsTab-Form`}
         >
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Form.Item
-              label="Name"
-              name="name"
-              rules={[{ required: true, message: 'Please enter a name' }]}
-            >
-              <Input placeholder="Enter job function name" />
+            <Form.Item label="Name" name="name">
+              <Input disabled />
             </Form.Item>
             
-            <Form.Item
-              label="Code"
-              name="code"
-              rules={[{ required: true, message: 'Please enter a code' }]}
-            >
-              <Input placeholder="Enter job function code" />
+            <Form.Item label="Code" name="code">
+              <Input disabled />
             </Form.Item>
           </div>
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Form.Item
-              label="Category"
-              name="category"
-              rules={[{ required: true, message: 'Please enter a category' }]}
-            >
-              <Input placeholder="Enter category" />
+            <Form.Item label="Job Family" name="jobFamily">
+              <Input disabled />
             </Form.Item>
             
-            <Form.Item
-              label="Level"
-              name="level"
-              rules={[{ required: true, message: 'Please enter a level' }]}
-            >
-              <Input 
-                type="number" 
-                placeholder="Enter level (1-5)" 
-                min={1}
-                max={5}
-              />
+            <Form.Item label="Job Level Group" name="jobLevelGroup">
+              <Input disabled />
             </Form.Item>
           </div>
           
-          <Form.Item
-            label="Description"
-            name="description"
-          >
-            <Input.TextArea 
-              placeholder="Enter description (optional)" 
-              rows={3}
-            />
+          <Form.Item label="Description" name="description">
+            <Input.TextArea disabled rows={3} />
           </Form.Item>
         </Form>
       </Modal>

@@ -1,7 +1,7 @@
 ---
 description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # GraphQL Integration Pattern
 
@@ -39,6 +39,7 @@ export const useGetEntityData = (context: BusinessAppContextProps) => {
   return { fetchEntityData };
 };
 ```
+
 
 
 
