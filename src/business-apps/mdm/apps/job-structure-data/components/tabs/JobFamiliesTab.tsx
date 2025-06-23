@@ -1,143 +1,176 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, message, Modal, Form, Spin } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
+import { 
+  Card, 
+  Tree, 
+  Button, 
+  Space, 
+  Typography, 
+  Tag, 
+  Input, 
+  Modal, 
+  Form, 
+  message,
+  Tooltip,
+  Empty
+} from 'antd';
+import { 
+  PlusOutlined, 
+  EditOutlined, 
+  DeleteOutlined, 
+  SearchOutlined,
+  ExpandAltOutlined,
+  CompressOutlined,
+  FolderOutlined,
+  FolderOpenOutlined
+} from '@ant-design/icons';
+import type { DataNode } from 'antd/es/tree';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useJobFamilies } from '../../hooks';
+import { JobFamily } from '../../types';
 
-const { Title } = Typography;
-
-export interface JobFamily {
-  id: string;
-  name: string;
-  code: string;
-  description?: string;
-  category: string;
-  isActive: boolean;
-}
+const { Title, Text } = Typography;
+const { Search } = Input;
 
 export interface JobFamiliesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
-// Mock data for demonstration
-const mockJobFamilies: JobFamily[] = [
-  {
-    id: '1',
-    name: 'Engineering',
-    code: 'ENG',
-    description: 'Software development and technical roles',
-    category: 'Technology',
-    isActive: true
-  },
-  {
-    id: '2',
-    name: 'Product',
-    code: 'PROD',
-    description: 'Product management and strategy roles',
-    category: 'Business',
-    isActive: true
-  },
-  {
-    id: '3',
-    name: 'Design',
-    code: 'DES',
-    description: 'User experience and visual design roles',
-    category: 'Creative',
-    isActive: true
-  },
-  {
-    id: '4',
-    name: 'Sales',
-    code: 'SALES',
-    description: 'Revenue generation and customer acquisition',
-    category: 'Business',
-    isActive: true
-  },
-  {
-    id: '5',
-    name: 'Marketing',
-    code: 'MKT',
-    description: 'Brand management and customer engagement',
-    category: 'Business',
-    isActive: true
-  },
-  {
-    id: '6',
-    name: 'Operations',
-    code: 'OPS',
-    description: 'Business operations and process management',
-    category: 'Operations',
-    isActive: true
-  },
-  {
-    id: '7',
-    name: 'Finance',
-    code: 'FIN',
-    description: 'Financial planning and analysis',
-    category: 'Finance',
-    isActive: true
-  },
-  {
-    id: '8',
-    name: 'Human Resources',
-    code: 'HR',
-    description: 'People operations and talent management',
-    category: 'Operations',
-    isActive: true
-  }
-];
-
-const JobFamiliesTab: React.FC<JobFamiliesTabProps> = ({ 
-  prefixDataTestId 
-}) => {
+const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
   const { t } = useTranslation();
+  const { prefixDataTestId } = context;
   
-  const [jobFamilies, setJobFamilies] = useState<JobFamily[]>(mockJobFamilies);
-  const [searchTerm, setSearchTerm] = useState('');
+  const {
+    rootFamilies,
+    allFamilies,
+    expandedIds,
+    isLoading,
+    error,
+    refetch,
+    toggleFamilyExpansion,
+    expandToLevel,
+    collapseAll,
+    getFamilyById,
+    searchFamilies
+  } = useJobFamilies(context);
+
+  const [searchQuery, setSearchQuery] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingFamily, setEditingFamily] = useState<JobFamily | null>(null);
+  const [selectedParentId, setSelectedParentId] = useState<string>('');
   const [form] = Form.useForm();
 
-  const filteredFamilies = jobFamilies.filter(family => 
-    family.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    family.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    family.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    family.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Convert JobFamily to Ant Design Tree DataNode
+  const convertToTreeData = (families: JobFamily[]): DataNode[] => {
+    return families.map(family => ({
+      key: family.id,
+      title: (
+        <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
+          <div className="gba:flex gba:items-center gba:space-x-3">
+            <div>
+              <Text strong className="gba:text-base">{family.name}</Text>
+              <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
+                <Tag color="blue" className="gba:text-xs">
+                  {family.code}
+                </Tag>
+                {family.hasChildren && (
+                  <Tag color="green" className="gba:text-xs">
+                    {family.children.length} children
+                  </Tag>
+                )}
+                <Tag color="orange" className="gba:text-xs">
+                  Level {family.level}
+                </Tag>
+              </div>
+              {family.description && (
+                <Text type="secondary" className="gba:text-sm gba:block gba:mt-1">
+                  {family.description}
+                </Text>
+              )}
+            </div>
+          </div>
+          <Space size="small" onClick={(e) => e.stopPropagation()}>
+            <Tooltip title="Add Child Family">
+              <Button
+                type="text"
+                size="small"
+                icon={<PlusOutlined />}
+                onClick={() => handleAddChild(family.id)}
+                data-testid={`${prefixDataTestId}-add-child-${family.id}`}
+              />
+            </Tooltip>
+            <Tooltip title="Edit Family">
+              <Button
+                type="text"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => handleEditFamily(family)}
+                data-testid={`${prefixDataTestId}-edit-family-${family.id}`}
+              />
+            </Tooltip>
+            <Tooltip title="Delete Family">
+              <Button
+                type="text"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => handleDeleteFamily(family)}
+                data-testid={`${prefixDataTestId}-delete-family-${family.id}`}
+              />
+            </Tooltip>
+          </Space>
+        </div>
+      ),
+      icon: family.hasChildren 
+        ? (expandedIds.has(family.id) ? <FolderOpenOutlined /> : <FolderOutlined />)
+        : <FolderOutlined />,
+      children: family.hasChildren ? convertToTreeData(family.children) : undefined,
+      isLeaf: !family.hasChildren
+    }));
+  };
 
-  const handleAdd = () => {
+  const handleAddRoot = () => {
     setEditingFamily(null);
+    setSelectedParentId('');
     form.resetFields();
     setIsModalVisible(true);
   };
 
-  const handleEdit = (record: JobFamily) => {
-    setEditingFamily(record);
+  const handleAddChild = (parentId: string) => {
+    setEditingFamily(null);
+    setSelectedParentId(parentId);
+    form.resetFields();
+    setIsModalVisible(true);
+  };
+
+  const handleEditFamily = (family: JobFamily) => {
+    setEditingFamily(family);
+    setSelectedParentId(family.parentEntryId || '');
     form.setFieldsValue({
-      name: record.name,
-      code: record.code,
-      description: record.description,
-      category: record.category,
-      isActive: record.isActive,
+      name: family.name,
+      code: family.code,
+      description: family.description,
+      parentId: family.parentEntryId
     });
     setIsModalVisible(true);
   };
 
-  const handleDelete = async (record: JobFamily) => {
+  const handleDeleteFamily = (family: JobFamily) => {
+    const hasChildren = family.hasChildren;
+    const title = 'Delete Job Family';
+    const content = hasChildren
+      ? `Are you sure you want to delete "${family.name}"? This will also delete all child families.`
+      : `Are you sure you want to delete job family "${family.name}"?`;
+
     Modal.confirm({
-      title: 'Delete Job Family',
-      content: `Are you sure you want to delete "${record.name}"?`,
+      title,
+      content,
       okText: 'Delete',
       okType: 'danger',
       cancelText: 'Cancel',
       onOk: async () => {
-        try {
-          setJobFamilies(prev => prev.filter(family => family.id !== record.id));
-          message.success('Job family deleted successfully');
-        } catch (error) {
-          console.error('Error deleting job family:', error);
-          message.error('Failed to delete job family');
-        }
+        message.warning('Delete functionality will be implemented with process API integration');
+        await refetch();
       },
     });
   };
@@ -147,29 +180,16 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = ({
       const values = await form.validateFields();
       
       if (editingFamily) {
-        // Update existing family
-        setJobFamilies(prev => 
-          prev.map(family => 
-            family.id === editingFamily.id 
-              ? { ...family, ...values }
-              : family
-          )
-        );
-        message.success('Job family updated successfully');
+        message.warning('Edit family functionality will be implemented with process API integration');
       } else {
-        // Create new family
-        const newFamily: JobFamily = {
-          id: Date.now().toString(),
-          ...values
-        };
-        setJobFamilies(prev => [...prev, newFamily]);
-        message.success('Job family created successfully');
+        message.warning('Add family functionality will be implemented with process API integration');
       }
       
       setIsModalVisible(false);
+      await refetch();
     } catch (error) {
-      console.error('Error saving job family:', error);
-      message.error('Failed to save job family');
+      console.error('Error saving:', error);
+      message.error('Failed to save family');
     }
   };
 
@@ -178,126 +198,135 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = ({
     form.resetFields();
   };
 
-  const columns = [
-    {
-      title: 'Code',
-      dataIndex: 'code',
-      key: 'code',
-      width: 100,
-      sorter: (a: JobFamily, b: JobFamily) => a.code.localeCompare(b.code),
-    },
-    {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-      sorter: (a: JobFamily, b: JobFamily) => a.name.localeCompare(b.name),
-    },
-    {
-      title: 'Category',
-      dataIndex: 'category',
-      key: 'category',
-      width: 120,
-      sorter: (a: JobFamily, b: JobFamily) => a.category.localeCompare(b.category),
-    },
-    {
-      title: 'Description',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-    },
-    {
-      title: 'Status',
-      dataIndex: 'isActive',
-      key: 'isActive',
-      width: 100,
-      render: (isActive: boolean) => (
-        <span style={{ 
-          color: isActive ? '#52c41a' : '#ff4d4f',
-          fontWeight: 'bold'
-        }}>
-          {isActive ? 'Active' : 'Inactive'}
-        </span>
-      ),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 120,
-      render: (_: any, record: JobFamily) => (
-        <Space size="small">
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-            size="small"
-          />
-          <Button
-            type="text"
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            size="small"
-            danger
-          />
-        </Space>
-      ),
-    },
-  ];
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+  };
+
+  const handleExpand = (expandedKeys: React.Key[]) => {
+    // Update expansion state based on tree interaction
+    expandedKeys.forEach(key => {
+      if (!expandedIds.has(key as string)) {
+        toggleFamilyExpansion(key as string);
+      }
+    });
+    
+    // Handle collapse
+    Array.from(expandedIds).forEach(id => {
+      if (!expandedKeys.includes(id)) {
+        toggleFamilyExpansion(id);
+      }
+    });
+  };
+
+  // Filter tree data based on search
+  const getFilteredTreeData = () => {
+    if (!searchQuery.trim()) {
+      return convertToTreeData(rootFamilies);
+    }
+
+    const matchingFamilies = searchFamilies(searchQuery);
+    const filteredRoots = rootFamilies.filter(root => 
+      matchingFamilies.some(match => 
+        match.id === root.id || match.id.startsWith(root.id)
+      )
+    );
+
+    return convertToTreeData(filteredRoots);
+  };
+
+  if (error) {
+    return (
+      <div className="gba:p-6 gba:text-center">
+        <Typography.Text type="danger">Error loading job families: {error}</Typography.Text>
+        <div className="gba:mt-4">
+          <Button onClick={refetch}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div
-      data-testid={`${prefixDataTestId || ''}-JobFamiliesTab`}
-      style={{ 
-        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-        minHeight: '100%',
-        padding: '24px',
-        borderRadius: '8px'
-      }}
-    >
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: '16px'
-        }}>
-          <Title level={4} style={{ margin: 0, color: '#1f2937' }}>
-            {t('hr.job_families', 'Job Families')}
-          </Title>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            data-testid={`${prefixDataTestId || ''}-JobFamiliesTab-AddButton`}
-          >
-            Add Job Family
-          </Button>
+    <div className="gba:p-6">
+      <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
+        <div>
+          <Title level={3} className="gba:mb-2">Job Families</Title>
+          <Text type="secondary">
+            Manage job families in a hierarchical structure. Job families help categorize and organize different types of roles.
+          </Text>
         </div>
-        
-        <Input
-          placeholder="Search job families..."
-          prefix={<SearchOutlined />}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ maxWidth: '300px' }}
-          allowClear
-          data-testid={`${prefixDataTestId || ''}-JobFamiliesTab-SearchInput`}
-        />
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleAddRoot}
+          data-testid={`${prefixDataTestId}-add-root-family`}
+        >
+          Add Root Family
+        </Button>
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={filteredFamilies}
-        rowKey="id"
-        pagination={{
-          pageSize: 20,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => 
-            `${range[0]}-${range[1]} of ${total} job families`,
-        }}
-        data-testid={`${prefixDataTestId || ''}-JobFamiliesTab-Table`}
-        style={{ background: 'white', borderRadius: '8px' }}
-      />
+      <div className="gba:mb-4 gba:flex gba:items-center gba:space-x-4">
+        <Search
+          placeholder="Search job families..."
+          allowClear
+          value={searchQuery}
+          onChange={(e) => handleSearch(e.target.value)}
+          onSearch={handleSearch}
+          style={{ width: 300 }}
+          prefix={<SearchOutlined />}
+        />
+        <Space>
+          <Tooltip title="Expand All Levels">
+            <Button
+              icon={<ExpandAltOutlined />}
+              onClick={() => expandToLevel(3)}
+              data-testid={`${prefixDataTestId}-expand-all`}
+            >
+              Expand All
+            </Button>
+          </Tooltip>
+          <Tooltip title="Collapse All">
+            <Button
+              icon={<CompressOutlined />}
+              onClick={collapseAll}
+              data-testid={`${prefixDataTestId}-collapse-all`}
+            >
+              Collapse All
+            </Button>
+          </Tooltip>
+        </Space>
+      </div>
+
+            <Card className="gba:min-h-96">
+        {rootFamilies.length === 0 && !isLoading ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              <div>
+                <Text type="secondary">No job families found</Text>
+                <div className="gba:mt-2">
+                  <Button type="primary" icon={<PlusOutlined />} onClick={handleAddRoot}>
+                    Create First Job Family
+                  </Button>
+                </div>
+              </div>
+            }
+          />
+        ) : isLoading ? (
+          <div className="gba:text-center gba:py-8">
+            <Typography.Text>Loading job families...</Typography.Text>
+          </div>
+        ) : (
+          <Tree
+            showIcon
+            showLine={{ showLeafIcon: false }}
+            expandedKeys={Array.from(expandedIds)}
+            onExpand={handleExpand}
+            treeData={getFilteredTreeData()}
+            className="gba:job-families-tree"
+            blockNode
+          />
+        )}
+      </Card>
 
       <Modal
         title={editingFamily ? 'Edit Job Family' : 'Add Job Family'}
@@ -305,61 +334,53 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = ({
         onOk={handleModalOk}
         onCancel={handleModalCancel}
         width={600}
-        data-testid={`${prefixDataTestId || ''}-JobFamiliesTab-Modal`}
+        okText="Save"
+        cancelText="Cancel"
       >
         <Form
           form={form}
           layout="vertical"
-          data-testid={`${prefixDataTestId || ''}-JobFamiliesTab-Form`}
+          className="gba:mt-4"
         >
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Form.Item
-              label="Name"
-              name="name"
-              rules={[{ required: true, message: 'Please enter a name' }]}
-            >
-              <Input placeholder="Enter job family name" />
-            </Form.Item>
-            
-            <Form.Item
-              label="Code"
-              name="code"
-              rules={[{ required: true, message: 'Please enter a code' }]}
-            >
-              <Input placeholder="Enter job family code" />
-            </Form.Item>
-          </div>
-          
           <Form.Item
-            label="Category"
-            name="category"
-            rules={[{ required: true, message: 'Please enter a category' }]}
+            name="name"
+            label="Family Name"
+            rules={[{ required: true, message: 'Please enter family name' }]}
           >
-            <Input placeholder="Enter category" />
+            <Input placeholder="e.g., Engineering, Sales, Marketing" />
           </Form.Item>
           
           <Form.Item
-            label="Description"
+            name="code"
+            label="Code"
+            rules={[{ required: true, message: 'Please enter code' }]}
+          >
+            <Input placeholder="e.g., ENG, SALES, MKT" />
+          </Form.Item>
+          
+          <Form.Item
             name="description"
+            label="Description"
           >
             <Input.TextArea 
-              placeholder="Enter description (optional)" 
+              placeholder="Describe this job family and the types of roles it contains"
               rows={3}
             />
           </Form.Item>
-          
-          <Form.Item
-            label="Status"
-            name="isActive"
-            valuePropName="checked"
-          >
-            <input type="checkbox" />
-            <span style={{ marginLeft: '8px' }}>Active</span>
-          </Form.Item>
+
+          {selectedParentId && (
+            <Form.Item label="Parent Family">
+              <Input 
+                value={getFamilyById(selectedParentId)?.name || 'Unknown'} 
+                disabled 
+                placeholder="This will be a child of the selected family"
+              />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </div>
   );
 };
 
-export { JobFamiliesTab }; 
+export default JobFamiliesTab; 

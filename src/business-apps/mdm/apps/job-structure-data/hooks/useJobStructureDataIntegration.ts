@@ -3,45 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { useGetJobLevelData, JobLevelDataVariables } from '../queries/JobLevelQueries';
 import { CatalogEntry } from '@/common/types/CatalogTypes';
-
-// Enhanced interfaces
-export interface EnhancedJobLevel {
-  id: string;
-  name: string;
-  nameI18n?: { [key: string]: string };
-  code?: string;
-  description?: string;
-  descriptionI18n?: { [key: string]: string };
-  level: number; // derived from heirarchyOrder
-  jobLevelGroupId: string; // from jobLevelGroupRef
-  compensationBandId?: string;
-  compensationBand?: {
-    id: string;
-    name: string;
-  };
-  version?: number;
-  // Additional computed fields
-  displayName: string;
-  salaryGrade?: number; // derived from compensation band
-  experienceYears?: number; // could be derived or added later
-}
-
-export interface EnhancedJobLevelGroup {
-  id: string;
-  name: string;
-  code: string;
-  description?: string;
-  category: string;
-  isActive: boolean;
-  translations?: any;
-  additionalValue1?: string;
-  additionalValue2?: string;
-  additionalValue3?: string;
-  // Computed fields
-  jobLevels: EnhancedJobLevel[];
-  jobLevelCount: number;
-  color: string; // for UI display
-}
+import { JobLevel, JobLevelGroup } from '../types';
 
 const JOB_LEVEL_GROUP_CATALOG = 'JobLevelGroup';
 const JOB_LEVEL_GROUP_VERSION = 'v1';
@@ -59,15 +21,15 @@ const GROUP_COLORS = [
 ];
 
 export const useJobStructureDataIntegration = (context: BusinessAppContextProps) => {
-  const [jobLevelGroups, setJobLevelGroups] = useState<EnhancedJobLevelGroup[]>([]);
-  const [jobLevels, setJobLevels] = useState<EnhancedJobLevel[]>([]);
+  const [jobLevelGroups, setJobLevelGroups] = useState<JobLevelGroup[]>([]);
+  const [jobLevels, setJobLevels] = useState<JobLevel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const catalogClient = useCatalogManagerClient(context.accessToken);
   const { fetchJobLevelData } = useGetJobLevelData(context);
 
-  const transformJobLevelGroup = (catalogEntry: CatalogEntry, index: number): EnhancedJobLevelGroup => {
+  const transformJobLevelGroup = (catalogEntry: CatalogEntry, index: number): JobLevelGroup => {
     return {
       id: catalogEntry.id,
       name: catalogEntry.value || catalogEntry.code || 'Unknown',
@@ -85,7 +47,7 @@ export const useJobStructureDataIntegration = (context: BusinessAppContextProps)
     };
   };
 
-  const transformJobLevel = (jobLevel: any): EnhancedJobLevel => {
+  const transformJobLevel = (jobLevel: any): JobLevel => {
     return {
       id: jobLevel.id,
       name: jobLevel.name || 'Unknown Job Level',
@@ -185,15 +147,15 @@ export const useJobStructureDataIntegration = (context: BusinessAppContextProps)
   }, [context.accessToken, loadData]);
 
   // Helper functions
-  const getJobLevelsByGroupId = (groupId: string): EnhancedJobLevel[] => {
+  const getJobLevelsByGroupId = (groupId: string): JobLevel[] => {
     return jobLevels.filter(level => level.jobLevelGroupId === groupId);
   };
 
-  const getJobLevelById = (levelId: string): EnhancedJobLevel | undefined => {
+  const getJobLevelById = (levelId: string): JobLevel | undefined => {
     return jobLevels.find(level => level.id === levelId);
   };
 
-  const getJobLevelGroupById = (groupId: string): EnhancedJobLevelGroup | undefined => {
+  const getJobLevelGroupById = (groupId: string): JobLevelGroup | undefined => {
     return jobLevelGroups.find(group => group.id === groupId);
   };
 

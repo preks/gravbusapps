@@ -4,10 +4,13 @@ import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { RiOrganizationChart } from '@remixicon/react';
 import { Tabs } from 'antd';
-import { JobFamiliesTab } from './components/tabs/JobFamiliesTab';
-import { JobLevelsTab } from './components/tabs/JobLevelsTab';
-import { JobFunctionsTab } from './components/tabs/JobFunctionsTab';
-import { JobProfilesTab } from './components/tabs/JobProfilesTab';
+import { 
+  JobFamiliesTab,
+  JobLevelsTab, 
+  JobLevelGroupDetails,
+  JobFunctionsTab,
+  JobProfilesTab 
+} from './components/tabs';
 
 export enum JobStructureDataTabs {
   JOB_FAMILIES = 'job-families',
@@ -72,7 +75,7 @@ const JobStructureData: React.FC<JobStructureDataProps> = ({
       key: JobStructureDataTabs.JOB_LEVELS,
       label: t('hr.job_levels', 'Job Levels'),
       children: (
-        <JobLevelsTab 
+        <JobLevelGroupDetails 
           {...contextProps}
           prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
         />
