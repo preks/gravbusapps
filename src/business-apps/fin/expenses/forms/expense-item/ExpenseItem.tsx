@@ -67,8 +67,8 @@ const ExpenseItemContent: React.FC = () => {
         <div className={`gba:titleContainer`}>
           <Title level={4} className={`gba:headerTitle`}>
             {isEditMode 
-              ? t("lowcoder:lowcoder:create_expense_type_item.header_container_title_edit", "Edit Item | Expense")
-              : t("lowcoder:lowcoder:create_expense_type_item.header_container_title_new", "New Item | Expense")
+              ? t("lowcoder:create_expense_type_item.header_container_title_edit", "Edit Item | Expense")
+              : t("lowcoder:create_expense_type_item.header_container_title_new", "New Item | Expense")
             }
           </Title>
         </div>
