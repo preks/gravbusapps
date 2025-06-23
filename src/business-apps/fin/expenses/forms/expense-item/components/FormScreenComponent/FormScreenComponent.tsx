@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
   Button,
   DateInputField,
+  Divider,
   InputField,
   SelectField,
   Switch,
@@ -343,7 +344,12 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           disabled={isProcessingFiles}
         />
       </Form.Item>
-
+          <Divider 
+            color="#EFEFEF"
+            horizontal
+            size={1}
+            className="gba:mt-[30px] gba:mb-[30px]"
+          />
       <Form.Item>
         <Button
           variant="primary"

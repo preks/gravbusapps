@@ -172,7 +172,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       initialParameters: {
         expenseId: "",//029a5366-28d0-463f-acaa-9e1a2a97d12b
         expenseRequest:"23017ff9-ecde-442a-8e85-572551b00bff",
-        currencyData:"Currency:v1:EUR"
+        currencyData:"" //Currency:v1:EUR
       },
     },
   };

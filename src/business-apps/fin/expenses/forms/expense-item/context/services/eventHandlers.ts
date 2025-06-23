@@ -68,12 +68,18 @@ export const uploadDocuments = async (
     const results = await Promise.all(uploadPromises);
     const formattedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = [];
     
-    results.forEach((result: any) => {
-      if (result && result.fileId) {
+    results.forEach((element: any) => {
+      if (element && element.fileInfo) {
         formattedFiles.push({
-          fileType: result.fileMetadata?.mimeType || 'application/octet-stream',
-          fileUrl: `/api/v1/tenant/files/${result.fileId}`,
-          fileName: result.fileMetadata?.originalFileName || 'file'
+          fileType: element.fileInfo.fileMetadata.mimeType,
+          fileUrl: "/api/v1" + "/tenant/files/" + element.fileInfo.fileId,
+          fileName: element.fileInfo.fileMetadata.originalFileName
+        });
+      } else if (element && element.fileId) {
+        formattedFiles.push({
+          fileType: element.fileMetadata?.mimeType || 'application/octet-stream',
+          fileUrl: "/api/v1/tenant/files/" + element.fileId,
+          fileName: element.fileMetadata?.originalFileName || 'file'
         });
       }
     });
@@ -373,7 +379,11 @@ export const handleSubmit = async (
         expensePositions: formattedPositions,
       },
       expenseItemFiles: {
-        expenseFiles: uploadedFiles,
+        expenseFiles: uploadedFiles.map(element => ({
+          fileType: element.fileType,
+          fileUrl: element.fileUrl,
+          fileName: element.fileName
+        })),
       },
     };
 
