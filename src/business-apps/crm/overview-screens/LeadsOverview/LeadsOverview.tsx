@@ -471,16 +471,14 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
           {/* KPI Cards */}
           <Row gutter={16} className="gba:mb-6" data-testid="leads-kpi-cards">
             <Col xs={24} sm={12} md={6} className="gba:pb-4">
-              <div className="gba:p-4 gba:bg-white gba:shadow-sm gba:rounded gba:border gba:border-gray-200">
+              <div className="gba:p-6 gba:border gba:rounded-lg gba:bg-white gba:shadow-sm" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', height: '110px' }}>
                 <div className="gba:flex gba:items-center">
-                  <div className="gba:mr-3">
-                    <span className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-50">
-                      <PieChartOutlined style={{ color: '#1890ff', fontSize: '18px' }} />
-                    </span>
+                  <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-50 gba:flex gba:items-center gba:justify-center gba:mr-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <PieChartOutlined className="gba:h-5 gba:w-5 gba:text-blue-500" style={{ fontSize: '18px' }} />
                   </div>
                   <div>
                     <div className="gba:text-sm gba:text-gray-500">Total Leads</div>
-                    <div className="gba:text-2xl gba:font-semibold gba:text-blue-500">
+                    <div className="gba:text-2xl gba:font-bold gba:text-blue-500">
                       {leads.length}
                     </div>
                   </div>
@@ -488,16 +486,14 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
               </div>
             </Col>
             <Col xs={24} sm={12} md={6} className="gba:pb-4">
-              <div className="gba:p-4 gba:bg-white gba:shadow-sm gba:rounded gba:border gba:border-gray-200">
+              <div className="gba:p-6 gba:border gba:rounded-lg gba:bg-white gba:shadow-sm" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', height: '110px' }}>
                 <div className="gba:flex gba:items-center">
-                  <div className="gba:mr-3">
-                    <span className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-50">
-                      <TeamOutlined style={{ color: '#52c41a', fontSize: '18px' }} />
-                    </span>
+                  <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-50 gba:flex gba:items-center gba:justify-center gba:mr-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <TeamOutlined className="gba:h-5 gba:w-5 gba:text-green-500" style={{ fontSize: '18px' }} />
                   </div>
                   <div>
                     <div className="gba:text-sm gba:text-gray-500">Lead Sources</div>
-                    <div className="gba:text-2xl gba:font-semibold gba:text-green-500">
+                    <div className="gba:text-2xl gba:font-bold gba:text-green-500">
                       {(() => {
                         const sourceMap = new Map();
                         leads.forEach(lead => {
@@ -513,16 +509,14 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
               </div>
             </Col>
             <Col xs={24} sm={12} md={6} className="gba:pb-4">
-              <div className="gba:p-4 gba:bg-white gba:shadow-sm gba:rounded gba:border gba:border-gray-200">
+              <div className="gba:p-6 gba:border gba:rounded-lg gba:bg-white gba:shadow-sm" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', height: '110px' }}>
                 <div className="gba:flex gba:items-center">
-                  <div className="gba:mr-3">
-                    <span className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-yellow-50">
-                      <FieldTimeOutlined style={{ color: '#faad14', fontSize: '18px' }} />
-                    </span>
+                  <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-yellow-50 gba:flex gba:items-center gba:justify-center gba:mr-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FieldTimeOutlined className="gba:h-5 gba:w-5 gba:text-yellow-500" style={{ fontSize: '18px' }} />
                   </div>
                   <div>
                     <div className="gba:text-sm gba:text-gray-500">Recent Leads</div>
-                    <div className="gba:text-2xl gba:font-semibold gba:text-yellow-500">
+                    <div className="gba:text-2xl gba:font-bold gba:text-yellow-500">
                       {(() => {
                         const now = dayjs();
                         return leads.filter(lead => 
@@ -535,16 +529,14 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
               </div>
             </Col>
             <Col xs={24} sm={12} md={6} className="gba:pb-4">
-              <div className="gba:p-4 gba:bg-white gba:shadow-sm gba:rounded gba:border gba:border-gray-200">
+              <div className="gba:p-6 gba:border gba:rounded-lg gba:bg-white gba:shadow-sm" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', height: '110px' }}>
                 <div className="gba:flex gba:items-center">
-                  <div className="gba:mr-3">
-                    <span className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-red-50">
-                      <StarOutlined style={{ color: '#ff4d4f', fontSize: '18px' }} />
-                    </span>
+                  <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-red-50 gba:flex gba:items-center gba:justify-center gba:mr-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <StarOutlined className="gba:h-5 gba:w-5 gba:text-red-500" style={{ fontSize: '18px' }} />
                   </div>
                   <div>
                     <div className="gba:text-sm gba:text-gray-500">Top Rating</div>
-                    <div className="gba:text-2xl gba:font-semibold gba:text-red-500">
+                    <div className="gba:text-2xl gba:font-bold gba:text-red-500">
                       {(() => {
                         const ratingMap = new Map();
                         leads.forEach(lead => {
