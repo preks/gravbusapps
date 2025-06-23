@@ -23,13 +23,16 @@ export const useProcessListener = (): void => {
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       
       if (isLocalhost) {
-        // Local development handling
-        console.log('Process start event detected in local environment:', {
-          domain,
-          processName,
-          startProcessBody,
-          processInstanceId
+        // Local development handling        
+        const ideEvent = new CustomEvent('com.newwork.business.app.ide.localdev', {
+          detail: {
+            domain,
+            processName,
+            startProcessBody,
+            processInstanceId
+          }
         });
+        window.dispatchEvent(ideEvent);
       }
     };
     

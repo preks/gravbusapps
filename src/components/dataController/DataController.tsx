@@ -1,12 +1,31 @@
-import React from 'react';
-import { PiFunnelSimple, PiMagnifyingGlass, PiXCircle, PiX } from 'react-icons/pi';
+import React, { useState, useCallback, useEffect } from "react";
+import { useDebounce } from "@/common/hooks/useDebounce";
+import {
+  PiFunnelSimple,
+  PiFunnelSimpleX,
+  PiMagnifyingGlass,
+  PiXCircle,
+  PiX,
+} from "react-icons/pi";
 
 /**
  * PlusSquareIcon - SVG icon for the Add button.
  */
-export const PlusSquareIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" className={className}>
-    <path d="M14.25 0.5H1.75C1.41848 0.5 1.10054 0.631696 0.866116 0.866116C0.631696 1.10054 0.5 1.41848 0.5 1.75V14.25C0.5 14.5815 0.631696 14.8995 0.866116 15.1339C1.10054 15.3683 1.41848 15.5 1.75 15.5H14.25C14.5815 15.5 14.8995 15.3683 15.1339 15.1339C15.3683 14.8995 15.5 14.5815 15.5 14.25V1.75C15.5 1.41848 15.3683 1.10054 15.1339 0.866116C14.8995 0.631696 14.5815 0.5 14.25 0.5ZM14.25 14.25H1.75V1.75H14.25V14.25ZM11.75 8C11.75 8.16576 11.6842 8.32473 11.5669 8.44194C11.4497 8.55915 11.2908 8.625 11.125 8.625H8.625V11.125C8.625 11.2908 8.55915 11.4497 8.44194 11.5669C8.32473 11.6842 8.16576 11.75 8 11.75C7.83424 11.75 7.67527 11.6842 7.55806 11.5669C7.44085 11.4497 7.375 11.2908 7.375 11.125V8.625H4.875C4.70924 8.625 4.55027 8.55915 4.43306 8.44194C4.31585 8.32473 4.25 8.16576 4.25 8C4.25 7.83424 4.31585 7.67527 4.43306 7.55806C4.55027 7.44085 4.70924 7.375 4.875 7.375H7.375V4.875C7.375 4.70924 7.44085 4.55027 7.55806 4.43306C7.67527 4.31585 7.83424 4.25 8 4.25C8.16576 4.25 8.32473 4.31585 8.44194 4.43306C8.55915 4.55027 8.625 4.70924 8.625 4.875V7.375H11.125C11.2908 7.375 11.4497 7.44085 11.5669 7.55806C11.6842 7.67527 11.75 7.83424 11.75 8Z" fill="black" />
+export const PlusSquareIcon: React.FC<{ className?: string }> = ({
+  className,
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    className={className}
+  >
+    <path
+      d="M14.25 0.5H1.75C1.41848 0.5 1.10054 0.631696 0.866116 0.866116C0.631696 1.10054 0.5 1.41848 0.5 1.75V14.25C0.5 14.5815 0.631696 14.8995 0.866116 15.1339C1.10054 15.3683 1.41848 15.5 1.75 15.5H14.25C14.5815 15.5 14.8995 15.3683 15.1339 15.1339C15.3683 14.8995 15.5 14.5815 15.5 14.25V1.75C15.5 1.41848 15.3683 1.10054 15.1339 0.866116C14.8995 0.631696 14.5815 0.5 14.25 0.5ZM14.25 14.25H1.75V1.75H14.25V14.25ZM11.75 8C11.75 8.16576 11.6842 8.32473 11.5669 8.44194C11.4497 8.55915 11.2908 8.625 11.125 8.625H8.625V11.125C8.625 11.2908 8.55915 11.4497 8.44194 11.5669C8.32473 11.6842 8.16576 11.75 8 11.75C7.83424 11.75 7.67527 11.6842 7.55806 11.5669C7.44085 11.4497 7.375 11.2908 7.375 11.125V8.625H4.875C4.70924 8.625 4.55027 8.55915 4.43306 8.44194C4.31585 8.32473 4.25 8.16576 4.25 8C4.25 7.83424 4.31585 7.67527 4.43306 7.55806C4.55027 7.44085 4.70924 7.375 4.875 7.375H7.375V4.875C7.375 4.70924 7.44085 4.55027 7.55806 4.43306C7.67527 4.31585 7.83424 4.25 8 4.25C8.16576 4.25 8.32473 4.31585 8.44194 4.43306C8.55915 4.55027 8.625 4.70924 8.625 4.875V7.375H11.125C11.2908 7.375 11.4497 7.44085 11.5669 7.55806C11.6842 7.67527 11.75 7.83424 11.75 8Z"
+      fill="black"
+    />
   </svg>
 );
 
@@ -34,6 +53,7 @@ export interface DataControllerProps {
   onToggleDataFilter: () => void;
   search: string;
   setSearch: (v: string) => void;
+  debounceDelay?: number;
   filter: string[];
   setFilter: (v: string[]) => void;
   filterLabelMap?: Record<string, string>; // Maps filter values (IDs) to display labels
@@ -57,39 +77,20 @@ export interface DataControllerProps {
     onClick: () => void;
     label: string;
     icon?: React.ReactNode;
-    'data-testid'?: string;
+    "data-testid"?: string;
   };
 }
-
-/**
- * Render the add button with icon (default: PlusSquareIcon)
- */
-const renderAddButton = (addButton: DataControllerProps['addButton']) => {
-  if (!addButton) return null;
-  const { onClick, label, icon, 'data-testid': dataTestId } = addButton;
-  return (
-    <button
-      type="button"
-      className="gba:px-2 gba:py-0 gba:pl-2 gba:pr-3 gba:gap-1 gba:w-[76px] gba:h-8 gba:rounded gba:bg-black/[0.04] gba:flex gba:flex-row gba:justify-center gba:items-center"
-      onClick={onClick}
-      data-testid={dataTestId}
-    >
-      {icon ?? <PlusSquareIcon />}
-      <span className="gba:font-normal gba:text-sm gba:leading-4 gba:text-black gba:flex gba:items-center gba:w-[25px] gba:h-4">{label}</span>
-    </button>
-  );
-};
 
 export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   showDataFilter,
   onToggleDataFilter,
   search,
   setSearch,
+  debounceDelay = 300,
   filter = [],
   setFilter,
   filterLabelMap,
-  placeholder = 'Search...',
-  className = '',
+  placeholder = "Search...",
   listTitle,
   listIcon,
   listAmount,
@@ -97,103 +98,145 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   addButton,
   hideFilter = false,
 }) => {
-  const [showSearchInput, setShowSearchInput] = React.useState(false);
+  const [showSearchInput, setShowSearchInput] = useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  
+  // Local state for immediate UI feedback
+  const [localSearch, setLocalSearch] = useState<string>(search || "");
+  
+  // Keep local search in sync with external changes to search prop
+  useEffect(() => {
+    setLocalSearch(search || "");
+  }, [search]);
+  
+  // Use the useDebounce hook to debounce the local search value
+  const debouncedSearch = useDebounce(localSearch, debounceDelay);
+  
+  // Call setSearch only when the debounced value changes and differs from current search
+  useEffect(() => {
+    // Only update if the debounced value differs from the current search prop
+    // This prevents recursion and unnecessary updates
+    if (debouncedSearch !== search) {
+      setSearch(debouncedSearch);
+    }
+  }, [debouncedSearch, search, setSearch]);
+  
+  // Simple handler for input changes - updates local state immediately
+  const handleSearchChange = useCallback((value: string) => {
+    setLocalSearch(value);
+  }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (showSearchInput && inputRef.current) {
       inputRef.current.focus();
     }
   }, [showSearchInput]);
 
   return (
-    <div className="gba:w-full gba:bg-white gba:pt-6 gba:px-6">
-
-        <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:gap-2">
-          {/* Left: Filter and Search */}
-          <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:pb-1 gba:shrink-0">
-            {!hideFilter && (
-              <button
-                className={`gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:flex-none gba:order-0 gba:grow-0 ${showDataFilter          ? 'gba:bg-black gba:text-white' : 'gba:bg-black/[0.04] gba:text-black'}`}
-                aria-label={showDataFilter ? 'Close filter sidebar' : 'Open filter sidebar'}
-                onClick={onToggleDataFilter}
-                type="button"
-              >
-                <div className="gba:w-5 gba:h-5 gba:flex-none order-0 gba:grow-0">
-                  {showDataFilter ? (
-                    <PiFunnelSimple fill="#fff" size={20} />
-                  ) : (
-                    <PiFunnelSimple size={20} />
-                  )}
-                </div>
-              </button>
-            )}
-            {!showSearchInput ? (
-              <button
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:bg-black/[0.04] gba:flex-none gba:order-0 gba:grow-0"
-                aria-label="Open search"
-                onClick={() => setShowSearchInput(true)}
-                type="button"
-              >
-                <div className="gba:w-5 gba:h-5 gba:flex-none gba:order-0 gba:grow-0">
-                  <PiMagnifyingGlass size={20} />
-                </div>
-              </button>
-            ) : (
-              <div className="gba:flex gba:items-center gba:bg-black/[0.04] gba:rounded gba:px-2 gba:h-8 gba:w-[240px]">
-                <span className="gba:text-gray-500 gba:mr-2">
-                  <PiMagnifyingGlass size={20} />
-                </span>
-                <input
-                  ref={inputRef}
-                  className="gba:bg-transparent gba:border-none gba:outline-none gba:w-full gba:text-sm"
-                  type="text"
-                  placeholder={placeholder}
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  onBlur={e => {
-                    if (!e.target.value) setShowSearchInput(false);
-                  }}
-                />
+    <div className="gba:w-full gba:bg-white gba:px-6">
+      <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:gap-2">
+        {/* Left: Filter and Search */}
+        <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:shrink-0">
+          {!hideFilter && (
+            <button
+              className={`gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:flex-none gba:order-0 gba:grow-0 ${
+                showDataFilter
+                  ? "gba:!bg-black gba:text-white"
+                  : "gba:!bg-black/[0.04] gba:text-black"
+              }`}
+              aria-label={
+                showDataFilter ? "Close filter sidebar" : "Open filter sidebar"
+              }
+              onClick={onToggleDataFilter}
+              type="button"
+            >
+              <div className="gba:w-5 gba:h-5 gba:flex-none order-0 gba:grow-0">
+                {showDataFilter ? (
+                  <PiFunnelSimpleX fill="#fff" size={20} />
+                ) : (
+                  <PiFunnelSimple size={20} />
+                )}
               </div>
-            )}
+            </button>
+          )}
+          {!showSearchInput ? (
+            <button
+              className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:!bg-black/[0.04] gba:flex-none gba:order-0 gba:grow-0"
+              aria-label="Open search"
+              onClick={() => setShowSearchInput(true)}
+              type="button"
+            >
+              <div className="gba:w-5 gba:h-5 gba:flex-none gba:order-0 gba:grow-0">
+                <PiMagnifyingGlass size={20} />
+              </div>
+            </button>
+          ) : (
+            <div className="gba:flex gba:items-center gba:bg-black/[0.04] gba:rounded gba:px-2 gba:h-8 gba:w-[240px]">
+              <span className="gba:text-gray-500 gba:mr-2">
+                <PiMagnifyingGlass size={20} />
+              </span>
+              <input
+                ref={inputRef}
+                className="gba:bg-transparent gba:border-none gba:outline-none gba:w-full gba:text-sm"
+                type="text"
+                placeholder={placeholder}
+                value={localSearch}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onBlur={(e) => {
+                  if (!e.target.value) setShowSearchInput(false);
+                }}
+              />
+            </div>
+          )}
           {/* Center: List Title */}
           {listTitle && (
-            <div className="gba:flex-1 gba:ml-4 gba:font-semibold gba:text-base gba:text-black gba:truncate">{listTitle}</div>
+            <div className="gba:flex-1 gba:ml-4 gba:font-semibold gba:text-base gba:text-black gba:truncate">
+              {listTitle}
+            </div>
           )}
           {/* Optional: Icon and Amount */}
           {(listIcon || listAmount) && (
             <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:ml-2">
               {listIcon && <span>{listIcon}</span>}
-              {listAmount && <span className="gba:font-semibold gba:text-base gba:text-gray-700">{listAmount}</span>}
+              {listAmount && (
+                <span className="gba:font-semibold gba:text-base gba:text-gray-700">
+                  {listAmount}
+                </span>
+              )}
             </div>
           )}
-          </div>
+        </div>
 
-          {/* Right: Actions */}
-          {(addButton || actions) && (
-            // All actions including Add are right-aligned (ml-auto)
-            <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:pb-5 gba:w-full gba:justify-end">
-              {/* Add Button: match design, no frame, no background, icon left, label right */}
-              {addButton && (
-                <button
-                  className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:bg-black/[0.04] gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-                  onClick={addButton.onClick}
-                  data-testid={addButton['data-testid']}
-                  type="button"
-                >
-                  <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
-                    {addButton.icon ?? <PlusSquareIcon />}
-                  </span>
-                  <span className="gba:w-[25px] gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">{addButton.label}</span>
-                </button>
-              )}
-              {actions && (Array.isArray(actions)
-                ? actions.map((action, idx) => {
+        {/* Right: Actions */}
+        {(addButton || actions) && (
+          // All actions including Add are right-aligned (ml-auto)
+          <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:w-full gba:justify-end">
+            {/* Add Button: match design, no frame, no background, icon left, label right */}
+            {addButton && (
+              <button
+                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:bg-black/[0.04] gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
+                onClick={addButton.onClick}
+                data-testid={addButton["data-testid"]}
+                type="button"
+              >
+                <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
+                  {addButton.icon ?? <PlusSquareIcon />}
+                </span>
+                <span className="gba:w-[25px] gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
+                  {addButton.label}
+                </span>
+              </button>
+            )}
+            {actions &&
+              (Array.isArray(actions) ? (
+                actions.map((action, idx) => {
                   // Try to use a stable key if possible
                   let key = idx;
-                  if (React.isValidElement(action) && action.props?.['data-testid']) {
-                    key = action.props['data-testid'];
+                  if (
+                    React.isValidElement(action) &&
+                    action.props?.["data-testid"]
+                  ) {
+                    key = action.props["data-testid"];
                   }
                   return (
                     <div
@@ -204,41 +247,46 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                     </div>
                   );
                 })
-                : (
-                  <div
-                    className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:bg-black/[0.04] gba:gap-1"
-                  >
-                    {actions}
-                  </div>
-                ))}
-            </div>
-          )}
-        </div>
-        {/* Filter pills row: always below the bar group, left-aligned */}
-        {filter && filter.length > 0 && setFilter && (
-          <div className="gba:flex gba:items-center gba:gap-2 gba:self-start gba:mb-5">
-            {filter.map(val => (
-              <div key={val} className="gba:flex gba:h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-gray-100">
-                <span>{filterLabelMap?.[val] ?? val}</span>
-                <button
-                  className="gba:ml-0.5 gba:bg-transparent gba:border-none gba:text-gray-800 gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:p-0 gba:cursor-pointer gba:rounded-full gba:hover:bg-gray-200 gba:transition-colors"
-                  onClick={() => setFilter(filter.filter(f => f !== val))}
-                  aria-label={`Remove filter ${filterLabelMap?.[val] ?? val}`}
-                  tabIndex={0}
-                  type="button"
-                >
-                  <PiX size={12} />
-                </button>
-              </div>
-            ))}
-            <button className="gba:flex gba:items-center gba:gap-1 gba:text-sm gba:text-gray-600 gba:hover:text-gray-800 gba:transition-colors" onClick={() => setFilter([])} type="button">
-              <span>Clear all filters</span>
-              <span className="gba:flex gba:items-center gba:justify-center">
-                <PiXCircle size={16} />
-              </span>
-            </button>
+              ) : (
+                <div className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:bg-black/[0.04] gba:gap-1">
+                  {actions}
+                </div>
+              ))}
           </div>
         )}
       </div>
+      {/* Filter pills row: always below the bar group, left-aligned */}
+      {filter && filter.length > 0 && setFilter && (
+        <div className="gba:flex gba:items-center gba:gap-2 gba:self-start gba:mt-4">
+          {filter.map((val) => (
+            <div
+              key={val}
+              className="gba:flex gba:h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-gray-100"
+            >
+              <span>{filterLabelMap?.[val] ?? val}</span>
+              <button
+                className="gba:ml-0.5 gba:bg-transparent gba:border-none gba:text-gray-800 gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:p-0 gba:cursor-pointer gba:rounded-full gba:hover:bg-gray-200 gba:transition-colors"
+                onClick={() => setFilter(filter.filter((f) => f !== val))}
+                aria-label={`Remove filter ${filterLabelMap?.[val] ?? val}`}
+                tabIndex={0}
+                type="button"
+              >
+                <PiX size={12} />
+              </button>
+            </div>
+          ))}
+          <button
+            className="gba:flex gba:items-center gba:gap-1 gba:text-sm gba:text-gray-600 gba:hover:text-gray-800 gba:transition-colors"
+            onClick={() => setFilter([])}
+            type="button"
+          >
+            <span>Clear all filters</span>
+            <span className="gba:flex gba:items-center gba:justify-center">
+              <PiXCircle size={16} />
+            </span>
+          </button>
+        </div>
+      )}
+    </div>
   );
 };

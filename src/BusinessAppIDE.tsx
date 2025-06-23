@@ -1,9 +1,9 @@
 import { UiCatalogProvider } from '@newwork/gravity-ui-catalog';
 import { useState, useEffect, createElement, useCallback } from "react";
-import { Layout, Menu, Modal, Form, Input, Typography, Button, Tooltip } from "antd";
+import { Layout, Menu, Modal, Form, Input, Typography, Button, Tooltip, notification } from "antd";
 import { SettingOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
-import { BusinessAppContext, BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
-import ProcessEventListener from './common/components/ProcessEventListener';
+import { BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
+import ProcessEventListener, { ProcessLocalDevEvent } from './common/components/ProcessEventListener';
 
 const modules = import.meta.glob('./business-apps/**/[A-Z]*.tsx', { eager: true });
 
@@ -60,6 +60,19 @@ export interface CompMeta {
   name: string;
   layoutInfo?: any;
 }
+
+// Handle process events in the local development environment
+const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
+  const { domain, processName, processInstanceId, startProcessBody } = event;
+  
+  // Display a notification for the process event
+  notification.info({
+    message: 'Process Start Event Detected',
+    description: `Domain: ${domain}, \nProcess: ${processName}${processInstanceId ? `, ID: ${processInstanceId}` : ''}\nProcess body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`,
+    duration: 5,
+    placement: 'topRight'
+  });
+};
 
 export interface BusinessAppIDEProps {
   readonly packageName: string;
@@ -191,10 +204,10 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {/* Add the ProcessEventListener which handles process start events */}
-      <ProcessEventListener />
+      <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />
       <Sider
-        width={250}
+        width={264}
+        collapsedWidth={68}
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
@@ -220,17 +233,19 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
           items={getMenuItems()}
         />
       </Sider>
-      <Layout style={{ marginLeft: collapsed ? 80 : 250, transition: 'margin-left 0.2s' }}>
+      <Layout style={{ marginLeft: collapsed ? 68 : 264, transition: 'margin-left 0.2s' }}>
         <Header style={{
           background: '#fff',
           padding: '0 16px',
-          display: 'flex',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          height: 64,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.05)'
+          height: 48,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+          borderBottom: '1px solid #e8e8e8'
         }}>
-          <div className="gba:flex gba:items-center gba:flex-nowrap">
+          {/* Left section: Menu + Package Info */}
+          <div className="gba:flex gba:items-center gba:flex-nowrap gba:justify-start">
             <Button
               type="text"
               icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
@@ -243,16 +258,34 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
               <span className="gba:ml-0 gba:sm:ml-1 gba:text-xs gba:text-[#333]"> - Version: {packageVersion}</span>
             </div>
           </div>
-          <Tooltip title="Settings">
-            <Button
-              type="text"
-              icon={<SettingOutlined />}
-              onClick={() => setSettingsModalVisible(true)}
-              style={{ fontSize: '16px' }}
-            />
-          </Tooltip>
+          
+          {/* Center section: Search Placeholder - Perfectly centered */}
+          <div className="gba:flex gba:items-center gba:justify-center">
+            <button 
+              className="gba:w-[219px] gba:h-8 gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF] gba:outline-none"
+              data-testid="GlobalSearchButton-Button"
+            >
+              <div className="gba:w-[418px] gba:h-[26px] gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF]">
+                <div className="gba:text-sm gba:text-[#999999]" data-testid="GlobalSearchButton-Text">
+                  Search in NEWWORK
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* Right section: Settings Button */}
+          <div className="gba:flex gba:items-center gba:justify-end">
+            <Tooltip title="Settings">
+              <Button
+                type="text"
+                icon={<SettingOutlined />}
+                onClick={() => setSettingsModalVisible(true)}
+                style={{ fontSize: '16px' }}
+              />
+            </Tooltip>
+          </div>
         </Header>
-        <Content style={{ margin: '16px', overflow: 'initial', background: '#fff', padding: 24, minHeight: 280 }}>
+        <Content style={{ overflow: 'initial', background: '#fff', minHeight: 280 }}>
           {selectedApp && (
             <div className="gba:w-full gba:h-full gba:overflow-auto">
               {createElement(selectedApp.component, {

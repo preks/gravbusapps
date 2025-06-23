@@ -102,7 +102,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
             Organization Chart
           </h3>
           <Card className="gba:p-4 gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center" style={{ minHeight: '420px' }}>
-            <div className="gba:flex gba:flex-col gba:items-center gba:space-y-6" style={{ maxHeight: '650px', overflowY: 'auto', overflowX: 'hidden' }}>
+            <div className="gba:flex gba:flex-col gba:items-center" style={{ maxHeight: '650px', overflowY: 'auto', overflowX: 'hidden' }}>
             {/* Supervisor */}
             {employee.employeePosition?.supervisor && employee.employeePosition?.supervisor.id !== employee.id && (
               <div className="gba:flex gba:flex-col gba:items-center">
@@ -134,7 +134,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                     </div>
                   </div>
                 </a>
-                <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto"></div>
+                <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto gba:my-1"></div>
               </div>
             )}
             {/* Current Employee */}
@@ -156,7 +156,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
                   {employee.employeePosition?.jobPosition?.name || ''}
                 </div>
               </div>
-              {subordinates.length > 0 && <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto"></div>}
+              {subordinates.length > 0 && <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto gba:my-1"></div>}
             </div>
             {/* Subordinates */}
             {subordinates.length > 0 && (

@@ -19,27 +19,27 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
   const organizationalData = [
     {
       label: "Employee ID",
-      value: employee.code ?? ''
+      value: employee.code || ''
     },
     {
       label: "Company",
-      value: employee.employeePosition?.company?.name ?? "Not assigned"
+      value: employee.employeePosition?.company?.name || ''
     },
     {
       label: "Job Position",
-      value: employee.employeePosition?.jobPosition?.name ?? "Not assigned"
+      value: employee.employeePosition?.jobPosition?.name || ''
     },
     {
       label: "Location",
-      value: employee.employeePosition?.siteLocation?.name ?? "Not assigned"
+      value: employee.employeePosition?.siteLocation?.name || ''
     },
     {
       label: "Organizational Unit",
-      value: employee.employeePosition?.organizationalUnit?.name ?? "Not assigned"
+      value: employee.employeePosition?.organizationalUnit?.name || ''
     },
     {
       label: "Workspace",
-      value: employee.workspace ?? ''
+      value: employee.workspace || ''
     },
     {
       label: "Management Level",
@@ -47,55 +47,54 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
     },
     {
       label: "Cost Center",
-      value: employee.employeePosition?.costCenter?.name ?? ''
+      value: employee.employeePosition?.costCenter?.name || ''
     }
-  ].filter(item => item.value);
+  ];
 
   // Prepare working conditions data
   const getWorkingConditionsData = () => {
     const workingCondition = employee.workingCondition?.[0];
-    if (!workingCondition) return [];
-
+    
     return [
       {
         label: "Employment Type",
-        value: workingCondition.employmentType?.value ?? ''
+        value: workingCondition?.employmentType?.value || ''
       },
       {
         label: "Hire Date",
-        value: workingCondition.hireDate 
+        value: workingCondition?.hireDate 
           ? dayjs(workingCondition.hireDate).format('MMM D, YYYY') 
           : ''
       },
       {
         label: "Contract Type",
-        value: workingCondition.contractType?.value ?? ''
+        value: workingCondition?.contractType?.value || ''
       },
       {
         label: "Probation End Date",
-        value: workingCondition.probationEnd 
+        value: workingCondition?.probationEnd 
           ? dayjs(workingCondition.probationEnd).format('MMM D, YYYY') 
           : ''
       },
       {
         label: "Remote",
-        value: workingCondition.remote?.value ?? ''
+        value: workingCondition?.remote?.value || ''
       },
       {
         label: "Exit Date",
-        value: workingCondition.exitDate 
+        value: workingCondition?.exitDate 
           ? dayjs(workingCondition.exitDate).format('MMM D, YYYY') 
           : ''
       },
       {
         label: "Region",
-        value: workingCondition.region?.value ?? ''
+        value: workingCondition?.region?.value || ''
       },
       {
         label: "Vacation Entitlement (Days)",
-        value: workingCondition.vacationDays?.toString() ?? ''
+        value: workingCondition?.vacationDays?.toString() || ''
       }
-    ].filter(item => item.value);
+    ];
   };
 
   const workingConditionsData = getWorkingConditionsData();
@@ -103,22 +102,21 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
   // Prepare working hours data
   const getWorkingHoursData = () => {
     const workingHours = employee.workingHours?.[0];
-    if (!workingHours) return [];
-
+    
     return [
       {
         label: "Weekly Hours",
-        value: workingHours.weeklyHours?.toString() ?? ''
+        value: workingHours?.weeklyHours?.toString() || ''
       },
       {
         label: "FTE (Full-Time Equivalent)",
-        value: employee.fullTimeEquivalent?.toString() ?? ''
+        value: employee.fullTimeEquivalent?.toString() || ''
       },
       {
         label: "Days per Week",
-        value: workingHours.weeklyDays?.toString() ?? ''
+        value: workingHours?.weeklyDays?.toString() || ''
       }
-    ].filter(item => item.value);
+    ];
   };
 
   const workingHoursData = getWorkingHoursData();
@@ -133,22 +131,18 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
       />
 
       {/* Working Conditions Section */}
-      {workingConditionsData.length > 0 && (
-        <ProfileSection 
-          title="Working Conditions"
-          data={workingConditionsData}
-          columns={2}
-        />
-      )}
+      <ProfileSection 
+        title="Working Conditions"
+        data={workingConditionsData}
+        columns={2}
+      />
 
       {/* Working Hours Section */}
-      {workingHoursData.length > 0 && (
-        <ProfileSection 
-          title="Working Hours"
-          data={workingHoursData}
-          columns={2}
-        />
-      )}
+      <ProfileSection 
+        title="Working Hours"
+        data={workingHoursData}
+        columns={2}
+      />
     </div>
   );
 };

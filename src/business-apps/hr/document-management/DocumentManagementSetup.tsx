@@ -19,7 +19,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import AddDocumentModal from './modals/AddDocumentTypeModal';
-import useDocumentTypes from '../hooks/useDocumentTypes';
+import useDocumentTypes from '@/business-apps/hr/core/hooks/useDocumentTypes';
 import { DocumentType } from '@/common/types/DocumentTypeObjectTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 

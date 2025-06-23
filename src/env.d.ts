@@ -46,6 +46,16 @@ declare global {
         managerId: string;
         locationId: string;
       };
+      getActiveUserLocale?: () => string;
+      getCatalogValue?: (value: any) => string;
+      getDateFormat?: (format:string)=>string;
+      getTranslationFromI18nKeyAndLabel?: (key: string, defaultValue: string, translationVariables?: {}) => string;
+      formatDate?: (dateValue: Date | string | undefined, format?: string, customSpecificFormat?: string) => string | undefined;
+      i18n?: {
+        formatDate?: (dateValue: Date | string | undefined, format?: string, customSpecificFormat?: string | null) => string | undefined;
+        selectedLocale?: string;
+        t: (key: string, label?: string | {}) => string;
+      };
       [key: string]: any;
     };
   }

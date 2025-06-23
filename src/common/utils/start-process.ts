@@ -1,4 +1,4 @@
-import { getCurrentActiveStructureId as  WindowUtilsGetCurrentActiveStructureId } from "./windowUtils";
+import { getCurrentActiveStructureId as  WindowUtilsGetCurrentActiveStructureId, getPlatformContext as WindowUtilsGetPlatformContext } from "./windowUtils";
 
 export interface ProcessStartInfo {
   domain: string;
@@ -25,10 +25,7 @@ export function getCurrentActiveStructureId() {
  * @returns {uuid} context.locationId - The locationId of the manager.
  */
 export function getPlatformContext() {
-  if (window.lowcoder?.platformContext) {
-    return window.lowcoder.platformContext;
-  }
-  return { structureId: getCurrentActiveStructureId() ?? "" };
+  return WindowUtilsGetPlatformContext();
 }
 
 export function startProcess({
