@@ -7,11 +7,12 @@ import { AbsenceReports } from '../components/AbsenceReports/AbsenceReports';
 import { QuickActions } from '../components/QuickActions/QuickActions';
 import { AbsenceList } from '../components/AbsenceList/AbsenceList';
 import CalendarList from '../components/CalendarList/CalendarList';
+import AbsenceTrends from '../components/AbsenceTrends/AbsenceTrends';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
-interface AbsenceManagementHubProps extends BusinessAppContextProps {}
+interface DashboardProps extends BusinessAppContextProps {}
 
-export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ accessToken, userInfo }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ accessToken, userInfo }) => {
   const [activeSection, setActiveSection] = useState<string | null>("Dashboard")
 
   const handleSectionChange = (section: string) => {
@@ -21,11 +22,14 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
   const renderContent = () => {
     switch (activeSection) {
       case "Absence List":
-        return <AbsenceList accessToken={accessToken} userInfo={userInfo} />
+        return <AbsenceList accessToken={accessToken} />
       case "Dashboard":
         return (
           <>
-            <AbsenceOverview />
+            <AbsenceOverview accessToken={accessToken} userInfo={userInfo}/>
+            <div className="gba:mt-8">
+            <AbsenceTrends accessToken={accessToken} />
+            </div>
             <div className="gba:mt-8">
               <KPISection accessToken={accessToken}/>
             </div>
@@ -38,7 +42,7 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
       default:
         return (
           <>
-            <AbsenceOverview />
+            <AbsenceOverview accessToken={accessToken} userInfo={userInfo}/>
             <div className="gba:mt-8">
               <KPISection accessToken={accessToken} />
             </div>
@@ -51,7 +55,7 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
     <div className="gba:min-h-screen gba:bg-gray-50">
       <AppHeader />
       
-      <main className="gba:max-w-7xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:lg:px-8 gba:py-6">
+      <main className="gba:max-w-10xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:lg:px-8 gba:py-6">
         <HeroBanner />
         
         <div className="gba:max-w-7xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:lg:px-8 gba:py-6">
@@ -68,4 +72,4 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = ({ acce
   );
 }
 
-export default AbsenceManagementHub;
+export default Dashboard;

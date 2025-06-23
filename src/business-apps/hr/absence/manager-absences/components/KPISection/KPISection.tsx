@@ -53,10 +53,11 @@ interface EmployeeAbsence {
 }
 
 const GET_EMPLOYEE_ABSENCES = `
-  query GetEmployeeAbsences($page: Int!, $limit: Int!) {
+  query GetEmployeeAbsences($page: Int!, $limit: Int!, $orgUnitId: uuid!) {
     EmployeeAbsence(
       offset: $page
       limit: $limit
+      where: {employee: {employeePosition: {organizationalUnitId: {_eq: $orgUnitId}}}}
     ) {
       id
       startDate
@@ -89,7 +90,7 @@ const GET_EMPLOYEE_ABSENCES = `
   }
 `;
 
-const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [absences, setAbsences] = useState<EmployeeAbsence[]>([]);
@@ -123,12 +124,22 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
 
   useEffect(() => {
     const fetchAbsences = async () => {
+      if (!userInfo?.employeeDetails?.organizationalUnit?.id) {
+        console.error('User organization unit not found');
+        setError('Organization unit not found');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
+        setError(null);
+        
         const catalogData = await catalogClient.getCatalogEntriesList({
           catalogIdentifier: "AbsenceGroup",
           version: "v1",
         });
+        
         const groupsMap: { [key: string]: string } = {};
         catalogData.data.forEach((entry: CatalogEntry) => {
           groupsMap[entry.id] = entry.value;
@@ -137,7 +148,11 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
 
         const result = await graphQLClient.request<{
           EmployeeAbsence: EmployeeAbsence[];
-        }>(GET_EMPLOYEE_ABSENCES, { page: 0, limit: 100 });
+        }>(GET_EMPLOYEE_ABSENCES, { 
+          page: 0, 
+          limit: 100,
+          orgUnitId: userInfo?.employeeDetails?.organizationalUnit?.id
+        });
 
         const enrichedAbsences = result.EmployeeAbsence.map((absence) => ({
           ...absence,
@@ -146,6 +161,7 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
             groupName: groupsMap[absence.type.parentEntryId] || "Unknown",
           },
         }));
+        
         setAbsences(enrichedAbsences);
 
         const grouped: { [month: string]: { [type: string]: number } } = {};
@@ -156,17 +172,24 @@ const KPISection: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
           if (!grouped[month][type]) grouped[month][type] = 0;
           grouped[month][type] += 1;
         });
+        
         setOrganizedAbsences(grouped);
       } catch (err) {
-        console.error(err);
+        console.error('Error fetching absences:', err);
         setError("Failed to fetch data");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAbsences();
-  }, [accessToken]);
+    if (userInfo?.employeeDetails?.organizationalUnit?.id) {
+      fetchAbsences();
+    }
+  }, [accessToken, userInfo?.employeeDetails?.organizationalUnit?.id]);
+
+  if (!userInfo?.employeeDetails?.organizationalUnit?.id) {
+    return <div>Error: Organization unit not found. Please check your user profile.</div>;
+  }
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
