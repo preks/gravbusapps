@@ -37,7 +37,8 @@ const ExpenseItemContent: React.FC = () => {
     handleAddPosition,
     handleRemovePosition,
     calculateTotal,
-    currencies
+    currencies,
+    isEditMode
   } = useExpenseItem();
 
   return (
@@ -64,7 +65,10 @@ const ExpenseItemContent: React.FC = () => {
         )}
         <div className={`gba:titleContainer`}>
           <Title level={4} className={`gba:headerTitle`}>
-            {t("expense_item.title", "New Expense Item")}
+            {isEditMode 
+              ? t("create_expense_type_item.header_container_title_edit", "Edit Item | Expense")
+              : t("create_expense_type_item.header_container_title_new", "New Item | Expense")
+            }
           </Title>
         </div>
       </div>

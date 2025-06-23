@@ -108,10 +108,11 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       </div>
 
       <div className={`gba:marginBottom16`}>
-        <div>
+        <div className={`gba:relativePosition`}>
           <Form.Item
             name="title"
             rules={[{ required: true, message: t('create_expense_type_item.current_title_custom_rule', 'Please enter a title')}]}
+            style={{ marginBottom: 0 }}
           >
             <InputField
               label={t("create_expense_type_item.current_title_label", "Title")}
@@ -129,37 +130,33 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       </div>
 
       <div className={`gba:marginBottom16`}>
-        <div style={{ position: "relative" }}>
+        <div className={`gba:relativePosition`}>
           <Form.Item
-          shouldUpdate
+            shouldUpdate
             name="date"
             rules={[{ required: true, message: t('create_expense_type_item.current_date_custom_rule', 'Please select a date') }]}
             style={{ marginBottom: 0 }}
           >
-            <div className={`gba:relativePosition`}>
-              <div>
-                <DateInputField
-                  label={t(
-                    "create_expense_type_item.current_date_label",
-                    "Date"
-                  )}
-                  name="date"
-                  placeholder={t(
-                    "create_expense_type_item.current_date_placeholder",
-                    "Select date"
-                  )}
-                  onChange={(field) => {
-                    if(field.value)
-                    setCurrentSelectedDate(field.value as Date)
-                    form.setFieldsValue({ date: field.value }
-                    )
-                }}
-                  required={true}
-                  format={getDateFormat('date.long')}
-                  value={form.getFieldValue('date')}
-                />
-              </div>
-            </div>
+            <DateInputField
+              label={t(
+                "create_expense_type_item.current_date_label",
+                "Date"
+              )}
+              name="date"
+              placeholder={t(
+                "create_expense_type_item.current_date_placeholder",
+                "Select date"
+              )}
+              onChange={(field) => {
+                if(field.value)
+                setCurrentSelectedDate(field.value as Date)
+                form.setFieldsValue({ date: field.value }
+                )
+              }}
+              required={true}
+              format={getDateFormat('date.long')}
+              value={form.getFieldValue('date')}
+            />
           </Form.Item>
           {expenseRuleError && (
             <Alert

@@ -58,6 +58,7 @@ interface ExpenseItemContextProps {
   setIsFormDisabled: (isDisabled: boolean) => void;
   multiPosition: boolean;
   setMultiPosition: (isMulti: boolean) => void;
+  isEditMode: boolean;
   setCurrentSelectedDate:(date:Date|null)=> void;
 
   positions: ExpensePosition[];
@@ -117,6 +118,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [isProcessingFiles, setIsProcessingFiles] = useState<boolean>(false);
   const [isFormDisabled, setIsFormDisabled] = useState<boolean>(false);
   const [multiPosition, setMultiPosition] = useState<boolean>(false);
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
 
   const [positions, setPositions] = useState<ExpensePosition[]>([
     DEFAULT_POSITION,
@@ -434,6 +436,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             employeeRuleId,
             t
           );
+          setIsEditMode(true);
         }
           let costCenterData;
           try {
@@ -784,7 +787,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       accessToken,
       userInfo?.employeeDetails?.employeeId,
       additionalData || additionalDataMocked,
-      userInfoMocked
+      userInfoMocked,
+      isEditMode
     );
   };
 
@@ -933,6 +937,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     setIsFormDisabled,
     multiPosition,
     setMultiPosition,
+    isEditMode,
     setCurrentSelectedDate,
     positions,
     setPositions,

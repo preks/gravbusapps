@@ -3,6 +3,8 @@ import { Upload, message, Modal } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
 import { Button } from "@newwork/gravity-ui-catalog";
+import { useTranslation } from "react-i18next";
+import { translate } from "../../utils/windowUtils";
 
 interface UploadComponentProps {
   fileList: any[];
@@ -21,7 +23,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
     isProcessingFiles
   } = useExpenseItem();
   
-
+const { t } = useTranslation();
   const [isHandlingUpload, setIsHandlingUpload] = useState<boolean>(false);
   
 
@@ -253,12 +255,12 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
               <div className={`gba:attachMoreContainer`}>
                 {isProcessingFiles ? (
                   <>
-                    <span>Processing...</span>
+                    <span>{t('create_expense_item.change_expense_item_container.file_add_document_processing', 'Processing the receipt...')}</span>
                     <LoadingOutlined className="gba:uploadIconSmall" />
                   </>
                 ) : (
                   <>
-                    <span>Attach Receipt</span>
+                    <span>{translate('create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
                     <img 
                       src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
                       alt="Focus" 
