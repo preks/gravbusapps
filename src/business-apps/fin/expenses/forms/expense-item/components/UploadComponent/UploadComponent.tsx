@@ -161,7 +161,7 @@ const { t } = useTranslation();
                 width="36"
                 height="36"
               />
-              <span>Attach Receipt</span>
+              <span>{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
             </>
           )}
         </div>
@@ -178,7 +178,7 @@ const { t } = useTranslation();
             </>
           ) : (
             <>
-              <span>Attach Receipt</span>
+              <span>{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
               <img 
                 src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
                 alt="Focus" 
@@ -260,7 +260,7 @@ const { t } = useTranslation();
                   </>
                 ) : (
                   <>
-                    <span>{translate('create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
+                    <span>{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
                     <img 
                       src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
                       alt="Focus" 
