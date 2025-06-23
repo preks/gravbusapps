@@ -249,7 +249,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           className={`gba:marginBottom16`}
         >
           <PlusCircleOutlined style={{ width: "17px", height: "17px" }} /> 
-          {isProcessingFiles ? "Processing..." : "Add Position"}
+          {isProcessingFiles ? t("lowcoder:create_expense_item.file_add_document_processing","Processing...") : t("lowcoder:create_expense_type_item.add_position_button","Add Position")}
         </Button>
       )}
 

@@ -5,6 +5,7 @@ import { useExpenseItem } from "../../context/ExpenseItemContext";
 import { Button } from "@newwork/gravity-ui-catalog";
 import { useTranslation } from "react-i18next";
 import { translate } from "../../utils/windowUtils";
+import { showToast } from "../../utils/notificationUtils";
 
 interface UploadComponentProps {
   fileList: any[];
@@ -43,7 +44,10 @@ const { t } = useTranslation();
     });
     
     if (!isValidType) {
-      message.error(`File type not supported. Please upload PDF, JPG, JPEG, or PNG files only.`);
+         showToast(
+            t("lowcoder:create_expense_type_item.error_file_type_message", "File type not supported. Please upload PDF, JPG, JPEG, or PNG files only."),
+            "error"
+          );
     }
     
     return isValidType;
@@ -181,7 +185,7 @@ const { t } = useTranslation();
               <span>{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
               <img 
                 src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
-                alt={t('lowcoder:common.focus', 'Focus')} 
+                alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
                 className={`gba:uploadIconSmall`}
                 width="18"
                 height="18"
@@ -263,7 +267,7 @@ const { t } = useTranslation();
                     <span>{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
                     <img 
                       src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
-                      alt={t('lowcoder:common.focus', 'Focus')} 
+                      alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
                       className={`gba:uploadIconSmall`}
                       width="18"
                       height="18"
@@ -293,7 +297,8 @@ const { t } = useTranslation();
           width={500}
         >
           <div className={`gba:modalContent`}>
-            <p>{t("lowcoder:")}Do you want to keep the current {fileList.length > 1 ? 'files' : 'file'} as well?</p>
+            <p>{
+            fileList.length > 1 ? t("lowcoder:create_expense_type_item.upload_file_modal_message","Do you want to keep the current file as well?"): t("lowcoder:create_expense_type_item.upload_file_modal_message","Do you want to keep the current file as well?")}</p>
             <div className={`gba:modalButtons`}>
               <Button 
                 variant="secondary"
@@ -301,7 +306,7 @@ const { t } = useTranslation();
                 data-testid="modal-no-button"
                 className="gba:min-w-[120px]"
               >
-                {t('lowcoder:common.no', 'No')}
+                {t('lowcoder:create_expense_type_item.cancel_button_modal', 'No')}
               </Button>
               <Button 
                 variant="primary"
@@ -309,7 +314,7 @@ const { t } = useTranslation();
                 data-testid="modal-yes-button"
                 className="gba:min-w-[120px]"
               >
-                {t('lowcoder:common.yes', 'Yes')}
+                {t('lowcoder:create_expense_type_item.confirm_button_modal', 'Yes')}
               </Button>
             </div>
           </div>
