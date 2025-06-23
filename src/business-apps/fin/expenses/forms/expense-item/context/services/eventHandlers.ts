@@ -25,7 +25,7 @@ export const uploadDocuments = async (
 
   if (!employeeId) {
     showToast(
-      t("expense_item.employee_id_missing", "Cannot upload files: Employee ID not available"),
+      t("lowcoder:create_expense_type_item.document_upload_error_missing_employee_data", "Cannot upload files: missing employee data"),
       "error"
     );
     return [];
@@ -36,7 +36,7 @@ export const uploadDocuments = async (
     
     if (files.length === 0) {
       showToast(
-        t("expense_item.no_valid_files", "No valid files to upload"),
+        t("lowcoder:create_expense_type_item.document_upload_error_missing_files", "No valid files to upload"),
         "info"
       );
       return [];
@@ -87,7 +87,7 @@ export const uploadDocuments = async (
     return formattedFiles;
   } catch (error) {
     showToast(
-      t("expense_item.file_upload_error", "Error uploading files"),
+      t("lowcoder:create_expense_type_item.document_upload_error_files", "Error uploading files"),
       "error"
     );
     return [];
@@ -127,10 +127,7 @@ export const handleExpenseGroupChange = async (
     }
   } catch (error) {
     showToast(
-      t(
-        "expense_item.error_message",
-        "Failed to update expense types. Please try again."
-      ),
+      t("lowcoder:create_expense_type_item.process_error_expense_types", "Error processing expense types"),
       "error"
     );
   }
@@ -193,10 +190,7 @@ export const handleExpenseTypeChange = async (
     }
   } catch (error) {
     showToast(
-      t(
-        "expense_item.error_message",
-        "Failed to update custom fields. Please try again."
-      ),
+      t("lowcoder:create_expense_type_item.process_error_expense_custom_groups","Error processing custom groups"),
       "error"
     );
   }
@@ -235,7 +229,7 @@ export const handleRemovePosition = (
 ) => {
   if (positions.length === 1) {
     showToast(
-      t("expense_item.at_least_one_position", "At least one position is required"),
+      t("lowcoder:create_expense_type_item.position_deletion_warning", "At least one position is required"),
       "warning"
     );
     return;
@@ -318,7 +312,7 @@ export const handleSubmit = async (
         }
       } catch (flowError) {
         showToast(
-          t("expense_item.workflow_error", "Error in workflow process"),
+          t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
           "error"
         );
       }
@@ -402,14 +396,14 @@ export const handleSubmit = async (
         );
       } catch (completeError) {
         showToast(
-          t("expense_item.complete_task_flow_error", "Error completing workflow task"),
+          t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
           "error"
         );
       }
     }
 
     showToast(
-      t("expense_item.success_message", "Expense item created successfully!"),
+      t("lowcoder:create_expense_type_item.created_item_notification_message", "Expense item created successfully!"),
       "success"
     );
 
@@ -419,10 +413,7 @@ export const handleSubmit = async (
     setCurrentStep("start");
   } catch (error) {
     showToast(
-      t(
-        "expense_item.error_message",
-        "Failed to create expense item. Please try again."
-      ),
+      t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
       "error"
     );
   } finally {

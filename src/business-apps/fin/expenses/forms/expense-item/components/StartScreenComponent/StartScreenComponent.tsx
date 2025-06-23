@@ -34,10 +34,10 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
           disabled={isProcessingFiles}
         >
           <div className={`gba:buttonWithIcon`}>
-            <span>{t("expense_item.continue_without_receipt", "Continue without receipt")}</span>
+            <span>{t("lowcoder:create_expense_type_item.continue_button", "Continue without receipt")}</span>
             <img 
               src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/ArrowRightSLine.svg" 
-              alt="Continue" 
+              alt={t('lowcoder:create_expense_type_item.continue_alt_text', 'Continue')} 
               className={`gba:arrowIcon`}
             />
           </div>

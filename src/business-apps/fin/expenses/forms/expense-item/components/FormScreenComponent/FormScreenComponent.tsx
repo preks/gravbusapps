@@ -76,6 +76,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     isFormDisabled,
     expenseRuleError,
     handleCurrencyChange,
+    isEditMode
   } = useExpenseItem();
 
   const [formIsValid, setFormIsValid] = useState(false);
@@ -111,15 +112,15 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <div className={`gba:relativePosition`}>
           <Form.Item
             name="title"
-            rules={[{ required: true, message: t('create_expense_type_item.current_title_custom_rule', 'Please enter a title')}]}
+            rules={[{ required: true, message: t('lowcoder:create_expense_type_item.current_title_custom_rule', 'Please enter a title')}]}
             style={{ marginBottom: 0 }}
           >
             <InputField
-              label={t("create_expense_type_item.current_title_label", "Title")}
+              label={t("lowcoder:create_expense_type_item.current_title_label", "Title")}
               name="title"
               disabled={isFormDisabled || isProcessingFiles}
               placeholder={t(
-                "create_expense_type_item.current_title_placeholder",
+                "lowcoder:create_expense_type_item.current_title_placeholder",
                 "Enter Title"
               )}
               onChange={(field) => form.setFieldsValue({ title: field.value })}
@@ -134,17 +135,17 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           <Form.Item
             shouldUpdate
             name="date"
-            rules={[{ required: true, message: t('create_expense_type_item.current_date_custom_rule', 'Please select a date') }]}
+            rules={[{ required: true, message: t('lowcoder:create_expense_type_item.current_date_custom_rule', 'Please select a date') }]}
             style={{ marginBottom: 0 }}
           >
             <DateInputField
               label={t(
-                "create_expense_type_item.current_date_label",
+                "lowcoder:create_expense_item.change_expense_item_container.current_date_label",
                 "Date"
               )}
               name="date"
               placeholder={t(
-                "create_expense_type_item.current_date_placeholder",
+                "lowcoder:create_expense_item.change_expense_item_container.current_date_placeholder",
                 "Select date"
               )}
               onChange={(field) => {
@@ -160,7 +161,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           </Form.Item>
           {expenseRuleError && (
             <Alert
-              message={t('create_expense_item.missing_expense_rule_message', 'No expense rule found for this date. Please contact your administrator.')}
+              message={t('lowcoder:create_expense_item.missing_expense_rule_message', 'No expense rule found for this date. Please contact your administrator.')}
               type="error"
               style={{ marginTop: 8 }}
               showIcon
@@ -174,8 +175,8 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           <div>
             <Switch
               label={t(
-                "create_expense_item.multi_position",
-                "Multiple Positions"
+                "lowcoder:create_expense_type_item.multi_position_item",
+                "Multi Position Item"
               )}
               name="multiPosition"
               value={multiPosition}
@@ -262,13 +263,13 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             <Form.Item className={`gba:marginBottom0`}>
               <InputField
                 label={t(
-                  "create_expense_item.change_expense_item_container.current_amount_label",
+                  "lowcoder:create_expense_item.change_expense_item_container.current_amount_label",
                   "Amount"
                 )}
                 name="amount"
                 value={calculateTotal().toFixed(2)}
                 placeholder={t(
-                  "create_expense_item.change_expense_item_container.current_amount_placeholder",
+                  "lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder",
                   "Enter Amount"
                 )}
                 required={true}
@@ -278,14 +279,14 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           <Col span={12}>
             <Form.Item
               name="currency"
-              rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_currency_custom_rule', 'Please select a currency') }]}
+              rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_currency_custom_rule', 'Please select a currency') }]}
 
               className={`gba:marginBottom0`}
             >
               <SelectField
                 allowClear
                 label={t(
-                  "create_expense_item.change_expense_item_container.current_currency_label",
+                  "lowcoder:create_expense_item.change_expense_item_container.current_currency_label",
                   "Currency"
                 )}
                 disabled={isProcessingFiles}
@@ -303,7 +304,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                   }
                 }}
                 placeholder={t(
-                  "create_expense_item.change_expense_item_container.current_currency_placeholder",
+                  "lowcoder:create_expense_item.change_expense_item_container.current_currency_placeholder",
                   "Select Currency"
                 )}
                 required={true}
@@ -315,7 +316,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       
       <Form.Item
         name="expenseRequestId"
-        rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_request_custom_rule', 'Please select a request') }]}
+        rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_request_custom_rule', 'Please select a request') }]}
         className={`gba:marginBottom16`}
       >
         <SelectField
@@ -331,11 +332,11 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             form.setFieldsValue({ expenseRequestId: value.value });
           }}
           label={t(
-            "create_expense_type_item.current_request",
+            "lowcoder:create_expense_type_item.current_request",
             "Add Expense Request"
           )}
           placeholder={t(
-            "create_expense_item.change_expense_item_container.current_request_placeholder",
+            "lowcoder:create_expense_item.change_expense_item_container.current_request_placeholder",
             "Select Request"
           )}
           disabled={isProcessingFiles}
@@ -354,7 +355,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           disabled={isProcessingFiles || !formIsValid || !!expenseRuleError}
           className={`gba:submitButton`}
         >
-          {t("expense_item.submit", "Submit")}
+          {isEditMode ? t("lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_update", "Update") : t("lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_save", "Create")}
         </Button>
       </Form.Item>
     </Form>

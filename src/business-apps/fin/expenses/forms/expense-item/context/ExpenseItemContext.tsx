@@ -215,7 +215,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setExpenseGroups(matchingItems);
     } catch (error) {
       showToast(
-        t("expense_item.process_error", "Error processing expense groups"),
+        t("lowcoder:create_expense_type_item.process_error_expense_group", "Error processing expense groups"),
         "error"
       );
       setExpenseGroups([]);
@@ -294,7 +294,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       );
     } catch (error) {
       showToast(
-        t("expense_item.ai_process_error", "Error processing expense AI items"),
+        t("lowcoder:create_expense_type_item.process_error_ai_items", "Error processing expense AI items"),
         "error"
       );
     }
@@ -312,7 +312,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setExpenseRequests([
         {
           id: "0",
-          name: t("create_expense_type_item.none", "None"),
+          name: t("lowcoder:create_expense_type_item.none", "None"),
         },
       ]);
       return;
@@ -326,14 +326,14 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       );
     } catch (error) {
       showToast(
-        t("expense_item.add_requests_error", "Error processing expense requests"),
+        t("lowcoder:create_expense_type_item.process_error_expense_requests_fetch", "Error processing expense requests"),
         "error"
       );
 
       setExpenseRequests([
         {
           id: "0",
-          name: t("create_expense_type_item.none", "None"),
+          name: t("lowcoder:create_expense_type_item.none", "None"),
         },
       ]);
     }
@@ -367,10 +367,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           setEmployeeRuleId(employeeRuleData.expenseRuleId);
           setExpenseRuleError(null);
         } else {
-          setExpenseRuleError(t('create_expense_item.missing_expense_rule_message', 'There is no rule set for your user, please reach out to your administrator.'));
+          setExpenseRuleError(t('lowcoder:create_expense_item.missing_expense_rule_message', 'There is no rule set for your user, please reach out to your administrator.'));
         }
       } catch (ruleError) {
-        setExpenseRuleError(t('create_expense_item.missing_expense_rule_message', 'There is no rule set for your user, please reach out to your administrator.'));
+        setExpenseRuleError(t('lowcoder:create_expense_item.missing_expense_rule_message', 'There is no rule set for your user, please reach out to your administrator.'));
       }
 
       try {
@@ -385,7 +385,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         setGeneralDataResponse(generalData);
       } catch (generalDataError) {
         showToast(
-          t("expense_item.general_data_error", "Error fetching general data"),
+          t("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
           "error"
         );
       }
@@ -405,7 +405,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           setCatalogueDataResponse(catalogueData);
         } catch (catalogueError) {
           showToast(
-            t("expense_item.catalogue_error", "Error fetching catalogue data"),
+            t("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
             "error"
           );
         }
@@ -498,7 +498,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setRerunRule(false);
     } catch (error) {
       showToast(
-        t("expense_item.initial_data_error", "Error fetching initial data"),
+        t("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
         "error"
       );
     }
@@ -547,11 +547,11 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         if (requestCurrency && requestCurrency.code !== data.currencyCode) {
           showToast(
             t(
-              "expense_item.currency_mismatch",
-              "The Receipt could not be added as it does not match the request currency"
+              "lowcoder:expense_item.currency_mismatchlowcoder:create_expense_type_item.process_error_currency_mismatch_detail",
+              "The Receipt could not be added as it does not match the request currency."
             ),
             "error",
-            t("expense_item.currency_mismatch_title", "Currency Mismatch")
+            t("lowcoder:create_expense_type_item.process_error_currency_mismatch_title", "Currency Mismatch")
           );
 
           return;
@@ -581,17 +581,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
           if (!isNaN(dateValue.getTime())) {
             form.setFieldsValue({ date: dateValue });
-          } else {
-            showToast(
-              t("expense_item.invalid_date", `Invalid date format: ${data.invoiceDate}`),
-              "error"
-            );
           }
         } catch (error) {
-          showToast(
-            t("expense_item.date_parse_error", `Error parsing date ${data.invoiceDate}`),
-            "error"
-          );
         }
       }
 
@@ -699,7 +690,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
               }
             } catch (error) {
               showToast(
-                t("expense_item.receipt_field_error", "Error processing receipt field"),
+                t("lowcoder:create_expense_type_item.process_error_receipt_processing", "Error processing receipt data"),
                 "error"
               );
 
@@ -709,15 +700,9 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       }
     } catch (error) {
       showToast(
-        t("expense_item.receipt_error", "Error processing receipt data"),
+        t("lowcoder:create_expense_type_item.process_error_receipt_processing", "Error processing receipt data"),
         "error"
-      );
-      message.error(
-        t(
-          "expense_item.receipt_processing_error",
-          "Error processing receipt data"
-        )
-      );
+      )
     }
   };
 
@@ -725,7 +710,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     files: File[]
   ): Promise<any | null> => {
     if (!files || files.length === 0) {
-      message.error(t("expense_item.no_files", "No files selected for upload"));
+      message.error(t("lowcoder:expense_item.no_files", "No files selected for upload"));
       return null;
     }
 
@@ -754,10 +739,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       return result;
     } catch (error) {
       showToast(
-        t(
-          "expense_item.upload_error",
-          "Error processing receipt. Continuing without receipt data."
-        ),
+        t("lowcoder:create_expense_type_item.process_error_receipt_processing", "Error processing receipt data"),
         "error"
       );
 
@@ -836,7 +818,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       );
     } catch (error) {
       showToast(
-        t("expense_item.currency_requests_error", "Error fetching expense requests by currency"),
+        t("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
         "error"
       );
     }
@@ -866,7 +848,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const handleRemovePositionWrapper = (positionId: string): void => {
     if (positions.length <= 1) {
       showToast(
-        t("expense_item.at_least_one_position", "At least one position is required"),
+        t("lowcoder:create_expense_type_item.position_deletion_warning", "At least one position is required"),
         "warning"
       );
       return;

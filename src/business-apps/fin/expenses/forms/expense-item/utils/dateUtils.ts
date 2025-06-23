@@ -2,6 +2,7 @@
  * Date utilities for the Expense Item module
  */
 import { showToast } from "./notificationUtils";
+import { translate } from "../../../../../../common/utils/windowUtils";
 
 /**
  * Formats a date string to DD.MM.YYYY format
@@ -41,7 +42,6 @@ export const formatDateToISOString = (date: Date | string | undefined): string =
   try {
     return new Date(date).toISOString().split("T")[0];
   } catch (error) {
-    showToast("Invalid date format", "error");
     return getCurrentDateAsISOString();
   }
 };

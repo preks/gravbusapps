@@ -14,7 +14,7 @@ export const initiateFlow = async (
 ): Promise<any> => {
   if (!employeeId) {
     showToast(
-      t("expense_item.employee_id_missing", "Cannot initiate flow: Employee ID not available"),
+      t("lowcoder:create_expense_type_item.document_upload_error_missing_employee_data", "Cannot upload files: missing employee data"),
       "error"
     );
     return null;
@@ -43,7 +43,7 @@ export const initiateFlow = async (
     return result;
   } catch (error) {
     showToast(
-      t("expense_item.flow_initiation_error", "Error initiating workflow process"),
+      t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
       "error"
     );
     return null;
@@ -66,7 +66,7 @@ export const getOpenedTaskFlow = async (
 ): Promise<any> => {
   if (!processInstanceId) {
     showToast(
-      t("expense_item.process_id_missing", "Cannot get task flow: Process instance ID not available"),
+      t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
       "error"
     );
     return null;
@@ -94,7 +94,7 @@ export const getOpenedTaskFlow = async (
     return result;
   } catch (error) {
     showToast(
-      t("expense_item.get_task_flow_error", "Error retrieving workflow tasks"),
+      t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
       "error"
     );
     return null;
@@ -123,8 +123,7 @@ export const completeTaskFlow = async (
 ): Promise<any> => {
   if (!processInstanceId || !taskId || !taskName) {
     showToast(
-      t("expense_item.missing_parameters", "Cannot complete task flow: Missing required parameters"),
-      "error"
+      t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
     );
     return null;
   }
@@ -152,7 +151,7 @@ export const completeTaskFlow = async (
     return result;
   } catch (error) {
     showToast(
-      t("expense_item.complete_task_flow_error", "Error completing workflow task"),
+      t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
       "error"
     );
     return null;

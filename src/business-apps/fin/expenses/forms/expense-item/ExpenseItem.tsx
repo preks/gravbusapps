@@ -57,7 +57,7 @@ const ExpenseItemContent: React.FC = () => {
           >
             <img 
               src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/arrow-left-s-line.svg" 
-              alt="Back" 
+              alt={t('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.back_btn', 'Back')} 
               className={`gba:backIcon`}
               width="24"
               height="24"
@@ -67,8 +67,8 @@ const ExpenseItemContent: React.FC = () => {
         <div className={`gba:titleContainer`}>
           <Title level={4} className={`gba:headerTitle`}>
             {isEditMode 
-              ? translate("lowcoder:create_expense_type_item.header_container_title_edit", "Edit Item | Expense")
-              : translate("lowcoder:create_expense_type_item.header_container_title_new", "New Item | Expense")
+              ? t("lowcoder:lowcoder:create_expense_type_item.header_container_title_edit", "Edit Item | Expense")
+              : t("lowcoder:lowcoder:create_expense_type_item.header_container_title_new", "New Item | Expense")
             }
           </Title>
         </div>
@@ -110,7 +110,6 @@ const ExpenseItemContent: React.FC = () => {
   );
 };
 
-// Wrapper component that provides the context
 const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ accessToken, userInfo, additionalData }) => {
   return (
     <ExpenseItemProvider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}>

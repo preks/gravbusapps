@@ -150,13 +150,13 @@ const { t } = useTranslation();
           {isProcessingFiles ? (
             <>
               <LoadingOutlined className="gba:uploadIcon" />
-              <span>Processing the receipt...</span>
+              <span>{t('lowcoder:create_expense_type_item.processing_receipt', 'Processing the receipt...')}</span>
             </>
           ) : (
             <>
               <img 
                 src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
-                alt="Focus" 
+                alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
                 className={`gba:uploadIcon`}
                 width="36"
                 height="36"
@@ -174,14 +174,14 @@ const { t } = useTranslation();
           {isProcessingFiles ? (
             <>
               <LoadingOutlined className="gba:uploadIconSmall" />
-              <span>Processing...</span>
+              <span>{t('lowcoder:create_expense_type_item.processing', 'Processing...')}</span>
             </>
           ) : (
             <>
               <span>{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
               <img 
                 src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
-                alt="Focus" 
+                alt={t('lowcoder:common.focus', 'Focus')} 
                 className={`gba:uploadIconSmall`}
                 width="18"
                 height="18"
@@ -255,7 +255,7 @@ const { t } = useTranslation();
               <div className={`gba:attachMoreContainer`}>
                 {isProcessingFiles ? (
                   <>
-                    <span>{t('create_expense_item.change_expense_item_container.file_add_document_processing', 'Processing the receipt...')}</span>
+                    <span>{t('lowcoder:create_expense_item.change_expense_item_container.file_add_document_processing', 'Processing the receipt...')}</span>
                     <LoadingOutlined className="gba:uploadIconSmall" />
                   </>
                 ) : (
@@ -263,7 +263,7 @@ const { t } = useTranslation();
                     <span>{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
                     <img 
                       src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
-                      alt="Focus" 
+                      alt={t('lowcoder:common.focus', 'Focus')} 
                       className={`gba:uploadIconSmall`}
                       width="18"
                       height="18"
@@ -278,7 +278,7 @@ const { t } = useTranslation();
 
       {isModalVisible && (
         <Modal
-          title="Attach Additional Files"
+          title={t('lowcoder:create_expense_type_item.attach_additional_files', 'Attach Additional Files')}
           open={true}
           onCancel={() => {
             setIsModalVisible(false);
@@ -293,7 +293,7 @@ const { t } = useTranslation();
           width={500}
         >
           <div className={`gba:modalContent`}>
-            <p>Do you want to keep the current {fileList.length > 1 ? 'files' : 'file'} as well?</p>
+            <p>{t("lowcoder:")}Do you want to keep the current {fileList.length > 1 ? 'files' : 'file'} as well?</p>
             <div className={`gba:modalButtons`}>
               <Button 
                 variant="secondary"
@@ -301,7 +301,7 @@ const { t } = useTranslation();
                 data-testid="modal-no-button"
                 className="gba:min-w-[120px]"
               >
-                No
+                {t('lowcoder:common.no', 'No')}
               </Button>
               <Button 
                 variant="primary"
@@ -309,7 +309,7 @@ const { t } = useTranslation();
                 data-testid="modal-yes-button"
                 className="gba:min-w-[120px]"
               >
-                Yes
+                {t('lowcoder:common.yes', 'Yes')}
               </Button>
             </div>
           </div>

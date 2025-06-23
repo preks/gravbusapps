@@ -17,7 +17,7 @@ export const parseFileUpload = async (
 ) => {
   if (!files || files.length === 0) {
     showToast(
-      t("expense_item.no_files", "No files selected for upload"),
+      t("lowcoder:create_expense_type_item.document_upload_error_missing_files", "No valid files to upload"),
       "error"
     );
     return null;
@@ -48,7 +48,7 @@ export const parseFileUpload = async (
 
     if (!response.ok) {
       showToast(
-        t("expense_item.upload_error", "Error processing receipt. Continuing without receipt data."),
+        t("lowcoder:create_expense_type_item.process_error_receipt_processing", "Error processing receipt data"),
         "error"
       );
       return null;
@@ -58,7 +58,7 @@ export const parseFileUpload = async (
     return data;
   } catch (error) {
     showToast(
-      t("expense_item.upload_error", "Error processing receipt. Continuing without receipt data."),
+      t("lowcoder:create_expense_type_item.process_error_receipt_processing", "Error processing receipt data"),
       "error"
     );
     return null;
