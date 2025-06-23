@@ -7,6 +7,7 @@ import { ExpenseItemProps } from "./types";
 import StartScreenComponent from "./components/StartScreenComponent";
 import FormScreenComponent from "./components/FormScreenComponent";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { translate } from "./utils/windowUtils";
 
 const { Title } = Typography;
 
@@ -66,8 +67,8 @@ const ExpenseItemContent: React.FC = () => {
         <div className={`gba:titleContainer`}>
           <Title level={4} className={`gba:headerTitle`}>
             {isEditMode 
-              ? t("create_expense_type_item.header_container_title_edit", "Edit Item | Expense")
-              : t("create_expense_type_item.header_container_title_new", "New Item | Expense")
+              ? translate("lowcoder:create_expense_type_item.header_container_title_edit", "Edit Item | Expense")
+              : translate("lowcoder:create_expense_type_item.header_container_title_new", "New Item | Expense")
             }
           </Title>
         </div>

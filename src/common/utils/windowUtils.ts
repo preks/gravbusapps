@@ -6,6 +6,7 @@ declare global {
       getActiveUserLocale?: () => string;
       getCatalogValue?: (value: any) => string;
       getDateFormat?: (format:string)=>string;
+      translate?:(i18nKey: string, label: string)=>string
     };
   }
 }
@@ -35,4 +36,11 @@ export function getDateFormat(format:string):string{
   if(window?.lowcoder?.getDateFormat)
     return window.lowcoder.getDateFormat(format)
   return "DD.MM.YYYY"
+}
+export function translate(i18nKey: string, label: string = i18nKey): string {
+  try {
+    return window?.lowcoder?.i18n?.t(i18nKey, label) || label;
+  } catch {
+    return label;
+  }
 }
