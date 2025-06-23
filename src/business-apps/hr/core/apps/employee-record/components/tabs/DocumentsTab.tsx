@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Employee } from '../../hooks/useEmployeeData';
 import { Card } from '@newwork/gravity-ui-catalog';
 import { DataCards } from '../DataCards';
-import { Modal, Spin, Divider } from 'antd';
+import { Modal, Spin, Divider, Empty } from 'antd';
 import { Button } from '@newwork/gravity-ui-catalog';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -397,8 +397,25 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
 
   if (documents.length === 0) {
     return (
-      <div className="gba:text-center gba:text-gray-500 gba:py-8">
-        <p>No documents found.</p>
+      <div className="gba:space-y-4" data-testid="documents-tab-container">
+        {/* Upload document button */}
+        <div className="gba:flex gba:justify-end gba:mb-4">
+          <Button
+            onClick={showUploadModal}
+            data-testid="upload-document-button"
+            variant="primary"
+            icon={<PlusOutlined />}
+            iconPosition="start"
+          >
+            Upload Document
+          </Button>
+        </div>
+
+        <Empty 
+          description="No documents available" 
+          className="gba:py-10" 
+          data-testid="empty-documents-state"
+        />
       </div>
     );
   }
@@ -425,7 +442,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
         gap={16}
         loading={loading}
         error={error}
-        emptyMessage="No documents found."
+        emptyMessage="No documents available"
       />
 
         <Modal
