@@ -1,0 +1,331 @@
+.gba\:absence-container {
+  width: 100%;
+  padding: 30px 25px 25px 25px;
+}
+
+.gba\:absence-header {
+  margin-bottom: 1.5rem;
+}
+
+.gba\:tabsContainer {
+  margin-bottom: 1.5rem;
+  background: #f7f7fa;
+  border-radius: 10px;
+  padding: 3px 6px;
+  border: none;
+  box-shadow: none;
+  width: 100%;
+}
+
+
+.gba\:tabsContainer {
+  margin-bottom: 1.5rem;
+  background: #f7f7fa !important;
+  border-radius: 10px !important;
+  padding: 3px 6px !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: 100% !important;
+}
+
+.gba\:tabs {
+  width: 100% !important;
+}
+.gba\:tabs .ant-tabs-nav,
+.gba\:tabs .ant-tabs-nav-list {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+.gba\:tabs .ant-tabs-nav-list {
+  display: flex !important;
+}
+.gba\:tabs .ant-tabs-tab {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: unset !important;
+  margin: 0 !important;
+  justify-content: center !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #6b7280 !important;
+  font-size: 0.97rem !important;
+  font-weight: 500 !important;
+  height: 38px !important;
+  display: flex !important;
+  align-items: center !important;
+  transition: background 0.18s, color 0.18s !important;
+  outline: none !important;
+}
+.gba\:tabs .ant-tabs-tab-active {
+  background: #fff !important;
+  border: none !important;
+  border-radius: 8px 8px 0 0 !important;
+  box-shadow: none !important;
+  color: #222 !important;
+  z-index: 2 !important;
+}
+.gba\:tabs .ant-tabs-tab:not(.ant-tabs-tab-active) {
+  background: transparent !important;
+  color: #6b7280 !important;
+  border: none !important;
+}
+.gba\:tabs .ant-tabs-tab:hover {
+  color: #222 !important;
+}
+
+.gba\:tabs :global(.ant-tabs-tab-active) .gba\:tabLabel {
+  color: #111827;
+  font-weight: 600;
+  margin-bottom: -2px;
+}
+.gba\:tabs :global(.ant-tabs-tab-active):hover {
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 1px 4px 0 rgba(16,30,54,0.06);
+}
+.gba\:tabs :global(.ant-tabs-tab-active) .gba\:tabIcon {
+  color: #111827;
+}
+.gba\:tabs :global(.ant-tabs-tab:focus),
+.gba\:tabs :global(.ant-tabs-tab:active) {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+.gba\:tabs :global(.ant-tabs-tab:hover) .gba\:tabLabel {
+  color: #111827;
+}
+
+.gba\:tabLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.93rem;
+  font-weight: 500;
+  color: #6b7280;
+  transition: color 0.2s;
+  position: relative;
+}
+
+
+.gba\:tabIcon {
+  font-size: 1.05rem;
+  color: inherit;
+  transition: color 0.2s;
+  vertical-align: middle;
+}
+
+
+.gba\:filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.3rem;
+  background: #f7f7fa !important;
+  border-radius: 12px !important;
+  padding: 4px 8px !important;
+  align-items: flex-start;
+  width: fit-content;
+}
+
+
+.gba\:filterButton {
+  border: none !important;
+  background: none !important;
+  color: #18181a !important;
+  font-size: 0.98rem !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  padding: 0.45rem 1.5rem !important;
+  height: 40px !important;
+  box-shadow: none !important;
+  transition: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none !important;
+  margin: 0 !important;
+}
+.gba\:filterButton.ant-btn-primary, .gba\:filterButton[aria-selected='true'] {
+  background: #18181a !important;
+  color: #fff !important;
+  border: none !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+
+.gba\:content {
+  display: flex;
+  gap: 2.5rem;
+  align-items: flex-start;
+}
+
+.gba\:calendarContainer {
+  flex: 2 1 0%;
+  min-width: 0;
+}
+
+.gba\:sidebar {
+  flex: 1 1 350px;
+  max-width: 340px;
+  min-width: 260px;
+}
+
+.gba\:cardsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.gba\:card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: none;
+  border: 1px solid #e5e7eb;
+  padding: 0;
+  margin: 0;
+}
+
+.gba\:timeOffBalanceCard {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  box-shadow: none;
+  padding: 1rem 1.2rem 1.2rem 1.2rem;
+  margin-bottom: 1.2rem;
+}
+
+.gba\:statsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+
+.gba\:cardContent {
+  padding: 1.1rem 1.1rem 1rem 1.1rem;
+}
+
+.gba\:cardTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 0.8rem;
+}
+
+.gba\:statsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.gba\:upcomingList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Tabs styles */
+.gba\:tabs :global(.ant-tabs-nav-list) {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  padding: 0;
+}
+.gba\:tabs :global(.ant-tabs-tab) {
+  flex: 1 1 0;
+  justify-content: center;
+  padding: 0.5rem 0;
+  margin: 0 2px;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  color: #6b7280;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+  font-weight: 500;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  border: none !important;
+}
+.gba\:tabs :global(.ant-tabs-tab:not(.ant-tabs-tab-active)) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.gba\:tabs :global(.ant-tabs-tab + .ant-tabs-tab) {
+  border-left: none !important;
+  margin: 0;
+}
+.gba\:tabs :global(.ant-tabs-tab-active) {
+  background: #fff !important;
+  border: none !important;
+  border-radius: 8px 8px 0 0 !important;
+  box-shadow: none !important;
+  color: #222;
+  z-index: 2;
+}
+
+.gba\:tabs :global(.ant-tabs-tab-active) .gba\:tabLabel {
+  color: #111827;
+  font-weight: 600;
+  margin-bottom: -2px;
+}
+.gba\:tabs :global(.ant-tabs-tab-active):hover {
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 1px 4px 0 rgba(16,30,54,0.06);
+}
+.gba\:tabs :global(.ant-tabs-tab-active) .gba\:tabIcon {
+  color: #111827;
+}
+.gba\:tabs :global(.ant-tabs-tab:focus),
+.gba\:tabs :global(.ant-tabs-tab:active) {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+.gba\:tabs :global(.ant-tabs-tab:hover) .gba\:tabLabel {
+  color: #111827;
+}
+
+.gba\:tabLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.93rem;
+  font-weight: 500;
+  color: #6b7280;
+  transition: color 0.2s;
+  position: relative;
+}
+
+
+.gba\:tabIcon {
+  font-size: 1.05rem;
+  color: inherit;
+  transition: color 0.2s;
+  vertical-align: middle;
+}
+
+.gba\:absenceListFilters {
+  margin-bottom: 16px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 4px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: fit-content;
+}
