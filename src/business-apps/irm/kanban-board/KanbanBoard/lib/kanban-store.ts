@@ -12,18 +12,15 @@ interface KanbanStore {
   opportunities: Opportunity[];
   loading: boolean;
   error: Error | null;
-  isAddingOpportunity: boolean;
   isEditingOpportunity: boolean;
   editingOpportunityId: string | null;
 
   // Actions
   fetchOpportunities: (accessToken: string) => Promise<Opportunity[]>;
   moveOpportunity: (opportunityId: string, targetStageId: string, accessToken: string) => Promise<void>;
-  addOpportunity: (opportunityData: Partial<Opportunity>, accessToken: string) => Promise<void>;
   updateOpportunity: (opportunityId: string, updates: Partial<Opportunity>, accessToken: string) => Promise<void>;
   deleteOpportunity: (opportunityId: string, accessToken: string) => Promise<void>;
   setEditingOpportunity: (opportunityId: string | null) => void;
-  setIsAddingOpportunity: (isAdding: boolean) => void;
 }
 
 export const useKanbanStore = create<KanbanStore>((set, get) => ({
@@ -32,7 +29,6 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
   opportunities: [],
   loading: false,
   error: null,
-  isAddingOpportunity: false,
   isEditingOpportunity: false,
   editingOpportunityId: null,
 
@@ -100,13 +96,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
     }
   },
   
-  addOpportunity: async (opportunityData: Partial<Opportunity>, accessToken: string) => {
-    console.log('Adding opportunity with data:', opportunityData, 'using token:', accessToken);
-    // In a real implementation, we would call an API endpoint to create a new opportunity
-    // For now, we'll just add it to the local state
-    set({ isAddingOpportunity: false });
-    return Promise.resolve();
-  },
+
   
   updateOpportunity: async (opportunityId: string, updates: Partial<Opportunity>, accessToken: string) => {
     console.log('Updating opportunity:', opportunityId, 'with updates:', updates, 'using token:', accessToken);
@@ -139,7 +129,5 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
     });
   },
   
-  setIsAddingOpportunity: (isAdding: boolean) => {
-    set({ isAddingOpportunity: isAdding });
-  }
+
 }));

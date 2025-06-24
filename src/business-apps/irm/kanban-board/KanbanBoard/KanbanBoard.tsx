@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
+import { DndContext, DragOverlay, useSensors, useSensor, PointerSensor, closestCorners } from "@dnd-kit/core";
 import { useKanbanStore } from "./lib/kanban-store";
 import { KanbanColumn } from "./components/KanbanColumn";
 import { OpportunityCard } from "./components/OpportunityCard";
@@ -36,7 +35,7 @@ export function KanbanBoard({ accessToken, userInfo }: BusinessAppContextProps) 
     loadOpportunities();
   }, [fetchOpportunities, accessToken]);
 
-  const sortedStages = [...stages].sort((a, b) => a.order - b.order);
+  // No sorting of stages - use them directly from the store
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -92,8 +91,7 @@ export function KanbanBoard({ accessToken, userInfo }: BusinessAppContextProps) 
       >
         <div className="gba:flex-1 gba:overflow-x-auto gba:scrollbar-hide">
           <div className="gba:flex gba:h-full gba:gap-4 gba:p-4">
-            <SortableContext items={sortedStages.map(s => s.id)} strategy={horizontalListSortingStrategy}>
-              {sortedStages.map(stage => (
+            {stages.map(stage => (
                 <KanbanColumn
                   key={stage.id}
                   stage={stage}
@@ -102,7 +100,6 @@ export function KanbanBoard({ accessToken, userInfo }: BusinessAppContextProps) 
                   userInfo={userInfo}
                 />
               ))}
-            </SortableContext>
           </div>
         </div>
 
