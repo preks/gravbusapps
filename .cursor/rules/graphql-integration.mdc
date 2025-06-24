@@ -1,7 +1,7 @@
 ---
 description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # GraphQL Integration Pattern
 
@@ -11,6 +11,25 @@ When working with GraphQL APIs in business apps:
 - Create query files in `queries/` directory with pattern `EntityQueries.ts`
 - Always use `context.accessToken` for authentication
 - Wrap API calls in try-catch blocks with proper error handling
+
+## GraphQL Query Conventions
+- Use `orderBy` instead of `order_by` for sorting
+- Use uppercase `ASC` and `DESC` for sort direction (not lowercase `asc`/`desc`)
+
+### Example:
+```graphql
+query GetEntities($limit: Int, $offset: Int) {
+  Entity(
+    limit: $limit,
+    offset: $offset,
+    orderBy: { name: ASC, createdAt: DESC }
+  ) {
+    id
+    name
+    createdAt
+  }
+}
+```
 
 @src/business-apps/mdm/apps/compensation-data/queries/CompensationBandQueries.ts
 
