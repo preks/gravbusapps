@@ -42,7 +42,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
     try {
       // Set the access token before making the request
       graphQLClient.setAccessToken(accessToken);
-      const response = await graphQLClient.request(GET_OPPORTUNITIES, { limit: 100, offset: 0 });
+      const response = await graphQLClient.request(GET_OPPORTUNITIES, { offset: 0 });
       
       if (!response || !response.Opportunity) {
         console.error('Invalid response format:', response);

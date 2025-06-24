@@ -96,7 +96,7 @@ export function KanbanBoard({ accessToken, userInfo }: BusinessAppContextProps) 
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="kanban-board">
       <div className="gba:p-4 gba:border-b gba:border-gray-200 gba:dark:border-gray-800">
-        <h1 className="gba:text-xl gba:font-semibold">Opportunities Board</h1>
+        <div className="gba:text-2xl gba:font-semibold">Opportunities Kanban Board</div>
       </div>
       
       <DndContext
