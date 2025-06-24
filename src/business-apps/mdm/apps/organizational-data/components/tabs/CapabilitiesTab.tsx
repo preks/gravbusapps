@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, message, Modal, Form, Select, Tag } from 'antd';
+import { Table, Button, Input, Space, Typography, message, Modal, Form, Select, Tag, Spin, Alert } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, TrophyOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCapabilities } from '../../hooks/useCapabilities';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -24,76 +25,19 @@ export interface CapabilitiesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
-// Mock data for demonstration
-const mockCapabilities: Capability[] = [
-  {
-    id: '1',
-    name: 'Software Development',
-    code: 'SD001',
-    category: 'Technical',
-    level: 'Expert',
-    description: 'Full-stack software development capabilities',
-    status: 'Active',
-    competencyArea: 'Engineering',
-    requiredLevel: 'Senior',
-    certificationRequired: false
-  },
-  {
-    id: '2',
-    name: 'Project Management',
-    code: 'PM001',
-    category: 'Leadership',
-    level: 'Advanced',
-    description: 'Project planning, execution, and delivery',
-    status: 'Active',
-    competencyArea: 'Management',
-    requiredLevel: 'Intermediate',
-    certificationRequired: true
-  },
-  {
-    id: '3',
-    name: 'Data Analysis',
-    code: 'DA001',
-    category: 'Analytical',
-    level: 'Advanced',
-    description: 'Statistical analysis and data interpretation',
-    status: 'Active',
-    competencyArea: 'Analytics',
-    requiredLevel: 'Intermediate',
-    certificationRequired: false
-  },
-  {
-    id: '4',
-    name: 'UI/UX Design',
-    code: 'UX001',
-    category: 'Creative',
-    level: 'Expert',
-    description: 'User interface and experience design',
-    status: 'Active',
-    competencyArea: 'Design',
-    requiredLevel: 'Senior',
-    certificationRequired: false
-  },
-  {
-    id: '5',
-    name: 'DevOps',
-    code: 'DO001',
-    category: 'Technical',
-    level: 'Advanced',
-    description: 'Development operations and automation',
-    status: 'Inactive',
-    competencyArea: 'Engineering',
-    requiredLevel: 'Senior',
-    certificationRequired: true
-  }
-];
-
-const CapabilitiesTab: React.FC<CapabilitiesTabProps> = ({ 
-  prefixDataTestId 
-}) => {
+const CapabilitiesTab: React.FC<CapabilitiesTabProps> = (context) => {
   const { t } = useTranslation();
+  const { prefixDataTestId } = context;
   
-  const [capabilities, setCapabilities] = useState<Capability[]>(mockCapabilities);
+  const {
+    capabilities,
+    isLoading,
+    error,
+    refetch,
+    totalCapabilities,
+    activeCapabilities
+  } = useCapabilities(context);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingCapability, setEditingCapability] = useState<Capability | null>(null);
@@ -136,43 +80,27 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = ({
       okType: 'danger',
       cancelText: 'Cancel',
       onOk: async () => {
-        try {
-          setCapabilities(prev => prev.filter(capability => capability.id !== record.id));
-          message.success('Capability deleted successfully');
-        } catch (error) {
-          console.error('Error deleting capability:', error);
-          message.error('Failed to delete capability');
-        }
+        message.warning('Delete functionality will be implemented with process API integration');
+        await refetch();
       },
     });
   };
 
   const handleModalOk = async () => {
     try {
-      const values = await form.validateFields();
+      await form.validateFields();
       
       if (editingCapability) {
         // Update existing capability
-        setCapabilities(prev => 
-          prev.map(capability => 
-            capability.id === editingCapability.id 
-              ? { ...capability, ...values }
-              : capability
-          )
-        );
-        message.success('Capability updated successfully');
+        message.warning('Update capability functionality will be implemented with process API integration');
       } else {
         // Create new capability
-        const newCapability: Capability = {
-          id: Date.now().toString(),
-          ...values
-        };
-        setCapabilities(prev => [...prev, newCapability]);
-        message.success('Capability created successfully');
+        message.warning('Create capability functionality will be implemented with process API integration');
       }
       
       setIsModalVisible(false);
       form.resetFields();
+      await refetch();
     } catch (error) {
       console.error('Validation failed:', error);
     }
@@ -256,7 +184,7 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = ({
             type="link"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
-            data-testid={`${prefixDataTestId}-edit-capability-${record.id}`}
+            data-testid={`${prefixDataTestId || ''}-edit-capability-${record.id}`}
           >
             Edit
           </Button>
@@ -265,7 +193,7 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = ({
             danger
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
-            data-testid={`${prefixDataTestId}-delete-capability-${record.id}`}
+            data-testid={`${prefixDataTestId || ''}-delete-capability-${record.id}`}
           >
             Delete
           </Button>
@@ -274,27 +202,62 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = ({
     },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert
+        message="Error Loading Capabilities"
+        description={error}
+        type="error"
+        showIcon
+        action={
+          <Button size="small" onClick={refetch}>
+            Retry
+          </Button>
+        }
+      />
+    );
+  }
+
   return (
-    <div data-testid={`${prefixDataTestId}-CapabilitiesTab`}>
+    <div data-testid={`${prefixDataTestId || ''}-CapabilitiesTab`}
+      style={{ 
+        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
+        minHeight: '100%',
+        padding: '24px',
+        borderRadius: '8px'
+      }}>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={3} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <TrophyOutlined />
-          {t('hr.capabilities', 'Capabilities')}
-        </Title>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Title level={4} style={{ margin: 0, color: '#1f2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <TrophyOutlined />
+            {t('hr.capabilities', 'Capabilities')}
+          </Title>
+          <Tag color="blue">{totalCapabilities} capabilities</Tag>
+          <Tag color="green">{activeCapabilities} active</Tag>
+        </div>
         <Space>
           <Input
-            placeholder="Search capabilities..."
+            placeholder={t('hr.search_capabilities', 'Search capabilities...')}
             prefix={<SearchOutlined />}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{ width: 250 }}
-            data-testid={`${prefixDataTestId}-search-capabilities`}
+            allowClear
+            data-testid={`${prefixDataTestId || ''}-search-capabilities`}
           />
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={handleAdd}
-            data-testid={`${prefixDataTestId}-add-capability`}
+            data-testid={`${prefixDataTestId || ''}-add-capability`}
           >
             Add Capability
           </Button>
@@ -312,7 +275,12 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = ({
           showQuickJumper: true,
           showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} capabilities`,
         }}
-        data-testid={`${prefixDataTestId}-capabilities-table`}
+        data-testid={`${prefixDataTestId || ''}-capabilities-table`}
+        style={{
+          background: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}
       />
 
       <Modal
