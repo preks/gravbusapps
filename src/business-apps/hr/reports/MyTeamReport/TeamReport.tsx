@@ -1,6 +1,8 @@
 "use client"
 
-import { Card, Button, Checkbox, Input, Tag } from 'antd';
+import { Card, Button, Checkbox, Input, Tag, Pagination } from 'antd';
+import dayjs from 'dayjs';
+import { getEmployeeTenure } from './utils/tenureUtils';
 import {
   CalendarOutlined,
   UserOutlined,
@@ -20,40 +22,41 @@ import { useGetEmployeesReport } from './hooks/useGetEmployeesReport';
 
 interface TeamReportProps extends BusinessAppContextProps {}
 const TeamReport: React.FC<TeamReportProps> = (props) => {
-  // Debug: Log accessToken
-  console.log('TeamReport props.accessToken:', props.accessToken);
-  if (!props.accessToken) {
-    console.warn('No accessToken provided to TeamReport. Data fetching will not work.');
-  }
 
   // Fetch employee report data using the hook
   const report = useGetEmployeesReport({ accessToken: props.accessToken });
-  // Debug: Log the report object
-  console.log('TeamReport useGetEmployeesReport result:', report);
-  // Debug: Log loading state
-  if (report.loading) {
-    console.log('TeamReport: Employees report is loading...');
-  }
-  // Debug: Log error if present
-  if (report.error) {
-    console.error('TeamReport: Error fetching employees report:', report.error);
-  }
-  // Debug: Log employees array specifically (on every change)
-  useEffect(() => {
-    console.log('TeamReport: Employees array (effect):', report.employees);
-  }, [report.employees]);
 
   // Map API employees to UI structure
-  const employees = (report.employees || []).map(emp => ({
+
+  type EmployeeUI = {
+    id: string;
+    name: string;
+    position: string;
+    location: string;
+    employmentType: string;
+    contractType: string;
+    startDate: string;
+    exitDate: string | null;
+    tenure: string;
+  };
+  const employees: EmployeeUI[] = (report.employees || []).map(emp => ({
     id: emp.id,
     name: `${emp.firstName} ${emp.lastName}`,
     position: emp.jobTitle ?? "N/A",
     location: emp.organizationalUnit ?? "N/A",
     employmentType: emp.employmentType ?? "N/A",
     contractType: emp.contractType ?? "N/A",
-    startDate: "N/A", // Not available in API
-    tenure: "N/A",    // Not available in API
+    startDate: (emp as any).startDate ? dayjs((emp as any).startDate).format('YYYY-MM-DD') : "N/A",
+    exitDate: (emp as any).exitDate ? dayjs((emp as any).exitDate).format('YYYY-MM-DD') : null,
+    tenure: getEmployeeTenure((emp as any).startDate, (emp as any).exitDate),
   }));
+
+  // Log exitDate values for debugging
+  console.log('TeamReport: exitDate values', (report.employees || []).map(emp => (emp as any)));
+
+  // Pagination state from hook
+  const { currentPage, onPageChange, total } = report;
+  const pageSize = 20;
 
   const [activeFilter, setActiveFilter] = useState<string>("all")
   const [searchTerm, setSearchTerm] = useState("")
@@ -534,6 +537,7 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
                   </tr>
                 </thead>
                 <tbody>
+                  {(() => { console.log('TeamReport: displayed tenure values', displayEmployees.map(e => e.startDate)); return null; })()}
                   {displayEmployees.map(
                     (employee: typeof employees[0], index: number) => (
                      <tr
@@ -597,12 +601,23 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
               </div>
               <div className="gba:flex gba:justify-between gba:items-center gba:text-sm gba:text-gray-500 gba:pt-4">
                 <span>
-                  Showing {displayEmployees.length} of {employees.length} employees
+                  Showing {employees.length} of {total} employees (page {currentPage})
                   {(selectedPositions.length > 0 || activeFilter !== "all" || searchTerm !== "") && (
                     <span className="gba:text-blue-600 gba:font-medium"> (filtered)</span>
                   )}
                 </span>
                 <span>Last updated: {new Date().toLocaleDateString()}</span>
+              </div>
+              <div className="gba:pt-4 gba:flex gba:justify-end">
+                <Pagination
+                  current={currentPage}
+                  pageSize={pageSize}
+                  total={total}
+                  onChange={onPageChange}
+                  showSizeChanger={false}
+                  className="gba:ml-auto"
+                  data-testid="team-report-pagination"
+                />
               </div>
           </div>
         </Card> 

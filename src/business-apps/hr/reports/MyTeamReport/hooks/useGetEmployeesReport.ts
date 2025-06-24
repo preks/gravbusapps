@@ -100,6 +100,8 @@ const EMPLOYEE_POSITION_QUERY = `
           employmentType {
             value
           }
+          hireDate
+          exitDate
         }
       }
     }
@@ -131,31 +133,20 @@ export function useGetEmployeesReport({ accessToken }: { accessToken: string }) 
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
 
-
-  
-
-  /**
-   * Loads more employees from the API. Guards against undefined client and SSR.
-   */
-  const loadMore = useCallback(() => {
+  const fetchEmployees = useCallback((page: number) => {
     if (typeof window === 'undefined') return; // Prevent SSR execution
     if (!client) {
       setError(new Error('GraphQL client unavailable'));
       setLoading(false);
       return;
     }
-    if (loading || !hasMore) return;
     setLoading(true);
-    // Only fetch the first 20 employees, no filters
-    const variables = { limit: 20, offset, where: {} };
-    console.log('[useGetEmployeesReport] GraphQL variables:', variables);
+    const offset = (page - 1) * EMPLOYEES_PER_PAGE;
+    const variables = { limit: EMPLOYEES_PER_PAGE, offset, where: {} };
     client.request?.(EMPLOYEE_POSITION_QUERY, variables)
       .then((res: any) => {
-        // Debug: Log the full API response
-        console.log('[useGetEmployeesReport] Full GraphQL response:', res);
         if (!res) {
           setError(new Error('No response from GraphQL query'));
           setLoading(false);
@@ -172,42 +163,41 @@ export function useGetEmployeesReport({ accessToken }: { accessToken: string }) 
             lastName: ep.lastName,
             jobTitle: ep.jobPosition?.name ?? '',
             organizationalUnit: ep.organizationalUnit?.name ?? '',
-            email: '', // Email not provided in query, default empty
+            email: '',
             employmentType: workingCondition?.employmentType?.value ?? '',
             contractType: workingCondition?.contractType?.value ?? '',
             matrixTeams: extractMatrixTeamNames(ep.matrixUnitEmployees),
             profilePicture: ep.employee?.pictureThumbnail ?? '',
+            startDate: workingCondition?.hireDate ?? '',
+            exitDate: workingCondition?.exitDate ?? ''
           };
         });
-        setEmployees((prev: Employee[]) => [...prev, ...newEmployees]);
+        setEmployees(newEmployees);
         setTotal(res.EmployeePositionAggregate.aggregate.count);
-        setOffset(prev => prev + 20);
-        setHasMore(newEmployees.length === 20);
         setLoading(false);
       })
       .catch((err: any) => {
-        // Debug: Log any errors from the request
-        console.error('[useGetEmployeesReport] GraphQL error:', err);
         setError(err);
-        setHasMore(false);
         setLoading(false);
       });
-  }, [loading, hasMore, client, offset]);
+  }, [client]);
+
+  useEffect(() => {
+    if (accessToken && client) {
+      fetchEmployees(currentPage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, client, currentPage]);
+
+  const onPageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   const retry = useCallback(() => {
     setError(null);
-    setHasMore(true);
-    loadMore();
-  }, [loadMore]);
-  console.log('employees', employees);
-  // Auto-trigger initial data fetch when accessToken and client are ready
-  useEffect(() => {
-    if (accessToken && client) {
-      loadMore();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, client]);
+    fetchEmployees(currentPage);
+  }, [fetchEmployees, currentPage]);
 
-  return { employees, total, loading, error, hasMore, loadMore, retry };
+  return { employees, total, loading, error, currentPage, onPageChange, retry };
 }
 
