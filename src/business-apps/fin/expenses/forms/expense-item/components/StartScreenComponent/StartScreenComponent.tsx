@@ -3,6 +3,7 @@ import { Button } from "@newwork/gravity-ui-catalog";
 import { useTranslation } from "react-i18next";
 import UploadComponent from "../UploadComponent";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
+import { ICONS } from "../../constants/icons";
 
 interface StartScreenComponentProps {
   fileList: any[];
@@ -36,9 +37,9 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
           data-testid="continue-button"
         >
           <div className={`gba:buttonWithIcon`} data-testid="continue-button-content">
-            <span>{t("lowcoder:create_expense_type_item.continue_button", "Continue without receipt")}</span>
+            <span className="gba:fontMedium" data-testid="continue-without-receipt-text">{t("lowcoder:create_expense_type_item.continue_button", "Continue without receipt")}</span>
             <img 
-              src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/ArrowRightSLine.svg" 
+              src={ICONS.ARROW_RIGHT} 
               alt={t('lowcoder:create_expense_type_item.continue_alt_text', 'Continue')} 
               className={`gba:arrowIcon`}
               data-testid="continue-button-arrow"

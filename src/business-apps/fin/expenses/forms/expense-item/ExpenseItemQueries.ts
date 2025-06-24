@@ -1,12 +1,13 @@
 // GraphQL queries for the ExpenseItem component
 import { showToast } from "./utils/notificationUtils";
+import { API } from "./context/constants";
 
 // Function to fetch employee rule data
 export const fetchEmployeeRule = async (employeeId: string, date: string, accessToken: string) => {
   try {
     const formattedDate = date.substring(0, 23) + date.substring(23).replace('Z', '+0300');
     
-    const response = await fetch(`https://newwork-dev.newwork.com/processes/employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`, {
+    const response = await fetch(`${API.BASE_URL}/processes/employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

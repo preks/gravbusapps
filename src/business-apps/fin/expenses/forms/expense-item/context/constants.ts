@@ -1,7 +1,14 @@
+/**
+ * API related constants
+ */
+export const API = {
+  BASE_URL: "https://newwork-dev.newwork.com",
+  FILES_ENDPOINT: "/files/api/v1/tenant/files"
+};
 
 export const DEFAULT_EMPLOYEE_ID = "86a8317d-34ef-4e04-951b-b0bb9754dea0";
 
-export const GRAPHQL_API_ENDPOINT = "https://newwork-dev.newwork.com/v1/graphql";
+export const GRAPHQL_API_ENDPOINT = `${API.BASE_URL}/v1/graphql`;
 
 export const DEFAULT_EXPENSE_SOURCE = "GENERAL_EXPENSE_RULE";
 

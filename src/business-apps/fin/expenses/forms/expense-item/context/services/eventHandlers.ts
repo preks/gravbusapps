@@ -1,5 +1,5 @@
 import { showToast } from "../../utils/notificationUtils";
-import { DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE } from "../constants";
+import { API, DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE } from "../constants";
 import { formatDateToISOString } from "../../utils/dateUtils";
 import { calculateTotalAmount } from "../../utils/calculationUtils";
 import { fetchExpenseTypes, fetchCustomFields } from "./dataFetchers";
@@ -45,7 +45,7 @@ export const uploadDocuments = async (
     const uploadPromises = files.map(async (file: File) => {
       const folderPath = encodeURIComponent(`/expenseItemsDocuments/${employeeId}`);
       const mimeType = encodeURIComponent(file.type);
-      const url = `https://newwork-dev.newwork.com/files/api/v1/tenant/files?appName=expenses&folderPath=${folderPath}&mimeType=${mimeType}`;
+      const url = `${API.BASE_URL}${API.FILES_ENDPOINT}?appName=expenses&folderPath=${folderPath}&mimeType=${mimeType}`;
       const formData = new FormData();
       formData.append('fileContent', file);
       

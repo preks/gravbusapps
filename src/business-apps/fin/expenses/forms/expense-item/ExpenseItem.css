@@ -1,7 +1,4 @@
-/* Import Roboto font - scoped to ExpenseItem component */
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 
-/* Remove spinner arrows from number inputs */
 .gba\:no-spinner input[type=number] {
   appearance: textfield;
   -moz-appearance: textfield;
@@ -13,7 +10,6 @@
   margin: 0;
 }
 
-/* Amount-currency row layout */
 .gba\:amountCurrencyRow {
   display: flex;
   gap: 16px;
@@ -24,17 +20,16 @@
   width: 50%;
 }
 
-/* Make sure both fields in the row have proper alignment */
 .gba\:amountCurrencyRow .ant-form-item {
   margin-bottom: 0;
 }
 
-/* Add padding to all error messages */
 .ant-form-item-explain-error {
   padding-left: 16px;
+  padding-top: 5px;
 }
 
-/* Form field container styles */
+
 .gba\:formFieldContainer {
   width: 100%;
   background: #f5f5f5;
@@ -48,13 +43,12 @@
   font-family: 'Roboto', sans-serif;
 }
 
-/* Date field container with extra padding for the calendar icon */
 .gba\:dateFieldContainer {
   width: 100%;
   background: #f5f5f5;
   border: none;
   border-radius: 0;
-  padding: 8px 40px 8px 10px; /* Extra padding on right for calendar icon */
+  padding: 8px 40px 8px 10px;
   min-height: 60px;
   display: flex;
   flex-direction: column;
@@ -63,7 +57,6 @@
   position: relative;
 }
 
-/* Label styles */
 .gba\:formFieldLabel {
   color: #707070;
   font-size: 12px;
@@ -76,15 +69,8 @@
   padding-right: 15px;
 }
 
-/* Switch label styles */
-.gba\:switchLabel {
-  color: #707070;
-  font-size: 14px;
-  margin-left: 8px;
-  font-family: 'Roboto', sans-serif;
-}
 
-/* Card styles */
+
 .gba\:positionCard {
   margin-bottom: 16px;
   font-family: 'Roboto', sans-serif;
@@ -94,12 +80,25 @@
   border-bottom: 0px;
 }
 
+.gba\:borderedCard {
+  border: 3px solid #EFEFEF;
+}
+
+.gba\:borderedCard .ant-card-head {
+  padding:20px 21px 0px 21px;
+  min-height: fit-content;
+}
+
+.gba\:borderedCard .ant-card-body {
+  padding: 30px 21px;
+}
+
 .gba\:singlePositionContainer {
   margin-bottom: 16px;
   font-family: 'Roboto', sans-serif;
 }
 
-/* Required field asterisk */
+
 .gba\:requiredAsterisk {
   color: #aaa;
   margin-left: 2px;
@@ -108,7 +107,7 @@
   top: 0;
 }
 
-/* Input field styles */
+
 .gba\:formFieldInput {
   width: 100%;
   height: 16px;
@@ -125,7 +124,7 @@
   opacity: 1;
 }
 
-/* Custom InputField styling to match our guidelines */
+
 .gba\:customInputField {
   background: #f5f5f5;
   border: none;
@@ -146,14 +145,19 @@
   box-shadow: none;
 }
 
-/* Dropdown style for Select components */
+
 .gba\:dropdownStyle {
   border-radius: 0;
 }
 
-/* Common margin utilities */
+
 .gba\:marginBottom16 {
   margin-bottom: 16px;
+}
+
+.gba\:fontMedium {
+  font-weight: 500;
+  color: #000;
 }
 
 .gba\:marginBottom0 {
@@ -164,12 +168,12 @@
   margin-top: 16px;
 }
 
-/* Position utilities */
+
 .gba\:relativePosition {
   position: relative;
 }
 
-/* Calendar icon positioning */
+
 .gba\:calendarIcon {
   position: absolute;
   right: 10px;
@@ -180,34 +184,19 @@
   justify-content: center;
   color: #707070;
   font-size: 16px;
-  pointer-events: none; /* Ensure the icon doesn't interfere with clicks */
+  pointer-events: none; 
 }
 
-/* Switch container styles */
-.gba\:switchContainer {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
-}
 
-/* Switch label styles */
-.gba\:switchLabel {
-  margin-left: 8px;
-  font-family: 'Roboto', sans-serif;
-  color: #707070;
-}
 
-/* Card styles */
-.gba\:card {
-  margin-bottom: 16px;
-}
 
-/* Continue button */
+
+
 .gba\:continueButton {
   margin-top: 16px;
 }
 
-/* Main container */
+
 .gba\:mainContainer {
   max-width: 544px;
   width: 544px;
@@ -215,14 +204,14 @@
   font-family: 'Roboto', sans-serif;
 }
 
-/* Header styles */
+
 .gba\:headerContainer {
   display: flex;
   align-items: center;
   padding: 16px 0;
   font-family: 'Roboto', sans-serif;
   position: relative;
-  height: 56px; /* Fixed height for consistency */
+  height: 56px; 
 }
 
 .gba\:titleContainer {
@@ -255,7 +244,7 @@
   margin: 0 0 16px 0;
 }
 
-/* Button styles */
+
 .gba\:button {
   display: flex;
   align-items: center;
@@ -275,7 +264,7 @@
   background-color: rgba(245, 34, 45, 0.1);
 }
 
-/* Upload styles */
+
 .gba\:uploadDragContainer {
   border: 1px dashed #d9d9d9;
   border-radius: 2px;
@@ -285,17 +274,17 @@
   font-family: 'Roboto', sans-serif;
 }
 
-/* Upload container styles */
+
 .gba\:uploadContainer {
   margin-bottom: 20px;
 }
 
-/* Upload component styles */
+
 .gba\:uploadComponent {
   width: 100%;
 }
 
-/* Upload container styles for different states */
+
 .gba\:uploadContainerStart {
   border: 2px solid #EFEFEF;
   border-radius: 4px;
@@ -326,7 +315,7 @@
   min-height: 80px;
 }
 
-/* Upload button styles */
+
 .gba\:uploadButtonStart {
   display: flex;
   flex-direction: column;
@@ -363,7 +352,7 @@
   gap: 16px;
 }
 
-/* Ensure the ant-upload container takes full height and centers content vertically */
+
 .gba\:uploadContainerForm .ant-upload-wrapper,
 .gba\:uploadContainerStart .ant-upload-wrapper {
   display: flex;
@@ -373,7 +362,7 @@
   height: 100%;
 }
 
-/* Button with icon styles */
+
 .gba\:buttonWithIcon {
   display: flex;
   align-items: center;
@@ -386,7 +375,6 @@
   height: 24px;
 }
 
-/* Upload icon styles */
 .gba\:uploadIconSmall {
   width: 18px;
   height: 18px;
@@ -401,7 +389,7 @@
   height: 100%;
 }
 
-/* Modal styles */
+
 .gba\:modalContent {
   padding: 16px 0;
   font-family: 'Roboto', sans-serif;
@@ -558,7 +546,7 @@
   max-width: 600px;
 }
 
-/* Form layout styles */
+
 .gba\:formContainer {
   max-width: 600px;
   margin: 0 auto;

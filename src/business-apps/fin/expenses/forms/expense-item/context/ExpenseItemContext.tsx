@@ -18,8 +18,7 @@ import {
   CustomField,
 } from "../types";
 
-import { getCurrentActiveUserLocale } from "../../../../../../common/utils/windowUtils";
-import { getCatalogValue } from "../../../../../../common/utils/windowUtils";
+import { getCurrentActiveUserLocale, getCatalogValue } from "../../../../../../common/utils/windowUtils";
 import {
   fetchExpenseCatalogueData,
   fetchExpenseRuleGeneralData,
@@ -28,6 +27,7 @@ import {
 } from "../ExpenseItemQueries";
 import { fetchEmployeeRule } from "../ExpenseItemQueries";
 import { DEFAULT_EMPLOYEE_ID, DEFAULT_POSITION } from "./constants";
+import { USER_INFO_MOCKED, ADDITIONAL_DATA_MOCKED } from "../constants/mockedData";
 import { transformCurrencies } from "../utils/currencyUtils";
 import { createGraphQLClient } from "../services/graphqlClient";
 import {
@@ -38,7 +38,6 @@ import {
   handleAddPosition,
   handleExpenseGroupChange,
   handleExpenseTypeChange,
-  handleRemovePosition,
   handleSubmit,
   handleFileUpload,
   setByEdit,
@@ -147,37 +146,9 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [userCostCenter, setUserCostCenter] = useState<string>("");
   const [currentSelectedDate,setCurrentSelectedDate]= useState<Date |null>(null)
 
-  const userInfoMocked ={
-    "id": "2999c7b5-1b62-4887-ae86-2efb10909246",
-    "userName": "niancu@newwork.com",
-    "givenName": "Norbert",
-    "familyName": "Iancu",
-    "nickName": "",
-    "employeeDetails": {
-      "employeeId": "86a8317d-34ef-4e04-951b-b0bb9754dea0",
-      "firstName": "Norbert",
-      "lastName": "Iancu",
-      "supervisor": {
-        "id": "0f6dc184-70aa-459c-9cc9-586e728ca6a4",
-        "firstName": "Mihaela-Diana",
-        "lastName": "Lozneanu",
-        "userId": "7f94699d-3fd6-422c-8553-ab54da15889c"
-      },
-      "organizationalUnit": {
-        "id": "24dcf339-9959-4ceb-9867-680d3dddd3c4",
-        "name": "Quality Assurance"
-      }
-    }
-  }
-  const additionalDataMocked = {
-    psi_taskPayload: {
-      initialParameters: {
-        expenseId: "",//029a5366-28d0-463f-acaa-9e1a2a97d12b
-        expenseRequest:"23017ff9-ecde-442a-8e85-572551b00bff",
-        currencyData:"" //Currency:v1:EUR
-      },
-    },
-  };
+  // Using mocked data from constants file
+  const userInfoMocked = USER_INFO_MOCKED;
+  const additionalDataMocked = ADDITIONAL_DATA_MOCKED;
 
   const graphqlClient = useMemo(
     () => createGraphQLClient(accessToken),
@@ -542,7 +513,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
       if (additionalData?.psi_taskPayload?.initialParameters?.currencyData || additionalDataMocked?.psi_taskPayload?.initialParameters?.currencyData) {
         const requestCurrency = currencies.find(
-          (c) => c.id === additionalDataMocked.psi_taskPayload.initialParameters.currencyData
+          (c) => (c.id === additionalData?.psi_taskPayload.initialParameters.currencyData) ||
+          (c.id === additionalDataMocked?.psi_taskPayload.initialParameters.currencyData)
         );
         if (requestCurrency && requestCurrency.code !== data.currencyCode) {
           showToast(
@@ -769,7 +741,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       accessToken,
       userInfo?.employeeDetails?.employeeId,
       additionalData || additionalDataMocked,
-      userInfoMocked,
+      userInfo || userInfoMocked,
       isEditMode
     );
   };

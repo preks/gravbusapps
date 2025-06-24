@@ -13,14 +13,12 @@ import {
   Row,
   Col,
 } from "antd";
-import {
-  PlusCircleOutlined,
-} from "@ant-design/icons";
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from "../../types";
 import UploadComponent from "../UploadComponent";
 import SinglePositionComponent from "./SinglePositionComponent";
 import MultiPositionComponent from "./MultiPositionComponent";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
+import { ICONS } from "../../constants/icons";
 import { Alert } from "antd";
 import { getDateFormat } from "../../../../../../../common/utils/windowUtils";
 
@@ -251,9 +249,13 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           onClick={handleAddPosition}
           data-testid="add-position-button"
           disabled={isProcessingFiles}
-          className={`gba:marginBottom16`}
         >
-          <PlusCircleOutlined style={{ width: "17px", height: "17px" }} data-testid="add-position-icon" /> 
+          <img 
+            src={ICONS.ADD_CIRCLE}
+            alt={t("lowcoder:create_expense_type_item.add_position_button", "Add Position")}
+            style={{ width: "17px", height: "17px" }}
+            data-testid="add-position-icon"
+          /> 
           {isProcessingFiles ? t("lowcoder:create_expense_item.file_add_document_processing","Processing...") : t("lowcoder:create_expense_type_item.add_position_button","Add Position")}
         </Button>
       )}
@@ -276,6 +278,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                 type="number"
                 step="0.01"
                 min="0"
+                className="gba:no-spinner"
                 data-testid="total-amount-input"
                 value={calculateTotal().toFixed(2)}
                 placeholder={t(

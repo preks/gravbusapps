@@ -1,7 +1,8 @@
 import React, { useRef, useState, useCallback } from "react";
-import { Upload, Modal } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { Modal, Upload, Spin } from "antd";
+// Using custom icons instead of Ant Design icons
 import { useExpenseItem } from "../../context/ExpenseItemContext";
+import { ICONS } from "../../constants/icons";
 import { Button } from "@newwork/gravity-ui-catalog";
 import { useTranslation } from "react-i18next";
 import { showToast } from "../../utils/notificationUtils";
@@ -152,20 +153,20 @@ const { t } = useTranslation();
         <div className={`gba:uploadButtonStart`}>
           {isProcessingFiles ? (
             <>
-              <LoadingOutlined className="gba:uploadIcon" data-testid="upload-loading-icon" />
+              <Spin className="gba:uploadIcon" data-testid="upload-loading-icon" />
               <span>{t('lowcoder:create_expense_type_item.processing_receipt', 'Processing the receipt...')}</span>
             </>
           ) : (
             <>
               <img 
-                src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
+                src={ICONS.FOCUS} 
                 alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
                 className={`gba:uploadIcon`}
                 width="36"
                 height="36"
                 data-testid="upload-icon-large"
               />
-              <span>{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
+              <span className="gba:fontMedium" data-testid="attach-receipt-text-start">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
             </>
           )}
         </div>
@@ -177,14 +178,14 @@ const { t } = useTranslation();
         <div className={`gba:uploadButtonFormEmpty`}>
           {isProcessingFiles ? (
             <>
-              <LoadingOutlined className="gba:uploadIconSmall" data-testid="upload-loading-icon-small" />
+              <Spin className="gba:uploadIconSmall" data-testid="upload-loading-icon-small" />
               <span>{t('lowcoder:create_expense_type_item.processing', 'Processing...')}</span>
             </>
           ) : (
             <>
-              <span>{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
+              <span className="gba:fontMedium" data-testid="attach-receipt-text-form">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
               <img 
-                src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
+                src={ICONS.FOCUS} 
                 alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
                 className={`gba:uploadIconSmall`}
                 width="18"
@@ -264,13 +265,13 @@ const { t } = useTranslation();
                 {isProcessingFiles ? (
                   <>
                     <span data-testid="processing-text">{t('lowcoder:create_expense_item.change_expense_item_container.file_add_document_processing', 'Processing the receipt...')}</span>
-                    <LoadingOutlined className="gba:uploadIconSmall" data-testid="loading-icon" />
+                    <Spin className="gba:uploadIconSmall" data-testid="loading-icon" />
                   </>
                 ) : (
                   <>
-                    <span data-testid="attach-receipt-text">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
+                    <span className="gba:fontMedium" data-testid="attach-receipt-text">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
                     <img 
-                      src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
+                      src={ICONS.FOCUS} 
                       alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
                       className={`gba:uploadIconSmall`}
                       width="18"

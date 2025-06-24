@@ -1,4 +1,5 @@
 import { showToast } from "../../utils/notificationUtils";
+import { API } from "../constants";
 
 /**
  * Initiates a workflow process for expense item changes
@@ -23,7 +24,7 @@ export const initiateFlow = async (
   try {
     const domain = "employee-expense";
     const processName = "changeExpenseItem";
-    const url = `https://newwork-dev.newwork.com/processes/${domain}/${processName}`;
+    const url = `${API.BASE_URL}/processes/${domain}/${processName}`;
 
     
     const response = await fetch(url, {
@@ -75,7 +76,7 @@ export const getOpenedTaskFlow = async (
   try {
     const domain = "employee-expense";
     const processName = "changeExpenseItem";
-    const url = `https://newwork-dev.newwork.com/processes/${domain}/${processName}/${processInstanceId}/tasks?user=${userId}`;
+    const url = `${API.BASE_URL}/processes/${domain}/${processName}/${processInstanceId}/tasks?user=${userId}`;
 
     
     const response = await fetch(url, {
@@ -131,7 +132,7 @@ export const completeTaskFlow = async (
   try {
     const domain = "employee-expense";
     const processName = "changeExpenseItem";
-    const url = `https://newwork-dev.newwork.com/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskId}?phase=complete&user=${userId}`;
+    const url = `${API.BASE_URL}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskId}?phase=complete&user=${userId}`;
 
     
     const response = await fetch(url, {

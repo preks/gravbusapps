@@ -7,14 +7,13 @@ import { ExpenseItemProps } from "./types";
 import StartScreenComponent from "./components/StartScreenComponent";
 import FormScreenComponent from "./components/FormScreenComponent";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { translate } from "./utils/windowUtils";
+import { ICONS } from "./constants/icons";
 
 const { Title } = Typography;
 
 const ExpenseItemContent: React.FC = () => {
   const { t } = useTranslation();
   
-  // Get all states and functions from context
   const {
     form,
     currentStep,
@@ -56,7 +55,7 @@ const ExpenseItemContent: React.FC = () => {
             data-testid="back-button"
           >
             <img 
-              src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/arrow-left-s-line.svg" 
+              src={ICONS.BACK_ARROW} 
               alt={t('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.back_btn', 'Back')} 
               className={`gba:backIcon`}
               width="24"

@@ -7,7 +7,6 @@ import {
   Switch,
 } from "@newwork/gravity-ui-catalog";
 import { Card, Form } from "antd";
-import { DeleteOutlined } from "@ant-design/icons";
 import {
   ExpensePosition,
   ExpenseGroup,
@@ -17,6 +16,7 @@ import {
 } from "../../types";
 import { getCatalogValue } from "../../../../../../../common/utils/windowUtils";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
+import { ICONS } from "../../constants/icons";
 
 interface MultiPositionComponentProps {
   positions: ExpensePosition[];
@@ -67,7 +67,13 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                 disabled={isProcessingFiles}
                 data-testid={`delete-position-button-${index}`}
               >
-                <DeleteOutlined />
+                <img 
+                  src={ICONS.DELETE}
+                  alt={t("lowcoder:create_expense_type_item.delete_position", "Delete Position")}
+                  width="16"
+                  height="16"
+                  data-testid="delete-position-icon"
+                />
               </Button>
             )
           }
