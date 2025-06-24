@@ -40,12 +40,12 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
   fetchOpportunities: async (accessToken: string) => {
     set({ loading: true, error: null });
     try {
-      // Set the access token before making the request
+
       graphQLClient.setAccessToken(accessToken);
       const response = await graphQLClient.request(GET_OPPORTUNITIES, { offset: 0 });
       
       if (!response || !response.Opportunity) {
-        console.error('Invalid response format:', response);
+  
         set({ error: new Error('Invalid response format from server'), loading: false });
         return [];
       }
@@ -53,8 +53,8 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
       const opportunities = response.Opportunity.map((opp: any) => ({
         ...opp,
         id: opp.id || '',
-        title: opp.name || '', // Using name from the query
-        stageId: opp.stage || FIXED_STAGES[0].id, // Using stage field directly from the query 
+        title: opp.name || '',
+        stageId: opp.stage || FIXED_STAGES[0].id, 
         version: opp.version || 0,
         owner: opp.ownerEmployee?.fullName || 'Unassigned',
         account: opp.account?.name || '',

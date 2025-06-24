@@ -55,18 +55,14 @@ export function KanbanColumn({ stage, opportunities }: KanbanColumnProps) {
       <div className="gba:p-3 gba:pb-0 gba:border-b gba:border-gray-100 gba:dark:border-gray-800">
         <div className="gba:flex gba:items-center gba:justify-between">
           <h3 className="gba:font-medium gba:text-sm" data-testid={`stage-title-${stage.id}`}>{stage.name}</h3>
-          {/* Stage editing removed as we're using fixed stages */}
         </div>
         
         <div className="gba:flex gba:justify-between gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:pt-1">
-          {/* Total estimated amount */}
           <div>
             <span className="gba:font-medium" data-testid={`stage-total-${stage.id}`}>
               {formatCurrency(opportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0))}
             </span>
           </div>
-          
-          {/* Deal count */}
           <div>
             <span className="gba:font-medium">{opportunities.length}</span>{" "}
             {opportunities.length === 1 ? "deal" : "deals"}
