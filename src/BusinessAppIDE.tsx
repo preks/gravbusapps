@@ -150,36 +150,52 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   });
 
   const getMenuItems = (): any => {
-    const moduleGroups: Record<string, BusinessAppInfo[]> = {};
+    const moduleGroups: Record<string, Record<string, BusinessAppInfo[]>> = {};
 
     businessApps.forEach(app => {
       if (!moduleGroups[app.module]) {
-        moduleGroups[app.module] = [];
+        moduleGroups[app.module] = {};
       }
-      moduleGroups[app.module].push(app);
+
+      // Extract the first level of subModule as the actual sub-module
+      let subModuleName = 'default';
+      if (app.subModule) {
+        const subModuleParts = app.subModule.split('/');
+        subModuleName = subModuleParts[0]; // Take the first part as the sub-module
+      }
+
+      if (!moduleGroups[app.module][subModuleName]) {
+        moduleGroups[app.module][subModuleName] = [];
+      }
+      
+      moduleGroups[app.module][subModuleName].push(app);
     });
 
-    return Object.entries(moduleGroups).map(([module, apps]) => {
-      const subModuleGroups: Record<string, BusinessAppInfo[]> = {};
-      apps.forEach(app => {
-        const key = app.subModule ?? 'default';
-        if (!subModuleGroups[key]) {
-          subModuleGroups[key] = [];
-        }
-        subModuleGroups[key].push(app);
-      });
+    return Object.entries(moduleGroups).map(([module, subModules]) => {
+      const subModuleEntries = Object.entries(subModules);
+      
+      // If there's only one sub-module and it's 'default', flatten the structure
+      if (subModuleEntries.length === 1 && subModuleEntries[0][0] === 'default') {
+        return {
+          key: module,
+          label: module.charAt(0).toUpperCase() + module.slice(1),
+          children: subModuleEntries[0][1].map(createAppMenuItem)
+        };
+      }
 
-      const children = Object.entries(subModuleGroups).flatMap(([subModule, subApps]): any => {
+      // Create proper 3-level hierarchy: Module > Sub-module > Apps
+      const children = subModuleEntries.map(([subModule, apps]) => {
         if (subModule === 'default') {
-          return subApps.map(createAppMenuItem);
+          // If there are apps without a specific sub-module, group them directly under the module
+          return apps.map(createAppMenuItem);
         }
-        return [{
+        
+        return {
           key: `${module}/${subModule}`,
-          label: subModule.split('/').pop() ?? subModule,
-          type: 'group',
-          children: subApps.map(createAppMenuItem)
-        }];
-      });
+          label: subModule.charAt(0).toUpperCase() + subModule.slice(1),
+          children: apps.map(createAppMenuItem)
+        };
+      }).flat();
 
       return {
         key: module,
