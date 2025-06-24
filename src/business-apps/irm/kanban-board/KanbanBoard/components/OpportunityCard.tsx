@@ -1,24 +1,16 @@
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { formatCurrency } from "../lib/utils";
-import { CalendarOutlined, UserOutlined, ClockCircleOutlined, HomeOutlined, TagOutlined } from "@ant-design/icons";
-import { useKanbanStore } from "../lib/kanban-store";
-import type { Opportunity } from "../lib/data";
+import { formatCurrency, formatStage } from "../lib/utils";
+import { CalendarOutlined, UserOutlined, HomeOutlined, TagOutlined, ClockCircleOutlined } from "@ant-design/icons";
+import type { Opportunity } from "../lib/types";
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
 }
 
-function daysSince(dateString: string): number {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffTime = Math.abs(now.getTime() - date.getTime());
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
-}
+// No longer needed as we're not tracking rotting opportunities
 
 export function OpportunityCard({ opportunity }: OpportunityCardProps) {
-  const { stages } = useKanbanStore();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: opportunity.id,
     data: {
@@ -33,23 +25,38 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
       }
     : undefined;
 
-  const currentStage = stages.find((stage) => stage.id === opportunity.stageId);
-
-  let isRotting = false;
-  let rottingDays = 0;
-  let daysInStage = 0;
-
-  if (opportunity.stageEnteredAt && currentStage?.rotting) {
-    rottingDays = opportunity.rottingDays || currentStage.rottingDays;
-    daysInStage = daysSince(opportunity.stageEnteredAt);
-    isRotting = daysInStage >= rottingDays;
+  // Format the date for display if it exists
+  let formattedDate = "";
+  if (opportunity.closeDate) {
+    const closeDate = new Date(opportunity.closeDate);
+    formattedDate = new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+    }).format(closeDate);
   }
-
-  const lastActivityDate = new Date(opportunity.lastActivityAt);
-  const formattedDate = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(lastActivityDate);
+  
+  // Format created date for display if it exists
+  let formattedCreatedAt = "";
+  if (opportunity.createdAt) {
+    const createdDate = new Date(opportunity.createdAt);
+    formattedCreatedAt = new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    }).format(createdDate);
+  }
+  
+  // Get amount from estimatedAmount field
+  const amount = opportunity.estimatedAmount || 0;
+  
+  // Get company name from account.name
+  const companyName = opportunity.account?.name || '';
+  
+  // Get owner name from ownerEmployee.fullName
+  const ownerName = opportunity.ownerEmployee?.fullName || '';
+  
+  // Get formatted stage name
+  const stageName = opportunity.stage ? formatStage(opportunity.stage) : '';
 
   return (
     <div
@@ -61,50 +68,71 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
         isDragging ? 'opacity-50' : ''
       }`}
     >
-      <div className="gba:p-3 gba:space-y-2">
+      <div className="gba:p-3 gba:space-y-2" data-testid={`opportunity-card-${opportunity.id}`}>
+        {/* Title/Name */}
         <div>
           <h4 className="gba:font-medium gba:text-sm gba:line-clamp-2">
-            <span className="gba:text-sm gba:font-medium gba:text-gray-900 gba:dark:text-gray-100 gba:flex gba:items-center">
-              {isRotting && (
-                <ClockCircleOutlined className="gba:mr-1 gba:text-red-500" title={`This opportunity has been in this stage for ${daysInStage} days (threshold: ${rottingDays} days)`} />
-              )}
-              {opportunity.title}
+            <span className="gba:text-sm gba:font-medium gba:text-gray-900 gba:dark:text-gray-100">
+              {opportunity.name}
             </span>
           </h4>
-          {opportunity.description && (
-            <p className="gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:line-clamp-2 gba:mt-1">{opportunity.description}</p>
+          {/* Company name */}
+          <p className="gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:line-clamp-1 gba:mt-1">
+            {companyName}
+          </p>
+          {/* Stage name */}
+          {stageName && (
+            <p className="gba:text-xs gba:text-gray-400 gba:font-medium gba:mt-1">
+              {stageName}
+            </p>
           )}
         </div>
+
+        {/* Amount and Date - large and prominent */}
         <div className="gba:flex gba:items-center gba:justify-between">
-          <span className="gba:text-sm gba:font-medium gba:text-gray-900 gba:dark:text-gray-100">
-            {formatCurrency(opportunity.value)}
+          <span className="gba:text-md gba:font-bold gba:text-gray-900 gba:dark:text-gray-100">
+            {formatCurrency(amount)}
           </span>
-          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
-            <CalendarOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
-            {formattedDate}
-          </div>
+          {formattedDate && (
+            <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
+              <CalendarOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
+              {formattedDate}
+            </div>
+          )}
         </div>
       </div>
-      <div className="gba:p-3 gba:pt-0 gba:flex gba:flex-wrap gba:gap-2 gba:border-t gba:border-gray-100 gba:dark:border-gray-800">
-        {opportunity.company && (
-          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
+
+      {/* Company and Owner - separate section */}
+      <div className="gba:p-3 gba:pt-0 gba:border-t gba:border-gray-100 gba:dark:border-gray-800">
+        {/* Company row */}
+        {companyName && (
+          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:mb-2">
             <HomeOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
-            {opportunity.company}
+            {companyName}
           </div>
         )}
-        {opportunity.contact && (
-          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
-            <UserOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
-            {opportunity.contact}
-          </div>
-        )}
-        {opportunity.stageEnteredAt && (
-          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400" title="Days in current stage / Rotting threshold">
-            <ClockCircleOutlined style={{ fontSize: '12px', marginRight: '4px', color: isRotting ? '#f5222d' : undefined }} />
-            {daysInStage} / {rottingDays} days
-          </div>
-        )}
+        
+        {/* Owner and date row */}
+        <div className="gba:flex gba:justify-between gba:items-center">
+          {/* Owner */}
+          {ownerName && (
+            <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
+              <UserOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
+              {ownerName}
+            </div>
+          )}
+          
+          {/* Created At - aligned to the right */}
+          {formattedCreatedAt && (
+            <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:ml-auto">
+              <ClockCircleOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
+              {formattedCreatedAt}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Tags section */}
       {opportunity.tags && opportunity.tags.length > 0 && (
         <div className="gba:p-3 gba:pt-0 gba:flex gba:flex-wrap gba:gap-1 gba:border-t gba:border-gray-100 gba:dark:border-gray-800">
           {opportunity.tags.map((tag) => (

@@ -1,30 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { useKanbanStore } from "./lib/kanban-store";
 import { KanbanColumn } from "./components/KanbanColumn";
 import { OpportunityCard } from "./components/OpportunityCard";
-import { PlusOutlined } from "@ant-design/icons";
-import { StageDialog } from "./components/StageDialog";
 import { OpportunityDialog } from "./components/OpportunityDialog";
-import { PipelineDialog } from "./components/PipelineDialog";
-import { PipelineSelector } from "./components/PipelineSelector";
-import { currentUser } from "./lib/data";
-import type { Opportunity } from "./lib/data";
+import type { Opportunity } from "./lib/types";
 
-export function KanbanBoard() {
-  const { selectedPipelineId, stages, opportunities, moveOpportunity, setIsAddingStage, reorderStages } = useKanbanStore();
+// Define BusinessAppContextProps interface as it's used in other components
+interface BusinessAppContextProps {
+  accessToken: string;
+  userInfo?: any;
+  employeeId?: string;
+  structureId?: string;
+}
+
+export function KanbanBoard({ accessToken, userInfo }: BusinessAppContextProps) {
+  const { 
+    stages, 
+    opportunities, 
+    moveOpportunity, 
+    fetchOpportunities
+  } = useKanbanStore();
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
+  
+  // Fetch opportunities when component mounts
+  useEffect(() => {
+    const loadOpportunities = async () => {
+      try {
+        console.log('Fetching opportunities...');
+        await fetchOpportunities(accessToken);
+      } catch (error) {
+        console.error('Error loading opportunities:', error);
+      }
+    };
+    
+    loadOpportunities();
+  }, [fetchOpportunities, accessToken]);
 
-  const isSalesManager = currentUser.role === "sales_manager";
+  // No longer need to check for sales manager role as we're using fixed stages
 
-  const pipelineStages = stages
-    .filter((stage: any) => stage.pipelineId === selectedPipelineId)
-    .sort((a: any, b: any) => a.order - b.order);
-
-  const pipelineOpportunities = opportunities.filter((opp: any) => opp.pipelineId === selectedPipelineId);
+  // Sort stages by their order
+  const sortedStages = [...stages].sort((a, b) => a.order - b.order);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -40,7 +59,7 @@ export function KanbanBoard() {
 
     setActiveId(id);
 
-    const draggedOpportunity = pipelineOpportunities.find((opp: any) => opp.id === id);
+    const draggedOpportunity = opportunities.find(opp => opp.id === id);
     if (draggedOpportunity) {
       setActiveOpportunity(draggedOpportunity);
     }
@@ -58,30 +77,26 @@ export function KanbanBoard() {
         const opportunityId = activeId;
         const targetStageId = overId;
 
-        const isTargetStage = pipelineStages.some((stage: any) => stage.id === targetStageId);
+        const isTargetStage = stages.some(stage => stage.id === targetStageId);
 
         if (isTargetStage) {
-          moveOpportunity(opportunityId, targetStageId);
+          // Pass the accessToken to update the opportunity in the backend
+          moveOpportunity(opportunityId, targetStageId, accessToken);
         }
-      } else if (activeData?.type === 'stage') {
-        reorderStages(activeId, overId);
       }
+      // We no longer support reordering stages as they're fixed
     }
 
     setActiveId(null);
     setActiveOpportunity(null);
   };
 
-  const handleAddStage = () => {
-    setIsAddingStage(true);
-  };
+  // No longer need handleAddOpportunity as it's handled in KanbanColumn
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col">
+    <div className="gba:h-full gba:flex gba:flex-col" data-testid="kanban-board">
       <div className="gba:p-4 gba:border-b gba:border-gray-200 gba:dark:border-gray-800">
-        <div className="gba:max-w-xs">
-          <PipelineSelector />
-        </div>
+        <h1 className="gba:text-xl gba:font-semibold">Opportunities Board</h1>
       </div>
       
       <DndContext
@@ -92,27 +107,19 @@ export function KanbanBoard() {
       >
         <div className="gba:flex-1 gba:overflow-x-auto gba:scrollbar-hide">
           <div className="gba:flex gba:h-full gba:gap-4 gba:p-4">
-            <SortableContext items={pipelineStages.map((s: any) => s.id)} strategy={horizontalListSortingStrategy}>
-              {pipelineStages.map((stage: any) => (
+            <SortableContext items={sortedStages.map(s => s.id)} strategy={horizontalListSortingStrategy}>
+              {sortedStages.map(stage => (
                 <KanbanColumn
                   key={stage.id}
                   stage={stage}
-                  opportunities={pipelineOpportunities.filter((opp: any) => opp.stageId === stage.id)}
+                  opportunities={opportunities.filter(opp => opp.stageId === stage.id)}
+                  accessToken={accessToken}
+                  userInfo={userInfo}
                 />
               ))}
             </SortableContext>
 
-            {isSalesManager && (
-              <div className="gba:shrink-0 gba:w-72 gba:h-full">
-                <button
-                  className="gba:w-full gba:h-16 gba:border gba:border-dashed gba:border-gray-300 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:text-gray-500 gba:hover:text-gray-700 gba:hover:border-gray-400 gba:dark:border-gray-700 gba:dark:text-gray-400 gba:dark:hover:text-gray-300 gba:dark:hover:border-gray-600"
-                  onClick={handleAddStage}
-                >
-                  <PlusOutlined style={{ marginRight: '8px' }} />
-                  Add Column
-                </button>
-              </div>
-            )}
+            {/* No longer adding stages as we use fixed stages */}
           </div>
         </div>
 
@@ -125,9 +132,7 @@ export function KanbanBoard() {
         </DragOverlay>
       </DndContext>
 
-      <StageDialog />
       <OpportunityDialog />
-      <PipelineDialog />
     </div>
   );
 }

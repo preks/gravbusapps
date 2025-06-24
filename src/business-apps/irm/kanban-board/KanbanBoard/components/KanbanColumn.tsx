@@ -2,24 +2,24 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useKanbanStore } from "../lib/kanban-store";
 import { OpportunityCard } from "./OpportunityCard";
-import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
-import {
-  calculateColumnStats,
-  currentUser,
-  type Opportunity,
-  type Stage,
-} from "../lib/data";
+import { PlusOutlined } from "@ant-design/icons";
+import { type Opportunity, type Stage } from "../lib/types";
 import { formatCurrency } from "../lib/utils";
 
-interface KanbanColumnProps {
+interface BusinessAppContextProps {
+  accessToken: string;
+  userInfo?: any;
+  employeeId?: string;
+  structureId?: string;
+}
+
+interface KanbanColumnProps extends BusinessAppContextProps {
   stage: Stage;
   opportunities: Opportunity[];
 }
 
 export function KanbanColumn({ stage, opportunities }: KanbanColumnProps) {
-  const { setEditingStage, deleteStage, setIsAddingOpportunity } =
-    useKanbanStore();
-  const isSalesManager = currentUser.role === "sales_manager";
+  const { setIsAddingOpportunity } = useKanbanStore();
 
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -35,18 +35,13 @@ export function KanbanColumn({ stage, opportunities }: KanbanColumnProps) {
     transition,
   };
 
-  const stats = calculateColumnStats(opportunities, stage.probability);
+  // Calculate stats directly from opportunities and stage probability
+  // Previously used calculateColumnStats helper function
 
-  const handleEdit = () => {
-    setEditingStage(stage.id);
-  };
-
-  const handleDelete = () => {
-    deleteStage(stage.id);
-  };
+  // Stage editing is no longer needed with fixed stages
 
   const handleAddCard = () => {
-    setIsAddingOpportunity(true, stage.id);
+    setIsAddingOpportunity(true);
   };
 
   return (
@@ -59,33 +54,22 @@ export function KanbanColumn({ stage, opportunities }: KanbanColumnProps) {
     >
       <div className="gba:p-3 gba:pb-0 gba:border-b gba:border-gray-100 gba:dark:border-gray-800">
         <div className="gba:flex gba:items-center gba:justify-between">
-          <h3 className="gba:font-medium gba:text-sm">{stage.name}</h3>
-          {isSalesManager && (
-            <div className="gba:flex gba:gap-1">
-              <button
-                className="gba:p-1 gba:text-gray-500 gba:hover:text-gray-700 gba:dark:text-gray-400 gba:dark:hover:text-gray-300"
-                onClick={handleEdit}
-              >
-                <EditOutlined style={{ fontSize: "12px" }} />
-              </button>
-              <button
-                className="gba:p-1 gba:text-gray-500 gba:hover:text-gray-700 gba:dark:text-gray-400 gba:dark:hover:text-gray-300"
-                onClick={handleDelete}
-              >
-                <DeleteOutlined style={{ fontSize: "12px" }} />
-              </button>
-            </div>
-          )}
+          <h3 className="gba:font-medium gba:text-sm" data-testid={`stage-title-${stage.id}`}>{stage.name}</h3>
+          {/* Stage editing removed as we're using fixed stages */}
         </div>
+        
         <div className="gba:flex gba:justify-between gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:pt-1">
+          {/* Total estimated amount */}
           <div>
-            <span className="gba:font-medium">
-              {formatCurrency(stats.weightedValue)}
+            <span className="gba:font-medium" data-testid={`stage-total-${stage.id}`}>
+              {formatCurrency(opportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0))}
             </span>
           </div>
+          
+          {/* Deal count */}
           <div>
-            <span className="gba:font-medium">{stats.count}</span>{" "}
-            {stats.count === 1 ? "deal" : "deals"}
+            <span className="gba:font-medium">{opportunities.length}</span>{" "}
+            {opportunities.length === 1 ? "deal" : "deals"}
           </div>
         </div>
       </div>
