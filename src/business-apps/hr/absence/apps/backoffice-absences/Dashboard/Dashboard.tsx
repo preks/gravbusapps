@@ -106,7 +106,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken, userInfo }) => {
     <PageLayout
       headerIcon={<PiCalendarBlank color="#a3519a" />}
       headerLabel="Absence Management Hub (Backoffice)"
-      headerLabelClassName="gba:whitespace-nowrap"
+      headerLabelClassName="gba:font-medium gba:self-center gba:text-2xl gba:mb-1"
       pageController={
         <Tabs
           activeKey={activeTab}

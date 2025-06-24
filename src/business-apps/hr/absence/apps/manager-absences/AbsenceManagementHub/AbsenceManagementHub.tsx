@@ -119,7 +119,7 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = (props)
     <PageLayout
       headerIcon={<PiCalendarBlank color="#a3519aff"/>}
       headerLabel="Absence Management Hub (Manager)"
-      headerLabelClassName="gba:whitespace-nowrap"
+      headerLabelClassName="gba:font-medium gba:self-center gba:text-2xl gba:mb-1"
       pageController={
         <Tabs
           activeKey={activeTab}
