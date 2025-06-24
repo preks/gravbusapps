@@ -51,12 +51,13 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
   const { isProcessingFiles, form } = useExpenseItem();
 
   return (
-    <div>
+    <div data-testid="multi-position-container">
       {positions.map((position, index) => (
         <Card
           key={index}
           title={`Position ${index + 1}`}
           className={`gba:marginBottom16 gba:borderedCard`}
+          data-testid={`position-card-${index}`}
           extra={
             positions.length > 1 && (
               <Button
@@ -64,6 +65,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                 onClick={() => handleRemovePosition(position.id)}
                 className={`gba:deleteButton`}
                 disabled={isProcessingFiles}
+                data-testid={`delete-position-button-${index}`}
               >
                 <DeleteOutlined />
               </Button>
@@ -71,7 +73,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
           }
           headStyle={{ borderBottom: "none" }}
         >
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`expense-group-container-${index}`}>
             <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`expenseGroup-${index}`}
@@ -86,6 +88,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                   )}
                   disabled={isProcessingFiles}
                   name="expenseGroup"
+                  data-testid={`expense-group-select-${index}`}
                   data={expenseGroups.map((group) => ({
                     id: group.id,
                     name: getCatalogValue(group),
@@ -104,7 +107,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
             </div>
           </div>
 
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`expense-type-container-${index}`}>
             <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`expenseType-${index}`}
@@ -118,6 +121,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                     "Expense Type"
                   )}
                   name="expenseType"
+                  data-testid={`expense-type-select-${index}`}
                   data={
                     position.expenseGroup
                       ? expenseTypes[position.expenseGroup]?.map((type) => ({
@@ -143,7 +147,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
           {position.expenseType &&
             customFields[position.expenseType] &&
             customFields[position.expenseType].length > 0 && (
-              <div className={`gba:marginBottom16`}>
+              <div className={`gba:marginBottom16`} data-testid={`custom-field-container-${index}`}>
                 <div
                   className={`gba:relativePosition`}
                 >
@@ -158,6 +162,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                   >
                     <InputField
                       name={`customField-${index}`}
+                      data-testid={`custom-field-input-${index}`}
                       label={
                         customFields[position.expenseType][0]?.infoValue ||
                         t(
@@ -184,7 +189,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                 </div>
               </div>
             )}
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`amount-container-${index}`}>
             <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`amount-${index}`}
@@ -198,6 +203,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                   )}
                   disabled={isProcessingFiles}
                   name={`amount-${index}`}
+                  data-testid={`amount-input-${index}`}
                   type="number"
                   step="0.01"
                   min="0"
@@ -225,7 +231,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
             </div>
           </div>
 
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`cost-center-container-${index}`}>
             <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`costCenter-${index}`}
@@ -236,6 +242,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                   allowClear
                   disabled={isProcessingFiles}
                   name="costCenter"
+                  data-testid={`cost-center-select-${index}`}
                   data={costCenters.map((center) => ({
                     id: center.id,
                     name: center.name,
@@ -260,7 +267,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
             </div>
           </div>
 
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`reimbursable-container-${index}`}>
             <div style={{ marginBottom: "16px" }}>
               <Switch
                 label={t(
@@ -269,6 +276,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                 )}
                 disabled={isProcessingFiles}
                 name={"isReimbursable" + index}
+                data-testid={`reimbursable-switch-${index}`}
                 value={position.isReimbursable}
                 onChange={(checked) => {
                   const updatedPositions = [...positions];

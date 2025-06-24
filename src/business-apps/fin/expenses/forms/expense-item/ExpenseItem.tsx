@@ -43,8 +43,8 @@ const ExpenseItemContent: React.FC = () => {
   } = useExpenseItem();
 
   return (
-    <div className={`gba:mainContainer`}>
-      <div className={`gba:headerContainer`}>
+    <div className={`gba:mainContainer`} data-testid="expense-item-main-container">
+      <div className={`gba:headerContainer`} data-testid="expense-item-header-container">
         {currentStep === "form" && (
           <Button
             variant="ghost"
@@ -61,11 +61,12 @@ const ExpenseItemContent: React.FC = () => {
               className={`gba:backIcon`}
               width="24"
               height="24"
+              data-testid="back-button-icon"
             />
           </Button>
         )}
-        <div className={`gba:titleContainer`}>
-          <Title level={4} className={`gba:headerTitle`}>
+        <div className={`gba:titleContainer`} data-testid="expense-item-title-container">
+          <Title level={4} className={`gba:headerTitle`} data-testid="expense-item-header-title">
             {isEditMode 
               ? t("lowcoder:create_expense_type_item.header_container_title_edit", "Edit Item | Expense")
               : t("lowcoder:create_expense_type_item.header_container_title_new", "New Item | Expense")
@@ -73,7 +74,7 @@ const ExpenseItemContent: React.FC = () => {
           </Title>
         </div>
       </div>
-      <Divider className={`gba:headerDivider`} />
+      <Divider className={`gba:headerDivider`} data-testid="expense-item-header-divider" />
 
       {currentStep === "start" ? (
         <StartScreenComponent 

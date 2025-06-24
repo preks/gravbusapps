@@ -48,10 +48,10 @@ export const SinglePositionComponent: React.FC<
   const { isProcessingFiles, form, handleCurrencyChange } = useExpenseItem();
 
   return (
-    <div>
+    <div data-testid="single-position-container">
       {positions.map((position, index) => (
         <React.Fragment key={index}>
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`expense-group-container-${index}`}>
             <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`expenseGroup-${index}`}
@@ -66,6 +66,7 @@ export const SinglePositionComponent: React.FC<
                   )}
                   disabled={isProcessingFiles}
                   name="expenseGroup"
+                  data-testid={`expense-group-select-${index}`}
                   data={
                     expenseGroups
                       ? expenseGroups.map((group) => ({
@@ -88,7 +89,7 @@ export const SinglePositionComponent: React.FC<
             </div>
           </div>
 
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`expense-type-container-${index}`}>
             <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`expenseType-${index}`}
@@ -103,6 +104,7 @@ export const SinglePositionComponent: React.FC<
                   )}
                   disabled={isProcessingFiles || !position.expenseGroup}
                   name="expenseType"
+                  data-testid={`expense-type-select-${index}`}
                   data={
                     position.expenseGroup && expenseTypes[position.expenseGroup]
                       ? expenseTypes[position.expenseGroup].map((type) => ({
@@ -127,7 +129,7 @@ export const SinglePositionComponent: React.FC<
           {position.expenseType &&
             customFields[position.expenseType] &&
             customFields[position.expenseType].length > 0 && (
-              <div className={`gba:marginBottom16`}>
+              <div className={`gba:marginBottom16`} data-testid={`custom-field-container-${index}`}>
                 <div
                   className={`gba:relativePosition`}
                 >
@@ -142,6 +144,7 @@ export const SinglePositionComponent: React.FC<
                   >
                     <InputField
                       name={`customField-${index}`}
+                      data-testid={`custom-field-input-${index}`}
                       label={
                         customFields[position.expenseType][0]?.infoValue ||
                         t(
@@ -169,9 +172,9 @@ export const SinglePositionComponent: React.FC<
                 </div>
               </div>
             )}
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`amount-currency-container-${index}`}>
             <div className="gba:amountCurrencyRow">
-              <div className="gba:amountField">
+              <div className="gba:amountField" data-testid={`amount-field-container-${index}`}>
                 <Form.Item
                   name={`amount-${index}`}
                   rules={[{ required: true, message: t('lowcoder:create_expense_type_item.amount_error_message', 'Please enter an amount') }]}
@@ -184,6 +187,7 @@ export const SinglePositionComponent: React.FC<
                     )}
                     disabled={isProcessingFiles}
                     name={`amount-${index}`}
+                    data-testid={`amount-input-${index}`}
                     type="number"
                     step="0.01"
                     min="0"
@@ -210,7 +214,7 @@ export const SinglePositionComponent: React.FC<
                 </Form.Item>
               </div>
 
-              <div className="gba:currencyField">
+              <div className="gba:currencyField" data-testid={`currency-field-container-${index}`}>
                 <Form.Item
                   name="currency"
                   style={{ marginBottom: 0 }}
@@ -223,6 +227,7 @@ export const SinglePositionComponent: React.FC<
                     )}
                     disabled={isProcessingFiles}
                     name="currency"
+                    data-testid={`currency-select-${index}`}
                     isDataSorted={false}
                     allowClear
                     data={currencies.map((currency) => ({
@@ -247,7 +252,7 @@ export const SinglePositionComponent: React.FC<
             </div>
           </div>
 
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`cost-center-container-${index}`}>
             <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`costCenter-${index}`}
@@ -258,6 +263,7 @@ export const SinglePositionComponent: React.FC<
                   allowClear
                   name="costCenter"
                   disabled={isProcessingFiles}
+                  data-testid={`cost-center-select-${index}`}
                   data={costCenters.map((center) => ({
                     id: center.id,
                     name: center.name,
@@ -282,7 +288,7 @@ export const SinglePositionComponent: React.FC<
             </div>
           </div>
 
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`reimbursable-container-${index}`}>
             <div style={{ marginBottom: "16px" }}>
               <Switch
                 label={t(
@@ -291,6 +297,7 @@ export const SinglePositionComponent: React.FC<
                 )}
                 disabled={isProcessingFiles}
                 name={"isReimbursable" + index}
+                data-testid={`reimbursable-switch-${index}`}
                 value={position.isReimbursable}
                 onChange={(checked) => {
                   const updatedPositions = [...positions];

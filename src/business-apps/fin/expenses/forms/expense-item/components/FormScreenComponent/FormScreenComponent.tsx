@@ -85,7 +85,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     <Form
       form={form}
       layout="vertical"
-      
+      data-testid="expense-form"
       onFieldsChange={()=>{
         const isFormValidValue = form.getFieldsError().every((fieldErr:  any ) => fieldErr.errors.length === 0);
     setFormIsValid(isFormValidValue)
@@ -101,14 +101,14 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         currency: "Currency:v1:EUR",
       }}
     >
-      <div className={`gba:marginBottom16`}>
+      <div className={`gba:marginBottom16`} data-testid="form-upload-container">
         <UploadComponent 
           fileList={fileList} 
           setFileList={setFileList} 
         />
       </div>
 
-      <div className={`gba:marginBottom16`}>
+      <div className={`gba:marginBottom16`} data-testid="title-field-container">
         <div className={`gba:relativePosition`}>
           <Form.Item
             name="title"
@@ -125,12 +125,13 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
               )}
               onChange={(field) => form.setFieldsValue({ title: field.value })}
               required={true}
+              data-testid="title-input"
             />
           </Form.Item>
         </div>
       </div>
 
-      <div className={`gba:marginBottom16`}>
+      <div className={`gba:marginBottom16`} data-testid="date-field-container">
         <div className={`gba:relativePosition`}>
           <Form.Item
             shouldUpdate
@@ -148,6 +149,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                 "lowcoder:create_expense_item.change_expense_item_container.current_date_placeholder",
                 "Select date"
               )}
+              data-testid="date-input"
               onChange={(field) => {
                 if(field.value)
                 setCurrentSelectedDate(field.value as Date)
@@ -165,12 +167,13 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
               type="error"
               style={{ marginTop: 8 }}
               showIcon
+              data-testid="expense-rule-error-alert"
             />
           )}
         </div>
       </div>
 
-      <div className={`gba:marginBottom16`}>
+      <div className={`gba:marginBottom16`} data-testid="multi-position-switch-container">
         <div className={`gba:relativePosition`}>
           <div>
             <Switch
@@ -180,6 +183,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
               )}
               name="multiPosition"
               value={multiPosition}
+              data-testid="multi-position-switch"
               onChange={(checked) => {
                 const newMultiPositionValue = checked.value as boolean;
                 if (!newMultiPositionValue && positions.length > 1) {
@@ -245,10 +249,11 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <Button 
           variant="ghost" 
           onClick={handleAddPosition}
+          data-testid="add-position-button"
           disabled={isProcessingFiles}
           className={`gba:marginBottom16`}
         >
-          <PlusCircleOutlined style={{ width: "17px", height: "17px" }} /> 
+          <PlusCircleOutlined style={{ width: "17px", height: "17px" }} data-testid="add-position-icon" /> 
           {isProcessingFiles ? t("lowcoder:create_expense_item.file_add_document_processing","Processing...") : t("lowcoder:create_expense_type_item.add_position_button","Add Position")}
         </Button>
       )}
@@ -258,15 +263,20 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <Row
           gutter={16}
           className={`gba:marginTop16 gba:marginBottom16`}
+          data-testid="total-row"
         >
-          <Col span={12}>
-            <Form.Item className={`gba:marginBottom0`}>
+          <Col span={12} data-testid="total-amount-col">
+            <Form.Item className={`gba:marginBottom0`} data-testid="total-amount-form-item">
               <InputField
                 label={t(
                   "lowcoder:create_expense_item.change_expense_item_container.current_amount_label",
                   "Amount"
                 )}
                 name="amount"
+                type="number"
+                step="0.01"
+                min="0"
+                data-testid="total-amount-input"
                 value={calculateTotal().toFixed(2)}
                 placeholder={t(
                   "lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder",
@@ -276,12 +286,12 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
               />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col span={12} data-testid="total-currency-col">
             <Form.Item
               name="currency"
               rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_currency_custom_rule', 'Please select a currency') }]}
-
               className={`gba:marginBottom0`}
+              data-testid="total-currency-form-item"
             >
               <SelectField
                 allowClear
@@ -291,6 +301,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                 )}
                 disabled={isProcessingFiles}
                 name="currency"
+                data-testid="total-currency-select"
                 isDataSorted={false}
                 data={currencies.map((currency) => ({
                   id: currency.id,
@@ -318,10 +329,12 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         name="expenseRequestId"
         rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_request_custom_rule', 'Please select a request') }]}
         className={`gba:marginBottom16`}
+        data-testid="expense-request-container"
       >
         <SelectField
           allowClear
           name="expenseRequestId"
+          data-testid="expense-request-select"
           data={[
             ...expenseRequests.map((request) => ({
               id: request.id,
@@ -347,13 +360,15 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             horizontal
             size={1}
             className="gba:mt-[30px] gba:mb-[30px]"
+            data-testid="form-divider"
           />
-      <Form.Item>
+      <Form.Item data-testid="submit-button-container">
         <Button
           variant="primary"
           onClick={handleSubmit}
           disabled={isProcessingFiles || !formIsValid || !!expenseRuleError}
           className={`gba:submitButton`}
+          data-testid="submit-button"
         >
           {isEditMode ? t("lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_update", "Update") : t("lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_save", "Create")}
         </Button>

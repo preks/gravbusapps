@@ -206,7 +206,8 @@ export const handleAddPosition = (
   const newPosition = {
     ...DEFAULT_POSITION,
     id: `position-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    costCenter: defaultCostCenter || ""
+    costCenter: defaultCostCenter || "",
+    amount: 0,
   };
   
   const newPositions = [...positions, newPosition];

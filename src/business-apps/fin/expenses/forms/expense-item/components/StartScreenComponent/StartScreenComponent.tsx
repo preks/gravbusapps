@@ -19,26 +19,29 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
   const { isProcessingFiles } = useExpenseItem();
 
   return (
-    <div className={`gba:startScreenContainer`}>
-      <div className={`gba:uploadWrapper`}>
+    <div className={`gba:startScreenContainer`} data-testid="start-screen-container">
+      <div className={`gba:uploadWrapper`} data-testid="upload-component-wrapper">
         <UploadComponent 
           fileList={fileList} 
           setFileList={setFileList} 
+          data-testid="upload-component"
         />
       </div>
-      <div className={`gba:buttonContainer`}>
+      <div className={`gba:buttonContainer`} data-testid="continue-button-container">
         <Button
           variant="ghost"
           onClick={() => setCurrentStep("form")}
           className={`gba:continueButton`}
           disabled={isProcessingFiles}
+          data-testid="continue-button"
         >
-          <div className={`gba:buttonWithIcon`}>
+          <div className={`gba:buttonWithIcon`} data-testid="continue-button-content">
             <span>{t("lowcoder:create_expense_type_item.continue_button", "Continue without receipt")}</span>
             <img 
               src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/ArrowRightSLine.svg" 
               alt={t('lowcoder:create_expense_type_item.continue_alt_text', 'Continue')} 
               className={`gba:arrowIcon`}
+              data-testid="continue-button-arrow"
             />
           </div>
         </Button>

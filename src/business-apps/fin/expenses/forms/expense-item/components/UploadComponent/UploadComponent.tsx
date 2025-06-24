@@ -1,10 +1,9 @@
 import React, { useRef, useState, useCallback } from "react";
-import { Upload, message, Modal } from "antd";
+import { Upload, Modal } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
 import { Button } from "@newwork/gravity-ui-catalog";
 import { useTranslation } from "react-i18next";
-import { translate } from "../../utils/windowUtils";
 import { showToast } from "../../utils/notificationUtils";
 
 interface UploadComponentProps {
@@ -153,7 +152,7 @@ const { t } = useTranslation();
         <div className={`gba:uploadButtonStart`}>
           {isProcessingFiles ? (
             <>
-              <LoadingOutlined className="gba:uploadIcon" />
+              <LoadingOutlined className="gba:uploadIcon" data-testid="upload-loading-icon" />
               <span>{t('lowcoder:create_expense_type_item.processing_receipt', 'Processing the receipt...')}</span>
             </>
           ) : (
@@ -164,6 +163,7 @@ const { t } = useTranslation();
                 className={`gba:uploadIcon`}
                 width="36"
                 height="36"
+                data-testid="upload-icon-large"
               />
               <span>{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
             </>
@@ -177,7 +177,7 @@ const { t } = useTranslation();
         <div className={`gba:uploadButtonFormEmpty`}>
           {isProcessingFiles ? (
             <>
-              <LoadingOutlined className="gba:uploadIconSmall" />
+              <LoadingOutlined className="gba:uploadIconSmall" data-testid="upload-loading-icon-small" />
               <span>{t('lowcoder:create_expense_type_item.processing', 'Processing...')}</span>
             </>
           ) : (
@@ -189,6 +189,7 @@ const { t } = useTranslation();
                 className={`gba:uploadIconSmall`}
                 width="18"
                 height="18"
+                data-testid="upload-icon-small"
               />
             </>
           )}
@@ -212,7 +213,7 @@ const { t } = useTranslation();
   const acceptedFileTypes = "application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG";
 
   return (
-    <div className={getContainerClass()}>
+    <div className={getContainerClass()} data-testid="upload-container">
       {fileList.length === 0 ? (
         <Upload
           listType="text"
@@ -224,12 +225,13 @@ const { t } = useTranslation();
           accept={acceptedFileTypes}
           className={`gba:uploadComponent`}
           disabled={isProcessingFiles}
+          data-testid="upload-input-empty"
         >
           {getButtonContent()}
         </Upload>
       ) : (
-        <div className={`gba:filesFlexContainer`}>
-          <div className={`gba:fileListRow`}>
+        <div className={`gba:filesFlexContainer`} data-testid="files-flex-container">
+          <div className={`gba:fileListRow`} data-testid="file-list-row">
             <Upload
               listType="text"
               fileList={fileList}
@@ -244,10 +246,11 @@ const { t } = useTranslation();
                 showDownloadIcon: false,
                 showRemoveIcon: true,
               }}
+              data-testid="upload-input-with-files"
             />
           </div>
 
-          <div className={`gba:attachButtonRow`}>
+          <div className={`gba:attachButtonRow`} data-testid="attach-button-row">
             <Upload
               showUploadList={false}
               beforeUpload={handleBeforeUpload}
@@ -255,22 +258,24 @@ const { t } = useTranslation();
               multiple={true}
               accept={acceptedFileTypes}
               disabled={isProcessingFiles}
+              data-testid="attach-more-upload"
             >
-              <div className={`gba:attachMoreContainer`}>
+              <div className={`gba:attachMoreContainer`} data-testid="attach-more-container">
                 {isProcessingFiles ? (
                   <>
-                    <span>{t('lowcoder:create_expense_item.change_expense_item_container.file_add_document_processing', 'Processing the receipt...')}</span>
-                    <LoadingOutlined className="gba:uploadIconSmall" />
+                    <span data-testid="processing-text">{t('lowcoder:create_expense_item.change_expense_item_container.file_add_document_processing', 'Processing the receipt...')}</span>
+                    <LoadingOutlined className="gba:uploadIconSmall" data-testid="loading-icon" />
                   </>
                 ) : (
                   <>
-                    <span>{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
+                    <span data-testid="attach-receipt-text">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
                     <img 
                       src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
                       alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
                       className={`gba:uploadIconSmall`}
                       width="18"
                       height="18"
+                      data-testid="attach-receipt-icon"
                     />
                   </>
                 )}
@@ -296,10 +301,10 @@ const { t } = useTranslation();
           destroyOnClose={true}
           width={500}
         >
-          <div className={`gba:modalContent`}>
-            <p>{
+          <div className={`gba:modalContent`} data-testid="modal-content">
+            <p data-testid="modal-message">{
             fileList.length > 1 ? t("lowcoder:create_expense_type_item.upload_file_modal_message","Do you want to keep the current file as well?"): t("lowcoder:create_expense_type_item.upload_file_modal_message","Do you want to keep the current file as well?")}</p>
-            <div className={`gba:modalButtons`}>
+            <div className={`gba:modalButtons`} data-testid="modal-buttons">
               <Button 
                 variant="secondary"
                 onClick={() => handleModalConfirm(false)}
