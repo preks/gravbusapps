@@ -24,7 +24,7 @@ export class GraphQLClient {
 
     const response = await fetch(this.endpoint, {
       method: 'POST',
-      credentials: 'include',
+      credentials: 'same-origin',
       mode: 'cors',
       headers: {
         'Content-Type': 'application/json',

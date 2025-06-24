@@ -76,7 +76,7 @@ export class RestClient {
     const requestOptions: RequestInit = {
       method,
       headers,
-      credentials: 'include',
+      credentials: 'same-origin',
       mode: 'cors',
     };
 
@@ -199,7 +199,7 @@ export class RestClient {
         ...this.headers,
         ...(options.headers || {}),
       },
-      credentials: 'include',
+      credentials: 'same-origin',
       mode: 'cors',
     });
     return response.headers;
@@ -215,7 +215,7 @@ export class RestClient {
         ...this.headers,
         ...(options.headers || {}),
       },
-      credentials: 'include',
+      credentials: 'same-origin',
       mode: 'cors',
     });
   }
