@@ -118,32 +118,8 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = (props)
   return (
     <PageLayout
       headerIcon={<PiCalendarBlank color="#a3519aff"/>}
-      headerLabel="Absence Management"
-      pageHeaderRight={
-        <ActionButton
-          variant="primary"
-          flowData={[
-            {
-              key: 'export',
-              label: 'Export Data',
-              onClick: () => console.log('Export data clicked'),
-            },
-            {
-              key: 'settings',
-              label: 'Settings',
-              onClick: () => console.log('Settings clicked'),
-            },
-            {
-              key: 'help',
-              label: 'Help',
-              onClick: () => console.log('Help clicked'),
-            },
-          ]}
-          portalContainer={document.body}
-        >
-          Actions
-        </ActionButton>
-      }
+      headerLabel="Absence Management Hub (Manager)"
+      headerLabelClassName="gba:whitespace-nowrap"
       pageController={
         <Tabs
           activeKey={activeTab}
