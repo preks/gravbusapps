@@ -24,6 +24,10 @@ export interface WidgetItem {
    */
   description?: string;
   customContent?: ReactNode;
+  /**
+   * Optional click handler for the widget
+   */
+  onClick?: () => void;
 }
 
 export interface WidgetGroupProps {
@@ -46,6 +50,11 @@ export interface WidgetGroupProps {
    * Function to call when retry button is clicked
    */
   onRetry?: () => void;
+  
+  /**
+   * Function to call when a widget is clicked
+   */
+  onWidgetClick?: (widgetKey: string) => void;
   
   /**
    * Custom class names to apply to the container
@@ -97,6 +106,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   isLoading = false,
   error = null,
   onRetry,
+  onWidgetClick,
   className = 'gba:py-2',
   gutter = [16, 16],
   hoverable = true,
@@ -182,7 +192,15 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
             <Card
               size="small"
               hoverable={hoverable}
-              style={{ background: cardBackground, padding: '16px', height: '140px' }}
+              style={{ background: cardBackground, padding: '16px', height: '140px', cursor: widget.onClick || onWidgetClick ? 'pointer' : 'auto' }}
+              onClick={() => {
+                if (widget.onClick) {
+                  widget.onClick();
+                }
+                if (onWidgetClick) {
+                  onWidgetClick(widget.key);
+                }
+              }}
               className="gba:flex gba:flex-col gba:overflow-hidden" // Fixed height with overflow handling
             >
               {widget.customContent || (

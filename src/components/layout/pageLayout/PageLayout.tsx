@@ -18,6 +18,7 @@ import { cn } from "../../../common/utils/cn";
  * @param headerLabel - Label/title to render in the header (required)
  * @param pageHeaderCenter - Optional center content (e.g. tabs)
  * @param pageHeaderRight - Optional right content (e.g. actions)
+ * @param pageController - Optional controller content (e.g. tab bars)
  * @param contentHeader - Content to render in the content header (inside content)
  * @param contentContainer - Main content area (inside content)
  * @param className - Optional additional class names for custom styling
@@ -50,41 +51,52 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
   const isDisplay = variant === "display";
 
   const iconClasses = cn(
-    "gba:flex gba:items-center gba:justify-center",
-    isDisplay ? "gba:w-12 gba:h-12" : "gba:w-10 gba:h-10"
+    "gba:flex gba:items-center gba:justify-center gba:shrink-0",
+    isDisplay ? "gba:w-12 gba:h-12" : "gba:w-8 gba:h-8"
   );
 
+  // Icon size will be controlled through the parent container size
+
   const labelClasses = cn(
-    "gba:text-black gba:font-secondary gba:whitespace-nowrap",
-    isDisplay
-      ? "gba:ml-4 gba:text-4xl gba:font-black"
-      : "gba:ml-2 gba:text-2xl gba:font-normal"
+    "gba:leading-none gba:font-medium gba:self-center",
+    isDisplay ? "gba:text-4xl gba:font-secondary gba:mb-2" : "gba:text-2xl font-secondary gba:mb-1"
   );
 
   return (
     <div
-      className={`gba:page-layout gba:w-full gba:h-full gba:flex gba:flex-col gba:bg-white gba:rounded-xl gba:shadow-md gba:overflow-hidden ${className}`.trim()}
+      className={`gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:bg-white gba:rounded-xl gba:shadow-md gba:overflow-hidden ${className}`.trim()}
       style={{ minHeight: "0", minWidth: "0" }}
     >
       <header className="gba:flex gba:flex-col gba:box-border gba:border-b gba:border-gray-200 gba:relative">
-        <div className="gba:h-24 gba:p-2 gba:px-4 gba:flex gba:items-center">
-          <div className="gba:flex gba:items-center gba:min-w-0 gba:flex-none">
-            <span className={iconClasses}>{headerIcon}</span>
-            <span className={labelClasses}>{headerLabel}</span>
+        <div className="gba:h-24 gba:grid gba:grid-cols-3 gba:items-center gba:w-full">
+          {/* Left section: Icon + Label */}
+          <div className="gba:flex gba:items-center gba:h-full gba:gap-4 gba:justify-start">
+            <div className="gba:flex gba:items-center gba:h-full">
+              <span className={iconClasses} data-testid="page-header-icon">
+                {React.isValidElement(headerIcon)
+                  ? React.cloneElement(headerIcon as React.ReactElement, {
+                      size: isDisplay ? 48 : 32,
+                    })
+                  : headerIcon}
+              </span>
+            </div>
+            <div className="gba:flex gba:items-center gba:h-full">
+              <span className={labelClasses}>{headerLabel}</span>
+            </div>
           </div>
-          {pageHeaderCenter && (
-            <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:pointer-events-none">
-              <div className="gba:pointer-events-auto">{pageHeaderCenter}</div>
-            </div>
-          )}
-          {pageHeaderRight && (
-            <div className="gba:flex gba:items-center gba:min-w-0 gba:flex-none gba:justify-end">
-              {pageHeaderRight}
-            </div>
-          )}
+          
+          {/* Center section: pageHeaderCenter - Perfectly centered */}
+          <div className="gba:flex gba:items-center gba:h-full gba:justify-center">
+            {pageHeaderCenter}
+          </div>
+          
+          {/* Right section: pageHeaderRight */}
+          <div className="gba:flex gba:items-center gba:h-full gba:justify-end">
+            {pageHeaderRight}
+          </div>
         </div>
         {pageController && (
-          <div className="gba:flex gba:justify-center gba:py-2">
+          <div className="gba:flex gba:justify-start gba:py-2">
             {pageController}
           </div>
         )}
@@ -95,23 +107,8 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
             {contentHeader}
           </div>
         )}
-        <div className="gba:bg-gray-100 gba:flex-1 gba:min-h-0">
-          {contentContainer}
-        </div>
+        <div className="gba:flex-1 gba:min-h-0">{contentContainer}</div>
       </div>
     </div>
   );
-};
-
-// For backward compatibility
-export const PageLayoutDefault: React.FC<
-  Readonly<Omit<PageLayoutProps, "variant">>
-> = (props) => {
-  return <PageLayout {...props} variant="default" />;
-};
-
-export const PageLayoutDisplay: React.FC<
-  Readonly<Omit<PageLayoutProps, "variant">>
-> = (props) => {
-  return <PageLayout {...props} variant="display" />;
 };

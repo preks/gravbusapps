@@ -13,51 +13,23 @@ declare global {
   }
 }
 import { Tabs } from '@newwork/gravity-ui-catalog';
-import { WalletOutlined, CalendarOutlined } from '@ant-design/icons';
-import { PiGauge, PiReceipt, PiPath, PiHandCoins, PiMoney } from 'react-icons/pi';
+import { PiGauge, PiReceipt, PiPath, PiHandCoins, PiMoney, PiWalletDuotone, PiCalendar } from 'react-icons/pi';
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'; // Adjusted import path
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 // Import tab components (placeholders for now, will be created next)
-import DashboardTab from './components/DashboardTab';
-import ExpenseItemsTab from './components/ExpenseItemsTab';
-import ExpensePlansTab from './components/ExpensePlansTab';
-import AdvancePaymentsTab from './components/AdvancePaymentsTab';
-import ExpenseRequestsTab from './components/ExpenseRequestsTab';
-import ExpenseCalendarTab from './components/ExpenseCalendarTab';
+import ExpenseDashboardTab from './components/tabs/expense-dashboard-tab';
+import ExpenseItemsTab from './components/tabs/expense-items-tab';
+import ExpensePlansTab from './components/tabs/expense-plans-tab';
+import AdvancePaymentsTab from './components/tabs/advance-payments-tab';
+import ExpenseRequestsTab from './components/tabs/expense-requests-tab';
+import ExpenseCalendarTab from './components/tabs/expense-calendar-tab';
+import ExpenseAi from './components/expense-ai';
 
 export interface PersonalExpensesProps extends BusinessAppContextProps {}
 
 const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
-  const [activeTab, setActiveTab] = useState('dashboard');
   const [contentHeader, setContentHeader] = useState<ReactNode | null>(null);
-  const [pendingFilter, setPendingFilter] = useState<string | undefined>(undefined);
-
-  // Expose the tab navigation API to the global window object
-  useEffect(() => {
-    window.tabNavigationAPI = {
-      setActiveTab: (tabKey: string) => {
-        console.log('Global API: Switching to tab', tabKey);
-        setActiveTab(tabKey);
-      },
-      filter: undefined
-    };
-    
-    return () => {
-      window.tabNavigationAPI = undefined;
-    };
-  }, []);
-  
-  // Handle filter updates in the API
-  useEffect(() => {
-    if (window.tabNavigationAPI) {
-      window.tabNavigationAPI.filter = pendingFilter;
-    }
-  }, [pendingFilter]);
-
-  const handleTabChange = (key: string) => {
-    setActiveTab(key);
-  };
 
   const tabItems = [
     {
@@ -68,7 +40,7 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
           <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Dashboard</span>
         </div>
       ),
-      children: <DashboardTab {...props} />,
+      children: <ExpenseDashboardTab {...props} />,
       renderContentHeader: () => null,
     },
     {
@@ -131,7 +103,7 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
       key: 'calendar',
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CalendarOutlined style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle', marginRight: '-4px' }} />
+          <PiCalendar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle', marginRight: '-4px' }} />
           <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Calendar</span>
         </div>
       ),
@@ -140,14 +112,72 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
     },
   ];
 
+  // Get tab from URL query parameter or use first tab as default
+  const getInitialTab = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    const validTabs = tabItems.map(item => item.key);
+    
+    if (validTabs.includes(tabFromUrl ?? '')) {
+      return tabFromUrl!;
+    } else {
+      // No valid tab in URL, set default tab in URL
+      const defaultTab = tabItems[0].key;
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', defaultTab);
+      window.history.replaceState({}, '', url.toString());
+      return defaultTab;
+    }
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+
+  // Update URL when tab changes
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', key);
+    window.history.pushState({}, '', url.toString());
+  };
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabFromUrl = urlParams.get('tab');
+      const validTabs = tabItems.map(item => item.key);
+      const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : tabItems[0].key;
+      setActiveTab(newTab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Expose the tab navigation API to the global window object
+  useEffect(() => {
+    window.tabNavigationAPI = {
+      setActiveTab: (tabKey: string) => {
+        console.log('Global API: Switching to tab', tabKey);
+        handleTabChange(tabKey);
+      },
+      filter: undefined
+    };
+    
+    return () => {
+      window.tabNavigationAPI = undefined;
+    };
+  }, []);
+
   const activeTabItem = tabItems.find(item => item.key === activeTab);
   const activeTabContent = activeTabItem?.children;
   const activeTabContentHeader = activeTabItem?.renderContentHeader();
 
   return (
     <PageLayout
-      headerIcon={<WalletOutlined />}
+      headerIcon={<PiWalletDuotone color="#c92559"/>}
       headerLabel="My Expenses"
+      pageHeaderCenter={<ExpenseAi />}
       pageController={
           <Tabs
             activeKey={activeTab}

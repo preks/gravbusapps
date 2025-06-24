@@ -14,7 +14,7 @@ export type FilePathParams = {
   /**
    * ID of the file
    */
-  fileId: string;
+  fileId?: string;
 };
 
 /**
@@ -30,6 +30,16 @@ export type FileQueryParams = {
    * Folder path where the file is stored
    */
   folderPath?: string;
+
+  /**
+   * Encoding type for the file (e.g., 'base64')
+   */
+  encoding?: string;
+
+  /**
+   * MIME type of the file
+   */
+  mimeType?: string;
 };
 
 /**
@@ -66,3 +76,20 @@ export type FileMetadata = {
    */
   uploadDate?: string;
 };
+
+export interface FileUploadResponse {
+  fileInfo: {
+    appName: string;
+    fileId: string;
+    folderPath: string;
+    accessScope: string;
+    path: string;
+    fileMetadata: {
+        mimeType: string;
+        originalFileName: string;
+        keyValues: any[];
+        updatedAt: string;
+    },
+    uploadedAt: string;
+  };
+}

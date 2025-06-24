@@ -1,0 +1,7 @@
+{
+  "frequency": "daily",
+  "commands": {
+    "apps": "npm run publish:screen -- /<module>/<sub-module>/apps/<app-folder>",
+    "forms": "npm run publish:screen -- /<module>/<sub-module>/forms/<form-folder>"
+  }
+} 

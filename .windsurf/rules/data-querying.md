@@ -6,11 +6,15 @@ trigger: always_on
 - Everytime GraphQL data querying is needed, use the newwork-graphql-mcp plugin and use the `useGraphQLClient` hook from `src/common/network/graphql`.
 - Each GraphQL query must be stored in a single TypeScript file in the `queries` folder of the component.
 - Each GraphQL query must be named in camelCase and must be exported as a named export.
-- Whenever a GraphQL is used, make use of offsets and limits with a value of 20 for limits.
+- Whenever GraphQL requests are used, make use of offsets and limits with a value of 20 for limits.
+- Whenever Catalog requests are used, make use of limits with a value of 20.
 
-- Everytime catalogs querying is needed, use the `useCatalogManagerClient` hook from `src/common/network/catalogs`.
-- Everytime files querying and upload is needed, use the `useFileClient` hook from `src/common/network/files`.
-- Everytime flows or flows registries are needed, use the `useFlowRegistryClient` hook from `src/common/network/flows`.
-- When none of the provided catalogs, files, flows or graphql clients in `src/common/network` are matching, use the `useRestClient` hook from `src/common/network/rest`.
+- For Graphql API requests, use src\common\network\graphql\useGraphQLClient.ts. Analyze the file first, and its dependency.
+- For REST API requests, use src\common\network\rest\useRestClient.ts. Analyze the file first, and its dependency.
+- For all API requests to a service, check if already exists in src\common\network, or create a new folder for that entity type. Example: `src\common\network\catalog-entry`, `src\common\network\expense-plan` folders, named in camelCase, and exported as named exports.
+- If the API request is REST, use a singleton client class that extends RestClient. Example: src\common\network\catalogs\CatalogManagerClient.ts
+- In the singleton client REST class, the URL key is in the `.env` file. Example: `env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')`, NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT is in `.env`.
+- For all API requests, make sure accessToken exists.
 
-- Do not generate mocked data. Instead, use the existing client in `src/common/network` to integrate real data.
+- Do not generate mocked data. Instead, use the existing clients in `src/common/network` to integrate real data.
+- For all API requests, make sure accessToken exists.

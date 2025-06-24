@@ -139,21 +139,34 @@ async function publishMainCss() {
 }
 
 async function main() {
-  const screenPathArg = process.argv[2];
+  let screenPathArg = process.argv[2];
 
   if (!screenPathArg) {
     console.error("Error: Screen path argument is missing.");
     console.log(
-      "Usage: npm run publish:screen -- <product>/[path/to/]/<ScreenName>"
+      "Usage: npm run publish:screen -- /<product>/[path/to/]/<ScreenName>"
     );
     console.log(
-      "Example: npm run publish:screen -- irm/overview-screens/LeadOverview"
+      "Example: npm run publish:screen -- /irm/overview-screens/LeadOverview"
     );
-    console.log("Example: npm run publish:screen -- .debug/DebugView");
+    console.log("Example: npm run publish:screen -- /.debug/DebugView");
+
     console.log(
-      "Example: npm run publish:screen -- assets/main.css (to publish the main CSS file)"
+      "Example: npm run publish:screen -- /assets/main.css (to publish the main CSS file)"
     );
     process.exit(1);
+  }
+
+  console.log(`Original screenPathArg: ${screenPathArg}`);
+
+  // Remove leading slash if present
+  if (screenPathArg.startsWith("/")) {
+    screenPathArg = screenPathArg.substring(1);
+  }
+  
+  // Fix Git Bash path issue: detect and handle C:/Program Files/Git prefix
+  if (screenPathArg.startsWith("C:/Program Files/Git/")) {
+    screenPathArg = screenPathArg.substring("C:/Program Files/Git/".length);
   }
 
   // Special case for publishing main.css
@@ -164,12 +177,12 @@ async function main() {
   const screenPathParts = screenPathArg.split("/");
   if (screenPathParts.length < 2) {
     console.error(
-      "Error: Invalid screen path format. Expected at least <product>/<ScreenName>"
+      "Error: Invalid screen path format. Expected at least /<product>/<ScreenName>"
     );
     console.log(
-      "Example: npm run publish:screen -- irm/overview-screens/LeadOverview"
+      "Example: npm run publish:screen -- /irm/overview-screens/LeadOverview"
     );
-    console.log("Example: npm run publish:screen -- .debug/DebugView");
+    console.log("Example: npm run publish:screen -- /.debug/DebugView");
     process.exit(1);
   }
 
@@ -302,22 +315,26 @@ async function main() {
   // The temp directory is already created and files are directly written there
 
   // Use cross-env compatible approach for Windows with additional env vars for temp files
-  const viteBuildCommand = `cross-env PROJECT_ROOT_DIR="${projectRootDir.replace(
-    /\\/g,
-    "/"
-  )}" VITE_GIT_USER="${
-    process.env.VITE_GIT_USER ||
-    execSync("git config user.name").toString().trim()
-  }" VITE_PUBLISH_TIME="${new Date().toISOString()}" TARGET_ENTRY_FILE=${sourceEntryFile} TARGET_ENTRY_KEY=${viteEntryKey} TEMP_INDEX_CSS=${path
-    .join(tempDir, "index.css")
-    .replace(/\\/g, "/")} SINGLE_SCREEN_CSS=true vite build`;
+  // Create an object with all environment variables to pass to execSync
+  const buildEnv = {
+    ...process.env,
+    PROJECT_ROOT_DIR: projectRootDir,
+    VITE_GIT_USER: process.env.VITE_GIT_USER || execSync("git config user.name").toString().trim(),
+    VITE_PUBLISH_TIME: new Date().toISOString(),
+    TARGET_ENTRY_FILE: sourceEntryFile,
+    TARGET_ENTRY_KEY: viteEntryKey,
+    TEMP_INDEX_CSS: tempIndexCssPath.replace(/\\/g, "/"),
+    SINGLE_SCREEN_CSS: "true"
+  };
+  
+  const viteBuildCommand = `vite build`;
 
   console.log(`   Executing: ${viteBuildCommand} with environment variables`);
   try {
     execSync(viteBuildCommand, {
       stdio: "inherit",
       cwd: projectRootDir,
-      env: { ...process.env },
+      env: buildEnv,
     });
     console.log("✅ Screen built successfully.");
 
