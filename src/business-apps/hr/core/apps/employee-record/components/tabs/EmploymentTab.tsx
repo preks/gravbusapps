@@ -122,6 +122,72 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
 
   const workingHoursData = getWorkingHoursData();
 
+  // Prepare payroll data
+  const getPayrollData = () => {
+    return [
+      {
+        label: "Salary Group",
+        value: employee.employeePosition?.costCenter?.name || ''
+      },
+      {
+        label: "Payment Method",
+        value: 'Direct Deposit'
+      },
+      {
+        label: "Bank Account",
+        value: employee.bankAccounts?.[0]?.iban || ''
+      },
+      {
+        label: "Bank Name",
+        value: employee.bankAccounts?.[0]?.bankName || ''
+      },
+      {
+        label: "Account Holder",
+        value: employee.bankAccounts?.[0]?.accountHolder || ''
+      },
+      {
+        label: "Full-Time Equivalent",
+        value: employee.fullTimeEquivalent?.toString() || ''
+      }
+    ];
+  };
+
+  const payrollData = getPayrollData();
+
+  // Prepare tax information data
+  const getTaxInformationData = () => {
+    const taxDetails = employee.taxDetails?.[0] || {};
+    
+    return [
+      {
+        label: "Tax Number",
+        value: taxDetails.taxNumber || ''
+      },
+      {
+        label: "Tax Identification Number",
+        value: taxDetails.taxIdentificationNumber || ''
+      },
+      {
+        label: "Social Security Number",
+        value: taxDetails.socialSecurityNumber || ''
+      },
+      {
+        label: "Health Insurance",
+        value: taxDetails.healthInsuranceName || ''
+      },
+      {
+        label: "Child Tax Allowance",
+        value: taxDetails.childTaxAllowance?.toString() || ''
+      },
+      {
+        label: "Tax Bracket",
+        value: taxDetails.taxBracketRef || ''
+      }
+    ];
+  };
+
+  const taxInformationData = getTaxInformationData();
+
   // Helper function to render data items in a grid with 3 columns
   const renderDataItems = (data: Array<{label: string; value: string}>) => (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-3 gba:mt-2">
@@ -197,6 +263,30 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Hours</h3>
           </div>
           {renderDataItems(workingHoursData)}
+        </Card>
+
+        {/* Payroll Card */}
+        <Card
+          variant="outlined"
+          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
+          data-testid="employment-section-payroll"
+        >
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Payroll</h3>
+          </div>
+          {renderDataItems(payrollData)}
+        </Card>
+
+        {/* Tax Information Card */}
+        <Card
+          variant="outlined"
+          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
+          data-testid="employment-section-tax"
+        >
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Tax Information</h3>
+          </div>
+          {renderDataItems(taxInformationData)}
         </Card>
       </div>
     </div>
