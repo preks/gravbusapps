@@ -64,7 +64,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
 
   return (
     <div
-      className={`gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:bg-white gba:rounded-xl gba:shadow-md gba:overflow-hidden ${className}`.trim()}
+      className={`gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:bg-white gba:rounded-xl gba:shadow-md ${className}`.trim()}
       style={{ minHeight: "0", minWidth: "0" }}
     >
       <header className="gba:flex gba:flex-col gba:box-border gba:border-b gba:border-gray-200 gba:relative">

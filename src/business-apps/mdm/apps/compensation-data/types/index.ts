@@ -1,6 +1,8 @@
 // Shared types for compensation data will be added here
 // e.g., common interfaces, enums, type utilities
 
+import { CatalogEntry } from '@/common/types/CatalogTypes';
+
 // Compensation Band interfaces
 export interface CompensationBand {
   id: string;
@@ -66,11 +68,63 @@ export interface JobLevel {
 
 // Visualization data structure
 export interface PayGradeVisualizationData {
-  payGrades: PayGrade[];
-  jobLevelGroups: JobLevelGroup[];
-  jobLevels: JobLevel[];
+  payGrades: PayGradeVisualization[];
+  jobLevelGroups: JobLevelGroupVisualization[];
+  jobLevels: JobLevelVisualization[];
   isLoading: boolean;
   error: string | null;
+}
+
+// Job Level Group Data from catalog
+export interface JobLevelGroupData {
+  data: CatalogEntry[];
+  paging: {
+    limit: number;
+    offset: number;
+    totalRecords: number;
+    returnTotalRecords: boolean;
+  };
+  query?: Record<string, any>;
+}
+
+// Visualization interfaces for UI components
+export interface PayGradeVisualization {
+  id: string;
+  code: string;
+  name: string;
+  payGrade: number;
+  minSalary: number;
+  maxSalary: number;
+  standardSalary: number; // Calculated as middle of min-max if not provided
+  currency: {
+    id: string;
+    value: string;
+  };
+  order: number;
+}
+
+export interface JobLevelGroupVisualization {
+  id: string;
+  code: string;
+  value: string;
+  name: string; // Will use value as name
+  category: string; // Will map from code or use default
+  color: string; // Will assign colors based on order
+  order: number;
+  additionalValue1?: string;
+  additionalValue2?: string;
+  additionalValue3?: string;
+}
+
+export interface JobLevelVisualization {
+  id: string;
+  name: string;
+  code: string;
+  jobLevelGroupId: string;
+  payGradeId: string;
+  compensationBandId: string;
+  level: number;
+  heirarchyOrder: number;
 }
 
 export {}; 
