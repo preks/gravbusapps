@@ -5,7 +5,6 @@ import dayjs from 'dayjs';
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData';
 import { Card } from '@newwork/gravity-ui-catalog';
 import { Empty, Spin } from 'antd';
-import { startProcess } from '@/common/utils/start-process';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { employeeFeedbackQuery } from '../../queries/feedbackQueries';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
