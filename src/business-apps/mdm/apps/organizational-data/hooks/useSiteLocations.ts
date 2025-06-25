@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useRestClient } from '@/common/network/rest/useRestClient';
-import { SiteLocationData, SiteLocation } from '../types';
+import { SiteLocationData, SiteLocation, PaginatedSiteLocations } from '../types';
 
 const ORGCHART_BASE_URL = 'https://newwork-dev.newwork.com/orgchart/api/v1';
 
-export const useSiteLocations = (context: BusinessAppContextProps) => {
+export const useSiteLocations = (context: BusinessAppContextProps, initialPageSize: number = 10) => {
   const [siteLocations, setSiteLocations] = useState<SiteLocation[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(initialPageSize);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,7 +59,8 @@ export const useSiteLocations = (context: BusinessAppContextProps) => {
   };
 
   // Fetch site locations from orgchart API
-  const fetchSiteLocations = useCallback(async (): Promise<SiteLocation[]> => {
+  const fetchSiteLocations = useCallback(async (page: number = 1, limit: number = 10): Promise<SiteLocation[]> => {
+    const offset = (page - 1) * limit;
     try {
       // Get structureId from additionalData or use default
       const structureId = context.additionalData?.structureId || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf';
@@ -65,22 +69,55 @@ export const useSiteLocations = (context: BusinessAppContextProps) => {
         throw new Error('Structure ID is required to fetch site locations');
       }
 
-      const response = await restClient.get<SiteLocationData[]>(
+      const response = await restClient.get<PaginatedSiteLocations>(
         '/site-locations',
         {
-          params: { structureId },
+          params: { 
+            structureId,
+            limit,
+            offset
+          },
           headers: {
             Authorization: `Bearer ${context.accessToken}`
           }
         }
       );
 
-      return response.map(transformSiteLocation);
+      // Handle both the new paginated format and the old format for backward compatibility
+      if (response.data && response.paging) {
+        // New paginated response format
+        setTotalCount(response.paging.totalRecords);
+        return response.data.map(transformSiteLocation);
+      } else {
+        // Old format (backward compatibility)
+        setTotalCount((response as any).length || 0);
+        return (response as any).map(transformSiteLocation);
+      }
     } catch (error) {
       console.error('Error fetching site locations:', error);
       throw new Error('Failed to fetch site locations from orgchart API');
     }
   }, [context.accessToken, context.additionalData?.structureId, restClient]);
+
+  // Change page or page size
+  const changePage = useCallback(async (page: number, size?: number) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const newPageSize = size !== undefined ? size : pageSize;
+      if (size !== undefined) setPageSize(size);
+      setCurrentPage(page);
+      const locationsData = await fetchSiteLocations(page, newPageSize);
+      setSiteLocations(locationsData);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(errorMessage);
+      console.error('Error changing page:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchSiteLocations, pageSize]);
 
   // Load initial data
   const loadData = useCallback(async () => {
@@ -88,7 +125,7 @@ export const useSiteLocations = (context: BusinessAppContextProps) => {
     setError(null);
 
     try {
-      const locationsData = await fetchSiteLocations();
+      const locationsData = await fetchSiteLocations(currentPage, pageSize);
       setSiteLocations(locationsData);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
@@ -97,7 +134,7 @@ export const useSiteLocations = (context: BusinessAppContextProps) => {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchSiteLocations]);
+  }, [fetchSiteLocations, currentPage, pageSize]);
 
   // Filter site locations by various criteria
   const filterSiteLocations = useCallback((
@@ -170,9 +207,14 @@ export const useSiteLocations = (context: BusinessAppContextProps) => {
     if (context.accessToken) {
       loadData();
     }
-  }, [context.accessToken, loadData]);
+  }, [context.accessToken]);
 
   return {
+    // Pagination props
+    totalCount,
+    currentPage,
+    pageSize,
+    changePage,
     // Data
     siteLocations,
     

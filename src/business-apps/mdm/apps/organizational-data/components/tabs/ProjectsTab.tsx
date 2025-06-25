@@ -18,7 +18,8 @@ import {
   Divider,
   Progress,
   Card,
-  Statistic
+  Statistic,
+  Pagination
 } from 'antd';
 import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
 import { 
@@ -71,7 +72,12 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
     activeProjects,
     expiredProjects,
     expiringProjects,
-    filterProjects
+    filterProjects,
+    totalCount,
+    currentPage,
+    pageSize,
+    setCurrentPage,
+    setPageSize
   } = useProjects(context);
 
   // Local state
@@ -89,8 +95,23 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
 
   // Filter projects based on search and filters
   const filteredProjects = useMemo(() => {
+    // With server-side pagination, we only filter the current page results
+    // The full filtered count will be handled by the API
     return filterProjects(debouncedSearchTerm, selectedProjectType, selectedStatus);
   }, [filterProjects, debouncedSearchTerm, selectedProjectType, selectedStatus]);
+  
+  // Handle pagination changes
+  const handlePageChange = useCallback((page: number, pageSize?: number) => {
+    setCurrentPage(page);
+    if (pageSize) {
+      setPageSize(pageSize);
+    }
+  }, [setCurrentPage, setPageSize]);
+  
+  const handlePageSizeChange = useCallback((current: number, size: number) => {
+    setPageSize(size);
+    setCurrentPage(1); // Reset to first page when changing page size
+  }, [setPageSize, setCurrentPage]);
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchInput(e.target.value);
@@ -354,7 +375,7 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
             <Title level={4} style={{ margin: 0, color: '#1f2937' }}>
               {t('hr.project_management', 'Project Management')}
             </Title>
-            <Tag color="blue">{totalProjects} projects</Tag>
+            <Tag color="blue">{totalProjects} total</Tag>
             <Tag color="green">{activeProjects} active</Tag>
             <Tag color="orange">{expiringProjects} expiring</Tag>
             <Tag color="red">{expiredProjects} expired</Tag>
@@ -421,30 +442,36 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
         columns={columns}
         dataSource={filteredProjects}
         rowKey="id"
+        bordered
+        size="middle"
+        scroll={{ x: 'max-content' }}
         loading={isLoading}
-        pagination={{
-          pageSize: 20,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => 
-            `${range[0]}-${range[1]} of ${total} projects`,
-        }}
-        data-testid={`${prefixDataTestId || ''}-ProjectsTab-Table`}
-        style={{ background: 'white', borderRadius: '8px' }}
-        scroll={{ x: 800 }}
-        locale={{
-          emptyText: searchInput || selectedProjectType !== 'ALL' || selectedStatus !== 'ALL'
-            ? 'No projects match your search criteria'
-            : 'No projects found'
-        }}
+        pagination={false} // Disable default pagination as we're using custom component
         onRow={(record) => ({
           onClick: () => {
             setSelectedProject(record);
             setDrawerVisible(true);
           },
-          style: { cursor: 'pointer' },
         })}
       />
+      
+      {/* Pagination control */}
+      <div className="gba-flex gba-justify-between gba-mt-4 gba-items-center">
+        <div className="gba-text-sm gba-text-gray-500">
+          Showing {projects.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} entries
+        </div>
+        <Pagination 
+          current={currentPage}
+          pageSize={pageSize}
+          total={totalCount}
+          onChange={handlePageChange}
+          onShowSizeChange={handlePageSizeChange}
+          showSizeChanger
+          showTotal={(total) => `Total ${total} items`}
+          pageSizeOptions={['10', '20', '50', '100']}
+          data-testid={`${prefixDataTestId || ''}-ProjectsTab-Pagination`}
+        />
+      </div>
 
       {/* Modal for Add/Edit */}
       <Modal
@@ -515,14 +542,6 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
       <DataDetailsDrawer
         title={selectedProject?.name || "Project Details"}
         icon={<ProjectOutlined className="gba:text-blue-500" />}
-        extraTitle={selectedProject?.status && (
-          <Tag 
-            color={getStatusColor(selectedProject.status)} 
-            className="gba:ml-2"
-          >
-            {selectedProject.status}
-          </Tag>
-        )}
         placement="right"
         onClose={() => {
           setDrawerVisible(false);

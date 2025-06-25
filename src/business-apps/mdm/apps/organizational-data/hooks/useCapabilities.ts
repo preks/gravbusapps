@@ -17,10 +17,28 @@ export interface CapabilityData {
   groupId?: string;
 }
 
+export interface PaginatedCapabilityData {
+  data: CapabilityData[]
+  paging: {
+    offset: number
+    totalRecords: number
+    hasMore: boolean
+  }
+}
+
+// Default pagination values
+const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE = 1;
+
 export const useCapabilities = (context: BusinessAppContextProps) => {
   const [capabilities, setCapabilities] = useState<Capability[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Pagination state
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(DEFAULT_PAGE);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const restClient = useRestClient(ORGCHART_BASE_URL);
 
@@ -47,7 +65,8 @@ export const useCapabilities = (context: BusinessAppContextProps) => {
   };
 
   // Fetch capabilities from orgchart API
-  const fetchCapabilities = useCallback(async (): Promise<Capability[]> => {
+  const fetchCapabilities = useCallback(
+    async (limit?: number, offset?: number): Promise<{capabilities: Capability[], totalCount: number}> => {
     try {
       // Get structureId from additionalData or use default
       const structureId = context.additionalData?.structureId || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf';
@@ -55,32 +74,71 @@ export const useCapabilities = (context: BusinessAppContextProps) => {
       if (!structureId) {
         throw new Error('Structure ID is required to fetch capabilities');
       }
+      
+      const params: Record<string, string | number> = {
+        structureId: structureId,
+      };
+      
+      // Add pagination params if provided
+      if (limit !== undefined) {
+        params.limit = limit;
+      }
+      if (offset !== undefined) {
+        params.offset = offset;
+      }
 
-      const response = await restClient.get<CapabilityData[]>(
+      const response = await restClient.get<PaginatedCapabilityData>(
         '/capabilities',
         {
-          params: { structureId },
+          params,
           headers: {
             Authorization: `Bearer ${context.accessToken}`
           }
         }
       );
-
-      return response.map(transformCapability);
+      
+      // Extract capabilities and total count from the paginated response
+      const capabilityResponse = response;
+      
+      // Handle the response format with data and paging properties
+      if (capabilityResponse && capabilityResponse.data && capabilityResponse.paging) {
+        const transformedCapabilities = capabilityResponse.data.map(transformCapability);
+        const totalCount = capabilityResponse.paging.totalRecords;
+        
+        return { 
+          capabilities: transformedCapabilities,
+          totalCount 
+        };
+      }
+      
+      // Fallback for backward compatibility or unexpected response format
+      const capabilities = Array.isArray(capabilityResponse) 
+        ? capabilityResponse.map(transformCapability) 
+        : [];
+      
+      return { 
+        capabilities,
+        totalCount: capabilities.length
+      };
     } catch (error) {
       console.error('Error fetching capabilities:', error);
       throw new Error('Failed to fetch capabilities from orgchart API');
     }
   }, [context.accessToken, context.additionalData?.structureId, restClient]);
 
-  // Load initial data
+  // Load data with pagination
   const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const capabilitiesData = await fetchCapabilities();
+      // Calculate offset based on current page and page size
+      const offset = (currentPage - 1) * pageSize;
+      const limit = pageSize;
+      
+      const { capabilities: capabilitiesData, totalCount: totalCountData } = await fetchCapabilities(limit, offset);
       setCapabilities(capabilitiesData);
+      setTotalCount(totalCountData);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setError(errorMessage);
@@ -88,7 +146,7 @@ export const useCapabilities = (context: BusinessAppContextProps) => {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchCapabilities]);
+  }, [fetchCapabilities, currentPage, pageSize]);
 
   // Filter capabilities by name, code, category or competency area
   const filterCapabilities = useCallback((
@@ -153,6 +211,17 @@ export const useCapabilities = (context: BusinessAppContextProps) => {
     }
   }, [context.accessToken, loadData]);
 
+  // Handle page change
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  // Handle page size change
+  const handlePageSizeChange = useCallback((current: number, size: number) => {
+    setPageSize(size);
+    setCurrentPage(1); // Reset to first page when changing page size
+  }, []);
+
   return {
     // Data
     capabilities,
@@ -160,6 +229,13 @@ export const useCapabilities = (context: BusinessAppContextProps) => {
     // State
     isLoading,
     error,
+    
+    // Pagination
+    totalCount,
+    currentPage,
+    pageSize,
+    handlePageChange,
+    handlePageSizeChange,
     
     // Actions
     refetch,
@@ -172,7 +248,7 @@ export const useCapabilities = (context: BusinessAppContextProps) => {
     getInactiveCapabilities,
     
     // Statistics
-    totalCapabilities: capabilities.length,
+    totalCapabilities: totalCount,
     activeCapabilities: getActiveCapabilities().length,
     inactiveCapabilities: getInactiveCapabilities().length
   };

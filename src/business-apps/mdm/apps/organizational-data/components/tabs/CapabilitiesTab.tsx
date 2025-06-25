@@ -47,7 +47,12 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = (context) => {
     error,
     refetch,
     totalCapabilities,
-    activeCapabilities
+    activeCapabilities,
+    totalCount,
+    currentPage,
+    pageSize,
+    handlePageChange,
+    handlePageSizeChange
   } = useCapabilities(context);
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -298,13 +303,7 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = (context) => {
         columns={columns}
         dataSource={filteredCapabilities}
         rowKey="id"
-        pagination={{
-          total: filteredCapabilities.length,
-          pageSize: 10,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} capabilities`,
-        }}
+        pagination={false} 
         data-testid={`${prefixDataTestId || ''}-capabilities-table`}
         style={{
           background: 'white',
@@ -312,6 +311,49 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = (context) => {
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
         }}
       />
+      
+      {/* Custom pagination component */}
+      <div className="gba:mt-4 gba:flex gba:justify-between gba:items-center gba:bg-white gba:p-4 gba:rounded-lg gba:shadow-sm">
+        <div className="gba:text-gray-600">
+          Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} entries
+        </div>
+        <div className="gba:flex gba:items-center gba:gap-4">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-gray-600">Show</span>
+            <Select
+              value={pageSize}
+              onChange={(value) => handlePageSizeChange(currentPage, value)}
+              data-testid={`${prefixDataTestId || ''}-page-size-selector`}
+            >
+              <Option value={10}>10</Option>
+              <Option value={20}>20</Option>
+              <Option value={50}>50</Option>
+              <Option value={100}>100</Option>
+            </Select>
+            <span className="gba:text-gray-600">entries</span>
+          </div>
+          <div>
+            <Button
+              disabled={currentPage === 1}
+              onClick={() => handlePageChange(currentPage - 1)}
+              icon={<span>«</span>}
+              data-testid={`${prefixDataTestId || ''}-prev-page`}
+            />
+            <Button
+              type="primary"
+              style={{ margin: '0 8px' }}
+            >
+              {currentPage}
+            </Button>
+            <Button
+              disabled={currentPage * pageSize >= totalCount}
+              onClick={() => handlePageChange(currentPage + 1)}
+              icon={<span>»</span>}
+              data-testid={`${prefixDataTestId || ''}-next-page`}
+            />
+          </div>
+        </div>
+      </div>
 
       {/* Capability Details Drawer */}
       <DataDetailsDrawer

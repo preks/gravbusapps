@@ -94,6 +94,15 @@ export interface ProjectData {
   customerId?: string; // Only for EXTERNAL projects
 }
 
+export interface PaginatedProjectRecords {
+  data: ProjectData[]
+  paging: {
+    offset: number
+    totalRecords: number
+    hasMore: boolean
+  }
+}
+
 // Enhanced Project interface for UI display
 export interface Project {
   id: string;
@@ -187,6 +196,15 @@ export interface SiteLocationData {
   code?: string;
   employees: Employee[];
   costCenters: SiteLocationCostCenter[];
+}
+
+export interface PaginatedSiteLocations {
+  data: SiteLocationData[]
+  paging: {
+    offset: number
+    totalRecords: number
+    hasMore: boolean
+  }
 }
 
 // Enhanced Site Location interface for UI display
