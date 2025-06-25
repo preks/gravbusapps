@@ -4,6 +4,9 @@ import React, { useCallback } from 'react';
 //import { useTranslation } from 'react-i18next';
 import { Button, Avatar } from '@newwork/gravity-ui-catalog';
 import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { PiCaretRight, PiChat, PiPhone, PiVideoCamera, PiUser } from 'react-icons/pi';
 
 // Define a common Employee interface that works for both components
 export interface EmployeeDetailsProps {
@@ -18,20 +21,20 @@ export interface EmployeeDetailsProps {
     organizationalUnit?: string;
     employmentType?: string;
     contractType?: string;
+    manager?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+    };
   };
-  icons?: {
-    ChatIcon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-    CallIcon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-    VideoCallIcon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-    ProfileIcon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  };
+  accessToken?: string;
 }
 
 /**
  * Shared Employee Details component for both EmployeeDirectory and EmployeeList
  * @returns {JSX.Element}
  */
-export const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({ employee, icons }) => {
+export const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({ employee, accessToken }) => {
   //const { t } = useTranslation();
   const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat();
   
@@ -61,40 +64,36 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({ employee, icon
     window.location.href = profileUrl;
   }, [profileUrl]);
 
-  // Default icons if not provided
-  const ChatIcon = icons?.ChatIcon || (() => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-    </svg>
-  ));
-  
-  const CallIcon = icons?.CallIcon || (() => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-    </svg>
-  ));
-  
-  const VideoCallIcon = icons?.VideoCallIcon || (() => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <polygon points="23 7 16 12 23 17 23 7"></polygon>
-      <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-    </svg>
-  ));
-  
-  const ProfileIcon = icons?.ProfileIcon || (() => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-      <circle cx="12" cy="7" r="4"></circle>
-    </svg>
-  ));
+  // Phosphor icons
+  const ChatIcon = PiChat;
+  const CallIcon = PiPhone;
+  const VideoCallIcon = PiVideoCamera;
+  const ProfileIcon = PiUser;
 
   return (
     <div className="gba:bg-white gba:h-full gba:overflow-auto">
-      <div className="gba:p-6">
-        <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-          <h2 className="gba:text-xl gba:font-bold">{employee.firstName} {employee.lastName}</h2>
-        </div>
-
+      <div className="gba:p-6 gba:relative">
+        {/* Action button in top right corner with absolute positioning */}
+        {accessToken && (
+          <div className="gba:absolute gba:top-4 gba:right-2">
+            <AppActionButton
+              data-testid="employee-details-action-button"
+              variant="primary"
+              size="md"
+              contextsArray={[FlowContextName.employeeEntity]}
+              externalContextData={{
+                employeeId: employee.id,
+                keycloakUserId: employee.userId,
+                managerId: employee.manager?.id
+              }}
+              prefixDataTestId="employee-details-action"
+              accessToken={accessToken}
+            >
+              Actions
+            </AppActionButton>
+          </div>
+        )}
+        
         <div className="gba:space-y-6">
           <div className="gba:flex gba:flex-col gba:items-center gba:mb-4 gba:animate-fade-in">
             <Avatar
@@ -109,9 +108,52 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({ employee, icon
               shape="circle"
               // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
               appearance="gradient"
-              style={{ width: '80px', height: '80px' }}
+              style={{ width: '100px', height: '100px' }}
             />
-            <p className="gba:text-gray-500 gba:text-sm gba:text-center gba:mt-3">{employee.jobTitle}</p>
+            <a 
+              href={`/platform/employee-record?employeeId=${employee.id}`}
+              className="gba:flex gba:items-center gba:justify-center gba:w-full"
+            >
+              <div className="gba:my-2 gba:pl-2 gba:text-center gba:flex gba:flex-col gba:items-center gba:w-auto gba:max-w-full gba:border-box">
+                <div className="gba:text-2xl gba:text-black gba:font-black gba:w-full gba:truncate">
+                  {employee.firstName} {employee.lastName}
+                </div>
+              </div>
+              <div>
+                <PiCaretRight className="gba:mt-1" width={20} height={20} fill="black" />
+              </div>
+            </a>
+            <p className="gba:text-gray-500 gba:text-sm gba:text-center gba:mb-3">{employee.jobTitle}</p>
+            
+            {/* Chat actions directly under the name */}
+            {employee.userId && (
+              <div className="gba:flex gba:gap-2">
+                <Button 
+                  variant="secondary"
+                  size="lg"
+                  onClick={handleChat}
+                  icon={<ChatIcon />}
+                  className="gba:rounded-3xl gba:aspect-square gba:p-2"
+                  data-testid="employee-details-chat-button"
+                />
+                <Button 
+                  variant="secondary"
+                  size="lg"
+                  onClick={handleVideoCall}
+                  icon={<VideoCallIcon />}
+                  className="gba:rounded-3xl gba:aspect-square gba:p-2"
+                  data-testid="employee-details-video-button"
+                />
+                <Button 
+                  variant="secondary"
+                  size="lg"
+                  onClick={handleCall}
+                  icon={<CallIcon />}
+                  className="gba:rounded-3xl gba:aspect-square gba:p-2"
+                  data-testid="employee-details-audio-button"
+                />
+              </div>
+            )}
           </div>
 
           <div className="gba:border-t gba:border-gray-200 gba:pt-4">
@@ -148,42 +190,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({ employee, icon
             </div>
           </div>
         </div>
-      </div>
-      
-      {/* Action buttons */}
-      <div className="gba:flex gba:justify-center gba:gap-2 gba:p-4 gba:border-t gba:border-gray-200">
-        {employee.userId && (
-          <>
-            <Button 
-              variant="ghost" 
-              onClick={handleChat}
-              icon={<ChatIcon />}
-            >
-              {'Chat'}
-            </Button>
-            <Button 
-              variant="ghost" 
-              onClick={handleCall}
-              icon={<CallIcon />}
-            >
-              {'Call'}
-            </Button>
-            <Button 
-              variant="ghost" 
-              onClick={handleVideoCall}
-              icon={<VideoCallIcon />}
-            >
-              {'Video'}
-            </Button>
-          </>
-        )}
-        <Button 
-          variant="primary" 
-          onClick={handleProfile}
-          icon={<ProfileIcon />}
-        >
-          {'Profile'}
-        </Button>
       </div>
     </div>
   );

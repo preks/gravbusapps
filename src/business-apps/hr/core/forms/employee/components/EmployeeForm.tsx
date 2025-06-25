@@ -415,20 +415,21 @@ const EmployeeForm: React.FC = () => {
                         "value": formValues.email,
                         "valueExtension": "string"
                       }
+                    ],
+                    "workingCondition": [
+                      {
+                        "contractStatus": "ACTIVE",
+                        "contractTypeRef": formValues.contractTypeId,
+                        "employmentTypeRef": formValues.employmentTypeId,
+                        "hireDate": hireDateFormatted
+                      }
                     ]
                   },
                   "organizationalUnitId": formValues.organizationalUnitId,
                   "structureId": structureId,
                   "jobPositionId": formValues.jobPositionId,
                   "changeMode": "INSERT",
-                  "workingCondition": [
-                    {
-                      "contractStatus": "ACTIVE",
-                      "contractTypeRef": formValues.contractTypeId,
-                      "employmentTypeRef": formValues.employmentTypeId,
-                      "hireDate": hireDateFormatted
-                    }
-                  ]
+                  "createUser": true,
                 };
 
                 // Add displayName only if preferredName is set

@@ -8,7 +8,7 @@ import {
   PiBuildingsBold,
   PiOfficeChairBold
 } from 'react-icons/pi';
-import { Avatar } from '@newwork/gravity-ui-catalog';
+import { Avatar, Button } from '@newwork/gravity-ui-catalog';
 
 /**
  * Employee type definition for the card.
@@ -36,7 +36,7 @@ interface Employee {
 // Function removed as we no longer need to calculate time spent
 
 // EmployeeCard component
-export function EmployeeCard({ employee }: Readonly<{ employee: Employee }>) {
+export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employee: Employee; isSelected?: boolean }>) {
   const initialsValue = employee.profilePicture
     ? undefined
     : `${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`.toUpperCase();
@@ -46,7 +46,7 @@ export function EmployeeCard({ employee }: Readonly<{ employee: Employee }>) {
     : undefined;
 
   const avatarContentTypeValue = employee.profilePicture ? 'image' : 'initials';
-  const profileUrl = `/platform/employee-profile/${employee.id}`;
+  const profileUrl = `/platform/employee-record?employeeId=${employee.id}`;
   const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat();
   
   // No longer calculating time spent
@@ -74,10 +74,10 @@ export function EmployeeCard({ employee }: Readonly<{ employee: Employee }>) {
     window.location.href = profileUrl;
   }, [profileUrl]);
   return (
-    <div className="gba:relative gba:group employee-card-wrapper gba:bg-white gba:rounded-lg gba:shadow-md gba:border gba:border-gray-100 gba:h-auto gba:w-full gba:transition gba:overflow-hidden">
+    <div className={`gba:relative gba:group employee-card-wrapper gba:bg-white gba:rounded-lg gba:shadow-md gba:!border gba:h-auto gba:w-full gba:transition gba:overflow-hidden ${isSelected ? 'gba:!border-blue-500 gba:!border-2 gba:!shadow-lg' : 'gba:!border-gray-100'}`}>
       {/* The card itself - fixed height for consistency */}
       <div
-        className="gba:flex gba:flex-col gba:p-4 gba:transition-all gba:duration-300 gba:group-hover:blur-sm gba:group-focus-within:blur-sm"
+        className="gba:flex gba:flex-col gba:p-4 gba:transition-all gba:duration-300 gba:group-hover:!blur-sm gba:group-focus-within:!blur-sm"
         style={{ color: 'inherit' }}
       >
         {/* Header with avatar and name */}
@@ -159,43 +159,39 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
   onProfile,
 }) => (
   <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-black/30 gba:backdrop-blur-sm gba:opacity-0 gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto gba:transition-all gba:duration-300 gba:z-0">
-    <div className="gba:flex gba:gap-4">
-      <button
-        aria-label="Chat"
-        className="gba:bg-white/80 gba:hover:bg-blue-100 gba:rounded-full gba:p-2 gba:shadow-md gba:transition"
+    <div className="gba:flex gba:gap-2">
+      <Button
+        variant="ghost"
+        size="lg"
+        icon={<PiChatBold size={24} />}
         onClick={onChat}
-        tabIndex={0}
-        type="button"
-      >
-        <PiChatBold size={24} />
-      </button>
-      <button
-        aria-label="Call"
-        className="gba:bg-white/80 gba:hover:bg-blue-100 gba:rounded-full gba:p-2 gba:shadow-md gba:transition"
+        aria-label="Chat"
+        className="gba:rounded-full gba:bg-white/80 gba:shadow-md"
+      />
+      <Button
+        variant="ghost"
+        size="lg"
+        icon={<PiPhoneBold size={24} />}
         onClick={onCall}
-        tabIndex={0}
-        type="button"
-      >
-        <PiPhoneBold size={24} />
-      </button>
-      <button
-        aria-label="Video Call"
-        className="gba:bg-white/80 gba:hover:bg-blue-100 gba:rounded-full gba:p-2 gba:shadow-md gba:transition"
+        aria-label="Call"
+        className="gba:rounded-full gba:bg-white/80 gba:shadow-md"
+      />
+      <Button
+        variant="ghost"
+        size="lg"
+        icon={<PiVideoCameraBold size={24} />}
         onClick={onVideoCall}
-        tabIndex={0}
-        type="button"
-      >
-        <PiVideoCameraBold size={24} />
-      </button>
-      <button
-        aria-label="Go to Profile"
-        className="gba:bg-white/80 gba:hover:bg-blue-100 gba:rounded-full gba:p-2 gba:shadow-md gba:transition"
+        aria-label="Video Call"
+        className="gba:rounded-full gba:bg-white/80 gba:shadow-md"
+      />
+      <Button
+        variant="ghost"
+        size="lg"
+        icon={<PiUserBold size={24} />}
         onClick={onProfile}
-        tabIndex={0}
-        type="button"
-      >
-        <PiUserBold size={24} />
-      </button>
+        aria-label="Go to Profile"
+        className="gba:rounded-full gba:bg-white/80 gba:shadow-md"
+      />
     </div>
   </div>
 );

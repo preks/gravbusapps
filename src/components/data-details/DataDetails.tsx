@@ -71,7 +71,7 @@ export const DataDetails: React.FC<DataDetailsProps> = ({
       <div className="gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b gba:border-gray-200">
         <div className="gba:flex gba:items-center gba:gap-2">
           {icon && <div className="gba:shrink-0">{icon}</div>}
-          <h2 className="gba:text-lg gba:font-semibold">{title}</h2>
+          <h2 className="gba:text-lg gba:font-bold">{title}</h2>
         </div>
         <button
           onClick={onClose}

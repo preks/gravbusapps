@@ -9,6 +9,7 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 export interface Employee {
   id: string;
   userId?: string;
+  supervisorEmployeeId?: string;
   firstName: string;
   lastName: string;
   jobTitle: string;
@@ -71,6 +72,7 @@ const EMPLOYEE_POSITION_QUERY = `
     ) {
       employeeId
       userId
+      supervisorEmployeeId
       supervisor {
         id
         firstName
@@ -195,7 +197,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
           return {
             id: ep.employeeId,
             userId: ep.userId,
-            supervisor: ep.supervisor,
+            supervisorEmployeeId: ep.supervisorEmployeeId,
             firstName: ep.firstName,
             lastName: ep.lastName,
             jobTitle: ep.jobPosition?.name ?? '',
@@ -276,7 +278,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
           return {
             id: ep.employeeId,
             userId: ep.userId,
-            supervisor: ep.supervisor,
+            supervisorEmployeeId: ep.supervisorEmployeeId,
             firstName: ep.firstName,
             lastName: ep.lastName,
             jobTitle: ep.jobPosition?.name ?? '',

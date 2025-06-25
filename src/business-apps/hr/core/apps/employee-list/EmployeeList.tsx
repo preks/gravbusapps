@@ -8,8 +8,8 @@ import { DataController, DataControllerProps } from '@/components/dataController
 import { useGetEmployees, Employee } from '@/business-apps/hr/core/hooks/useGetEmployees';
 import { useEmployeeFilters } from '@/business-apps/hr/core/hooks/useEmployeeFilters';
 import { EmployeeTable } from './components/EmployeeTable';
-import EmployeeDetails from '@/business-apps/hr/components/employeeDetails';
-import { PiUsersThree,PiUsersThreeDuotone } from 'react-icons/pi';
+import EmployeeDetails from '@/business-apps/hr/core/details/employee-details';
+import { PiUser, PiUsersThree,PiUsersThreeDuotone } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { startProcess } from '@/common/utils/start-process';
 
@@ -143,14 +143,15 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
                   total={total}
                   onSelectEmployee={handleEmployeeSelect}
                   selectedEmployeeId={selectedEmployee?.id}
+                  accessToken={accessToken}
                 />
               </div>
             }
             dataDetails={
               selectedEmployee ? {
-                title: t('employee.details_title', 'Employee Details'),
-                icon: <PiUsersThree size={20} />,
-                content: <EmployeeDetails employee={selectedEmployee} />,
+                title: `${selectedEmployee.firstName} ${selectedEmployee.lastName}`,
+                icon: <PiUser size={20} />,
+                content: <EmployeeDetails employee={selectedEmployee} accessToken={accessToken} />,
                 onClose: handleDetailsPanelClose,
               } : undefined
             }
