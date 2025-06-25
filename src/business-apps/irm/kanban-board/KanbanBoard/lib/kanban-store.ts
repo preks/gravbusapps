@@ -14,13 +14,16 @@ interface KanbanStore {
   error: Error | null;
   isEditingOpportunity: boolean;
   editingOpportunityId: string | null;
+  selectedOpportunity: Opportunity | null;
+  isViewingOpportunity: boolean;
 
   // Actions
-  fetchOpportunities: (accessToken: string) => Promise<Opportunity[]>;
+  fetchOpportunities: (accessToken: string, employeeId?: string) => Promise<Opportunity[]>;
   moveOpportunity: (opportunityId: string, targetStageId: string, accessToken: string) => Promise<void>;
   updateOpportunity: (opportunityId: string, updates: Partial<Opportunity>, accessToken: string) => Promise<void>;
   deleteOpportunity: (opportunityId: string, accessToken: string) => Promise<void>;
   setEditingOpportunity: (opportunityId: string | null) => void;
+  selectOpportunity: (opportunityId: string | null) => void;
 }
 
 export const useKanbanStore = create<KanbanStore>((set, get) => ({
@@ -31,9 +34,11 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
   error: null,
   isEditingOpportunity: false,
   editingOpportunityId: null,
+  selectedOpportunity: null,
+  isViewingOpportunity: false,
 
   // Actions
-  fetchOpportunities: async (accessToken: string) => {
+  fetchOpportunities: async (accessToken: string, employeeId?: string) => {
     set({ loading: true, error: null });
     try {
 
@@ -46,7 +51,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
         return [];
       }
 
-      const opportunities = response.Opportunity.map((opp: any) => ({
+      let opportunities = response.Opportunity.map((opp: any) => ({
         ...opp,
         id: opp.id || '',
         title: opp.name || '',
@@ -55,7 +60,13 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
         owner: opp.ownerEmployee?.fullName || 'Unassigned',
         account: opp.account?.name || '',
         amount: opp.estimatedAmount || 0
+        // Note: We'll access ownerEmployee.id directly in the filter
       }));
+      console.log(opportunities, employeeId)
+      // Filter opportunities by owner if employeeId is provided
+      if (employeeId) {
+        opportunities = opportunities.filter((opp: any) => opp.ownerEmployee?.id === employeeId);
+      }
       
       set({ opportunities, loading: false });
       return opportunities;
@@ -129,5 +140,20 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
     });
   },
   
+  selectOpportunity: (opportunityId: string | null) => {
+    if (opportunityId === null) {
+      set({
+        selectedOpportunity: null,
+        isViewingOpportunity: false
+      });
+      return;
+    }
 
+    const opportunity = get().opportunities.find(opp => opp.id === opportunityId);
+    
+    set({
+      selectedOpportunity: opportunity || null,
+      isViewingOpportunity: opportunity !== undefined
+    });
+  }
 }));

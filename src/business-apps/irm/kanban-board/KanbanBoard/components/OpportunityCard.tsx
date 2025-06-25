@@ -1,16 +1,20 @@
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { formatCurrency, formatStage } from "../lib/utils";
+import { formatCurrency } from "../lib/utils";
 import { CalendarOutlined, UserOutlined, HomeOutlined, TagOutlined, ClockCircleOutlined } from "@ant-design/icons";
+import { useKanbanStore } from "../lib/kanban-store";
+import { FIXED_STAGES } from '../lib/stages';
 import type { Opportunity } from "../lib/types";
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
+  onCardClick?: (id: string) => void;
 }
 
 
 
-export function OpportunityCard({ opportunity }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardProps) {
+  const { selectOpportunity } = useKanbanStore();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: opportunity.id,
     data: {
@@ -47,7 +51,25 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
   const amount = opportunity.estimatedAmount || 0;
   const companyName = opportunity.account?.name || '';
   const ownerName = opportunity.ownerEmployee?.fullName || '';
-  const stageName = opportunity.stage ? formatStage(opportunity.stage) : '';
+  // Get stage object from stageId
+  const stage = FIXED_STAGES.find(stage => stage.id === opportunity.stageId);
+  // Format the stage name for display
+  const stageName = stage ? stage.name : '';
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Prevent click event from triggering drag
+    e.stopPropagation();
+    
+    // If drag is not in progress, handle click
+    if (!isDragging) {
+      if (onCardClick) {
+        onCardClick(opportunity.id);
+      } else {
+        // Default to store's select function if no onCardClick provided
+        selectOpportunity(opportunity.id);
+      }
+    }
+  };
 
   return (
     <div
@@ -55,7 +77,8 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
       {...attributes}
       {...listeners}
       style={style}
-      className={`gba:bg-white gba:dark:bg-gray-800 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-700 gba:flex gba:flex-col ${
+      onClick={handleClick}
+      className={`gba:bg-white gba:dark:bg-gray-800 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-700 gba:flex gba:flex-col gba:cursor-pointer ${
         isDragging ? 'opacity-50' : ''
       }`}
     >

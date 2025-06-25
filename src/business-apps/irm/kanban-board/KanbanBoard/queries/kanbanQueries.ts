@@ -18,6 +18,7 @@ export const GET_OPPORTUNITIES = `
       name
       ownerEmployee {
         fullName
+        id
       }
       estimatedAmount
       stage

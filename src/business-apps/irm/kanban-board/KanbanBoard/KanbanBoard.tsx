@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { DndContext, DragOverlay, useSensors, useSensor, PointerSensor, closestCorners } from "@dnd-kit/core";
+import { Switch } from "antd";
 import { useKanbanStore } from "./lib/kanban-store";
 import { KanbanColumn } from "./components/KanbanColumn";
 import { OpportunityCard } from "./components/OpportunityCard";
 import { OpportunityDialog } from "./components/OpportunityDialog";
+import OpportunityDetail from "../../../crm/detail-screens/OpportunityDetail/OpportunityDetail";
+import { getTranslationFromI18nKeyAndLabel } from "../../../../common/utils/windowUtils";
 import type { Opportunity } from "./lib/types";
 
 interface BusinessAppContextProps {
@@ -14,73 +17,115 @@ interface BusinessAppContextProps {
 }
 
 export function KanbanBoard({ accessToken, userInfo }: BusinessAppContextProps) {
+  // Extract employeeId from userInfo
+  const employeeId = userInfo?.employeeDetails?.employeeId;
   const { 
     stages, 
     opportunities, 
     moveOpportunity, 
-    fetchOpportunities
+    fetchOpportunities,
+    selectOpportunity,
+    selectedOpportunity,
+    isViewingOpportunity
   } = useKanbanStore();
 
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
-  
-  useEffect(() => {
-    const loadOpportunities = async () => {
-      try {
-        await fetchOpportunities(accessToken);
-      } catch (error) {
-        // Error handled silently
-      }
-    };
-    
-    loadOpportunities();
-  }, [fetchOpportunities, accessToken]);
+  const [showAllOpportunities, setShowAllOpportunities] = useState<boolean>(false);
 
-  // No sorting of stages - use them directly from the store
+  useEffect(() => {
+    // Log for debugging
+    console.log('Filter state:', { showAllOpportunities, employeeId });
+    
+    fetchOpportunities(
+      accessToken,
+      showAllOpportunities ? undefined : employeeId
+    );
+  }, [fetchOpportunities, employeeId, accessToken, showAllOpportunities]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5,
+        distance: 8,
       },
-    }),
+    })
   );
 
   const handleDragStart = (event: any) => {
     const { active } = event;
-    const { id } = active;
+    const opportunityId = active.id;
     
-    const draggedOpportunity = opportunities.find(opp => opp.id === id);
-    if (draggedOpportunity) {
-      setActiveOpportunity(draggedOpportunity);
-    }
+    const draggedOpportunity = opportunities.find(
+      (item) => item.id === opportunityId
+    );
+    
+    setActiveOpportunity(draggedOpportunity || null);
   };
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
     
-    if (over) {
-      const activeId = active.id;
-      const overId = over.id;
-      
-      if (active.data?.current?.type === 'opportunity') {
-        const opportunityId = activeId;
-        const targetStageId = overId;
-
-        const isTargetStage = stages.some(stage => stage.id === targetStageId);
-
-        if (isTargetStage) {
-          moveOpportunity(opportunityId, targetStageId, accessToken);
-        }
-      }
+    if (!over) {
+      setActiveOpportunity(null);
+      return;
     }
-
+    
+    const activeId = active.id;
+    const overId = over.id;
+    
+    if (activeId === overId) {
+      setActiveOpportunity(null);
+      return;
+    }
+    
+    const activeOpportunityData = opportunities.find(
+      (item) => item.id === activeId
+    );
+    
+    if (!activeOpportunityData) {
+      setActiveOpportunity(null);
+      return;
+    }
+    
+    const targetStageId = overId;
+    
+    if (activeOpportunityData.stageId !== targetStageId) {
+      moveOpportunity(activeId, targetStageId, accessToken);
+    }
+    
     setActiveOpportunity(null);
   };
 
+  // If viewing an opportunity detail, show the opportunity detail screen
+  if (isViewingOpportunity && selectedOpportunity) {
+    return (
+      <div className="gba:h-full gba:w-full" data-testid="opportunity-detail-container">
+        <OpportunityDetail 
+          opportunityId={selectedOpportunity?.id || ''}
+          accessToken={accessToken}
+          onBack={() => selectOpportunity(null)}
+        />
+      </div>
+    );
+  }
+
+  // Otherwise show the kanban board
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="kanban-board">
-      <div className="gba:p-4 gba:border-b gba:border-gray-200 gba:dark:border-gray-800">
+      <div className="gba:p-4 gba:border-b gba:border-gray-200 gba:dark:border-gray-800 gba:flex gba:justify-between gba:items-center">
         <div className="gba:text-2xl gba:font-semibold">Opportunities Kanban Board</div>
+        <div className="gba:flex gba:items-center gba:gap-2" data-testid="opportunity-filter-toggle">
+          <span className="gba:text-sm gba:text-gray-600 gba:dark:text-gray-300">
+            {getTranslationFromI18nKeyAndLabel('myOpportunities', 'My Opportunities')}
+          </span>
+          <Switch 
+            checked={showAllOpportunities}
+            onChange={setShowAllOpportunities}
+            data-testid="opportunity-filter-switch"
+          />
+          <span className="gba:text-sm gba:text-gray-600 gba:dark:text-gray-300">
+            {getTranslationFromI18nKeyAndLabel('allOpportunities', 'All Opportunities')}
+          </span>
+        </div>
       </div>
       
       <DndContext
@@ -89,22 +134,22 @@ export function KanbanBoard({ accessToken, userInfo }: BusinessAppContextProps) 
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="gba:flex-1 gba:overflow-x-auto gba:scrollbar-hide">
-          <div className="gba:flex gba:h-full gba:gap-4 gba:p-4">
-            {stages.map(stage => (
-                <KanbanColumn
-                  key={stage.id}
-                  stage={stage}
-                  opportunities={opportunities.filter(opp => opp.stageId === stage.id)}
-                  accessToken={accessToken}
-                  userInfo={userInfo}
-                />
-              ))}
-          </div>
+        <div className="gba:flex gba:flex-1 gba:overflow-x-auto gba:overflow-y-hidden gba:p-4 gba:gap-4">
+          {stages.map((stage) => (
+            <KanbanColumn
+              key={stage.id}
+              stage={stage}
+              opportunities={opportunities.filter(
+                (opportunity) => opportunity.stageId === stage.id
+              )}
+              accessToken={accessToken}
+              userInfo={userInfo}
+            />
+          ))}
         </div>
 
         <DragOverlay>
-          {activeOpportunity && <OpportunityCard opportunity={activeOpportunity} />}
+          {activeOpportunity ? <OpportunityCard opportunity={activeOpportunity} /> : null}
         </DragOverlay>
       </DndContext>
 
