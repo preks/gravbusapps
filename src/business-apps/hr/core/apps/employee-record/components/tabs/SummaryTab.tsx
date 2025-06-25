@@ -13,6 +13,7 @@ import {
   PiClock, 
   PiCalendarCheck
 } from 'react-icons/pi';
+import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
 
 interface SummaryTabProps {
   employee: Employee;
@@ -66,108 +67,127 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee }) => {
   }, [employee.employeePosition]);
 
   return (
-    <div className="gba:summary-tab">
+    <div className="gba:summary-tab gba:space-y-6" data-testid="summary-tab-container">
+      {/* Summary Overview Headline */}
+      <div className="gba:summary-header" data-testid="summary-header">
+        <div
+          className="gba:font-bold gba:text-2xl"
+          data-testid="summary-title"
+        >
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:hr_employee.summary_overview",
+            "Summary Overview"
+          )}
+        </div>
+      </div>
+      
       {/* Main grid layout for content blocks */}
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
         {/* Organization Chart Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
-            <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
-            Organization Chart
-          </h3>
-          <Card className="gba:p-4 gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center" style={{ minHeight: '420px' }}>
-            <div className="gba:flex gba:flex-col gba:items-center" style={{ maxHeight: '650px', overflowY: 'auto', overflowX: 'hidden', padding: '0.5rem' }}>
-              {/* Supervisor */}
-              {employee.employeePosition?.supervisor && employee.employeePosition?.supervisor.id !== employee.id && (
-              <div className="gba:flex gba:flex-col gba:items-center">
-                <a 
-                  className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      const url = new URL(window.location.href);
-                      url.searchParams.set('employeeId', employee.employeePosition?.supervisor?.id || '');
-                      window.history.pushState({}, '', url.toString());
-                    }}
-                    data-testid="supervisor-link"
-                  >
-                    <Avatar
-                      profilePicture={employee.employeePosition.supervisor.pictureThumbnail}
-                      firstName={employee.employeePosition.supervisor.firstName}
-                      lastName={employee.employeePosition.supervisor.lastName}
-                      employeeId={employee.employeePosition.supervisor.id}
-                      size={64}
-                    />
-                    <div className="gba:mt-2 gba:text-center">
-                      <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
-                        {employee.employeePosition.supervisor.displayName}
+          <Card 
+            variant="outlined"
+            className="gba:shadow-sm gba:hover:shadow-md gba:transition-all" 
+            style={{ minHeight: '420px' }}
+            data-testid="summary-section-organization-chart"
+          >
+            <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+              <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Organization Chart</h3>
+            </div>
+            <div className="gba:p-4 gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center">
+              <div className="gba:flex gba:flex-col gba:items-center" style={{ maxHeight: '650px', overflowY: 'auto', overflowX: 'hidden', padding: '0.5rem' }}>
+                {/* Supervisor */}
+                {employee.employeePosition?.supervisor && employee.employeePosition?.supervisor.id !== employee.id && (
+                  <div className="gba:flex gba:flex-col gba:items-center">
+                    <a 
+                      className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('employeeId', employee.employeePosition?.supervisor?.id || '');
+                        window.history.pushState({}, '', url.toString());
+                      }}
+                      data-testid="supervisor-link"
+                    >
+                      <Avatar
+                        profilePicture={employee.employeePosition.supervisor.pictureThumbnail}
+                        firstName={employee.employeePosition.supervisor.firstName}
+                        lastName={employee.employeePosition.supervisor.lastName}
+                        employeeId={employee.employeePosition.supervisor.id}
+                        size={64}
+                      />
+                      <div className="gba:mt-2 gba:text-center">
+                        <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
+                          {employee.employeePosition.supervisor.displayName}
+                        </div>
+                        <div className="gba:text-xs gba:text-gray-500">
+                          {employee.employeePosition?.supervisor?.employeePosition?.jobPosition?.name ?? ''}
+                        </div>
                       </div>
-                      <div className="gba:text-xs gba:text-gray-500">
-                        {employee.employeePosition?.supervisor?.employeePosition?.jobPosition?.name ?? ''}
-                      </div>
-                    </div>
-                  </a>
-                  <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto gba:my-1"></div>
-                </div>
+                    </a>
+                    <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto gba:my-1"></div>
+                  </div>
               )}
               
-            {/* Current Employee */}
-            <div className="gba:flex gba:flex-col gba:items-center">
-              <div className="gba:ring-2 gba:ring-blue-400 gba:rounded-full gba:p-1">
-                  <Avatar
-                    profilePicture={employee.pictureThumbnail}
-                    firstName={employee.firstName}
-                    lastName={employee.lastName}
-                    employeeId={employee.id}
-                    size={64}
-                  />
-                </div>
-                <div className="gba:mt-2 gba:text-center">
-                  <div className="gba:font-medium gba:text-sm">
-                    {employee.displayName}
+                {/* Current Employee */}
+                <div className="gba:flex gba:flex-col gba:items-center">
+                  <div className="gba:ring-2 gba:ring-blue-400 gba:rounded-full gba:p-1">
+                    <Avatar
+                      profilePicture={employee.pictureThumbnail}
+                      firstName={employee.firstName}
+                      lastName={employee.lastName}
+                      employeeId={employee.id}
+                      size={64}
+                    />
                   </div>
-                  <div className="gba:text-xs gba:text-gray-500">
-                    {employee.employeePosition?.jobPosition?.name || ''}
+                  <div className="gba:mt-2 gba:text-center">
+                    <div className="gba:font-medium gba:text-sm">
+                      {employee.displayName}
+                    </div>
+                    <div className="gba:text-xs gba:text-gray-500">
+                      {employee.employeePosition?.jobPosition?.name || ''}
+                    </div>
                   </div>
+                  {subordinates.length > 0 && <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto gba:my-1"></div>}
                 </div>
-                {subordinates.length > 0 && <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto gba:my-1"></div>}
               </div>
               
               {/* Subordinates */}
               {subordinates.length > 0 && (
-                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:w-full">
-                    {subordinates.map((member) => (
-                      <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
-                        <a href="#"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            const url = new URL(window.location.href);
-                            url.searchParams.set('employeeId', member.id);
-                            window.history.pushState({}, '', url.toString());
-                          }}
-                          className="gba:cursor-pointer gba:hover:opacity-90 gba:flex gba:flex-col gba:items-center"
-                          title={`View ${member.displayName}'s profile`}
-                          data-testid={`team-member-link-${member.id}`}
-                        >
-                          <Avatar
-                            profilePicture={member.profilePicture}
-                            firstName={member.firstName}
-                            lastName={member.lastName}
-                            employeeId={member.id}
-                            size={56}
-                          />
-                          <div className="gba:mt-2 gba:text-center gba:w-full">
-                            <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
-                              {member.displayName}
-                            </div>
-                            <div className="gba:text-xs gba:text-gray-500 gba:truncate gba:w-full gba:text-center gba:px-1">
-                              {member.position}
-                            </div>
+                <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:w-full">
+                  {subordinates.map((member) => (
+                    <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
+                      <a href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const url = new URL(window.location.href);
+                          url.searchParams.set('employeeId', member.id);
+                          window.history.pushState({}, '', url.toString());
+                        }}
+                        className="gba:cursor-pointer gba:hover:opacity-90 gba:flex gba:flex-col gba:items-center"
+                        title={`View ${member.displayName}'s profile`}
+                        data-testid={`team-member-link-${member.id}`}
+                      >
+                        <Avatar
+                          profilePicture={member.profilePicture}
+                          firstName={member.firstName}
+                          lastName={member.lastName}
+                          employeeId={member.id}
+                          size={56}
+                        />
+                        <div className="gba:mt-2 gba:text-center gba:w-full">
+                          <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
+                            {member.displayName}
                           </div>
-                        </a>
-                      </div>
-                    ))}
-                  </div>
+                          <div className="gba:text-xs gba:text-gray-500 gba:truncate gba:w-full gba:text-center gba:px-1">
+                            {member.position}
+                          </div>
+                        </div>
+                      </a>
+                    </div>
+                  ))}
+                </div>
               )}              
             </div>
           </Card>
@@ -176,106 +196,118 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee }) => {
         
         {/* Job Information Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
-            <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
-            Job Information
-          </h3>
-          <Card className="gba:p-4" style={{ minHeight: '420px' }}>
-            <div className="gba:space-y-4">
-              <div className="gba:flex gba:items-center">
-                <PiBriefcase className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
-                <div>
-                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Profile</div>
-                  <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.jobPosition?.name ?? "Not assigned"}</div>
+          <Card 
+            variant="outlined"
+            className="gba:shadow-sm gba:hover:shadow-md gba:transition-all" 
+            style={{ minHeight: '420px' }}
+            data-testid="summary-section-job-information"
+          >
+            <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+              <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Job Information</h3>
+            </div>
+            <div className="gba:p-4">
+              <div className="gba:space-y-4">
+                <div className="gba:flex gba:items-center">
+                  <PiBriefcase className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                  <div>
+                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Profile</div>
+                    <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.jobPosition?.name ?? "Not assigned"}</div>
+                  </div>
                 </div>
+                
+                {/* Optional Job Family section - only show if data is available */}
+                {employee.employeePosition?.jobPosition?.name && (
+                  <div className="gba:flex gba:items-center">
+                    <PiStack className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                    <div>
+                      <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Family</div>
+                      <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.organizationalUnit?.name || "Not assigned"}</div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Optional Job Function section - only show if data is available */}
+                {employee.employeePosition?.jobPosition?.name && (
+                  <div className="gba:flex gba:items-center">
+                    <PiFunction className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                    <div>
+                      <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Function</div>
+                      <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.jobPosition?.name || "Not assigned"}</div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Optional Job Level section - only show if data is available */}
+                {employee.employeePosition?.jobPosition?.name && (
+                  <div className="gba:flex gba:items-center">
+                    <PiListNumbers className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                    <div>
+                      <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Level</div>
+                      <div className="gba:text-sm gba:text-gray-600">{"Not assigned"}</div>
+                    </div>
+                  </div>
+                )}
               </div>
-              
-              {/* Optional Job Family section - only show if data is available */}
-              {employee.employeePosition?.jobPosition?.name && (
-                <div className="gba:flex gba:items-center">
-                  <PiStack className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
-                  <div>
-                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Family</div>
-                    <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.organizationalUnit?.name || "Not assigned"}</div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Optional Job Function section - only show if data is available */}
-              {employee.employeePosition?.jobPosition?.name && (
-                <div className="gba:flex gba:items-center">
-                  <PiFunction className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
-                  <div>
-                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Function</div>
-                    <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.jobPosition?.name || "Not assigned"}</div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Optional Job Level section - only show if data is available */}
-              {employee.employeePosition?.jobPosition?.name && (
-                <div className="gba:flex gba:items-center">
-                  <PiListNumbers className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
-                  <div>
-                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Level</div>
-                    <div className="gba:text-sm gba:text-gray-600">{"Not assigned"}</div>
-                  </div>
-                </div>
-              )}
             </div>
           </Card>
         </div>
         
         {/* Availability & Schedule Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
-            <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
-            Availability & Schedule
-          </h3>
-          <Card className="gba:p-4" style={{ minHeight: '420px' }}>
-            <div className="gba:space-y-4">
-              {/* Status display */}
-              <div className="gba:flex gba:items-center">
-                <div className="gba:relative gba:mr-3">
-                  <div className="gba:h-5 gba:w-5 gba:rounded-full gba:bg-green-500"></div>
+          <Card 
+            variant="outlined"
+            className="gba:shadow-sm gba:hover:shadow-md gba:transition-all" 
+            style={{ minHeight: '420px' }}
+            data-testid="summary-section-availability"
+          >
+            <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+              <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Availability & Schedule</h3>
+            </div>
+            <div className="gba:p-4">
+              <div className="gba:space-y-4">
+                {/* Status display */}
+                <div className="gba:flex gba:items-center">
+                  <div className="gba:relative gba:mr-3">
+                    <div className="gba:h-5 gba:w-5 gba:rounded-full gba:bg-green-500"></div>
+                  </div>
+                  <div>
+                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">Current Status</div>
+                    <div className="gba:text-sm gba:text-gray-600">Available</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Current Status</div>
-                  <div className="gba:text-sm gba:text-gray-600">Available</div>
+                
+                {/* Weekly schedule */}
+                <div className="gba:grid gba:grid-cols-7 gba:gap-1 gba:items-center">
+                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => {
+                    // Use actual working hours from employee data
+                    const hoursKey = `${day}Hours` as keyof typeof employee.workingHours[0];
+                    const dayHours = employee.workingHours?.[0]?.[hoursKey] as number;
+                    const isWorkDay = dayHours > 0;
+                    return (
+                      <div key={day} className="gba:text-center">
+                        <div className="gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase">{day.slice(0, 3)}</div>
+                        <div className={`gba:h-2 gba:rounded-full gba:mt-1 ${isWorkDay ? 'gba:bg-blue-500' : 'gba:bg-gray-200'}`}></div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-              
-              {/* Weekly schedule */}
-              <div className="gba:grid gba:grid-cols-7 gba:gap-1 gba:items-center">
-                {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => {
-                  // Use actual working hours from employee data
-                  const hoursKey = `${day}Hours` as keyof typeof employee.workingHours[0];
-                  const dayHours = employee.workingHours?.[0]?.[hoursKey] as number;
-                  const isWorkDay = dayHours > 0;
-                  return (
-                    <div key={day} className="gba:text-center">
-                      <div className="gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase">{day.slice(0, 3)}</div>
-                      <div className={`gba:h-2 gba:rounded-full gba:mt-1 ${isWorkDay ? 'gba:bg-blue-500' : 'gba:bg-gray-200'}`}></div>
-                    </div>
-                  );
-                })}
-              </div>
-              
-              {/* Timezone */}
-              <div className="gba:flex gba:items-center">
-                <PiClock className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
-                <div>
-                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Timezone</div>
-                  <div className="gba:text-sm gba:text-gray-600">Europe/Berlin</div>
+                
+                {/* Timezone */}
+                <div className="gba:flex gba:items-center">
+                  <PiClock className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                  <div>
+                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">Timezone</div>
+                    <div className="gba:text-sm gba:text-gray-600">Europe/Berlin</div>
+                  </div>
                 </div>
-              </div>
-              
-              {/* Working hours */}
-              <div className="gba:flex gba:items-center">
-                <PiCalendarCheck className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
-                <div>
-                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">Weekly Hours</div>
-                  <div className="gba:text-sm gba:text-gray-600">{employee.workingHours?.[0]?.fullTimeEquivalent ? `${employee.workingHours[0].fullTimeEquivalent} hours/week` : 'Not specified'}</div>
+                
+                {/* Working hours */}
+                <div className="gba:flex gba:items-center">
+                  <PiCalendarCheck className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                  <div>
+                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">Weekly Hours</div>
+                    <div className="gba:text-sm gba:text-gray-600">{employee.workingHours?.[0]?.fullTimeEquivalent ? `${employee.workingHours[0].fullTimeEquivalent} hours/week` : 'Not specified'}</div>
+                  </div>
                 </div>
               </div>
             </div>
