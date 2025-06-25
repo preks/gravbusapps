@@ -19,8 +19,12 @@ import {
   Card,
   Statistic,
   Avatar,
-  List
+  List,
+  Select,
+  Tabs
 } from 'antd';
+
+const { Option } = Select;
 import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
 import { 
   PlusOutlined, 
@@ -35,11 +39,7 @@ import {
   GlobalOutlined,
   HomeOutlined,
   TeamOutlined,
-  CloseOutlined,
-  LinkOutlined,
-  CopyOutlined,
-  MailOutlined,
-  PhoneOutlined
+  LeftOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -64,8 +64,12 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
     refetch,
     totalLocations,
     activeLocations,
-    totalEmployeeCount
-  } = useSiteLocations(context);
+    totalEmployeeCount,
+    totalCount,
+    currentPage,
+    pageSize,
+    changePage
+  } = useSiteLocations(context, 10);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -74,6 +78,16 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
   const [selectedSiteLocation, setSelectedSiteLocation] = useState<SiteLocation | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [form] = Form.useForm();
+  
+  // Handle pagination page change
+  const handlePageChange = (page: number) => {
+    changePage(page);
+  };
+
+  // Handle pagination page size change
+  const handlePageSizeChange = (currentPage: number, size: number) => {
+    changePage(1, size); // Reset to first page when changing page size
+  };
 
   const filteredLocations = siteLocations.filter(location => 
     location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -409,45 +423,89 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
         dataSource={filteredLocations}
         rowKey="id"
         loading={isLoading}
-        pagination={{
-          pageSize: 20,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => 
-            `${range[0]}-${range[1]} of ${total} locations`,
-        }}
+        pagination={false}
         expandable={{
-          expandedRowKeys: Array.from(expandedRows),
-          onExpand: (expanded, record) => handleExpandRow(record.id),
-          expandRowByClick: false,
           expandedRowRender: (record) => (
-            <div style={{ padding: '16px', backgroundColor: '#f8f9fa' }}>
-              <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-6">
-                <div>
-                  <Title level={5} className="gba:flex gba:items-center gba:gap-2">
-                    <UserOutlined className="gba:text-blue-500" />
-                    Employees ({record.employeeCount})
-                  </Title>
+            <div className="gba:p-4">
+              <Tabs defaultActiveKey="employees">
+                <Tabs.TabPane 
+                  tab={
+                    <span>
+                      <UserOutlined /> Employees ({record.employeeCount})
+                    </span>
+                  } 
+                  key="employees"
+                >
                   {renderEmployeeList(record.employees)}
-                </div>
-                <div>
-                  <Title level={5} className="gba:flex gba:items-center gba:gap-2">
-                    <BankOutlined className="gba:text-green-500" />
-                    Cost Centers ({record.costCenterCount})
-                  </Title>
+                </Tabs.TabPane>
+                <Tabs.TabPane 
+                  tab={
+                    <span>
+                      <BankOutlined /> Cost Centers ({record.costCenterCount})
+                    </span>
+                  } 
+                  key="costCenters"
+                >
                   {renderCostCenterList(record.costCenters)}
-                </div>
-              </div>
+                </Tabs.TabPane>
+              </Tabs>
             </div>
           ),
+          expandIcon: () => null,
+          expandRowByClick: false,
+          expandedRowKeys: Array.from(expandedRows),
         }}
-        data-testid={`${prefixDataTestId || ''}-SiteLocationsTab-Table`}
+        data-testid={`${prefixDataTestId || ''}-SiteLocationsTab-table`}
         style={{
           background: 'white',
           borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
         }}
       />
+      
+      {/* Custom pagination component */}
+      <div className="gba-mt-4 gba-flex gba-justify-between gba-items-center gba-bg-white gba-p-4 gba-rounded-lg gba-shadow-sm">
+        <div className="gba-text-gray-600">
+          Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} entries
+        </div>
+        <div className="gba-flex gba-items-center gba-gap-4">
+          <div className="gba-flex gba-items-center gba-gap-2">
+            <span className="gba-text-gray-600">Show</span>
+            <Select
+              value={pageSize}
+              onChange={(value) => handlePageSizeChange(currentPage, value)}
+              data-testid={`${prefixDataTestId || ''}-SiteLocationsTab-PageSizeSelect`}
+            >
+              <Option value={10}>10</Option>
+              <Option value={20}>20</Option>
+              <Option value={50}>50</Option>
+              <Option value={100}>100</Option>
+            </Select>
+            <span className="gba-text-gray-600">entries</span>
+          </div>
+          <div>
+            <Button
+              disabled={currentPage === 1}
+              onClick={() => handlePageChange(currentPage - 1)}
+              icon={<LeftOutlined />}
+              data-testid={`${prefixDataTestId || ''}-SiteLocationsTab-PrevPageButton`}
+            />
+            <Button
+              type="primary"
+              style={{ margin: '0 8px' }}
+              disabled={true}
+            >
+              {currentPage}
+            </Button>
+            <Button
+              disabled={currentPage * pageSize >= totalCount}
+              onClick={() => handlePageChange(currentPage + 1)}
+              icon={<RightOutlined />}
+              data-testid={`${prefixDataTestId || ''}-SiteLocationsTab-NextPageButton`}
+            />
+          </div>
+        </div>
+      </div>
 
       {/* Site Location Details Drawer */}
       <DataDetailsDrawer
