@@ -257,30 +257,31 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
   return (
     <div className="gba:absences-tab gba:space-y-8">
-      {/* Absence Overview Headline */}
-      <div className="gba:absence-header" data-testid="absencehub-header">
-        <div
-          className="gba:font-bold gba:text-2xl"
-          data-testid="absencehub-title"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_absences.absence_overview",
-            "Absence Overview"
-          )}
+      {/* Absence Overview Headline with Action Button */}
+      <div className="gba:flex gba:justify-between gba:items-start" data-testid="absencehub-header">
+        <div className="gba:absence-header">
+          <div
+            className="gba:font-bold gba:text-2xl"
+            data-testid="absencehub-title"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:hr_absences.absence_overview",
+              "Absence Overview"
+            )}
+          </div>
+          <div
+            className="gba:text-gray-500 gba:text-lg"
+            data-testid="absencehub-description"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:absence_hub.absence_description",
+              "View and manage your absences"
+            )}
+          </div>
         </div>
-        <div
-          className="gba:text-gray-500 gba:text-lg"
-          data-testid="absencehub-description"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:absence_hub.absence_description",
-            "View and manage your absences"
-          )}
-        </div>
-      </div>
-      {/* Request Absence Section */}
-      <div>
-        <div className="gba:flex gba:flex-wrap gba:gap-4">
+        
+        {/* Request Absence Button */}
+        <div>
           <AppActionButton
             data-testid="request-vacation-button"
             variant="primary"

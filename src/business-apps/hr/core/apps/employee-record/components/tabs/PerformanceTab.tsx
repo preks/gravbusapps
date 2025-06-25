@@ -163,43 +163,45 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
 
   return (
     <div className="gba:performance-tab gba:space-y-8" data-testid="performance-tab-container">
-      {/* Performance Goals Headline */}
-      <div className="gba:performance-header" data-testid="performance-goals-header">
-        <div
-          className="gba:font-bold gba:text-2xl"
-          data-testid="performance-goals-title"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_performance.performance_goals",
-            "Performance Goals"
-          )}
+      {/* Performance Goals Headline with Action Button */}
+      <div className="gba:flex gba:justify-between gba:items-start" data-testid="performance-goals-header">
+        <div className="gba:performance-header">
+          <div
+            className="gba:font-bold gba:text-2xl"
+            data-testid="performance-goals-title"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:hr_performance.performance_goals",
+              "Performance Goals"
+            )}
+          </div>
+          <div
+            className="gba:text-gray-500 gba:text-lg"
+            data-testid="performance-goals-description"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:hr_performance.goals_description",
+              "View and manage employee performance goals"
+            )}
+          </div>
         </div>
-        <div
-          className="gba:text-gray-500 gba:text-lg"
-          data-testid="performance-goals-description"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_performance.goals_description",
-            "View and manage employee performance goals"
-          )}
+        
+        {/* Set New Goal Button */}
+        <div>
+          <AppActionButton
+            onClick={startProcessSetNewGoal} 
+            data-testid="add-goal-button"
+            variant="primary"
+            contextsArray={[FlowContextName.employeeEntity]}
+            externalContextData={{
+              employeeId: employee?.id
+            }}
+            prefixDataTestId="add-goal"
+            accessToken={accessToken}
+          >
+            Set New Goal
+          </AppActionButton>
         </div>
-      </div>
-      
-      {/* Set New Goal Button */}
-      <div className="gba:flex gba:flex-wrap gba:gap-4">
-        <AppActionButton
-          onClick={startProcessSetNewGoal} 
-          data-testid="add-goal-button"
-          variant="primary"
-          contextsArray={[FlowContextName.employeeEntity]}
-          externalContextData={{
-            employeeId: employee?.id
-          }}
-          prefixDataTestId="add-goal"
-          accessToken={accessToken}
-        >
-          Set New Goal
-        </AppActionButton>
       </div>
 
       {/* Goals Content */}

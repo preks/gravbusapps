@@ -603,8 +603,60 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
   if (documents.length === 0) {
     return (
       <div className="gba:space-y-4" data-testid="documents-tab-container">
-        {/* Documents Overview Headline */}
-        <div className="gba:documents-header" data-testid="documents-header">
+        {/* Documents Overview Headline with Action Button */}
+        <div className="gba:flex gba:justify-between gba:items-start" data-testid="documents-header">
+          <div className="gba:documents-header">
+            <div
+              className="gba:font-bold gba:text-2xl"
+              data-testid="documents-title"
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:hr_documents.documents_overview",
+                "Documents Overview"
+              )}
+            </div>
+            <div
+              className="gba:text-gray-500 gba:text-lg"
+              data-testid="documents-description"
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:hr_documents.documents_description",
+                "View and manage employee documents"
+              )}
+            </div>
+          </div>
+          
+          {/* Upload document button */}
+          <div>
+            <AppActionButton
+              data-testid="upload-document-button"
+              variant="primary"
+              contextsArray={[FlowContextName.documentPersonal]}
+              externalContextData={{
+                employeeId: employee?.id
+              }}
+              prefixDataTestId="upload-document"
+              accessToken={accessToken}
+            >
+              Upload Document
+            </AppActionButton>
+          </div>
+        </div>
+
+        <Empty 
+          description="No documents available" 
+          className="gba:py-10" 
+          data-testid="empty-documents-state"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="gba:space-y-4" data-testid="documents-tab-container">
+      {/* Documents Overview Headline with Action Button */}
+      <div className="gba:flex gba:justify-between gba:items-start" data-testid="documents-header">
+        <div className="gba:documents-header">
           <div
             className="gba:font-bold gba:text-2xl"
             data-testid="documents-title"
@@ -625,59 +677,8 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
           </div>
         </div>
         
-        {/* Upload document button */}
-        <div className="gba:flex gba:justify-end gba:mb-4">
-          <AppActionButton
-            data-testid="upload-document-button"
-            variant="primary"
-            contextsArray={[FlowContextName.documentPersonal]}
-            externalContextData={{
-              employeeId: employee?.id
-            }}
-            prefixDataTestId="upload-document"
-            accessToken={accessToken}
-          >
-            Upload Document
-          </AppActionButton>
-        </div>
-
-        <Empty 
-          description="No documents available" 
-          className="gba:py-10" 
-          data-testid="empty-documents-state"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="gba:space-y-4" data-testid="documents-tab-container">
-      {/* Documents Overview Headline */}
-      <div className="gba:documents-header" data-testid="documents-header">
-        <div
-          className="gba:font-bold gba:text-2xl"
-          data-testid="documents-title"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_documents.documents_overview",
-            "Documents Overview"
-          )}
-        </div>
-        <div
-          className="gba:text-gray-500 gba:text-lg"
-          data-testid="documents-description"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_documents.documents_description",
-            "View and manage employee documents"
-          )}
-        </div>
-      </div>
-      
-      {/* Header with upload button and search */}
-      <div className="gba:flex gba:flex-col gba:md:flex-row gba:justify-between gba:items-start gba:gap-4 gba:mb-4">
-        {/* Upload button - now on the left */}
-        <div className="gba:flex gba:justify-start">
+        {/* Upload button */}
+        <div>
           <AppActionButton
             onClick={showUploadModal}
             data-testid="upload-document-button"
@@ -692,9 +693,11 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
             Upload Document
           </AppActionButton>
         </div>
-        
-        {/* Search section - now on the right */}
-        <div className="gba:flex gba:flex-col gba:md:flex-row gba:items-center gba:gap-3 gba:w-full gba:md:w-auto gba:md:ml-auto">
+      </div>
+      
+      {/* Search section */}
+      <div className="gba:flex gba:justify-end gba:items-center gba:mb-4">
+        <div className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:md:w-auto">
           <div className="gba:flex gba:items-center gba:gap-3 gba:w-full">
             <div className="gba:flex gba:items-center gba:w-full gba:border gba:border-gray-200 gba:rounded-md gba:shadow-md gba:bg-white gba:transition-all gba:duration-200 gba:hover:shadow-lg gba:focus-within:ring-2 gba:focus-within:ring-blue-500 gba:focus-within:border-blue-500">
               <div className="gba:flex gba:items-center gba:justify-center gba:pl-3 gba:w-10 gba:text-blue-500">

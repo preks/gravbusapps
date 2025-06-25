@@ -145,43 +145,45 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
   return (
     <div className="gba:feedback-tab gba:space-y-8" data-testid="feedback-tab-container">
-      {/* Feedback Section Headline */}
-      <div className="gba:feedback-header" data-testid="feedback-header">
-        <div
-          className="gba:font-bold gba:text-2xl"
-          data-testid="feedback-title"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_performance.feedback",
-            "Feedback"
-          )}
+      {/* Feedback Headline with Action Button */}
+      <div className="gba:flex gba:justify-between gba:items-start" data-testid="feedback-header">
+        <div className="gba:feedback-header">
+          <div
+            className="gba:font-bold gba:text-2xl"
+            data-testid="feedback-title"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:hr_performance.feedback",
+              "Feedback"
+            )}
+          </div>
+          <div
+            className="gba:text-gray-500 gba:text-lg"
+            data-testid="feedback-description"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:hr_performance.feedback_description",
+              "View and manage employee feedback"
+            )}
+          </div>
         </div>
-        <div
-          className="gba:text-gray-500 gba:text-lg"
-          data-testid="feedback-description"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_performance.feedback_description",
-            "View and manage employee feedback"
-          )}
+        
+        {/* Give Feedback Button */}
+        <div>
+          <AppActionButton 
+            onClick={startProcessGiveFeedback}
+            data-testid="add-feedback-button"
+            variant="primary"
+            contextsArray={[FlowContextName.employeeEntity]}
+            externalContextData={{
+              employeeId: employee?.id
+            }}
+            prefixDataTestId="add-feedback"
+            accessToken={accessToken}
+          >
+            Give Feedback
+          </AppActionButton>
         </div>
-      </div>
-      
-      {/* Give Feedback Button */}
-      <div className="gba:flex gba:flex-wrap gba:gap-4">
-        <AppActionButton 
-          onClick={startProcessGiveFeedback}
-          data-testid="add-feedback-button"
-          variant="primary"
-          contextsArray={[FlowContextName.employeeEntity]}
-          externalContextData={{
-            employeeId: employee?.id
-          }}
-          prefixDataTestId="add-feedback"
-          accessToken={accessToken}
-        >
-          Give Feedback
-        </AppActionButton>
       </div>
       
       {/* Feedback Content */}
