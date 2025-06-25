@@ -77,7 +77,7 @@ export class RestClient {
     const requestOptions: RequestInit = {
       method,
       headers,
-      credentials: 'same-origin',
+      credentials: options.withCredentials ? 'include' : 'same-origin',
       mode: 'cors',
     };
 
