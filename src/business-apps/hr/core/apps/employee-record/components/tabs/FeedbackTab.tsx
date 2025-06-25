@@ -161,7 +161,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
             onClick={startProcessGiveFeedback}
             data-testid="add-feedback-button"
             variant="primary"
-            contextsArray={[FlowContextName.employeeEntity]}
+            contextsArray={[FlowContextName.employeeGiveFeedback]}
             externalContextData={{
               employeeId: employee?.id
             }}
@@ -215,22 +215,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                         <p className="gba:mt-1 gba:text-gray-700">{feedback.content}</p>
                       </div>
                     </div>
-                    <div className="gba:flex gba:justify-end gba:mt-4">
-                      <AppActionButton
-                        variant="secondary"
-                        data-testid={`reply-feedback-button-${feedback.senderId}`}
-                        contextsArray={[FlowContextName.employeeEntity]}
-                        externalContextData={{
-                          employeeId: employee?.id,
-                          senderId: feedback.senderId
-                        }}
-                        prefixDataTestId="reply-feedback"
-                        accessToken={accessToken}
-                        autoExecuteSingleAction={true}
-                      >
-                        Reply
-                      </AppActionButton>
-                    </div>
+
                   </Card>
                 );
               })}
