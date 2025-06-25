@@ -3,15 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData';
-import { Card, Button } from '@newwork/gravity-ui-catalog';
-import { Empty, Spin, Drawer } from 'antd';
+import { Card } from '@newwork/gravity-ui-catalog';
+import { Empty, Spin } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { employeeFeedbackQuery } from '../../queries/feedbackQueries';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { CloseOutlined } from '@ant-design/icons';
 
 interface FeedbackTabProps {
   employee: Employee;
@@ -41,10 +40,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Drawer state
-  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
-  const [selectedFeedback, setSelectedFeedback] = useState<FormattedFeedback | null>(null);
-  const [drawerWidth] = useState<number>(600);
+  // No longer need drawer state
   
   // Initialize GraphQL client
   const graphQLClient = useGraphqlClient(accessToken);
@@ -112,16 +108,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     });
   };
   
-  // Function to open the drawer for feedback
-  const openFeedbackDetails = (feedback: FormattedFeedback) => {
-    setSelectedFeedback(feedback);
-    setIsDrawerOpen(true);
-  };
-
-  // Function to close the drawer
-  const closeDrawer = () => {
-    setIsDrawerOpen(false);
-  };
+  // No longer need drawer functions
 
   const formattedFeedback = formatFeedback();
 
@@ -204,8 +191,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                 return (
                   <Card 
                     key={`feedback-${feedback.sender ?? ''}-${feedback.date ?? ''}`} 
-                    className="gba:p-4 gba:cursor-pointer gba:hover:shadow-md gba:transition-all"
-                    onClick={() => openFeedbackDetails(feedback)}
+                    className="gba:p-4 gba:hover:shadow-md gba:transition-all"
                     data-testid={`feedback-card-${feedback.senderId}`}
                   >
                     <div className="gba:flex gba:items-start">
@@ -228,6 +214,21 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                         <p className="gba:mt-1 gba:text-gray-700">{feedback.content}</p>
                       </div>
                     </div>
+                    <div className="gba:flex gba:justify-end gba:mt-4">
+                      <AppActionButton
+                        variant="secondary"
+                        data-testid={`reply-feedback-button-${feedback.senderId}`}
+                        contextsArray={[FlowContextName.employeeEntity]}
+                        externalContextData={{
+                          employeeId: employee?.id,
+                          senderId: feedback.senderId
+                        }}
+                        prefixDataTestId="reply-feedback"
+                        accessToken={accessToken}
+                      >
+                        Reply
+                      </AppActionButton>
+                    </div>
                   </Card>
                 );
               })}
@@ -236,69 +237,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         </section>
       </div>
       
-      {/* Details Drawer */}
-      <Drawer
-        title={
-          <div className="gba:flex gba:justify-between gba:items-center">
-            <span>Feedback Details</span>
-            <Button
-              onClick={closeDrawer}
-              variant="text"
-              icon={<CloseOutlined />}
-              data-testid="close-drawer-button"
-            />
-          </div>
-        }
-        placement="right"
-        closable={false}
-        onClose={closeDrawer}
-        open={isDrawerOpen}
-        width={drawerWidth}
-        className="gba:feedback-details-drawer"
-        data-testid="feedback-details-drawer"
-      >
-        {selectedFeedback && (
-          <div className="gba:feedback-details gba:space-y-6" data-testid="feedback-details">
-            <div className="gba:bg-white gba:p-6 gba:rounded-md gba:shadow-sm">
-              <div className="gba:flex gba:items-center gba:gap-4 gba:mb-6">
-                <div className="gba:w-12 gba:h-12 gba:rounded-full gba:overflow-hidden gba:bg-gray-200">
-                  {selectedFeedback.avatar && (
-                    <img 
-                      src={selectedFeedback.avatar} 
-                      alt={selectedFeedback.sender}
-                      className="gba:w-full gba:h-full gba:object-cover"
-                    />
-                  )}
-                </div>
-                <div>
-                  <h3 className="gba:text-lg gba:font-medium">{selectedFeedback.sender}</h3>
-                  <p className="gba:text-sm gba:text-gray-500">{selectedFeedback.date}</p>
-                </div>
-              </div>
-              
-              <div className="gba:feedback-content gba:bg-gray-50 gba:p-4 gba:rounded-md gba:border gba:border-gray-100">
-                <p className="gba:text-gray-700">{selectedFeedback.content}</p>
-              </div>
-            </div>
-            
-            <div className="gba:feedback-actions gba:flex gba:justify-end gba:gap-4">
-              <AppActionButton
-                variant="secondary"
-                data-testid="reply-feedback-button"
-                contextsArray={[FlowContextName.employeeEntity]}
-                externalContextData={{
-                  employeeId: employee?.id,
-                  senderId: selectedFeedback.senderId
-                }}
-                prefixDataTestId="reply-feedback"
-                accessToken={accessToken}
-              >
-                Reply
-              </AppActionButton>
-            </div>
-          </div>
-        )}
-      </Drawer>
+      {/* Removed drawer */}
     </div>
   );
 };
