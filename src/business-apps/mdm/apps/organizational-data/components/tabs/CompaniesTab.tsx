@@ -35,7 +35,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCompanies } from '../../hooks';
 import { Company } from '../../types';
 
-
 const { Title, Text } = Typography;
 const { Search } = Input;
 
