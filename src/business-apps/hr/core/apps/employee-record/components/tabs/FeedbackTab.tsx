@@ -167,6 +167,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
             }}
             prefixDataTestId="add-feedback"
             accessToken={accessToken}
+            autoExecuteSingleAction={true}
           >
             Give Feedback
           </AppActionButton>
@@ -225,6 +226,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                         }}
                         prefixDataTestId="reply-feedback"
                         accessToken={accessToken}
+                        autoExecuteSingleAction={true}
                       >
                         Reply
                       </AppActionButton>
