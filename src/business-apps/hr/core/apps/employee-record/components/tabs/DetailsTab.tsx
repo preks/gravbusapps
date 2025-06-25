@@ -255,7 +255,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         </div>
       </div>
 
-      <div className="gba:grid gba:grid-cols-1 gba:gap-6" data-testid="details-cards">
+      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6" data-testid="details-cards">
         {/* Personal Data Card - Public info is always visible, private info requires permission */}
         <Card
           variant="outlined"

@@ -228,7 +228,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
         </div>
       </div>
 
-      <div className="gba:grid gba:grid-cols-1 gba:gap-6" data-testid="employment-cards">
+      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6" data-testid="employment-cards">
         {/* Employment Profile Card */}
         <Card
           variant="outlined"
