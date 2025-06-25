@@ -637,7 +637,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
               }}
               prefixDataTestId="upload-document"
               accessToken={accessToken}
-              autoExecuteSingleAction={true}
+              // autoExecuteSingleAction={true}
             >
               Upload Document
             </AppActionButton>
@@ -690,7 +690,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
             }}
             prefixDataTestId="upload-document"
             accessToken={accessToken}
-            autoExecuteSingleAction={true}
+            // autoExecuteSingleAction={true}
           >
             Upload Document
           </AppActionButton>
