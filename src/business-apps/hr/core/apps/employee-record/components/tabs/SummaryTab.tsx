@@ -17,7 +17,15 @@ import {
 } from 'react-icons/pi';
 
 interface SummaryTabProps {
-  employee: Employee;
+  employee: Employee & { 
+    feedback?: Array<{
+      id: string;
+      content: string;
+      date: string;
+      sender: string;
+      avatar?: string;
+    }>
+  };
   employeeFeedback: EmployeeFeedback[];
 }
 
@@ -52,30 +60,34 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
 
   const additionalAttributes = getAdditionalAttributes();
 
-  // Format feedback for display
-  const formatFeedback = () => {
-    if (!employeeFeedback || !Array.isArray(employeeFeedback)) return [];
+  // Process employee feedback data for display
+  useMemo(() => {
+    if (!employeeFeedback || !Array.isArray(employeeFeedback) || employeeFeedback.length === 0) return;
     
-    return employeeFeedback.map(feedback => {
-      if (!feedback) return null;
+    // Format and attach feedback to employee object for easier access
+    const processedFeedback = employeeFeedback
+      .map((feedback) => {
+        if (!feedback) return null;
+        
+        const firstName = feedback.senderEmployee?.firstName ?? '';
+        const lastName = feedback.senderEmployee?.lastName ?? '';
+        const pictureThumbnail = feedback.senderEmployee?.employeePosition?.employee?.pictureThumbnail;
+        
+        return {
+          id: feedback.senderEmployeeId ?? '',
+          content: feedback.feedback ?? '',
+          date: feedback.feedbackDate ? dayjs(feedback.feedbackDate).format('MMM D, YYYY') : '',
+          sender: `${firstName} ${lastName}`.trim() || 'Unknown Sender',
+          avatar: pictureThumbnail
+            ? `data:image/jpeg;base64,${pictureThumbnail}`
+            : '/assets/default-avatar.png'
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
       
-      const firstName = feedback.senderEmployee?.firstName ?? '';
-      const lastName = feedback.senderEmployee?.lastName ?? '';
-      const pictureThumbnail = feedback.senderEmployee?.employeePosition?.employee?.pictureThumbnail;
-      
-      return {
-        id: feedback.senderEmployeeId ?? '',
-        content: feedback.feedback ?? '',
-        date: feedback.feedbackDate ? dayjs(feedback.feedbackDate).format('MMM D, YYYY') : '',
-        sender: `${firstName} ${lastName}`.trim() || 'Unknown Sender',
-        avatar: pictureThumbnail
-          ? `data:image/jpeg;base64,${pictureThumbnail}`
-          : '/assets/default-avatar.png'
-      };
-    }).filter(Boolean);
-  };
-  
-  const formattedFeedback = formatFeedback();
+    // Assign processed feedback to employee object
+    employee.feedback = processedFeedback;
+  }, [employeeFeedback, employee]);
 
   // Map real team members from GraphQL data
   const subordinates = useMemo(() => {
@@ -102,101 +114,101 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
             Organization Chart
           </h3>
           <Card className="gba:p-4 gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center" style={{ minHeight: '420px' }}>
-            <div className="gba:flex gba:flex-col gba:items-center" style={{ maxHeight: '650px', overflowY: 'auto', overflowX: 'hidden' }}>
-            {/* Supervisor */}
-            {employee.employeePosition?.supervisor && employee.employeePosition?.supervisor.id !== employee.id && (
+            <div className="gba:flex gba:flex-col gba:items-center" style={{ maxHeight: '650px', overflowY: 'auto', overflowX: 'hidden', padding: '0.5rem' }}>
+              {/* Supervisor */}
+              {employee.employeePosition?.supervisor && employee.employeePosition?.supervisor.id !== employee.id && (
               <div className="gba:flex gba:flex-col gba:items-center">
                 <a 
-                  //className="gba:flex gba:flex-col gba:gap-1 gba:text-sm gba:text-center gba:flex-col gba:hover:text-blue-600"
                   className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('employeeId', employee.employeePosition?.supervisor?.id || '');
-                    window.history.pushState({}, '', url.toString());
-                  }}
-                  data-testid="supervisor-link"
-                >
-                  <Avatar
-                    profilePicture={employee.employeePosition.supervisor.pictureThumbnail}
-                    firstName={employee.employeePosition.supervisor.firstName}
-                    lastName={employee.employeePosition.supervisor.lastName}
-                    employeeId={employee.employeePosition.supervisor.id}
-                    size={64}
-                  />
-                  <div className="gba:mt-2 gba:text-center">
-                    <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
-                      {employee.employeePosition.supervisor.displayName}
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const url = new URL(window.location.href);
+                      url.searchParams.set('employeeId', employee.employeePosition?.supervisor?.id || '');
+                      window.history.pushState({}, '', url.toString());
+                    }}
+                    data-testid="supervisor-link"
+                  >
+                    <Avatar
+                      profilePicture={employee.employeePosition.supervisor.pictureThumbnail}
+                      firstName={employee.employeePosition.supervisor.firstName}
+                      lastName={employee.employeePosition.supervisor.lastName}
+                      employeeId={employee.employeePosition.supervisor.id}
+                      size={64}
+                    />
+                    <div className="gba:mt-2 gba:text-center">
+                      <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
+                        {employee.employeePosition.supervisor.displayName}
+                      </div>
+                      <div className="gba:text-xs gba:text-gray-500">
+                        {employee.employeePosition?.supervisor?.employeePosition?.jobPosition?.name ?? ''}
+                      </div>
                     </div>
-                    <div className="gba:text-xs gba:text-gray-500">
-                      {employee.employeePosition?.supervisor?.employeePosition?.jobPosition?.name ?? ''}
-                    </div>
-                  </div>
-                </a>
-                <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto gba:my-1"></div>
-              </div>
-            )}
+                  </a>
+                  <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto gba:my-1"></div>
+                </div>
+              )}
+              
             {/* Current Employee */}
             <div className="gba:flex gba:flex-col gba:items-center">
               <div className="gba:ring-2 gba:ring-blue-400 gba:rounded-full gba:p-1">
-                <Avatar
-                  profilePicture={employee.pictureThumbnail}
-                  firstName={employee.firstName}
-                  lastName={employee.lastName}
-                  employeeId={employee.id}
-                  size={64}
-                />
-              </div>
-              <div className="gba:mt-2 gba:text-center">
-                <div className="gba:font-medium gba:text-sm">
-                  {employee.displayName}
+                  <Avatar
+                    profilePicture={employee.pictureThumbnail}
+                    firstName={employee.firstName}
+                    lastName={employee.lastName}
+                    employeeId={employee.id}
+                    size={64}
+                  />
                 </div>
-                <div className="gba:text-xs gba:text-gray-500">
-                  {employee.employeePosition?.jobPosition?.name || ''}
-                </div>
-              </div>
-              {subordinates.length > 0 && <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto gba:my-1"></div>}
-            </div>
-            {/* Subordinates */}
-            {subordinates.length > 0 && (
-              <div className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-2 gba:w-full gba:mx-auto" style={{ maxWidth: '100%' }}>
-                {subordinates.map((member) => (
-                  <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
-                    <a 
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        const url = new URL(window.location.href);
-                        url.searchParams.set('employeeId', member.id);
-                        window.history.pushState({}, '', url.toString());
-                      }}
-                      className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
-                      title={`View ${member.displayName}'s profile`}
-                      data-testid={`team-member-link-${member.id}`}
-                    >
-                      <Avatar
-                        profilePicture={member.profilePicture}
-                        firstName={member.firstName}
-                        lastName={member.lastName}
-                        employeeId={member.id}
-                        size={56}
-                      />
-                      <div className="gba:mt-2 gba:text-center gba:w-full">
-                        <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
-                          {member.displayName}
-                        </div>
-                        <div className="gba:text-xs gba:text-gray-500 gba:truncate gba:w-full gba:text-center gba:px-1">
-                          {member.position}
-                        </div>
-                      </div>
-                    </a>
+                <div className="gba:mt-2 gba:text-center">
+                  <div className="gba:font-medium gba:text-sm">
+                    {employee.displayName}
                   </div>
-                ))}
+                  <div className="gba:text-xs gba:text-gray-500">
+                    {employee.employeePosition?.jobPosition?.name || ''}
+                  </div>
+                </div>
+                {subordinates.length > 0 && <div className="gba:w-px gba:h-6 gba:bg-gray-200 gba:mx-auto gba:my-1"></div>}
               </div>
-            )}
-          </div>
-        </Card>
+              
+              {/* Subordinates */}
+              {subordinates.length > 0 && (
+                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:w-full">
+                    {subordinates.map((member) => (
+                      <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
+                        <a href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('employeeId', member.id);
+                            window.history.pushState({}, '', url.toString());
+                          }}
+                          className="gba:cursor-pointer gba:hover:opacity-90 gba:flex gba:flex-col gba:items-center"
+                          title={`View ${member.displayName}'s profile`}
+                          data-testid={`team-member-link-${member.id}`}
+                        >
+                          <Avatar
+                            profilePicture={member.profilePicture}
+                            firstName={member.firstName}
+                            lastName={member.lastName}
+                            employeeId={member.id}
+                            size={56}
+                          />
+                          <div className="gba:mt-2 gba:text-center gba:w-full">
+                            <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
+                              {member.displayName}
+                            </div>
+                            <div className="gba:text-xs gba:text-gray-500 gba:truncate gba:w-full gba:text-center gba:px-1">
+                              {member.position}
+                            </div>
+                          </div>
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+              )}              
+            </div>
+          </Card>
         </div>
 
         
@@ -323,14 +335,14 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
         )}
       </div>
       {/* Feedback Section - Full width */}
-      {formattedFeedback.length > 0 && (
+      {employee.feedback && employee.feedback.length > 0 && (
         <div className="gba:mb-8 gba:mt-6">
           <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
             <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
             Feedback
           </h3>
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
-            {formattedFeedback.map((feedback) => {
+            {employee.feedback && employee.feedback.map((feedback) => {
               // TypeScript safety - this should never happen due to our filter(Boolean) above
               if (!feedback) return null;
               
@@ -363,7 +375,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
         </div>
       )}
 
-      {formattedFeedback.length === 0 && (
+      {(!employee.feedback || employee.feedback.length === 0) && (
         <div className="gba:mb-8 gba:mt-6">
           <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
             <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
