@@ -192,6 +192,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
             }}
             prefixDataTestId="update-job-position"
             accessToken={accessToken}
+            autoExecuteSingleAction={true}
           />
         </div>
       ),
