@@ -11,13 +11,23 @@ import {
   UnorderedListOutlined,
   BarChartOutlined,
   PaperClipOutlined,
+  LeftOutlined,
+  RightOutlined,
 } from '@ant-design/icons';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
+import weekday from 'dayjs/plugin/weekday';
+import weekOfYear from 'dayjs/plugin/weekOfYear';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import updateLocale from 'dayjs/plugin/updateLocale';
 
 // Register dayjs plugins
 dayjs.extend(isBetween);
+dayjs.extend(weekday);
+dayjs.extend(weekOfYear);
+dayjs.extend(customParseFormat);
+dayjs.extend(updateLocale);
 import {
   formatDate,
   getCurrentActiveUserLocale,
@@ -110,6 +120,12 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  
+  // Calendar state
+  const [currentDate, setCurrentDate] = useState(dayjs());
+  
+  // Helper function to create a new dayjs instance (like clone)
+  const cloneDayjs = (date: dayjs.Dayjs) => dayjs(date.valueOf());
   
   // Paginated absence list
   const paginatedAbsenceList = useMemo(() => {
@@ -340,14 +356,16 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                           {/* Calendar Header */}
                           <div className="gba:calendar-header gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b">
                             <div className="gba:calendar-month-year gba:font-medium gba:text-lg">
-                              {dayjs().format('MMMM YYYY')}
+                              {currentDate.format('MMMM YYYY')}
                             </div>
                             <div className="gba:calendar-nav gba:flex gba:gap-2">
                               <Button 
                                 variant="secondary"
                                 className="gba:px-3 gba:py-1"
                                 data-testid="calendar-prev-month"
+                                onClick={() => setCurrentDate(cloneDayjs(currentDate).subtract(1, 'month'))}
                               >
+                                <LeftOutlined className="gba:mr-1" />
                                 {getTranslationFromI18nKeyAndLabel(
                                   "lowcoder:absence_hub.previous",
                                   "Previous"
@@ -357,6 +375,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                                 variant="secondary"
                                 className="gba:px-3 gba:py-1"
                                 data-testid="calendar-today"
+                                onClick={() => setCurrentDate(dayjs())}
                               >
                                 {getTranslationFromI18nKeyAndLabel(
                                   "lowcoder:absence_hub.today",
@@ -367,11 +386,13 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                                 variant="secondary"
                                 className="gba:px-3 gba:py-1"
                                 data-testid="calendar-next-month"
+                                onClick={() => setCurrentDate(cloneDayjs(currentDate).add(1, 'month'))}
                               >
                                 {getTranslationFromI18nKeyAndLabel(
                                   "lowcoder:absence_hub.next",
                                   "Next"
                                 )}
+                                <RightOutlined className="gba:ml-1" />
                               </Button>
                             </div>
                           </div>
@@ -389,32 +410,48 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                             
                             {/* Calendar Days */}
                             <div className="gba:grid gba:grid-cols-7 gba:gap-1">
-                              {/* Generate placeholder days for a month */}
-                              {Array.from({ length: 35 }).map((_, idx) => {
-                                const day = idx + 1;
-                                const isToday = day === dayjs().date();
-                                const hasAbsence = absenceList.some((absence: AbsenceListCardAbsence) => {
-                                  const absenceStart = dayjs(absence.startDate);
-                                  const absenceEnd = dayjs(absence.endDate);
-                                  const currentDate = dayjs().date(day);
-                                  return currentDate.isBetween(absenceStart, absenceEnd, null, '[]');
-                                });
+                              {/* Generate days for the current month with proper offset */}
+                              {(() => {
+                                const daysInMonth = currentDate.daysInMonth();
+                                const firstDayOfMonth = currentDate.startOf('month');
+                                const startOfCalendar = firstDayOfMonth.startOf('week');
                                 
-                                return (
-                                  <div 
-                                    key={idx}
-                                    className={`gba:calendar-day gba:p-2 gba:h-20 gba:border gba:rounded ${isToday ? 'gba:bg-blue-50 gba:border-blue-300' : 'gba:bg-white'}`}
-                                    data-testid={`calendar-day-${day}`}
-                                  >
-                                    <div className={`gba:day-number gba:text-right ${isToday ? 'gba:font-bold gba:text-blue-600' : ''}`}>
-                                      {day <= dayjs().daysInMonth() ? day : ''}
+                                // Calculate how many days to display (either 35 or 42 depending on the month)
+                                const daysToDisplay = Math.ceil((daysInMonth + firstDayOfMonth.day()) / 7) * 7;
+                                
+                                return Array.from({ length: daysToDisplay }).map((_, idx) => {
+                                  // Create a new dayjs object for each day to avoid mutation issues
+                                  const currentDay = cloneDayjs(startOfCalendar).add(idx, 'day');
+                                  const isCurrentMonth = currentDay.month() === currentDate.month();
+                                  const isToday = currentDay.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
+                                  
+                                  const hasAbsence = absenceList.some((absence: AbsenceListCardAbsence) => {
+                                    const absenceStart = dayjs(absence.startDate);
+                                    const absenceEnd = dayjs(absence.endDate);
+                                    return currentDay.isBetween(absenceStart, absenceEnd, null, '[]');
+                                  });
+                                  
+                                  return (
+                                    <div 
+                                      key={idx}
+                                      className={`gba:calendar-day gba:p-2 gba:h-16 gba:border gba:rounded 
+                                        ${isToday ? 'gba:bg-blue-50 gba:border-blue-300' : 'gba:bg-white'} 
+                                        ${!isCurrentMonth ? 'gba:opacity-40' : ''}`}
+                                      data-testid={`calendar-day-${currentDay.date()}`}
+                                    >
+                                      <div className={`gba:day-number gba:text-right 
+                                        ${isToday ? 'gba:font-bold gba:text-blue-600' : ''} 
+                                        ${!isCurrentMonth ? 'gba:text-gray-400' : ''}`}
+                                      >
+                                        {currentDay.date()}
+                                      </div>
+                                      {hasAbsence && isCurrentMonth && (
+                                        <div className="gba:absence-indicator gba:mt-1 gba:h-2 gba:bg-blue-400 gba:rounded-full"></div>
+                                      )}
                                     </div>
-                                    {hasAbsence && (
-                                      <div className="gba:absence-indicator gba:mt-1 gba:h-2 gba:bg-blue-400 gba:rounded-full"></div>
-                                    )}
-                                  </div>
-                                );
-                              })}
+                                  );
+                                });
+                              })()}
                             </div>
                           </div>
                           
