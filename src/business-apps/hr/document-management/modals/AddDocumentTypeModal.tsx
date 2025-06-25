@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 const { Option } = Select;
 const { TextArea } = Input;
 
-import useDocumentGroups, { DocumentGroup } from '../../hooks/useDocumentGroups'; // Import the new hook
+import useDocumentGroups, { DocumentGroup } from '@/business-apps/hr/core/hooks/useDocumentGroups'; // Import the new hook
 
 interface AddDocumentTypeModalProps {
   visible: boolean;

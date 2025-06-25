@@ -5,5 +5,3 @@
 
 export { DataController, PlusSquareIcon } from './DataController';
 export type { DataControllerProps } from './DataController';
-export { DebouncedDataController } from './DebouncedDataController';
-export type { DebouncedDataControllerProps } from './DebouncedDataController';

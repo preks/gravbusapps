@@ -1,0 +1,44 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# GraphQL Integration Pattern
+
+When working with GraphQL APIs in business apps:
+
+- Use `useGraphQLClient()` from `src/common/network/graphql/useGraphQLClient.ts`
+- Create query files in `queries/` directory with pattern `EntityQueries.ts`
+- Always use `context.accessToken` for authentication
+- Wrap API calls in try-catch blocks with proper error handling
+
+@src/business-apps/mdm/apps/compensation-data/queries/CompensationBandQueries.ts
+
+## Query File Structure
+```typescript
+export interface EntityQueryVariables {
+  id?: string;
+  offset?: number;
+  limit?: number;
+  search?: string;
+}
+
+export const useGetEntityData = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchEntityData = async (variables: EntityQueryVariables = {}) => {
+    try {
+      const result = await graphqlClient.request<EntityDataResponse>(query);
+      return result;
+    } catch (error) {
+      console.error('Error fetching entity data:', error);
+      throw error;
+    }
+  };
+
+  return { fetchEntityData };
+};
+```
+
+
+

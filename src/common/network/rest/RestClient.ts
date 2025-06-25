@@ -8,9 +8,17 @@ export enum HttpMethod {
   OPTIONS = 'OPTIONS'
 }
 
+export enum ResponseType {
+  JSON = 'json',
+  TEXT = 'text',
+  BLOB = 'blob',
+  AUTO = 'auto'
+}
+
 export type RequestOptions = {
   headers?: Record<string, string>;
   params?: Record<string, string | number | boolean>;
+  responseType?: ResponseType;
 };
 
 export type RequestOptionsWithBody = RequestOptions & {
@@ -19,7 +27,7 @@ export type RequestOptionsWithBody = RequestOptions & {
 
 export class RestClient {
   protected headers: Record<string, string> = {};
-  private baseUrl: string;
+  protected baseUrl: string;
 
   constructor(baseUrl: string, headers: Record<string, string> = {}) {
     this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
@@ -42,22 +50,40 @@ export class RestClient {
       });
     }
 
-    const headers = {
-      'Content-Type': 'application/json',
+    // Start with default headers
+    let headers = {
       ...this.headers,
       ...(options.headers || {}),
     };
+    
+    // Handle FormData specially - don't set Content-Type for FormData
+    // as the browser needs to set it with the proper multipart boundary
+    const isFormData = options.body instanceof FormData;
+    
+    if (!isFormData) {
+      // Only set Content-Type for non-FormData requests
+      headers = {
+        'Content-Type': 'application/json',
+        ...headers,
+      };
+    } else if (headers['Content-Type']) {
+      // Remove any Content-Type header for FormData requests
+      const headersCopy = { ...headers };
+      delete headersCopy['Content-Type'];
+      headers = headersCopy;
+    }
 
     const requestOptions: RequestInit = {
       method,
       headers,
-      credentials: 'include',
+      credentials: 'same-origin',
       mode: 'cors',
     };
 
     // Add body for non-GET/HEAD requests
     if (method !== HttpMethod.GET && method !== HttpMethod.HEAD && options.body !== undefined) {
-      requestOptions.body = JSON.stringify(options.body);
+      // Send FormData as-is without JSON.stringify
+      requestOptions.body = isFormData ? options.body : JSON.stringify(options.body);
     }
 
     const response = await fetch(url.toString(), requestOptions);
@@ -80,9 +106,47 @@ export class RestClient {
     }
 
     try {
-      return await response.json();
-    } catch (e) {
-      throw new Error('Failed to parse JSON response');
+      // If responseType is specified in options, use that
+      const responseType = options.responseType || ResponseType.AUTO;
+      
+      if (responseType === ResponseType.JSON) {
+        return await response.json();
+      }
+      else if (responseType === ResponseType.TEXT) {
+        return await response.text() as unknown as T;
+      }
+      else if (responseType === ResponseType.BLOB) {
+        return await response.blob() as unknown as T;
+      }
+      else {
+        // Auto-detect based on Content-Type
+        const contentType = response.headers.get('Content-Type');
+        
+        // Handle JSON responses
+        if (contentType && contentType.includes('application/json')) {
+          return await response.json();
+        }
+        // Handle text responses
+        else if (contentType && (contentType.includes('text/') || contentType.includes('application/xml'))) {
+          return await response.text() as unknown as T;
+        }
+        // Handle blob/binary responses
+        else if (contentType && (
+          contentType.includes('image/') || 
+          contentType.includes('application/pdf') || 
+          contentType.includes('application/octet-stream')
+        )) {
+          return await response.blob() as unknown as T;
+        }
+        // Default to JSON if can't determine
+        else {
+          return await response.json();
+        }
+      }
+    } catch (e: unknown) {
+      console.error('Failed to parse response:', e);
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      throw new Error(`Failed to parse response: ${errorMessage}`);
     }
   }
 
@@ -135,7 +199,7 @@ export class RestClient {
         ...this.headers,
         ...(options.headers || {}),
       },
-      credentials: 'include',
+      credentials: 'same-origin',
       mode: 'cors',
     });
     return response.headers;
@@ -151,7 +215,7 @@ export class RestClient {
         ...this.headers,
         ...(options.headers || {}),
       },
-      credentials: 'include',
+      credentials: 'same-origin',
       mode: 'cors',
     });
   }
