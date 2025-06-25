@@ -13,8 +13,14 @@ import {
   Input,
   Spin,
   Alert,
-  Tooltip
+  Tooltip,
+  Descriptions,
+  Divider,
+  Progress,
+  Card,
+  Statistic
 } from 'antd';
+import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
 import { 
   PlusOutlined, 
   EditOutlined, 
@@ -23,14 +29,24 @@ import {
   CalendarOutlined,
   FilterOutlined,
   ReloadOutlined,
-  SearchOutlined
+  SearchOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  WarningOutlined,
+  TeamOutlined,
+  BuildOutlined,
+  ApartmentOutlined,
+  LinkOutlined,
+  InfoCircleOutlined,
+  FileTextOutlined,
+  IdcardOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useDebounce } from '@/common/hooks/useDebounce';
 import { useProjects } from '../../hooks';
 import { Project } from '../../types';
 
-const { Title } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
 export interface ProjectsTabProps extends BusinessAppContextProps {
@@ -64,6 +80,8 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<'ALL' | 'Active' | 'Expired' | 'Expiring Soon'>('ALL');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
   const [form] = Form.useForm();
 
   // Debounce search input
@@ -419,6 +437,13 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
             ? 'No projects match your search criteria'
             : 'No projects found'
         }}
+        onRow={(record) => ({
+          onClick: () => {
+            setSelectedProject(record);
+            setDrawerVisible(true);
+          },
+          style: { cursor: 'pointer' },
+        })}
       />
 
       {/* Modal for Add/Edit */}
@@ -485,6 +510,181 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
           style={{ marginTop: '16px' }}
         />
       </Modal>
+      
+      {/* Project Details Drawer */}
+      <DataDetailsDrawer
+        title={selectedProject?.name || "Project Details"}
+        icon={<ProjectOutlined className="gba:text-blue-500" />}
+        extraTitle={selectedProject?.status && (
+          <Tag 
+            color={getStatusColor(selectedProject.status)} 
+            className="gba:ml-2"
+          >
+            {selectedProject.status}
+          </Tag>
+        )}
+        placement="right"
+        onClose={() => {
+          setDrawerVisible(false);
+          setSelectedProject(null);
+        }}
+        open={drawerVisible}
+        width={500}
+        dataTestId={`${prefixDataTestId || ''}-project-details-drawer`}
+      >
+        {selectedProject && (
+          <div className="gba:space-y-6">
+            {/* Summary Section */}
+            <div className="gba:bg-gray-50 gba:p-4 gba:rounded-lg">
+              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                <Card bordered={false} className="gba:shadow-sm">
+                  <Statistic 
+                    title="Project Type" 
+                    value={selectedProject.projectType} 
+                    valueStyle={{ color: selectedProject.projectType === 'INTERNAL' ? '#1890ff' : '#722ed1' }}
+                    prefix={<BuildOutlined />} 
+                  />
+                </Card>
+                
+                <Card bordered={false} className="gba:shadow-sm">
+                  <Statistic 
+                    title="Status" 
+                    value={selectedProject.status} 
+                    valueStyle={{ 
+                      color: 
+                        selectedProject.status === 'Active' ? '#52c41a' : 
+                        selectedProject.status === 'Expired' ? '#f5222d' : 
+                        '#fa8c16' 
+                    }}
+                    prefix={
+                      selectedProject.status === 'Active' ? <CheckCircleOutlined /> : 
+                      selectedProject.status === 'Expired' ? <WarningOutlined /> : 
+                      <ClockCircleOutlined />
+                    }
+                  />
+                </Card>
+              </div>
+              
+              {selectedProject.daysUntilExpiry !== undefined && (
+                <div className="gba:mt-4">
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <Text className="gba:font-medium">Time Remaining</Text>
+                    <Text 
+                      type={selectedProject.isActive ? undefined : 'danger'}
+                      strong
+                    >
+                      {selectedProject.daysUntilExpiry > 0 
+                        ? `${selectedProject.daysUntilExpiry} days remaining` 
+                        : `Expired ${Math.abs(selectedProject.daysUntilExpiry)} days ago`}
+                    </Text>
+                  </div>
+                  <Progress 
+                    percent={selectedProject.daysUntilExpiry <= 0 ? 100 : 
+                      selectedProject.daysUntilExpiry > 90 ? 25 : 
+                      selectedProject.daysUntilExpiry > 30 ? 50 : 
+                      selectedProject.daysUntilExpiry > 7 ? 75 : 90} 
+                    status={selectedProject.isActive ? "active" : "exception"}
+                    showInfo={false}
+                    className="gba:mt-2" 
+                  />
+                </div>
+              )}
+            </div>
+            
+            {/* Primary Details */}
+            <div>
+              <Divider orientation="left" className="gba:text-gray-500">
+                <InfoCircleOutlined /> Project Information
+              </Divider>
+              
+              <Descriptions bordered column={1} size="small" className="gba:bg-white gba:rounded-md gba:shadow-sm">
+                <Descriptions.Item 
+                  label={<Text strong className="gba:text-gray-600">Project ID</Text>}
+                  className="gba:py-3 gba:px-4"
+                >
+                  <Text copyable className="gba:text-sm gba:font-mono">{selectedProject.id}</Text>
+                </Descriptions.Item>
+                
+                <Descriptions.Item 
+                  label={<Text strong className="gba:text-gray-600">Structure ID</Text>}
+                  className="gba:py-3 gba:px-4"
+                >
+                  <Text copyable className="gba:text-sm gba:font-mono">{selectedProject.structureId || "-"}</Text>
+                </Descriptions.Item>
+
+                {selectedProject.customerId && (
+                  <Descriptions.Item 
+                    label={<Text strong className="gba:text-gray-600">Customer ID</Text>}
+                    className="gba:py-3 gba:px-4"
+                  >
+                    <Text copyable className="gba:text-sm gba:font-mono">{selectedProject.customerId}</Text>
+                  </Descriptions.Item>
+                )}
+                
+                {selectedProject.validTo && (
+                  <Descriptions.Item 
+                    label={<Text strong className="gba:text-gray-600">Valid Until</Text>}
+                    className="gba:py-3 gba:px-4"
+                  >
+                    <Space>
+                      <CalendarOutlined className="gba:text-blue-500" />
+                      <Text>{selectedProject.formattedValidTo || new Date(selectedProject.validTo).toLocaleDateString()}</Text>
+                    </Space>
+                  </Descriptions.Item>
+                )}
+              </Descriptions>
+            </div>
+            
+            {/* Description Section */}
+            {selectedProject.description && (
+              <div className="gba:bg-white gba:p-4 gba:rounded-lg gba:border gba:border-gray-200">
+                <div className="gba:mb-2 gba:flex gba:items-center">
+                  <FileTextOutlined className="gba:mr-2 gba:text-blue-500" />
+                  <Text strong>Description</Text>
+                </div>
+                <Paragraph className="gba:text-gray-600 gba:whitespace-pre-line">
+                  {selectedProject.description}
+                </Paragraph>
+              </div>
+            )}
+            
+            {/* Actions */}
+            <div className="gba:flex gba:justify-between gba:mt-6">
+              <Button 
+                type="default"
+                icon={<EditOutlined />}
+                onClick={() => {
+                  setDrawerVisible(false);
+                  handleEdit(selectedProject);
+                }}
+              >
+                Edit Project
+              </Button>
+              
+              <Button 
+                type="primary" 
+                danger 
+                icon={<DeleteOutlined />}
+                onClick={() => {
+                  setDrawerVisible(false);
+                  handleDelete(selectedProject);
+                }}
+              >
+                Delete Project
+              </Button>
+            </div>
+            
+            {/* Related Information would go here */}
+            <Alert
+              message="Integration Information"
+              description="Additional related resources like teams, employees, and resources will be available when API integration is complete."
+              type="info"
+              showIcon
+              icon={<LinkOutlined />}
+            />
+          </div>
+        )}
+      </DataDetailsDrawer>
     </div>
   );
 };

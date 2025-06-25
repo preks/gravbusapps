@@ -1,9 +1,8 @@
 // Job Structure Data Components
-export { default as JobStructureData } from './JobStructureData';
+export { default } from './JobStructureData';
 
 // Tab Components
 export { default as JobFamiliesTab } from './components/tabs/JobFamiliesTab';
-export { JobLevelsTab } from './components/tabs/JobLevelsTab';
 export { JobFunctionsTab } from './components/tabs/JobFunctionsTab';
 export { JobProfilesTab } from './components/tabs/JobProfilesTab';
 

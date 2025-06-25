@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   Table, 
@@ -14,8 +14,13 @@ import {
   Tooltip,
   Empty,
   Divider,
-  Input
+  Input,
+  Descriptions,
+  Card,
+  List,
+  Avatar
 } from 'antd';
+import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
 import { 
   PlusOutlined, 
   EditOutlined, 
@@ -25,7 +30,13 @@ import {
   TeamOutlined,
   EnvironmentOutlined,
   DownOutlined,
-  RightOutlined
+  RightOutlined,
+  CloseOutlined,
+  InfoCircleOutlined,
+  DollarOutlined,
+  LinkOutlined,
+  BuildOutlined,
+  ApartmentOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -57,6 +68,8 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingCostCenter, setEditingCostCenter] = useState<CostCenter | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [selectedCostCenter, setSelectedCostCenter] = useState<CostCenter | null>(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
   const [form] = Form.useForm();
 
   const filteredCostCenters = costCenters.filter(costCenter => 
@@ -73,6 +86,18 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
   const handleEdit = (record: CostCenter) => {
     message.warning('Edit cost center functionality will be implemented with process API integration');
   };
+
+  const handleRowClick = useCallback((record: CostCenter) => {
+    setSelectedCostCenter(record);
+    setDrawerVisible(true);
+  }, []);
+
+  const handleCloseDrawer = useCallback(() => {
+    setDrawerVisible(false);
+    setTimeout(() => {
+      setSelectedCostCenter(null);
+    }, 300); // Clear selected cost center after drawer close animation completes
+  }, []);
 
   const handleDelete = (record: CostCenter) => {
     Modal.confirm({
@@ -346,6 +371,10 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
         dataSource={filteredCostCenters}
         rowKey="id"
         loading={isLoading}
+        onRow={(record) => ({
+          onClick: () => handleRowClick(record),
+          style: { cursor: 'pointer' }
+        })}
         pagination={{
           pageSize: 20,
           showSizeChanger: true,
@@ -395,6 +424,231 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
         }}
       />
+      
+      {/* Cost Center Details Drawer */}
+      <DataDetailsDrawer
+        title="Cost Center Details"
+        icon={<BankOutlined className="gba:text-green-500" />}
+        placement="right"
+        onClose={handleCloseDrawer}
+        open={drawerVisible}
+        width={450}
+        dataTestId={`${prefixDataTestId || ''}-CostCentersTab-Drawer`}
+        className="gba:text-base"
+      >
+        {selectedCostCenter && (
+          <div className="gba:space-y-6">
+            {/* Basic Information */}
+            <Card 
+              title={<span className="gba:flex gba:items-center gba:gap-2"><InfoCircleOutlined /> Basic Information</span>}
+              className="gba:shadow-sm"
+            >
+              <Descriptions column={1} size="small" layout="vertical">
+                <Descriptions.Item label="Name">
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <Text strong className="gba:text-lg">{selectedCostCenter.name || '-'}</Text>
+                  </div>
+                </Descriptions.Item>
+                
+                <Descriptions.Item label="Code">
+                  <Tag color="blue">{selectedCostCenter.code || '-'}</Tag>
+                </Descriptions.Item>
+                
+                <Descriptions.Item label="Description">
+                  {selectedCostCenter.description || '-'}
+                </Descriptions.Item>
+
+                <Descriptions.Item label="Status">
+                  <Tag color={selectedCostCenter.status === 'Active' ? 'green' : 'red'}>
+                    {selectedCostCenter.status || 'Unknown'}
+                  </Tag>
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
+
+            {/* Location Information */}
+            <Card 
+              title={<span className="gba:flex gba:items-center gba:gap-2"><EnvironmentOutlined /> Location Information</span>}
+              className="gba:shadow-sm"
+            >
+              {selectedCostCenter.siteLocationId ? (
+                <div className="gba:space-y-3">
+                  <div>
+                    <div className="gba:text-sm gba:text-gray-500">Site Location</div>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Text strong>{selectedCostCenter.siteLocationName || '-'}</Text>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="gba:text-sm gba:text-gray-500">Site Location ID</div>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Text copyable>{selectedCostCenter.siteLocationId}</Text>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <Empty description="No location assigned" />
+              )}
+            </Card>
+
+            {/* Statistics */}
+            <Card 
+              title={<span className="gba:flex gba:items-center gba:gap-2"><DollarOutlined /> Statistics</span>}
+              className="gba:shadow-sm"
+            >
+              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                <div>
+                  <div className="gba:text-sm gba:text-gray-500">Employees</div>
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
+                    <UserOutlined className="gba:text-blue-500" />
+                    <Text strong>{selectedCostCenter.employeeCount}</Text>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="gba:text-sm gba:text-gray-500">Org Units</div>
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
+                    <TeamOutlined className="gba:text-purple-500" />
+                    <Text strong>{selectedCostCenter.organizationalUnitCount}</Text>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Employees */}
+            {selectedCostCenter.employees && selectedCostCenter.employees.length > 0 && (
+              <Card 
+                title={<span className="gba:flex gba:items-center gba:gap-2"><UserOutlined /> Employees</span>}
+                className="gba:shadow-sm"
+              >
+                <List
+                  dataSource={selectedCostCenter.employees.slice(0, 5)}
+                  renderItem={(employee) => (
+                    <List.Item>
+                      <List.Item.Meta
+                        avatar={<Avatar icon={<UserOutlined />} />}
+                        title={`${employee.employeeFirstName} ${employee.employeeLastName}`}
+                        description={`ID: ${employee.employeeId}`}
+                      />
+                    </List.Item>
+                  )}
+                  footer={
+                    selectedCostCenter.employeeCount > 5 && (
+                      <div className="gba:text-center gba:text-sm gba:text-gray-500 gba:mt-2">
+                        + {selectedCostCenter.employeeCount - 5} more employees
+                      </div>
+                    )
+                  }
+                />
+              </Card>
+            )}
+
+            {/* Organizational Units */}
+            {selectedCostCenter.organizationalUnits && selectedCostCenter.organizationalUnits.length > 0 && (
+              <Card 
+                title={<span className="gba:flex gba:items-center gba:gap-2"><TeamOutlined /> Organizational Units</span>}
+                className="gba:shadow-sm"
+              >
+                <List
+                  dataSource={selectedCostCenter.organizationalUnits.slice(0, 5)}
+                  renderItem={(orgUnit) => (
+                    <List.Item>
+                      <List.Item.Meta
+                        avatar={<Avatar icon={<TeamOutlined />} style={{ backgroundColor: '#722ED1' }} />}
+                        title={orgUnit.organizationalUnitName}
+                        description={`ID: ${orgUnit.organizationalUnitId}`}
+                      />
+                    </List.Item>
+                  )}
+                  footer={
+                    selectedCostCenter.organizationalUnitCount > 5 && (
+                      <div className="gba:text-center gba:text-sm gba:text-gray-500 gba:mt-2">
+                        + {selectedCostCenter.organizationalUnitCount - 5} more organizational units
+                      </div>
+                    )
+                  }
+                />
+              </Card>
+            )}
+
+            {/* Technical Information */}
+            <Card 
+              title={<span className="gba:flex gba:items-center gba:gap-2"><BuildOutlined /> Technical Information</span>}
+              className="gba:shadow-sm"
+            >
+              <div className="gba:space-y-3">
+                <div>
+                  <div className="gba:text-sm gba:text-gray-500">Cost Center ID</div>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Text copyable>{selectedCostCenter.id}</Text>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="gba:text-sm gba:text-gray-500">Structure ID</div>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Text copyable>{selectedCostCenter.structureId}</Text>
+                  </div>
+                </div>
+
+                {selectedCostCenter.rankInLayer && (
+                  <div>
+                    <div className="gba:text-sm gba:text-gray-500">Rank in Layer</div>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Tag color="blue">{selectedCostCenter.rankInLayer}</Tag>
+                    </div>
+                  </div>
+                )}
+
+                {selectedCostCenter.layer && (
+                  <div>
+                    <div className="gba:text-sm gba:text-gray-500">Layer</div>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <ApartmentOutlined className="gba:text-blue-500" />
+                      <Text>{selectedCostCenter.layer}</Text>
+                    </div>
+                  </div>
+                )}
+
+                {selectedCostCenter.groupId && (
+                  <div>
+                    <div className="gba:text-sm gba:text-gray-500">Group ID</div>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Text copyable>{selectedCostCenter.groupId}</Text>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Action Buttons */}
+            <div className="gba:flex gba:gap-2">
+              <Button 
+                icon={<EditOutlined />} 
+                onClick={() => {
+                  handleEdit(selectedCostCenter);
+                  handleCloseDrawer();
+                }}
+                data-testid={`${prefixDataTestId || ''}-CostCentersTab-EditButton`}
+              >
+                Edit
+              </Button>
+              <Button 
+                icon={<DeleteOutlined />} 
+                danger 
+                onClick={() => {
+                  handleCloseDrawer();
+                  handleDelete(selectedCostCenter);
+                }}
+                data-testid={`${prefixDataTestId || ''}-CostCentersTab-DeleteButton`}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        )}
+      </DataDetailsDrawer>
     </div>
   );
 };

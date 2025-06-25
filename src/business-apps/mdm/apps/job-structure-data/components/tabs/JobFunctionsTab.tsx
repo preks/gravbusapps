@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, Modal, Form, Spin, Alert } from 'antd';
-import { SearchOutlined, EyeOutlined } from '@ant-design/icons';
+import { Table, Button, Input, Space, Typography, Form, Spin, Alert, Tag, Divider, Descriptions } from 'antd';
+import { SearchOutlined, EyeOutlined, CodeOutlined, InfoCircleOutlined, TeamOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useJobFunctions } from '../../hooks/useJobFunctions';
 import { JobFunction } from '../../types';
+import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
 
 const { Title } = Typography;
 
 export interface JobFunctionsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
+
+type TranslationKey = Record<string, string>;
 
 const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
   const { t } = useTranslation();
@@ -26,30 +29,36 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
   } = useJobFunctions(context);
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [viewingFunction, setViewingFunction] = useState<JobFunction | null>(null);
-  const [form] = Form.useForm();
+  const [selectedFunction, setSelectedFunction] = useState<JobFunction | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const filteredFunctions = searchTerm 
     ? searchJobFunctions(searchTerm)
     : jobFunctions;
 
   const handleView = (record: JobFunction) => {
-    setViewingFunction(record);
-    form.setFieldsValue({
-      name: record.name,
-      code: record.code || '',
-      description: record.description || '',
-      jobFamily: record.jobFamily?.value || 'Not assigned',
-      jobLevelGroup: record.jobLevelGroup?.value || 'Not assigned',
-    });
-    setIsModalVisible(true);
+    setSelectedFunction(record);
+    setIsDrawerOpen(true);
   };
 
-  const handleModalCancel = () => {
-    setIsModalVisible(false);
-    form.resetFields();
-    setViewingFunction(null);
+  const handleCloseDrawer = () => {
+    setIsDrawerOpen(false);
+    setSelectedFunction(null);
+  };
+  
+  // Function to render translations
+  const renderTranslationItems = (i18nData: TranslationKey | null | undefined) => {
+    if (!i18nData || Object.keys(i18nData).length === 0) return <Tag color="orange">No translations</Tag>;
+    
+    return (
+      <div className="gba:space-y-2">
+        {Object.entries(i18nData).map(([locale, value]) => (
+          <Tag key={locale} className="gba:mr-2 gba:mb-2">
+            <span className="gba:font-medium">{locale}:</span> {value}
+          </Tag>
+        ))}
+      </div>
+    );
   };
 
   const columns = [
@@ -173,53 +182,89 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
           }}
           data-testid={`${prefixDataTestId || ''}-JobFunctionsTab-Table`}
           style={{ background: 'white', borderRadius: '8px' }}
+          onRow={(record) => ({
+            onClick: () => handleView(record),
+            className: 'gba:cursor-pointer',
+            'data-testid': `${prefixDataTestId || ''}-JobFunctionsTab-TableRow-${record.id}`
+          })}
         />
       )}
 
-      <Modal
+      <DataDetailsDrawer
         title="Job Function Details"
-        open={isModalVisible}
-        onCancel={handleModalCancel}
-        footer={[
-          <Button key="close" onClick={handleModalCancel}>
-            Close
-          </Button>
-        ]}
+        icon={<CodeOutlined />}
+        open={isDrawerOpen}
+        onClose={handleCloseDrawer}
         width={600}
-        data-testid={`${prefixDataTestId || ''}-JobFunctionsTab-Modal`}
+        placement="right"
+        dataTestId={`${prefixDataTestId || ''}-JobFunctionsTab-Drawer`}
+        footer={
+          <div className="gba:flex gba:justify-end">
+            <Button onClick={handleCloseDrawer}>
+              Close
+            </Button>
+          </div>
+        }
       >
-        <Form
-          form={form}
-          layout="vertical"
-          data-testid={`${prefixDataTestId || ''}-JobFunctionsTab-Form`}
-        >
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Form.Item label="Name" name="name">
-              <Input disabled />
-            </Form.Item>
+        {selectedFunction && (
+          <div className="gba:space-y-6">
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <div className="gba:flex-1">
+                <h3 className="gba:text-lg gba:font-semibold gba:mb-1">{selectedFunction.name}</h3>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Tag color="blue" className="gba:px-2">
+                    <CodeOutlined /> {selectedFunction.code || '-'}
+                  </Tag>
+                  {selectedFunction.version !== undefined && (
+                    <Tag color="purple" className="gba:px-2">
+                      v{selectedFunction.version}
+                    </Tag>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <Divider className="gba:my-3" />
             
-            <Form.Item label="Code" name="code">
-              <Input disabled />
-            </Form.Item>
+            <Descriptions title="Basic Information" bordered size="small" column={1}>
+              <Descriptions.Item label="Job Function ID">
+                <span className="gba:text-gray-600 gba:font-mono gba:text-xs">{selectedFunction.id}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="Description">
+                {selectedFunction.description || "-"}
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Descriptions title="Classifications" bordered size="small" column={1}>
+              <Descriptions.Item label="Job Family">
+                {selectedFunction.jobFamily ? (
+                  <Tag color="green" icon={<TeamOutlined />} className="gba:px-2">
+                    {selectedFunction.jobFamily.value}
+                  </Tag>
+                ) : "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Job Level Group">
+                {selectedFunction.jobLevelGroup ? (
+                  <Tag color="blue" icon={<TeamOutlined />} className="gba:px-2">
+                    {selectedFunction.jobLevelGroup.value}
+                  </Tag>
+                ) : "-"}
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Descriptions title="Translations" bordered size="small" column={1}>
+              <Descriptions.Item label="Name Translations">
+                {renderTranslationItems(selectedFunction.nameI18n)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Description Translations">
+                {renderTranslationItems(selectedFunction.descriptionI18n)}
+              </Descriptions.Item>
+            </Descriptions>
           </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Form.Item label="Job Family" name="jobFamily">
-              <Input disabled />
-            </Form.Item>
-            
-            <Form.Item label="Job Level Group" name="jobLevelGroup">
-              <Input disabled />
-            </Form.Item>
-          </div>
-          
-          <Form.Item label="Description" name="description">
-            <Input.TextArea disabled rows={3} />
-          </Form.Item>
-        </Form>
-      </Modal>
+        )}
+      </DataDetailsDrawer>
     </div>
   );
 };
 
-export { JobFunctionsTab }; 
+export { JobFunctionsTab };

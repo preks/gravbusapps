@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   Table, 
@@ -18,8 +18,12 @@ import {
   Select,
   Row,
   Col,
-  Empty
+  Empty,
+  Descriptions,
+  Divider,
+  Progress
 } from 'antd';
+import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
 import { 
   PlusOutlined, 
   EditOutlined, 
@@ -31,7 +35,15 @@ import {
   SearchOutlined,
   AppstoreOutlined,
   BarsOutlined,
-  FileImageOutlined
+  FileImageOutlined,
+  CloseOutlined,
+  InfoCircleOutlined,
+  NumberOutlined,
+  GlobalOutlined,
+  HistoryOutlined,
+  SortAscendingOutlined,
+  IdcardOutlined,
+  ProjectOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useTeams } from '../../hooks';
@@ -69,6 +81,8 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
   const [form] = Form.useForm();
 
   // Get filtered and sorted teams
@@ -155,6 +169,19 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
       return pictureUrl || null;
     }
   };
+
+  // Handle team selection and drawer open/close
+  const handleTeamSelect = useCallback((team: Team) => {
+    setSelectedTeam(team);
+    setDrawerVisible(true);
+  }, []);
+
+  const handleCloseDrawer = useCallback(() => {
+    setDrawerVisible(false);
+    setTimeout(() => {
+      setSelectedTeam(null);
+    }, 300); // Clear selected team after drawer close animation completes
+  }, []);
 
   // Table columns for table view
   const columns = [
@@ -484,7 +511,9 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
             <Row gutter={[16, 16]}>
               {displayTeams.map(team => (
                 <Col xs={24} sm={12} md={8} lg={6} key={team.id}>
-                  {renderTeamCard(team)}
+                  <div onClick={() => handleTeamSelect(team)}>
+                    {renderTeamCard(team)}
+                  </div>
                 </Col>
               ))}
             </Row>
@@ -493,6 +522,9 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
               columns={columns}
               dataSource={displayTeams}
               rowKey="id"
+              onRow={(record) => ({
+                onClick: () => handleTeamSelect(record)
+              })}
               pagination={{
                 pageSize: 20,
                 showSizeChanger: true,
@@ -556,9 +588,212 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Team Details Drawer */}
+      <DataDetailsDrawer
+        title="Team Details"
+        icon={<TeamOutlined className="gba:text-blue-500" />}
+        placement="right"
+        onClose={handleCloseDrawer}
+        open={drawerVisible}
+        width={450}
+        dataTestId={`${prefixDataTestId || ''}-TeamsTab-Drawer`}
+        className="gba:text-base"
+        footer={
+          <div className="gba:flex gba:gap-2">
+            <Button 
+              icon={<EditOutlined />} 
+              onClick={() => {
+                handleEditTeam(selectedTeam!);
+                handleCloseDrawer();
+              }}
+              data-testid={`${prefixDataTestId || ''}-TeamsTab-EditButton`}
+            >
+              Edit
+            </Button>
+            <Button 
+              icon={<DeleteOutlined />} 
+              danger 
+              onClick={() => {
+                handleCloseDrawer();
+                handleDeleteTeam(selectedTeam!);
+              }}
+              data-testid={`${prefixDataTestId || ''}-TeamsTab-DeleteButton`}
+            >
+              Delete
+            </Button>
+          </div>
+        }
+      >
+        {selectedTeam && (
+          <div className="gba:space-y-6">
+            {/* Basic Information */}
+            <Card 
+              title={<span className="gba:flex gba:items-center gba:gap-2"><InfoCircleOutlined /> Basic Information</span>}
+              className="gba:shadow-sm"
+            >
+              <Descriptions column={1} size="small" layout="vertical">
+                <Descriptions.Item label="Name">
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <Text strong className="gba:text-lg">{selectedTeam.name || '-'}</Text>
+                  </div>
+                </Descriptions.Item>
+                
+                <Descriptions.Item label="Status">
+                  <Tag color={selectedTeam.status === 'Active' ? 'green' : 'red'}>
+                    {selectedTeam.status}
+                  </Tag>
+                </Descriptions.Item>
+                
+                {selectedTeam.description && (
+                  <Descriptions.Item label="Description">
+                    {selectedTeam.description}
+                  </Descriptions.Item>
+                )}
+                
+                <Descriptions.Item label="Created">
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <CalendarOutlined className="gba:text-gray-500" />
+                    <Tooltip title={new Date(selectedTeam.createdAt).toLocaleString()}>
+                      <span>{selectedTeam.age} ({new Date(selectedTeam.createdAt).toLocaleDateString()})</span>
+                    </Tooltip>
+                  </div>
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
+
+            {/* Team Leader */}
+            <Card 
+              title={<span className="gba:flex gba:items-center gba:gap-2"><CrownOutlined /> Team Leader</span>}
+              className="gba:shadow-sm"
+            >
+              {selectedTeam.hasLeader ? (
+                <div className="gba:space-y-3">
+                  <div className="gba:flex gba:items-center gba:gap-4">
+                    <Avatar 
+                      size="large"
+                      src={parseImageUrl(selectedTeam.leaderPictureUrl || '')}
+                      icon={<UserOutlined />}
+                    />
+                    <div>
+                      <Text strong className="gba:text-lg">{selectedTeam.leaderName}</Text>
+                      {selectedTeam.leaderRole && (
+                        <div className="gba:text-sm gba:text-gray-500">
+                          {selectedTeam.leaderRole}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {selectedTeam.leaderJobPosition && (
+                    <div className="gba:mt-2">
+                      <div className="gba:text-sm gba:text-gray-500">Job Position</div>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <IdcardOutlined className="gba:text-blue-500" />
+                        <Text>{selectedTeam.leaderJobPosition}</Text>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedTeam.leaderId && (
+                    <div className="gba:mt-1">
+                      <div className="gba:text-sm gba:text-gray-500">Leader ID</div>
+                      <Text copyable>{selectedTeam.leaderId}</Text>
+                    </div>
+                  )}
+                  
+                  {selectedTeam.leaderMatrixUnitName && (
+                    <div className="gba:mt-2">
+                      <div className="gba:text-sm gba:text-gray-500">Matrix Unit</div>
+                      <div className="gba:flex gba:items-center gba:space-x-2">
+                        <ProjectOutlined className="gba:text-purple-500" />
+                        <Text>{selectedTeam.leaderMatrixUnitName}</Text>
+                      </div>
+                      
+                      {/* Show percentage if available */}
+                      {selectedTeam.leaderPercentage !== undefined && (
+                        <div className="gba:mt-1">
+                          <div className="gba:flex gba:justify-between gba:items-center gba:mb-1">
+                            <div className="gba:text-xs gba:text-gray-500">Allocation</div>
+                            <div className="gba:text-xs gba:font-medium">
+                              {selectedTeam.leaderPercentage}%
+                            </div>
+                          </div>
+                          <Progress 
+                            percent={selectedTeam.leaderPercentage} 
+                            size="small"
+                            status={selectedTeam.leaderPercentage < 100 ? "active" : "success"}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Empty description="No leader assigned" />
+              )}
+            </Card>
+
+            {/* Additional Information */}
+            <Card 
+              title={<span className="gba:flex gba:items-center gba:gap-2"><GlobalOutlined /> Additional Information</span>}
+              className="gba:shadow-sm"
+            >
+              <div className="gba:space-y-4">
+                <div>
+                  <div className="gba:text-sm gba:text-gray-500">Structure ID</div>
+                  <div className="gba:mt-1">
+                    <Text copyable>{selectedTeam.structureId}</Text>
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="gba:text-sm gba:text-gray-500">Team ID</div>
+                  <div className="gba:mt-1">
+                    <Text copyable>{selectedTeam.id}</Text>
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="gba:text-sm gba:text-gray-500">Rank</div>
+                  <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
+                    <SortAscendingOutlined className="gba:text-blue-500" />
+                    <Text strong className="gba:text-lg">{selectedTeam.rank}</Text>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Action Buttons */}
+            <div className="gba:flex gba:gap-2">
+              <Button 
+                icon={<EditOutlined />} 
+                onClick={() => {
+                  handleEditTeam(selectedTeam!);
+                  handleCloseDrawer();
+                }}
+                data-testid={`${prefixDataTestId || ''}-TeamsTab-EditButton`}
+              >
+                Edit
+              </Button>
+              <Button 
+                icon={<DeleteOutlined />} 
+                danger 
+                onClick={() => {
+                  handleCloseDrawer();
+                  handleDeleteTeam(selectedTeam!);
+                }}
+                data-testid={`${prefixDataTestId || ''}-TeamsTab-DeleteButton`}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        )}
+      </DataDetailsDrawer>
     </div>
   );
 };
 
 export default TeamsTab;
-export { TeamsTab }; 
+export { TeamsTab };

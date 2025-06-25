@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   Tree, 
@@ -13,8 +13,14 @@ import {
   Spin, 
   Alert,
   Tooltip,
-  Empty
+  Empty,
+  Descriptions,
+  Card,
+  List,
+  Avatar,
+  Progress
 } from 'antd';
+import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
 import { 
   PlusOutlined, 
   EditOutlined, 
@@ -27,7 +33,15 @@ import {
   TeamOutlined,
   UserOutlined,
   CrownOutlined,
-  BankOutlined
+  BankOutlined,
+  CloseOutlined,
+  InfoCircleOutlined,
+  EnvironmentOutlined,
+  BuildOutlined,
+  BarChartOutlined,
+  DollarOutlined,
+  IdcardOutlined,
+  PartitionOutlined
 } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -67,6 +81,8 @@ const DepartmentsTab: React.FC<DepartmentsTabProps> = (context) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
   const [form] = Form.useForm();
 
   // Convert Department to Ant Design Tree DataNode
@@ -254,6 +270,24 @@ const DepartmentsTab: React.FC<DepartmentsTabProps> = (context) => {
     setExpandedIds(new Set(expandedKeys.map(key => String(key))));
   };
 
+  const handleNodeSelect = useCallback((selectedKeys: React.Key[], info: any) => {
+    if (selectedKeys.length > 0) {
+      const nodeId = selectedKeys[0].toString();
+      const department = getDepartmentByNodeId(nodeId);
+      if (department) {
+        setSelectedDepartment(department);
+        setDrawerVisible(true);
+      }
+    }
+  }, [getDepartmentByNodeId]);
+
+  const handleCloseDrawer = useCallback(() => {
+    setDrawerVisible(false);
+    setTimeout(() => {
+      setSelectedDepartment(null);
+    }, 300); // Clear selected department after drawer close animation completes
+  }, []);
+
   const getFilteredTreeData = () => {
     if (!searchQuery) {
       return convertToTreeData(rootDepartments);
@@ -384,6 +418,7 @@ const DepartmentsTab: React.FC<DepartmentsTabProps> = (context) => {
             treeData={getFilteredTreeData()}
             expandedKeys={Array.from(expandedIds)}
             onExpand={handleExpand}
+            onSelect={handleNodeSelect}
             showIcon
             blockNode
             data-testid={`${prefixDataTestId || ''}-DepartmentsTab-Tree`}
@@ -455,9 +490,307 @@ const DepartmentsTab: React.FC<DepartmentsTabProps> = (context) => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Department Details Drawer */}
+      <DataDetailsDrawer
+        title={`${selectedDepartment?.type === 'DEPARTMENT' ? 'Department' : 'Team'} Details`}
+        icon={selectedDepartment?.type === 'DEPARTMENT' ? 
+          <ApartmentOutlined className="gba:text-blue-500" /> : 
+          <TeamOutlined className="gba:text-purple-500" />}
+        placement="right"
+        onClose={handleCloseDrawer}
+        open={drawerVisible}
+        width={450}
+        dataTestId={`${prefixDataTestId || ''}-DepartmentsTab-Drawer`}
+        className="gba:text-base"
+      >
+        {selectedDepartment && (
+          <div className="gba:space-y-6">
+            {/* Basic Information */}
+            <Card 
+              title={<span className="gba:flex gba:items-center gba:gap-2"><InfoCircleOutlined /> Basic Information</span>}
+              className="gba:shadow-sm"
+            >
+              <Descriptions column={1} size="small" layout="vertical">
+                <Descriptions.Item label="Name">
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <Text strong className="gba:text-lg">{selectedDepartment.name || '-'}</Text>
+                  </div>
+                </Descriptions.Item>
+                
+                {selectedDepartment.code && (
+                  <Descriptions.Item label="Code">
+                    <Tag color="blue">{selectedDepartment.code}</Tag>
+                  </Descriptions.Item>
+                )}
+                
+                <Descriptions.Item label="Type">
+                  <Tag color={getTypeColor(selectedDepartment.type)}>
+                    {selectedDepartment.type}
+                  </Tag>
+                </Descriptions.Item>
+
+                <Descriptions.Item label="Status">
+                  <Tag color={selectedDepartment.status === 'Active' ? 'green' : 'red'}>
+                    {selectedDepartment.status}
+                  </Tag>
+                </Descriptions.Item>
+                
+                {selectedDepartment.description && (
+                  <Descriptions.Item label="Description">
+                    {selectedDepartment.description}
+                  </Descriptions.Item>
+                )}
+              </Descriptions>
+            </Card>
+
+            {/* Parent Department Information (if available) */}
+            {selectedDepartment.parentDepartmentName && (
+              <Card
+                title={<span className="gba:flex gba:items-center gba:gap-2"><PartitionOutlined /> Parent Department</span>}
+                className="gba:shadow-sm"
+              >
+                <div className="gba:p-2 gba:bg-gray-50 gba:rounded gba:space-y-2">
+                  <div>
+                    <div className="gba:text-sm gba:text-gray-500">Parent Department</div>
+                    <Text strong>{selectedDepartment.parentDepartmentName}</Text>
+                  </div>
+                  {selectedDepartment.parentNodeId && (
+                    <div>
+                      <div className="gba:text-sm gba:text-gray-500">Parent Node ID</div>
+                      <Text copyable>{selectedDepartment.parentNodeId}</Text>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {/* Company & Cost Center */}
+            <Card 
+              title={<span className="gba:flex gba:items-center gba:gap-2"><BankOutlined /> Company & Cost Center</span>}
+              className="gba:shadow-sm"
+            >
+              <div className="gba:space-y-4">
+                {selectedDepartment.companyName ? (
+                  <div>
+                    <div className="gba:text-sm gba:text-gray-500">Company</div>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <BankOutlined className="gba:text-blue-500" />
+                      <Text strong>{selectedDepartment.companyName}</Text>
+                    </div>
+                    {selectedDepartment.companyId && (
+                      <div className="gba:text-sm gba:text-gray-500 gba:mt-1">
+                        ID: <Text copyable>{selectedDepartment.companyId}</Text>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Empty description="No company assigned" />
+                )}
+
+                {selectedDepartment.costCenterName ? (
+                  <div className="gba:mt-2">
+                    <div className="gba:text-sm gba:text-gray-500">Cost Center</div>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <DollarOutlined className="gba:text-green-500" />
+                      <Text strong>{selectedDepartment.costCenterName}</Text>
+                    </div>
+                    {selectedDepartment.costCenterId && (
+                      <div className="gba:text-sm gba:text-gray-500 gba:mt-1">
+                        ID: <Text copyable>{selectedDepartment.costCenterId}</Text>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Empty description="No cost center assigned" className="gba:mt-2" />
+                )}
+              </div>
+            </Card>
+
+            {/* Supervisor Information */}
+            <Card 
+              title={<span className="gba:flex gba:items-center gba:gap-2"><CrownOutlined /> Supervisor</span>}
+              className="gba:shadow-sm"
+            >
+              {selectedDepartment.supervisorName ? (
+                <div className="gba:space-y-2">
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    <Avatar icon={<UserOutlined />} size="large" />
+                    <div>
+                      <Text strong className="gba:text-lg">{selectedDepartment.supervisorName}</Text>
+                      {selectedDepartment.supervisorRole && (
+                        <div className="gba:text-sm gba:text-gray-500">
+                          {selectedDepartment.supervisorRole}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {selectedDepartment.supervisorJobPosition && (
+                    <div className="gba:mt-2">
+                      <div className="gba:text-sm gba:text-gray-500">Job Position</div>
+                      <Text>{selectedDepartment.supervisorJobPosition}</Text>
+                    </div>
+                  )}
+                  
+                  {selectedDepartment.supervisorId && (
+                    <div className="gba:mt-1">
+                      <div className="gba:text-sm gba:text-gray-500">Supervisor ID</div>
+                      <Text copyable>{selectedDepartment.supervisorId}</Text>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Empty description="No supervisor assigned" />
+              )}
+            </Card>
+
+            {/* Job Positions & Employees Statistics */}
+            <Card 
+              title={<span className="gba:flex gba:items-center gba:gap-2"><BarChartOutlined /> Statistics</span>}
+              className="gba:shadow-sm"
+            >
+              <div className="gba:space-y-4">
+                {/* Job Positions */}
+                <div>
+                  <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Job Positions</div>
+                  <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                    <div>
+                      <div className="gba:text-xs gba:text-gray-500">Assigned</div>
+                      <div className="gba:text-lg gba:font-semibold">
+                        {selectedDepartment.numberOfAssignedJobPositions}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="gba:text-xs gba:text-gray-500">Open</div>
+                      <div className="gba:text-lg gba:font-semibold">
+                        {selectedDepartment.numberOfOpenJobPositions}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="gba:text-xs gba:text-gray-500">Total</div>
+                      <div className="gba:text-lg gba:font-semibold">
+                        {selectedDepartment.numberOfTotalJobPositions}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="gba:text-xs gba:text-gray-500">Child Units</div>
+                      <div className="gba:text-lg gba:font-semibold">
+                        {selectedDepartment.numberOfChildUnits}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Fill rate visualization */}
+                  <div className="gba:mt-3">
+                    <div className="gba:flex gba:justify-between gba:items-center gba:mb-1">
+                      <div className="gba:text-xs gba:text-gray-500">Fill Rate</div>
+                      <div className="gba:text-xs gba:font-medium">
+                        {selectedDepartment.numberOfTotalJobPositions > 0 ? 
+                          Math.round((selectedDepartment.numberOfAssignedJobPositions / selectedDepartment.numberOfTotalJobPositions) * 100) : 0}%
+                      </div>
+                    </div>
+                    <Progress 
+                      percent={
+                        selectedDepartment.numberOfTotalJobPositions > 0 ? 
+                          Math.round((selectedDepartment.numberOfAssignedJobPositions / selectedDepartment.numberOfTotalJobPositions) * 100) : 0
+                      } 
+                      size="small"
+                      status={selectedDepartment.numberOfOpenJobPositions > 0 ? "active" : "success"}
+                    />
+                  </div>
+                </div>
+
+                {/* Employees */}
+                <div>
+                  <div className="gba:text-sm gba:text-gray-500 gba:mb-2">Employee Count</div>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Avatar 
+                      icon={<UserOutlined />}
+                      style={{ backgroundColor: '#1677ff' }} 
+                    />
+                    <Text strong className="gba:text-lg">
+                      {selectedDepartment.numberOfAssignedEmployees}
+                    </Text>
+                    <Text type="secondary" className="gba:text-sm">
+                      employees assigned
+                    </Text>
+                  </div>
+                </div>
+                
+                {/* Hierarch Level */}
+                <div className="gba:flex gba:items-center gba:gap-4">
+                  <div>
+                    <div className="gba:text-xs gba:text-gray-500">Hierarchy Level</div>
+                    <div className="gba:text-lg gba:font-semibold">
+                      Level {selectedDepartment.level}
+                    </div>
+                  </div>
+                  
+                  {selectedDepartment.rank !== undefined && (
+                    <div>
+                      <div className="gba:text-xs gba:text-gray-500">Rank</div>
+                      <div className="gba:text-lg gba:font-semibold">
+                        {selectedDepartment.rank}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            {/* Technical Information */}
+            <Card 
+              title={<span className="gba:flex gba:items-center gba:gap-2"><BuildOutlined /> Technical Information</span>}
+              className="gba:shadow-sm"
+            >
+              <div className="gba:space-y-3">
+                <div>
+                  <div className="gba:text-sm gba:text-gray-500">Organization Unit ID</div>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Text copyable>{selectedDepartment.organizationUnitId}</Text>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="gba:text-sm gba:text-gray-500">Node ID</div>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Text copyable>{selectedDepartment.nodeId}</Text>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Action Buttons */}
+            <div className="gba:flex gba:gap-2">
+              <Button 
+                icon={<EditOutlined />} 
+                onClick={() => {
+                  handleEditDepartment(selectedDepartment);
+                  handleCloseDrawer();
+                }}
+                data-testid={`${prefixDataTestId || ''}-DepartmentsTab-EditButton`}
+              >
+                Edit
+              </Button>
+              <Button 
+                icon={<DeleteOutlined />} 
+                danger 
+                onClick={() => {
+                  handleCloseDrawer();
+                  handleDeleteDepartment(selectedDepartment);
+                }}
+                data-testid={`${prefixDataTestId || ''}-DepartmentsTab-DeleteButton`}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        )}
+      </DataDetailsDrawer>
     </div>
   );
 };
 
 export default DepartmentsTab;
-export { DepartmentsTab }; 
+export { DepartmentsTab };

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, message, Modal, Form, Spin, Alert } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
+import { Table, Button, Input, Space, Typography, message, Modal, Form, Spin, Alert, Tag, Divider, Descriptions } from 'antd';
+import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, IdcardOutlined, CodeOutlined, GlobalOutlined, TagOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { useUserLocale } from '@/common/locale/useUserLocale';
-
 
 const { Title, Text } = Typography;
 
@@ -40,6 +40,8 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingType, setEditingType] = useState<EmploymentType | null>(null);
+  const [selectedType, setSelectedType] = useState<EmploymentType | null>(null);
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   const [form] = Form.useForm();
 
   const fetchEmploymentTypes = async () => {
@@ -144,6 +146,16 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
     form.resetFields();
   };
 
+  const handleViewDetails = (record: EmploymentType) => {
+    setSelectedType(record);
+    setIsDrawerVisible(true);
+  };
+
+  const handleDrawerClose = () => {
+    setIsDrawerVisible(false);
+    setSelectedType(null);
+  };
+
   const columns = [
     {
       title: 'Code',
@@ -245,6 +257,12 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
               `${range[0]}-${range[1]} of ${total} employment types`,
           }}
           data-testid={`${prefixDataTestId || ''}-EmploymentTypesTab-Table`}
+          style={{ background: 'white', borderRadius: '8px' }}
+          onRow={(record) => ({
+            onClick: () => handleViewDetails(record),
+            className: 'gba:cursor-pointer',
+            'data-testid': `${prefixDataTestId || ''}-EmploymentTypesTab-TableRow-${record.id}`
+          })}
         />
       )}
 
@@ -306,8 +324,93 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
           </Form.Item>
         </Form>
       </Modal>
+
+      <DataDetailsDrawer
+        title="Employment Type Details"
+        icon={<IdcardOutlined />}
+        open={isDrawerVisible}
+        onClose={handleDrawerClose}
+        width={600}
+        placement="right"
+        dataTestId={`${prefixDataTestId || ''}-EmploymentTypesTab-Drawer`}
+        footer={
+          <div className="gba:flex gba:justify-end gba:gap-2">
+            {selectedType && (
+              <Button 
+                icon={<EditOutlined />}
+                onClick={() => {
+                  handleEdit(selectedType);
+                  handleDrawerClose();
+                }}
+              >
+                Edit
+              </Button>
+            )}
+            <Button onClick={handleDrawerClose}>
+              Close
+            </Button>
+          </div>
+        }
+      >
+        {selectedType && (
+          <div className="gba:space-y-6">
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <div className="gba:flex-1">
+                <h3 className="gba:text-lg gba:font-semibold gba:mb-1">{selectedType.value}</h3>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Tag color="blue" className="gba:px-2">
+                    <CodeOutlined /> {selectedType.code || '-'}
+                  </Tag>
+                  {selectedType.alternativeCode && (
+                    <Tag color="green" className="gba:px-2">
+                      Alt: {selectedType.alternativeCode}
+                    </Tag>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <Divider className="gba:my-3" />
+            
+            <Descriptions title="Basic Information" bordered size="small" column={1}>
+              <Descriptions.Item label="ID">
+                <span className="gba:text-gray-600 gba:font-mono gba:text-xs">{selectedType.id}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="Code">
+                <Tag color="blue" icon={<CodeOutlined />}>{selectedType.code || '-'}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Value">{selectedType.value || '-'}</Descriptions.Item>
+              {selectedType.alternativeCode && (
+                <Descriptions.Item label="Alternative Code">{selectedType.alternativeCode}</Descriptions.Item>
+              )}
+            </Descriptions>
+            
+            <Descriptions title="Additional Values" bordered size="small" column={1}>
+              <Descriptions.Item label="Additional Value 1">{selectedType.additionalValue1 || '-'}</Descriptions.Item>
+              <Descriptions.Item label="Additional Value 2">{selectedType.additionalValue2 || '-'}</Descriptions.Item>
+              <Descriptions.Item label="Additional Value 3">{selectedType.additionalValue3 || '-'}</Descriptions.Item>
+            </Descriptions>
+
+            {selectedType.translations?.length > 0 && (
+              <Descriptions title="Translations" bordered size="small" column={1}>
+                {selectedType.translations.map((translation, index) => (
+                  <Descriptions.Item key={index} label={<span><GlobalOutlined /> {translation.localeCode}</span>}>
+                    {translation.value}
+                  </Descriptions.Item>
+                ))}
+              </Descriptions>
+            )}
+
+            <div className="gba:bg-gray-50 gba:rounded-md gba:p-4 gba:mt-4">
+              <p className="gba:text-xs gba:text-gray-500 gba:mb-0">
+                <TagOutlined className="gba:mr-1" /> This employment type can be used to classify employees and job profiles.
+              </p>
+            </div>
+          </div>
+        )}
+      </DataDetailsDrawer>
     </div>
   );
 };
 
-export { EmploymentTypesTab }; 
+export { EmploymentTypesTab };

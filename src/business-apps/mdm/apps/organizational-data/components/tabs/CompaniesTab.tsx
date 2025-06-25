@@ -13,8 +13,10 @@ import {
   Spin, 
   Alert,
   Tooltip,
-  Empty
+  Empty,
+  Descriptions
 } from 'antd';
+import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
 import { 
   PlusOutlined, 
   EditOutlined, 
@@ -61,6 +63,8 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
   const [form] = Form.useForm();
 
   // Convert Company to Ant Design Tree DataNode
@@ -341,6 +345,18 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
             showLine={{ showLeafIcon: false }}
             expandedKeys={Array.from(expandedIds)}
             onExpand={handleExpand}
+            onSelect={(selectedKeys, info) => {
+              if (selectedKeys.length > 0 && info.node) {
+                // Extract the company key/id from the selected node
+                const nodeKey = selectedKeys[0].toString();
+                // Find the matching company object
+                const company = getCompanyByNodeId(nodeKey);
+                if (company) {
+                  setSelectedCompany(company);
+                  setDrawerVisible(true);
+                }
+              }
+            }}
             treeData={getFilteredTreeData()}
             className="gba:companies-tree gba:p-4"
             blockNode
@@ -393,6 +409,104 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
           </Form.Item>
         </Form>
       </Modal>
+
+      <DataDetailsDrawer
+        title="Company Details"
+        icon={<BankOutlined className="gba:text-blue-500" />}
+        placement="right"
+        onClose={() => {
+          setDrawerVisible(false);
+          setSelectedCompany(null);
+        }}
+        open={drawerVisible}
+        width={400}
+        dataTestId={`${prefixDataTestId}-company-details-drawer`}
+      >
+        <div className="gba:py-2">
+          <Descriptions layout="vertical" column={1} bordered>
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Company Name</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.name || "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Company Code</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.code || "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Structure ID</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.structureId || "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Assigned Employees</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.numberOfAssignedEmployees ?? "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Assigned Job Positions</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.numberOfAssignedJobPositions ?? "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Open Job Positions</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.numberOfOpenJobPositions ?? "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Total Job Positions</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.numberOfTotalJobPositions ?? "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Child Units</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.numberOfChildUnits ?? "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Company Assigned Units</span>}
+              className="gba:py-2 gba:px-4"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.numberOfCompanyAssignedUnits ?? "-"}
+              </span>
+            </Descriptions.Item>
+          </Descriptions>
+        </div>
+      </DataDetailsDrawer>
     </div>
   );
 };
