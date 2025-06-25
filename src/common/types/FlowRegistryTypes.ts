@@ -1,5 +1,6 @@
 export enum FlowContextName {
     employeeEntity = 'employeeEntity',
+    jobPositionEntity = 'jobPositionEntity',
     expenseItems = 'expenseItems',
     expensePlans = 'expensePlans',
     expenseRequests = 'expenseRequests',

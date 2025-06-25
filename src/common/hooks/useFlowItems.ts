@@ -114,7 +114,8 @@ const mapFlowItemsToActionOptions = (
         startProcess({
           processName: flowItem.processName,
           domain: flowItem.domain,
-          payload
+          payload,
+          builderType: 'NATIVE_SCREEN'
         });
       },
       // Additional properties for internal use

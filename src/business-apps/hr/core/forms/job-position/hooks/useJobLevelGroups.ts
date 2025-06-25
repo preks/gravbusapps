@@ -67,7 +67,7 @@ export const useJobLevelGroups = (context: BusinessAppContextProps) => {
           description: entry.description || '',
           category: entry.category || ''
         }));
-
+      
       const selectOptions: SelectOption[] = transformedData.map((group: JobLevelGroupData) => ({
         id: group.id,
         name: group.name,

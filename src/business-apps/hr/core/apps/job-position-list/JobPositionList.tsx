@@ -19,6 +19,7 @@ import { startProcess } from '@/common/utils/start-process';
  * @returns {JSX.Element}
  */
 export const JobPositionList: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
+  console.log('JobPositionList', props.additionalData?.jobPositionId);
   const { accessToken } = props;
   const { t } = useTranslation();
   const [vacancyFilter, setVacancyFilter] = useState<VacancyFilter>('vacant'); // Default to vacant positions

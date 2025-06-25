@@ -80,9 +80,13 @@ const JobPositionForm: React.FC = () => {
   // State for collapsible additional properties
   const [showAdditionalProperties, setShowAdditionalProperties] = useState(false);
   
+
+  
   // Refs to track current values to avoid infinite loops
   const currentJobFamilyRef = useRef<string | undefined>();
+  const currentJobFunctionRef = useRef<string | undefined>();
   const currentJobLevelGroupRef = useRef<string | undefined>();
+  const currentJobProfileRef = useRef<string | undefined>();
 
   // Check if all mandatory fields are filled
   const isFormValid = 
@@ -91,31 +95,55 @@ const JobPositionForm: React.FC = () => {
     toStringOrUndefined(formValues.organizationalUnitId) &&
     toStringOrUndefined(formValues.jobFamilyId) &&
     toStringOrUndefined(formValues.jobFunctionId) &&
-    toStringOrUndefined(formValues.jobLevelId);
+    toStringOrUndefined(formValues.jobLevelId) &&
+    toStringOrUndefined(formValues.employmentTypeId) &&
+    toStringOrUndefined(formValues.contractTypeId);
 
-  // Filter job functions when job family changes (whether set directly or indirectly)
+  // Handle job family changes - clear dependent fields when family changes
   useEffect(() => {
     const jobFamilyId = toStringOrUndefined(formValues.jobFamilyId);
     
-    // Only fetch if the job family actually changed
+    // Only process if the job family actually changed
     if (currentJobFamilyRef.current !== jobFamilyId) {
+      const previousJobFamilyId = currentJobFamilyRef.current;
       currentJobFamilyRef.current = jobFamilyId;
       
+      // Clear job function and job level when job family changes (not on initial load)
+      if (previousJobFamilyId !== undefined && previousJobFamilyId !== jobFamilyId) {
+        if (toStringOrUndefined(formValues.jobFunctionId)) {
+          setFormValues({ jobFunctionId: '' });
+        }
+        if (toStringOrUndefined(formValues.jobLevelId)) {
+          setFormValues({ jobLevelId: '' });
+        }
+      }
+      
+      // Fetch job functions for the new family
       if (jobFamilyId) {
         fetchJobFunctions(jobFamilyId);
       } else {
         fetchJobFunctions('');
       }
     }
-  }, [formValues.jobFamilyId, fetchJobFunctions]);
+  }, [formValues.jobFamilyId, formValues.jobFunctionId, formValues.jobLevelId, fetchJobFunctions, setFormValues]);
 
-  // Clear job function when job family is cleared (separate effect to avoid circular dependencies)
+  // Handle job function changes - clear dependent fields when function changes
   useEffect(() => {
-    const jobFamilyId = toStringOrUndefined(formValues.jobFamilyId);
-    if (!jobFamilyId && toStringOrUndefined(formValues.jobFunctionId)) {
-      setFormValues({ jobFunctionId: '' });
+    const jobFunctionId = toStringOrUndefined(formValues.jobFunctionId);
+    
+    // Only process if the job function actually changed
+    if (currentJobFunctionRef.current !== jobFunctionId) {
+      const previousJobFunctionId = currentJobFunctionRef.current;
+      currentJobFunctionRef.current = jobFunctionId;
+      
+      // Clear job level when job function changes (not on initial load)
+      if (previousJobFunctionId !== undefined && previousJobFunctionId !== jobFunctionId) {
+        if (toStringOrUndefined(formValues.jobLevelId)) {
+          setFormValues({ jobLevelId: '' });
+        }
+      }
     }
-  }, [formValues.jobFamilyId, formValues.jobFunctionId, setFormValues]);
+  }, [formValues.jobFunctionId, formValues.jobLevelId, setFormValues]);
 
   // Filter job levels when job level group changes (derived from job function)
   useEffect(() => {
@@ -141,12 +169,22 @@ const JobPositionForm: React.FC = () => {
     }
   }, [formValues.jobLevelGroupId, formValues.jobLevelId, setFormValues]);
 
-  // Auto-populate name from job profile
+  // Auto-populate name from job profile only when job profile changes
   useEffect(() => {
-    if (formValues.jobProfileId) {
-      const selectedProfile = allJobProfiles.find(profile => profile.id === formValues.jobProfileId);
-      if (selectedProfile) {
-        setFormValues({ name: selectedProfile.name });
+    const jobProfileId = toStringOrUndefined(formValues.jobProfileId);
+    
+    // Only set the name if the job profile actually changed
+    if (currentJobProfileRef.current !== jobProfileId) {
+      currentJobProfileRef.current = jobProfileId;
+      
+      if (jobProfileId) {
+        const selectedProfile = allJobProfiles.find(profile => profile.id === jobProfileId);
+        if (selectedProfile) {
+          setFormValues({ name: selectedProfile.name });
+        }
+      } else {
+        // Clear name when job profile is cleared
+        setFormValues({ name: '' });
       }
     }
   }, [formValues.jobProfileId, allJobProfiles, setFormValues]);
@@ -219,8 +257,9 @@ const JobPositionForm: React.FC = () => {
             <Input
               name="name"
               value={typeof formValues.name === 'string' ? formValues.name : ''}
-              onChange={(value) => setFormValues({ name: String(value || '') })}
+              onChange={e => setFormValues({ name: String(e.value || '') })}
               placeholder="Please Enter..."
+              disabled={!toStringOrUndefined(formValues.jobProfileId)}
             />
           </div>
 
@@ -306,23 +345,35 @@ const JobPositionForm: React.FC = () => {
                       value={toStringOrUndefined(formValues.jobFunctionId)}
                       onChange={e => {
                         const selectedJobFunctionId = String(e.value || '');
-                        setFormValues({ jobFunctionId: selectedJobFunctionId });
                         
                         if (selectedJobFunctionId) {
                           const selectedJobFunction = allJobFunctions.find((jf: any) => jf.id === selectedJobFunctionId);
                           if (selectedJobFunction) {
+                            // Prepare all updates in a single object
+                            const updates: any = { jobFunctionId: selectedJobFunctionId };
+                            
                             // Auto-select job family if not already selected
                             if (!toStringOrUndefined(formValues.jobFamilyId) && selectedJobFunction?.jobFamily?.id) {
-                              setFormValues({ jobFamilyId: selectedJobFunction.jobFamily.id });
+                              updates.jobFamilyId = selectedJobFunction.jobFamily.id;
                             }
+                            
                             // Auto-select job level group from the job function
                             if (selectedJobFunction?.jobLevelGroup?.id) {
-                              setFormValues({ jobLevelGroupId: selectedJobFunction.jobLevelGroup.id });
+                              updates.jobLevelGroupId = selectedJobFunction.jobLevelGroup.id;
                             }
+                            
+                            // Apply all updates at once
+                            setFormValues(updates);
+                          } else {
+                            // Just set the job function ID if no matching function found
+                            setFormValues({ jobFunctionId: selectedJobFunctionId });
                           }
                         } else {
-                          // Clear job level group when job function is cleared
-                          setFormValues({ jobLevelGroupId: '' });
+                          // Clear job function and job level group when job function is cleared
+                          setFormValues({ 
+                            jobFunctionId: '', 
+                            jobLevelGroupId: '' 
+                          });
                         }
                       }}
                       data={jobFunctions}
@@ -377,7 +428,7 @@ const JobPositionForm: React.FC = () => {
                 <div className="gba:space-y-3">
                   <div>
                     <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
-                      Employment Type
+                      Employment Type *
                     </label>
                     <Select
                       name="employmentTypeId"
@@ -404,7 +455,7 @@ const JobPositionForm: React.FC = () => {
                 <div className="gba:space-y-3">
                   <div>
                     <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
-                      Contract Type
+                      Contract Type *
                     </label>
                     <Select
                       name="contractTypeId"
@@ -430,45 +481,43 @@ const JobPositionForm: React.FC = () => {
             )}
           </div>
 
-          {/* Error message */}
+          {/* Error Display */}
           {error && (
-            <div className="gba:text-red-500 gba:text-sm gba:p-3 gba:bg-red-50 gba:border gba:border-red-200 gba:rounded">
-              {error}
+            <div className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md gba:p-4">
+              <div className="gba:text-red-800 gba:text-sm">
+                {error}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Submit Button - Always at the bottom */}
-        <div className="gba:flex-shrink-0 gba:pt-6 gba:border-t gba:border-gray-200">
+        {/* Submit Button - Fixed at bottom */}
+        <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200">
           <Button
             variant="primary"
             loading={loading}
-            disabled={loading || !isFormValid}
+            disabled={!isFormValid}
             className="gba:w-full"
             size="large"
-            onClick={(e) => {
-              e.preventDefault();
-              console.log('Button clicked!');
-              console.log('Form values:', formValues);
-              console.log('Structure ID:', structureId);
-              console.log('Loading state:', loading);
-              
-              dispatchProcessContinueEvent('pse_submit',
-                {
+            onClick={async () => {
+              try {
+                await submit();
+                // Dispatch process continue event on successful submission
+                dispatchProcessContinueEvent('job_position_submit', {
                   "jobPosition": {
                     "name": formValues.name,
                     "jobProfile": formValues.jobProfileId,
+                    "organizationalUnit": formValues.organizationalUnitId,
+                    "jobFamily": formValues.jobFamilyId,
                     "jobFunction": formValues.jobFunctionId,
                     "jobLevel": formValues.jobLevelId,
-                    "employmentTypeRef": formValues.employmentTypeId,
-                    "contractTypeRef": formValues.contractTypeId
-                  },
-                  "organizationalUnitId": formValues.organizationalUnitId,
-                  "structureId": structureId,
-                  "changeMode": "INSERT"
-                }
-              );
-              submit();
+                    "employmentType": formValues.employmentTypeId,
+                    "contractType": formValues.contractTypeId
+                  }
+                });
+              } catch (err) {
+                console.error('Error submitting job position form:', err);
+              }
             }}
           >
             {isEdit ? 'Update Job Position' : 'Create Job Position'}

@@ -1,3 +1,4 @@
+export { default } from './Employee';
 export { default as Employee } from './Employee';
 export { default as EmployeeForm } from './components/EmployeeForm';
 export { EmployeeProvider, useEmployeeContext } from './context/EmployeeContext';

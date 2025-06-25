@@ -108,9 +108,9 @@ export const useJobLevels = (context: BusinessAppContextProps) => {
         jobLevelId: undefined,
         jobLevelGroupId: jobLevelGroupId || undefined
       };
-      
-      const result = await graphqlClient.request<JobLevelQueryData>(GET_JOB_LEVELS_QUERY, variables);
 
+      const result = await graphqlClient.request<JobLevelQueryData>(GET_JOB_LEVELS_QUERY, variables);
+      
       const levelsData = result?.JobLevel || [];
       const selectOptions: SelectOption[] = levelsData.map((level: JobLevelData) => ({
         id: level.id,
@@ -153,7 +153,7 @@ export const useJobLevels = (context: BusinessAppContextProps) => {
 
   const fetchJobLevelsByGroup = useCallback((jobLevelGroupId: string) => {
     if (jobLevelGroupId) {
-      fetchJobLevels({ jobLevelGroupId, reset: true });
+    fetchJobLevels({ jobLevelGroupId, reset: true });
     } else {
       fetchJobLevels({ reset: true });
     }

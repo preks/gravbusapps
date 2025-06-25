@@ -11,6 +11,7 @@ import { EmployeeTable } from './components/EmployeeTable';
 import EmployeeDetails from '@/business-apps/hr/components/employeeDetails';
 import { PiUsersThree,PiUsersThreeDuotone } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { startProcess } from '@/common/utils/start-process';
 
 /**
  * Employee List page component. Renders the employee list module with a table view.
@@ -34,6 +35,16 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
     getFilters
   } = useEmployeeFilters(accessToken);
   
+  // Handle adding a new employee
+  const handleAddEmployee = useCallback(() => {
+    startProcess({
+      domain: 'employee',
+      processName: 'saveEmployee',
+      builderType: 'NATIVE_SCREEN',
+      payload: {}
+    });
+  }, []);
+
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
     // Use the appropriate function directly
@@ -111,6 +122,11 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
               listTitle: t('employee.list_title', 'Employees'),
               listIcon: <PiUsersThree size={20} />,
               listAmount: total,
+              addButton: {
+                onClick: handleAddEmployee,
+                label: 'Add',
+                'data-testid': 'add-employee-button'
+              },
             }}
             dataFilterProps={{
               filterGroups: filterGroups,

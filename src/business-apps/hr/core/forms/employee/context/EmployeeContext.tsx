@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { EmployeeFormValues, EmployeeContextState } from '../types';
 import { useOrganizationalUnits } from '../hooks/useOrganizationalUnits';
 import { useJobPositions } from '../hooks/useJobPositions';
+import { useEmploymentTypes } from '../hooks/useEmploymentTypes';
+import { useContractTypes } from '../hooks/useContractTypes';
 
 const EmployeeContext = createContext<EmployeeContextState | undefined>(undefined);
 
@@ -27,6 +29,9 @@ export const EmployeeProvider: React.FC<{
     email: '',
     organizationalUnitId: '',
     jobPositionId: '',
+    preferredName: '',
+    employmentTypeId: '',
+    contractTypeId: '',
     ...initialValues,
   });
 
@@ -69,6 +74,26 @@ export const EmployeeProvider: React.FC<{
     search: jobPositionSearch 
   });
 
+  // Employment types hook
+  const {
+    employmentTypes,
+    loading: employmentTypesLoading,
+    error: employmentTypesError,
+    hasMore: hasMoreEmploymentTypes,
+    searchEmploymentTypes: searchEmploymentTypesInternal,
+    loadMoreEmploymentTypes
+  } = useEmploymentTypes(accessToken);
+
+  // Contract types hook
+  const {
+    contractTypes,
+    loading: contractTypesLoading,
+    error: contractTypesError,
+    hasMore: hasMoreContractTypes,
+    searchContractTypes: searchContractTypesInternal,
+    loadMoreContractTypes
+  } = useContractTypes(accessToken);
+
   // Debug logging
   useEffect(() => {
     console.log('EmployeeForm - Form Values:', formValuesState);
@@ -99,6 +124,14 @@ export const EmployeeProvider: React.FC<{
     searchJobPositionsInternal(searchTerm);
   }, [searchJobPositionsInternal]);
 
+  const searchEmploymentTypes = useCallback((searchTerm?: string) => {
+    searchEmploymentTypesInternal(searchTerm);
+  }, [searchEmploymentTypesInternal]);
+
+  const searchContractTypes = useCallback((searchTerm?: string) => {
+    searchContractTypesInternal(searchTerm);
+  }, [searchContractTypesInternal]);
+
   // Auto-select organizational unit when job position is selected (only if no org unit is currently selected)
   useEffect(() => {
     const jobPositionId = formValuesState.jobPositionId;
@@ -124,6 +157,34 @@ export const EmployeeProvider: React.FC<{
       }
     }
   }, [formValuesState.jobPositionId, formValuesState.organizationalUnitId, allJobPositions, organizationalUnits]);
+
+  // Auto-select employment type and contract type when job position is selected
+  useEffect(() => {
+    const jobPositionId = formValuesState.jobPositionId;
+    
+    if (jobPositionId) {
+      const selectedJobPosition = allJobPositions.find(position => position.id === jobPositionId);
+      if (selectedJobPosition) {
+        const updates: Partial<EmployeeFormValues> = {};
+        
+        // Auto-select employment type if available and not already set
+        if (selectedJobPosition.employmentType && !formValuesState.employmentTypeId) {
+          updates.employmentTypeId = selectedJobPosition.employmentType.id;
+        }
+        
+        // Auto-select contract type if available and not already set
+        if (selectedJobPosition.contractType && !formValuesState.contractTypeId) {
+          updates.contractTypeId = selectedJobPosition.contractType.id;
+        }
+        
+        // Apply updates if any
+        if (Object.keys(updates).length > 0) {
+          console.log('Auto-selecting employment/contract types:', updates);
+          setFormValuesState(prev => ({ ...prev, ...updates }));
+        }
+      }
+    }
+  }, [formValuesState.jobPositionId, formValuesState.employmentTypeId, formValuesState.contractTypeId, allJobPositions]);
 
   // Clear job position when organizational unit is manually cleared
   useEffect(() => {
@@ -183,7 +244,7 @@ export const EmployeeProvider: React.FC<{
   }, [formValuesState]);
 
   // Combine errors from different sources
-  const combinedError = error || organizationalUnitsError || jobPositionsError;
+  const combinedError = error || organizationalUnitsError || jobPositionsError || employmentTypesError || contractTypesError;
 
   return (
     <EmployeeContext.Provider
@@ -193,7 +254,9 @@ export const EmployeeProvider: React.FC<{
         organizationalUnits,
         jobPositions,
         allJobPositions,
-        loading: loading || organizationalUnitsLoading || jobPositionsLoading,
+        employmentTypes,
+        contractTypes,
+        loading: loading || organizationalUnitsLoading || jobPositionsLoading || employmentTypesLoading || contractTypesLoading,
         error: combinedError,
         submit,
         isEdit,
@@ -211,6 +274,18 @@ export const EmployeeProvider: React.FC<{
         hasMoreJobPositions,
         jobPositionsError,
         jobPositionsLoading,
+        // Employment type specific methods
+        searchEmploymentTypes,
+        loadMoreEmploymentTypes,
+        hasMoreEmploymentTypes,
+        employmentTypesError,
+        employmentTypesLoading,
+        // Contract type specific methods
+        searchContractTypes,
+        loadMoreContractTypes,
+        hasMoreContractTypes,
+        contractTypesError,
+        contractTypesLoading,
       }}
     >
       {children}

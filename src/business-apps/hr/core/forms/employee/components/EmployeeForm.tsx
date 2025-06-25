@@ -13,10 +13,13 @@ const EmployeeForm: React.FC = () => {
     organizationalUnits,
     jobPositions,
     allJobPositions,
+    employmentTypes,
+    contractTypes,
     loading,
     error,
     submit,
     isEdit,
+    structureId,
     // Organizational unit specific functionality
     searchOrganizationalUnits,
     loadMoreOrganizationalUnits,
@@ -29,7 +32,22 @@ const EmployeeForm: React.FC = () => {
     hasMoreJobPositions,
     jobPositionsError,
     jobPositionsLoading,
+    // Employment type specific functionality
+    searchEmploymentTypes,
+    loadMoreEmploymentTypes,
+    hasMoreEmploymentTypes,
+    employmentTypesError,
+    employmentTypesLoading,
+    // Contract type specific functionality
+    searchContractTypes,
+    loadMoreContractTypes,
+    hasMoreContractTypes,
+    contractTypesError,
+    contractTypesLoading,
   } = useEmployeeContext();
+
+  // State for collapsible additional attributes
+  const [showAdditionalAttributes, setShowAdditionalAttributes] = useState(false);
 
   // Check if all mandatory fields are filled
   const isFormValid = 
@@ -37,7 +55,9 @@ const EmployeeForm: React.FC = () => {
     toStringOrUndefined(formValues.lastName) &&
     toStringOrUndefined(formValues.email) &&
     toStringOrUndefined(formValues.organizationalUnitId) &&
-    toStringOrUndefined(formValues.jobPositionId);
+    toStringOrUndefined(formValues.jobPositionId) &&
+    toStringOrUndefined(formValues.employmentTypeId) &&
+    toStringOrUndefined(formValues.contractTypeId);
 
   // Validate email format
   const isEmailValid = (email: string): boolean => {
@@ -85,39 +105,11 @@ const EmployeeForm: React.FC = () => {
     searchJobPositions(searchTerm || undefined);
   };
 
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isFormValid) {
-      return;
-    }
 
-    if (!isEmailFieldValid) {
-      return;
-    }
-
-    try {
-      await submit();
-      // Dispatch process continue event on successful submission
-      dispatchProcessContinueEvent('employee_submit', {
-        "employee": {
-          "firstName": formValues.firstName,
-          "lastName": formValues.lastName,
-          "email": formValues.email,
-          "organizationalUnit": formValues.organizationalUnitId,
-          "jobPosition": formValues.jobPositionId
-        }
-      });
-    } catch (err) {
-      console.error('Error submitting employee form:', err);
-    }
-  };
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
       <form
-        onSubmit={handleSubmit}
         className="gba:h-full gba:flex gba:flex-col"
       >
         {/* Form Fields Container - Takes up available space */}
@@ -137,7 +129,7 @@ const EmployeeForm: React.FC = () => {
               <Input
                 name="firstName"
                 value={formValues.firstName}
-                onChange={e => setFormValues({ firstName: String(e) })}
+                onChange={e => setFormValues({ firstName: String(e.value || '') })}
                 placeholder="Please Enter..."
                 required
               />
@@ -151,7 +143,7 @@ const EmployeeForm: React.FC = () => {
               <Input
                 name="lastName"
                 value={formValues.lastName}
-                onChange={e => setFormValues({ lastName: String(e) })}
+                onChange={e => setFormValues({ lastName: String(e.value || '') })}
                 placeholder="Please Enter..."
                 required
               />
@@ -166,7 +158,7 @@ const EmployeeForm: React.FC = () => {
                 name="email"
                 type="email"
                 value={formValues.email}
-                onChange={e => setFormValues({ email: String(e) })}
+                onChange={e => setFormValues({ email: String(e.value || '') })}
                 placeholder="Please Enter..."
                 required
                 status={!isEmailFieldValid ? 'error' : undefined}
@@ -246,6 +238,93 @@ const EmployeeForm: React.FC = () => {
             </div>
           </div>
 
+          {/* Additional Attributes - Collapsible Section */}
+          <div className="gba:border gba:border-gray-200 gba:rounded-lg">
+            <button
+              type="button"
+              onClick={() => setShowAdditionalAttributes(!showAdditionalAttributes)}
+              className="gba:w-full gba:px-4 gba:py-3 gba:text-left gba:flex gba:items-center gba:justify-between gba:bg-gray-50 gba:hover:bg-gray-100 gba:rounded-lg gba:transition-colors"
+            >
+              <span className="gba:font-medium gba:text-gray-700">Additional Attributes</span>
+              <span className={`gba:transform gba:transition-transform ${showAdditionalAttributes ? 'gba:rotate-180' : ''}`}>
+                ▼
+              </span>
+            </button>
+
+            {showAdditionalAttributes && (
+              <div className="gba:p-4 gba:space-y-6 gba:border-t gba:border-gray-200">
+                {/* Preferred Name */}
+                <div>
+                  <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
+                    Preferred Name
+                  </label>
+                  <Input
+                    name="preferredName"
+                    value={formValues.preferredName}
+                    onChange={e => setFormValues({ preferredName: String(e.value || '') })}
+                    placeholder="Please Enter..."
+                  />
+                </div>
+
+                {/* Employment Type */}
+                <div className="gba:space-y-3">
+                  <div>
+                                       <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
+                     Employment Type *
+                   </label>
+                    <Select
+                      name="employmentTypeId"
+                      value={toStringOrUndefined(formValues.employmentTypeId)}
+                      onChange={e => setFormValues({ employmentTypeId: String(e.value || '') })}
+                      data={employmentTypes}
+                      placeholder="Please Select..."
+                      showSearch={true}
+                      onSearch={searchEmploymentTypes}
+                      debounce={300}
+                      loading={employmentTypesLoading}
+                      onPopupScrollEnd={loadMoreEmploymentTypes}
+                      allowClear
+                      style={{ width: '100%' }}
+                    />
+                    {employmentTypesError && (
+                      <div className="gba:text-red-500 gba:text-sm gba:mt-1">
+                        {employmentTypesError}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Contract Type */}
+                <div className="gba:space-y-3">
+                  <div>
+                                       <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
+                     Contract Type *
+                   </label>
+                    <Select
+                      name="contractTypeId"
+                      value={toStringOrUndefined(formValues.contractTypeId)}
+                      onChange={e => setFormValues({ contractTypeId: String(e.value || '') })}
+                      data={contractTypes}
+                      placeholder="Please Select..."
+                      showSearch={true}
+                      onSearch={searchContractTypes}
+                      debounce={300}
+                      loading={contractTypesLoading}
+                      onPopupScrollEnd={loadMoreContractTypes}
+                      allowClear
+                      style={{ width: '100%' }}
+                    />
+                    {contractTypesError && (
+                      <div className="gba:text-red-500 gba:text-sm gba:mt-1">
+                        {contractTypesError}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Error Display */}
           {error && (
             <div className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md gba:p-4">
@@ -264,7 +343,35 @@ const EmployeeForm: React.FC = () => {
             disabled={!isFormValid || !isEmailFieldValid}
             className="gba:w-full"
             size="large"
-            onClick={handleSubmit}
+            onClick={async () => {
+              try {
+                await submit();
+                // Dispatch process continue event on successful submission
+                const payload: any = {
+                  "employee": {
+                    "firstName": formValues.firstName,
+                    "lastName": formValues.lastName,
+                    "preferredName": formValues.preferredName,
+                    "fullName": `${formValues.firstName} ${formValues.lastName}`
+                  },
+                  "organizationalUnitId": formValues.organizationalUnitId,
+                  "structureId": structureId,
+                  "jobPositionId": formValues.jobPositionId,
+                  "changeMode": "INSERT"
+                };
+
+                // Add displayName only if preferredName is set
+                if (formValues.preferredName && formValues.preferredName.trim()) {
+                  payload.employee.displayName = `${formValues.preferredName} ${formValues.lastName}`;
+                } else {
+                  payload.employee.displayName = `${formValues.firstName} ${formValues.lastName}`;
+                }
+
+                dispatchProcessContinueEvent('employee_submit', payload);
+              } catch (err) {
+                console.error('Error submitting employee form:', err);
+              }
+            }}
           >
             {isEdit ? 'Update Employee' : 'Create Employee'}
           </Button>

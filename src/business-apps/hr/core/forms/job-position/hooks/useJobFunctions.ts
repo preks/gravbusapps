@@ -104,7 +104,7 @@ export const useJobFunctions = (context: BusinessAppContextProps) => {
         jobFunctionId: jobFunctionId || undefined,
         jobFamilyId: jobFamilyId || undefined
       };
-      
+
       const result = await graphqlClient.request<JobFunctionQueryData>(GET_JOB_FUNCTIONS_QUERY, variables);
       
       const functionsData = result?.JobFunction || [];
@@ -149,7 +149,7 @@ export const useJobFunctions = (context: BusinessAppContextProps) => {
 
   const fetchJobFunctionsByFamily = useCallback((jobFamilyId: string) => {
     if (jobFamilyId) {
-      fetchJobFunctions({ jobFamilyId, reset: true });
+    fetchJobFunctions({ jobFamilyId, reset: true });
     } else {
       fetchJobFunctions({ reset: true });
     }

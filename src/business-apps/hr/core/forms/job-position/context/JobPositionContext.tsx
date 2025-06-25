@@ -231,7 +231,7 @@ export const JobPositionProvider: React.FC<{
   // Fetch job functions when job family changes
   const fetchJobFunctions = useCallback((jobFamilyId: string) => {
     if (jobFamilyId) {
-      fetchJobFunctionsByFamily(jobFamilyId);
+    fetchJobFunctionsByFamily(jobFamilyId);
     } else {
       // Load all job functions when no family filter
       searchJobFunctionsInternal('');
@@ -241,7 +241,7 @@ export const JobPositionProvider: React.FC<{
   // Fetch job levels when job level group changes
   const fetchJobLevels = useCallback((jobLevelGroupId: string) => {
     if (jobLevelGroupId) {
-      fetchJobLevelsByGroup(jobLevelGroupId);
+    fetchJobLevelsByGroup(jobLevelGroupId);
     } else {
       // Load all job levels when no group filter
       searchJobLevelsInternal('');

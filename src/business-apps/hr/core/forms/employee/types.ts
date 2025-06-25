@@ -5,6 +5,9 @@ export interface EmployeeFormValues {
   email: string;
   organizationalUnitId: string;
   jobPositionId: string;
+  preferredName: string;
+  employmentTypeId: string;
+  contractTypeId: string;
 }
 
 export interface SelectOption {
@@ -21,6 +24,8 @@ export interface EmployeeContextState {
   organizationalUnits: SelectOption[];
   jobPositions: SelectOption[];
   allJobPositions: any[]; // Full job position data
+  employmentTypes: SelectOption[];
+  contractTypes: SelectOption[];
   loading: boolean;
   error: string | null;
   submit: () => Promise<void>;
@@ -39,4 +44,16 @@ export interface EmployeeContextState {
   hasMoreJobPositions: boolean;
   jobPositionsError: string | null;
   jobPositionsLoading: boolean;
+  // Employment type specific methods
+  searchEmploymentTypes: (searchTerm?: string) => void;
+  loadMoreEmploymentTypes: () => void;
+  hasMoreEmploymentTypes: boolean;
+  employmentTypesError: string | null;
+  employmentTypesLoading: boolean;
+  // Contract type specific methods
+  searchContractTypes: (searchTerm?: string) => void;
+  loadMoreContractTypes: () => void;
+  hasMoreContractTypes: boolean;
+  contractTypesError: string | null;
+  contractTypesLoading: boolean;
 } 

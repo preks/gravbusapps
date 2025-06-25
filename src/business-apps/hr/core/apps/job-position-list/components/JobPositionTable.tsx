@@ -4,7 +4,8 @@ import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable, Avatar, Button, Tooltip } from '@newwork/gravity-ui-catalog';
 import { PiHandshake, PiFile } from 'react-icons/pi';
-import { AppActionButton } from '@/components/app-action-button';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { JobPosition } from '../hooks/useJobPositionListData';
 import { formatDataTestId } from '@/modules/orgchart/utils';
 
@@ -145,15 +146,32 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
         const employeePosition = record.employeePositions[0];
         const { firstName, lastName, employee } = employeePosition;
         
+        // Generate initials and avatar props like in employee-directory
+        const initialsValue = employee.pictureThumbnail
+          ? undefined
+          : `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
+
+        const avatarSrcValue = employee.pictureThumbnail
+          ? `data:image/gif;base64,${employee.pictureThumbnail}`
+          : undefined;
+
+        const avatarContentTypeValue = employee.pictureThumbnail ? 'image' : 'initials';
+        
         return (
-          <div className="gba:flex gba:items-center">
-            {employee.pictureThumbnail && (
-              <Avatar
-                src={`data:image/jpeg;base64,${employee.pictureThumbnail}`}
-                alt={`${firstName} ${lastName}`}
-                className="gba:mr-2"
-              />
-            )}
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <Avatar
+              src={avatarSrcValue}
+              initials={initialsValue}
+              // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+              contentType={avatarContentTypeValue}
+              alt={`${firstName} ${lastName}`}
+              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              size="sm"
+              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              shape="rounded"
+              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              appearance="gradient"
+            />
             <span>{firstName} {lastName}</span>
           </div>
         );
@@ -168,7 +186,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
           <AppActionButton
             data-testid="update-job-position-button"
             variant="primary"
-            contextsArray={["jobPositionEntity"]}
+            contextsArray={[FlowContextName.jobPositionEntity]}
             externalContextData={{
               jobPositionId: record.id
             }}

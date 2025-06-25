@@ -29,6 +29,7 @@ export const JOB_POSITION_QUERY = `
               employeeId: { _isNull: $vacant }
             }
           },
+          { isDeleted: { _eq: false } },
           $filter,
           {
             _or: [
@@ -121,6 +122,7 @@ export const JOB_POSITION_QUERY = `
               employeeId: { _isNull: $vacant }
             }
           },
+          { isDeleted: { _eq: false } },
           $filter,
           {
             _or: [
