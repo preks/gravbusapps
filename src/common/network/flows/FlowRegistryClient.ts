@@ -32,6 +32,7 @@ export class FlowRegistryClient extends RestClient {
       {
         ...options,
         params: queryParams,
+        withCredentials: false // Disable credentials to avoid CORS issues with wildcard origins
       }
     );
   }
@@ -46,7 +47,10 @@ export class FlowRegistryClient extends RestClient {
       {
         ...body,
       },
-      options
+      {
+        ...options,
+        withCredentials: false // Disable credentials to avoid CORS issues with wildcard origins
+      }
     );
   }
 
@@ -60,7 +64,10 @@ export class FlowRegistryClient extends RestClient {
       {
         ...body,
       },
-      options
+      {
+        ...options,
+        withCredentials: false // Disable credentials to avoid CORS issues with wildcard origins
+      }
     );
   }
 }
