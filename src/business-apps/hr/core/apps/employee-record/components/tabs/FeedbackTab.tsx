@@ -158,7 +158,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         {/* Give Feedback Button */}
         <div>
           <AppActionButton 
-            onClick={startProcessGiveFeedback}
             data-testid="add-feedback-button"
             variant="primary"
             contextsArray={[FlowContextName.employeeGiveFeedback]}

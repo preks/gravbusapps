@@ -681,7 +681,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
         {/* Upload button */}
         <div>
           <AppActionButton
-            onClick={showUploadModal}
             data-testid="upload-document-button"
             variant="primary"
             contextsArray={[FlowContextName.documentPersonal]}
