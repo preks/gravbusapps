@@ -199,7 +199,7 @@
 
 .gba\:mainContainer {
   max-width: 544px;
-  width: 544px;
+  width: 100%;
   margin: 0 auto;
   font-family: 'Roboto', sans-serif;
 }
@@ -549,11 +549,11 @@
 /* Upload wrapper styles */
 .gba\:uploadWrapper {
   width: 100%;
-  max-width: 600px;
+  max-width: 100%;
 }
 
 
 .gba\:formContainer {
-  max-width: 600px;
+  max-width: 100%;
   margin: 0 auto;
 }

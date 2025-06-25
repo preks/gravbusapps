@@ -319,6 +319,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   };
 
   const fetchInitialData = async () => {
+    console.log("initialDAta","ui",userInfo,"ad",additionalData,"at",accessToken)
     try {
       if (!accessToken) {
         return;
