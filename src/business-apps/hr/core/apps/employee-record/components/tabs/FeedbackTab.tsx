@@ -151,21 +151,48 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           </div>
         </div>
         
-        {/* Give Feedback Button */}
-        <div>
-          <AppActionButton 
-            data-testid="add-feedback-button"
-            variant="primary"
-            contextsArray={[FlowContextName.employeeGiveFeedback]}
-            externalContextData={{
-              employeeId: employee?.id
-            }}
-            prefixDataTestId="add-feedback"
-            accessToken={accessToken}
-            autoExecuteSingleAction={true}
-          >
-            Give Feedback
-          </AppActionButton>
+        {/* Action Buttons */}
+        <div className="gba:flex gba:gap-2">
+          {/* Give Feedback Button */}
+          <div>
+            <AppActionButton 
+              data-testid="add-feedback-button"
+              variant="primary"
+              contextsArray={[FlowContextName.employeeGiveFeedback]}
+              externalContextData={{
+                employeeId: employee?.id
+              }}
+              prefixDataTestId="add-feedback"
+              accessToken={accessToken}
+              autoExecuteSingleAction={true}
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:hr_performance.give_feedback",
+                "Give Feedback"
+              )}
+            </AppActionButton>
+          </div>
+          
+          {/* Request Feedback Button */}
+          <div>
+            <AppActionButton 
+              data-testid="request-feedback-button"
+              variant="secondary"
+              contextsArray={[FlowContextName.employeeRequestFeedback]}
+              externalContextData={{
+                employeeId: employee?.id,
+                isRequestingFeedback: true
+              }}
+              prefixDataTestId="request-feedback"
+              accessToken={accessToken}
+              autoExecuteSingleAction={true}
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:hr_performance.request_feedback",
+                "Request Feedback"
+              )}
+            </AppActionButton>
+          </div>
         </div>
       </div>
       
