@@ -10,6 +10,7 @@ import { employeeFeedbackQuery } from '../../queries/feedbackQueries';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import EmployeeAvatar from '@/business-apps/hr/components/employeeAvatar/EmployeeAvatar';
 
 interface FeedbackTabProps {
   employee: Employee;
@@ -24,6 +25,8 @@ interface FormattedFeedback {
   content: string;
   avatar?: string | null;
   senderId?: string;
+  firstName: string;
+  lastName: string;
 }
 
 /**
@@ -85,14 +88,20 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       const sender = `${feedback.senderEmployee?.firstName || ''} ${feedback.senderEmployee?.lastName || ''}`.trim();
       const date = feedback.feedbackDate ? dayjs(feedback.feedbackDate).format('MMMM D, YYYY') : 'Unknown date';
       const content = feedback.feedback || 'No feedback content';
+      
+      // Access pictureThumbnail through the correct path based on the GraphQL query structure
       const avatar = feedback.senderEmployee?.employeePosition?.employee?.pictureThumbnail || null;
+      const firstName = feedback.senderEmployee?.firstName || '';
+      const lastName = feedback.senderEmployee?.lastName || '';
       
       return {
         sender,
         date,
         content,
         avatar,
-        senderId: feedback.senderEmployeeId
+        senderId: feedback.senderEmployeeId,
+        firstName,
+        lastName
       };
     });
   };
@@ -183,14 +192,14 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                   >
                     <div className="gba:flex gba:items-start">
                       <div className="gba:shrink-0 gba:mr-4">
-                        <div className="gba:w-10 gba:h-10 gba:rounded-full gba:overflow-hidden gba:bg-gray-200">
-                          {feedback.avatar && (
-                            <img 
-                              src={feedback.avatar} 
-                              alt={feedback.sender}
-                              className="gba:w-full gba:h-full gba:object-cover"
-                            />
-                          )}
+                        <div className="gba:w-10 gba:h-10" data-testid="feedback-avatar-container">
+                          <EmployeeAvatar
+                            profilePicture={feedback.avatar}
+                            firstName={feedback.firstName}
+                            lastName={feedback.lastName}
+                            employeeId={feedback.senderId || ''}
+                            size={40}
+                          />
                         </div>
                       </div>
                       <div className="gba:grow">
