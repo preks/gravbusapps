@@ -2,8 +2,7 @@
 
 import React from 'react';
 import dayjs from 'dayjs';
-import { Collapse } from 'antd';
-import { CaretRightOutlined } from '@ant-design/icons';
+import { Card } from '@newwork/gravity-ui-catalog';
 import { Employee } from '../../hooks/useEmployeeData';
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
 
@@ -123,9 +122,9 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
 
   const workingHoursData = getWorkingHoursData();
 
-  // Helper function to render data items in a grid
-  const renderDataItems = (data: Array<{label: string; value: string}>, columns = 2) => (
-    <div className={`gba:grid gba:grid-cols-1 ${columns === 2 ? 'md:grid-cols-2' : ''} gba:gap-3 gba:mt-2`}>
+  // Helper function to render data items in a grid with 3 columns
+  const renderDataItems = (data: Array<{label: string; value: string}>) => (
+    <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-3 gba:mt-2">
       {data.map((item) => (
         <div 
           key={`${item.label}-${item.value}`} 
@@ -163,56 +162,43 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
         </div>
       </div>
 
-      <Collapse 
-        expandIcon={({ isActive }) => (
-          <CaretRightOutlined rotate={isActive ? 90 : 0} className="gba:text-blue-600" />
-        )}
-        className="gba:bg-white gba:border-0 gba:shadow-sm"
-        defaultActiveKey={['profile', 'conditions', 'hours']}
-        data-testid="employment-accordion"
-      >
-        {/* Employment Profile Section */}
-        <Collapse.Panel 
-          key="profile" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Employment Profile</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+      <div className="gba:grid gba:grid-cols-1 gba:gap-6" data-testid="employment-cards">
+        {/* Employment Profile Card */}
+        <Card
+          variant="outlined"
+          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="employment-section-profile"
         >
-          {renderDataItems(organizationalData, 2)}
-        </Collapse.Panel>
+          <div className="gba:mb-4">
+            <h3 className="gba:text-lg gba:font-medium">Employment Profile</h3>
+          </div>
+          {renderDataItems(organizationalData)}
+        </Card>
 
-        {/* Working Conditions Section */}
-        <Collapse.Panel 
-          key="conditions" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Working Conditions</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+        {/* Working Conditions Card */}
+        <Card
+          variant="outlined"
+          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="employment-section-conditions"
         >
-          {renderDataItems(workingConditionsData, 2)}
-        </Collapse.Panel>
+          <div className="gba:mb-4">
+            <h3 className="gba:text-lg gba:font-medium">Working Conditions</h3>
+          </div>
+          {renderDataItems(workingConditionsData)}
+        </Card>
 
-        {/* Working Hours Section */}
-        <Collapse.Panel 
-          key="hours" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Working Hours</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+        {/* Working Hours Card */}
+        <Card
+          variant="outlined"
+          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="employment-section-hours"
         >
-          {renderDataItems(workingHoursData, 2)}
-        </Collapse.Panel>
-      </Collapse>
+          <div className="gba:mb-4">
+            <h3 className="gba:text-lg gba:font-medium">Working Hours</h3>
+          </div>
+          {renderDataItems(workingHoursData)}
+        </Card>
+      </div>
     </div>
   );
 };

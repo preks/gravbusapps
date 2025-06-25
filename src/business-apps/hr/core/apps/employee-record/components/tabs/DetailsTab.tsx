@@ -2,8 +2,7 @@
 
 import React, { useMemo } from 'react';
 import dayjs from 'dayjs';
-import { Collapse } from 'antd';
-import { CaretRightOutlined } from '@ant-design/icons';
+import { Card } from '@newwork/gravity-ui-catalog';
 import { Employee } from '../../hooks/useEmployeeData';
 import { formatPhoneNumber } from '../../utils/formatters';
 import { useGetAcademicTitles } from '../../../../hooks/useGetAcademicTitles';
@@ -229,9 +228,9 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
 
   const payrollData = getPayrollData();
 
-  // Helper function to render data items in a grid
-  const renderDataItems = (data: Array<{label: string; value: string}>, columns = 2) => (
-    <div className={`gba:grid gba:grid-cols-1 ${columns === 2 ? 'md:grid-cols-2' : ''} gba:gap-3 gba:mt-2`}>
+  // Helper function to render data items in a grid with 3 columns
+  const renderDataItems = (data: Array<{label: string; value: string}>) => (
+    <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-3 gba:mt-2">
       {data.map((item) => (
         <div 
           key={`${item.label}-${item.value}`} 
@@ -269,98 +268,79 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
         </div>
       </div>
 
-      <Collapse 
-        expandIcon={({ isActive }) => (
-          <CaretRightOutlined rotate={isActive ? 90 : 0} className="gba:text-blue-600" />
-        )}
-        className="gba:bg-white gba:border-0 gba:shadow-sm"
-        defaultActiveKey={['personal', 'address', 'bank', 'communication', 'emergency', 'payroll']}
-        data-testid="details-accordion"
-      >
-        {/* Personal Data Section */}
-        <Collapse.Panel 
-          key="personal" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Personal Data</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+      <div className="gba:grid gba:grid-cols-1 gba:gap-6" data-testid="details-cards">
+        {/* Personal Data Card */}
+        <Card
+          variant="outlined"
+          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="details-section-personal"
         >
-          {renderDataItems(personalData, 2)}
-        </Collapse.Panel>
+          <div className="gba:mb-4">
+            <h3 className="gba:text-lg gba:font-medium">Personal Data</h3>
+          </div>
+          {renderDataItems(personalData)}
+        </Card>
 
-        {/* Address Section */}
-        <Collapse.Panel 
-          key="address" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Address</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+        {/* Address Card */}
+        <Card
+          variant="outlined"
+          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="details-section-address"
         >
-          {renderDataItems(addressData, 1)}
-        </Collapse.Panel>
+          <div className="gba:mb-4">
+            <h3 className="gba:text-lg gba:font-medium">Address</h3>
+          </div>
+          {renderDataItems(addressData)}
+        </Card>
 
-        {/* Bank Account Section */}
-        <Collapse.Panel 
-          key="bank" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Bank Account</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+        {/* Bank Account Card */}
+        <Card
+          variant="outlined"
+          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="details-section-bank"
         >
-          {renderDataItems(bankAccountData, 1)}
-        </Collapse.Panel>
+          <div className="gba:mb-4">
+            <h3 className="gba:text-lg gba:font-medium">Bank Account</h3>
+          </div>
+          {renderDataItems(bankAccountData)}
+        </Card>
 
-        {/* Private Communication Section */}
-        <Collapse.Panel 
-          key="communication" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Private Communication</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+        {/* Private Communication Card */}
+        <Card
+          variant="outlined"
+          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="details-section-communication"
         >
-          {renderDataItems(privateCommunicationData, 1)}
-        </Collapse.Panel>
+          <div className="gba:mb-4">
+            <h3 className="gba:text-lg gba:font-medium">Private Communication</h3>
+          </div>
+          {renderDataItems(privateCommunicationData)}
+        </Card>
 
-        {/* Emergency Contact Section */}
-        <Collapse.Panel 
-          key="emergency" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Emergency Contact</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+        {/* Emergency Contact Card */}
+        <Card
+          variant="outlined"
+          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="details-section-emergency"
         >
-          {renderDataItems(emergencyContactData, 1)}
-        </Collapse.Panel>
+          <div className="gba:mb-4">
+            <h3 className="gba:text-lg gba:font-medium">Emergency Contact</h3>
+          </div>
+          {renderDataItems(emergencyContactData)}
+        </Card>
 
-        {/* Payroll Data Section */}
-        <Collapse.Panel 
-          key="payroll" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Payroll</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+        {/* Payroll Data Card */}
+        <Card
+          variant="outlined"
+          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="details-section-payroll"
         >
-          {renderDataItems(payrollData, 2)}
-        </Collapse.Panel>
-      </Collapse>
+          <div className="gba:mb-4">
+            <h3 className="gba:text-lg gba:font-medium">Payroll</h3>
+          </div>
+          {renderDataItems(payrollData)}
+        </Card>
+      </div>
     </div>
   );
 };
