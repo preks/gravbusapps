@@ -14,6 +14,7 @@ import DocumentsTab from './components/tabs/DocumentsTab';
 import PerformanceTab from './components/tabs/PerformanceTab';
 import FeedbackTab from './components/tabs/FeedbackTab';
 import AbsencesTab from './components/tabs/AbsencesTab';
+import SkillsTab from './components/tabs/SkillsTab';
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
 
@@ -29,7 +30,8 @@ const TAB_KEYS = {
   documents: 'documents',
   performance: 'performance',
   feedback: 'feedback',
-  absences: 'absences'
+  absences: 'absences',
+  skills: 'skills'
 };
 
 // Helper to read URL parameters
@@ -279,6 +281,16 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         <AbsencesTab 
           employee={employee}
           employeeAbsenceEntitlement={absenceEntitlements ?? []}
+          accessToken={accessToken}
+        />
+      )
+    },
+    {
+      key: TAB_KEYS.skills,
+      label: "Skills",
+      children: (
+        <SkillsTab 
+          employee={employee}
           accessToken={accessToken}
         />
       )
