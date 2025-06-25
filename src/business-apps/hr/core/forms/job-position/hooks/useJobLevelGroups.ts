@@ -1,76 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { useUserLocale } from '@/common/locale/useUserLocale';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { SelectOption } from '../types';
 
 export interface JobLevelGroupData {
   id: string;
   name: string;
-  code: string;
+  code?: string;
   description?: string;
   category?: string;
-  isActive: boolean;
 }
 
-export interface QueryVariablesJobLevelGroup {
-  jobLevelGroupId?: string;
-  offset?: number;
-  limit?: number;
-  search?: string;
-}
 
-const createSearchCondition = (search?: string, jobLevelGroupId?: string): string => {
-  if (jobLevelGroupId) return '';
-  if (!search) return '';
-  return `
-    , _or: [
-      { name: { _ilike: "%${search}%" } },
-      { code: { _ilike: "%${search}%" } }
-    ]
-  `;
-};
-
-export const GET_JOB_LEVEL_GROUP_DATA = (variables: QueryVariablesJobLevelGroup): string => {
-  const { offset, limit, search, jobLevelGroupId } = variables;
-  const whereCondition = jobLevelGroupId
-    ? `id: { _eq: "${jobLevelGroupId}" }, isActive: { _eq: true } `
-    : 'isActive: { _eq: true }';
-  const searchCondition = createSearchCondition(search, jobLevelGroupId);
-  const whereClause = `${whereCondition} ${searchCondition}`;
-
-  return `query getJobLevelGroupData {
-    jobLevelGroups: JobLevelGroup(
-      limit: ${limit || 100},
-      offset: ${offset || 0},
-      where: { ${whereClause} }
-    ) {
-      id
-      name
-      code
-      description
-      category
-      isActive
-    }
-    JobLevelGroupAggregate(
-      limit: ${limit || 100},
-      offset: ${offset || 0},
-      where: { ${whereClause} }
-    ) {
-      aggregate {
-        count
-      }
-    }
-  }`;
-};
-
-export type JobLevelGroupQueryData = {
-  jobLevelGroups: JobLevelGroupData[];
-  JobLevelGroupAggregate: {
-    aggregate: {
-      count: number;
-    };
-  };
-};
 
 export const useJobLevelGroups = (context: BusinessAppContextProps) => {
   const [jobLevelGroups, setJobLevelGroups] = useState<SelectOption[]>([]);
@@ -80,7 +22,8 @@ export const useJobLevelGroups = (context: BusinessAppContextProps) => {
   const [hasMore, setHasMore] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const graphqlClient = useGraphqlClient(context.accessToken);
+  const userLocale = useUserLocale() ?? 'en-US';
+  const catalogClient = useCatalogManagerClient(context.accessToken);
 
   const fetchJobLevelGroups = useCallback(async (params: {
     limit?: number;
@@ -99,15 +42,33 @@ export const useJobLevelGroups = (context: BusinessAppContextProps) => {
     setError(null);
 
     try {
-      const query = GET_JOB_LEVEL_GROUP_DATA({
+      const response = await catalogClient.getCatalogEntriesList({
+        catalogIdentifier: 'JobLevelGroup',
+        version: 'v1',
+      },
+      {
         limit,
         offset,
-        search
+        returnTotalRecords: true,
+        includeChildCatalogEntries: true,
+        localeCode: userLocale,
+        ...(search ? { searchCriteria: search } : {}),
       });
 
-      const result = await graphqlClient.request<JobLevelGroupQueryData>(query);
+      // Response has a data property containing the array of CatalogEntry
+      const entries = response.data || [];
       
-      const selectOptions: SelectOption[] = result.jobLevelGroups.map(group => ({
+      const transformedData = entries
+        .filter((entry: any) => entry && (entry.id || entry._id))
+        .map((entry: any) => ({
+          id: entry.id || entry._id || '',
+          name: entry.value || entry.name || entry.label || entry.id || '',
+          code: entry.code || '',
+          description: entry.description || '',
+          category: entry.category || ''
+        }));
+
+      const selectOptions: SelectOption[] = transformedData.map((group: JobLevelGroupData) => ({
         id: group.id,
         name: group.name,
         label: group.name,
@@ -116,13 +77,13 @@ export const useJobLevelGroups = (context: BusinessAppContextProps) => {
 
       if (reset || offset === 0) {
         setJobLevelGroups(selectOptions);
-        setAllJobLevelGroups(result.jobLevelGroups);
+        setAllJobLevelGroups(transformedData);
       } else {
         setJobLevelGroups(prev => [...prev, ...selectOptions]);
-        setAllJobLevelGroups(prev => [...prev, ...result.jobLevelGroups]);
+        setAllJobLevelGroups(prev => [...prev, ...transformedData]);
       }
 
-      setHasMore(result.jobLevelGroups.length === limit);
+      setHasMore(transformedData.length === limit);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch job level groups';
       setError(errorMessage);
@@ -130,7 +91,7 @@ export const useJobLevelGroups = (context: BusinessAppContextProps) => {
     } finally {
       setLoading(false);
     }
-  }, [context.accessToken, graphqlClient]);
+  }, [context.accessToken, catalogClient, userLocale]);
 
   const searchJobLevelGroups = useCallback((search: string) => {
     setSearchTerm(search);

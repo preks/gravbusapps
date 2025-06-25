@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useJobPositionContext } from '../context/JobPositionContext';
 import { InputField, SelectField, Button, Select, Input } from '@newwork/gravity-ui-catalog';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
@@ -13,9 +13,13 @@ const JobPositionForm: React.FC = () => {
     allJobProfiles,
     jobFamilies,
     jobFunctions,
+    allJobFunctions,
     jobLevelGroups,
     jobLevels,
+    allJobLevels,
     organizationalUnits,
+    employmentTypes,
+    contractTypes,
     loading,
     error,
     fetchJobFunctions,
@@ -59,24 +63,83 @@ const JobPositionForm: React.FC = () => {
     hasMoreJobLevels,
     jobLevelsError,
     jobLevelsLoading,
+    // Employment type specific functionality
+    searchEmploymentTypes,
+    loadMoreEmploymentTypes,
+    hasMoreEmploymentTypes,
+    employmentTypesError,
+    employmentTypesLoading,
+    // Contract type specific functionality
+    searchContractTypes,
+    loadMoreContractTypes,
+    hasMoreContractTypes,
+    contractTypesError,
+    contractTypesLoading,
   } = useJobPositionContext();
 
   // State for collapsible additional properties
   const [showAdditionalProperties, setShowAdditionalProperties] = useState(false);
+  
+  // Refs to track current values to avoid infinite loops
+  const currentJobFamilyRef = useRef<string | undefined>();
+  const currentJobLevelGroupRef = useRef<string | undefined>();
 
-  // When job family changes, fetch job functions
+  // Check if all mandatory fields are filled
+  const isFormValid = 
+    toStringOrUndefined(formValues.name) &&
+    toStringOrUndefined(formValues.jobProfileId) &&
+    toStringOrUndefined(formValues.organizationalUnitId) &&
+    toStringOrUndefined(formValues.jobFamilyId) &&
+    toStringOrUndefined(formValues.jobFunctionId) &&
+    toStringOrUndefined(formValues.jobLevelId);
+
+  // Filter job functions when job family changes (whether set directly or indirectly)
   useEffect(() => {
-    if (toStringOrUndefined(formValues.jobFamilyId)) {
-      fetchJobFunctions(formValues.jobFamilyId as string);
+    const jobFamilyId = toStringOrUndefined(formValues.jobFamilyId);
+    
+    // Only fetch if the job family actually changed
+    if (currentJobFamilyRef.current !== jobFamilyId) {
+      currentJobFamilyRef.current = jobFamilyId;
+      
+      if (jobFamilyId) {
+        fetchJobFunctions(jobFamilyId);
+      } else {
+        fetchJobFunctions('');
+      }
     }
   }, [formValues.jobFamilyId, fetchJobFunctions]);
 
-  // When job level group changes, fetch job levels
+  // Clear job function when job family is cleared (separate effect to avoid circular dependencies)
   useEffect(() => {
-    if (toStringOrUndefined(formValues.jobLevelGroupId)) {
-      fetchJobLevels(formValues.jobLevelGroupId as string);
+    const jobFamilyId = toStringOrUndefined(formValues.jobFamilyId);
+    if (!jobFamilyId && toStringOrUndefined(formValues.jobFunctionId)) {
+      setFormValues({ jobFunctionId: '' });
+    }
+  }, [formValues.jobFamilyId, formValues.jobFunctionId, setFormValues]);
+
+  // Filter job levels when job level group changes (derived from job function)
+  useEffect(() => {
+    const jobLevelGroupId = toStringOrUndefined(formValues.jobLevelGroupId);
+    
+    // Only fetch if the job level group actually changed
+    if (currentJobLevelGroupRef.current !== jobLevelGroupId) {
+      currentJobLevelGroupRef.current = jobLevelGroupId;
+      
+      if (jobLevelGroupId) {
+        fetchJobLevels(jobLevelGroupId);
+      } else {
+        fetchJobLevels('');
+      }
     }
   }, [formValues.jobLevelGroupId, fetchJobLevels]);
+
+  // Clear job level when job level group is cleared (separate effect to avoid circular dependencies)
+  useEffect(() => {
+    const jobLevelGroupId = toStringOrUndefined(formValues.jobLevelGroupId);
+    if (!jobLevelGroupId && toStringOrUndefined(formValues.jobLevelId)) {
+      setFormValues({ jobLevelId: '' });
+    }
+  }, [formValues.jobLevelGroupId, formValues.jobLevelId, setFormValues]);
 
   // Auto-populate name from job profile
   useEffect(() => {
@@ -209,7 +272,7 @@ const JobPositionForm: React.FC = () => {
                 <div className="gba:space-y-3">
                   <div>
                     <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
-                      Job Family
+                      Job Family *
                     </label>
                     <Select
                       name="jobFamilyId"
@@ -236,12 +299,32 @@ const JobPositionForm: React.FC = () => {
                 <div className="gba:space-y-3">
                   <div>
                     <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
-                      Job Function
+                      Job Function *
                     </label>
                     <Select
                       name="jobFunctionId"
                       value={toStringOrUndefined(formValues.jobFunctionId)}
-                      onChange={e => setFormValues({ jobFunctionId: String(e.value || '') })}
+                      onChange={e => {
+                        const selectedJobFunctionId = String(e.value || '');
+                        setFormValues({ jobFunctionId: selectedJobFunctionId });
+                        
+                        if (selectedJobFunctionId) {
+                          const selectedJobFunction = allJobFunctions.find((jf: any) => jf.id === selectedJobFunctionId);
+                          if (selectedJobFunction) {
+                            // Auto-select job family if not already selected
+                            if (!toStringOrUndefined(formValues.jobFamilyId) && selectedJobFunction?.jobFamily?.id) {
+                              setFormValues({ jobFamilyId: selectedJobFunction.jobFamily.id });
+                            }
+                            // Auto-select job level group from the job function
+                            if (selectedJobFunction?.jobLevelGroup?.id) {
+                              setFormValues({ jobLevelGroupId: selectedJobFunction.jobLevelGroup.id });
+                            }
+                          }
+                        } else {
+                          // Clear job level group when job function is cleared
+                          setFormValues({ jobLevelGroupId: '' });
+                        }
+                      }}
                       data={jobFunctions}
                       placeholder="Please Select..."
                       showSearch={true}
@@ -250,7 +333,6 @@ const JobPositionForm: React.FC = () => {
                       loading={jobFunctionsLoading}
                       onPopupScrollEnd={loadMoreJobFunctions}
                       filterOption={false}
-                      disabled={!toStringOrUndefined(formValues.jobFamilyId)}
                     />
                   </div>
                   {jobFunctionsError && (
@@ -260,43 +342,19 @@ const JobPositionForm: React.FC = () => {
                   )}
                 </div>
 
-                {/* Job Level Group */}
-                <div className="gba:space-y-3">
-                  <div>
-                    <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
-                      Job Level Group
-                    </label>
-                    <Select
-                      name="jobLevelGroupId"
-                      value={toStringOrUndefined(formValues.jobLevelGroupId)}
-                      onChange={e => setFormValues({ jobLevelGroupId: String(e.value || '') })}
-                      data={jobLevelGroups}
-                      placeholder="Please Select..."
-                      showSearch={true}
-                      onSearch={searchJobLevelGroups}
-                      debounce={300}
-                      loading={jobLevelGroupsLoading}
-                      onPopupScrollEnd={loadMoreJobLevelGroups}
-                      filterOption={false}
-                    />
-                  </div>
-                  {jobLevelGroupsError && (
-                    <div className="gba:text-red-500 gba:text-sm gba:p-2 gba:bg-red-50 gba:rounded">
-                      {jobLevelGroupsError}
-                    </div>
-                  )}
-                </div>
-
                 {/* Job Level */}
                 <div className="gba:space-y-3">
                   <div>
                     <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
-                      Job Level
+                      Job Level *
                     </label>
                     <Select
                       name="jobLevelId"
                       value={toStringOrUndefined(formValues.jobLevelId)}
-                      onChange={e => setFormValues({ jobLevelId: String(e.value || '') })}
+                      onChange={e => {
+                        const selectedJobLevelId = String(e.value || '');
+                        setFormValues({ jobLevelId: selectedJobLevelId });
+                      }}
                       data={jobLevels}
                       placeholder="Please Select..."
                       showSearch={true}
@@ -305,12 +363,66 @@ const JobPositionForm: React.FC = () => {
                       loading={jobLevelsLoading}
                       onPopupScrollEnd={loadMoreJobLevels}
                       filterOption={false}
-                      disabled={!toStringOrUndefined(formValues.jobLevelGroupId)}
+                      disabled={!toStringOrUndefined(formValues.jobFunctionId)}
                     />
                   </div>
                   {jobLevelsError && (
                     <div className="gba:text-red-500 gba:text-sm gba:p-2 gba:bg-red-50 gba:rounded">
                       {jobLevelsError}
+                    </div>
+                  )}
+                </div>
+
+                {/* Employment Type */}
+                <div className="gba:space-y-3">
+                  <div>
+                    <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
+                      Employment Type
+                    </label>
+                    <Select
+                      name="employmentTypeId"
+                      value={toStringOrUndefined(formValues.employmentTypeId)}
+                      onChange={e => setFormValues({ employmentTypeId: String(e.value || '') })}
+                      data={employmentTypes}
+                      placeholder="Please Select..."
+                      showSearch={true}
+                      onSearch={searchEmploymentTypes}
+                      debounce={300}
+                      loading={employmentTypesLoading}
+                      onPopupScrollEnd={loadMoreEmploymentTypes}
+                      filterOption={false}
+                    />
+                  </div>
+                  {employmentTypesError && (
+                    <div className="gba:text-red-500 gba:text-sm gba:p-2 gba:bg-red-50 gba:rounded">
+                      {employmentTypesError}
+                    </div>
+                  )}
+                </div>
+
+                {/* Contract Type */}
+                <div className="gba:space-y-3">
+                  <div>
+                    <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
+                      Contract Type
+                    </label>
+                    <Select
+                      name="contractTypeId"
+                      value={toStringOrUndefined(formValues.contractTypeId)}
+                      onChange={e => setFormValues({ contractTypeId: String(e.value || '') })}
+                      data={contractTypes}
+                      placeholder="Please Select..."
+                      showSearch={true}
+                      onSearch={searchContractTypes}
+                      debounce={300}
+                      loading={contractTypesLoading}
+                      onPopupScrollEnd={loadMoreContractTypes}
+                      filterOption={false}
+                    />
+                  </div>
+                  {contractTypesError && (
+                    <div className="gba:text-red-500 gba:text-sm gba:p-2 gba:bg-red-50 gba:rounded">
+                      {contractTypesError}
                     </div>
                   )}
                 </div>
@@ -331,7 +443,7 @@ const JobPositionForm: React.FC = () => {
           <Button
             variant="primary"
             loading={loading}
-            disabled={loading}
+            disabled={loading || !isFormValid}
             className="gba:w-full"
             size="large"
             onClick={(e) => {
@@ -344,7 +456,12 @@ const JobPositionForm: React.FC = () => {
               dispatchProcessContinueEvent('pse_submit',
                 {
                   "jobPosition": {
-                    "name": formValues.name
+                    "name": formValues.name,
+                    "jobProfile": formValues.jobProfileId,
+                    "jobFunction": formValues.jobFunctionId,
+                    "jobLevel": formValues.jobLevelId,
+                    "employmentTypeRef": formValues.employmentTypeId,
+                    "contractTypeRef": formValues.contractTypeId
                   },
                   "organizationalUnitId": formValues.organizationalUnitId,
                   "structureId": structureId,

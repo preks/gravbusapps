@@ -74,7 +74,7 @@ export const useJobFamilies = (context: BusinessAppContextProps) => {
           limit,
           offset,
           returnTotalRecords: true,
-          includeChildCatalogEntries: false,
+          includeChildCatalogEntries: true,
           ...(search && { searchCriteria: search })
         }
       );

@@ -6,11 +6,13 @@ import { SelectOption } from '../types';
 export interface JobFunctionData {
   id: string;
   name: string;
-  code: string;
-  description?: string;
-  category?: string;
-  isActive: boolean;
-  jobFamilyId?: string;
+  code?: string;
+  jobFamily?: {
+    id: string;
+  } | null;
+  jobLevelGroup?: {
+    id: string;
+  } | null;
 }
 
 export interface QueryVariablesJobFunction {
@@ -21,56 +23,44 @@ export interface QueryVariablesJobFunction {
   search?: string;
 }
 
-const createSearchCondition = (search?: string, jobFunctionId?: string): string => {
-  if (jobFunctionId) return '';
-  if (!search) return '';
-  return `
-    , _or: [
-      { name: { _ilike: "%${search}%" } },
-      { code: { _ilike: "%${search}%" } }
-    ]
-  `;
-};
-
-export const GET_JOB_FUNCTION_DATA = (variables: QueryVariablesJobFunction): string => {
-  const { offset, limit, search, jobFunctionId, jobFamilyId } = variables;
-  let whereCondition = jobFunctionId
-    ? `id: { _eq: "${jobFunctionId}" }, isActive: { _eq: true } `
-    : 'isActive: { _eq: true }';
-  if (jobFamilyId) {
-    whereCondition += `, jobFamilyId: { _eq: "${jobFamilyId}" }`;
-  }
-  const searchCondition = createSearchCondition(search, jobFunctionId);
-  const whereClause = `${whereCondition} ${searchCondition}`;
-
-  return `query getJobFunctionData {
-    jobFunctions: JobFunction(
-      limit: ${limit || 100},
-      offset: ${offset || 0},
-      where: { ${whereClause} }
+const GET_JOB_FUNCTIONS_QUERY = `
+  query GetJobFunctions($search: String, $limit: Int, $offset: Int, $jobFunctionId: uuid, $jobFamilyId: String) {
+    JobFunction(
+      where: {
+        name: { _ilike: $search },
+        id: { _eq: $jobFunctionId },
+        jobFamily: { id: { _eq: $jobFamilyId } }
+      },
+      limit: $limit,
+      offset: $offset,
+      orderBy: { name: ASC }
     ) {
       id
       name
       code
-      description
-      category
-      isActive
-      jobFamilyId
+      jobFamily {
+        id
+      }
+      jobLevelGroup {
+        id
+      }
     }
     JobFunctionAggregate(
-      limit: ${limit || 100},
-      offset: ${offset || 0},
-      where: { ${whereClause} }
+      where: {
+        name: { _ilike: $search },
+        id: { _eq: $jobFunctionId },
+        jobFamily: { id: { _eq: $jobFamilyId } }
+      }
     ) {
       aggregate {
         count
       }
     }
-  }`;
-};
+  }
+`;
 
 export type JobFunctionQueryData = {
-  jobFunctions: JobFunctionData[];
+  JobFunction: JobFunctionData[];
   JobFunctionAggregate: {
     aggregate: {
       count: number;
@@ -93,9 +83,10 @@ export const useJobFunctions = (context: BusinessAppContextProps) => {
     offset?: number;
     search?: string;
     jobFamilyId?: string;
+    jobFunctionId?: string;
     reset?: boolean;
   } = {}) => {
-    const { limit = 20, offset = 0, search = '', jobFamilyId, reset = false } = params;
+    const { limit = 20, offset = 0, search = '', jobFamilyId, jobFunctionId, reset = false } = params;
     
     if (reset) {
       setJobFunctions([]);
@@ -106,16 +97,18 @@ export const useJobFunctions = (context: BusinessAppContextProps) => {
     setError(null);
 
     try {
-      const query = GET_JOB_FUNCTION_DATA({
+      const variables = {
+        search: search ? `%${search}%` : undefined,
         limit,
         offset,
-        search,
-        jobFamilyId
-      });
-
-      const result = await graphqlClient.request<JobFunctionQueryData>(query);
+        jobFunctionId: jobFunctionId || undefined,
+        jobFamilyId: jobFamilyId || undefined
+      };
       
-      const selectOptions: SelectOption[] = result.jobFunctions.map(func => ({
+      const result = await graphqlClient.request<JobFunctionQueryData>(GET_JOB_FUNCTIONS_QUERY, variables);
+      
+      const functionsData = result?.JobFunction || [];
+      const selectOptions: SelectOption[] = functionsData.map((func: JobFunctionData) => ({
         id: func.id,
         name: func.name,
         label: func.name,
@@ -124,13 +117,13 @@ export const useJobFunctions = (context: BusinessAppContextProps) => {
 
       if (reset || offset === 0) {
         setJobFunctions(selectOptions);
-        setAllJobFunctions(result.jobFunctions);
+        setAllJobFunctions(functionsData);
       } else {
         setJobFunctions(prev => [...prev, ...selectOptions]);
-        setAllJobFunctions(prev => [...prev, ...result.jobFunctions]);
+        setAllJobFunctions(prev => [...prev, ...functionsData]);
       }
 
-      setHasMore(result.jobFunctions.length === limit);
+      setHasMore(functionsData.length === limit);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch job functions';
       setError(errorMessage);
@@ -155,7 +148,11 @@ export const useJobFunctions = (context: BusinessAppContextProps) => {
   }, [fetchJobFunctions, loading, hasMore, searchTerm, jobFunctions.length]);
 
   const fetchJobFunctionsByFamily = useCallback((jobFamilyId: string) => {
-    fetchJobFunctions({ jobFamilyId, reset: true });
+    if (jobFamilyId) {
+      fetchJobFunctions({ jobFamilyId, reset: true });
+    } else {
+      fetchJobFunctions({ reset: true });
+    }
   }, [fetchJobFunctions]);
 
   // Load initial data

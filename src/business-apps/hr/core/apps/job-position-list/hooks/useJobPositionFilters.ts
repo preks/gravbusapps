@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useJobProfileFilters, JobProfileFilterOption } from './useJobProfileFilters';
 import { useJobFunctionFilters, JobFunctionFilterOption } from './useJobFunctionFilters';
 import { useJobLevelFilters, JobLevelFilterOption } from './useJobLevelFilters';
+import { useJobFamilyFilters, JobFamilyFilterOption } from './useJobFamilyFilters';
 import { useContractTypeFilters, ContractTypeFilterOption } from './useContractTypeFilters';
 import { useEmploymentTypeFilters, EmploymentTypeFilterOption } from './useEmploymentTypeFilters';
 
@@ -35,6 +36,7 @@ export interface JobPositionFilters {
   jobProfiles: string[];
   jobFunctions: string[];
   jobLevels: string[];
+  jobFamilies: string[];
   contractTypes: string[];
   employmentTypes: string[];
   vacant?: boolean;
@@ -55,6 +57,7 @@ export function useJobPositionFilters(accessToken: string) {
   const [jobProfileSearch, setJobProfileSearch] = useState('');
   const [jobFunctionSearch, setJobFunctionSearch] = useState('');
   const [jobLevelSearch, setJobLevelSearch] = useState('');
+  const [jobFamilySearch, setJobFamilySearch] = useState('');
   const [contractTypeSearch, setContractTypeSearch] = useState('');
   const [employmentTypeSearch, setEmploymentTypeSearch] = useState('');
 
@@ -65,6 +68,8 @@ export function useJobPositionFilters(accessToken: string) {
     useJobFunctionFilters(accessToken, jobFunctionSearch);
   const { levels: jobLevelOptions, loading: jobLevelLoading, error: jobLevelError } = 
     useJobLevelFilters(accessToken, jobLevelSearch);
+  const { families: jobFamilyOptions, loading: jobFamilyLoading, error: jobFamilyError } = 
+    useJobFamilyFilters(accessToken, jobFamilySearch);
   const { types: contractTypeOptions, loading: contractTypeLoading, error: contractTypeError } = 
     useContractTypeFilters(accessToken, contractTypeSearch);
   const { types: employmentTypeOptions, loading: employmentTypeLoading, error: employmentTypeError } = 
@@ -89,12 +94,14 @@ export function useJobPositionFilters(accessToken: string) {
         jobFunctionOptions.map(fn => fn.id).includes(f)),
       jobLevels: selectedFilters.filter(f => 
         jobLevelOptions.map(l => l.id).includes(f)),
+      jobFamilies: selectedFilters.filter(f => 
+        jobFamilyOptions.map(fam => fam.id).includes(f)),
       contractTypes: selectedFilters.filter(f => 
         contractTypeOptions.map(t => t.id).includes(f)),
       employmentTypes: selectedFilters.filter(f => 
         employmentTypeOptions.map(t => t.id).includes(f))
     };
-  }, [selectedFilters, jobProfileOptions, jobFunctionOptions, jobLevelOptions, contractTypeOptions, employmentTypeOptions]);
+  }, [selectedFilters, jobProfileOptions, jobFunctionOptions, jobLevelOptions, jobFamilyOptions, contractTypeOptions, employmentTypeOptions]);
 
   // Backend search functions
   const getJobProfileFilters = useCallback((search: string) => {
@@ -135,6 +142,19 @@ export function useJobPositionFilters(accessToken: string) {
       error: jobLevelError
     };
   }, [jobLevelOptions, selectedFilters, jobLevelLoading, jobLevelError]);
+
+  const getJobFamilyFilters = useCallback((search: string) => {
+    setJobFamilySearch(search);
+    return {
+      filters: jobFamilyOptions.map((family: JobFamilyFilterOption) => ({
+        id: family.id,
+        label: family.name,
+        selected: selectedFilters.includes(family.id),
+      })),
+      loading: jobFamilyLoading,
+      error: jobFamilyError
+    };
+  }, [jobFamilyOptions, selectedFilters, jobFamilyLoading, jobFamilyError]);
 
   const getContractTypeFilters = useCallback((search: string) => {
     setContractTypeSearch(search);
@@ -180,6 +200,11 @@ export function useJobPositionFilters(accessToken: string) {
       backendSearch: getJobLevelFilters
     },
     {
+      id: 'jobFamilies',
+      title: t('job_position.filter.job_families', 'Job Families'),
+      backendSearch: getJobFamilyFilters
+    },
+    {
       id: 'contractTypes',
       title: t('job_position.filter.contract_types', 'Contract Types'),
       backendSearch: getContractTypeFilters
@@ -189,7 +214,7 @@ export function useJobPositionFilters(accessToken: string) {
       title: t('job_position.filter.employment_types', 'Employment Types'),
       backendSearch: getEmploymentTypeFilters
     }
-  ], [t, getJobProfileFilters, getJobFunctionFilters, getJobLevelFilters, getContractTypeFilters, getEmploymentTypeFilters]);
+  ], [t, getJobProfileFilters, getJobFunctionFilters, getJobLevelFilters, getJobFamilyFilters, getContractTypeFilters, getEmploymentTypeFilters]);
 
   // Filter label map for DataController
   const filterLabelMap = useMemo(() => {
@@ -204,6 +229,9 @@ export function useJobPositionFilters(accessToken: string) {
     jobLevelOptions.forEach(level => {
       labelMap[level.id] = level.name;
     });
+    jobFamilyOptions.forEach((family: JobFamilyFilterOption) => {
+      labelMap[family.id] = family.name;
+    });
     contractTypeOptions.forEach(type => {
       labelMap[type.id] = type.name;
     });
@@ -212,7 +240,7 @@ export function useJobPositionFilters(accessToken: string) {
     });
     
     return labelMap;
-  }, [jobProfileOptions, jobFunctionOptions, jobLevelOptions, contractTypeOptions, employmentTypeOptions]);
+  }, [jobProfileOptions, jobFunctionOptions, jobLevelOptions, jobFamilyOptions, contractTypeOptions, employmentTypeOptions]);
 
   // Get filters for API calls
   const getFilters = useCallback((): JobPositionFilters => {
@@ -222,6 +250,7 @@ export function useJobPositionFilters(accessToken: string) {
       jobProfiles: filtersByType.jobProfiles,
       jobFunctions: filtersByType.jobFunctions,
       jobLevels: filtersByType.jobLevels,
+      jobFamilies: filtersByType.jobFamilies,
       contractTypes: filtersByType.contractTypes,
       employmentTypes: filtersByType.employmentTypes
     };

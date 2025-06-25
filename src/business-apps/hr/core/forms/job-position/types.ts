@@ -7,6 +7,8 @@ export interface JobPositionFormValues {
   jobLevelGroupId: string;
   jobLevelId: string;
   organizationalUnitId: string;
+  employmentTypeId: string;
+  contractTypeId: string;
 }
 
 export interface SelectOption {
@@ -24,9 +26,13 @@ export interface JobPositionContextState {
   allJobProfiles: any[]; // Full job profile data for auto-filling
   jobFamilies: SelectOption[];
   jobFunctions: SelectOption[];
+  allJobFunctions: any[]; // Full job function data for auto-selecting job family
   jobLevelGroups: SelectOption[];
   jobLevels: SelectOption[];
+  allJobLevels: any[]; // Full job level data for auto-selecting job level group
   organizationalUnits: SelectOption[];
+  employmentTypes: SelectOption[];
+  contractTypes: SelectOption[];
   loading: boolean;
   error: string | null;
   fetchJobFunctions: (jobFamilyId: string) => void;
@@ -71,4 +77,16 @@ export interface JobPositionContextState {
   hasMoreJobLevels: boolean;
   jobLevelsError: string | null;
   jobLevelsLoading: boolean;
+  // Employment type specific methods
+  searchEmploymentTypes: (searchTerm: string) => void;
+  loadMoreEmploymentTypes: () => void;
+  hasMoreEmploymentTypes: boolean;
+  employmentTypesError: string | null;
+  employmentTypesLoading: boolean;
+  // Contract type specific methods
+  searchContractTypes: (searchTerm: string) => void;
+  loadMoreContractTypes: () => void;
+  hasMoreContractTypes: boolean;
+  contractTypesError: string | null;
+  contractTypesLoading: boolean;
 } 

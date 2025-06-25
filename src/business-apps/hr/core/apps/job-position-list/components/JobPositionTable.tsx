@@ -4,6 +4,7 @@ import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable, Avatar, Button, Tooltip } from '@newwork/gravity-ui-catalog';
 import { PiHandshake, PiFile } from 'react-icons/pi';
+import { AppActionButton } from '@/components/app-action-button';
 import { JobPosition } from '../hooks/useJobPositionListData';
 import { formatDataTestId } from '@/modules/orgchart/utils';
 
@@ -16,6 +17,9 @@ interface JobPositionTableProps {
   loadPage: (page: number, pageSize?: number) => void;
   retry: () => void;
   total: number;
+  onSelectJobPosition?: (jobPosition: JobPosition) => void;
+  selectedJobPositionId?: string;
+  accessToken: string;
 }
 
 const DATA_TEST_ID_PREFIX = 'JobPositionTable';
@@ -31,7 +35,10 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
   loadMore,
   loadPage,
   retry,
-  total
+  total,
+  onSelectJobPosition,
+  selectedJobPositionId,
+  accessToken
 }) => {
   const { t } = useTranslation();
 
@@ -39,16 +46,6 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   
-  // Handle view job position details
-  const handleViewJobPosition = useCallback((jobPositionId: string) => {
-    window.location.href = `/platform/job-position-list/${jobPositionId}`;
-  }, []);
-  
-  // Handle edit job position
-  const handleEditJobPosition = useCallback((jobPositionId: string) => {
-    window.location.href = `/platform/job-position-list/${jobPositionId}/edit`;
-  }, []);
-
   // Get contract type display value with locale support
   const getContractTypeDisplay = (jobPosition: JobPosition) => {
     if (!jobPosition.contractType) return '-';
@@ -112,68 +109,21 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
       dataIndex: 'name',
       key: 'name',
       render: (_: any, record: JobPosition) => record.name,
-      width: '20%',
+      width: '25%',
     },
     {
       title: t('job_position.profile', 'Profile'),
       dataIndex: 'jobProfile',
       key: 'jobProfile',
       render: (_: any, record: JobPosition) => record.jobProfile?.name || '-',
-      width: '12%',
-    },
-    {
-      title: t('job_position.job_function', 'Job Function'),
-      dataIndex: 'jobFunction',
-      key: 'jobFunction',
-      render: (_: any, record: JobPosition) => record.jobFunction?.name || '-',
-      width: '12%',
-    },
-    {
-      title: t('job_position.job_level', 'Job Level'),
-      dataIndex: 'jobLevel',
-      key: 'jobLevel',
-      render: (_: any, record: JobPosition) => record.jobLevel?.name || '-',
-      width: '10%',
-    },
-    {
-      title: t('job_position.employment', 'Employment'),
-      dataIndex: 'employment',
-      key: 'employment',
-      render: (_: any, record: JobPosition) => {
-        const employmentType = getEmploymentTypeDisplay(record);
-        const contractType = getContractTypeDisplay(record);
-        
-        return (
-          <div className="gba:flex gba:flex-col gba:gap-1">
-            {/* Employment Type with icon */}
-            <div className="gba:flex gba:items-center gba:gap-1">
-              <Tooltip title={t('job_position.employment_type', 'Employment Type')}>
-                <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs">
-                  <PiHandshake size={12} className="gba:text-gray-500" />
-                  <span>{employmentType}</span>
-                </div>
-              </Tooltip>
-            </div>
-            {/* Contract Type with icon */}
-            <div className="gba:flex gba:items-center gba:gap-1">
-              <Tooltip title={t('job_position.contract_type', 'Contract Type')}>
-                <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs">
-                  <PiFile size={12} className="gba:text-gray-500" />
-                  <span>{contractType}</span>
-                </div>
-              </Tooltip>
-            </div>
-          </div>
-        );
-      },
-      width: '15%',
+      width: '20%',
     },
     {
       title: t('job_position.organizational_unit', 'Department'),
       dataIndex: 'organizationalUnit',
       key: 'organizationalUnit',
       render: (_: any, record: JobPosition) => getOrganizationalUnitDisplay(record),
-      width: '12%',
+      width: '20%',
     },
     {
       title: t('job_position.employee', 'Employee'),
@@ -208,32 +158,26 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
           </div>
         );
       },
-      width: '19%',
+      width: '25%',
     },
     {
-      title: t('job_position.actions', 'Actions'),
+      title: '', // Remove the "Actions" label
       key: 'actions',
       render: (_: any, record: JobPosition) => (
-        <div className="gba:flex gba:justify-end gba:space-x-2">
-          <Button
-            variant="text"
-            size="small"
-            onClick={() => handleViewJobPosition(record.id)}
-            data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'view-button')}
-          >
-            {t('job_position.view', 'View')}
-          </Button>
-          <Button
-            variant="text"
-            size="small"
-            onClick={() => handleEditJobPosition(record.id)}
-            data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'edit-button')}
-          >
-            {t('job_position.edit', 'Edit')}
-          </Button>
+        <div className="gba:flex gba:justify-end">
+          <AppActionButton
+            data-testid="update-job-position-button"
+            variant="primary"
+            contextsArray={["jobPositionEntity"]}
+            externalContextData={{
+              jobPositionId: record.id
+            }}
+            prefixDataTestId="update-job-position"
+            accessToken={accessToken}
+          />
         </div>
       ),
-      width: '8%',
+      width: '10%',
     },
   ];
   
@@ -253,6 +197,13 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
     );
   }
 
+  // Handle row click for selection
+  const handleRowClick = useCallback((record: JobPosition) => {
+    if (onSelectJobPosition) {
+      onSelectJobPosition(record);
+    }
+  }, [onSelectJobPosition]);
+
   // Render the DataTable with proper pagination
   return (
     <div data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'Container')}>
@@ -270,6 +221,11 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
           pageSizeOptions: ['10', '20', '50', '100'],
         }}
         onChange={handleTableChange}
+        onRow={(record: any) => ({
+          onClick: () => handleRowClick(record as JobPosition),
+          className: selectedJobPositionId === record.id ? 'gba:bg-blue-50' : '',
+          style: { cursor: 'pointer' }
+        })}
         scroll={{ x: true }}
         data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'table')}
       />

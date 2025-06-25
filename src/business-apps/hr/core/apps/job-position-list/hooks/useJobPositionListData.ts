@@ -11,6 +11,7 @@ import { JOB_POSITION_QUERY } from '../queries/JobPositionQueries';
 export interface JobFunction {
   id: string;
   name: string;
+  jobFamily: JobFamily | null;
 }
 
 /**
@@ -27,6 +28,26 @@ export interface JobLevel {
 export interface JobProfile {
   id: string;
   name: string;
+}
+
+/**
+ * Job Family translation definition.
+ */
+export interface JobFamilyTranslation {
+  value: string;
+  localeCode: string;
+  id: string;
+}
+
+/**
+ * Job Family definition.
+ */
+export interface JobFamily {
+  value: string;
+  id: string;
+  code: string;
+  catalogId: string;
+  translations: JobFamilyTranslation[];
 }
 
 /**
@@ -125,6 +146,7 @@ export type JobPositionListFilters = {
   jobProfiles?: string[];
   jobFunctions?: string[];
   jobLevels?: string[];
+  jobFamilies?: string[];
   contractTypes?: string[];
   employmentTypes?: string[];
   vacant?: boolean; // true = vacant only, false = non-vacant only, undefined = both
@@ -150,7 +172,7 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
   const [error, setError] = useState<Error | null>(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const { search, organizationalUnits, jobProfiles, jobFunctions, jobLevels, contractTypes, employmentTypes, vacant } = filters;
+  const { search, organizationalUnits, jobProfiles, jobFunctions, jobLevels, jobFamilies, contractTypes, employmentTypes, vacant } = filters;
   
   // Get the structureId from the BusinessAppContext
   const structureId = getCurrentActiveStructureId();
@@ -161,7 +183,7 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
     setOffset(0);
     setHasMore(true);
     setTotal(0);
-  }, [search, JSON.stringify(organizationalUnits), JSON.stringify(jobProfiles), JSON.stringify(jobFunctions), JSON.stringify(jobLevels), JSON.stringify(contractTypes), JSON.stringify(employmentTypes), vacant]);
+  }, [search, JSON.stringify(organizationalUnits), JSON.stringify(jobProfiles), JSON.stringify(jobFunctions), JSON.stringify(jobLevels), JSON.stringify(jobFamilies), JSON.stringify(contractTypes), JSON.stringify(employmentTypes), vacant]);
 
   /**
    * Loads a specific page of job positions. Used for true pagination.
@@ -217,6 +239,16 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
       filterConditions.push({
         jobLevel: {
           id: { _in: currentFilters.jobLevels }
+        }
+      });
+    }
+    
+    if (currentFilters.jobFamilies && currentFilters.jobFamilies.length > 0) {
+      filterConditions.push({
+        jobFunction: {
+          jobFamily: {
+            id: { _in: currentFilters.jobFamilies }
+          }
         }
       });
     }

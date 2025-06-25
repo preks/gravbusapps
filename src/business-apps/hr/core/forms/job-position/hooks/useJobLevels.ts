@@ -7,9 +7,9 @@ export interface JobLevelData {
   id: string;
   name: string;
   code?: string;
-  description?: string;
-  jobLevelGroupRef?: string;
-  isDeleted: boolean;
+  jobLevelGroup?: {
+    id: string;
+  } | null;
 }
 
 export interface QueryVariablesJobLevel {
@@ -31,42 +31,41 @@ const createSearchCondition = (search?: string, jobLevelId?: string): string => 
   `;
 };
 
-export const GET_JOB_LEVEL_DATA = (variables: QueryVariablesJobLevel): string => {
-  const { offset, limit, search, jobLevelId, jobLevelGroupId } = variables;
-  const whereJobLevelGroup = jobLevelGroupId
-    ? ` jobLevelGroupRef: { _eq: "${jobLevelGroupId}" }, isDeleted: { _eq: false} `
-    : 'isDeleted: { _eq: false}';
-  const whereCondition = jobLevelId ? `id: { _eq: "${jobLevelId}" }, isDeleted: { _eq: false} ` : whereJobLevelGroup;
-  const searchCondition = createSearchCondition(search, jobLevelId);
-  const whereClause = `${whereCondition} ${searchCondition}`;
-
-  return `query getJobLevelData {
-    jobLevels: JobLevel(
-      limit: ${limit || 100},
-      offset: ${offset || 0},
-      where: { ${whereClause}}
+const GET_JOB_LEVELS_QUERY = `
+  query GetJobLevels($search: String, $limit: Int, $offset: Int, $jobLevelId: uuid, $jobLevelGroupId: String) {
+    JobLevel(
+      where: {
+        name: { _ilike: $search },
+        id: { _eq: $jobLevelId },
+        jobLevelGroup: { id: { _eq: $jobLevelGroupId } }
+      },
+      limit: $limit,
+      offset: $offset,
+      orderBy: { name: ASC }
     ) {
       id
       name
       code
-      description
-      jobLevelGroupRef
-      isDeleted
+      jobLevelGroup {
+        id
+      }
     }
     JobLevelAggregate(
-      limit: ${limit || 100},
-      offset: ${offset || 0},
-      where: { ${whereClause}}
+      where: {
+        name: { _ilike: $search },
+        id: { _eq: $jobLevelId },
+        jobLevelGroup: { id: { _eq: $jobLevelGroupId } }
+      }
     ) {
       aggregate {
         count
       }
     }
-  }`;
-};
+  }
+`;
 
 export type JobLevelQueryData = {
-  jobLevels: JobLevelData[];
+  JobLevel: JobLevelData[];
   JobLevelAggregate: {
     aggregate: {
       count: number;
@@ -102,16 +101,18 @@ export const useJobLevels = (context: BusinessAppContextProps) => {
     setError(null);
 
     try {
-      const query = GET_JOB_LEVEL_DATA({
+      const variables = {
+        search: search ? `%${search}%` : undefined,
         limit,
         offset,
-        search,
-        jobLevelGroupId
-      });
-
-      const result = await graphqlClient.request<JobLevelQueryData>(query);
+        jobLevelId: undefined,
+        jobLevelGroupId: jobLevelGroupId || undefined
+      };
       
-      const selectOptions: SelectOption[] = result.jobLevels.map(level => ({
+      const result = await graphqlClient.request<JobLevelQueryData>(GET_JOB_LEVELS_QUERY, variables);
+
+      const levelsData = result?.JobLevel || [];
+      const selectOptions: SelectOption[] = levelsData.map((level: JobLevelData) => ({
         id: level.id,
         name: level.name,
         label: level.name,
@@ -120,13 +121,13 @@ export const useJobLevels = (context: BusinessAppContextProps) => {
 
       if (reset || offset === 0) {
         setJobLevels(selectOptions);
-        setAllJobLevels(result.jobLevels);
+        setAllJobLevels(levelsData);
       } else {
         setJobLevels(prev => [...prev, ...selectOptions]);
-        setAllJobLevels(prev => [...prev, ...result.jobLevels]);
+        setAllJobLevels(prev => [...prev, ...levelsData]);
       }
 
-      setHasMore(result.jobLevels.length === limit);
+      setHasMore(levelsData.length === limit);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch job levels';
       setError(errorMessage);
@@ -151,7 +152,11 @@ export const useJobLevels = (context: BusinessAppContextProps) => {
   }, [fetchJobLevels, loading, hasMore, searchTerm, jobLevels.length]);
 
   const fetchJobLevelsByGroup = useCallback((jobLevelGroupId: string) => {
-    fetchJobLevels({ jobLevelGroupId, reset: true });
+    if (jobLevelGroupId) {
+      fetchJobLevels({ jobLevelGroupId, reset: true });
+    } else {
+      fetchJobLevels({ reset: true });
+    }
   }, [fetchJobLevels]);
 
   // Load initial data

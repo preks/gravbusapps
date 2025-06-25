@@ -37,10 +37,24 @@ export interface EmploymentType {
   translations: JobProfileTranslation[];
 }
 
+export interface JobFamily {
+  id: string;
+  value: string;
+  translations: JobProfileTranslation[];
+}
+
+export interface JobFunction {
+  id: string;
+  name: string;
+  jobFamily: JobFamily;
+  jobLevelGroup: JobLevelGroup;
+}
+
 export interface JobProfileItem {
   id: string;
   name: string;
   jobLevel: JobLevel;
+  jobFunction: JobFunction;
   contractType: ContractType;
   employmentType: EmploymentType;
 }
@@ -91,6 +105,26 @@ export const GET_JOB_PROFILE_DATA = (variables: QueryVariablesJobProfile): strin
       jobLevel {
         id
         name
+        jobLevelGroup {
+          value
+          id
+          translations {
+            localeCode
+            value
+          }
+        }
+      }
+      jobFunction {
+        id
+        name
+        jobFamily {
+          id
+          value
+          translations {
+            localeCode
+            value
+          }
+        }
         jobLevelGroup {
           value
           id
