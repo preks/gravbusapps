@@ -14,25 +14,14 @@ import {
   PiChat,
   PiCurrencyDollar
 } from 'react-icons/pi';
-import EmployeeAvatar from '../../../../components/employeeAvatar/EmployeeAvatar';
-import { OnlineStatus } from '../../../../components/employeeAvatar/types';
+import { Avatar } from '@newwork/gravity-ui-catalog';
 import { Employee } from '../hooks/useEmployeeData';
 import { formatPhoneNumber, getEmployeeFullName } from '../utils/formatters';
 import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext';
 
 // TO-DO: ADD TRANSLATION for new availability status labels
 
-// Availability status types
-type AvailabilityStatus = 'available' | 'busy' | 'away' | 'offline' | 'doNotDisturb';
-
-// Map from AvailabilityStatus to OnlineStatus
-const availabilityStatusToOnlineStatus: Record<AvailabilityStatus, OnlineStatus> = {
-  'available': OnlineStatus.ONLINE,
-  'busy': OnlineStatus.BUSY,
-  'doNotDisturb': OnlineStatus.DO_NOT_DISTURB,
-  'away': OnlineStatus.AWAY,
-  'offline': OnlineStatus.OFFLINE
-};
+// ProfileHeader props interface
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -61,7 +50,6 @@ interface EmployeeSkill {
 
 interface ProfileHeaderProps {
   employee: Employee;
-  availabilityStatus?: AvailabilityStatus; // TO-DO: ADD REAL DATA
 }
 
 interface ProfileInfoItemProps {
@@ -110,8 +98,7 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
 
 const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({ 
   userInfo,
-  employee, 
-  availabilityStatus = 'available' // Default to available if not provided
+  employee
 }) => {
   const [isHovering, setIsHovering] = useState(false);
   const { hasPermission: hasPermissionToEditPicture } = { hasPermission: false };
@@ -191,15 +178,20 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
             <div className="gba:shrink-0 gba:mb-4 gba:z-10">
               <div className="gba:relative">
                 <div className="gba:relative">
-                  {/* Use the EmployeeAvatar component */}
+                  {/* Use the Avatar component */}
                   <div className="gba:relative">
-                    <EmployeeAvatar
-                      profilePicture={employee.pictureThumbnail}
-                      firstName={employee.firstName}
-                      lastName={employee.lastName}
-                      employeeId={employee.id}
-                      size={144} // 36 * 4 = 144px (w-36 h-36)
-                      onlineStatus={availabilityStatusToOnlineStatus[availabilityStatus]}
+                    <Avatar
+                      src={employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined}
+                      initials={`${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`}
+                      alt={`${employee.firstName} ${employee.lastName}`}
+                      // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+                      contentType={employee.pictureThumbnail ? 'image' : 'initials'}
+                      // @ts-ignore - Type issue in gravity-ui-catalog for size
+                      size="xl"
+                      // @ts-ignore - Type issue in gravity-ui-catalog for shape
+                      shape="rounded"
+                      // @ts-ignore - Type issue in gravity-ui-catalog for appearance
+                      appearance="gradient"
                     />
                     
                     {/* Edit button overlay */}
