@@ -1,9 +1,6 @@
 /**
  * Date utilities for the Expense Item module
  */
-import { showToast } from "./notificationUtils";
-import { translate } from "../../../../../../common/utils/windowUtils";
-
 /**
  * Formats a date string to DD.MM.YYYY format
  * @param dateString - ISO date string

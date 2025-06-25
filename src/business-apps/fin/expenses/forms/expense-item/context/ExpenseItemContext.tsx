@@ -193,13 +193,21 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
   }, [generalDataResponse, catalogueDataResponse, accessToken]);
 
-
   useEffect(() => {
     if (catalogueDataResponse && accessToken && !expenseRuleError) {
       addRequestsWrapper();
-      form.setFieldsValue({ expenseRequestId: "0" });
+      
+      const expenseRequestId = 
+        additionalData?.psi_taskPayload?.initialParameters?.expenseRequest ||
+        additionalDataMocked?.psi_taskPayload?.initialParameters?.expenseRequest;
+      
+      if (expenseRequestId) {
+        form.setFieldsValue({ expenseRequestId: expenseRequestId });
+      } else {
+        form.setFieldsValue({ expenseRequestId: "0" });
+      }
     }
-  }, [catalogueDataResponse, accessToken]);
+  }, [catalogueDataResponse, accessToken, additionalData, additionalDataMocked]);
 
   useEffect(()=>{
     if(firstRunVariable===true)

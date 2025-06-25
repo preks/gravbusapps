@@ -4,6 +4,7 @@ import { formatDateToISOString } from "../../utils/dateUtils";
 import { calculateTotalAmount } from "../../utils/calculationUtils";
 import { fetchExpenseTypes, fetchCustomFields } from "./dataFetchers";
 import { initiateFlow, getOpenedTaskFlow, completeTaskFlow } from "./flowHandlers";
+import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 
 /**
  * Uploads documents to the file server
@@ -401,6 +402,10 @@ export const handleSubmit = async (
           "error"
         );
       }
+    }
+
+    if(accessToken && employeeId && !hasExpenseRequest){
+      dispatchProcessContinueEvent('APPROVE_EXPENSE', submitData);
     }
 
     showToast(
