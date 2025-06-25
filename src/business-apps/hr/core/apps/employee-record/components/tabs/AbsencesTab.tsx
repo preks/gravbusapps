@@ -9,7 +9,6 @@ import { Tabs, Pagination, Spin } from 'antd';
 import {
   CalendarOutlined,
   UnorderedListOutlined,
-  BarChartOutlined,
   PaperClipOutlined,
   LeftOutlined,
   RightOutlined,
@@ -50,16 +49,6 @@ interface AbsenceListCardAbsence {
   requestDate: string;
 }
 
-interface StatItem {
-  title: string;
-  used: number;
-  total: number;
-  progress: number;
-  icon: React.ReactNode;
-  color?: string;
-  textColor?: string;
-  daysLeft: number;
-}
 
 interface Entitlement {
   type: string;
@@ -115,7 +104,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [activeTab, setActiveTab] = useState("calendar");
   const [absenceList, setAbsenceList] = useState<AbsenceListCardAbsence[]>([]);
   const [entitlements, setEntitlements] = useState<Entitlement[]>([]);
-  const [stats, setStats] = useState<StatItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -226,36 +214,17 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         setEntitlements(
           employeeAbsenceEntitlement.map((ent) => ({
             type: getTypeValue(ent.type),
-            color: ent.type?.objectValue?.color || "blue",
+            color: ent.type?.objectValue?.color || '1976d2',
             used: ent.approved,
             total: ent.total,
             pending: ent.pending,
             available: ent.available,
             icon: (
               <PaperClipOutlined
-                style={{
-                  color: ent.type?.objectValue?.color
-                    ? `#${ent.type.objectValue.color}`
-                    : "#1976d2",
-                }}
+                style={{ color: `#${ent.type?.objectValue?.color || '1976d2'}` }}
               />
             ),
             checkEntitlement: ent.type?.objectValue?.checkEntitlement,
-          }))
-        );
-
-        setStats(
-          employeeAbsenceEntitlement.map((ent) => ({
-            title: getTypeValue(ent.type),
-            used: ent.approved,
-            total: ent.total,
-            progress: ent.total
-              ? Math.round((ent.approved / ent.total) * 100)
-              : 0,
-            icon: <PaperClipOutlined style={{ color: "#1976d2" }} />,
-            color: ent.type?.objectValue?.color,
-            textColor: ent.type?.objectValue?.color,
-            daysLeft: ent.available,
           }))
         );
       })
@@ -703,85 +672,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                           </div>
                         ))}
                       </div>
-                    )}
-                  </div>
-                ),
-              },
-              {
-                key: "statistics",
-                label: (
-                  <span className="gba:tabLabel">
-                    <BarChartOutlined className="gba:tabIcon" />
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:absence_hub.statistics",
-                      "Statistics"
-                    )}
-                  </span>
-                ),
-                children: (
-                  <div className="gba:stats-grid gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
-                    {loading ? (
-                      <div className="gba:loading gba:flex gba:justify-center gba:items-center gba:py-8">
-                        <Spin size="large" />
-                      </div>
-                    ) : error ? (
-                      <div className="gba:error gba:text-red-500 gba:py-8 gba:text-center">
-                        {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:absence_hub.error_loading",
-                          "Failed to load absence data."
-                        )}
-                      </div>
-                    ) : stats.length === 0 ? (
-                      <div className="gba:no-stats gba:text-center gba:text-gray-500 gba:py-8">
-                        {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:absence_hub.no_statistics",
-                          "No statistics available"
-                        )}
-                      </div>
-                    ) : (
-                      stats.map((stat: StatItem, idx: number) => (
-                        <div 
-                          key={idx} 
-                          className="gba:stat-card gba:border gba:rounded gba:p-4 gba:shadow-sm gba:bg-white"
-                          data-testid={`stat-card-${idx}`}
-                        >
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-                            <span className="gba:icon">{stat.icon}</span>
-                            <h4 className="gba:text-lg gba:font-medium">{stat.title}</h4>
-                          </div>
-                          
-                          <div className="gba:stats-details gba:mb-3">
-                            <div className="gba:flex gba:justify-between gba:mb-2">
-                              <span>
-                                {getTranslationFromI18nKeyAndLabel(
-                                  "lowcoder:absence_hub.used",
-                                  "Used"
-                                )}: {stat.used} / {stat.total}
-                              </span>
-                              <span>
-                                {stat.daysLeft} {getTranslationFromI18nKeyAndLabel(
-                                  "lowcoder:absence_hub.days_left",
-                                  "days left"
-                                )}
-                              </span>
-                            </div>
-                            
-                            <div className="gba:bg-gray-200 gba:rounded-full gba:h-2 gba:overflow-hidden">
-                              <div 
-                                className="gba:h-full gba:rounded-full" 
-                                style={{
-                                  width: `${stat.progress}%`,
-                                  backgroundColor: `#${stat.color || '1976d2'}`
-                                }}
-                              ></div>
-                            </div>
-                          </div>
-                          
-                          <div className="gba:progress-text gba:text-right gba:text-sm gba:font-medium" style={{ color: `#${stat.textColor || '1976d2'}` }}>
-                            {stat.progress}%
-                          </div>
-                        </div>
-                      ))
                     )}
                   </div>
                 ),
