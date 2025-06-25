@@ -98,19 +98,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   };
 
   const isGoalValid = (goal: ExtendedEmployeePerformanceGoal) => {
-    return true; //goal.title && goal.startDate && goal.dueDate;
+    return goal.title && goal.startDate && goal.dueDate;
   };
 
   // Map status to display values and styles
   const getStatusInfo: (status: string) => { label: string, color: string } = (status: string) => {  
     return statusMap[status] || { label: status, color: 'gba:bg-gray-100 gba:text-gray-800' };
 };
-
-
-  
-  // No longer need drawer functions
-
-
 
   // Handle loading state
   if (loading) {

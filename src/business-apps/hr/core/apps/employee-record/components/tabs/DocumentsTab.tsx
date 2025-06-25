@@ -11,7 +11,6 @@ import 'dayjs/plugin/localeData';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { useFileClient } from '@/common/network/files/useFileClient';
 import { employeeDocumentsQuery, documentTypeCatalogQuery } from '../../queries/documentQueries';
-import { startProcess } from '@/common/utils/start-process';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
