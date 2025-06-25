@@ -7,6 +7,8 @@ import { useGraphqlClient } from '../../../../../common/network/graphql/useGraph
  * Employee type definition for the directory.
  */
 export interface Employee {
+  startDate?: string;
+  exitDate?: string | null;
   id: string;
   userId?: string;
   firstName: string;
@@ -32,7 +34,6 @@ export type EmployeeFilters = {
   matrixTeams?: string[];
 };
 
-const EMPLOYEES_PER_PAGE = 20;
 
 /**
  * Helper function to extract matrix team names from matrixUnitEmployees
@@ -126,15 +127,18 @@ const EMPLOYEE_POSITION_QUERY = `
  * @param filters Filters for the employee directory.
  * @returns Employees, total count, loading, error, hasMore, loadMore, retry
  */
-export function useGetEmployeesReport({ accessToken }: { accessToken: string }) {
+export function useGetEmployeesReport({ accessToken, pageSize = 20 }: { accessToken: string; pageSize?: number }) {
+  const ALL_EMPLOYEES_LIMIT = 10000;
   const client = useGraphqlClient(accessToken);
-  console.log('[useGetEmployeesReport] client:', client);
+  
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Fetch paginated employees for table
   const fetchEmployees = useCallback((page: number) => {
     if (typeof window === 'undefined') return; // Prevent SSR execution
     if (!client) {
@@ -143,8 +147,11 @@ export function useGetEmployeesReport({ accessToken }: { accessToken: string }) 
       return;
     }
     setLoading(true);
-    const offset = (page - 1) * EMPLOYEES_PER_PAGE;
-    const variables = { limit: EMPLOYEES_PER_PAGE, offset, where: {} };
+    const variables = {
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+      where: {}
+    };
     client.request?.(EMPLOYEE_POSITION_QUERY, variables)
       .then((res: any) => {
         if (!res) {
@@ -180,14 +187,44 @@ export function useGetEmployeesReport({ accessToken }: { accessToken: string }) 
         setError(err);
         setLoading(false);
       });
-  }, [client]);
+  }, [client, pageSize]);
 
   useEffect(() => {
     if (accessToken && client) {
       fetchEmployees(currentPage);
+      // Fetch all employees for KPI (unpaginated)
+      const variables = {
+        limit: ALL_EMPLOYEES_LIMIT,
+        offset: 0,
+        where: {}
+      };
+      client.request?.(EMPLOYEE_POSITION_QUERY, variables)
+        .then((res: any) => {
+          const employeePositions = res.EmployeePosition ?? [];
+          const newEmployees = employeePositions.map((ep: any) => {
+            const workingCondition = ep.employee?.workingCondition?.[0];
+            return {
+              id: ep.employeeId,
+              userId: ep.userId,
+              supervisor: ep.supervisor,
+              firstName: ep.firstName,
+              lastName: ep.lastName,
+              jobTitle: ep.jobPosition?.name ?? '',
+              organizationalUnit: ep.organizationalUnit?.name ?? '',
+              email: '',
+              employmentType: workingCondition?.employmentType?.value ?? '',
+              contractType: workingCondition?.contractType?.value ?? '',
+              matrixTeams: extractMatrixTeamNames(ep.matrixUnitEmployees),
+              profilePicture: ep.employee?.pictureThumbnail ?? '',
+              startDate: workingCondition?.hireDate ?? '',
+              exitDate: workingCondition?.exitDate ?? ''
+            };
+          });
+          setAllEmployees(newEmployees);
+        });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, client, currentPage]);
+  }, [accessToken, client, currentPage, pageSize]);
 
   const onPageChange = (page: number) => {
     setCurrentPage(page);
@@ -198,6 +235,6 @@ export function useGetEmployeesReport({ accessToken }: { accessToken: string }) 
     fetchEmployees(currentPage);
   }, [fetchEmployees, currentPage]);
 
-  return { employees, total, loading, error, currentPage, onPageChange, retry };
+  return { employees, allEmployees, total, loading, error, currentPage, onPageChange, retry };
 }
 

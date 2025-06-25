@@ -24,10 +24,11 @@ interface TeamReportProps extends BusinessAppContextProps {}
 const TeamReport: React.FC<TeamReportProps> = (props) => {
 
   // Fetch employee report data using the hook
-  const report = useGetEmployeesReport({ accessToken: props.accessToken });
+  const [pageSize, setPageSize] = useState<number>(20);
+  const report = useGetEmployeesReport({ accessToken: props.accessToken, pageSize });
+  const allEmployees = report.allEmployees || [];
 
-  // Map API employees to UI structure
-
+  // Map all employees to UI structure
   type EmployeeUI = {
     id: string;
     name: string;
@@ -39,24 +40,27 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
     exitDate: string | null;
     tenure: string;
   };
-  const employees: EmployeeUI[] = (report.employees || []).map(emp => ({
+
+  const allEmployeeUIs: EmployeeUI[] = (allEmployees || []).map((emp: any): EmployeeUI => ({
     id: emp.id,
     name: `${emp.firstName} ${emp.lastName}`,
     position: emp.jobTitle ?? "N/A",
     location: emp.organizationalUnit ?? "N/A",
     employmentType: emp.employmentType ?? "N/A",
     contractType: emp.contractType ?? "N/A",
-    startDate: (emp as any).startDate ? dayjs((emp as any).startDate).format('YYYY-MM-DD') : "N/A",
-    exitDate: (emp as any).exitDate ? dayjs((emp as any).exitDate).format('YYYY-MM-DD') : null,
-    tenure: getEmployeeTenure((emp as any).startDate, (emp as any).exitDate),
+    startDate: emp.startDate ? dayjs(emp.startDate).format('YYYY-MM-DD') : "N/A",
+    exitDate: emp.exitDate ? dayjs(emp.exitDate).format('YYYY-MM-DD') : null,
+    tenure: getEmployeeTenure(emp.startDate, emp.exitDate)
   }));
+  // Debug: Log all employees (non-sensitive)
+  console.log('[TeamReport] allEmployeeUIs:', allEmployeeUIs);
 
-  // Log exitDate values for debugging
-  console.log('TeamReport: exitDate values', (report.employees || []).map(emp => (emp as any)));
+
+
+
 
   // Pagination state from hook
-  const { currentPage, onPageChange, total } = report;
-  const pageSize = 20;
+  const { currentPage, onPageChange } = report; // 'total' is no longer needed
 
   const [activeFilter, setActiveFilter] = useState<string>("all")
   const [searchTerm, setSearchTerm] = useState("")
@@ -65,15 +69,66 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [isJobPositionExpanded, setIsJobPositionExpanded] = useState(true)
 
-  // Get unique job positions for filter
-  const uniquePositions = Array.from(new Set(employees.map((emp) => emp.position))).sort()
+  // Filtering logic for table (always use allEmployeeUIs as the base)
+  const matchesKPI = (employee: EmployeeUI) => {
+    switch (activeFilter) {
+      case "internal":
+        return employee.employmentType === "Internal";
+      case "external":
+        return employee.employmentType === "External";
+      case "contract":
+        return employee.employmentType === "Contract worker";
+      case "demo":
+        return employee.employmentType === "Demo" || employee.employmentType === "Test";
+      case "fulltime":
+        return employee.contractType?.toLowerCase().includes("full time");
+      case "parttime":
+        return employee.contractType?.toLowerCase().includes("part time");
+      case "tenure":
+        return true; // tenure KPI does not filter
+      default:
+        return true;
+    }
+  };
 
-  // Filter positions based on sidebar search
-  const filteredPositions = uniquePositions.filter((position) =>
-    position.toLowerCase().includes(sidebarSearchTerm.toLowerCase()),
-  )
+  const filteredEmployees: EmployeeUI[] = allEmployeeUIs.filter((employee: EmployeeUI) => {
+    const matchesKPIFilter = matchesKPI(employee);
+    const matchesPositionFilter = selectedPositions.length === 0 || selectedPositions.includes(employee.position);
+    const matchesSearch =
+      searchTerm.trim() === "" ||
+      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.location.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesKPIFilter && matchesPositionFilter && matchesSearch;
+  });
+  // Debug: Log filtered employees (non-sensitive)
+  console.log('[TeamReport] filteredEmployees:', filteredEmployees);
+
+  // Paginate filtered employees
+  const paginatedEmployees: EmployeeUI[] = filteredEmployees.slice(
+    (report.currentPage - 1) * pageSize,
+    report.currentPage * pageSize
+  );
+  // Debug: Log paginated employees (non-sensitive)
+  console.log('[TeamReport] paginatedEmployees:', paginatedEmployees);
+
+  // Get unique job positions for filter
+const uniquePositions = Array.from(new Set(filteredEmployees.map((emp: EmployeeUI) => emp.position))).sort();
+
+// Filter positions based on sidebar search
+const filteredPositions = uniquePositions.filter((position: string) =>
+  position.toLowerCase().includes(sidebarSearchTerm.toLowerCase()),
+);
+
+const clearAllFilters = () => {
+  setSelectedPositions([])
+  setActiveFilter("all")
+  setSearchTerm("")
+  setSidebarSearchTerm("")
+}
 
   // --- Search & Filter Controls (Ant Design & DebouncedInput) ---
+
   const searchFilterBar = (
     <div className="gba:flex gba:gap-4 gba:mb-4" data-testid="team-report-search-filters">
       <DebouncedInput
@@ -85,7 +140,7 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
         data-testid="team-report-search"
       />
       <Button
-        // onClick={clearAllFilters}
+         onClick={clearAllFilters}
         className="gba:ml-2"
         data-testid="team-report-clear-filters"
         type="default"
@@ -96,83 +151,11 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
   );
 
 
-  // Filter employees based on active filter, selected positions, and search term
-  const filteredEmployees = employees.filter((employee) => {
-    // Apply KPI filter
-    let matchesKPIFilter = true
-    switch (activeFilter) {
-      case "internal":
-        matchesKPIFilter = employee.employmentType === "Internal"
-        break
-      case "external":
-        matchesKPIFilter = employee.employmentType === "External"
-        break
-      case "contract":
-        matchesKPIFilter = employee.employmentType === "Contract worker"
-        break
-      case "demo":
-        matchesKPIFilter = employee.employmentType === "Demo" || employee.employmentType === "Test"
-        break
-      case "fulltime":
-        matchesKPIFilter = employee.contractType.toLowerCase().includes("full time")
-        break
-      case "parttime":
-        matchesKPIFilter = employee.contractType.toLowerCase().includes("part time")
-        break
-      case "tenure":
-        // Show all employees for tenure sorting
-        matchesKPIFilter = true
-        break
-      case "all":
-      default:
-        matchesKPIFilter = true
-    }
-
-    // Apply position filter
-    const matchesPositionFilter = selectedPositions.length === 0 || selectedPositions.includes(employee.position)
-
-    // Apply search filter
-    const matchesSearch =
-      searchTerm === "" ||
-      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.location.toLowerCase().includes(searchTerm.toLowerCase())
-
-    return matchesKPIFilter && matchesPositionFilter && matchesSearch
-  })
-
-  // Sort by tenure for tenure filter
-  const displayEmployees =
-    activeFilter === "tenure"
-      ? [...filteredEmployees].sort((a, b) => {
-          const getMonths = (tenure: string) => {
-            if (tenure === "N/A") return 0
-            const match = tenure.match(/(\d+)\s+years?\s+and\s+(\d+)\s+months?/)
-            if (match) {
-              return Number.parseInt(match[1]) * 12 + Number.parseInt(match[2])
-            }
-            const monthMatch = tenure.match(/(\d+)\s+months?/)
-            if (monthMatch) {
-              return Number.parseInt(monthMatch[1])
-            }
-            return 0
-          }
-          return getMonths(b.tenure) - getMonths(a.tenure)
-        })
-      : filteredEmployees
-
-  const totalEmployees = employees.length
-
   const handlePositionToggle = (position: string) => {
     setSelectedPositions((prev) => (prev.includes(position) ? prev.filter((p) => p !== position) : [...prev, position]))
   }
 
-  const clearAllFilters = () => {
-    setSelectedPositions([])
-    setActiveFilter("all")
-    setSearchTerm("")
-    setSidebarSearchTerm("")
-  }
+  
 
   const hasActiveFilters = selectedPositions.length > 0 || activeFilter !== "all" || searchTerm !== ""
 
@@ -203,17 +186,17 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
                 className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2"
               />
               <div className="gba:px-4 gba:py-2">
-                <div className="gba:text-2xl gba:font-bold gba:text-gray-900">{totalEmployees}</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-gray-900">{allEmployeeUIs.length}</div>
                 <p className="gba:text-xs gba:text-gray-500 gba:mt-1">All members</p>
               </div>
             </Card>
-
-            {employees.filter((emp) => emp.employmentType === "Internal").length > 0 && (
+            {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Internal").length > 0 && (
               <Card
-                className={`bg-white shadow-sm border-l-4 border-l-green-500 cursor-pointer transition-all hover:shadow-md ${
-                  activeFilter === "internal" ? "ring-2 ring-green-200 bg-green-50" : ""
+                className={`gba:bg-white gba:shadow-sm gba:border-l-4 gba:border-l-green-500 gba:cursor-pointer gba:transition-all gba:hover:shadow-md ${
+                  activeFilter === "internal" ? "gba:ring-2 gba:ring-green-200 gba:bg-green-50" : ""
                 }`}
                 onClick={() => setActiveFilter("internal")}
+                data-testid="team-report-kpi-internal"
               >
                 <Card.Meta
                   avatar={<CheckOutlined className="gba:text-green-500" />}
@@ -222,14 +205,14 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
                 />
                 <div className="gba:px-4 gba:py-2">
                   <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                    {employees.filter((emp) => emp.employmentType === "Internal").length}
+                    {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Internal").length}
                   </div>
                   <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Employees</p>
                 </div>
               </Card>
             )}
 
-            {employees.filter((emp) => emp.employmentType === "External").length > 0 && (
+            {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "External").length > 0 && (
               <Card
                 className={`gba:bg-white gba:shadow-sm gba:border-l-4 gba:border-l-orange-500 gba:cursor-pointer gba:transition-all gba:hover:shadow-md ${
                   activeFilter === "external" ? "gba:ring-2 gba:ring-orange-200 gba:bg-orange-50" : ""
@@ -244,14 +227,14 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
                 />
                 <div className="gba:px-4 gba:py-2">
                   <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                    {employees.filter((emp) => emp.employmentType === "External").length}
+                    {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "External").length}
                   </div>
                   <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Workers</p>
                 </div>
               </Card>
             )}
 
-            {employees.filter((emp) => emp.employmentType === "Contract worker").length > 0 && (
+            {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Contract worker").length > 0 && (
               <Card
                 className={`gba:bg-white gba:shadow-sm gba:border-l-4 gba:border-l-purple-500 gba:cursor-pointer gba:transition-all gba:hover:shadow-md ${
                   activeFilter === "contract" ? "gba:ring-2 gba:ring-purple-200 gba:bg-purple-50" : ""
@@ -266,14 +249,14 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
                 />
                 <div className="gba:px-4 gba:py-2">
                   <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                    {employees.filter((emp) => emp.employmentType === "Contract worker").length}
+                    {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Contract worker").length}
                   </div>
                   <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Contractors</p>
                 </div>
               </Card>
             )}
 
-            {employees.filter((emp) => emp.employmentType === "Demo" || emp.employmentType === "Test").length > 0 && (
+            {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Demo" || employee.employmentType === "Test").length > 0 && (
               <Card
                 className={`gba:bg-white gba:shadow-sm gba:border-l-4 gba:border-l-red-500 gba:cursor-pointer gba:transition-all gba:hover:shadow-md ${
                   activeFilter === "demo" ? "gba:ring-2 gba:ring-red-200 gba:bg-red-50" : ""
@@ -288,7 +271,7 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
                 />
                 <div className="gba:px-4 gba:py-2">
                   <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                    {employees.filter((emp) => emp.employmentType === "Demo" || emp.employmentType === "Test").length}
+                    {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Demo" || employee.employmentType === "Test").length}
                   </div>
                   <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Test users</p>
                 </div>
@@ -306,12 +289,37 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
                 className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2"
               />
               <div className="gba:px-4 gba:py-2">
-                <div className="gba:text-2xl gba:font-bold gba:text-gray-900">17m</div>
+                <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
+                  {(() => {
+                    // Calculate average tenure in months from allEmployees
+const getMonths = (tenure: string): number => {
+  if (tenure === "N/A") return 0;
+  const match = tenure.match(/(\d+)\s+years?\s+and\s+(\d+)\s+months?/);
+  if (match) {
+    return Number.parseInt(match[1]) * 12 + Number.parseInt(match[2]);
+  }
+  const monthMatch = tenure.match(/(\d+)\s+months?/);
+  if (monthMatch) {
+    return Number.parseInt(monthMatch[1]);
+  }
+  return 0;
+};
+
+// If tenure sorting is needed, add it directly to filteredEmployees before slicing for pagination, e.g.:
+// const sortedEmployees = [...filteredEmployees].sort((a, b) => getMonths(b.tenure) - getMonths(a.tenure));
+// const paginatedEmployees = sortedEmployees.slice(...)
+// For now, we use filteredEmployees directly for pagination.
+                  if (allEmployeeUIs.length === 0) return '0m';
+                    const monthsArr = allEmployeeUIs.map(e => getMonths(e.tenure));
+                    const avg = monthsArr.reduce((a, b) => a + b, 0) / monthsArr.length;
+                    return `${Math.round(avg)}m`;
+                  })()}
+                </div>
                 <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Average months</p>
               </div>
             </Card>
 
-            {employees.filter((emp) => emp.contractType.toLowerCase().includes("full time")).length > 0 && (
+            {allEmployeeUIs.filter((employee: EmployeeUI) => employee.contractType?.toLowerCase().includes("full time")).length > 0 && (
               <Card
                 className={`bg-white shadow-sm border-l-4 border-l-teal-500 cursor-pointer transition-all hover:shadow-md ${
                   activeFilter === "fulltime" ? "ring-2 ring-teal-200 bg-teal-50" : ""
@@ -325,14 +333,14 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
                 />
                 <div className="gba:px-4 gba:py-2">
                   <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                    {employees.filter((emp) => emp.contractType.toLowerCase().includes("full time")).length}
+                    {allEmployeeUIs.filter((employee: EmployeeUI) => employee.contractType?.toLowerCase().includes("full time")).length}
                   </div>
                   <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Full-time</p>
                 </div>
               </Card>
             )}
 
-            {employees.filter((emp) => emp.contractType.toLowerCase().includes("part time")).length > 0 && (
+            {allEmployeeUIs.filter((employee: EmployeeUI) => employee.contractType?.toLowerCase().includes("part time")).length > 0 && (
               <Card
                 className={`bg-white shadow-sm border-l-4 border-l-indigo-500 cursor-pointer transition-all hover:shadow-md ${
                   activeFilter === "parttime" ? "ring-2 ring-indigo-200 bg-indigo-50" : ""
@@ -346,7 +354,7 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
                 />
                 <div className="gba:px-4 gba:py-2">
                   <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                    {employees.filter((emp) => emp.contractType.toLowerCase().includes("part time")).length}
+                    {allEmployeeUIs.filter((employee: EmployeeUI) => employee.contractType?.toLowerCase().includes("part time")).length}
                   </div>
                   <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Part-time</p>
                 </div>
@@ -537,14 +545,8 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {(() => { console.log('TeamReport: displayed tenure values', displayEmployees.map(e => e.startDate)); return null; })()}
-                  {displayEmployees.map(
-                    (employee: typeof employees[0], index: number) => (
-                     <tr
-                        key={employee.id}
-                        className="gba:border-b gba:border-gray-100 hover:gba:bg-gray-50"
-                        data-testid={`team-report-employee-row-${employee.id}`}
-                      >
+                  {paginatedEmployees.map((employee: EmployeeUI) => (
+                      <tr key={employee.id} data-testid={`team-report-employee-row-${employee.id}`}>
                       <td className="gba:py-4 gba:px-6 gba:text-gray-900 gba:font-medium">
                         {employee.name}
                       </td>
@@ -601,7 +603,7 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
               </div>
               <div className="gba:flex gba:justify-between gba:items-center gba:text-sm gba:text-gray-500 gba:pt-4">
                 <span>
-                  Showing {employees.length} of {total} employees (page {currentPage})
+                  Showing {paginatedEmployees.length} of {filteredEmployees.length} employees (filtered on page {report.currentPage})
                   {(selectedPositions.length > 0 || activeFilter !== "all" || searchTerm !== "") && (
                     <span className="gba:text-blue-600 gba:font-medium"> (filtered)</span>
                   )}
@@ -609,15 +611,20 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
                 <span>Last updated: {new Date().toLocaleDateString()}</span>
               </div>
               <div className="gba:pt-4 gba:flex gba:justify-end">
-                <Pagination
-                  current={currentPage}
-                  pageSize={pageSize}
-                  total={total}
-                  onChange={onPageChange}
-                  showSizeChanger={false}
-                  className="gba:ml-auto"
-                  data-testid="team-report-pagination"
-                />
+                   <Pagination
+                      current={report.currentPage}
+                      pageSize={pageSize}
+                      total={filteredEmployees.length}
+                      onChange={report.onPageChange}
+                      showSizeChanger={true}
+                      pageSizeOptions={['10','20','50','100']}
+                      onShowSizeChange={(_, size) => {
+                        setPageSize(size);
+                        report.onPageChange(1); // Reset to first page when page size changes
+                      }}
+                      className="gba:ml-auto"
+                      data-testid="team-report-pagination"
+                    />
               </div>
           </div>
         </Card> 
