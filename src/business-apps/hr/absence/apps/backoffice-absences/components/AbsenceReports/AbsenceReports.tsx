@@ -94,7 +94,7 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
               'Authorization': `Bearer ${accessToken}`,
               'Content-Type': 'application/json',
             },
-            credentials: 'include',
+            credentials: 'same-origin',
           },
         );
 
