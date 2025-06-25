@@ -93,13 +93,27 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
 
   return (
     <div className="gba:skills-tab gba:p-4" data-testid="skills-tab">
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-        <h2 className="gba:text-xl gba:font-semibold">
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:employee_record.skills_title",
-            "Employee Skills"
-          )}
-        </h2>
+      <div className="gba:flex gba:justify-between gba:items-start" data-testid="skills-header">
+        <div className="gba:skills-header">
+          <div
+            className="gba:font-bold gba:text-2xl"
+            data-testid="skills-title"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:employee_record.skills_title",
+              "Skills Overview"
+            )}
+          </div>
+          <div
+            className="gba:text-gray-500 gba:text-lg"
+            data-testid="skills-description"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:employee_record.skills_description",
+              "View and manage employee skills and competencies"
+            )}
+          </div>
+        </div>
         
         <AppActionButton
           variant="primary"
