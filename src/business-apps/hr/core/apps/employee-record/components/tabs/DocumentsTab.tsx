@@ -696,7 +696,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
       </div>
       
       {/* Search section */}
-      <div className="gba:flex gba:justify-end gba:items-center gba:mb-4">
+      <div className="gba:flex gba:justify-start gba:items-center gba:mb-4">
         <div className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:md:w-auto">
           <div className="gba:flex gba:items-center gba:gap-3 gba:w-full">
             <div className="gba:flex gba:items-center gba:w-full gba:border gba:border-gray-200 gba:rounded-md gba:shadow-md gba:bg-white gba:transition-all gba:duration-200 gba:hover:shadow-lg gba:focus-within:ring-2 gba:focus-within:ring-blue-500 gba:focus-within:border-blue-500">
