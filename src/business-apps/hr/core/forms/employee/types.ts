@@ -8,6 +8,7 @@ export interface EmployeeFormValues {
   preferredName: string;
   employmentTypeId: string;
   contractTypeId: string;
+  hireDate: string;
 }
 
 export interface SelectOption {

@@ -50,7 +50,7 @@ const EmployeeForm: React.FC = () => {
   const [showAdditionalAttributes, setShowAdditionalAttributes] = useState(false);
 
   // Check if all mandatory fields are filled
-  const isFormValid = 
+  const isFormValid =
     toStringOrUndefined(formValues.firstName) &&
     toStringOrUndefined(formValues.lastName) &&
     toStringOrUndefined(formValues.email) &&
@@ -80,9 +80,9 @@ const EmployeeForm: React.FC = () => {
             <div className="gba:font-medium">{position.name}</div>
             {orgUnit && (
               <div className="gba:flex gba:items-center">
-                <Pill 
-                  label={orgUnit.name} 
-                  type="waiting" 
+                <Pill
+                  label={orgUnit.name}
+                  type="waiting"
                   className="gba:text-xs"
                 />
               </div>
@@ -230,11 +230,25 @@ const EmployeeForm: React.FC = () => {
               )}
               {jobPositions.length === 0 && !jobPositionsLoading && !jobPositionsError && (
                 <div className="gba:text-gray-500 gba:text-sm gba:mt-1">
-                  {formValues.organizationalUnitId 
-                    ? "No vacant positions available in the selected organizational unit" 
+                  {formValues.organizationalUnitId
+                    ? "No vacant positions available in the selected organizational unit"
                     : "No vacant positions available"}
                 </div>
               )}
+            </div>
+
+            {/* Hire Date - Optional */}
+            <div>
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
+                Hire Date
+              </label>
+              <Input
+                name="hireDate"
+                type="date"
+                value={formValues.hireDate}
+                onChange={e => setFormValues({ hireDate: String(e.value || '') })}
+                placeholder="Please Select..."
+              />
             </div>
           </div>
 
@@ -269,9 +283,9 @@ const EmployeeForm: React.FC = () => {
                 {/* Employment Type */}
                 <div className="gba:space-y-3">
                   <div>
-                                       <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
-                     Employment Type *
-                   </label>
+                    <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
+                      Employment Type *
+                    </label>
                     <Select
                       name="employmentTypeId"
                       value={toStringOrUndefined(formValues.employmentTypeId)}
@@ -297,9 +311,9 @@ const EmployeeForm: React.FC = () => {
                 {/* Contract Type */}
                 <div className="gba:space-y-3">
                   <div>
-                                       <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
-                     Contract Type *
-                   </label>
+                    <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
+                      Contract Type *
+                    </label>
                     <Select
                       name="contractTypeId"
                       value={toStringOrUndefined(formValues.contractTypeId)}
@@ -347,17 +361,40 @@ const EmployeeForm: React.FC = () => {
               try {
                 await submit();
                 // Dispatch process continue event on successful submission
+                
+                // Format hire date to include time (2024-01-01T00:00:00)
+                // If no hire date is set, use current date
+                const hireDateToUse = formValues.hireDate || new Date().toISOString().split('T')[0];
+                const hireDateFormatted = `${hireDateToUse}T00:00:00`;
+                
                 const payload: any = {
                   "employee": {
                     "firstName": formValues.firstName,
                     "lastName": formValues.lastName,
                     "preferredName": formValues.preferredName,
-                    "fullName": `${formValues.firstName} ${formValues.lastName}`
+                    "fullName": `${formValues.firstName} ${formValues.lastName}`,
+                    "communication": [
+                      {
+                        "purpose": "INTERNAL",
+                        "typeRef": "CommunicationType:v1:1",
+                        "channelRef": "CommunicationChannel:v1:e-mail",
+                        "value": formValues.email,
+                        "valueExtension": "string"
+                      }
+                    ]
                   },
                   "organizationalUnitId": formValues.organizationalUnitId,
                   "structureId": structureId,
                   "jobPositionId": formValues.jobPositionId,
-                  "changeMode": "INSERT"
+                  "changeMode": "INSERT",
+                  "workingCondition": [
+                    {
+                      "contractStatus": "ACTIVE",
+                      "contractTypeRef": formValues.contractTypeId,
+                      "employmentTypeRef": formValues.employmentTypeId,
+                      "hireDate": hireDateFormatted
+                    }
+                  ]
                 };
 
                 // Add displayName only if preferredName is set

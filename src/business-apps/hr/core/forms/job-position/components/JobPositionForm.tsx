@@ -507,13 +507,15 @@ const JobPositionForm: React.FC = () => {
                   "jobPosition": {
                     "name": formValues.name,
                     "jobProfile": formValues.jobProfileId,
-                    "organizationalUnit": formValues.organizationalUnitId,
                     "jobFamily": formValues.jobFamilyId,
                     "jobFunction": formValues.jobFunctionId,
                     "jobLevel": formValues.jobLevelId,
-                    "employmentType": formValues.employmentTypeId,
-                    "contractType": formValues.contractTypeId
-                  }
+                    "employmentTypeRef": formValues.employmentTypeId,
+                    "contractTypeRef": formValues.contractTypeId
+                  },
+                  "organizationalUnitId": formValues.organizationalUnitId,
+                  "structureId": structureId,
+                  "changeMode": "INSERT"
                 });
               } catch (err) {
                 console.error('Error submitting job position form:', err);
