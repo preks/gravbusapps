@@ -1,57 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useGetCompensationBandData, CompensationBand } from '../queries/CompensationBandQueries';
 import { useGetJobLevelData, JobLevelByJobLevelGroupIdData } from '../../job-structure-data/queries/JobLevelQueries';
-import { useJobLevelGroups, JobLevelGroupData } from './useJobLevelGroups';
+import { useJobLevelGroups } from './useJobLevelGroups';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { CatalogEntry } from '@/common/types/CatalogTypes';
+import { 
+  PayGradeVisualization, 
+  JobLevelGroupVisualization, 
+  JobLevelVisualization, 
+  PayGradeVisualizationData,
+  JobLevelGroupData 
+} from '../types';
 
-// Enhanced interfaces for the visualization
-export interface EnhancedPayGrade {
-  id: string;
-  code: string;
-  name: string;
-  payGrade: number;
-  minSalary: number;
-  maxSalary: number;
-  standardSalary: number; // Calculated as middle of min-max if not provided
-  currency: {
-    id: string;
-    value: string;
-  };
-  order: number;
-}
-
-export interface EnhancedJobLevelGroup {
-  id: string;
-  code: string;
-  value: string;
-  name: string; // Will use value as name
-  category: string; // Will map from code or use default
-  color: string; // Will assign colors based on order
-  order: number;
-  additionalValue1?: string;
-  additionalValue2?: string;
-  additionalValue3?: string;
-}
-
-export interface EnhancedJobLevel {
-  id: string;
-  name: string;
-  code: string;
-  jobLevelGroupId: string;
-  payGradeId: string;
-  compensationBandId: string;
-  level: number;
-  heirarchyOrder: number;
-}
-
-export interface PayGradeVisualizationData {
-  payGrades: EnhancedPayGrade[];
-  jobLevelGroups: EnhancedJobLevelGroup[];
-  jobLevels: EnhancedJobLevel[];
-  isLoading: boolean;
-  error: string | null;
-}
+// Types are now imported from ../types folder
 
 // Default colors for job level groups
 const GROUP_COLORS = [
@@ -102,7 +63,7 @@ export const useCompensationDataIntegration = (
   const { fetchJobLevelData } = useGetJobLevelData(context);
   const { fetchJobLevelGroups } = useJobLevelGroups(context);
 
-  const transformCompensationBands = (bands: CompensationBand[]): EnhancedPayGrade[] => {
+  const transformCompensationBands = (bands: CompensationBand[]): PayGradeVisualization[] => {
     return bands
       .filter(band => band.id && band.name)
       .map((band, index) => {
@@ -133,7 +94,7 @@ export const useCompensationDataIntegration = (
       .sort((a, b) => a.order - b.order);
   };
 
-  const transformJobLevelGroups = (groups: CatalogEntry[]): EnhancedJobLevelGroup[] => {
+  const transformJobLevelGroups = (groups: CatalogEntry[]): JobLevelGroupVisualization[] => {
     return groups
       .filter(group => group.id && group.value)
       .map((group, index) => {
@@ -159,7 +120,7 @@ export const useCompensationDataIntegration = (
       .sort((a, b) => a.value.localeCompare(b.value));
   };
 
-  const transformJobLevels = (levels: any[]): EnhancedJobLevel[] => {
+  const transformJobLevels = (levels: any[]): JobLevelVisualization[] => {
     return levels
       .filter(level => level.id && level.name)
       .map(level => ({
@@ -200,48 +161,64 @@ export const useCompensationDataIntegration = (
           limit: options?.limit || 100,
           offset: 0
         }),
-        fetchJobLevelGroups({ limit: options?.limit || 100, offset: 0 })
+        fetchJobLevelGroups({
+          limit: options?.limit || 100,
+          offset: 0
+        })
       ]);
 
+      console.log('Raw compensation bands result:', compensationBandsResult);
+      console.log('Raw job levels result:', jobLevelsResult);
+      console.log('Raw job level groups result:', jobLevelGroupsResult);
+
       // Transform the data
-      const payGrades = transformCompensationBands(
-        compensationBandsResult?.compensationBands || []
+      const transformedPayGrades = transformCompensationBands(
+        compensationBandsResult.compensationBands || []
       );
-      
-      const jobLevelGroups = transformJobLevelGroups(
-        jobLevelGroupsResult?.data || []
+      const transformedJobLevelGroups = transformJobLevelGroups(
+        jobLevelGroupsResult.data || []
       );
-      
-      const jobLevels = transformJobLevels(
-        jobLevelsResult?.jobLevels || []
+      const transformedJobLevels = transformJobLevels(
+        jobLevelsResult.jobLevels || []
       );
 
-      setData({
-        payGrades,
-        jobLevelGroups,
-        jobLevels,
+      console.log('Transformed pay grades:', transformedPayGrades);
+      console.log('Transformed job level groups:', transformedJobLevelGroups);
+      console.log('Transformed job levels:', transformedJobLevels);
+
+      setData(prev => ({
+        ...prev,
+        payGrades: transformedPayGrades,
+        jobLevelGroups: transformedJobLevelGroups,
+        jobLevels: transformedJobLevels,
         isLoading: false,
         error: null
-      });
+      }));
 
     } catch (error) {
       console.error('Error fetching compensation data:', error);
-      setData(prev => ({
-        ...prev,
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch data'
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setData(prev => ({ 
+        ...prev, 
+        isLoading: false, 
+        error: `Failed to load compensation data: ${errorMessage}` 
       }));
     }
   };
 
+  const refetch = async () => {
+    await fetchData();
+  };
+
+  // Auto-fetch on mount if enabled (default: true)
   useEffect(() => {
-    if (options?.autoFetch !== false) {
+    if (context.accessToken && (options?.autoFetch !== false)) {
       fetchData();
     }
-  }, [context.accessToken]);
+  }, [context.accessToken, options?.autoFetch]);
 
   return {
     ...data,
-    refetch: fetchData
+    refetch
   };
 }; 

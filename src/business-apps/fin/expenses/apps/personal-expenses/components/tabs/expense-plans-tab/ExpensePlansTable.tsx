@@ -317,6 +317,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
         }}
         dataFilterProps={{}}
         hideFilter={true}
+        floatingDetails={true}
         dataBody={renderDataBody()}
         contentBackground="white"
         dataDetails={selectedItem ? {

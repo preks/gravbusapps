@@ -54,7 +54,7 @@ export function getTranslationFromI18nKeyAndLabel(key: string, defaultValue: str
   if (typeof window?.lowcoder?.i18n?.t !== 'function') {
     return defaultValue;
   }
-  const translation = window?.lowcoder?.i18n?.t(key, translationVariables);
+  const translation = window?.lowcoder?.i18n?.t(key, { defaultValue, ...(translationVariables || {}) });
   if (key?.split('lowcoder:')?.[1] === translation) {
     return defaultValue;
   }

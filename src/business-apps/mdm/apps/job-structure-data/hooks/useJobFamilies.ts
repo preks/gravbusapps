@@ -93,6 +93,11 @@ export const useJobFamilies = (context: BusinessAppContextProps) => {
       }
     });
 
+    // Third pass: update hasChildren property based on actual children
+    familyMap.forEach(family => {
+      family.hasChildren = family.children.length > 0;
+    });
+
     // Sort children within each parent
     const sortFamilies = (families: JobFamily[]) => {
       families.sort((a, b) => a.name.localeCompare(b.name));
@@ -175,27 +180,33 @@ export const useJobFamilies = (context: BusinessAppContextProps) => {
 
   // Expand all families up to a certain level
   const expandToLevel = useCallback((maxLevel: number) => {
-    setHierarchyState(prev => {
-      const newExpandedIds = new Set<string>();
-      
-      prev.allFamilies.forEach(family => {
-        if (family.level < maxLevel && family.hasChildren) {
-          newExpandedIds.add(family.id);
-        }
-      });
-
-      return {
-        ...prev,
-        expandedIds: newExpandedIds
-      };
+    const newExpandedIds = new Set<string>();
+    
+    hierarchyState.allFamilies.forEach(family => {
+      if (family.level < maxLevel && family.children.length > 0) {
+        newExpandedIds.add(family.id);
+      }
     });
-  }, []);
+
+    setHierarchyState(prev => ({
+      ...prev,
+      expandedIds: newExpandedIds
+    }));
+  }, [hierarchyState.allFamilies]);
 
   // Collapse all families
   const collapseAll = useCallback(() => {
     setHierarchyState(prev => ({
       ...prev,
       expandedIds: new Set()
+    }));
+  }, []);
+
+  // Set expanded IDs directly (for tree component integration)
+  const setExpandedIds = useCallback((ids: Set<string>) => {
+    setHierarchyState(prev => ({
+      ...prev,
+      expandedIds: ids
     }));
   }, []);
 
@@ -272,6 +283,7 @@ export const useJobFamilies = (context: BusinessAppContextProps) => {
     toggleFamilyExpansion,
     expandToLevel,
     collapseAll,
+    setExpandedIds,
     
     // Helper functions
     getFamilyById,

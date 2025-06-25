@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, message, Modal, Form, Spin } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
+import { Table, Button, Input, Space, Typography, message, Modal, Form, Spin, Tag, Divider, Descriptions } from 'antd';
+import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, FileTextOutlined, CodeOutlined, GlobalOutlined, TagOutlined, DollarOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { useUserLocale } from '@/common/locale/useUserLocale';
@@ -39,6 +40,8 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingType, setEditingType] = useState<ContractType | null>(null);
+  const [selectedType, setSelectedType] = useState<ContractType | null>(null);
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   const [form] = Form.useForm();
 
   const fetchContractTypes = async () => {
@@ -143,6 +146,16 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({
     form.resetFields();
   };
 
+  const handleViewDetails = (record: ContractType) => {
+    setSelectedType(record);
+    setIsDrawerVisible(true);
+  };
+
+  const handleDrawerClose = () => {
+    setIsDrawerVisible(false);
+    setSelectedType(null);
+  };
+
   const columns = [
     {
       title: 'Code',
@@ -244,6 +257,12 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({
               `${range[0]}-${range[1]} of ${total} contract types`,
           }}
           data-testid={`${prefixDataTestId || ''}-ContractTypesTab-Table`}
+          style={{ background: 'white', borderRadius: '8px' }}
+          onRow={(record) => ({
+            onClick: () => handleViewDetails(record),
+            className: 'gba:cursor-pointer',
+            'data-testid': `${prefixDataTestId || ''}-ContractTypesTab-TableRow-${record.id}`
+          })}
         />
       )}
 
@@ -305,8 +324,99 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({
           </Form.Item>
         </Form>
       </Modal>
+
+      <DataDetailsDrawer
+        title="Contract Type Details"
+        icon={<FileTextOutlined />}
+        open={isDrawerVisible}
+        onClose={handleDrawerClose}
+        width={600}
+        placement="right"
+        dataTestId={`${prefixDataTestId || ''}-ContractTypesTab-Drawer`}
+        footer={
+          <div className="gba:flex gba:justify-end gba:gap-2">
+            {selectedType && (
+              <Button 
+                icon={<EditOutlined />}
+                onClick={() => {
+                  handleEdit(selectedType);
+                  handleDrawerClose();
+                }}
+              >
+                Edit
+              </Button>
+            )}
+            <Button onClick={handleDrawerClose}>
+              Close
+            </Button>
+          </div>
+        }
+      >
+        {selectedType && (
+          <div className="gba:space-y-6">
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <div className="gba:flex-1">
+                <h3 className="gba:text-lg gba:font-semibold gba:mb-1">{selectedType.value}</h3>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Tag color="blue" className="gba:px-2">
+                    <CodeOutlined /> {selectedType.code || '-'}
+                  </Tag>
+                  {selectedType.alternativeCode && (
+                    <Tag color="green" className="gba:px-2">
+                      Alt: {selectedType.alternativeCode}
+                    </Tag>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <Divider className="gba:my-3" />
+            
+            <Descriptions title="Basic Information" bordered size="small" column={1}>
+              <Descriptions.Item label="ID">
+                <span className="gba:text-gray-600 gba:font-mono gba:text-xs">{selectedType.id}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="Code">
+                <Tag color="blue" icon={<CodeOutlined />}>{selectedType.code || '-'}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Value">{selectedType.value || '-'}</Descriptions.Item>
+              {selectedType.alternativeCode && (
+                <Descriptions.Item label="Alternative Code">{selectedType.alternativeCode}</Descriptions.Item>
+              )}
+            </Descriptions>
+            
+            <Descriptions title="Additional Values" bordered size="small" column={1}>
+              <Descriptions.Item label="Additional Value 1">
+                {selectedType.additionalValue1 ? (
+                  <Tag color="purple" icon={<DollarOutlined />} className="gba:px-2">
+                    {selectedType.additionalValue1}
+                  </Tag>
+                ) : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Additional Value 2">{selectedType.additionalValue2 || '-'}</Descriptions.Item>
+              <Descriptions.Item label="Additional Value 3">{selectedType.additionalValue3 || '-'}</Descriptions.Item>
+            </Descriptions>
+
+            {selectedType.translations?.length > 0 && (
+              <Descriptions title="Translations" bordered size="small" column={1}>
+                {selectedType.translations.map((translation, index) => (
+                  <Descriptions.Item key={index} label={<span><GlobalOutlined /> {translation.localeCode}</span>}>
+                    {translation.value}
+                  </Descriptions.Item>
+                ))}
+              </Descriptions>
+            )}
+
+            <div className="gba:bg-gray-50 gba:rounded-md gba:p-4 gba:mt-4">
+              <p className="gba:text-xs gba:text-gray-500 gba:mb-0">
+                <TagOutlined className="gba:mr-1" /> This contract type can be used to classify employees and job positions.
+              </p>
+            </div>
+          </div>
+        )}
+      </DataDetailsDrawer>
     </div>
   );
 };
 
-export { ContractTypesTab }; 
+export { ContractTypesTab };

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Card, Collapse, Table, Button, Space, Typography, Tag, Tooltip, Modal, Form, Input, InputNumber, message, Select } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined, RightOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useJobStructureDataIntegration } from '../../hooks';
+import { useJobLevels } from '../../hooks';
 import { JobLevel, JobLevelGroup } from '../../types';
 import { calculateJobLevelInGroup } from '../../utils/levelCalculations';
 
@@ -21,7 +21,7 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = (context) => {
   const { t } = useTranslation();
   const { prefixDataTestId } = context;
   
-  const { jobLevelGroups, isLoading, error, refetch } = useJobStructureDataIntegration(context);
+  const { jobLevelGroups, isLoading, error, refetch } = useJobLevels(context);
   const [activeKeys, setActiveKeys] = useState<string[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalType, setModalType] = useState<'group' | 'level'>('group');

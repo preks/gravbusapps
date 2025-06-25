@@ -1,5 +1,5 @@
 ---
-description: 
+description: Always use when currencies are required
 globs: 
 alwaysApply: false
 ---
@@ -45,6 +45,7 @@ const formatCurrency = (amount: number, currencyId: string): string => {
 ```
 
 @src/business-apps/mdm/apps/compensation-data/components/tabs/PayGradesTab.tsx
+
 
 
 
