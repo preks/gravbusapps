@@ -3,14 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 import { Employee, EmployeePerformanceGoal } from '../../hooks/useEmployeeData';
-import { Card, Button } from '@newwork/gravity-ui-catalog';
-import { Empty, Spin, Drawer, Descriptions, Tag } from 'antd';
+import { Card } from '@newwork/gravity-ui-catalog';
+import { Empty, Spin } from 'antd';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { employeePerformanceQuery } from '../../queries/performanceQueries';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { CloseOutlined } from '@ant-design/icons';
 
 interface PerformanceTabProps {
   employee: Employee;
@@ -18,9 +17,9 @@ interface PerformanceTabProps {
   employeePerformanceGoals?: EmployeePerformanceGoal[];
 }
 
-// Extended interfaces to include properties used in the drawer
+// Extend the EmployeePerformanceGoal interface to include additional properties
 interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
-  id?: string;
+  id: string;
   description?: string;
 }
 
@@ -33,14 +32,11 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   accessToken,
   employeePerformanceGoals = []
 }) => {
-  const [localPerformanceGoals, setLocalPerformanceGoals] = useState<EmployeePerformanceGoal[]>([]);
+  const [localPerformanceGoals, setLocalPerformanceGoals] = useState<ExtendedEmployeePerformanceGoal[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Drawer state
-  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
-  const [selectedGoal, setSelectedGoal] = useState<ExtendedEmployeePerformanceGoal | null>(null);
-  const [drawerWidth] = useState<number>(600);
+  // No longer need drawer state as we're showing edit buttons directly on cards
   
   // Initialize GraphQL client
   const graphQLClient = useGraphqlClient(accessToken);
@@ -59,7 +55,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       );
       
       if (goalsResponse) {
-        setLocalPerformanceGoals(goalsResponse.EmployeePerformanceGoal || []);
+        setLocalPerformanceGoals(goalsResponse.EmployeePerformanceGoal || [] as ExtendedEmployeePerformanceGoal[]);
       }
     } catch (err) {
       console.error('Error fetching performance data:', err);
@@ -72,7 +68,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   useEffect(() => {
     // Initialize with props if available, otherwise fetch from API
     if (employeePerformanceGoals?.length) {
-      setLocalPerformanceGoals(employeePerformanceGoals);
+      setLocalPerformanceGoals(employeePerformanceGoals as ExtendedEmployeePerformanceGoal[]);
     } else {
       fetchPerformanceData();
     }
@@ -119,7 +115,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     }
   };
 
-  const isGoalValid = (goal: EmployeePerformanceGoal) => {
+  const isGoalValid = (goal: ExtendedEmployeePerformanceGoal) => {
     return true; //goal.title && goal.startDate && goal.dueDate;
   };
 
@@ -130,16 +126,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
 
 
   
-  // Function to open the drawer for a performance goal
-  const openGoalDetails = (goal: ExtendedEmployeePerformanceGoal) => {
-    setSelectedGoal(goal);
-    setIsDrawerOpen(true);
-  };
-
-  // Function to close the drawer
-  const closeDrawer = () => {
-    setIsDrawerOpen(false);
-  };
+  // No longer need drawer functions
 
 
 
@@ -225,8 +212,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                   <Card 
                     key={`goal-${goal.title ?? ''}-${goal.status ?? ''}`} 
                     variant='outlined'
-                    className="gba:cursor-pointer gba:hover:shadow-md gba:transition-all"
-                    onClick={() => openGoalDetails(goal)}
+                    className="gba:hover:shadow-md gba:transition-all"
                     data-testid={`goal-card-${goal.id}`}
                   >
                     <div className="gba:flex gba:flex-col gba:md:flex-row gba:md:items-center gba:justify-between gba:mb-4">
@@ -263,6 +249,24 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                         <span>{goal.completionDate ? dayjs(goal.completionDate).format('MMM D, YYYY') : '-'}</span>
                       </div>
                     </div>
+                    
+                    {/* Edit button at the bottom right */}
+                    <div className="gba:flex gba:justify-end gba:mt-4">
+                      <AppActionButton
+                        variant="secondary"
+                        data-testid={`edit-goal-button-${goal.id}`}
+                        contextsArray={[FlowContextName.employeeEntity]}
+                        externalContextData={{
+                          employeeId: employee?.id,
+                          goalId: goal.id
+                        }}
+                        prefixDataTestId="edit-goal"
+                        accessToken={accessToken}
+                        className="gba:text-sm gba:py-1 gba:px-3"
+                      >
+                        Edit
+                      </AppActionButton>
+                    </div>
                   </Card>
                 );
               })}
@@ -272,88 +276,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       </div>
 
 
-      {/* Details Drawer */}
-      <Drawer
-        title={
-          <div className="gba:flex gba:justify-between gba:items-center">
-            <span>Performance Goal Details</span>
-            <Button
-              onClick={closeDrawer}
-              variant="text"
-              icon={<CloseOutlined />}
-              data-testid="close-drawer-button"
-            />
-          </div>
-        }
-        placement="right"
-        closable={false}
-        onClose={closeDrawer}
-        open={isDrawerOpen}
-        width={drawerWidth}
-        className="gba:performance-details-drawer"
-        data-testid="performance-details-drawer"
-      >
-        {selectedGoal && (
-          <div className="gba:goal-details gba:space-y-6" data-testid="goal-details">
-            <Descriptions bordered column={1} size="small" className="gba:bg-white gba:rounded-md">
-              <Descriptions.Item label="Title">{selectedGoal.title}</Descriptions.Item>
-              <Descriptions.Item label="Status">
-                <Tag color={selectedGoal.status === 'ON_TRACK' ? 'green' : 
-                       selectedGoal.status === 'BEHIND_TARGET' ? 'red' : 
-                       selectedGoal.status === 'AT_RISK' ? 'orange' : 
-                       selectedGoal.status === 'ACHIEVED' ? 'blue' : 'default'}>
-                  {getStatusInfo(selectedGoal.status).label}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Progress">
-                <div className="gba:w-full gba:bg-gray-200 gba:rounded-full gba:h-2.5 gba:mb-2">
-                  <div 
-                    className="gba:bg-blue-600 gba:h-2.5 gba:rounded-full" 
-                    style={{ width: `${selectedGoal.progressPercent}%` }}
-                  ></div>
-                </div>
-                <span>{selectedGoal.progressPercent}%</span>
-              </Descriptions.Item>
-              <Descriptions.Item label="Start Date">
-                {dayjs(selectedGoal.startDate).format('MMMM D, YYYY')}
-              </Descriptions.Item>
-              <Descriptions.Item label="Due Date">
-                {dayjs(selectedGoal.dueDate).format('MMMM D, YYYY')}
-              </Descriptions.Item>
-              {selectedGoal.completionDate && (
-                <Descriptions.Item label="Completion Date">
-                  {dayjs(selectedGoal.completionDate).format('MMMM D, YYYY')}
-                </Descriptions.Item>
-              )}
-              {selectedGoal.description && (
-                <Descriptions.Item label="Description">
-                  {selectedGoal.description}
-                </Descriptions.Item>
-              )}
-            </Descriptions>
-            
-            <div className="gba:goal-actions gba:flex gba:justify-end gba:gap-4">
-              <AppActionButton
-                onClick={() => {
-                  /* Edit goal implementation */
-                  closeDrawer();
-                }}
-                variant="secondary"
-                data-testid="edit-goal-button"
-                contextsArray={[FlowContextName.employeeEntity]}
-                externalContextData={{
-                  employeeId: employee?.id,
-                  goalId: selectedGoal.id
-                }}
-                prefixDataTestId="edit-goal"
-                accessToken={accessToken}
-              >
-                Edit Goal
-              </AppActionButton>
-            </div>
-          </div>
-        )}
-      </Drawer>
+      {/* Removed drawer - Edit buttons are now directly on cards */}
     </div>
   );
 };
