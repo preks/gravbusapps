@@ -8,6 +8,7 @@ import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useGetExpensePlanRecord } from './hooks/useGetExpensePlanRecord';
+import { getExpensePlanStatusDisplay } from './utils';
 
 // Import tab components
 import ExpensePlanItems from './components/ExpensePlanItems.tsx';
@@ -19,7 +20,7 @@ import ExpensePlanComments from './components/ExpensePlanComments.tsx';
 const { Title, Text } = Typography;
 
 const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData = {} }) => {
-  const { expensePlanId = '' } = additionalData;
+  const { expensePlanId = 'd64d1b89-148e-462d-9add-534722eefe95' } = additionalData;
   // Helper function to get initial tab from URL or available tabs
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -197,20 +198,22 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
             <Text type="secondary">{expensePlan?.code}</Text>
           </div>
           <Pill 
-            type={getStatusType(expensePlan.status)} 
-            label={getTranslationFromI18nKeyAndLabel(`expense.plan.status.${expensePlan.status?.toLowerCase()}`, expensePlan.status)}
+            type={getExpensePlanStatusDisplay(expensePlan.status).type} 
+            label={getExpensePlanStatusDisplay(expensePlan.status).label}
             className="gba:text-base"
             data-testid="expense-plan-status-pill"
           />
         </div>
-        <div className="gba:flex gba:items-center gba:mb-2">
-          <PiCalendarDuotone className="gba:mr-2" />
-          <Text className="gba:text-sm">
-            {getTranslationFromI18nKeyAndLabel('expense.plan.duration', 'Duration')}: {' '}
-            {expensePlan?.startDate ? dayjs(expensePlan.startDate).format('DD.MM.YYYY') : '-'} {' → '} 
-            {expensePlan?.endDate ? dayjs(expensePlan.endDate).format('DD.MM.YYYY') : '-'}
-          </Text>
-        </div>
+        {expensePlan?.startDate && expensePlan?.endDate && (
+          <div className="gba:flex gba:items-center gba:mb-2">
+            <PiCalendarDuotone className="gba:mr-2" />
+            <Text className="gba:text-sm">
+              {getTranslationFromI18nKeyAndLabel('expense.plan.duration', 'Duration')}: {' '}
+              {dayjs(expensePlan.startDate).format('DD.MM.YYYY')} {' → '} 
+              {dayjs(expensePlan.endDate).format('DD.MM.YYYY')}
+            </Text>
+          </div>
+        )}
         <div className="gba:flex gba:items-center gba:mb-2">
           <PiClock className="gba:mr-2" />
           <Text className="gba:text-sm">
@@ -267,41 +270,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
    * - DISCARDED: Expense plan has been discarded/canceled
    * - TRANSFERRED: Expense plan has been transferred to another system
    */
-  const getStatusType = (status: string): 'completed' | 'error' | 'waiting' | 'draft' | 'task' => {
-    switch (status) {
-      // Positive final states
-      case 'APPROVED':
-      case 'VERIFIED':
-      case 'BOOKED':
-      case 'PAID':
-      case 'CLOSED':
-        return 'completed';
-      
-      // Negative final states
-      case 'REJECTED':
-      case 'DISCARDED':
-        return 'error';
-      
-      // In-progress states
-      case 'PENDING':
-      case 'ASSIGNED':
-      case 'TRANSFERRED':
-        return 'waiting';
-      
-      // Initial states
-      case 'PREPARED':
-      case 'CREATED':
-        return 'draft';
-      
-      // Special states
-      case 'RETURNED':
-        return 'task';
-      
-      // Default fallback
-      default:
-        return 'draft';
-    }
-  };
+  // Status display is now handled by the imported getExpensePlanStatusDisplay function
 
   if (loading) {
     return (
