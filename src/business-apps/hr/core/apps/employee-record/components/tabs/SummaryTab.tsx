@@ -14,21 +14,24 @@ import {
   PiCalendarCheck
 } from 'react-icons/pi';
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 interface SummaryTabProps {
   employee: Employee;
+  accessToken: string;
 }
 
 /**
  * Summary Tab Component
- * Displays an overview of the employee's information
+ * Displays summary information about the employee
  */
 // Job information is retrieved from employee.employeePosition
 
 // Employee availability & schedule information comes from employee data
 // Specific schedule information should be retrieved from the API
 
-const SummaryTab: React.FC<SummaryTabProps> = ({ employee }) => {
+const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken }) => {
   // Get additional attributes from additionalProperties
   const getAdditionalAttributes = () => {
     if (!employee.additionalProperties) return [];
@@ -67,17 +70,48 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee }) => {
   }, [employee.employeePosition]);
 
   return (
-    <div className="gba:summary-tab gba:space-y-6" data-testid="summary-tab-container">
-      {/* Summary Overview Headline */}
-      <div className="gba:summary-header" data-testid="summary-header">
-        <div
-          className="gba:font-bold gba:text-2xl"
-          data-testid="summary-title"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_employee.summary_overview",
-            "Summary Overview"
-          )}
+    <div className="gba:summary-tab gba:p-4" data-testid="summary-tab-container">
+      {/* Summary Overview Headline with Action Button */}
+      <div className="gba:flex gba:justify-between gba:items-start" data-testid="summary-header">
+        <div className="gba:summary-header">
+          <div
+            className="gba:font-bold gba:text-2xl"
+            data-testid="summary-title"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:hr_employee.summary_overview",
+              "Summary Overview"
+            )}
+          </div>
+          <div
+            className="gba:text-gray-500 gba:text-lg gba:mb-4"
+            data-testid="summary-description"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:hr_employee.summary_description",
+              "View employee summary information"
+            )}
+          </div>
+        </div>
+        
+        {/* Action Button */}
+        <div>
+          <AppActionButton 
+            data-testid="employee-action-button"
+            variant="primary"
+            contextsArray={[FlowContextName.employeeEntity]}
+            externalContextData={{
+              employeeId: employee?.id
+            }}
+            prefixDataTestId="employee-action"
+            accessToken={accessToken}
+            autoExecuteSingleAction={true}
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:hr_employee.action",
+              "Action"
+            )}
+          </AppActionButton>
         </div>
       </div>
       
