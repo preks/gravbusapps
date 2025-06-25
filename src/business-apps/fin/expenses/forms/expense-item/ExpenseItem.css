@@ -253,6 +253,7 @@
 
 .gba\:submitButton {
   width: 100%;
+  border-radius: 20px;
 }
 
 .gba\:deleteButton {
@@ -397,9 +398,14 @@
 
 .gba\:modalContent p {
   margin-bottom: 24px;
-  font-size: 14px;
+  font-size: 16px;
   color: #333;
   text-align: center;
+}
+
+.gba\:modalButtons [data-testid="modal-yes-button"],
+.gba\:modalButtons [data-testid="modal-no-button"] {
+  border-radius: 20px;
 }
 
 .gba\:modalButtons {

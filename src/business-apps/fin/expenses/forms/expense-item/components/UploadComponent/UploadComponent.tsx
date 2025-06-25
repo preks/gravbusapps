@@ -1,6 +1,5 @@
 import React, { useRef, useState, useCallback } from "react";
-import { Modal, Upload, Spin } from "antd";
-// Using custom icons instead of Ant Design icons
+import { Modal, Upload } from "antd";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
 import { ICONS } from "../../constants/icons";
 import { Button } from "@newwork/gravity-ui-catalog";
@@ -153,7 +152,14 @@ const { t } = useTranslation();
         <div className={`gba:uploadButtonStart`}>
           {isProcessingFiles ? (
             <>
-              <Spin className="gba:uploadIcon" data-testid="upload-loading-icon" />
+              <img
+                src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/newwork/spinner.svg"
+                alt="Loading"
+                className="gba:uploadIcon"
+                width="36"
+                height="36"
+                data-testid="upload-loading-icon"
+              />
               <span>{t('lowcoder:create_expense_type_item.processing_receipt', 'Processing the receipt...')}</span>
             </>
           ) : (
@@ -178,7 +184,14 @@ const { t } = useTranslation();
         <div className={`gba:uploadButtonFormEmpty`}>
           {isProcessingFiles ? (
             <>
-              <Spin className="gba:uploadIconSmall" data-testid="upload-loading-icon-small" />
+              <img
+                src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/newwork/spinner.svg"
+                alt="Loading"
+                className="gba:uploadIconSmall"
+                width="18"
+                height="18"
+                data-testid="upload-loading-icon-small"
+              />
               <span>{t('lowcoder:create_expense_type_item.processing', 'Processing...')}</span>
             </>
           ) : (
@@ -265,7 +278,14 @@ const { t } = useTranslation();
                 {isProcessingFiles ? (
                   <>
                     <span data-testid="processing-text">{t('lowcoder:create_expense_item.change_expense_item_container.file_add_document_processing', 'Processing the receipt...')}</span>
-                    <Spin className="gba:uploadIconSmall" data-testid="loading-icon" />
+                    <img
+                      src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/newwork/spinner.svg"
+                      alt="Loading"
+                      className="gba:uploadIconSmall"
+                      width="18"
+                      height="18"
+                      data-testid="loading-icon"
+                    />
                   </>
                 ) : (
                   <>
