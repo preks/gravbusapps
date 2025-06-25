@@ -99,7 +99,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         currency: "Currency:v1:EUR",
       }}
     >
-      <div className={`gba:marginBottom16`} data-testid="form-upload-container">
+      <div className={`gba:formUploadContainer`} data-testid="form-upload-container">
         <UploadComponent 
           fileList={fileList} 
           setFileList={setFileList} 

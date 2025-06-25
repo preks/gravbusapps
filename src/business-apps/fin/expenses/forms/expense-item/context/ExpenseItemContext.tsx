@@ -27,7 +27,6 @@ import {
 } from "../ExpenseItemQueries";
 import { fetchEmployeeRule } from "../ExpenseItemQueries";
 import { DEFAULT_EMPLOYEE_ID, DEFAULT_POSITION } from "./constants";
-import { USER_INFO_MOCKED, ADDITIONAL_DATA_MOCKED } from "../constants/mockedData";
 import { transformCurrencies } from "../utils/currencyUtils";
 import { createGraphQLClient } from "../services/graphqlClient";
 import {
@@ -146,10 +145,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [userCostCenter, setUserCostCenter] = useState<string>("");
   const [currentSelectedDate,setCurrentSelectedDate]= useState<Date |null>(null)
 
-  // Using mocked data from constants file
-  const userInfoMocked = USER_INFO_MOCKED;
-  const additionalDataMocked = ADDITIONAL_DATA_MOCKED;
-
   const graphqlClient = useMemo(
     () => createGraphQLClient(accessToken),
     [accessToken]
@@ -198,8 +193,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       addRequestsWrapper();
       
       const expenseRequestId = 
-        additionalData?.psi_taskPayload?.initialParameters?.expenseRequest ||
-        additionalDataMocked?.psi_taskPayload?.initialParameters?.expenseRequest;
+        additionalData?.psi_taskPayload?.initialParameters?.expenseRequest
       
       if (expenseRequestId) {
         form.setFieldsValue({ expenseRequestId: expenseRequestId });
@@ -207,7 +201,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         form.setFieldsValue({ expenseRequestId: "0" });
       }
     }
-  }, [catalogueDataResponse, accessToken, additionalData, additionalDataMocked]);
+  }, [catalogueDataResponse, accessToken, additionalData]);
 
   useEffect(()=>{
     if(firstRunVariable===true)
@@ -395,8 +389,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             catalogueData?.data?.EmployeePosition || [];
           const structureId = employeePosition[0]?.structureId || "";
           const expenseIdValue =
-          additionalData?.psi_taskPayload?.initialParameters?.expenseId ||
-          additionalDataMocked.psi_taskPayload?.initialParameters?.expenseId;
+          additionalData?.psi_taskPayload?.initialParameters?.expenseId
         if (expenseIdValue) {
           setCurrentStep("form");
           
@@ -520,10 +513,9 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     try {
       const data = receiptData.data;
 
-      if (additionalData?.psi_taskPayload?.initialParameters?.currencyData || additionalDataMocked?.psi_taskPayload?.initialParameters?.currencyData) {
+      if (additionalData?.psi_taskPayload?.initialParameters?.currencyData) {
         const requestCurrency = currencies.find(
-          (c) => (c.id === additionalData?.psi_taskPayload.initialParameters.currencyData) ||
-          (c.id === additionalDataMocked?.psi_taskPayload.initialParameters.currencyData)
+          (c) => (c.id === additionalData?.psi_taskPayload.initialParameters.currencyData)
         );
         if (requestCurrency && requestCurrency.code !== data.currencyCode) {
           showToast(
@@ -749,8 +741,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       fileList,
       accessToken,
       userInfo?.employeeDetails?.employeeId,
-      additionalData || additionalDataMocked,
-      userInfo || userInfoMocked,
+      additionalData,
+      userInfo,
       isEditMode
     );
   };

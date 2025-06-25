@@ -155,6 +155,18 @@
   margin-bottom: 16px;
 }
 
+.gba\:formUploadContainer {
+  margin: 30px 0 30px 0;
+}
+
+.gba\:startScreenContainer {
+  margin-top: 30px;
+}
+
+.gba\:uploadWrapper {
+  margin-bottom: 30px;
+}
+
 .gba\:fontMedium {
   font-weight: 500;
   color: #000;
@@ -190,13 +202,6 @@
 
 
 
-
-
-.gba\:continueButton {
-  margin-top: 16px;
-}
-
-
 .gba\:mainContainer {
   max-width: 544px;
   width: 100%;
@@ -208,10 +213,12 @@
 .gba\:headerContainer {
   display: flex;
   align-items: center;
-  padding: 16px 0;
+  padding-top: 40px;
   font-family: 'Roboto', sans-serif;
   position: relative;
-  height: 56px; 
+  padding-bottom: 30px ;
+  height: 2rem ;
+  box-sizing: content-box ;
 }
 
 .gba\:titleContainer {
@@ -224,6 +231,7 @@
 }
 
 .gba\:headerTitle {
+  margin-bottom: 0px !important;
   margin: 0;
   text-align: center;
   font-family: 'Roboto', sans-serif;
@@ -241,7 +249,7 @@
 }
 
 .gba\:headerDivider {
-  margin: 0 0 16px 0;
+  margin: 0 0 0px 0;
 }
 
 
@@ -253,7 +261,7 @@
 
 .gba\:submitButton {
   width: 100%;
-  border-radius: 20px;
+  border-radius: 20px !important;
 }
 
 .gba\:deleteButton {
@@ -290,7 +298,6 @@
   border: 2px solid #EFEFEF;
   border-radius: 4px;
   padding: 0;
-  margin-bottom: 16px;
   height: 204px;
   display: flex;
   align-items: center;
@@ -302,15 +309,13 @@
   border: 2px solid #EFEFEF;
   border-radius: 4px;
   padding: 0;
-  margin-bottom: 16px;
   background-color: #fff;
 }
 
 .gba\:uploadContainerWithFiles {
   border: 2px solid #EFEFEF;
   border-radius: 4px;
-  padding: 20px 28px;
-  margin-bottom: 16px;
+  padding: 20px 20px;
   position: relative;
   background-color: #fff;
   min-height: 80px;
@@ -347,7 +352,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  padding: 20px 28px;
+  padding: 20px 20px;
   width: 100%;
   height: 100%;
   gap: 16px;
@@ -492,7 +497,6 @@
   display: flex;
   justify-content: center;
   width: 100%;
-  margin-top: 16px;
 }
 
 .gba\:uploadIconSmall {
@@ -539,7 +543,6 @@
 /* Start screen container styles */
 .gba\:startScreenContainer {
   text-align: center;
-  padding: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
