@@ -384,6 +384,8 @@ export const handleSubmit = async (
       },
     };
 
+    let operationSuccessful = false;
+    
     if (flowProcessId && taskId && taskName && hasExpenseRequest && accessToken) {
       try {
         const userId = userInfo?.id || "2999c7b5-1b62-4887-ae86-2efb10909246";
@@ -396,6 +398,7 @@ export const handleSubmit = async (
           submitData,
           t
         );
+        operationSuccessful = true;
       } catch (completeError) {
         showToast(
           t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
@@ -405,18 +408,28 @@ export const handleSubmit = async (
     }
 
     if(accessToken && employeeId && !hasExpenseRequest){
-      dispatchProcessContinueEvent('APPROVE_EXPENSE', submitData);
+      try {
+        dispatchProcessContinueEvent('APPROVE_EXPENSE', submitData);
+        operationSuccessful = true;
+      } catch (processError) {
+        showToast(
+          t("lowcoder:create_expense_type_item.error_flows", "Error in expense approval process"),
+          "error"
+        );
+      }
     }
 
-    showToast(
-      t("lowcoder:create_expense_type_item.created_item_notification_message", "Expense item created successfully!"),
-      "success"
-    );
+    if (operationSuccessful) {
+      showToast(
+        t("lowcoder:create_expense_type_item.created_item_notification_message", "Expense item created successfully!"),
+        "success"
+      );
 
-    form.resetFields();
-    setPositions([DEFAULT_POSITION]);
-    setFileList([]);
-    setCurrentStep("start");
+      form.resetFields();
+      setPositions([DEFAULT_POSITION]);
+      setFileList([]);
+      setCurrentStep("start");
+    }
   } catch (error) {
     showToast(
       t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
