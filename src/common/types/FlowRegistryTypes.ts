@@ -10,6 +10,8 @@ export enum FlowContextName {
     flowEntity = 'flowEntity',
     flowInstance = 'flowInstance',
     taskInstance = 'taskInstance',
+    documentPersonal = 'documentPersonal',
+    employeeAbsenceRecord = 'employeeAbsenceRecord'
 }
 
 export type ContextData = {
@@ -32,14 +34,16 @@ export type Context = {
 export type FlowItemReduced = {
     id?: string | null;
     flowName: string;
-    flowNameTranslation?: Record<string, string>;
+    flowNameTranslation?: Record<string, string> | string;
     flowType: string;
-    contexts: Context[];
+    context?: Context; // Single context object from API
+    contexts?: Context[]; // For backward compatibility
     processName: string;
     domain: string;
     targetDesktop: string;
     targetMobile: string;
     rank?: number;
+    builderType?: string;
 };
 
 export type GetPermissionFlowItemsV1Params = {
