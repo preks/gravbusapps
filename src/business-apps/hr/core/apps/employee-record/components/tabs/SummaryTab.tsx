@@ -296,7 +296,6 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee }) => {
           </div>
         )}
       </div>
-      {/* Feedback section removed - now handled in FeedbackTab */}
     </div>
   );
 };

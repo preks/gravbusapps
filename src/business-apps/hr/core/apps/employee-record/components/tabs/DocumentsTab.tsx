@@ -106,22 +106,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
     accessToken
   });
 
-  // Using FileClient for document downloads
-  // Note: We no longer need flowClient as we're using startProcess directly
-
-  // Function to trigger startProcess directly for uploading documents
-  const showUploadModal = () => {
-    startProcess({
-      domain: 'employee',
-      processName: 'uploadEmployeeDocument',
-      payload: {
-        employeeDocument: {
-          employeeId: employee.id
-        }
-      }
-    });
-  };
-
   // Function to fetch documents and document types/groups
   const fetchDocuments = async () => {
     try {

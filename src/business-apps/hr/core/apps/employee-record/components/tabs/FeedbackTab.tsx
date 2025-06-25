@@ -97,19 +97,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       };
     });
   };
-
-  const startProcessGiveFeedback = () => {
-    startProcess({
-      domain: 'employee',
-      processName: 'giveFeedback',
-      payload: {
-        employeeId: employee?.id
-      }
-    });
-  };
   
-  // No longer need drawer functions
-
   const formattedFeedback = formatFeedback();
 
   // Handle loading state
