@@ -261,6 +261,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                         prefixDataTestId="edit-goal"
                         accessToken={accessToken}
                         className="gba:text-sm gba:py-1 gba:px-3"
+                        autoExecuteSingleAction={true}
                       >
                         Edit
                       </AppActionButton>

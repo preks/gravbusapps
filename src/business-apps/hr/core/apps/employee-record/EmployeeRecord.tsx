@@ -5,6 +5,7 @@ import { useEmployeeData } from './hooks/useEmployeeData';
 import ProfileHeader from './components/ProfileHeader';
 import { ScreenBody, Spinner, notification, Tabs } from '@newwork/gravity-ui-catalog';
 import { ProfileLayout } from '@/components/layout/profileLayout';
+import { PiUser, PiIdentificationCard, PiBriefcase, PiFiles, PiChartBar, PiChatCircle, PiCalendar, PiGraduationCap } from 'react-icons/pi';
 
 // Tab components
 import SummaryTab from './components/tabs/SummaryTab';
@@ -14,6 +15,7 @@ import DocumentsTab from './components/tabs/DocumentsTab';
 import PerformanceTab from './components/tabs/PerformanceTab';
 import FeedbackTab from './components/tabs/FeedbackTab';
 import AbsencesTab from './components/tabs/AbsencesTab';
+import SkillsTab from './components/tabs/SkillsTab';
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
 
@@ -29,7 +31,8 @@ const TAB_KEYS = {
   documents: 'documents',
   performance: 'performance',
   feedback: 'feedback',
-  absences: 'absences'
+  absences: 'absences',
+  skills: 'skills'
 };
 
 // Helper to read URL parameters
@@ -213,7 +216,12 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     return [
     {
       key: TAB_KEYS.summary,
-      label: "Summary",
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <PiUser style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Summary</span>
+        </div>
+      ),
       children: (
         <SummaryTab 
           employee={employee} 
@@ -223,7 +231,12 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     },
     {
       key: TAB_KEYS.details,
-      label: "Details",
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <PiIdentificationCard style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Details</span>
+        </div>
+      ),
       children: (
         <DetailsTab 
           employee={employee}
@@ -233,7 +246,12 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     },
     {
       key: TAB_KEYS.employment,
-      label: "Employment",
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <PiBriefcase style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Employment</span>
+        </div>
+      ),
       children: (
         <EmploymentTab 
           employee={employee}
@@ -242,7 +260,12 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     },
     {
       key: TAB_KEYS.documents,
-      label: "Documents",
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <PiFiles style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Documents</span>
+        </div>
+      ),
       children: (
         <DocumentsTab 
           employee={employee}
@@ -252,7 +275,12 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     },
     {
       key: TAB_KEYS.performance,
-      label: "Performance",
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <PiChartBar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Performance</span>
+        </div>
+      ),
       children: (
         <PerformanceTab 
           employee={employee}
@@ -263,7 +291,12 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     },
     {
       key: TAB_KEYS.feedback,
-      label: "Feedback",
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <PiChatCircle style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Feedback</span>
+        </div>
+      ),
       children: (
         <FeedbackTab 
           employee={employee}
@@ -274,11 +307,31 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     },
     {
       key: TAB_KEYS.absences,
-      label: "Absences",
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <PiCalendar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Absences</span>
+        </div>
+      ),
       children: (
         <AbsencesTab 
           employee={employee}
           employeeAbsenceEntitlement={absenceEntitlements ?? []}
+          accessToken={accessToken}
+        />
+      )
+    },
+    {
+      key: TAB_KEYS.skills,
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <PiGraduationCap style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Skills</span>
+        </div>
+      ),
+      children: (
+        <SkillsTab 
+          employee={employee}
           accessToken={accessToken}
         />
       )

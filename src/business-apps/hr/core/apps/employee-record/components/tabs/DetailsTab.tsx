@@ -190,43 +190,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
 
   const emergencyContactData = getEmergencyContact();
 
-  // Prepare payroll data
-  const getPayrollData = () => {
-    const taxDetails = employee.taxDetails?.[0];
-    
-    return [
-      {
-        label: "Tax Class",
-        value: taxDetails?.taxBracketRef || ''
-      },
-      {
-        label: "Social Insurance No.",
-        value: taxDetails?.socialSecurityNumber || ''
-      },
-      {
-        label: "Tax Identification No.",
-        value: taxDetails?.taxIdentificationNumber || ''
-      },
-      {
-        label: "Health Insurance Provider",
-        value: taxDetails?.healthInsuranceName || ''
-      },
-      {
-        label: "Confession",
-        value: taxDetails?.taxableChurchAffiliationRef || ''
-      },
-      {
-        label: "Type of Health Insurance",
-        value: taxDetails?.healthInsuranceTypeRef || ''
-      },
-      {
-        label: "Child Tax Allowance",
-        value: taxDetails?.childTaxAllowance?.toString() || ''
-      }
-    ];
-  };
-
-  const payrollData = getPayrollData();
+  // Payroll data has been moved to EmploymentTab
 
   // Helper function to render data items in a grid with 3 columns
   const renderDataItems = (data: Array<{label: string; value: string}>) => (
@@ -329,17 +293,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
           {renderDataItems(emergencyContactData)}
         </Card>
 
-        {/* Payroll Data Card */}
-        <Card
-          variant="outlined"
-          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
-          data-testid="details-section-payroll"
-        >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Payroll</h3>
-          </div>
-          {renderDataItems(payrollData)}
-        </Card>
+        {/* Payroll Data Card has been moved to EmploymentTab */}
       </div>
     </div>
   );
