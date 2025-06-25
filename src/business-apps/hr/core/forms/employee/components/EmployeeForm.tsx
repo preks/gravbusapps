@@ -211,7 +211,39 @@ const EmployeeForm: React.FC = () => {
               <Select
                 name="jobPositionId"
                 value={toStringOrUndefined(formValues.jobPositionId)}
-                onChange={e => setFormValues({ jobPositionId: String(e.value || '') })}
+                onChange={e => {
+                  const selectedJobPositionId = String(e.value || '');
+                  
+                  if (selectedJobPositionId) {
+                    // Find the selected job position from allJobPositions to get complete data
+                    const selectedJobPosition = allJobPositions.find(jp => jp.id === selectedJobPositionId);
+                    
+                    if (selectedJobPosition) {
+                      // Auto-fill employment type and contract type from job position
+                      const updates: any = { jobPositionId: selectedJobPositionId };
+                      
+                      if (selectedJobPosition.employmentType?.id) {
+                        updates.employmentTypeId = selectedJobPosition.employmentType.id;
+                      }
+                      
+                      if (selectedJobPosition.contractType?.id) {
+                        updates.contractTypeId = selectedJobPosition.contractType.id;
+                      }
+                      
+                      setFormValues(updates);
+                    } else {
+                      // Just set the job position ID if no matching position found
+                      setFormValues({ jobPositionId: selectedJobPositionId });
+                    }
+                  } else {
+                    // Clear job position and related fields when job position is cleared
+                    setFormValues({ 
+                      jobPositionId: '',
+                      employmentTypeId: '',
+                      contractTypeId: ''
+                    });
+                  }
+                }}
                 data={enhancedJobPositions}
                 placeholder="Please Select..."
                 showSearch={true}
@@ -299,6 +331,7 @@ const EmployeeForm: React.FC = () => {
                       onPopupScrollEnd={loadMoreEmploymentTypes}
                       allowClear
                       style={{ width: '100%' }}
+                      disabled={!toStringOrUndefined(formValues.jobPositionId)}
                     />
                     {employmentTypesError && (
                       <div className="gba:text-red-500 gba:text-sm gba:mt-1">
@@ -327,6 +360,7 @@ const EmployeeForm: React.FC = () => {
                       onPopupScrollEnd={loadMoreContractTypes}
                       allowClear
                       style={{ width: '100%' }}
+                      disabled={!toStringOrUndefined(formValues.jobPositionId)}
                     />
                     {contractTypesError && (
                       <div className="gba:text-red-500 gba:text-sm gba:mt-1">

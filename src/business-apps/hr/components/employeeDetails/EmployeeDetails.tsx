@@ -2,7 +2,7 @@
 
 import React, { useCallback } from 'react';
 //import { useTranslation } from 'react-i18next';
-import { Button } from '@newwork/gravity-ui-catalog';
+import { Button, Avatar } from '@newwork/gravity-ui-catalog';
 import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat';
 
 // Define a common Employee interface that works for both components
@@ -92,29 +92,26 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({ employee, icon
     <div className="gba:bg-white gba:h-full gba:overflow-auto">
       <div className="gba:p-6">
         <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-          <h2 className="gba:text-xl gba:font-semibold">Employee Details</h2>
+          <h2 className="gba:text-xl gba:font-bold">{employee.firstName} {employee.lastName}</h2>
         </div>
 
         <div className="gba:space-y-6">
           <div className="gba:flex gba:flex-col gba:items-center gba:mb-4 gba:animate-fade-in">
-            {employee.profilePicture ? (
-              <div className="gba:w-24 gba:h-24 gba:rounded-full gba:overflow-hidden">
-                <img
-                  src={`data:image/gif;base64,${employee.profilePicture}`}
-                  alt={`${employee.firstName} ${employee.lastName}`}
-                  className="gba:w-full gba:h-full gba:object-cover"
-                />
-              </div>
-            ) : (
-              <div className="gba:w-24 gba:h-24 gba:rounded-full gba:bg-gray-200 gba:flex gba:items-center gba:justify-center gba:border gba:border-gray-200">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="gba:text-gray-400">
-                  <circle cx="12" cy="8" r="4" />
-                  <path d="M16 20v-2a4 4 0 0 0-8 0v2" />
-                </svg>
-              </div>
-            )}
-            <h3 className="gba:text-lg gba:font-bold gba:mt-3 gba:mb-1 gba:text-center">{employee.firstName} {employee.lastName}</h3>
-            <p className="gba:text-gray-500 gba:text-sm gba:text-center">{employee.jobTitle}</p>
+            <Avatar
+              src={employee.profilePicture ? `data:image/gif;base64,${employee.profilePicture}` : undefined}
+              initials={employee.profilePicture ? undefined : `${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`.toUpperCase()}
+              // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+              contentType={employee.profilePicture ? 'image' : 'initials'}
+              alt={`${employee.firstName} ${employee.lastName}`}
+              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              size="xl"
+              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              shape="circle"
+              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              appearance="gradient"
+              style={{ width: '80px', height: '80px' }}
+            />
+            <p className="gba:text-gray-500 gba:text-sm gba:text-center gba:mt-3">{employee.jobTitle}</p>
           </div>
 
           <div className="gba:border-t gba:border-gray-200 gba:pt-4">

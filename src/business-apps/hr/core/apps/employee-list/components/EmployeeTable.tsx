@@ -2,9 +2,8 @@
 
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTable, Button } from '@newwork/gravity-ui-catalog';
+import { DataTable, Button, Avatar } from '@newwork/gravity-ui-catalog';
 import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees';
-import EmployeeAvatar from '@/business-apps/hr/components/employeeAvatar/EmployeeAvatar';
 import { formatDataTestId } from '@/modules/orgchart/utils';
 
 interface EmployeeTableProps {
@@ -54,34 +53,51 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       title: t('employee.name', 'Name'),
       dataIndex: 'name',
       key: 'name',
-      render: (_: any, record: Employee) => (
-        <div 
-          className="gba:flex gba:items-center"
-          onClick={() => handleRowClick(record)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleRowClick(record);
-            }
-          }}
-          role="button"
-          tabIndex={0}
-          style={{ cursor: 'pointer' }}
-          aria-pressed={selectedEmployeeId === record.id}
-        >
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <EmployeeAvatar
-              profilePicture={record.profilePicture}
-              firstName={record.firstName}
-              lastName={record.lastName}
-              employeeId={record.id}
-              size={32}
-              randomizeStatus={true}
-            />
-            <span>{record.firstName} {record.lastName}</span>
+      render: (_: any, record: Employee) => {
+        const initialsValue = record.profilePicture
+          ? undefined
+          : `${record.firstName?.[0] || ''}${record.lastName?.[0] || ''}`.toUpperCase();
+
+        const avatarSrcValue = record.profilePicture
+          ? `data:image/gif;base64,${record.profilePicture}`
+          : undefined;
+
+        const avatarContentTypeValue = record.profilePicture ? 'image' : 'initials';
+
+        return (
+          <div 
+            className="gba:flex gba:items-center"
+            onClick={() => handleRowClick(record)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleRowClick(record);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            style={{ cursor: 'pointer' }}
+            aria-pressed={selectedEmployeeId === record.id}
+          >
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <Avatar
+                src={avatarSrcValue}
+                initials={initialsValue}
+                // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+                contentType={avatarContentTypeValue}
+                alt={`${record.firstName} ${record.lastName}`}
+                // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+                size="sm"
+                // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+                shape="rounded"
+                // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+                appearance="gradient"
+              />
+              <span>{record.firstName} {record.lastName}</span>
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: t('employee.job_title', 'Job Title'),
