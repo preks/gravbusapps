@@ -169,8 +169,8 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
           className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="employment-section-profile"
         >
-          <div className="gba:mb-4">
-            <h3 className="gba:text-lg gba:font-medium">Employment Profile</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Employment Profile</h3>
           </div>
           {renderDataItems(organizationalData)}
         </Card>
@@ -181,8 +181,8 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
           className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="employment-section-conditions"
         >
-          <div className="gba:mb-4">
-            <h3 className="gba:text-lg gba:font-medium">Working Conditions</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Conditions</h3>
           </div>
           {renderDataItems(workingConditionsData)}
         </Card>
@@ -193,8 +193,8 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
           className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="employment-section-hours"
         >
-          <div className="gba:mb-4">
-            <h3 className="gba:text-lg gba:font-medium">Working Hours</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Hours</h3>
           </div>
           {renderDataItems(workingHoursData)}
         </Card>

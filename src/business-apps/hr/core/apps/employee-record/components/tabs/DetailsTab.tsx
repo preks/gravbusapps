@@ -275,8 +275,8 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
           className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="details-section-personal"
         >
-          <div className="gba:mb-4">
-            <h3 className="gba:text-lg gba:font-medium">Personal Data</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Personal Data</h3>
           </div>
           {renderDataItems(personalData)}
         </Card>
@@ -287,8 +287,8 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
           className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="details-section-address"
         >
-          <div className="gba:mb-4">
-            <h3 className="gba:text-lg gba:font-medium">Address</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Address</h3>
           </div>
           {renderDataItems(addressData)}
         </Card>
@@ -299,8 +299,8 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
           className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="details-section-bank"
         >
-          <div className="gba:mb-4">
-            <h3 className="gba:text-lg gba:font-medium">Bank Account</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Bank Account</h3>
           </div>
           {renderDataItems(bankAccountData)}
         </Card>
@@ -311,8 +311,8 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
           className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="details-section-communication"
         >
-          <div className="gba:mb-4">
-            <h3 className="gba:text-lg gba:font-medium">Private Communication</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Private Communication</h3>
           </div>
           {renderDataItems(privateCommunicationData)}
         </Card>
@@ -323,8 +323,8 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
           className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="details-section-emergency"
         >
-          <div className="gba:mb-4">
-            <h3 className="gba:text-lg gba:font-medium">Emergency Contact</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Emergency Contact</h3>
           </div>
           {renderDataItems(emergencyContactData)}
         </Card>
@@ -335,8 +335,8 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
           className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
           data-testid="details-section-payroll"
         >
-          <div className="gba:mb-4">
-            <h3 className="gba:text-lg gba:font-medium">Payroll</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Payroll</h3>
           </div>
           {renderDataItems(payrollData)}
         </Card>
