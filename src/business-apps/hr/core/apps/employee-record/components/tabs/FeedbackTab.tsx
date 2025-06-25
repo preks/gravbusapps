@@ -206,7 +206,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               data-testid="empty-feedback-state"
             />
           ) : (
-            <div className="gba:space-y-4">
+            <div className="gba:grid gba:grid-cols-1 gba:gap-3">
               {formattedFeedback.map((feedback) => {
                 // TypeScript safety - this should never happen due to our filter(Boolean) above
                 if (!feedback) return null;
