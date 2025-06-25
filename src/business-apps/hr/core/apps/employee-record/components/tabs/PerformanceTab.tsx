@@ -2,35 +2,23 @@
 
 import React, { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
-import { Employee, EmployeeFeedback, EmployeePerformanceGoal } from '../../hooks/useEmployeeData';
+import { Employee, EmployeePerformanceGoal } from '../../hooks/useEmployeeData';
 import { Card, Button } from '@newwork/gravity-ui-catalog';
 import { Empty, Spin, Drawer, Descriptions, Tag } from 'antd';
-import { startProcess } from '@/common/utils/start-process';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { employeePerformanceQuery } from '../../queries/performanceQueries';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { CloseOutlined, EditOutlined } from '@ant-design/icons';
-
+import { CloseOutlined } from '@ant-design/icons';
 
 interface PerformanceTabProps {
   employee: Employee;
   accessToken: string;
-  employeeFeedback?: EmployeeFeedback[];
-  employeePerformanceGoal?: EmployeePerformanceGoal[];
+  employeePerformanceGoals?: EmployeePerformanceGoal[];
 }
 
 // Extended interfaces to include properties used in the drawer
-interface FormattedFeedback {
-  sender: string;
-  date: string;
-  content: string;
-  avatar?: string | null;
-  senderId?: string;
-}
-
-// Extend EmployeePerformanceGoal to include optional id and description
 interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
   id?: string;
   description?: string;
@@ -38,24 +26,20 @@ interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
 
 /**
  * Performance Tab Component
- * Displays performance goals and feedback for the employee
+ * Displays performance goals for the employee
  */
 const PerformanceTab: React.FC<PerformanceTabProps> = ({ 
   employee,
   accessToken,
-  employeeFeedback = [],
-  employeePerformanceGoal = []
+  employeePerformanceGoals = []
 }) => {
-  const [localPerformanceGoals, setLocalPerformanceGoals] = useState<ExtendedEmployeePerformanceGoal[]>([]);
-  const [localFeedback, setLocalFeedback] = useState<EmployeeFeedback[]>([]);
+  const [localPerformanceGoals, setLocalPerformanceGoals] = useState<EmployeePerformanceGoal[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   
   // Drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
-  const [drawerType, setDrawerType] = useState<'goal' | 'feedback'>('goal');
   const [selectedGoal, setSelectedGoal] = useState<ExtendedEmployeePerformanceGoal | null>(null);
-  const [selectedFeedback, setSelectedFeedback] = useState<FormattedFeedback | null>(null);
   const [drawerWidth] = useState<number>(600);
   
   // Initialize GraphQL client
@@ -69,14 +53,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       setLoading(true);
       setError(null);
       
-      const response = await graphQLClient.request(
+      const goalsResponse = await graphQLClient.request(
         employeePerformanceQuery,
         { employeeId: employee.id }
       );
       
-      if (response) {
-        setLocalPerformanceGoals(response.EmployeePerformanceGoal || []);
-        setLocalFeedback(response.EmployeeFeedback || []);
+      if (goalsResponse) {
+        setLocalPerformanceGoals(goalsResponse.EmployeePerformanceGoal || []);
       }
     } catch (err) {
       console.error('Error fetching performance data:', err);
@@ -88,9 +71,8 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   
   useEffect(() => {
     // Initialize with props if available, otherwise fetch from API
-    if (employeePerformanceGoal?.length || employeeFeedback?.length) {
-      setLocalPerformanceGoals(employeePerformanceGoal);
-      setLocalFeedback(employeeFeedback || []);
+    if (employeePerformanceGoals?.length) {
+      setLocalPerformanceGoals(employeePerformanceGoals);
     } else {
       fetchPerformanceData();
     }
@@ -146,49 +128,11 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     return statusMap[status] || { label: status, color: 'gba:bg-gray-100 gba:text-gray-800' };
 };
 
-  // Format feedback for display
-  const formatFeedback = (): FormattedFeedback[] => {
-    if (!localFeedback?.length) return [];
-    
-    return localFeedback.map(feedback => {
-      const sender = `${feedback.senderEmployee?.firstName || ''} ${feedback.senderEmployee?.lastName || ''}`.trim();
-      const date = feedback.feedbackDate ? dayjs(feedback.feedbackDate).format('MMMM D, YYYY') : 'Unknown date';
-      const content = feedback.feedback || 'No feedback content';
-      const avatar = feedback.senderEmployee?.employeePosition?.employee?.pictureThumbnail || null;
-      
-      return {
-        sender,
-        date,
-        content,
-        avatar,
-        senderId: feedback.senderEmployeeId
-      };
-    });
-  };
 
-  const startProcessShowFeedback = () => {
-    startProcess({
-      domain: 'employee',
-      processName: 'giveFeedback',
-      payload: {
-        employeeId: employee?.id
-      }
-    });
-  };
   
   // Function to open the drawer for a performance goal
   const openGoalDetails = (goal: ExtendedEmployeePerformanceGoal) => {
     setSelectedGoal(goal);
-    setSelectedFeedback(null);
-    setDrawerType('goal');
-    setIsDrawerOpen(true);
-  };
-
-  // Function to open the drawer for feedback
-  const openFeedbackDetails = (feedback: FormattedFeedback) => {
-    setSelectedFeedback(feedback);
-    setSelectedGoal(null);
-    setDrawerType('feedback');
     setIsDrawerOpen(true);
   };
 
@@ -197,7 +141,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     setIsDrawerOpen(false);
   };
 
-  const formattedFeedback = formatFeedback();
+
 
   // Handle loading state
   if (loading) {
@@ -325,101 +269,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
         </section>
       </div>
 
-      {/* Feedback Section Headline */}
-      <div className="gba:feedback-header gba:mt-8" data-testid="feedback-header">
-        <div
-          className="gba:font-bold gba:text-2xl"
-          data-testid="feedback-title"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_performance.feedback",
-            "Feedback"
-          )}
-        </div>
-        <div
-          className="gba:text-gray-500 gba:text-lg"
-          data-testid="feedback-description"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_performance.feedback_description",
-            "View and manage employee feedback"
-          )}
-        </div>
-      </div>
-      
-      {/* Give Feedback Button */}
-      <div className="gba:flex gba:flex-wrap gba:gap-4">
-        <AppActionButton 
-          onClick={startProcessShowFeedback} 
-          data-testid="add-feedback-button"
-          variant="primary"
-          contextsArray={[FlowContextName.employeeEntity]}
-          externalContextData={{
-            employeeId: employee?.id
-          }}
-          prefixDataTestId="add-feedback"
-          accessToken={accessToken}
-        >
-          Give Feedback
-        </AppActionButton>
-      </div>
-      
-      {/* Feedback Content */}
-      <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:py-4">
-        <section className="gba:flex gba:flex-col gba:gap-4">
-          {!formattedFeedback.length ? (
-            <Empty 
-              description="No feedback available" 
-              className="gba:py-10" 
-              data-testid="empty-feedback-state"
-            />
-          ) : (
-            <div className="gba:space-y-4">
-              {formattedFeedback.map((feedback) => {
-                // TypeScript safety - this should never happen due to our filter(Boolean) above
-                if (!feedback) return null;
-                
-                return (
-                  <Card 
-                    key={`feedback-${feedback.sender ?? ''}-${feedback.date ?? ''}`} 
-                    className="gba:p-4 gba:cursor-pointer gba:hover:shadow-md gba:transition-all"
-                    onClick={() => openFeedbackDetails(feedback)}
-                    data-testid={`feedback-card-${feedback.senderId}`}
-                  >
-                    <div className="gba:flex gba:items-start">
-                      <div className="gba:shrink-0 gba:mr-4">
-                        <div className="gba:w-10 gba:h-10 gba:rounded-full gba:overflow-hidden gba:bg-gray-200">
-                          {feedback.avatar && (
-                            <img 
-                              src={feedback.avatar} 
-                              alt={feedback.sender}
-                              className="gba:w-full gba:h-full gba:object-cover"
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="gba:grow">
-                        <div className="gba:flex gba:justify-between gba:items-start">
-                          <h4 className="gba:font-medium">{feedback.sender}</h4>
-                          <span className="gba:text-sm gba:text-gray-500">{feedback.date}</span>
-                        </div>
-                        <p className="gba:mt-1 gba:text-gray-700">{feedback.content}</p>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      </div>
+
       {/* Details Drawer */}
       <Drawer
         title={
           <div className="gba:flex gba:justify-between gba:items-center">
-            <span>
-              {drawerType === 'goal' ? 'Performance Goal Details' : 'Feedback Details'}
-            </span>
+            <span>Performance Goal Details</span>
             <Button
               onClick={closeDrawer}
               variant="text"
@@ -436,7 +291,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
         className="gba:performance-details-drawer"
         data-testid="performance-details-drawer"
       >
-        {drawerType === 'goal' && selectedGoal && (
+        {selectedGoal && (
           <div className="gba:goal-details gba:space-y-6" data-testid="goal-details">
             <Descriptions bordered column={1} size="small" className="gba:bg-white gba:rounded-md">
               <Descriptions.Item label="Title">{selectedGoal.title}</Descriptions.Item>
@@ -492,52 +347,6 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                 accessToken={accessToken}
               >
                 Edit Goal
-              </AppActionButton>
-            </div>
-          </div>
-        )}
-        
-        {drawerType === 'feedback' && selectedFeedback && (
-          <div className="gba:feedback-details gba:space-y-6" data-testid="feedback-details">
-            <div className="gba:bg-white gba:p-6 gba:rounded-md gba:shadow-sm">
-              <div className="gba:flex gba:items-center gba:gap-4 gba:mb-6">
-                <div className="gba:w-12 gba:h-12 gba:rounded-full gba:overflow-hidden gba:bg-gray-200">
-                  {selectedFeedback.avatar && (
-                    <img 
-                      src={selectedFeedback.avatar} 
-                      alt={selectedFeedback.sender}
-                      className="gba:w-full gba:h-full gba:object-cover"
-                    />
-                  )}
-                </div>
-                <div>
-                  <h3 className="gba:text-lg gba:font-medium">{selectedFeedback.sender}</h3>
-                  <p className="gba:text-sm gba:text-gray-500">{selectedFeedback.date}</p>
-                </div>
-              </div>
-              
-              <div className="gba:feedback-content gba:bg-gray-50 gba:p-4 gba:rounded-md gba:border gba:border-gray-100">
-                <p className="gba:text-gray-700">{selectedFeedback.content}</p>
-              </div>
-            </div>
-            
-            <div className="gba:feedback-actions gba:flex gba:justify-end gba:gap-4">
-              <AppActionButton
-                onClick={() => {
-                  /* Reply to feedback implementation */
-                  closeDrawer();
-                }}
-                variant="secondary"
-                data-testid="reply-feedback-button"
-                contextsArray={[FlowContextName.employeeEntity]}
-                externalContextData={{
-                  employeeId: employee?.id,
-                  senderId: selectedFeedback.senderId
-                }}
-                prefixDataTestId="reply-feedback"
-                accessToken={accessToken}
-              >
-                Reply
               </AppActionButton>
             </div>
           </div>

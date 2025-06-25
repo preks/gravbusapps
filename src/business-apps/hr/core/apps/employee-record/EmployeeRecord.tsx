@@ -12,6 +12,7 @@ import DetailsTab from './components/tabs/DetailsTab';
 import EmploymentTab from './components/tabs/EmploymentTab';
 import DocumentsTab from './components/tabs/DocumentsTab';
 import PerformanceTab from './components/tabs/PerformanceTab';
+import FeedbackTab from './components/tabs/FeedbackTab';
 import AbsencesTab from './components/tabs/AbsencesTab';
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
@@ -27,6 +28,7 @@ const TAB_KEYS = {
   employment: 'employment',
   documents: 'documents',
   performance: 'performance',
+  feedback: 'feedback',
   absences: 'absences'
 };
 
@@ -250,13 +252,23 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     },
     {
       key: TAB_KEYS.performance,
-      label: "Performance & Feedback",
+      label: "Performance",
       children: (
         <PerformanceTab 
           employee={employee}
           accessToken={accessToken}
+          employeePerformanceGoals={performanceGoals ?? []}
+        />
+      )
+    },
+    {
+      key: TAB_KEYS.feedback,
+      label: "Feedback",
+      children: (
+        <FeedbackTab 
+          employee={employee}
+          accessToken={accessToken}
           employeeFeedback={feedback ?? []}
-          employeePerformanceGoal={performanceGoals ?? []}
         />
       )
     },
