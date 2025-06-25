@@ -11,7 +11,6 @@ import 'dayjs/plugin/localeData';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { useFileClient } from '@/common/network/files/useFileClient';
 import { employeeDocumentsQuery, documentTypeCatalogQuery } from '../../queries/documentQueries';
-import { startProcess } from '@/common/utils/start-process';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -105,22 +104,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
   const fileClient = useFileClient({
     accessToken
   });
-
-  // Using FileClient for document downloads
-  // Note: We no longer need flowClient as we're using startProcess directly
-
-  // Function to trigger startProcess directly for uploading documents
-  const showUploadModal = () => {
-    startProcess({
-      domain: 'employee',
-      processName: 'uploadEmployeeDocument',
-      payload: {
-        employeeDocument: {
-          employeeId: employee.id
-        }
-      }
-    });
-  };
 
   // Function to fetch documents and document types/groups
   const fetchDocuments = async () => {

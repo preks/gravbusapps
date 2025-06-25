@@ -5,12 +5,12 @@ import dayjs from 'dayjs';
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData';
 import { Card } from '@newwork/gravity-ui-catalog';
 import { Empty, Spin } from 'antd';
-import { startProcess } from '@/common/utils/start-process';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { employeeFeedbackQuery } from '../../queries/feedbackQueries';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import EmployeeAvatar from '@/business-apps/hr/components/employeeAvatar/EmployeeAvatar';
 
 interface FeedbackTabProps {
   employee: Employee;
@@ -25,6 +25,8 @@ interface FormattedFeedback {
   content: string;
   avatar?: string | null;
   senderId?: string;
+  firstName: string;
+  lastName: string;
 }
 
 /**
@@ -86,30 +88,24 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       const sender = `${feedback.senderEmployee?.firstName || ''} ${feedback.senderEmployee?.lastName || ''}`.trim();
       const date = feedback.feedbackDate ? dayjs(feedback.feedbackDate).format('MMMM D, YYYY') : 'Unknown date';
       const content = feedback.feedback || 'No feedback content';
+      
+      // Access pictureThumbnail through the correct path based on the GraphQL query structure
       const avatar = feedback.senderEmployee?.employeePosition?.employee?.pictureThumbnail || null;
+      const firstName = feedback.senderEmployee?.firstName || '';
+      const lastName = feedback.senderEmployee?.lastName || '';
       
       return {
         sender,
         date,
         content,
         avatar,
-        senderId: feedback.senderEmployeeId
+        senderId: feedback.senderEmployeeId,
+        firstName,
+        lastName
       };
     });
   };
-
-  const startProcessGiveFeedback = () => {
-    startProcess({
-      domain: 'employee',
-      processName: 'giveFeedback',
-      payload: {
-        employeeId: employee?.id
-      }
-    });
-  };
   
-  // No longer need drawer functions
-
   const formattedFeedback = formatFeedback();
 
   // Handle loading state
@@ -155,21 +151,48 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           </div>
         </div>
         
-        {/* Give Feedback Button */}
-        <div>
-          <AppActionButton 
-            data-testid="add-feedback-button"
-            variant="primary"
-            contextsArray={[FlowContextName.employeeGiveFeedback]}
-            externalContextData={{
-              employeeId: employee?.id
-            }}
-            prefixDataTestId="add-feedback"
-            accessToken={accessToken}
-            autoExecuteSingleAction={true}
-          >
-            Give Feedback
-          </AppActionButton>
+        {/* Action Buttons */}
+        <div className="gba:flex gba:gap-2">
+          {/* Give Feedback Button */}
+          <div>
+            <AppActionButton 
+              data-testid="add-feedback-button"
+              variant="primary"
+              contextsArray={[FlowContextName.employeeGiveFeedback]}
+              externalContextData={{
+                employeeId: employee?.id
+              }}
+              prefixDataTestId="add-feedback"
+              accessToken={accessToken}
+              autoExecuteSingleAction={true}
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:hr_performance.give_feedback",
+                "Give Feedback"
+              )}
+            </AppActionButton>
+          </div>
+          
+          {/* Request Feedback Button */}
+          <div>
+            <AppActionButton 
+              data-testid="request-feedback-button"
+              variant="secondary"
+              contextsArray={[FlowContextName.employeeRequestFeedback]}
+              externalContextData={{
+                employeeId: employee?.id,
+                isRequestingFeedback: true
+              }}
+              prefixDataTestId="request-feedback"
+              accessToken={accessToken}
+              autoExecuteSingleAction={true}
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:hr_performance.request_feedback",
+                "Request Feedback"
+              )}
+            </AppActionButton>
+          </div>
         </div>
       </div>
       
@@ -196,14 +219,14 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                   >
                     <div className="gba:flex gba:items-start">
                       <div className="gba:shrink-0 gba:mr-4">
-                        <div className="gba:w-10 gba:h-10 gba:rounded-full gba:overflow-hidden gba:bg-gray-200">
-                          {feedback.avatar && (
-                            <img 
-                              src={feedback.avatar} 
-                              alt={feedback.sender}
-                              className="gba:w-full gba:h-full gba:object-cover"
-                            />
-                          )}
+                        <div className="gba:w-10 gba:h-10" data-testid="feedback-avatar-container">
+                          <EmployeeAvatar
+                            profilePicture={feedback.avatar}
+                            firstName={feedback.firstName}
+                            lastName={feedback.lastName}
+                            employeeId={feedback.senderId || ''}
+                            size={40}
+                          />
                         </div>
                       </div>
                       <div className="gba:grow">

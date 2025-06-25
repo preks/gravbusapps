@@ -1,12 +1,10 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import dayjs from 'dayjs';
-import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData';
+import { Employee } from '../../hooks/useEmployeeData';
 import { Card } from '@newwork/gravity-ui-catalog';
-import { ProfileSection } from '../ProfileSection';
 import Avatar from '@/business-apps/hr/components/employeeAvatar/EmployeeAvatar';
-import { Empty } from 'antd';
+import { ProfileSection } from '../ProfileSection';
 import { 
   PiBriefcase, 
   PiStack, 
@@ -17,16 +15,7 @@ import {
 } from 'react-icons/pi';
 
 interface SummaryTabProps {
-  employee: Employee & { 
-    feedback?: Array<{
-      id: string;
-      content: string;
-      date: string;
-      sender: string;
-      avatar?: string;
-    }>
-  };
-  employeeFeedback: EmployeeFeedback[];
+  employee: Employee;
 }
 
 /**
@@ -38,7 +27,7 @@ interface SummaryTabProps {
 // Employee availability & schedule information comes from employee data
 // Specific schedule information should be retrieved from the API
 
-const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) => {
+const SummaryTab: React.FC<SummaryTabProps> = ({ employee }) => {
   // Get additional attributes from additionalProperties
   const getAdditionalAttributes = () => {
     if (!employee.additionalProperties) return [];
@@ -60,34 +49,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
 
   const additionalAttributes = getAdditionalAttributes();
 
-  // Process employee feedback data for display
-  useMemo(() => {
-    if (!employeeFeedback || !Array.isArray(employeeFeedback) || employeeFeedback.length === 0) return;
-    
-    // Format and attach feedback to employee object for easier access
-    const processedFeedback = employeeFeedback
-      .map((feedback) => {
-        if (!feedback) return null;
-        
-        const firstName = feedback.senderEmployee?.firstName ?? '';
-        const lastName = feedback.senderEmployee?.lastName ?? '';
-        const pictureThumbnail = feedback.senderEmployee?.employeePosition?.employee?.pictureThumbnail;
-        
-        return {
-          id: feedback.senderEmployeeId ?? '',
-          content: feedback.feedback ?? '',
-          date: feedback.feedbackDate ? dayjs(feedback.feedbackDate).format('MMM D, YYYY') : '',
-          sender: `${firstName} ${lastName}`.trim() || 'Unknown Sender',
-          avatar: pictureThumbnail
-            ? `data:image/jpeg;base64,${pictureThumbnail}`
-            : '/assets/default-avatar.png'
-        };
-      })
-      .filter((item): item is NonNullable<typeof item> => item !== null);
-      
-    // Assign processed feedback to employee object
-    employee.feedback = processedFeedback;
-  }, [employeeFeedback, employee]);
+  // Map real team members from GraphQL data
 
   // Map real team members from GraphQL data
   const subordinates = useMemo(() => {
@@ -334,60 +296,6 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, employeeFeedback }) =
           </div>
         )}
       </div>
-      {/* Feedback Section - Full width */}
-      {employee.feedback && employee.feedback.length > 0 && (
-        <div className="gba:mb-8 gba:mt-6">
-          <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
-            <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
-            Feedback
-          </h3>
-          <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
-            {employee.feedback && employee.feedback.map((feedback) => {
-              // TypeScript safety - this should never happen due to our filter(Boolean) above
-              if (!feedback) return null;
-              
-              return (
-                <Card key={feedback.id || `feedback-${feedback.sender}`} className="gba:p-6 gba:hover:shadow-md gba:transition-shadow">
-                  <div className="gba:flex gba:items-start">
-                    <div className="gba:shrink-0 gba:mr-5">
-                      <div className="gba:w-12 gba:h-12 gba:rounded-full gba:overflow-hidden gba:bg-gray-200 gba:border gba:border-gray-100 gba:shadow-sm">
-                        {feedback.avatar && (
-                          <img 
-                            src={feedback.avatar} 
-                            alt={feedback.sender}
-                            className="gba:w-full gba:h-full gba:object-cover"
-                          />
-                        )}
-                      </div>
-                    </div>
-                    <div className="gba:grow">
-                      <div className="gba:flex gba:justify-between gba:items-start gba:mb-2">
-                        <h4 className="gba:font-semibold gba:text-gray-800">{feedback.sender}</h4>
-                        <span className="gba:text-sm gba:text-gray-500 gba:bg-gray-100 gba:px-2 gba:py-1 gba:rounded-full">{feedback.date}</span>
-                      </div>
-                      <p className="gba:text-gray-700 gba:leading-relaxed">{feedback.content}</p>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {(!employee.feedback || employee.feedback.length === 0) && (
-        <div className="gba:mb-8 gba:mt-6">
-          <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-800 gba:flex gba:items-center">
-            <span className="gba:w-1 gba:h-6 gba:bg-blue-500 gba:rounded gba:mr-3"></span>
-            Feedback
-          </h3>
-          <Empty 
-            description="No feedback available" 
-            className="gba:py-10" 
-            data-testid="empty-feedback-state"
-          />
-        </div>
-      )}
     </div>
   );
 };

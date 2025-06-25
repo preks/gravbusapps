@@ -14,6 +14,7 @@ export enum FlowContextName {
     employeeAbsenceRecord = 'employeeAbsenceRecord',
     employeePerformanceGoal = 'employeePerformanceGoal',
     employeeGiveFeedback = 'employeeGiveFeedback',
+    employeeRequestFeedback = 'employeeRequestFeedback',
     employeeSkills = 'employeeSkills'
 }
 
