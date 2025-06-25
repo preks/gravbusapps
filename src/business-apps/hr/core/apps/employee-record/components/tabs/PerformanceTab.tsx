@@ -10,6 +10,7 @@ import { employeePerformanceQuery } from '../../queries/performanceQueries';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import PerformanceGoalForm from '../../forms/performance-goal-form';
 
 interface PerformanceTabProps {
   employee: Employee;
@@ -35,6 +36,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   const [localPerformanceGoals, setLocalPerformanceGoals] = useState<ExtendedEmployeePerformanceGoal[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isGoalFormVisible, setIsGoalFormVisible] = useState<boolean>(false);
   
   // No longer need drawer state as we're showing edit buttons directly on cards
   
@@ -75,21 +77,16 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   }, [employee?.id, accessToken]);
 
   const startProcessSetNewGoal = () => {
-    /* startProcess({
-      domain: 'employee',
-      processName: 'saveEmployeePerformanceGoal',
-      payload: {
-        employeePerformanceGoal: {
-          employee: employee?.id,
-          title: titleInput.value,
-          startDate: startDate.value,
-          dueDate: dueDate.value,
-          progressPercent: 0,
-          status: ''
-        },
-        changeMode: "INSERT"
-      }
-    }); */
+    setIsGoalFormVisible(true);
+  };
+  
+  const handleGoalFormClose = () => {
+    setIsGoalFormVisible(false);
+  };
+  
+  const handleGoalFormSuccess = () => {
+    // Refresh the goals data after successful submission
+    fetchPerformanceData();
   };
 
   const statusMap: Record<string, { label: string, color: string }> = {
@@ -115,7 +112,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     }
   };
 
-  const isGoalValid = (goal: ExtendedEmployeePerformanceGoal) => {
+  const isGoalValid = (_goal: ExtendedEmployeePerformanceGoal) => {
     return true; //goal.title && goal.startDate && goal.dueDate;
   };
 
@@ -179,12 +176,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
             onClick={startProcessSetNewGoal} 
             data-testid="add-goal-button"
             variant="primary"
-            contextsArray={[FlowContextName.employeeEntity]}
+            contextsArray={[FlowContextName.employeePerformanceGoal]}
             externalContextData={{
               employeeId: employee?.id
             }}
             prefixDataTestId="add-goal"
             accessToken={accessToken}
+            autoExecuteSingleAction={true}
           >
             Set New Goal
           </AppActionButton>
@@ -277,6 +275,16 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
 
 
       {/* Removed drawer - Edit buttons are now directly on cards */}
+      
+      {/* Performance Goal Form Modal */}
+      <PerformanceGoalForm
+        visible={isGoalFormVisible}
+        onClose={handleGoalFormClose}
+        onSuccess={handleGoalFormSuccess}
+        employeeId={employee?.id || ''}
+        accessToken={accessToken}
+        prefixDataTestId="performance-goal"
+      />
     </div>
   );
 };
