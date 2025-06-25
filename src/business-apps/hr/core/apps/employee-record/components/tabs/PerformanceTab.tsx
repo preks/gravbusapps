@@ -237,7 +237,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                       <AppActionButton
                         variant="secondary"
                         data-testid={`edit-goal-button-${goal.id}`}
-                        contextsArray={[FlowContextName.employeeEntity]}
+                        contextsArray={[FlowContextName.employeePerformanceGoal]}
                         externalContextData={{
                           employeeId: employee?.id,
                           goalId: goal.id
