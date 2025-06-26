@@ -2,8 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { Employee } from '../../hooks/useEmployeeData';
-import { Card } from '@newwork/gravity-ui-catalog';
-import Avatar from '@/business-apps/hr/components/employeeAvatar/EmployeeAvatar';
+import { Card, Avatar } from '@newwork/gravity-ui-catalog';
 import { ProfileSection } from '../ProfileSection';
 import { 
   PiBriefcase, 
@@ -145,11 +144,17 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken }) => {
                       data-testid="supervisor-link"
                     >
                       <Avatar
-                        profilePicture={employee.employeePosition.supervisor.pictureThumbnail}
-                        firstName={employee.employeePosition.supervisor.firstName}
-                        lastName={employee.employeePosition.supervisor.lastName}
-                        employeeId={employee.employeePosition.supervisor.id}
-                        size={64}
+                        src={employee.employeePosition.supervisor.pictureThumbnail ? `data:image/gif;base64,${employee.employeePosition.supervisor.pictureThumbnail}` : undefined}
+                        initials={`${employee.employeePosition.supervisor.firstName?.[0] || ''}${employee.employeePosition.supervisor.lastName?.[0] || ''}`}
+                        alt={`${employee.employeePosition.supervisor.firstName} ${employee.employeePosition.supervisor.lastName}`}
+                        // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+                        contentType={employee.employeePosition.supervisor.pictureThumbnail ? 'image' : 'initials'}
+                        // @ts-ignore - Type issue in gravity-ui-catalog for size
+                        size="xl"
+                        // @ts-ignore - Type issue in gravity-ui-catalog for shape
+                        shape="circle"
+                        // @ts-ignore - Type issue in gravity-ui-catalog for appearance
+                        appearance="gradient"
                       />
                       <div className="gba:mt-2 gba:text-center">
                         <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">
@@ -168,11 +173,17 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken }) => {
                 <div className="gba:flex gba:flex-col gba:items-center">
                   <div className="gba:ring-2 gba:ring-blue-400 gba:rounded-full gba:p-1">
                     <Avatar
-                      profilePicture={employee.pictureThumbnail}
-                      firstName={employee.firstName}
-                      lastName={employee.lastName}
-                      employeeId={employee.id}
-                      size={64}
+                      src={employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined}
+                      initials={`${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`}
+                      alt={`${employee.firstName} ${employee.lastName}`}
+                      // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+                      contentType={employee.pictureThumbnail ? 'image' : 'initials'}
+                      // @ts-ignore - Type issue in gravity-ui-catalog for size
+                      size="xl"
+                      // @ts-ignore - Type issue in gravity-ui-catalog for shape
+                      shape="circle"
+                      // @ts-ignore - Type issue in gravity-ui-catalog for appearance
+                      appearance="gradient"
                     />
                   </div>
                   <div className="gba:mt-2 gba:text-center">
@@ -204,11 +215,17 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken }) => {
                         data-testid={`team-member-link-${member.id}`}
                       >
                         <Avatar
-                          profilePicture={member.profilePicture}
-                          firstName={member.firstName}
-                          lastName={member.lastName}
-                          employeeId={member.id}
-                          size={56}
+                          src={member.profilePicture ? `data:image/gif;base64,${member.profilePicture}` : undefined}
+                          initials={`${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`}
+                          alt={`${member.firstName} ${member.lastName}`}
+                          // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+                          contentType={member.profilePicture ? 'image' : 'initials'}
+                          // @ts-ignore - Type issue in gravity-ui-catalog for size
+                          size="xl"
+                          // @ts-ignore - Type issue in gravity-ui-catalog for shape
+                          shape="circle"
+                          // @ts-ignore - Type issue in gravity-ui-catalog for appearance
+                          appearance="gradient"
                         />
                         <div className="gba:mt-2 gba:text-center gba:w-full">
                           <div className="gba:font-medium gba:text-sm gba:text-blue-600 gba:hover:underline">

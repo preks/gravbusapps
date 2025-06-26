@@ -3,14 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData';
-import { Card } from '@newwork/gravity-ui-catalog';
+import { Card, Avatar } from '@newwork/gravity-ui-catalog';
 import { Empty, Spin } from 'antd';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { employeeFeedbackQuery } from '../../queries/feedbackQueries';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import EmployeeAvatar from '@/business-apps/hr/components/employeeAvatar/EmployeeAvatar';
 
 interface FeedbackTabProps {
   employee: Employee;
@@ -220,12 +219,18 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                     <div className="gba:flex gba:items-start">
                       <div className="gba:shrink-0 gba:mr-4">
                         <div className="gba:w-10 gba:h-10" data-testid="feedback-avatar-container">
-                          <EmployeeAvatar
-                            profilePicture={feedback.avatar}
-                            firstName={feedback.firstName}
-                            lastName={feedback.lastName}
-                            employeeId={feedback.senderId || ''}
-                            size={40}
+                          <Avatar
+                            src={feedback.avatar ? `data:image/gif;base64,${feedback.avatar}` : undefined}
+                            initials={`${feedback.firstName?.[0] || ''}${feedback.lastName?.[0] || ''}`}
+                            alt={`${feedback.firstName} ${feedback.lastName}`}
+                            // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+                            contentType={feedback.avatar ? 'image' : 'initials'}
+                            // @ts-ignore - Type issue in gravity-ui-catalog for size
+                            size="lg"
+                            // @ts-ignore - Type issue in gravity-ui-catalog for shape
+                            shape="circle"
+                            // @ts-ignore - Type issue in gravity-ui-catalog for appearance
+                            appearance="gradient"
                           />
                         </div>
                       </div>

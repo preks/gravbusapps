@@ -192,6 +192,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                       shape="rounded"
                       // @ts-ignore - Type issue in gravity-ui-catalog for appearance
                       appearance="gradient"
+                      style={{ width: '144px', height: '144px' }}
                     />
                     
                     {/* Edit button overlay */}
