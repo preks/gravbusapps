@@ -133,7 +133,7 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
 
   if (error) {
     return (
-      <div className="p-4">
+      <div className="gba:p-4">
         <Alert 
           message="Error" 
           description={error} 
@@ -151,7 +151,7 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
 
   if (!absenceReport) {
     return (
-      <div className="p-4">
+      <div className="gba:p-4">
         <Alert 
           message="No Absence Overview found" 
           type="info" 
@@ -162,35 +162,32 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
   }
 
   return (
-    <div className="gba:p-3 gba:max-w-6xl gba:mx-auto gba:w-full">
-      <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg">
-        <div className="gba:p-4 gba:border-b gba:border-gray-200">
-          <h2 className="gba:text-lg gba:font-semibold">Absence Overview</h2>
-        </div>
-        <div className="p-6">
+    <div className="gba:w-full">
+      <div className="gba:bg-white gba:rounded-lg gba:border gba:border-gray-200">
+        <div className="gba:p-4">
           <a 
             href={absenceReport.url}
             onClick={(e) => {
               e.preventDefault();
               window.location.href = absenceReport.url;
             }}
-            className="gba:block"
+            className="gba:block gba:hover:no-underline"
           >
             <Card 
-              className="gba:border-0 gba:hover:shadow-md gba:transition-shadow gba:cursor-pointer"
-              hoverable
+              className="gba:border-0 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer"
+              hoverable={false}
             >
-              <div className="gba:p-6">
+              <div className="gba:p-4">
                 <div className="gba:flex gba:items-center gba:gap-4">
                   <div className="gba:bg-gray-100 gba:p-3 gba:rounded-lg">
                     <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-gray-600" />
                   </div>
                   <div>
-                    <h3 className="gba:text-lg gba:font-medium">
+                    <h3 className="gba:text-base gba:font-medium gba:text-gray-900">
                       {absenceReport.title}
                     </h3>
                     {absenceReport.category && (
-                      <p className="gba:text-gray-600 gba:mt-1">
+                      <p className="gba:text-sm gba:text-gray-500 gba:mt-1">
                         {absenceReport.category}
                       </p>
                     )}
