@@ -177,7 +177,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
               data-testid="empty-goals-state"
             />
           ) : (
-            <div className="gba:grid gba:grid-cols-1 gba:gap-3">
+            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-3">
               {localPerformanceGoals.map((goal) => {
                 if (!isGoalValid(goal)) {
                   return null;
