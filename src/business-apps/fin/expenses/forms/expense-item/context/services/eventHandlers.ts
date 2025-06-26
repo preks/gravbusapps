@@ -410,7 +410,7 @@ export const handleSubmit = async (
     if(accessToken && employeeId && !hasExpenseRequest){
       try {
         dispatchProcessContinueEvent('APPROVE_EXPENSE', submitData);
-        operationSuccessful = true;
+        // operationSuccessful = true;
       } catch (processError) {
         showToast(
           t("lowcoder:create_expense_type_item.error_flows", "Error in expense approval process"),
