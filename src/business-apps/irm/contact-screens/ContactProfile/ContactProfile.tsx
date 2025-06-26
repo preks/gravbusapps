@@ -9,6 +9,7 @@ import { BioCard } from "./components/BioCard"
 import { useContactData } from "./hooks/useContactData"
 import { useEmployeesData } from "./hooks/useEmployeesData"
 import { BusinessAppContextProps } from "../../../types"
+import { env } from '@/common/env/EnvUtils';
 
 const { Title } = Typography;
 
@@ -102,7 +103,7 @@ export const ContactProfile: FC<ContactProfileProps> = ({ accessToken, employeeI
         }
       };
       
-      const response = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveContact', {
+      const response = await fetch(`${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveContact`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -158,7 +159,7 @@ export const ContactProfile: FC<ContactProfileProps> = ({ accessToken, employeeI
       
       // Make the API call using fetch
       const response = await fetch(
-        'https://newwork-dev.newwork.com/processes/customer-relations/saveContact',
+        `${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveContact`,
         {
           method: 'POST',
           headers: {

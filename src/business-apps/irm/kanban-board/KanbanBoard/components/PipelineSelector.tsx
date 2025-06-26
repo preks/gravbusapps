@@ -1,22 +1,35 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useKanbanStore } from "../lib/kanban-store";
 import { DownOutlined, EditOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { Button, Tooltip, Popconfirm } from "antd";
-import { currentUser } from "../lib/data";
+import { getPlatformContext } from "../../../../../common/utils/windowUtils";
 
-export function PipelineSelector() {
+interface BusinessAppContextProps {
+  accessToken: string;
+  userInfo?: any;
+  employeeId?: string;
+  structureId?: string;
+}
+
+export function PipelineSelector({ accessToken }: BusinessAppContextProps) {
   const { 
     pipelines, 
     selectedPipelineId, 
     selectPipeline,
-    deletePipeline,
+    fetchPipelines,
     setIsAddingPipeline,
-    setEditingPipeline
+    setEditingPipelineId: setEditingPipeline,
+    deleteStage: deletePipeline
   } = useKanbanStore();
   
   const [isOpen, setIsOpen] = useState(false);
   const selectedPipeline = pipelines.find((p: any) => p.id === selectedPipelineId);
-  const isSalesManager = currentUser.role === 'sales_manager';
+  
+  // Check if user is a manager - simplified permission check
+  const platformContext = getPlatformContext();
+  // In a real implementation, you would check specific roles/permissions
+  // For now just check if platform context exists - type check to handle the union type
+  const isSalesManager = !!platformContext && 'employeeId' in platformContext;
 
   const toggleDropdown = () => {
     setIsOpen(!isOpen);
@@ -38,6 +51,21 @@ export function PipelineSelector() {
   const handleDeletePipeline = () => {
     deletePipeline(selectedPipelineId);
   };
+
+  useEffect(() => {
+    const loadPipelines = async () => {
+      if (accessToken) {
+        console.log('PipelineSelector: Loading pipelines with accessToken');
+        const fetchedPipelines = await fetchPipelines(accessToken);
+        if (fetchedPipelines.length > 0 && !selectedPipelineId) {
+          selectPipeline(fetchedPipelines[0].id);
+        }
+      } else {
+        console.error('PipelineSelector: No accessToken provided');
+      }
+    };
+    loadPipelines();
+  }, [accessToken, fetchPipelines, selectPipeline, selectedPipelineId]);
 
   return (
     <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">

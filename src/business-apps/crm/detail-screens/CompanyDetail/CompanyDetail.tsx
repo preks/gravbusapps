@@ -1,20 +1,21 @@
-import React, { useEffect, useState} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Button,
   Row,
   Col,
   Card,
-  Tag,
-  Avatar,
-  Tabs,
   Timeline,
-  Alert,
+  Tag,
   Input,
+  Spin,
+  message,
+  Form,
+  Tabs,
+  Alert,
   Select,
   Space,
-  Spin,
-  message
+  Avatar
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -38,8 +39,11 @@ import {
 } from '@ant-design/icons';
 import {
   GET_COMPANY_BY_ID, GetCompanyByIdResponse
-} from "../../overview-screens/CompanyOverview/graphql/company-queries"
+} from "../../overview-screens/CompanyOverview/graphql/company-queries";
+import { GET_SALES_ACTIVITIES, SalesActivityResponse } from './queries/salesActivityQueries';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { env } from '@/common/env/EnvUtils';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -67,6 +71,8 @@ interface Person {
 }
 
 interface Activity {
+  id?: string;
+  version?: number;
   title: string;
   date: string;
   description: string;
@@ -162,8 +168,41 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
   const [loading, setLoading] = useState<boolean>(_companyId ? true : false);
   const [error, setError] = useState<string | null>(null);
   const [companyData, setCompanyData] = useState(_companyId ? emptyCompanyData : emptyCompanyData);
+  const [activityModalVisible, setActivityModalVisible] = useState<boolean>(false);
+  const [activityForm] = Form.useForm();
+  const [addingActivity, setAddingActivity] = useState<boolean>(false);
+  const [activities, setActivities] = useState<Activity[]>([]);
 
   const graphQLClient = useGraphqlClient(accessToken);
+
+  const fetchActivities = async (accountId: string) => {
+    try {
+      const result = await graphQLClient.request<SalesActivityResponse>(
+        GET_SALES_ACTIVITIES,
+        { accountId }
+      );
+
+      if (result && result.SalesActivity) {
+        const formattedActivities = result.SalesActivity.map(activity => ({
+          id: activity.id,
+          version: activity.version,
+          title: activity.title,
+          date: new Date(activity.createdAt).toLocaleString(getCurrentActiveUserLocale(), {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          description: activity.description
+        }));
+        setActivities(formattedActivities);
+      }
+    } catch (error) {
+      console.error('Failed to fetch sales activities:', error);
+      message.error('Failed to fetch sales activities');
+    }
+  };
 
   useEffect(() => {
     const fetchCompanyById = async () => {
@@ -180,6 +219,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
         );
         if (result && result.Account && result.Account[0]) {
           const apiData = result?.Account[0];
+          
           const transformedData = {
             id: apiData.id || '',
             name: apiData.name || '',
@@ -273,7 +313,13 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
     if (_companyId) {
       fetchCompanyById();
     }
-  }, [_companyId, accessToken, graphQLClient]);
+  }, [_companyId]);
+
+  useEffect(() => {
+    if (companyData?.id) {
+      fetchActivities(companyData.id);
+    }
+  }, [companyData?.id]);
 
   React.useEffect(() => {
     if (isEditing && companyData) {
@@ -285,14 +331,12 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
     if (onBack) {
       onBack();
     } else {
-      console.log('Navigate back to company list');
     }
   };
 
   const handleEdit = () => {
     setEditedData({...companyData});
     setIsEditing(true);
-    console.log('Edit company:', companyData.id);
   };
 
   const handleSave = async () => {
@@ -339,7 +383,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
       };
 
       const response = await fetch(
-        'https://newwork-dev.newwork.com/processes/customer-relations/saveAccount',
+        `${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveAccount`,
         {
           method: 'POST',
           headers: {
@@ -366,9 +410,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
         setHasChanges(false);
         message.success('Company updated successfully');
         
-        if (responseData?.account?.id) {
-          console.log('Updated company with ID:', responseData.account.id);
-        }
       } else {
         const errorMessage = responseData.message || response.statusText || 'Unknown error';
         throw new Error(`Failed to update company: ${errorMessage}`);
@@ -384,7 +425,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
   const handleCancel = () => {
     setIsEditing(false);
     setHasChanges(false);
-    console.log('Cancel edit');
   };
 
   const handleFieldChange = (field: string, value: any) => {
@@ -408,7 +448,98 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
   };
 
   const handleAddActivity = () => {
-    console.log('Add activity for company:', companyData.id);
+    activityForm.resetFields();
+    setActivityModalVisible(true);
+  };
+
+  const handleActivitySubmit = async () => {
+    try {
+      const values = await activityForm.validateFields();
+      setAddingActivity(true);
+      
+      const payload = {
+        changeMode: "INSERT",
+        salesActivity: {
+          title: values.title,
+          description: values.description,
+          account: companyData.id,
+        }
+      };
+
+      const response = await fetch(
+        `${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveSalesActivity`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }
+      );
+      
+      const responseText = await response.text();
+      
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (e) {
+        responseData = { message: responseText };
+      }
+
+      if (response.ok) {
+        message.success('Activity added successfully');
+        setActivityModalVisible(false);
+        // Refresh activities list
+        if (companyData.id) {
+          fetchActivities(companyData.id);
+        }
+      } else {
+        throw new Error(responseData.message || 'Failed to add activity');
+      }
+    } catch (error) {
+      console.error('Failed to add activity:', error);
+      message.error('Failed to add activity');
+    } finally {
+      setAddingActivity(false);
+    }
+  };
+
+  const handleActivityCancel = () => {
+    setActivityModalVisible(false);
+    activityForm.resetFields();
+  };
+
+  // Handle deletion of an activity
+  const handleDeleteActivity = async (activity: Activity) => {
+    try {
+      const response = await fetch(`${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveSalesActivity`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          changeMode: "DELETE",
+          salesActivity: {
+            id: activity.id,
+            version: activity.version,
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to delete activity: ${errorData}`);
+      }
+      
+      // On success, remove the activity from our local state
+      setActivities(prevActivities => {
+        return prevActivities.filter(a => a.id !== activity.id);
+      });
+    } catch (error) {
+      console.error('Error deleting activity:', error);
+    }
   };
 
   return (
@@ -973,27 +1104,49 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
               <TabPane tab="Activities" key="activities">
                 <div className="gba:tab-content">
                   <Timeline>
-                    {companyData.activityTimeline.map((activity, index) => (
-                      <Timeline.Item key={index} color="blue">
-                        <div>
-                          <Text strong>{activity.title}</Text>
-                          <div><Text type="secondary">{activity.date}</Text></div>
-                          <div>{activity.description}</div>
-                          {activity.duration && (
-                            <div>Duration: {activity.duration}</div>
-                          )}
-                          {activity.outcome && (
-                            <div>Outcome: {activity.outcome}</div>
-                          )}
-                          {activity.agent && (
-                            <div>Agent: {activity.agent}</div>
-                          )}
-                          {activity.cc && (
-                            <div>CC: {activity.cc}</div>
-                          )}
-                        </div>
+                    {activities.length > 0 ? (
+                      activities.map((activity, index) => (
+                        <Timeline.Item key={activity.id || index} color="blue">
+                          <div style={{ position: 'relative' }}>
+                            <Text strong>{activity.title}</Text>
+                            <div><Text type="secondary">{activity.date}</Text></div>
+                            <div>{activity.description}</div>
+                            {activity.duration && (
+                              <div>Duration: {activity.duration}</div>
+                            )}
+                            {activity.outcome && (
+                              <div>Outcome: {activity.outcome}</div>
+                            )}
+                            {activity.agent && (
+                              <div>Agent: {activity.agent}</div>
+                            )}
+                            {activity.cc && (
+                              <div>CC: {activity.cc}</div>
+                            )}
+                            {activity.id && (
+                              <Button 
+                                type="text" 
+                                icon={<CloseOutlined />} 
+                                size="small"
+                                style={{ 
+                                  position: 'absolute', 
+                                  right: 0, 
+                                  top: 0,
+                                  padding: '4px',
+                                  lineHeight: 1
+                                }}
+                                onClick={() => handleDeleteActivity(activity)}
+                                data-testid={`delete-activity-${activity.id}`}
+                              />
+                            )}
+                          </div>
+                        </Timeline.Item>
+                      ))
+                    ) : (
+                      <Timeline.Item>
+                        <Text type="secondary">No activities found</Text>
                       </Timeline.Item>
-                    ))}
+                    )}
                   </Timeline>
                 </div>
               </TabPane>
@@ -1051,6 +1204,102 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
           </Card>
         </Col>
       </Row>
+      
+      {/* Custom modal implementation that doesn't rely on Ant Design Modal */}
+      {activityModalVisible && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}
+          onClick={handleActivityCancel}
+          data-testid="custom-modal-backdrop"
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              width: '500px',
+              maxWidth: '90%',
+              padding: '0',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+            data-testid="custom-modal-content"
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: '16px 24px',
+              borderBottom: '1px solid #f0f0f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 500 }}>Add Activity</h3>
+              <Button 
+                type="text" 
+                icon={<CloseOutlined />} 
+                onClick={handleActivityCancel}
+                style={{ padding: '4px' }}
+              />
+            </div>
+            
+            {/* Modal Body */}
+            <div style={{ padding: '20px 24px', maxHeight: '70vh', overflow: 'auto' }}>
+              <Form
+                form={activityForm}
+                layout="vertical"
+                data-testid="add-activity-form"
+                name="activityForm"
+              >
+                <Form.Item
+                  name="title"
+                  label="Title"
+                  rules={[{ required: true, message: 'Please enter a title' }]}
+                >
+                  <Input placeholder="Activity title" />
+                </Form.Item>
+
+                <Form.Item
+                  name="description"
+                  label="Description"
+                  rules={[{ required: true, message: 'Please enter a description' }]}
+                >
+                  <Input.TextArea rows={4} placeholder="Activity description" />
+                </Form.Item>
+              </Form>
+            </div>
+            
+            {/* Modal Footer */}
+            <div style={{
+              padding: '10px 24px',
+              borderTop: '1px solid #f0f0f0',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '8px'
+            }}>
+              <Button onClick={handleActivityCancel}>Cancel</Button>
+              <Button 
+                type="primary" 
+                onClick={handleActivitySubmit}
+                loading={addingActivity}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
