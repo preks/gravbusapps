@@ -9,7 +9,7 @@ import { DataController, DataControllerProps } from '@/components/dataController
 import { DataCards } from '@/components/dataCards';
 import { PiUser, PiUsersThree, PiUsersThreeDuotone } from 'react-icons/pi';
 import { EmployeeCard } from './components/EmployeeCard.component';
-import EmployeeDetails from '@/business-apps/hr/core/details/employee-details';
+import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details';
 //import { useTranslation } from 'react-i18next';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
@@ -155,7 +155,7 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
               selectedEmployee ? {
                 title: `${selectedEmployee.firstName} ${selectedEmployee.lastName}`,
                 icon: <PiUser size={20} />,
-                content: <EmployeeDetails employee={selectedEmployee} accessToken={accessToken} />,
+                content: <EmployeeDetails employeeId={selectedEmployee.id} accessToken={accessToken} userInfo={props.userInfo} />,
                 // No footer needed here as the EmployeeDetails component has its own action buttons
               } : undefined
             }
