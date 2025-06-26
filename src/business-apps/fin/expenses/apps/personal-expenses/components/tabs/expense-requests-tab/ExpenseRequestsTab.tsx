@@ -298,6 +298,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
                   onClick={(e) => e.stopPropagation()}
                   flowData={[
                     {
+                      category: 'Actions',
                       key: 'edit',
                       label: 'Edit',
                       onClick: (e?: React.MouseEvent) => {
@@ -306,6 +307,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
                       }
                     },
                     {
+                      category: 'Navigations',
                       key: 'view',
                       label: 'View Details',
                       onClick: (e?: React.MouseEvent) => {
@@ -314,6 +316,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
                       }
                     },
                     {
+                      category: 'Actions',
                       key: 'delete',
                       label: 'Delete',
                       onClick: (e?: React.MouseEvent) => {
@@ -348,7 +351,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     if (!selectedItem) return null;
     return (
       <ExpenseRequestDetails 
-        request={selectedItem} 
+        selectedItem={selectedItem} 
         onClose={handleCloseDetails}
         onEdit={handleEditExpenseRequest}
       />
@@ -444,6 +447,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
         hideFilter={false}
         dataBody={renderDataBody()}
         contentBackground="white"
+        floatingDetails={true}
         dataDetails={selectedItem ? {
           title: selectedItem.title ?? 'Expense Request Details',
           icon: <InfoCircleOutlined />,

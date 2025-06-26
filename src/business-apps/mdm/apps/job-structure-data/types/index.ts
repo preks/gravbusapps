@@ -64,9 +64,23 @@ export interface JobFamily {
 export interface JobFunction {
   id: string;
   name: string;
-  code: string;
+  nameI18n?: { [key: string]: string };
+  code?: string;
   description?: string;
-  category: string;
+  descriptionI18n?: { [key: string]: string };
+  jobLevelGroup?: {
+    id: string;
+    value: string;
+  };
+  jobLevelGroupRef?: string;
+  jobFamily?: {
+    id: string;
+    value: string;
+  };
+  jobFamilyRef?: string;
+  version?: number;
+  // Computed fields for UI
+  displayName: string;
   isActive: boolean;
 }
 
@@ -74,9 +88,34 @@ export interface JobFunction {
 export interface JobProfile {
   id: string;
   name: string;
-  code: string;
+  nameI18n?: { [key: string]: string };
+  code?: string;
   description?: string;
-  category: string;
+  descriptionI18n?: { [key: string]: string };
+  jobFunction?: {
+    id: string;
+    name: string;
+  };
+  jobFunctionId?: string;
+  jobLevel?: {
+    id: string;
+    name: string;
+  };
+  jobLevelId?: string;
+  contractType?: {
+    id: string;
+    value: string;
+  };
+  contractTypeRef?: string;
+  employmentType?: {
+    id: string;
+    value: string;
+  };
+  employmentTypeRef?: string;
+  recordState?: string;
+  version?: number;
+  // Computed fields for UI
+  displayName: string;
   isActive: boolean;
 }
 
@@ -108,5 +147,7 @@ export interface JobFamilyCatalogResponse {
   data: JobFamilyCatalogEntry[];
   totalRecords?: number;
 }
+
+
 
 export {}; 

@@ -139,16 +139,19 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
           variant="primary"
           flowData={[
             {
+              category: 'Actions',
               key: 'export',
               label: 'Export Data',
               onClick: () => console.log('Export data clicked'),
             },
             {
+              category: 'Navigations',
               key: 'settings',
               label: 'Settings',
               onClick: () => console.log('Settings clicked'),
             },
             {
+              category: 'Actions',
               key: 'help',
               label: 'Help',
               onClick: () => console.log('Help clicked'),

@@ -11,8 +11,8 @@ export { default as DocumentManagementSetup, DocumentTypes } from "./hr/document
 
 // Shared Components
 export { OpportunityOverviewComponent } from "./irm/overview-screens/OpportunityOverview";
-export { AbsenceManagementHub } from "./hr/absence/manager-absences/AbsenceManagementHub/AbsenceManagementHub"
-export { Dashboard} from "./hr/absence/backoffice-absences/Dashboard/Dashboard"
+export { AbsenceManagementHub } from "./hr/absence/apps/manager-absences/AbsenceManagementHub/AbsenceManagementHub"
+export { Dashboard} from "./hr/absence/apps/backoffice-absences/Dashboard/Dashboard"
 export { KanbanBoard } from "./irm/kanban-board/KanbanBoard";
 export { default as ExpenseItems } from './expenses/expenseItems/ExpenseItems';
 export { ContactProfile } from "./irm/contact-screens/ContactProfile/ContactProfile";

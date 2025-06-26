@@ -5,6 +5,6 @@ export default OrganizationalData;
 
 // Export types for external use
 export type { OrganizationalDataProps, OrganizationalDataTabs } from './OrganizationalData';
-export type { Company, CompaniesTabProps } from './components/tabs/CompaniesTab';
-export type { Project, ProjectsTabProps } from './components/tabs/ProjectsTab';
-export type { SiteLocation, SiteLocationsTabProps } from './components/tabs/SiteLocationsTab'; 
+export type { CompaniesTabProps } from './components/tabs/CompaniesTab';
+export type { ProjectsTabProps } from './components/tabs/ProjectsTab';
+export type { SiteLocationsTabProps } from './components/tabs/SiteLocationsTab'; 
