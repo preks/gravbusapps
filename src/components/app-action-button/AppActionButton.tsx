@@ -1,40 +1,50 @@
-/* 'use client'
+'use client'
 
 import React from 'react'
 import { ActionButton, ActionOption, type ActionButtonProps } from '@newwork/gravity-ui-catalog'
-import { ExternalContextData } from '@/modules/flowRegistry/types/types'
-import { useMainContextsData } from '../flow/flowButton/hooks'
-import { FlowContextName } from '@/modules/flowRegistry/enums'
-import { useFlowItems } from '@/modules/flowRegistry/hooks'
 import { useTranslation } from 'react-i18next'
-import { formatDataTestId } from '@/modules/orgchart/utils'
+import { useMainContextsData } from '@/common/hooks/useMainContextsData'
+import { useFlowItems, ExternalContextData } from '@/common/hooks/useFlowItems'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
 export type AppActionButtonProps = Omit<
   ActionButtonProps,
-  'processExecutor' | 'routingProvider' | 'currentPathname' | 'flowData'
+  'flowData'
 > & {
   contextsArray?: FlowContextName[]
   externalContextData?: ExternalContextData
   staticFlowData?: ActionOption[]
   prefixDataTestId?: string
+  accessToken?: string
 }
 
 const DATA_TEST_ID_PREFIX = 'AppActionButton'
 
+/**
+ * AppActionButton Component
+ * Displays an action button with flow items from the flow registry
+ */
 export const AppActionButton: React.FC<AppActionButtonProps> = props => {
   const { t } = useTranslation()
-  const { mainContextsData } = useMainContextsData(props?.contextsArray ?? [])
+  const { mainContextsData } = useMainContextsData(props?.contextsArray ?? [], props?.accessToken ?? '')
   const dataTestId = formatDataTestId(props.prefixDataTestId, DATA_TEST_ID_PREFIX)
   const { flowData } = useFlowItems({
     mainContextsData,
     externalContextData: props.externalContextData ?? {},
-    isFlowButtonOrigin: true
+    isFlowButtonOrigin: true,
+    accessToken: props?.accessToken ?? ''
   })
   const combinedData = [...(props.staticFlowData ?? []), ...flowData]
 
+  // Process execution is now handled directly in the onClick handler of each ActionOption
+
+  // Extract custom props that shouldn't be passed to DOM
+  const { prefixDataTestId, accessToken, contextsArray, externalContextData, staticFlowData, ...restProps } = props
+  
   return (
     <ActionButton
-      {...props}
+      {...restProps}
       data-testid={formatDataTestId(dataTestId, 'Button')}
       noFlowAvailableText={t('flow_button.no_flows_available')}
       emptyStateBehavior="disable"
@@ -47,4 +57,5 @@ export const AppActionButton: React.FC<AppActionButtonProps> = props => {
     />
   )
 }
- */
+
+export default AppActionButton

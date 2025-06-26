@@ -1,0 +1,109 @@
+{
+  "graphql": {
+    "client": "src/common/network/graphql/useGraphQLClient.ts",
+    "patterns": {
+      "queryFiles": {
+        "location": "queries/",
+        "naming": "EntityQueries.ts",
+        "structure": {
+          "interfaces": "EntityQueryVariables",
+          "queries": "GET_ENTITY_DATA",
+          "hooks": "useGetEntityData"
+        }
+      },
+      "queryFunction": {
+        "parameters": "variables: EntityQueryVariables",
+        "returnType": "string (GraphQL query)",
+        "errorHandling": "try-catch with console.error"
+      }
+    },
+    "bestPractices": {
+      "authentication": "always use context.accessToken",
+      "errorHandling": "wrap in try-catch blocks",
+      "typing": "define proper TypeScript interfaces"
+    }
+  },
+  "catalog": {
+    "client": "src/common/network/catalogs/useCatalogManagerClient.ts",
+    "patterns": {
+      "hookFiles": {
+        "location": "hooks/",
+        "naming": "useEntityCatalog.ts",
+        "constants": ["ENTITY_CATALOG", "ENTITY_VERSION"]
+      },
+      "fetchFunction": {
+        "method": "getCatalogEntriesList",
+        "parameters": {
+          "catalogIdentifier": "string",
+          "version": "string (usually 'v1')"
+        },
+        "options": {
+          "limit": "number (default 100)",
+          "offset": "number (default 0)",
+          "returnTotalRecords": "boolean (true)",
+          "includeChildCatalogEntries": "boolean (true)",
+          "searchCriteria": "string (optional)"
+        }
+      }
+    },
+    "commonCatalogs": {
+      "JobLevelGroup": "v1",
+      "CompensationBand": "v1",
+      "Department": "v1",
+      "Location": "v1"
+    }
+  },
+  "integration": {
+    "pattern": "useEntityDataIntegration.ts",
+    "purpose": "combine GraphQL + Catalog data sources",
+    "features": [
+      "parallel data fetching",
+      "data transformation",
+      "enhanced interfaces",
+      "loading/error states",
+      "refetch functionality"
+    ],
+    "structure": {
+      "state": [
+        "entities: EnhancedEntity[]",
+        "isLoading: boolean",
+        "error: string | null"
+      ],
+      "methods": [
+        "loadData: async function",
+        "refetch: function"
+      ],
+      "effects": "useEffect for access token changes"
+    }
+  },
+  "dataTransformation": {
+    "currency": {
+      "issue": "APIs return 'Currency:v1:EUR' format",
+      "solution": "extract with currencyId.split(':').pop()",
+      "usage": "for Intl.NumberFormat"
+    },
+    "enhancement": {
+      "purpose": "add UI-specific properties",
+      "examples": [
+        "displayName: computed field",
+        "color: for UI styling",
+        "category: for grouping",
+        "computed calculations"
+      ]
+    }
+  },
+  "errorHandling": {
+    "apiErrors": {
+      "pattern": "try-catch blocks",
+      "logging": "console.error (no sensitive data)",
+      "userFeedback": "meaningful error messages",
+      "retry": "implement where appropriate"
+    },
+    "commonIssues": {
+      "authenticationRedirect": "CORS errors from Keycloak redirect",
+      "urlPathDuplication": "use proper client methods",
+      "currencyFormatting": "extract currency codes",
+      "missingTokens": "validate access token exists"
+    }
+  }
+} 

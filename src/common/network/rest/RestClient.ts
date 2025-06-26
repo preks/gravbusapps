@@ -19,6 +19,7 @@ export type RequestOptions = {
   headers?: Record<string, string>;
   params?: Record<string, string | number | boolean>;
   responseType?: ResponseType;
+  withCredentials?: boolean; // Whether to include credentials in the request
 };
 
 export type RequestOptionsWithBody = RequestOptions & {
@@ -76,7 +77,7 @@ export class RestClient {
     const requestOptions: RequestInit = {
       method,
       headers,
-      credentials: 'include',
+      credentials: options.withCredentials ? 'include' : 'same-origin',
       mode: 'cors',
     };
 
@@ -199,7 +200,7 @@ export class RestClient {
         ...this.headers,
         ...(options.headers || {}),
       },
-      credentials: 'include',
+      credentials: 'same-origin',
       mode: 'cors',
     });
     return response.headers;
@@ -215,7 +216,7 @@ export class RestClient {
         ...this.headers,
         ...(options.headers || {}),
       },
-      credentials: 'include',
+      credentials: 'same-origin',
       mode: 'cors',
     });
   }

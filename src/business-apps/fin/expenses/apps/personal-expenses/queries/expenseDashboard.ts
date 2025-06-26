@@ -1,12 +1,12 @@
 // GraphQL query to get dashboard statistics for an employee
 export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
   query GetExpenseDashboardByEmployee($employeeId: uuid!) {
-    # Pending payouts (approved but not paid expense items)
-    pendingPayouts: ExpenseItemAggregate(
+    # Pending payouts (expense requests awaiting payment)
+    pendingPayouts: ExpenseRequestAggregate(
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false}, 
-        status: {_eq: "APPROVED"}
+        status: {_in: ["PENDING", "APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"]}
       }
     ) {
       aggregate {
