@@ -108,7 +108,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken }) => {
           >
             {getTranslationFromI18nKeyAndLabel(
               "lowcoder:hr_employee.action",
-              "Action"
+              "Actions"
             )}
           </AppActionButton>
         </div>

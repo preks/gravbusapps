@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import dayjs from 'dayjs';
 import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeData';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { Button } from '@newwork/gravity-ui-catalog';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -14,7 +16,6 @@ import {
   RightOutlined,
 } from '@ant-design/icons';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import weekday from 'dayjs/plugin/weekday';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
@@ -283,6 +284,280 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           </AppActionButton>
         </div>
       </div>
+
+      {/* Absence Charts Section */}
+      {loading ? (
+        <div className="gba:loading gba:flex gba:justify-center gba:items-center gba:py-8">
+          <Spin size="large" />
+        </div>
+      ) : error ? (
+        <div className="gba:error gba:text-red-500 gba:py-8 gba:text-center">
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:absence_hub.error_loading",
+            "Failed to load absence data."
+          )}
+        </div>
+      ) : (
+        <div className="gba:charts-section gba:mb-8" data-testid="absence-charts-section">
+          <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
+            {/* Chart 1: Annual Leave Used vs Total */}
+            <div className="gba:chart-container gba:bg-white gba:rounded gba:border gba:shadow-sm gba:p-4" data-testid="annual-leave-chart">
+              <div className="gba:text-lg gba:font-medium gba:mb-2">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.annual_leave", 
+                  "Annual Leave"
+                )}
+              </div>
+              <div className="gba:text-sm gba:text-gray-500 gba:mb-4">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.annual_leave_description", 
+                  "Used vs. Total Annual Leave"
+                )}
+              </div>
+              {(() => {
+                const annualLeaveEntitlement = entitlements.find(e => 
+                  e.type.toLowerCase().includes('annual') || 
+                  e.type.toLowerCase().includes('vacation') || 
+                  e.type.toLowerCase().includes('leave')
+                );
+                const used = annualLeaveEntitlement?.used || 0;
+                const total = annualLeaveEntitlement?.total || 0;
+                const remaining = total - used;
+                
+                // Chart color scheme
+                const chartColors = ['#22c55e', '#f97316'];
+                
+                const data = [
+                  { name: 'Remaining Days', value: remaining, color: chartColors[0] },
+                  { name: 'Used Days', value: used, color: chartColors[1] }
+                ];
+                
+                return (
+                  <>
+                    <div className="gba:h-[180px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={data}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={50}
+                            outerRadius={70}
+                            fill="#8884d8"
+                          >
+                            {data.map((_, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={chartColors[index % chartColors.length]} 
+                              />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip
+                            formatter={(value, name) => [`${value} days`, name]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="gba:flex gba:justify-center gba:items-center gba:gap-2 gba:mt-2">
+                      <div className="gba:flex gba:items-center gba:gap-1.5">
+                        <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-[#22c55e]"></div>
+                        <span className="gba:text-sm">{remaining} {getTranslationFromI18nKeyAndLabel(
+                          "lowcoder:absence_hub.remaining",
+                          "Remaining"
+                        )}</span>
+                      </div>
+                      <div className="gba:flex gba:items-center gba:gap-1.5">
+                        <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-[#f97316]"></div>
+                        <span className="gba:text-sm">{used} {getTranslationFromI18nKeyAndLabel(
+                          "lowcoder:absence_hub.used",
+                          "Used"
+                        )}</span>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+            
+            {/* Chart 2: Absence Distribution by Type */}
+            <div className="gba:chart-container gba:bg-white gba:rounded gba:border gba:shadow-sm gba:p-4" data-testid="absence-distribution-chart">
+              <div className="gba:text-lg gba:font-medium gba:mb-2">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.absence_distribution", 
+                  "Absence Distribution"
+                )}
+              </div>
+              <div className="gba:text-sm gba:text-gray-500 gba:mb-4">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.by_type", 
+                  "By Type"
+                )}
+              </div>
+              {(() => {
+                // Group absences by type and count days
+                const absenceByType: Record<string, number> = {};
+                absenceList.forEach(absence => {
+                  if (absence.status.toLowerCase() === 'approved' || absence.status.toLowerCase() === 'action required') {
+                    const type = absence.type || 'Other';
+                    if (!absenceByType[type]) {
+                      absenceByType[type] = 0;
+                    }
+                    const duration = parseInt(absence.duration) || 0;
+                    absenceByType[type] += duration;
+                  }
+                });
+                
+                // Define consistent colors for chart
+                const chartColors = [
+                  '#22c55e', // Green
+                  '#f97316', // Orange
+                  'rgba(13, 188, 123, 1)', // Another green
+                  'rgba(255, 158, 2, 1)', // Another orange
+                  'rgba(141, 145, 153, 1)' // Gray
+                ];
+                
+                const keys = Object.keys(absenceByType);
+                const data = keys.map((type, index) => ({
+                  name: type,
+                  value: absenceByType[type],
+                  color: chartColors[index % chartColors.length]
+                }));
+                
+                return (
+                  <>
+                    <div className="gba:h-[180px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={data}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={50}
+                            outerRadius={70}
+                            fill="#8884d8"
+                          >
+                            {data.map((_, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={chartColors[index % chartColors.length]} 
+                              />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip
+                            formatter={(value, name) => [`${value} days`, name]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:mt-2">
+                      {data.map((entry, index) => (
+                        <div key={`legend-${index}`} className="gba:flex gba:items-center gba:gap-1.5">
+                          <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: entry.color }}></div>
+                          <span className="gba:text-sm">{entry.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+            
+            {/* Chart 3: Absences by Status */}
+            <div className="gba:chart-container gba:bg-white gba:rounded gba:border gba:shadow-sm gba:p-4" data-testid="absences-by-status-chart">
+              <div className="gba:text-lg gba:font-medium gba:mb-2">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.absence_status", 
+                  "Absence Status"
+                )}
+              </div>
+              <div className="gba:text-sm gba:text-gray-500 gba:mb-4">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.status_distribution", 
+                  "Status Distribution"
+                )}
+              </div>
+              {(() => {
+                // Group absences by status
+                const absenceByStatus: Record<string, number> = {};
+                absenceList.forEach(absence => {
+                  const status = absence.status || 'Unknown';
+                  if (!absenceByStatus[status]) {
+                    absenceByStatus[status] = 0;
+                  }
+                  const duration = parseInt(absence.duration) || 0;
+                  absenceByStatus[status] += duration;
+                });
+                
+                // Define consistent colors for chart
+                const chartColors = [
+                  'rgba(13, 188, 123, 1)',  // Green - Approved
+                  'rgba(255, 158, 2, 1)',   // Orange - Action Required
+                  'rgba(222, 29, 73, 1)',   // Red - Rejected
+                  'rgba(141, 145, 153, 1)', // Gray - Cancelled
+                  '#94a3b8'                 // Light Gray - Unknown
+                ];
+                
+                const statusColorMap: Record<string, number> = {
+                  'Approved': 0,
+                  'Action Required': 1,
+                  'Rejected': 2,
+                  'Cancelled': 3,
+                  'Unknown': 4
+                };
+                
+                const data = Object.keys(absenceByStatus).map(status => ({
+                  name: status,
+                  value: absenceByStatus[status],
+                  color: chartColors[statusColorMap[status] !== undefined ? statusColorMap[status] : 4]
+                }));
+                
+                return (
+                  <>
+                    <div className="gba:h-[180px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={data}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={50}
+                            outerRadius={70}
+                            fill="#8884d8"
+                          >
+                            {data.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={chartColors[statusColorMap[entry.name] !== undefined ? statusColorMap[entry.name] : 4]} 
+                              />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip
+                            formatter={(value, name) => [`${value} days`, name]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:mt-2">
+                      {data.map((entry, index) => (
+                        <div key={`legend-${index}`} className="gba:flex gba:items-center gba:gap-1.5">
+                          <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: entry.color }}></div>
+                          <span className="gba:text-sm">{entry.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Absence Hub Integration */}
       <div className="gba:absence-hub-integration" data-testid="absence-hub-integration">
