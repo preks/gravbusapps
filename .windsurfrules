@@ -109,6 +109,11 @@ src
 - apps: Use npm run publish:screen -- /<module>/<sub-module>/apps/<app-folder> to publish an app
 - forms: Use npm run publish:screen -- /<module>/<sub-module>/forms/<form-folder> to publish a form
 
+# Keep files small and maintainable
+- No single file should exceed 300 lines of code.
+- When a file approaches this size, break out logic, components, hooks, or utility functions into separate, logically named files.
+- Prefer splitting code by component, feature, or responsibility to support clarity and reuse.
+- If splitting is not obvious, prompt the user for suggestions on how to divide the code.
 # Processes with native screens
 - When wanting to continue a Kogito process by completing the current task, use `dispatchProcessContinueEvent(event, payload)` from src\common\utils\processEventUtils.ts
 - `dispatchProcessContinueEvent` assumes that there is a native screen rendered in the platform in a running Kogito process.

@@ -267,6 +267,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         <AbsencesTab 
           employee={employee}
           employeeAbsenceEntitlement={absenceEntitlements ?? []}
+          accessToken={accessToken}
         />
       )
     }

@@ -620,6 +620,10 @@ export interface EmployeeAbsenceEntitlement {
       localeCode: string;
       value: string;
     }[];
+    objectValue?: {
+      color?: string;
+      checkEntitlement?: boolean;
+    };
   };
   available: number;
   pending: number;

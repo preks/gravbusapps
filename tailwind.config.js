@@ -96,6 +96,8 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
+        primary: ['Roboto', 'sans-serif'],
+        secondary: ['"Dela Gothic One"', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-in-out',
