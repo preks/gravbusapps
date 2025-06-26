@@ -43,6 +43,7 @@ import {
 import { GET_SALES_ACTIVITIES, SalesActivityResponse } from './queries/salesActivityQueries';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { env } from '@/common/env/EnvUtils';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -382,7 +383,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
       };
 
       const response = await fetch(
-        'https://newwork-dev.newwork.com/processes/customer-relations/saveAccount',
+        `${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveAccount`,
         {
           method: 'POST',
           headers: {
@@ -466,7 +467,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
       };
 
       const response = await fetch(
-        'https://newwork-dev.newwork.com/processes/customer-relations/saveSalesActivity',
+        `${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveSalesActivity`,
         {
           method: 'POST',
           headers: {
@@ -512,7 +513,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
   // Handle deletion of an activity
   const handleDeleteActivity = async (activity: Activity) => {
     try {
-      const response = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveSalesActivity', {
+      const response = await fetch(`${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveSalesActivity`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,

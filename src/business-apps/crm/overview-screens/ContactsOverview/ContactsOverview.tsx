@@ -33,7 +33,8 @@ import {
   GlobalOutlined
 } from '@ant-design/icons';
 import { useContactsData, Contact } from './hooks/useContactsData';
-import { BusinessAppContextProps } from '../../../types';
+import { BusinessAppContextProps } from "@/business-apps/types";
+import { env } from '@/common/env/EnvUtils';
 import { ContactProfile } from '../../../irm/contact-screens/ContactProfile/ContactProfile';
 
 const { Title, Text, Paragraph } = Typography;
@@ -244,7 +245,7 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
         }
       };
       
-      const response = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveContact', {
+      const response = await fetch(`${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveContact`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
