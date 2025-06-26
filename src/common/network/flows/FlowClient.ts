@@ -163,6 +163,30 @@ export class FlowClient extends RestClient {
       throw error;
     }
   }
+
+  /**
+   * Gets a resource from the flow service using a custom path
+   * @param path The path to the resource (will be appended to the base URL)
+   * @param options Additional request options
+   * @returns Promise with the resource data
+   */
+  public async getResource<T = any>(
+    path: string,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<T> {
+    if (!this.headers?.['Authorization']) {
+      throw new Error('FlowClient: Access token not set. Call setAccessToken before getting resource.');
+    }
+    
+    try {
+      // Ensure path starts with a slash
+      const url = path.startsWith('/') ? path : `/${path}`;
+      return await this.get<T>(url, options);
+    } catch (error) {
+      console.error(`FlowClient: Error getting resource from ${path}:`, error);
+      throw error;
+    }
+  }
 }
 
 export const flowClient = new FlowClient();
