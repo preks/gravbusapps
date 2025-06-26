@@ -35,7 +35,7 @@ export interface OpportunityUpdatePayload {
       opportunity: string;
     }>;
   };
-  changeMode: 'UPDATE' | 'CREATE' | 'DELETE';
+  changeMode: 'UPDATE' | 'INSERT' | 'DELETE';
 }
 
 export class OpportunityClient extends RestClient {
@@ -65,41 +65,23 @@ export class OpportunityClient extends RestClient {
     opportunityId: string,
     stageId: string, 
     version: number,
-    opportunityData: any, // The existing opportunity data
+    opportunityData: any, 
     accessToken: string
   ): Promise<any> {
-
-    console.log('Updating opportunity stage:', { opportunityId, stageId, version, opportunityData })
-    // Create payload with exact structure from API documentation
-    // Ensure all UUID fields are strings, not objects
-    console.log('DEBUG - Updating opportunity:', {
-      id: opportunityId, 
-      currentStage: opportunityData.stage,
-      newStage: stageId,
-      version: version
-    });
     
-    // Send essential fields plus any mandatory fields that might be required by backend validation
-    // Different opportunities may have different validation requirements
     const updatedOpportunity = {
       id: opportunityId,
       version: version,
       stage: stageId,
-      // Include name if present (likely a required field)
       ...(opportunityData.name ? { name: opportunityData.name } : {}),
-      // Include estimatedAmount if present (likely a required field)
       ...(typeof opportunityData.estimatedAmount !== 'undefined' ? { estimatedAmount: opportunityData.estimatedAmount } : {})
     };
     
-    console.log('Using essential fields payload for stage update');
-    
-    // Create the exact payload expected by the API
     const payload = {
       opportunity: updatedOpportunity,
       changeMode: 'UPDATE'
     };
 
-    console.log('Update opportunity payload:', JSON.stringify(payload, null, 2));
 
     // Ensure accessToken is valid
     if (!accessToken) {
