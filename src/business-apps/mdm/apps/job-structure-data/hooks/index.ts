@@ -1,3 +1,3 @@
 // Custom hooks for job structure data
-export { useJobStructureDataIntegration } from './useJobStructureDataIntegration';
+export { useJobLevels } from './useJobLevels';
 export { useJobFamilies } from './useJobFamilies'; 

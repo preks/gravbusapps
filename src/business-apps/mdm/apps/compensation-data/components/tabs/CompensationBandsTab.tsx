@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, message, Modal, Form, Spin, InputNumber, Select, Alert } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
+import { Table, Button, Input, Space, Typography, message, Modal, Form, Spin, InputNumber, Select, Alert, Descriptions, Tag } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, DollarCircleOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useUserLocale } from '@/common/locale/useUserLocale';
 import { useCompensationDataIntegration } from '../../hooks/useCompensationDataIntegration';
+import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
 import { PayGrade } from './PayGradesTab';
 
 const { Title } = Typography;
@@ -27,6 +28,8 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
   
   // Use real data integration
   const { payGrades, isLoading, error, refetch } = useCompensationDataIntegration(context);
+  const [selectedBand, setSelectedBand] = useState<PayGrade | null>(null);
+  const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingBand, setEditingBand] = useState<PayGrade | null>(null);
@@ -57,6 +60,16 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
     setEditingBand(null);
     form.resetFields();
     setIsModalVisible(true);
+  };
+
+  const handleRowClick = (record: PayGrade) => {
+    setSelectedBand(record);
+    setDrawerVisible(true);
+  };
+
+  const handleDrawerClose = () => {
+    setDrawerVisible(false);
+    setSelectedBand(null);
   };
 
   const handleEdit = (record: PayGrade) => {
@@ -251,6 +264,10 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
         columns={columns}
         dataSource={filteredBands}
         rowKey="id"
+        onRow={(record) => ({
+          onClick: () => handleRowClick(record)
+        })}
+        className="gba:cursor-pointer"
         pagination={{
           pageSize: 20,
           showSizeChanger: true,
@@ -347,9 +364,108 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Compensation Band Details Drawer */}
+      <DataDetailsDrawer
+        title="Compensation Band Details"
+        icon={<DollarCircleOutlined />}
+        open={drawerVisible}
+        onClose={handleDrawerClose}
+        width={500}
+        placement="right"
+        dataTestId={`${prefixDataTestId || ''}-CompensationBandsTab-DetailsDrawer`}
+        footer={
+          <div className="gba:flex gba:justify-end gba:gap-2">
+            <Button
+              type="primary"
+              icon={<EditOutlined />}
+              onClick={() => {
+                handleDrawerClose();
+                if (selectedBand) {
+                  handleEdit(selectedBand);
+                }
+              }}
+            >
+              Edit
+            </Button>
+          </div>
+        }
+      >
+        {selectedBand && (
+          <div className="gba:space-y-6">
+            {/* Basic Information */}
+            <Descriptions title="Basic Information" bordered column={1} size="small">
+              <Descriptions.Item label="Name">{selectedBand.name || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Code">{selectedBand.code || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Pay Grade">{selectedBand.payGrade !== undefined ? selectedBand.payGrade : "-"}</Descriptions.Item>
+            </Descriptions>
+
+            {/* Salary Information */}
+            <Descriptions title="Salary Information" bordered column={1} size="small">
+              <Descriptions.Item label="Currency">
+                {typeof selectedBand.currency === 'string' ? selectedBand.currency : 
+                  selectedBand.currency?.value || selectedBand.currency?.id || "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Minimum Salary">
+                <span className="gba:text-green-600 gba:font-medium">
+                  {formatCurrency(selectedBand.minSalary, selectedBand.currency)}
+                </span>
+              </Descriptions.Item>
+              <Descriptions.Item label="Standard Salary">
+                <span className="gba:text-blue-600 gba:font-semibold">
+                  {formatCurrency(selectedBand.standardSalary, selectedBand.currency)}
+                </span>
+              </Descriptions.Item>
+              <Descriptions.Item label="Maximum Salary">
+                <span className="gba:text-red-600 gba:font-medium">
+                  {formatCurrency(selectedBand.maxSalary, selectedBand.currency)}
+                </span>
+              </Descriptions.Item>
+              <Descriptions.Item label="Salary Range">
+                <span className="gba:text-purple-600 gba:font-medium">
+                  {formatCurrency(selectedBand.maxSalary - selectedBand.minSalary, selectedBand.currency)}
+                </span>
+              </Descriptions.Item>
+            </Descriptions>
+
+            {/* Translations Section - if available */}
+            {selectedBand.nameI18n && Object.keys(selectedBand.nameI18n || {}).length > 0 && (
+              <Descriptions title="Name Translations" bordered column={1} size="small">
+                {Object.entries(selectedBand.nameI18n || {}).map(([locale, translation]) => (
+                  <Descriptions.Item key={locale} label={locale}>{translation || "-"}</Descriptions.Item>
+                ))}
+              </Descriptions>
+            )}
+
+            {selectedBand.descriptionI18n && Object.keys(selectedBand.descriptionI18n || {}).length > 0 && (
+              <Descriptions title="Description Translations" bordered column={1} size="small">
+                {Object.entries(selectedBand.descriptionI18n || {}).map(([locale, translation]) => (
+                  <Descriptions.Item key={locale} label={locale}>{translation || "-"}</Descriptions.Item>
+                ))}
+              </Descriptions>
+            )}
+
+            {/* Additional Details */}
+            {selectedBand.description && (
+              <Descriptions title="Description" bordered column={1} size="small">
+                <Descriptions.Item label="Description">{selectedBand.description || "-"}</Descriptions.Item>
+              </Descriptions>
+            )}
+
+            {/* Technical Information */}
+            <Descriptions title="System Information" bordered column={1} size="small">
+              <Descriptions.Item label="ID">{selectedBand.id}</Descriptions.Item>
+              <Descriptions.Item label="Version">
+                {selectedBand.version !== undefined ? selectedBand.version : "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Currency Reference">{selectedBand.currencyRef || "-"}</Descriptions.Item>
+            </Descriptions>
+          </div>
+        )}
+      </DataDetailsDrawer>
     </div>
   );
 };
 
 export default CompensationBandsTab;
-export { CompensationBandsTab }; 
+export { CompensationBandsTab };
