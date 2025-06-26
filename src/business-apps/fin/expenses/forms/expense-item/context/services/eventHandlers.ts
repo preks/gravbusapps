@@ -409,7 +409,7 @@ export const handleSubmit = async (
 
     if(accessToken && employeeId && !hasExpenseRequest){
       try {
-        dispatchProcessContinueEvent('APPROVE_EXPENSE', submitData);
+        dispatchProcessContinueEvent('pse_submit', submitData);
         // operationSuccessful = true;
       } catch (processError) {
         showToast(
