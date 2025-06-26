@@ -1,5 +1,6 @@
 export interface JobPositionFormValues {
   id?: string; // present if editing
+  version?: number; // present if editing, required for updates
   name: string;
   jobProfileId: string;
   jobFamilyId: string;

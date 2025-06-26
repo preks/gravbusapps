@@ -138,8 +138,8 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
   const alphaFilter = alpha ? `${alpha}%` : `%`;
   const searchFilter = search ? `%${search}%` : `%`;
   const organizationalUnitObj = organizationalUnits && organizationalUnits.length > 0 ? { organizationalUnitId: { _in: organizationalUnits } } : undefined;
-  const employmentTypeObj = employmentTypes && employmentTypes.length > 0 ? { employee: { workingCondition: { employmentType: { value: { _in: employmentTypes } } } } } : undefined;
-  const contractTypeObj = contractTypes && contractTypes.length > 0 ? { employee: { workingCondition: { contractType: { value: { _in: contractTypes } } } } } : undefined;
+  const employmentTypeObj = employmentTypes && employmentTypes.length > 0 ? { employee: { workingCondition: { employmentTypeRef: { _in: employmentTypes } } } } : undefined;
+  const contractTypeObj = contractTypes && contractTypes.length > 0 ? { employee: { workingCondition: { contractTypeRef: { _in: contractTypes } } } } : undefined;
   const matrixTeamObj = matrixTeams && matrixTeams.length > 0 ? { 
     matrixUnitEmployees: { 
       matrixUnitId: { _in: matrixTeams },

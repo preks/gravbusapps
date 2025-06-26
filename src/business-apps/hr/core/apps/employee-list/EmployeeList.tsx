@@ -21,6 +21,7 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
   const { accessToken } = props;
   const { t } = useTranslation();
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [hasInitialLoad, setHasInitialLoad] = useState(false);
   
   // Use the centralized employee filters hook
   const {
@@ -61,12 +62,18 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
     retry 
   } = useGetEmployees({ ...getFilters(), accessToken });
   
-  // Initial load effect - only runs when component mounts and accessToken is available
+  // Initial load effect - only runs once when component mounts and accessToken is available
   React.useEffect(() => {
-    if (accessToken && !loading && employees.length === 0) {
+    if (accessToken && !hasInitialLoad && !loading) {
       loadPage(1); // Load first page instead of loadMore for true pagination
+      setHasInitialLoad(true);
     }
-  }, [accessToken, loadPage, loading, employees.length]);
+  }, [accessToken, loadPage, loading, hasInitialLoad]);
+  
+  // Reset initial load flag when filters change to allow reloading
+  React.useEffect(() => {
+    setHasInitialLoad(false);
+  }, [search, selectedFilters]);
   
   // Handle employee selection
   const handleEmployeeSelect = useCallback((employee: Employee) => {

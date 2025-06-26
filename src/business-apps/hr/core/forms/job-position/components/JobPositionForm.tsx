@@ -249,7 +249,7 @@ const JobPositionForm: React.FC = () => {
             )}
           </div>
 
-          {/* Name field - Auto-populated from Job Profile but editable */}
+          {/* Name field - Auto-populated from Job Profile but editable (disabled when no job profile selected) */}
           <div>
             <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
               Name *
@@ -263,7 +263,7 @@ const JobPositionForm: React.FC = () => {
             />
           </div>
 
-          {/* Organizational Unit - Mandatory field with search */}
+          {/* Organizational Unit - Mandatory field with search (disabled in edit mode) */}
           <div className="gba:space-y-3">
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
@@ -281,6 +281,7 @@ const JobPositionForm: React.FC = () => {
                 loading={organizationalUnitsLoading}
                 onPopupScrollEnd={loadMoreOrganizationalUnits}
                 filterOption={false}
+                disabled={isEdit}
               />
             </div>
 
@@ -502,8 +503,12 @@ const JobPositionForm: React.FC = () => {
             onClick={async () => {
               try {
                 await submit();
-                // Dispatch process continue event on successful submission
-                dispatchProcessContinueEvent('job_position_submit', {
+                
+                // Determine if this is an update or create operation
+                const isUpdate = isEdit && formValues.id;
+                
+                // Prepare the payload
+                const payload: any = {
                   "jobPosition": {
                     "name": formValues.name,
                     "jobProfile": formValues.jobProfileId,
@@ -515,8 +520,19 @@ const JobPositionForm: React.FC = () => {
                   },
                   "organizationalUnitId": formValues.organizationalUnitId,
                   "structureId": structureId,
-                  "changeMode": "INSERT"
-                });
+                  "changeMode": isUpdate ? "UPDATE" : "INSERT"
+                };
+                
+                // For updates, include the job position ID and version
+                if (isUpdate) {
+                  payload.jobPosition.id = formValues.id;
+                  if (formValues.version !== undefined) {
+                    payload.jobPosition.version = formValues.version;
+                  }
+                }
+                
+                // Dispatch process continue event on successful submission
+                dispatchProcessContinueEvent('job_position_submit', payload);
               } catch (err) {
                 console.error('Error submitting job position form:', err);
               }

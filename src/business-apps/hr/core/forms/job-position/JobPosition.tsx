@@ -3,14 +3,18 @@ import { JobPositionProvider } from './context/JobPositionContext';
 import JobPositionForm from './components/JobPositionForm';
 import { JobPositionFormValues } from './types';
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface JobPositionProps {
   initialValues?: Partial<JobPositionFormValues>;
-  isEdit?: boolean;
-  accessToken: string;
 }
 
-const JobPosition: React.FC<JobPositionProps> = ({ initialValues, isEdit, accessToken }) => {
+const JobPosition: React.FC<BusinessAppContextProps & JobPositionProps> = ({ 
+  initialValues, 
+  accessToken, 
+  userInfo, 
+  additionalData 
+}) => {
   // Get the structureId from the BusinessAppContext
   const structureId = getCurrentActiveStructureId();
 
@@ -27,8 +31,9 @@ const JobPosition: React.FC<JobPositionProps> = ({ initialValues, isEdit, access
   return (
     <JobPositionProvider 
       initialValues={initialValues} 
-      isEdit={!!isEdit}
       accessToken={accessToken}
+      userInfo={userInfo}
+      additionalData={additionalData}
       structureId={structureId}
     >
       <JobPositionForm />

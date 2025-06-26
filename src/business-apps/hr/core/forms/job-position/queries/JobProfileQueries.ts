@@ -75,6 +75,9 @@ export const GET_JOB_PROFILE_DATA = (variables: QueryVariablesJobProfile): strin
   // Build where conditions
   const conditions: string[] = [];
   
+  // Always filter out deleted job profiles
+  conditions.push('isDeleted: { _eq: false }');
+  
   if (jobProfileId) {
     conditions.push(`id: { _eq: "${jobProfileId}" }`);
   }
