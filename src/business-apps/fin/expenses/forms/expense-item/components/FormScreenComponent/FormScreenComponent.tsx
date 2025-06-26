@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
   Button,
   DateInputField,
+  Divider,
   InputField,
   SelectField,
   Switch,
@@ -12,14 +13,12 @@ import {
   Row,
   Col,
 } from "antd";
-import {
-  PlusCircleOutlined,
-} from "@ant-design/icons";
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from "../../types";
 import UploadComponent from "../UploadComponent";
 import SinglePositionComponent from "./SinglePositionComponent";
 import MultiPositionComponent from "./MultiPositionComponent";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
+import { ICONS } from "../../constants/icons";
 import { Alert } from "antd";
 import { getDateFormat } from "../../../../../../../common/utils/windowUtils";
 
@@ -75,6 +74,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     isFormDisabled,
     expenseRuleError,
     handleCurrencyChange,
+    isEditMode
   } = useExpenseItem();
 
   const [formIsValid, setFormIsValid] = useState(false);
@@ -83,7 +83,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     <Form
       form={form}
       layout="vertical"
-      
+      data-testid="expense-form"
       onFieldsChange={()=>{
         const isFormValidValue = form.getFieldsError().every((fieldErr:  any ) => fieldErr.errors.length === 0);
     setFormIsValid(isFormValidValue)
@@ -96,91 +96,92 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       validateTrigger={['onChange', 'onBlur']}
       initialValues={{
         date: new Date(),
-        currency: "EUR",
+        currency: "Currency:v1:EUR",
       }}
     >
-      <div className={`gba:marginBottom16`}>
+      <div className={`gba:formUploadContainer`} data-testid="form-upload-container">
         <UploadComponent 
           fileList={fileList} 
           setFileList={setFileList} 
         />
       </div>
 
-      <div className={`gba:marginBottom16`}>
-        <div>
+      <div className={`gba:marginBottom16`} data-testid="title-field-container">
+        <div className={`gba:relativePosition`}>
           <Form.Item
             name="title"
-            rules={[{ required: true, message: t('create_expense_type_item.current_title_custom_rule', 'Please enter a title')}]}
+            rules={[{ required: true, message: t('lowcoder:create_expense_type_item.current_title_custom_rule', 'Please enter a title')}]}
+            style={{ marginBottom: 0 }}
           >
             <InputField
-              label={t("create_expense_type_item.current_title_label", "Title")}
+              label={t("lowcoder:create_expense_type_item.current_title_label", "Title")}
               name="title"
               disabled={isFormDisabled || isProcessingFiles}
               placeholder={t(
-                "create_expense_type_item.current_title_placeholder",
+                "lowcoder:create_expense_type_item.current_title_placeholder",
                 "Enter Title"
               )}
               onChange={(field) => form.setFieldsValue({ title: field.value })}
               required={true}
+              data-testid="title-input"
             />
           </Form.Item>
         </div>
       </div>
 
-      <div className={`gba:marginBottom16`}>
-        <div style={{ position: "relative" }}>
+      <div className={`gba:marginBottom16`} data-testid="date-field-container">
+        <div className={`gba:relativePosition`}>
           <Form.Item
-          shouldUpdate
+            shouldUpdate
             name="date"
-            rules={[{ required: true, message: t('create_expense_type_item.current_date_custom_rule', 'Please select a date') }]}
+            rules={[{ required: true, message: t('lowcoder:create_expense_type_item.current_date_custom_rule', 'Please select a date') }]}
             style={{ marginBottom: 0 }}
           >
-            <div className={`gba:relativePosition`}>
-              <div>
-                <DateInputField
-                  label={t(
-                    "create_expense_type_item.current_date_label",
-                    "Date"
-                  )}
-                  name="date"
-                  placeholder={t(
-                    "create_expense_type_item.current_date_placeholder",
-                    "Select date"
-                  )}
-                  onChange={(field) => {
-                    if(field.value)
-                    setCurrentSelectedDate(field.value as Date)
-                    form.setFieldsValue({ date: field.value }
-                    )
-                console.log(field.value,"-",form.getFieldValue('date'))}}
-                  required={true}
-                  format={getDateFormat('date.long')}
-                  value={form.getFieldValue('date')}
-                />
-              </div>
-            </div>
+            <DateInputField
+              label={t(
+                "lowcoder:create_expense_item.change_expense_item_container.current_date_label",
+                "Date"
+              )}
+              name="date"
+              placeholder={t(
+                "lowcoder:create_expense_item.change_expense_item_container.current_date_placeholder",
+                "Select date"
+              )}
+              data-testid="date-input"
+              onChange={(field) => {
+                if(field.value)
+                setCurrentSelectedDate(field.value as Date)
+                form.setFieldsValue({ date: field.value }
+                )
+              }}
+              required={true}
+              format={getDateFormat('date.long')}
+              value={form.getFieldValue('date')}
+            />
           </Form.Item>
           {expenseRuleError && (
             <Alert
-              message={t('create_expense_item.missing_expense_rule_message', 'No expense rule found for this date. Please contact your administrator.')}
+              message={t('lowcoder:create_expense_item.missing_expense_rule_message', 'No expense rule found for this date. Please contact your administrator.')}
               type="error"
               style={{ marginTop: 8 }}
               showIcon
+              data-testid="expense-rule-error-alert"
             />
           )}
         </div>
       </div>
 
-      <div className={`gba:marginBottom16`}>
+      <div className={`gba:marginBottom16`} data-testid="multi-position-switch-container">
         <div className={`gba:relativePosition`}>
           <div>
             <Switch
               label={t(
-                "create_expense_item.multi_position",
-                "Multiple Positions"
+                "lowcoder:create_expense_type_item.multi_position_item",
+                "Multi Position Item"
               )}
               name="multiPosition"
               value={multiPosition}
+              data-testid="multi-position-switch"
               onChange={(checked) => {
                 const newMultiPositionValue = checked.value as boolean;
                 if (!newMultiPositionValue && positions.length > 1) {
@@ -246,11 +247,16 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <Button 
           variant="ghost" 
           onClick={handleAddPosition}
+          data-testid="add-position-button"
           disabled={isProcessingFiles}
-          className={`gba:marginBottom16`}
         >
-          <PlusCircleOutlined style={{ width: "17px", height: "17px" }} /> 
-          {isProcessingFiles ? "Processing..." : "Add Position"}
+          <img 
+            src={ICONS.ADD_CIRCLE}
+            alt={t("lowcoder:create_expense_type_item.add_position_button", "Add Position")}
+            style={{ width: "17px", height: "17px" }}
+            data-testid="add-position-icon"
+          /> 
+          {isProcessingFiles ? t("lowcoder:create_expense_item.file_add_document_processing","Processing...") : t("lowcoder:create_expense_type_item.add_position_button","Add Position")}
         </Button>
       )}
 
@@ -259,45 +265,49 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <Row
           gutter={16}
           className={`gba:marginTop16 gba:marginBottom16`}
+          data-testid="total-row"
         >
-          <Col span={12}>
-            <Form.Item className={`gba:marginBottom0`}>
+          <Col span={12} data-testid="total-amount-col">
+            <Form.Item className={`gba:marginBottom0`} data-testid="total-amount-form-item">
               <InputField
                 label={t(
-                  "create_expense_item.change_expense_item_container.current_amount_label",
+                  "lowcoder:create_expense_item.change_expense_item_container.current_amount_label",
                   "Amount"
                 )}
                 name="amount"
+                type="number"
+                step="0.01"
+                min="0"
+                className="gba:no-spinner"
+                data-testid="total-amount-input"
                 value={calculateTotal().toFixed(2)}
                 placeholder={t(
-                  "create_expense_item.change_expense_item_container.current_amount_placeholder",
+                  "lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder",
                   "Enter Amount"
                 )}
-                onChange={() => {
-                  console.log("changed");
-                }}
                 required={true}
               />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col span={12} data-testid="total-currency-col">
             <Form.Item
               name="currency"
-              rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_currency_custom_rule', 'Please select a currency') }]}
-
+              rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_currency_custom_rule', 'Please select a currency') }]}
               className={`gba:marginBottom0`}
+              data-testid="total-currency-form-item"
             >
               <SelectField
                 allowClear
                 label={t(
-                  "create_expense_item.change_expense_item_container.current_currency_label",
+                  "lowcoder:create_expense_item.change_expense_item_container.current_currency_label",
                   "Currency"
                 )}
                 disabled={isProcessingFiles}
                 name="currency"
+                data-testid="total-currency-select"
                 isDataSorted={false}
                 data={currencies.map((currency) => ({
-                  id: currency.code,
+                  id: currency.id,
                   name: currency.code,
                 }))}
                 onChange={(value: any) => {
@@ -308,7 +318,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                   }
                 }}
                 placeholder={t(
-                  "create_expense_item.change_expense_item_container.current_currency_placeholder",
+                  "lowcoder:create_expense_item.change_expense_item_container.current_currency_placeholder",
                   "Select Currency"
                 )}
                 required={true}
@@ -320,12 +330,14 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       
       <Form.Item
         name="expenseRequestId"
-        rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_request_custom_rule', 'Please select a request') }]}
+        rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_request_custom_rule', 'Please select a request') }]}
         className={`gba:marginBottom16`}
+        data-testid="expense-request-container"
       >
         <SelectField
           allowClear
           name="expenseRequestId"
+          data-testid="expense-request-select"
           data={[
             ...expenseRequests.map((request) => ({
               id: request.id,
@@ -336,25 +348,32 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             form.setFieldsValue({ expenseRequestId: value.value });
           }}
           label={t(
-            "create_expense_type_item.current_request",
+            "lowcoder:create_expense_type_item.current_request",
             "Add Expense Request"
           )}
           placeholder={t(
-            "create_expense_item.change_expense_item_container.current_request_placeholder",
+            "lowcoder:create_expense_item.change_expense_item_container.current_request_placeholder",
             "Select Request"
           )}
           disabled={isProcessingFiles}
         />
       </Form.Item>
-
-      <Form.Item>
+          <Divider 
+            color="#EFEFEF"
+            horizontal
+            size={1}
+            className="gba:mt-[30px] gba:mb-[30px]"
+            data-testid="form-divider"
+          />
+      <Form.Item data-testid="submit-button-container">
         <Button
           variant="primary"
           onClick={handleSubmit}
           disabled={isProcessingFiles || !formIsValid || !!expenseRuleError}
           className={`gba:submitButton`}
+          data-testid="submit-button"
         >
-          {t("expense_item.submit", "Submit")}
+          {isEditMode ? t("lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_update", "Update") : t("lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_save", "Create")}
         </Button>
       </Form.Item>
     </Form>

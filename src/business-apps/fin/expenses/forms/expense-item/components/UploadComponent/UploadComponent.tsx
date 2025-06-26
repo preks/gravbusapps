@@ -1,8 +1,10 @@
 import React, { useRef, useState, useCallback } from "react";
-import { Upload, message, Modal } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { Modal, Upload } from "antd";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
+import { ICONS } from "../../constants/icons";
 import { Button } from "@newwork/gravity-ui-catalog";
+import { useTranslation } from "react-i18next";
+import { showToast } from "../../utils/notificationUtils";
 
 interface UploadComponentProps {
   fileList: any[];
@@ -21,7 +23,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
     isProcessingFiles
   } = useExpenseItem();
   
-
+const { t } = useTranslation();
   const [isHandlingUpload, setIsHandlingUpload] = useState<boolean>(false);
   
 
@@ -41,7 +43,10 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
     });
     
     if (!isValidType) {
-      message.error(`File type not supported. Please upload PDF, JPG, JPEG, or PNG files only.`);
+         showToast(
+            t("lowcoder:create_expense_type_item.error_file_type_message", "File type not supported. Please upload PDF, JPG, JPEG, or PNG files only."),
+            "error"
+          );
     }
     
     return isValidType;
@@ -147,19 +152,27 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
         <div className={`gba:uploadButtonStart`}>
           {isProcessingFiles ? (
             <>
-              <LoadingOutlined className="gba:uploadIcon" />
-              <span>Processing the receipt...</span>
+              <img
+                src={ICONS.SPINNER_ICON}
+                alt="Loading"
+                className="gba:uploadIcon"
+                width="36"
+                height="36"
+                data-testid="upload-loading-icon"
+              />
+              <span>{t('lowcoder:create_expense_type_item.processing_receipt', 'Processing the receipt...')}</span>
             </>
           ) : (
             <>
               <img 
-                src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
-                alt="Focus" 
+                src={ICONS.FOCUS} 
+                alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
                 className={`gba:uploadIcon`}
                 width="36"
                 height="36"
+                data-testid="upload-icon-large"
               />
-              <span>Attach Receipt</span>
+              <span className="gba:fontMedium" data-testid="attach-receipt-text-start">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
             </>
           )}
         </div>
@@ -171,18 +184,26 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
         <div className={`gba:uploadButtonFormEmpty`}>
           {isProcessingFiles ? (
             <>
-              <LoadingOutlined className="gba:uploadIconSmall" />
-              <span>Processing...</span>
+              <img
+                src={ICONS.SPINNER_ICON}
+                alt="Loading"
+                className="gba:uploadIconSmall"
+                width="18"
+                height="18"
+                data-testid="upload-loading-icon-small"
+              />
+              <span>{t('lowcoder:create_expense_type_item.processing', 'Processing...')}</span>
             </>
           ) : (
             <>
-              <span>Attach Receipt</span>
+              <span className="gba:fontMedium" data-testid="attach-receipt-text-form">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
               <img 
-                src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
-                alt="Focus" 
+                src={ICONS.FOCUS} 
+                alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
                 className={`gba:uploadIconSmall`}
                 width="18"
                 height="18"
+                data-testid="upload-icon-small"
               />
             </>
           )}
@@ -206,7 +227,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
   const acceptedFileTypes = "application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG";
 
   return (
-    <div className={getContainerClass()}>
+    <div className={getContainerClass()} data-testid="upload-container">
       {fileList.length === 0 ? (
         <Upload
           listType="text"
@@ -218,12 +239,13 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
           accept={acceptedFileTypes}
           className={`gba:uploadComponent`}
           disabled={isProcessingFiles}
+          data-testid="upload-input-empty"
         >
           {getButtonContent()}
         </Upload>
       ) : (
-        <div className={`gba:filesFlexContainer`}>
-          <div className={`gba:fileListRow`}>
+        <div className={`gba:filesFlexContainer`} data-testid="files-flex-container">
+          <div className={`gba:fileListRow`} data-testid="file-list-row">
             <Upload
               listType="text"
               fileList={fileList}
@@ -238,10 +260,11 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
                 showDownloadIcon: false,
                 showRemoveIcon: true,
               }}
+              data-testid="upload-input-with-files"
             />
           </div>
 
-          <div className={`gba:attachButtonRow`}>
+          <div className={`gba:attachButtonRow`} data-testid="attach-button-row">
             <Upload
               showUploadList={false}
               beforeUpload={handleBeforeUpload}
@@ -249,22 +272,31 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
               multiple={true}
               accept={acceptedFileTypes}
               disabled={isProcessingFiles}
+              data-testid="attach-more-upload"
             >
-              <div className={`gba:attachMoreContainer`}>
+              <div className={`gba:attachMoreContainer`} data-testid="attach-more-container">
                 {isProcessingFiles ? (
                   <>
-                    <span>Processing...</span>
-                    <LoadingOutlined className="gba:uploadIconSmall" />
+                    <span data-testid="processing-text">{t('lowcoder:create_expense_item.change_expense_item_container.file_add_document_processing', 'Processing the receipt...')}</span>
+                    <img
+                      src={ICONS.SPINNER_ICON}
+                      alt="Loading"
+                      className="gba:uploadIconSmall"
+                      width="18"
+                      height="18"
+                      data-testid="loading-icon"
+                    />
                   </>
                 ) : (
                   <>
-                    <span>Attach Receipt</span>
+                    <span className="gba:fontMedium" data-testid="attach-receipt-text">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
                     <img 
-                      src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg" 
-                      alt="Focus" 
+                      src={ICONS.FOCUS} 
+                      alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
                       className={`gba:uploadIconSmall`}
                       width="18"
                       height="18"
+                      data-testid="attach-receipt-icon"
                     />
                   </>
                 )}
@@ -276,7 +308,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
 
       {isModalVisible && (
         <Modal
-          title="Attach Additional Files"
+          title={t('lowcoder:create_expense_type_item.attach_additional_files', 'Attach Additional Files')}
           open={true}
           onCancel={() => {
             setIsModalVisible(false);
@@ -290,16 +322,17 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
           destroyOnClose={true}
           width={500}
         >
-          <div className={`gba:modalContent`}>
-            <p>Do you want to keep the current {fileList.length > 1 ? 'files' : 'file'} as well?</p>
-            <div className={`gba:modalButtons`}>
+          <div className={`gba:modalContent`} data-testid="modal-content">
+            <p data-testid="modal-message">{
+            fileList.length > 1 ? t("lowcoder:create_expense_type_item.upload_file_modal_message","Do you want to keep the current file as well?"): t("lowcoder:create_expense_type_item.upload_file_modal_message","Do you want to keep the current file as well?")}</p>
+            <div className={`gba:modalButtons`} data-testid="modal-buttons">
               <Button 
                 variant="secondary"
                 onClick={() => handleModalConfirm(false)}
                 data-testid="modal-no-button"
                 className="gba:min-w-[120px]"
               >
-                No
+                {t('lowcoder:create_expense_type_item.cancel_button_modal', 'No')}
               </Button>
               <Button 
                 variant="primary"
@@ -307,7 +340,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({
                 data-testid="modal-yes-button"
                 className="gba:min-w-[120px]"
               >
-                Yes
+                {t('lowcoder:create_expense_type_item.confirm_button_modal', 'Yes')}
               </Button>
             </div>
           </div>

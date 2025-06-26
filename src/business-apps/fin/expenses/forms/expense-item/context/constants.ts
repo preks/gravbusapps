@@ -1,7 +1,18 @@
+import { env } from "../../../../../../common/env/EnvUtils";
 
-export const DEFAULT_EMPLOYEE_ID = "86a8317d-34ef-4e04-951b-b0bb9754dea0";
+export const DEFAULT_EMPLOYEE_ID = "";
 
-export const GRAPHQL_API_ENDPOINT = "https://newwork-dev.newwork.com/v1/graphql";
+export const GRAPHQL_API_ENDPOINT = env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK");
+
+export const ICONS_ENDPOINT = env("NEXT_PUBLIC_ICONS_ENDPOINT")
+
+export const FILES_ENDPOINT = env("NEXT_PUBLIC_FILE_SERVICE_ENDPOINT")
+
+export const EMPLOYEE_FILES_LOCATION = env("NEXT_PUBLIC_FILE__EMPLOYEE_AZURE_LOCATION")
+
+export const FILES_ENGINE_ENDPOINT = env("NEXT_PUBLIC_DOCS_ENGINE_ENDPOINT")
+
+export const PROCESSES_ENDPOINT = env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
 
 export const DEFAULT_EXPENSE_SOURCE = "GENERAL_EXPENSE_RULE";
 
@@ -9,12 +20,14 @@ export const DEFAULT_EXPENSE_STATUS = "CREATED";
 
 export const PRIORITY_CURRENCIES = ["EUR", "USD", "RON"];
 
+export const generateUniqueId = () => `position-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
 export const DEFAULT_POSITION = {
-  id: "",
+  id: generateUniqueId(),
   expenseGroup: "",
   expenseType: "",
   amount: 0,
   costCenter: "",
   customField: "",
-  isReimbursable: false,
+  isReimbursable: true,
 };
