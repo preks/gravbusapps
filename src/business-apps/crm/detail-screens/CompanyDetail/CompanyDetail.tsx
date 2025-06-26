@@ -168,7 +168,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
   const [error, setError] = useState<string | null>(null);
   const [companyData, setCompanyData] = useState(_companyId ? emptyCompanyData : emptyCompanyData);
   const [activityModalVisible, setActivityModalVisible] = useState<boolean>(false);
-  console.log('Initial modal state:', activityModalVisible);
   const [activityForm] = Form.useForm();
   const [addingActivity, setAddingActivity] = useState<boolean>(false);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -331,14 +330,12 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
     if (onBack) {
       onBack();
     } else {
-      console.log('Navigate back to company list');
     }
   };
 
   const handleEdit = () => {
     setEditedData({...companyData});
     setIsEditing(true);
-    console.log('Edit company:', companyData.id);
   };
 
   const handleSave = async () => {
@@ -412,9 +409,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
         setHasChanges(false);
         message.success('Company updated successfully');
         
-        if (responseData?.account?.id) {
-          console.log('Updated company with ID:', responseData.account.id);
-        }
       } else {
         const errorMessage = responseData.message || response.statusText || 'Unknown error';
         throw new Error(`Failed to update company: ${errorMessage}`);
@@ -430,7 +424,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
   const handleCancel = () => {
     setIsEditing(false);
     setHasChanges(false);
-    console.log('Cancel edit');
   };
 
   const handleFieldChange = (field: string, value: any) => {
@@ -454,10 +447,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
   };
 
   const handleAddActivity = () => {
-    console.log('Add Activity button clicked');
-    // Reset form fields
     activityForm.resetFields();
-    // Set modal visible state to true
     setActivityModalVisible(true);
   };
 
