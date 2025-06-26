@@ -8,6 +8,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests';
 import ExpenseRequestDetails from './ExpenseRequestDetails';
 import { getExpenseRequestStatusDisplay } from '../../../utils';
+import { ensureShortDateFormat } from '../../../utils/dateUtils';
+import { formatAmount } from '../../../utils/currencyUtils';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -133,11 +135,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
           <div className="gba:font-bold">{text ?? 'Untitled Request'}</div>
           {record.startDate && record.endDate && (
             <div className="gba:text-xs gba:text-gray-400">
-              {new Date(record.startDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})} - {new Date(record.endDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})}
+              {ensureShortDateFormat(record.startDate)} - {ensureShortDateFormat(record.endDate)}
             </div>
           )}
           <div className="gba:text-xs gba:text-gray-500">
-            Ref: {record.code ?? 'N/A'} | Submitted: {record.requestDate ? new Date(record.requestDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'}) : 'N/A'}
+            Ref: {record.code ?? 'N/A'} | Submitted: {ensureShortDateFormat(record.requestDate)}
           </div>
         </div>
       )
@@ -167,7 +169,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       align: 'right' as const,
       render: (amount: number) => (
         <Text strong>
-          {typeof amount === 'number' ? `€${amount.toFixed(2)}` : 'N/A'}
+          {typeof amount === 'number' ? `€${formatAmount(amount)}` : 'N/A'}
         </Text>
       )
     },

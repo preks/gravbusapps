@@ -4,8 +4,7 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
     $managerId: uuid!,
     $limit: Int!,
     $offset: Int!,
-    $searchTerm: String,
-    $status: String,
+    $searchTerm: String
   ) {
     ExpenseRequestAggregate(
       where: {
@@ -16,13 +15,10 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
         },
         isDeleted: {_eq: false},
         _or: [
-          {title: {_ilike: $searchTerm}},
           {code: {_ilike: $searchTerm}},
-          {description: {_ilike: $searchTerm}},
-          {status: {_ilike: $searchTerm}},
+          {title: {_ilike: $searchTerm}},
           {employee: {fullName: {_ilike: $searchTerm}}}
-        ],
-        status: {_eq: $status, _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"]},
+        ]
       }
     ) {
       aggregate {
@@ -41,25 +37,21 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
         },
         isDeleted: {_eq: false},
         _or: [
-          {title: {_ilike: $searchTerm}},
           {code: {_ilike: $searchTerm}},
-          {description: {_ilike: $searchTerm}},
-          {status: {_ilike: $searchTerm}},
+          {title: {_ilike: $searchTerm}},
           {employee: {fullName: {_ilike: $searchTerm}}}
-        ],
-        status: {_eq: $status, _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"]},
+        ]
       }
     ) {
       id
       code
       title
-      startDate
+      requestDate
       endDate
-      requestDate
       description
-      requestDate
       totalAmount
       status
+      createdAt
       employeeDocument { # Corrected field for attachments
         file # Corresponds to fileUrl
         name # Corresponds to fileName

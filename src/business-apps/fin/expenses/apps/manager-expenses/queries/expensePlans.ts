@@ -1,9 +1,9 @@
 // GraphQL query for fetching expense plans for team members with pagination, search and filtering
 export const GET_EXPENSE_PLANS_BY_MANAGER = `
   query GetExpensePlansByManager(
-    $employeeId: uuid!, 
-    $limit: Int!, 
-    $offset: Int!, 
+    $managerId: uuid!,
+    $limit: Int!,
+    $offset: Int!,
     $searchTerm: String,
     $status: String
   ) {
@@ -11,18 +11,15 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       where: {
         employee: {
           employeePosition: {
-            supervisorEmployeeId: {_eq: $employeeId}
+            supervisorEmployeeId: {_eq: $managerId}
           }
         },
         isDeleted: {_eq: false},
         _or: [
-          {title: {_ilike: $searchTerm}},
           {code: {_ilike: $searchTerm}},
-          {description: {_ilike: $searchTerm}},
-          {status: {_ilike: $searchTerm}},
+          {title: {_ilike: $searchTerm}},
           {employee: {fullName: {_ilike: $searchTerm}}}
-        ],
-        status: {_eq: $status, _nin: ["CREATED", "DISCARDED", "RETURNED", "REJECTED"]}
+        ]
       }
     ) {
       aggregate {
@@ -32,28 +29,26 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
     ExpensePlan(
       limit: $limit,
       offset: $offset,
-      orderBy: {createdAt: DESC},
+      orderBy: {planDate: DESC},
       where: {
         employee: {
           employeePosition: {
-            supervisorEmployeeId: {_eq: $employeeId}
+            supervisorEmployeeId: {_eq: $managerId}
           }
         },
         isDeleted: {_eq: false},
         _or: [
-          {title: {_ilike: $searchTerm}},
           {code: {_ilike: $searchTerm}},
-          {description: {_ilike: $searchTerm}},
-          {status: {_ilike: $searchTerm}},
+          {title: {_ilike: $searchTerm}},
           {employee: {fullName: {_ilike: $searchTerm}}}
-        ],
-        status: {_eq: $status, _nin: ["CREATED", "DISCARDED", "RETURNED", "REJECTED"]}
+        ]
       }
     ) {
       id
       code
       title
-      description
+      startDate
+      endDate
       status
       activeFrom
       activeTo
@@ -61,8 +56,6 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       createdAt
       updatedAt
       decisionDate
-      startDate
-      endDate
       planDate
       employee {
         id
@@ -81,12 +74,12 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
 `;
 
 export const GET_EXPENSE_PLAN_STATISTICS = `
-  query GetExpensePlanStatistics($employeeId: uuid!) {
+  query GetExpensePlanStatistics($managerId: uuid!) {
   allPlansStats: ExpensePlanAggregate(
     where: {
       employee: {
         employeePosition: {
-          supervisorEmployeeId: {_eq: $employeeId}
+          supervisorEmployeeId: {_eq: $managerId}
         }
       },
       isDeleted: {_eq: false},
@@ -104,7 +97,7 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
     where: {
       employee: {
         employeePosition: {
-          supervisorEmployeeId: {_eq: $employeeId}
+          supervisorEmployeeId: {_eq: $managerId}
         }
       },
       isDeleted: {_eq: false},

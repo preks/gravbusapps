@@ -1,30 +1,71 @@
-// GraphQL query for fetching advance payments for team members with pagination, search and filtering
+// GraphQL query for fetching expense plans with their associated advance payments for team members
 export const GET_ADVANCE_PAYMENTS_BY_MANAGER = `
-query GetAdvancePaymentsByManager($employeeId: uuid!, $limit: Int!, $offset: Int!, $searchTerm: String, $status: String) {
-  AdvancePaymentAggregate(where: {expensePlan: {employee: {employeePosition: {supervisorEmployeeId: {_eq: $employeeId}}}}, isDeleted: {_eq: false}, _or: [{code: {_ilike: $searchTerm}}, {description: {_ilike: $searchTerm}}, {status: {_ilike: $searchTerm}}], status: {_eq: $status, _nin: ["CREATED", "PREPARED", "RETURNED", "REJECTED", "DISCARDED"]}}) {
-    aggregate {
-      count
+  query GetAdvancePaymentsByManager(
+    $managerId: uuid!,
+    $limit: Int!,
+    $offset: Int!,
+    $searchTerm: String
+  ) {
+    ExpensePlanAggregate(
+      where: {
+        employee: {
+          employeePosition: {
+            supervisorEmployeeId: {_eq: $managerId}
+          }
+        },
+        isDeleted: {_eq: false},
+        _or: [
+          {code: {_ilike: $searchTerm}},
+          {title: {_ilike: $searchTerm}},
+          {employee: {fullName: {_ilike: $searchTerm}}}
+        ]
+      }
+    ) {
+      aggregate {
+        count
+      }
     }
-  }
-  AdvancePayment(limit: $limit, offset: $offset, orderBy: {expensePlan: {startDate: DESC}}, where: {expensePlan: {employee: {employeePosition: {supervisorEmployeeId: {_eq: $employeeId}}}}, isDeleted: {_eq: false}, _or: [{code: {_ilike: $searchTerm}}, {description: {_ilike: $searchTerm}}, {status: {_ilike: $searchTerm}}], status: {_eq: $status, _nin: ["CREATED", "PREPARED", "RETURNED", "REJECTED", "DISCARDED"]}}) {
-    id
-    code
-    description
-    amount
-    status
-    expensePlan {
+    ExpensePlan(
+      limit: $limit,
+      offset: $offset,
+      orderBy: {planDate: DESC},
+      where: {
+        employee: {
+          employeePosition: {
+            supervisorEmployeeId: {_eq: $managerId}
+          }
+        },
+        isDeleted: {_eq: false},
+        _or: [
+          {code: {_ilike: $searchTerm}},
+          {title: {_ilike: $searchTerm}},
+          {employee: {fullName: {_ilike: $searchTerm}}}
+        ]
+      }
+    ) {
+      id
+      code
       title
+      planDate
       startDate
       endDate
+      status
+      totalAmount
+      currencyRef
       employee {
         id
-        displayName
         fullName
-        pictureThumbnail
+      }
+      advancePayment(where: {isDeleted: {_eq: false}}) {
+        id
+        code
+        amount
+        status
+        transactionDate
+        currencyRef
       }
     }
   }
-}
 `;
 
 export const GET_ADVANCE_PAYMENT_STATISTICS = `

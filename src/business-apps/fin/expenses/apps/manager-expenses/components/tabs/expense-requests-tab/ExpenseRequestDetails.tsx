@@ -1,8 +1,9 @@
 import React from 'react';
-import { Typography, Button, Descriptions, Space, Divider, Tag, Image } from 'antd';
+import { Typography, Button, Descriptions, Image } from 'antd';
 import { CheckOutlined, CloseCircleOutlined, FileImageOutlined } from '@ant-design/icons';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { formatDate } from '@/common/utils/windowUtils';
 
 const { Title, Text } = Typography;
 
@@ -70,7 +71,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
         <Descriptions.Item label="Title">{request.title}</Descriptions.Item>
         <Descriptions.Item label="Employee">{request.employee?.fullName}</Descriptions.Item>
         <Descriptions.Item label="Department">{request.employee?.department}</Descriptions.Item>
-        <Descriptions.Item label="Request Date">{request.requestDate}</Descriptions.Item>
+        <Descriptions.Item label="Request Date">{request.requestDate ? formatDate(request.requestDate, 'date.short') : '-'}</Descriptions.Item>
         <Descriptions.Item label="Amount">€{request.amount?.toFixed(2)}</Descriptions.Item>
         <Descriptions.Item label="Description">{request.description || 'No description provided'}</Descriptions.Item>
       </Descriptions>
