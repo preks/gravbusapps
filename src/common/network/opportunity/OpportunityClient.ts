@@ -35,7 +35,7 @@ export interface OpportunityUpdatePayload {
       opportunity: string;
     }>;
   };
-  changeMode: 'UPDATE' | 'CREATE';
+  changeMode: 'UPDATE' | 'CREATE' | 'DELETE';
 }
 
 export class OpportunityClient extends RestClient {
