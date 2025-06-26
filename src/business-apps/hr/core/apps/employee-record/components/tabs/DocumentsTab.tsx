@@ -756,7 +756,13 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
                       <span className="gba:text-sm gba:text-gray-500">{docs.length} {docs.length === 1 ? 'document' : 'documents'}</span>
                     </div>
                   }
-                  className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+                  className={`gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden ${
+                    group === 'Salary' ? 'gba:bg-blue-50' : 
+                    group === 'Expenses' ? 'gba:bg-green-50' : 
+                    group === 'Development' ? 'gba:bg-purple-50' : 
+                    group === 'Personal' ? 'gba:bg-orange-50' : 
+                    'gba:bg-indigo-50'
+                  }`}
                   data-testid={`document-group-${group.toLowerCase()}`}
                 >
                   <List
@@ -791,7 +797,13 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
                     <span className="gba:text-sm gba:text-gray-500">{docs.length} {docs.length === 1 ? 'document' : 'documents'}</span>
                   </div>
                 }
-                className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+                className={`gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden ${
+                  group === 'Salary' ? 'gba:bg-blue-50' : 
+                  group === 'Expenses' ? 'gba:bg-green-50' : 
+                  group === 'Development' ? 'gba:bg-purple-50' : 
+                  group === 'Personal' ? 'gba:bg-orange-50' : 
+                  'gba:bg-indigo-50'
+                }`}
                 data-testid={`document-group-${group.toLowerCase()}`}
               >
                 <List
