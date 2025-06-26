@@ -334,7 +334,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 
                 return (
                   <>
-                    <div className="gba:h-[180px]">
+                    <div className="gba:h-[180px] gba:border gba:border-gray-200 gba:rounded-md">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -427,7 +427,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 
                 return (
                   <>
-                    <div className="gba:h-[180px]">
+                    <div className="gba:h-[180px] gba:border gba:border-gray-200 gba:rounded-md">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -517,7 +517,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 
                 return (
                   <>
-                    <div className="gba:h-[180px]">
+                    <div className="gba:h-[180px] gba:border gba:border-gray-200 gba:rounded-md">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
