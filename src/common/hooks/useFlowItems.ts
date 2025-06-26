@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FlowItemReduced } from '../types/FlowRegistryTypes';
 import { ActionOption } from '@newwork/gravity-ui-catalog';
-import { merge } from 'lodash';
 import { startProcess } from '../utils/start-process';
 import { useFlowRegistryClient } from '../network/flows/useFlowRegistryClient';
 
@@ -97,7 +96,9 @@ const mapFlowItemsToActionOptions = (
 
     // Add external context data to payload
     if (externalContextData && typeof externalContextData === 'object') {
-      merge(payload, externalContextData);
+      Object.entries(externalContextData).forEach(([key, value]) => {
+        payload[key] = value;
+      });
     }
 
     // Create ActionOption with required properties
