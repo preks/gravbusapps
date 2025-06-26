@@ -1,20 +1,21 @@
-import React, { useEffect, useState} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Button,
   Row,
   Col,
   Card,
-  Tag,
-  Avatar,
-  Tabs,
   Timeline,
-  Alert,
+  Tag,
   Input,
+  Spin,
+  message,
+  Form,
+  Tabs,
+  Alert,
   Select,
   Space,
-  Spin,
-  message
+  Avatar
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -38,8 +39,10 @@ import {
 } from '@ant-design/icons';
 import {
   GET_COMPANY_BY_ID, GetCompanyByIdResponse
-} from "../../overview-screens/CompanyOverview/graphql/company-queries"
+} from "../../overview-screens/CompanyOverview/graphql/company-queries";
+import { GET_SALES_ACTIVITIES, SalesActivityResponse } from './queries/salesActivityQueries';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -67,6 +70,8 @@ interface Person {
 }
 
 interface Activity {
+  id?: string;
+  version?: number;
   title: string;
   date: string;
   description: string;
@@ -162,8 +167,42 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
   const [loading, setLoading] = useState<boolean>(_companyId ? true : false);
   const [error, setError] = useState<string | null>(null);
   const [companyData, setCompanyData] = useState(_companyId ? emptyCompanyData : emptyCompanyData);
+  const [activityModalVisible, setActivityModalVisible] = useState<boolean>(false);
+  console.log('Initial modal state:', activityModalVisible);
+  const [activityForm] = Form.useForm();
+  const [addingActivity, setAddingActivity] = useState<boolean>(false);
+  const [activities, setActivities] = useState<Activity[]>([]);
 
   const graphQLClient = useGraphqlClient(accessToken);
+
+  const fetchActivities = async (accountId: string) => {
+    try {
+      const result = await graphQLClient.request<SalesActivityResponse>(
+        GET_SALES_ACTIVITIES,
+        { accountId }
+      );
+
+      if (result && result.SalesActivity) {
+        const formattedActivities = result.SalesActivity.map(activity => ({
+          id: activity.id,
+          version: activity.version,
+          title: activity.title,
+          date: new Date(activity.createdAt).toLocaleString(getCurrentActiveUserLocale(), {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          description: activity.description
+        }));
+        setActivities(formattedActivities);
+      }
+    } catch (error) {
+      console.error('Failed to fetch sales activities:', error);
+      message.error('Failed to fetch sales activities');
+    }
+  };
 
   useEffect(() => {
     const fetchCompanyById = async () => {
@@ -180,6 +219,12 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
         );
         if (result && result.Account && result.Account[0]) {
           const apiData = result?.Account[0];
+          
+          // Fetch activities with the ID from the API response directly
+          if (apiData.id) {
+            fetchActivities(apiData.id);
+          }
+          
           const transformedData = {
             id: apiData.id || '',
             name: apiData.name || '',
@@ -267,6 +312,11 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
         setCompanyData(emptyCompanyData);
       } finally {
         setLoading(false);
+      }
+
+      // Fetch activities if we have a company ID
+      if (companyData?.id) {
+        fetchActivities(companyData.id);
       }
     };
 
@@ -408,7 +458,285 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
   };
 
   const handleAddActivity = () => {
-    console.log('Add activity for company:', companyData.id);
+    console.log('Add Activity button clicked');
+    // Simple workaround until modal issues are resolved
+    let title = '';
+    let description = '';
+    
+    // Create a temporary div to host our inputs
+    const inputContainer = document.createElement('div');
+    inputContainer.style.position = 'fixed';
+    inputContainer.style.top = '50%';
+    inputContainer.style.left = '50%';
+    inputContainer.style.transform = 'translate(-50%, -50%)';
+    inputContainer.style.backgroundColor = 'white';
+    inputContainer.style.padding = '20px';
+    inputContainer.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+    inputContainer.style.zIndex = '10000';
+    inputContainer.style.borderRadius = '8px';
+    inputContainer.style.width = '400px';
+    inputContainer.style.maxWidth = '90vw';
+    
+    // Add a heading
+    const heading = document.createElement('h2');
+    heading.textContent = 'Add Activity';
+    heading.style.marginBottom = '16px';
+    inputContainer.appendChild(heading);
+    
+    // Add the title input
+    const titleLabel = document.createElement('label');
+    titleLabel.textContent = 'Title:';
+    titleLabel.style.display = 'block';
+    titleLabel.style.marginBottom = '8px';
+    inputContainer.appendChild(titleLabel);
+    
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.style.width = '100%';
+    titleInput.style.padding = '8px';
+    titleInput.style.marginBottom = '16px';
+    titleInput.style.borderRadius = '4px';
+    titleInput.style.border = '1px solid #d9d9d9';
+    inputContainer.appendChild(titleInput);
+    
+    // Add the description input
+    const descLabel = document.createElement('label');
+    descLabel.textContent = 'Description:';
+    descLabel.style.display = 'block';
+    descLabel.style.marginBottom = '8px';
+    inputContainer.appendChild(descLabel);
+    
+    const descInput = document.createElement('textarea');
+    descInput.style.width = '100%';
+    descInput.style.padding = '8px';
+    descInput.style.marginBottom = '16px';
+    descInput.style.borderRadius = '4px';
+    descInput.style.border = '1px solid #d9d9d9';
+    descInput.style.minHeight = '100px';
+    inputContainer.appendChild(descInput);
+    
+    // Add buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.justifyContent = 'flex-end';
+    buttonContainer.style.gap = '8px';
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.padding = '8px 16px';
+    cancelBtn.style.backgroundColor = '#f5f5f5';
+    cancelBtn.style.border = '1px solid #d9d9d9';
+    cancelBtn.style.borderRadius = '4px';
+    cancelBtn.style.cursor = 'pointer';
+    cancelBtn.onclick = () => {
+      document.body.removeChild(inputContainer);
+      document.body.removeChild(overlay);
+    };
+    buttonContainer.appendChild(cancelBtn);
+    
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save';
+    saveBtn.style.padding = '8px 16px';
+    saveBtn.style.backgroundColor = '#1890ff';
+    saveBtn.style.color = 'white';
+    saveBtn.style.border = '1px solid #1890ff';
+    saveBtn.style.borderRadius = '4px';
+    saveBtn.style.cursor = 'pointer';
+    saveBtn.onclick = () => {
+      title = titleInput.value;
+      description = descInput.value;
+      
+      if (!title || !description) {
+        message.error('Please enter both title and description');
+        return;
+      }
+      
+      // Submit activity with form values
+      submitActivity(title, description);
+      
+      // Clean up
+      document.body.removeChild(inputContainer);
+      document.body.removeChild(overlay);
+    };
+    buttonContainer.appendChild(saveBtn);
+    
+    inputContainer.appendChild(buttonContainer);
+    
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+    overlay.style.zIndex = '9999';
+    
+    // Add to document
+    document.body.appendChild(overlay);
+    document.body.appendChild(inputContainer);
+    
+    // Focus on title input
+    titleInput.focus();
+  };
+  
+  // Helper function to submit activity
+  const submitActivity = async (title: string, description: string) => {
+    try {
+      setAddingActivity(true);
+      
+      const payload = {
+        changeMode: "INSERT",
+        salesActivity: {
+          title: title,
+          description: description,
+          account: companyData.id,
+        }
+      };
+
+      // Use native fetch for the POST request
+      await fetch(
+        'https://newwork-dev.newwork.com/processes/customer-relations/saveSalesActivity',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }
+      );
+      
+      message.success('Activity added successfully');
+      
+      // Add the activity to the state so it shows immediately
+      const newActivity = {
+        id: `temp-${Date.now()}`,
+        title: title,
+        date: new Date().toLocaleString(getCurrentActiveUserLocale(), {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        description: description
+      };
+      
+      setActivities([newActivity, ...activities]);
+      
+      // Refetch activities to get the proper ID and data
+      if (companyData.id) {
+        fetchActivities(companyData.id);
+      }
+    } catch (error) {
+      console.error('Failed to add activity:', error);
+      message.error('Failed to add activity');
+    } finally {
+      setAddingActivity(false);
+    }
+  };
+
+  const handleActivitySubmit = async () => {
+    try {
+      const values = await activityForm.validateFields();
+      setAddingActivity(true);
+      
+      const payload = {
+        changeMode: "INSERT",
+        salesActivity: {
+          title: values.title,
+          description: values.description,
+          account: companyData.id,
+        }
+      };
+
+      const response = await fetch(
+        'https://newwork-dev.newwork.com/processes/customer-relations/saveSalesActivity',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }
+      );
+      
+      const responseText = await response.text();
+      
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (e) {
+        responseData = { message: responseText };
+      }
+
+      if (response.ok) {
+        message.success('Activity added successfully');
+        setActivityModalVisible(false);
+        // Refresh activities list
+        if (companyData.id) {
+          fetchActivities(companyData.id);
+        }
+      } else {
+        throw new Error(responseData.message || 'Failed to add activity');
+      }
+    } catch (error) {
+      console.error('Failed to add activity:', error);
+      message.error('Failed to add activity');
+    } finally {
+      setAddingActivity(false);
+    }
+  };
+
+  const handleActivityCancel = () => {
+    setActivityModalVisible(false);
+    activityForm.resetFields();
+  };
+
+  // Handle deletion of an activity
+  const handleDeleteActivity = async (activity: Activity) => {
+    // Debug what properties we have on the activity
+    console.log('Activity to delete:', JSON.stringify(activity));
+  
+    
+    try {
+      message.loading({ content: 'Deleting activity...', key: 'deleteActivity' });
+      console.log(activity.id, activity.version)
+      const response = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveSalesActivity', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          changeMode: "DELETE",
+          salesActivity: {
+            id: activity.id,
+            version: activity.version,
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to delete activity: ${errorData}`);
+      }
+      
+      // On success, remove the activity from our local state
+      setActivities(prevActivities => {
+        return prevActivities.filter(a => a.id !== activity.id);
+      });
+      
+      message.success({ content: 'Activity deleted successfully', key: 'deleteActivity' });
+    } catch (error) {
+      console.error('Error deleting activity:', error);
+      message.error({ 
+        content: 'Failed to delete activity: ' + (error instanceof Error ? error.message : String(error)), 
+        key: 'deleteActivity' 
+      });
+    }
   };
 
   return (
@@ -973,27 +1301,49 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
               <TabPane tab="Activities" key="activities">
                 <div className="gba:tab-content">
                   <Timeline>
-                    {companyData.activityTimeline.map((activity, index) => (
-                      <Timeline.Item key={index} color="blue">
-                        <div>
-                          <Text strong>{activity.title}</Text>
-                          <div><Text type="secondary">{activity.date}</Text></div>
-                          <div>{activity.description}</div>
-                          {activity.duration && (
-                            <div>Duration: {activity.duration}</div>
-                          )}
-                          {activity.outcome && (
-                            <div>Outcome: {activity.outcome}</div>
-                          )}
-                          {activity.agent && (
-                            <div>Agent: {activity.agent}</div>
-                          )}
-                          {activity.cc && (
-                            <div>CC: {activity.cc}</div>
-                          )}
-                        </div>
+                    {activities.length > 0 ? (
+                      activities.map((activity, index) => (
+                        <Timeline.Item key={activity.id || index} color="blue">
+                          <div style={{ position: 'relative' }}>
+                            <Text strong>{activity.title}</Text>
+                            <div><Text type="secondary">{activity.date}</Text></div>
+                            <div>{activity.description}</div>
+                            {activity.duration && (
+                              <div>Duration: {activity.duration}</div>
+                            )}
+                            {activity.outcome && (
+                              <div>Outcome: {activity.outcome}</div>
+                            )}
+                            {activity.agent && (
+                              <div>Agent: {activity.agent}</div>
+                            )}
+                            {activity.cc && (
+                              <div>CC: {activity.cc}</div>
+                            )}
+                            {activity.id && (
+                              <Button 
+                                type="text" 
+                                icon={<CloseOutlined />} 
+                                size="small"
+                                style={{ 
+                                  position: 'absolute', 
+                                  right: 0, 
+                                  top: 0,
+                                  padding: '4px',
+                                  lineHeight: 1
+                                }}
+                                onClick={() => handleDeleteActivity(activity)}
+                                data-testid={`delete-activity-${activity.id}`}
+                              />
+                            )}
+                          </div>
+                        </Timeline.Item>
+                      ))
+                    ) : (
+                      <Timeline.Item>
+                        <Text type="secondary">No activities found</Text>
                       </Timeline.Item>
-                    ))}
+                    )}
                   </Timeline>
                 </div>
               </TabPane>
@@ -1051,6 +1401,102 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
           </Card>
         </Col>
       </Row>
+      
+      {/* Custom modal implementation that doesn't rely on Ant Design Modal */}
+      {activityModalVisible && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}
+          onClick={handleActivityCancel}
+          data-testid="custom-modal-backdrop"
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              width: '500px',
+              maxWidth: '90%',
+              padding: '0',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+            data-testid="custom-modal-content"
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: '16px 24px',
+              borderBottom: '1px solid #f0f0f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 500 }}>Add Activity</h3>
+              <Button 
+                type="text" 
+                icon={<CloseOutlined />} 
+                onClick={handleActivityCancel}
+                style={{ padding: '4px' }}
+              />
+            </div>
+            
+            {/* Modal Body */}
+            <div style={{ padding: '20px 24px', maxHeight: '70vh', overflow: 'auto' }}>
+              <Form
+                form={activityForm}
+                layout="vertical"
+                data-testid="add-activity-form"
+                name="activityForm"
+              >
+                <Form.Item
+                  name="title"
+                  label="Title"
+                  rules={[{ required: true, message: 'Please enter a title' }]}
+                >
+                  <Input placeholder="Activity title" />
+                </Form.Item>
+
+                <Form.Item
+                  name="description"
+                  label="Description"
+                  rules={[{ required: true, message: 'Please enter a description' }]}
+                >
+                  <Input.TextArea rows={4} placeholder="Activity description" />
+                </Form.Item>
+              </Form>
+            </div>
+            
+            {/* Modal Footer */}
+            <div style={{
+              padding: '10px 24px',
+              borderTop: '1px solid #f0f0f0',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '8px'
+            }}>
+              <Button onClick={handleActivityCancel}>Cancel</Button>
+              <Button 
+                type="primary" 
+                onClick={handleActivitySubmit}
+                loading={addingActivity}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
