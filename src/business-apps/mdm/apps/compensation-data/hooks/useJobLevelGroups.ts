@@ -1,17 +1,7 @@
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { CatalogEntry, GetCatalogEntriesResponse } from '@/common/types/CatalogTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-
-export interface JobLevelGroupData {
-  data: CatalogEntry[];
-  paging: {
-    limit: number;
-    offset: number;
-    totalRecords: number;
-    returnTotalRecords: boolean;
-  };
-  query?: Record<string, any>;
-}
+import { JobLevelGroupData } from '../types';
 
 export const JOB_LEVEL_GROUP_CATALOG = 'JobLevelGroup';
 export const JOB_LEVEL_GROUP_VERSION = 'v1';

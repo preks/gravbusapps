@@ -20,6 +20,9 @@ const { Text } = Typography;
 
 // Helper function to format currency values
 const formatCurrency = (value: number): string => {
+  if (typeof value !== 'number') {
+    return '-';
+  }
   return value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
@@ -317,6 +320,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
         }}
         dataFilterProps={{}}
         hideFilter={true}
+        floatingDetails={true}
         dataBody={renderDataBody()}
         contentBackground="white"
         dataDetails={selectedItem ? {
