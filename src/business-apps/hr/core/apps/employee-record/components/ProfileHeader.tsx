@@ -342,10 +342,10 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                   <div className="gba:flex gba:flex-wrap gba:gap-2">
                     {employee.employeePosition.employeeCapabilities.map((capItem: EmployeeCapability) => (
                       <span 
-                        key={capItem.capability.id} 
+                        key={capItem.capability?.id} 
                         className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-green-100 gba:text-green-800"
                       >
-                        {capItem.capability.name}
+                        {capItem.capability?.name}
                       </span>
                     ))}
                   </div>
