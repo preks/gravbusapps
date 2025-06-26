@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, Table, Button, Collapse, Tag, Space, Typography, InputNumber, Select, Form, Modal, message, Input, Spin, Alert, Descriptions } from 'antd';
-import { EditOutlined, DeleteOutlined, PlusOutlined, DownOutlined, RightOutlined, CreditCardOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Collapse, Tag, Space, Typography, InputNumber, Select, Form, Modal, message, Input, Spin, Alert, Descriptions, Divider } from 'antd';
+import { EditOutlined, DeleteOutlined, PlusOutlined, DownOutlined, RightOutlined, CreditCardOutlined, LinkOutlined, TeamOutlined, DollarOutlined, BankOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PayGrade, JobLevelGroup, JobLevel } from './PayGradesTab';
 import { useCompensationDataIntegration } from '../../hooks/useCompensationDataIntegration';
@@ -173,7 +173,6 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
     setSelectedPayGrade(record);
     setDrawerVisible(true);
   };
-
   // Handle drawer close
   const handleDrawerClose = () => {
     setDrawerVisible(false);
@@ -487,6 +486,128 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
                 {selectedPayGrade.version !== undefined ? selectedPayGrade.version : "-"}
               </Descriptions.Item>
             </Descriptions>
+            
+            {/* Related Navigation Links */}
+            <div className="gba:mt-6">
+              <Divider orientation="left">
+                <span className="gba:flex gba:items-center gba:gap-2">
+                  <LinkOutlined />
+                  <span className="gba:text-base">Related Resources</span>
+                </span>
+              </Divider>
+              
+              <div className="gba:grid gba:grid-cols-1 gba:gap-4">
+                {/* Pay Grade Navigation */}
+                {selectedPayGrade.payGradeId && (
+                  <Card 
+                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                    size="small"
+                    bodyStyle={{ padding: '12px' }}
+                  >
+                    <a 
+                      href={`/mdm/compensation-data/pay-grades/${selectedPayGrade.payGradeId}`}
+                      className="gba:flex gba:items-center gba:gap-3 gba:text-blue-600 gba:hover:text-blue-800"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-100">
+                        <DollarOutlined className="gba:text-lg gba:text-blue-600" />
+                      </div>
+                      <div className="gba:flex-grow">
+                        <div className="gba:font-medium">
+                          {selectedPayGrade.payGrade?.name || 'Pay Grade Details'}
+                        </div>
+                        <div className="gba:text-xs gba:text-gray-500">
+                          View complete pay grade information, salary structures, and related job positions
+                        </div>
+                      </div>
+                      <RightOutlined className="gba:text-gray-400" />
+                    </a>
+                  </Card>
+                )}
+                
+                {/* Compensation Band Navigation */}
+                {selectedPayGrade.compensationBandId && (
+                  <Card 
+                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                    size="small"
+                    bodyStyle={{ padding: '12px' }}
+                  >
+                    <a 
+                      href={`/mdm/compensation-data/compensation-bands/${selectedPayGrade.compensationBandId}`}
+                      className="gba:flex gba:items-center gba:gap-3 gba:text-green-600 gba:hover:text-green-800"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-100">
+                        <BankOutlined className="gba:text-lg gba:text-green-600" />
+                      </div>
+                      <div className="gba:flex-grow">
+                        <div className="gba:font-medium">Compensation Band Details</div>
+                        <div className="gba:text-xs gba:text-gray-500">
+                          View complete compensation band structure, range analysis, and market comparisons
+                        </div>
+                      </div>
+                      <RightOutlined className="gba:text-gray-400" />
+                    </a>
+                  </Card>
+                )}
+                
+                {/* Job Level Group Navigation */}
+                {selectedPayGrade.jobLevelGroupId && (
+                  <Card 
+                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                    size="small"
+                    bodyStyle={{ padding: '12px' }}
+                  >
+                    <a 
+                      href={`/mdm/compensation-data/job-level-groups/${selectedPayGrade.jobLevelGroupId}`}
+                      className="gba:flex gba:items-center gba:gap-3 gba:text-purple-600 gba:hover:text-purple-800"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-purple-100">
+                        <TeamOutlined className="gba:text-lg gba:text-purple-600" />
+                      </div>
+                      <div className="gba:flex-grow">
+                        <div className="gba:font-medium">
+                          {selectedPayGrade.jobLevelGroup?.name || 'Job Level Group'}
+                        </div>
+                        <div className="gba:text-xs gba:text-gray-500">
+                          View all positions within {selectedPayGrade.jobLevelGroup?.name || 'this group'}, career progression paths, and requirements
+                        </div>
+                      </div>
+                      <RightOutlined className="gba:text-gray-400" />
+                    </a>
+                  </Card>
+                )}
+                
+                {/* Organizational Structure */}
+                <Card 
+                  className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                  size="small"
+                  bodyStyle={{ padding: '12px' }}
+                >
+                  <a 
+                    href={`/mdm/organizational-data?structure=${selectedPayGrade.id}`}
+                    className="gba:flex gba:items-center gba:gap-3 gba:text-orange-600 gba:hover:text-orange-800"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-orange-100">
+                      <AppstoreOutlined className="gba:text-lg gba:text-orange-600" />
+                    </div>
+                    <div className="gba:flex-grow">
+                      <div className="gba:font-medium">Organizational Positions</div>
+                      <div className="gba:text-xs gba:text-gray-500">
+                        View organizational units and positions with {selectedPayGrade.name} level
+                      </div>
+                    </div>
+                    <RightOutlined className="gba:text-gray-400" />
+                  </a>
+                </Card>
+              </div>
+            </div>
           </div>
         )}
       </DataDetailsDrawer>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, Form, Spin, Alert, Tag, Divider, Descriptions } from 'antd';
-import { SearchOutlined, IdcardOutlined, ClockCircleOutlined, FileTextOutlined, TeamOutlined, BranchesOutlined, EyeOutlined } from '@ant-design/icons';
+import { Table, Button, Input, Space, Typography, Form, Spin, Alert, Tag, Divider, Descriptions, Card } from 'antd';
+import { SearchOutlined, IdcardOutlined, ClockCircleOutlined, FileTextOutlined, TeamOutlined, BranchesOutlined, EyeOutlined, LinkOutlined, RightOutlined, ApartmentOutlined, UserOutlined, ContactsOutlined, AuditOutlined } from '@ant-design/icons';
 import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useJobProfiles } from '../../hooks/useJobProfiles';
@@ -321,6 +321,190 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = (context) => {
                 ) : "-"}
               </Descriptions.Item>
             </Descriptions>
+            
+            {/* Related Navigation Links */}
+            <div className="gba:mt-6">
+              <Divider orientation="left">
+                <span className="gba:flex gba:items-center gba:gap-2">
+                  <LinkOutlined />
+                  <span className="gba:text-base">Related Resources</span>
+                </span>
+              </Divider>
+              
+              <div className="gba:grid gba:grid-cols-1 gba:gap-4">
+                {/* Job Function Navigation */}
+                {selectedProfile.jobFunctionId && (
+                  <Card 
+                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                    size="small"
+                    bodyStyle={{ padding: '12px' }}
+                    data-testid={`${prefixDataTestId || ''}-JobProfilesTab-JobFunctionLink`}
+                  >
+                    <a 
+                      href={`/mdm/job-structure-data/job-functions/${selectedProfile.jobFunctionId}`}
+                      className="gba:flex gba:items-center gba:gap-3 gba:text-green-600 gba:hover:text-green-800"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-100">
+                        <ApartmentOutlined className="gba:text-lg gba:text-green-600" />
+                      </div>
+                      <div className="gba:flex-grow">
+                        <div className="gba:font-medium">
+                          {selectedProfile.jobFunction?.name || 'Job Function Details'}
+                        </div>
+                        <div className="gba:text-xs gba:text-gray-500">
+                          View complete job function information, structure, and related positions
+                        </div>
+                      </div>
+                      <RightOutlined className="gba:text-gray-400" />
+                    </a>
+                  </Card>
+                )}
+                
+                {/* Job Level Navigation */}
+                {selectedProfile.jobLevelId && (
+                  <Card 
+                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                    size="small"
+                    bodyStyle={{ padding: '12px' }}
+                    data-testid={`${prefixDataTestId || ''}-JobProfilesTab-JobLevelLink`}
+                  >
+                    <a 
+                      href={`/mdm/job-structure-data/job-levels/${selectedProfile.jobLevelId}`}
+                      className="gba:flex gba:items-center gba:gap-3 gba:text-blue-600 gba:hover:text-blue-800"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-100">
+                        <BranchesOutlined className="gba:text-lg gba:text-blue-600" />
+                      </div>
+                      <div className="gba:flex-grow">
+                        <div className="gba:font-medium">
+                          {selectedProfile.jobLevel?.name || 'Job Level Details'}
+                        </div>
+                        <div className="gba:text-xs gba:text-gray-500">
+                          View job level information, requirements and progression paths
+                        </div>
+                      </div>
+                      <RightOutlined className="gba:text-gray-400" />
+                    </a>
+                  </Card>
+                )}
+                
+                {/* Contract Type Navigation */}
+                {selectedProfile.contractTypeRef && (
+                  <Card 
+                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                    size="small"
+                    bodyStyle={{ padding: '12px' }}
+                    data-testid={`${prefixDataTestId || ''}-JobProfilesTab-ContractTypeLink`}
+                  >
+                    <a 
+                      href={`/mdm/contract-data/contract-types/${selectedProfile.contractTypeRef}`}
+                      className="gba:flex gba:items-center gba:gap-3 gba:text-orange-600 gba:hover:text-orange-800"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-orange-100">
+                        <ContactsOutlined className="gba:text-lg gba:text-orange-600" />
+                      </div>
+                      <div className="gba:flex-grow">
+                        <div className="gba:font-medium">
+                          {selectedProfile.contractType?.value || 'Contract Type Details'}
+                        </div>
+                        <div className="gba:text-xs gba:text-gray-500">
+                          View contract type specifications, terms, and associated job profiles
+                        </div>
+                      </div>
+                      <RightOutlined className="gba:text-gray-400" />
+                    </a>
+                  </Card>
+                )}
+                
+                {/* Employment Type Navigation */}
+                {selectedProfile.employmentTypeRef && (
+                  <Card 
+                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                    size="small"
+                    bodyStyle={{ padding: '12px' }}
+                    data-testid={`${prefixDataTestId || ''}-JobProfilesTab-EmploymentTypeLink`}
+                  >
+                    <a 
+                      href={`/mdm/employment-data/employment-types/${selectedProfile.employmentTypeRef}`}
+                      className="gba:flex gba:items-center gba:gap-3 gba:text-cyan-600 gba:hover:text-cyan-800"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-cyan-100">
+                        <UserOutlined className="gba:text-lg gba:text-cyan-600" />
+                      </div>
+                      <div className="gba:flex-grow">
+                        <div className="gba:font-medium">
+                          {selectedProfile.employmentType?.value || 'Employment Type Details'}
+                        </div>
+                        <div className="gba:text-xs gba:text-gray-500">
+                          View employment type requirements, benefits, and regulations
+                        </div>
+                      </div>
+                      <RightOutlined className="gba:text-gray-400" />
+                    </a>
+                  </Card>
+                )}
+                
+                {/* Associated Employees */}
+                <Card 
+                  className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                  size="small"
+                  bodyStyle={{ padding: '12px' }}
+                  data-testid={`${prefixDataTestId || ''}-JobProfilesTab-EmployeesLink`}
+                >
+                  <a 
+                    href={`/mdm/employee-data/employees?jobProfile=${selectedProfile.id}`}
+                    className="gba:flex gba:items-center gba:gap-3 gba:text-purple-600 gba:hover:text-purple-800"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-purple-100">
+                      <TeamOutlined className="gba:text-lg gba:text-purple-600" />
+                    </div>
+                    <div className="gba:flex-grow">
+                      <div className="gba:font-medium">Associated Employees</div>
+                      <div className="gba:text-xs gba:text-gray-500">
+                        View employees currently assigned to this job profile
+                      </div>
+                    </div>
+                    <RightOutlined className="gba:text-gray-400" />
+                  </a>
+                </Card>
+                
+                {/* Position History */}
+                <Card 
+                  className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                  size="small"
+                  bodyStyle={{ padding: '12px' }}
+                  data-testid={`${prefixDataTestId || ''}-JobProfilesTab-HistoryLink`}
+                >
+                  <a 
+                    href={`/mdm/job-structure-data/position-history?jobProfile=${selectedProfile.id}`}
+                    className="gba:flex gba:items-center gba:gap-3 gba:text-gray-600 gba:hover:text-gray-800"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-gray-100">
+                      <AuditOutlined className="gba:text-lg gba:text-gray-600" />
+                    </div>
+                    <div className="gba:flex-grow">
+                      <div className="gba:font-medium">Position History</div>
+                      <div className="gba:text-xs gba:text-gray-500">
+                        View historical data and changes for this job profile
+                      </div>
+                    </div>
+                    <RightOutlined className="gba:text-gray-400" />
+                  </a>
+                </Card>
+              </div>
+            </div>
           </div>
         )}
       </DataDetailsDrawer>
