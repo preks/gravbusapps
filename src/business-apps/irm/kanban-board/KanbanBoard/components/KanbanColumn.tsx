@@ -25,10 +25,7 @@ export function KanbanColumn({ stage, opportunities }: KanbanColumnProps) {
     },
   });
 
-  // Calculate stats directly from opportunities and stage probability
-  // Previously used calculateColumnStats helper function
 
-  // Stage editing is no longer needed with fixed stages
 
   return (
     <div

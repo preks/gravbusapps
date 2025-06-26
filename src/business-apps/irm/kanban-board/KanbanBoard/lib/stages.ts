@@ -1,6 +1,4 @@
-import { Stage } from './types';
-
-// The 5 fixed stages as shown in the UI screenshot
+import type { Stage } from './types';
 export const FIXED_STAGES: Stage[] = [
   {
     id: 'NEW_OPPORTUNITY',

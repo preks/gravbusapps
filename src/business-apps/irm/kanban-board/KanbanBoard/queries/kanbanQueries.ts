@@ -1,8 +1,4 @@
-// GraphQL queries as plain template strings
 
-/**
- * Query to fetch all opportunities
- */
 export const GET_OPPORTUNITIES = `
   query GetOpportunities($offset: Int, $limit: Int) {
     Opportunity(offset: $offset, limit: $limit) {

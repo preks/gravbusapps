@@ -11,8 +11,6 @@ interface OpportunityCardProps {
   onCardClick?: (id: string) => void;
 }
 
-
-
 export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardProps) {
   const { selectOpportunity } = useKanbanStore();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -51,21 +49,16 @@ export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardPro
   const amount = opportunity.estimatedAmount || 0;
   const companyName = opportunity.account?.name || '';
   const ownerName = opportunity.ownerEmployee?.fullName || '';
-  // Get stage object from stageId
   const stage = FIXED_STAGES.find(stage => stage.id === opportunity.stageId);
-  // Format the stage name for display
   const stageName = stage ? stage.name : '';
 
   const handleClick = (e: React.MouseEvent) => {
-    // Prevent click event from triggering drag
     e.stopPropagation();
     
-    // If drag is not in progress, handle click
     if (!isDragging) {
       if (onCardClick) {
         onCardClick(opportunity.id);
       } else {
-        // Default to store's select function if no onCardClick provided
         selectOpportunity(opportunity.id);
       }
     }

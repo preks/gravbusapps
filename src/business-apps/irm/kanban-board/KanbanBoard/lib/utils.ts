@@ -1,6 +1,4 @@
-/**
- * Format a number as currency
- */
+
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -10,9 +8,7 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
-/**
- * Stage name mapping for more readable display
- */
+
 const stageNameMap: Record<string, string> = {
   NEW_OPPORTUNITY: 'New Opportunity',
   IN_QUALIFICATION: 'In Qualification',
@@ -21,9 +17,7 @@ const stageNameMap: Record<string, string> = {
   CLOSED: 'Closed'
 };
 
-/**
- * Format stage code to human-readable format
- */
+
 export function formatStage(stageCode: string): string {
   return stageNameMap[stageCode] || stageCode;
 }

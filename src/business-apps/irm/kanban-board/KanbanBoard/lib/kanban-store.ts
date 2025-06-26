@@ -5,9 +5,7 @@ import { GET_OPPORTUNITIES } from '../queries/kanbanQueries';
 import { graphQLClient } from '../../../../../common/network/graphql/GraphQLClient';
 import { opportunityClient } from '../../../../../common/network/opportunity/OpportunityClient';
 
-// Simplified Kanban store
 interface KanbanStore {
-  // State
   stages: Stage[];
   opportunities: Opportunity[];
   loading: boolean;
@@ -17,7 +15,6 @@ interface KanbanStore {
   selectedOpportunity: Opportunity | null;
   isViewingOpportunity: boolean;
 
-  // Actions
   fetchOpportunities: (accessToken: string, employeeId?: string) => Promise<Opportunity[]>;
   moveOpportunity: (opportunityId: string, targetStageId: string, accessToken: string) => Promise<void>;
   updateOpportunity: (opportunityId: string, updates: Partial<Opportunity>, accessToken: string) => Promise<void>;
@@ -27,7 +24,6 @@ interface KanbanStore {
 }
 
 export const useKanbanStore = create<KanbanStore>((set, get) => ({
-  // Initial state
   stages: FIXED_STAGES,
   opportunities: [],
   loading: false,
@@ -37,7 +33,6 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
   selectedOpportunity: null,
   isViewingOpportunity: false,
 
-  // Actions
   fetchOpportunities: async (accessToken: string, employeeId?: string) => {
     set({ loading: true, error: null });
     try {
@@ -60,10 +55,9 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
         owner: opp.ownerEmployee?.fullName || 'Unassigned',
         account: opp.account?.name || '',
         amount: opp.estimatedAmount || 0
-        // Note: We'll access ownerEmployee.id directly in the filter
       }));
-      console.log(opportunities, employeeId)
-      // Filter opportunities by owner if employeeId is provided
+      
+      
       if (employeeId) {
         opportunities = opportunities.filter((opp: any) => opp.ownerEmployee?.id === employeeId);
       }
@@ -71,7 +65,6 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
       set({ opportunities, loading: false });
       return opportunities;
     } catch (error) {
-      console.error('Error fetching opportunities:', error);
       set({ error: error as Error, loading: false });
       return [];
     }
@@ -82,18 +75,16 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
       const opportunity = get().opportunities.find(opp => opp.id === opportunityId);
       if (!opportunity) return;
       
-      console.log('Moving opportunity to new stage:', { opportunityId, targetStageId, currentVersion: opportunity.version });
       
-      // Use the REST client to update the opportunity stage - use the current version, not incremented
       await opportunityClient.updateOpportunityStage(
         opportunityId,
         targetStageId,
-        opportunity.version, // Don't increment version here, server will handle it
+        opportunity.version,
         opportunity,
         accessToken
       );
       
-      // Update local state after successful API call
+      
       set(state => ({
         opportunities: state.opportunities.map(opp => 
           opp.id === opportunityId 
@@ -102,17 +93,13 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
         )
       }));
     } catch (error) {
-      console.error('Error moving opportunity:', error);
       set({ error: error as Error });
     }
   },
   
 
   
-  updateOpportunity: async (opportunityId: string, updates: Partial<Opportunity>, accessToken: string) => {
-    console.log('Updating opportunity:', opportunityId, 'with updates:', updates, 'using token:', accessToken);
-    // In a real implementation, we would call an API endpoint to update the opportunity
-    // For now, we'll just update it in the local state
+  updateOpportunity: async (opportunityId: string, updates: Partial<Opportunity>, _accessToken: string) => {
     set(state => ({
       opportunities: state.opportunities.map(opp => 
         opp.id === opportunityId ? { ...opp, ...updates } : opp
@@ -123,10 +110,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
     return Promise.resolve();
   },
   
-  deleteOpportunity: async (opportunityId: string, accessToken: string) => {
-    console.log('Deleting opportunity:', opportunityId, 'using token:', accessToken);
-    // In a real implementation, we would call an API endpoint to delete the opportunity
-    // For now, we'll just remove it from the local state
+  deleteOpportunity: async (opportunityId: string, _accessToken: string) => {
     set(state => ({
       opportunities: state.opportunities.filter(opp => opp.id !== opportunityId)
     }));

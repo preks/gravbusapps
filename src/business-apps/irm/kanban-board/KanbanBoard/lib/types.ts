@@ -1,4 +1,4 @@
-// Type definitions for the Kanban board
+
 
 export interface Stage {
   id: string;
@@ -11,19 +11,19 @@ export interface Stage {
 
 export interface Opportunity {
   id: string;
-  name: string;                // Opportunity name
+  name: string;
   description?: string;
-  estimatedAmount?: number;    // Amount for the opportunity
+  estimatedAmount?: number;
   winningChance?: number;
-  stageId?: string;           // For internal use
-  stage?: string;             // Stage name (e.g. NEW_OPPORTUNITY)
+  stageId?: string;
+  stage?: string;
   closeDate?: string;
   status?: string;
-  account?: {                 // Company/account information
+  account?: {
     id?: string;
     name: string;
   };
-  ownerEmployee?: {           // Owner information
+  ownerEmployee?: {
     id?: string;
     fullName: string;
   };
