@@ -55,9 +55,9 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken, userInfo }) => {
     {
       key: 'dashboard',
       label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiGauge style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Dashboard</span>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <PiGauge className="gba:text-xl gba:inline-block gba:align-middle" />
+          <span className="gba:inline-block gba:align-middle">Dashboard</span>
         </div>
       ),
       children: (
@@ -71,9 +71,9 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken, userInfo }) => {
     {
       key: 'absence-list',
       label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiListBullets style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Absence List</span>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <PiListBullets className="gba:text-xl gba:inline-block gba:align-middle" />
+          <span className="gba:inline-block gba:align-middle">Absence List</span>
         </div>
       ),
       children: <AbsenceList accessToken={accessToken} />,
@@ -81,9 +81,9 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken, userInfo }) => {
     {
       key: 'calendar',
       label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiCalendar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Team Calendar</span>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <PiCalendar className="gba:text-xl gba:inline-block gba:align-middle" />
+          <span className="gba:inline-block gba:align-middle">Team Calendar</span>
         </div>
       ),
       children: <CalendarList accessToken={accessToken} userInfo={userInfo} />,
@@ -91,9 +91,9 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken, userInfo }) => {
     {
       key: 'reports',
       label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiChartBar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Absence Reports</span>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <PiChartBar className="gba:text-xl gba:inline-block gba:align-middle" />
+          <span className="gba:inline-block gba:align-middle">Absence Reports</span>
         </div>
       ),
       children: <AbsenceReports accessToken={accessToken} userInfo={userInfo} />,

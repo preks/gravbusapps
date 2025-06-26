@@ -1,5 +1,5 @@
-import React, { useState, useEffect} from 'react';
-import { Tabs, ActionButton } from '@newwork/gravity-ui-catalog';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Tabs } from '@newwork/gravity-ui-catalog';
 import { PiGauge, PiCalendarBlank, PiListBullets, PiChartBar } from 'react-icons/pi';
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -57,13 +57,13 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = (props)
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const tabItems = [
+  const getTabItems = (accessToken: string, userInfo: any) => [
     {
       key: 'dashboard',
       label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiGauge style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Dashboard</span>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <PiGauge className="gba:text-xl gba:inline-block gba:align-middle" />
+          <span className="gba:inline-block gba:align-middle">Dashboard</span>
         </div>
       ),
       children: (
@@ -79,9 +79,9 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = (props)
     {
       key: 'absence-list',
       label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiListBullets style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Absence List</span>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <PiListBullets className="gba:text-xl gba:inline-block gba:align-middle" />
+          <span className="gba:inline-block gba:align-middle">Absence List</span>
         </div>
       ),
       children: <AbsenceList accessToken={accessToken} userInfo={userInfo} />,
@@ -90,9 +90,9 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = (props)
     {
       key: 'team-calendar',
       label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiCalendarBlank style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Team Calendar</span>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <PiCalendarBlank className="gba:text-xl gba:inline-block gba:align-middle" />
+          <span className="gba:inline-block gba:align-middle">Team Calendar</span>
         </div>
       ),
       children: <CalendarList accessToken={accessToken} userInfo={userInfo} />,
@@ -101,9 +101,9 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = (props)
     {
       key: 'reports',
       label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiChartBar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Reports</span>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <PiChartBar className="gba:text-xl gba:inline-block gba:align-middle" />
+          <span className="gba:inline-block gba:align-middle">Reports</span>
         </div>
       ),
       children: <AbsenceReports accessToken={accessToken} userInfo={userInfo} />,
@@ -111,7 +111,12 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = (props)
     },
   ];
 
-  const activeTabItem = tabItems.find(item => item.key === activeTab) || tabItems[0];
+  const tabItems = useMemo(
+    () => getTabItems(accessToken, userInfo),
+    [accessToken, userInfo]
+  );
+
+  const activeTabItem = useMemo(() => tabItems.find((item: { key: string }) => item.key === activeTab) || tabItems[0], [tabItems, activeTab]);
   const activeTabContent = activeTabItem?.children;
   const activeTabContentHeader = activeTabItem?.renderContentHeader?.();
 
@@ -124,7 +129,7 @@ export const AbsenceManagementHub: React.FC<AbsenceManagementHubProps> = (props)
         <Tabs
           activeKey={activeTab}
           onChange={handleTabChange}
-          items={tabItems.map(item => ({ key: item.key, label: item.label }))}
+          items={tabItems.map((item: { key: string; label: React.ReactNode }) => ({ key: item.key, label: item.label }))}
           className="w-full"
         />
       }
