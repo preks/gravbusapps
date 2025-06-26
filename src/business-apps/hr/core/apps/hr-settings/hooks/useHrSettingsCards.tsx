@@ -26,6 +26,15 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
       description: t('hr.compensation_data_description', 'Manage compensation bands and salary structures'),
       icon: <RiMoneyDollarCircleLine />,
       entries: [
+        
+        {
+          label: t('hr.pay_grades', 'Pay Grades'),
+          url: '/platform/mdm/compensation-data?tab=pay-grades'
+        },
+        {
+          label: t('hr.career_bands', 'Career Bands'),
+          url: '/platform/mdm/compensation-data?tab=career-bands'
+        },
         {
           label: t('hr.compensation_bands', 'Compensation Bands'),
           url: '/platform/mdm/compensation-data?tab=compensation-bands'

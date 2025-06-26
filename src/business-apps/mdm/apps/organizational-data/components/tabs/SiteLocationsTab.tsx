@@ -40,6 +40,7 @@ import {
   HomeOutlined,
   TeamOutlined,
   LeftOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -464,13 +465,13 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
       />
       
       {/* Custom pagination component */}
-      <div className="gba-mt-4 gba-flex gba-justify-between gba-items-center gba-bg-white gba-p-4 gba-rounded-lg gba-shadow-sm">
-        <div className="gba-text-gray-600">
+      <div className="gba:mt-4 gba:flex gba:justify-between gba:items-center gba:bg-white gba:p-4 gba:rounded-lg gba:shadow-sm">
+        <div className="gba:text-gray-600">
           Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} entries
         </div>
-        <div className="gba-flex gba-items-center gba-gap-4">
-          <div className="gba-flex gba-items-center gba-gap-2">
-            <span className="gba-text-gray-600">Show</span>
+        <div className="gba:flex gba:items-center gba:gap-4">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-gray-600">Show</span>
             <Select
               value={pageSize}
               onChange={(value) => handlePageSizeChange(currentPage, value)}
@@ -481,7 +482,7 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
               <Option value={50}>50</Option>
               <Option value={100}>100</Option>
             </Select>
-            <span className="gba-text-gray-600">entries</span>
+            <span className="gba:text-gray-600">entries</span>
           </div>
           <div>
             <Button
@@ -539,6 +540,40 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
             </Button>
           </div>
         }
+        navigationLinks={selectedSiteLocation ? [
+          {
+            label: "View Employees",
+            url: `/employee-management/employees?siteLocationId=${selectedSiteLocation.id}`,
+            icon: <UserOutlined />,
+            color: "blue",
+            description: "View all employees assigned to this location",
+            dataTestId: `${prefixDataTestId || ''}-SiteLocationsTab-EmployeesLink`
+          },
+          {
+            label: "View Cost Centers",
+            url: `/finance/cost-centers?siteLocationId=${selectedSiteLocation.id}`,
+            icon: <BankOutlined />,
+            color: "green",
+            description: "View all cost centers associated with this location",
+            dataTestId: `${prefixDataTestId || ''}-SiteLocationsTab-CostCentersLink`
+          },
+          {
+            label: "View on Map",
+            url: selectedSiteLocation.fullAddress ? `https://maps.google.com/?q=${encodeURIComponent(selectedSiteLocation.fullAddress)}` : '#',
+            icon: <GlobalOutlined />,
+            color: "cyan",
+            description: "View this location on Google Maps",
+            dataTestId: `${prefixDataTestId || ''}-SiteLocationsTab-MapLink`
+          },
+          {
+            label: "Location History",
+            url: `/mdm/location-data/history?locationId=${selectedSiteLocation.id}`,
+            icon: <ClockCircleOutlined />,
+            color: "purple",
+            description: "View historical changes for this location",
+            dataTestId: `${prefixDataTestId || ''}-SiteLocationsTab-HistoryLink`
+          }
+        ] : undefined}
       >
         {selectedSiteLocation && (
           <div className="gba:space-y-6">

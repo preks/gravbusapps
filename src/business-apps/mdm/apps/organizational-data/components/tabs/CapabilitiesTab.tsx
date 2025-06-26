@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Table, Button, Input, Space, message, Modal, Form, Select, Tag, Spin, Alert, Descriptions, Card, Divider, Typography } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, TrophyOutlined, InfoCircleOutlined, ApartmentOutlined, OrderedListOutlined, GroupOutlined, TagOutlined, BulbOutlined, BookOutlined, FlagOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, TrophyOutlined, InfoCircleOutlined, ApartmentOutlined, OrderedListOutlined, GroupOutlined, TagOutlined, BulbOutlined, BookOutlined, FlagOutlined, UserOutlined, RiseOutlined, AuditOutlined, LineChartOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCapabilities } from '../../hooks/useCapabilities';
 import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
@@ -365,6 +365,40 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = (context) => {
         width={450}
         dataTestId={`${prefixDataTestId || ''}-CapabilitiesTab-Drawer`}
         className="gba:text-base"
+        navigationLinks={selectedCapability ? [
+          {
+            label: "View Job Profiles",
+            url: `/job-profiles?capabilityId=${selectedCapability.id}`,
+            icon: <UserOutlined />,
+            color: "blue",
+            description: "View job profiles with this capability",
+            dataTestId: `${prefixDataTestId || ''}-capability-job-profiles-link`
+          },
+          {
+            label: "View Related Skills",
+            url: `/skills?capabilityId=${selectedCapability.id}`,
+            icon: <RiseOutlined />,
+            color: "green",
+            description: "View skills associated with this capability",
+            dataTestId: `${prefixDataTestId || ''}-capability-skills-link`
+          },
+          {
+            label: "View Assessments",
+            url: `/assessments?capabilityId=${selectedCapability.id}`,
+            icon: <AuditOutlined />,
+            color: "purple",
+            description: "View assessments related to this capability",
+            dataTestId: `${prefixDataTestId || ''}-capability-assessments-link`
+          },
+          {
+            label: "Capability Trends",
+            url: `/analytics/capability-trends?id=${selectedCapability.id}`,
+            icon: <LineChartOutlined />,
+            color: "cyan",
+            description: "View capability adoption trends and metrics",
+            dataTestId: `${prefixDataTestId || ''}-capability-trends-link`
+          }
+        ] : undefined}
       >
         {selectedCapability && (
           <div className="gba:space-y-6">

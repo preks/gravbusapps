@@ -1,5 +1,45 @@
 import React, { ReactNode } from 'react';
-import { Drawer } from 'antd';
+import { Drawer, Button } from 'antd';
+
+/**
+ * Navigation link item props
+ */
+export interface NavigationLinkProps {
+  /**
+   * Label to display for the link
+   */
+  label: string;
+
+  /**
+   * URL to navigate to when clicked
+   */
+  url: string;
+
+  /**
+   * Optional icon to display before the label
+   */
+  icon?: ReactNode;
+
+  /**
+   * Optional description to display under the label
+   */
+  description?: string;
+
+  /**
+   * Optional color theme for the link (will be used for icon background and text)
+   */
+  color?: 'blue' | 'green' | 'orange' | 'cyan' | 'purple' | 'red' | 'gray';
+
+  /**
+   * Optional function to execute on click (instead of navigation)
+   */
+  onClick?: () => void;
+
+  /**
+   * Data test id for testing
+   */
+  dataTestId?: string;
+}
 
 /**
  * Props for the DataDetailsDrawer component
@@ -54,6 +94,11 @@ export interface DataDetailsDrawerProps {
    * Additional class name for the component
    */
   className?: string;
+
+  /**
+   * Optional navigation links to display at the bottom of the content area
+   */
+  navigationLinks?: NavigationLinkProps[];
 }
 
 /**
@@ -74,6 +119,10 @@ export interface DataDetailsDrawerProps {
  *       <Button type="primary">Save</Button>
  *     </div>
  *   }
+ *   navigationLinks={[
+ *     { label: 'View Profile', url: '/profiles/123', dataTestId: 'view-profile-link' },
+ *     { label: 'View Department', url: '/departments/456', dataTestId: 'view-department-link' }
+ *   ]}
  * >
  *   <div>Content goes here</div>
  * </DataDetailsDrawer>
@@ -89,6 +138,7 @@ export const DataDetailsDrawer: React.FC<DataDetailsDrawerProps> = ({
   placement = 'right',
   dataTestId,
   className = '',
+  navigationLinks,
 }) => {
   return (
     <Drawer
@@ -146,8 +196,97 @@ export const DataDetailsDrawer: React.FC<DataDetailsDrawerProps> = ({
         </div>
 
         {/* Scrollable content area */}
-        <div className="gba:flex-1 gba:overflow-auto gba:p-4">
-          {children}
+        <div className="gba:flex-1 gba:overflow-auto gba:p-4 gba:flex gba:flex-col">
+          <div className="gba:flex-1">
+            {children}
+          </div>
+          
+          {/* Navigation links section */}
+          {navigationLinks && navigationLinks.length > 0 && (
+            <div className="gba:mt-6">
+              <div className="gba:mb-4">
+                <div className="gba:flex gba:items-center gba:mb-2">
+                  <div className="gba:flex-grow gba:border-b gba:border-gray-300" />
+                  <h3 className="gba:text-base gba:font-medium gba:text-gray-700 gba:px-3 gba:flex gba:items-center gba:gap-2" 
+                    data-testid={dataTestId ? `${dataTestId}-navigation-title` : 'drawer-navigation-title'}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                    <span>Related Resources</span>
+                  </h3>
+                  <div className="gba:flex-grow gba:border-b gba:border-gray-300" />
+                </div>
+              </div>
+              <div className="gba:grid gba:grid-cols-1 gba:gap-4">
+                {navigationLinks.map((link, index) => {
+                  // Default to blue if no color specified
+                  const colorTheme = link.color || 'blue';
+                  
+                  // Color mapping for different themes
+                  const colorMap = {
+                    blue: { bg: 'gba:bg-blue-100', text: 'gba:text-blue-600', hover: 'gba:hover:text-blue-800' },
+                    green: { bg: 'gba:bg-green-100', text: 'gba:text-green-600', hover: 'gba:hover:text-green-800' },
+                    orange: { bg: 'gba:bg-orange-100', text: 'gba:text-orange-600', hover: 'gba:hover:text-orange-800' },
+                    cyan: { bg: 'gba:bg-cyan-100', text: 'gba:text-cyan-600', hover: 'gba:hover:text-cyan-800' },
+                    purple: { bg: 'gba:bg-purple-100', text: 'gba:text-purple-600', hover: 'gba:hover:text-purple-800' },
+                    red: { bg: 'gba:bg-red-100', text: 'gba:text-red-600', hover: 'gba:hover:text-red-800' },
+                    gray: { bg: 'gba:bg-gray-100', text: 'gba:text-gray-600', hover: 'gba:hover:text-gray-800' }
+                  };
+                  
+                  const colors = colorMap[colorTheme];
+                  
+                  return (
+                    <div
+                      key={`nav-link-${index}`}
+                      className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:rounded gba:border gba:border-gray-100"
+                      data-testid={link.dataTestId || `${dataTestId}-nav-link-${index}`}
+                    >
+                      <a 
+                        href={link.url}
+                        className={`gba:flex gba:items-center gba:gap-3 ${colors.text} ${colors.hover} gba:p-3`}
+                        onClick={(e) => {
+                          if (link.onClick) {
+                            e.preventDefault();
+                            link.onClick();
+                          }
+                        }}
+                        target={link.url.startsWith('/') || link.url === '#' ? '_self' : '_blank'}
+                        rel={link.url.startsWith('/') || link.url === '#' ? undefined : 'noopener noreferrer'}
+                      >
+                        {link.icon && (
+                          <div className={`gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full ${colors.bg}`}>
+                            <span className={`gba:text-lg ${colors.text}`}>{link.icon}</span>
+                          </div>
+                        )}
+                        <div className="gba:flex-grow">
+                          <div className="gba:font-medium">{link.label}</div>
+                          {link.description && (
+                            <div className="gba:text-xs gba:text-gray-500">
+                              {link.description}
+                            </div>
+                          )}
+                        </div>
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="16"
+                          height="16"
+                          fill="none"
+                          stroke="#9ca3af"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="gba:text-gray-400"
+                        >
+                          <path d="M9 18l6-6-6-6" />
+                        </svg>
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </Drawer>
