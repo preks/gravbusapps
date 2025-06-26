@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, Form, Spin, Alert, Tag, Divider, Descriptions } from 'antd';
-import { SearchOutlined, EyeOutlined, CodeOutlined, InfoCircleOutlined, TeamOutlined } from '@ant-design/icons';
+import { Table, Button, Input, Space, Typography, Form, Spin, Alert, Tag, Divider, Descriptions, Card } from 'antd';
+import { SearchOutlined, EyeOutlined, CodeOutlined, InfoCircleOutlined, TeamOutlined, LinkOutlined, RightOutlined, ProfileOutlined, BookOutlined, ToolOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useJobFunctions } from '../../hooks/useJobFunctions';
 import { JobFunction } from '../../types';
@@ -260,6 +260,130 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
                 {renderTranslationItems(selectedFunction.descriptionI18n)}
               </Descriptions.Item>
             </Descriptions>
+
+            {/* Related Navigation Links */}
+            <div className="gba:mt-6">
+              <Divider orientation="left">
+                <span className="gba:flex gba:items-center gba:gap-2">
+                  <LinkOutlined />
+                  <span className="gba:text-base">Related Resources</span>
+                </span>
+              </Divider>
+              
+              <div className="gba:grid gba:grid-cols-1 gba:gap-4">
+                {/* Job Family Navigation */}
+                {selectedFunction.jobFamilyRef && (
+                  <Card 
+                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                    size="small"
+                    bodyStyle={{ padding: '12px' }}
+                    data-testid={`${prefixDataTestId || ''}-JobFunctionsTab-JobFamilyLink`}
+                  >
+                    <a 
+                      href={`/mdm/job-structure-data/job-families/${selectedFunction.jobFamilyRef}`}
+                      className="gba:flex gba:items-center gba:gap-3 gba:text-green-600 gba:hover:text-green-800"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-100">
+                        <TeamOutlined className="gba:text-lg gba:text-green-600" />
+                      </div>
+                      <div className="gba:flex-grow">
+                        <div className="gba:font-medium">
+                          {selectedFunction.jobFamily?.value || 'Job Family Details'}
+                        </div>
+                        <div className="gba:text-xs gba:text-gray-500">
+                          View complete job family information, structure, and related positions
+                        </div>
+                      </div>
+                      <RightOutlined className="gba:text-gray-400" />
+                    </a>
+                  </Card>
+                )}
+                
+                {/* Job Level Group Navigation */}
+                {selectedFunction.jobLevelGroupRef && (
+                  <Card 
+                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                    size="small"
+                    bodyStyle={{ padding: '12px' }}
+                    data-testid={`${prefixDataTestId || ''}-JobFunctionsTab-JobLevelGroupLink`}
+                  >
+                    <a 
+                      href={`/mdm/job-structure-data/job-level-groups/${selectedFunction.jobLevelGroupRef}`}
+                      className="gba:flex gba:items-center gba:gap-3 gba:text-blue-600 gba:hover:text-blue-800"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-100">
+                        <ProfileOutlined className="gba:text-lg gba:text-blue-600" />
+                      </div>
+                      <div className="gba:flex-grow">
+                        <div className="gba:font-medium">
+                          {selectedFunction.jobLevelGroup?.value || 'Level Group Details'}
+                        </div>
+                        <div className="gba:text-xs gba:text-gray-500">
+                          View job level grouping, career progression paths, and categorization
+                        </div>
+                      </div>
+                      <RightOutlined className="gba:text-gray-400" />
+                    </a>
+                  </Card>
+                )}
+                
+                {/* Related Job Profiles */}
+                <Card 
+                  className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                  size="small"
+                  bodyStyle={{ padding: '12px' }}
+                  data-testid={`${prefixDataTestId || ''}-JobFunctionsTab-JobProfilesLink`}
+                >
+                  <a 
+                    href={`/mdm/job-structure-data/job-profiles?function=${selectedFunction.id}`}
+                    className="gba:flex gba:items-center gba:gap-3 gba:text-purple-600 gba:hover:text-purple-800"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-purple-100">
+                      <BookOutlined className="gba:text-lg gba:text-purple-600" />
+                    </div>
+                    <div className="gba:flex-grow">
+                      <div className="gba:font-medium">Related Job Profiles</div>
+                      <div className="gba:text-xs gba:text-gray-500">
+                        View all job profiles using the {selectedFunction.name} function
+                      </div>
+                    </div>
+                    <RightOutlined className="gba:text-gray-400" />
+                  </a>
+                </Card>
+                
+                {/* Skills & Competencies */}
+                <Card 
+                  className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                  size="small"
+                  bodyStyle={{ padding: '12px' }}
+                  data-testid={`${prefixDataTestId || ''}-JobFunctionsTab-SkillsLink`}
+                >
+                  <a 
+                    href={`/mdm/competencies-data/skills?jobFunction=${selectedFunction.id}`}
+                    className="gba:flex gba:items-center gba:gap-3 gba:text-orange-600 gba:hover:text-orange-800"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-orange-100">
+                      <ToolOutlined className="gba:text-lg gba:text-orange-600" />
+                    </div>
+                    <div className="gba:flex-grow">
+                      <div className="gba:font-medium">Skills & Competencies</div>
+                      <div className="gba:text-xs gba:text-gray-500">
+                        Explore skills and competencies associated with {selectedFunction.name}
+                      </div>
+                    </div>
+                    <RightOutlined className="gba:text-gray-400" />
+                  </a>
+                </Card>
+              </div>
+            </div>
           </div>
         )}
       </DataDetailsDrawer>
