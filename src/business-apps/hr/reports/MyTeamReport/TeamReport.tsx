@@ -1,6 +1,6 @@
 "use client"
 
-import { Card, Button, Checkbox, Input, Tag, Pagination } from 'antd';
+import { Card, Button, Checkbox, Input, Tag, Table } from 'antd';
 import dayjs from 'dayjs';
 import { getEmployeeTenure } from './utils/tenureUtils';
 import {
@@ -21,6 +21,127 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetEmployeesReport } from './hooks/useGetEmployeesReport';
 
 interface TeamReportProps extends BusinessAppContextProps {}
+type EmployeeUI = {
+  id: string;
+  name: string;
+  position: string;
+  location: string;
+  employmentType: string;
+  contractType: string;
+  startDate: string;
+  exitDate: string | null;
+  tenure: string;
+};
+
+function getEmployeeTableColumns(
+  employees: EmployeeUI[],
+  uniquePositions: string[]
+) {
+  return [
+    {
+      title: 'Employee Name',
+      dataIndex: 'name',
+      key: 'name',
+      sorter: (a: EmployeeUI, b: EmployeeUI) => a.name.localeCompare(b.name),
+      render: (text: string) => <span className="gba:text-gray-900 gba:font-medium">{text}</span>,
+    },
+    {
+      title: 'Job Position',
+      dataIndex: 'position',
+      key: 'position',
+      filters: uniquePositions.map((position) => ({ text: position, value: position })),
+      onFilter: (value: string | number | boolean | bigint, record: EmployeeUI) => record.position === value,
+      sorter: (a: EmployeeUI, b: EmployeeUI) => a.position.localeCompare(b.position),
+      render: (text: string) => <span className="gba:text-gray-700">{text}</span>,
+    },
+    {
+      title: 'Location',
+      dataIndex: 'location',
+      key: 'location',
+      filters: Array.from(new Set(employees.map(emp => emp.location))).map((location) => ({ text: location, value: location })),
+      onFilter: (value: string | number | boolean | bigint, record: EmployeeUI) => record.location === value,
+      sorter: (a: EmployeeUI, b: EmployeeUI) => a.location.localeCompare(b.location),
+      render: (text: string) => <span className="gba:text-gray-700">{text}</span>,
+    },
+    {
+      title: 'Employment Type',
+      dataIndex: 'employmentType',
+      key: 'employmentType',
+      filters: Array.from(new Set(employees.map(emp => emp.employmentType))).map((type) => ({ text: type, value: type })),
+      onFilter: (value: string | number | boolean | bigint, record: EmployeeUI) => record.employmentType === value,
+      sorter: (a: EmployeeUI, b: EmployeeUI) => a.employmentType.localeCompare(b.employmentType),
+      render: (text: string, record: EmployeeUI) => (
+        <Tag
+          color={
+            record.employmentType === "Internal"
+              ? "green"
+              : record.employmentType === "External"
+              ? "orange"
+              : record.employmentType === "Contract worker"
+              ? "purple"
+              : record.employmentType === "Demo" || record.employmentType === "Test"
+              ? "red"
+              : "default"
+          }
+          className="gba:text-xs gba:font-semibold gba:rounded gba:px-2 gba:py-1"
+          data-testid={`team-report-employee-type-${record.id}`}
+        >
+          {text}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Contract Type',
+      dataIndex: 'contractType',
+      key: 'contractType',
+      filters: Array.from(new Set(employees.map(emp => emp.contractType))).map((type) => ({ text: type, value: type })),
+      onFilter: (value: string | number | boolean | bigint, record: EmployeeUI) => record.contractType === value,
+      sorter: (a: EmployeeUI, b: EmployeeUI) => a.contractType.localeCompare(b.contractType),
+      render: (text: string, record: EmployeeUI) => (
+        <Tag
+          color={
+            record.contractType.toLowerCase().includes("full time")
+              ? "blue"
+              : record.contractType === "Demo"
+              ? "red"
+              : record.contractType === "Test"
+              ? "red"
+              : "default"
+          }
+          className="gba:text-xs gba:font-semibold gba:rounded gba:px-2 gba:py-1"
+          data-testid={`team-report-employee-contract-${record.id}`}
+        >
+          {text}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Start Date',
+      dataIndex: 'startDate',
+      key: 'startDate',
+      sorter: (a: EmployeeUI, b: EmployeeUI) => a.startDate.localeCompare(b.startDate),
+      render: (text: string) => <span className="gba:text-gray-700">{text}</span>,
+    },
+    {
+      title: 'Tenure',
+      dataIndex: 'tenure',
+      key: 'tenure',
+      sorter: (a: EmployeeUI, b: EmployeeUI) => {
+        const getMonths = (tenure: string) => {
+          if (tenure === "N/A") return -1;
+          const match = tenure.match(/(\d+)\s+years?\s+and\s+(\d+)\s+months?/);
+          if (match) return Number.parseInt(match[1]) * 12 + Number.parseInt(match[2]);
+          const monthMatch = tenure.match(/(\d+)\s+months?/);
+          if (monthMatch) return Number.parseInt(monthMatch[1]);
+          return -1;
+        };
+        return getMonths(a.tenure) - getMonths(b.tenure);
+      },
+      render: (text: string) => <span className="gba:text-gray-700">{text}</span>,
+    },
+  ];
+}
+
 const TeamReport: React.FC<TeamReportProps> = (props) => {
 
   // Fetch employee report data using the hook
@@ -55,19 +176,25 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
   // Debug: Log all employees (non-sensitive)
   console.log('[TeamReport] allEmployeeUIs:', allEmployeeUIs);
 
-
-
-
-
-  // Pagination state from hook
-  const { currentPage, onPageChange } = report; // 'total' is no longer needed
-
   const [activeFilter, setActiveFilter] = useState<string>("all")
   const [searchTerm, setSearchTerm] = useState("")
+  // Job Position
   const [selectedPositions, setSelectedPositions] = useState<string[]>([])
   const [sidebarSearchTerm, setSidebarSearchTerm] = useState("")
-  const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [isJobPositionExpanded, setIsJobPositionExpanded] = useState(true)
+  // Location
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([])
+  const [sidebarLocationSearch, setSidebarLocationSearch] = useState("")
+  const [isLocationExpanded, setIsLocationExpanded] = useState(true)
+  // Employment Type
+  const [selectedEmploymentTypes, setSelectedEmploymentTypes] = useState<string[]>([])
+  const [sidebarEmploymentTypeSearch, setSidebarEmploymentTypeSearch] = useState("")
+  const [isEmploymentTypeExpanded, setIsEmploymentTypeExpanded] = useState(true)
+  // Contract Type
+  const [selectedContractTypes, setSelectedContractTypes] = useState<string[]>([])
+  const [sidebarContractTypeSearch, setSidebarContractTypeSearch] = useState("")
+  const [isContractTypeExpanded, setIsContractTypeExpanded] = useState(true)
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Filtering logic for table (always use allEmployeeUIs as the base)
   const matchesKPI = (employee: EmployeeUI) => {
@@ -94,18 +221,76 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
   const filteredEmployees: EmployeeUI[] = allEmployeeUIs.filter((employee: EmployeeUI) => {
     const matchesKPIFilter = matchesKPI(employee);
     const matchesPositionFilter = selectedPositions.length === 0 || selectedPositions.includes(employee.position);
+    const matchesLocationFilter = selectedLocations.length === 0 || selectedLocations.includes(employee.location);
+    const matchesEmploymentTypeFilter = selectedEmploymentTypes.length === 0 || selectedEmploymentTypes.includes(employee.employmentType);
+    const matchesContractTypeFilter = selectedContractTypes.length === 0 || selectedContractTypes.includes(employee.contractType);
     const matchesSearch =
       searchTerm.trim() === "" ||
       employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.location.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesKPIFilter && matchesPositionFilter && matchesSearch;
+    return matchesKPIFilter && matchesPositionFilter && matchesLocationFilter && matchesEmploymentTypeFilter && matchesContractTypeFilter && matchesSearch;
   });
   // Debug: Log filtered employees (non-sensitive)
   console.log('[TeamReport] filteredEmployees:', filteredEmployees);
 
-  // Paginate filtered employees
-  const paginatedEmployees: EmployeeUI[] = filteredEmployees.slice(
+  // --- Sorting State ---
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // --- Sorting Logic ---
+  const sortEmployees = (
+    employees: EmployeeUI[],
+    column: string | null,
+    direction: 'asc' | 'desc'
+  ): EmployeeUI[] => {
+    if (!column) return employees;
+    const sorted = [...employees].sort((a, b) => {
+      let aValue = a[column as keyof EmployeeUI];
+      let bValue = b[column as keyof EmployeeUI];
+      // Special case for tenure: sort by months, N/A last
+      if (column === 'tenure') {
+        const getMonths = (tenure: string): number => {
+          if (tenure === "N/A") return -1;
+          const match = tenure.match(/(\d+)\s+years?\s+and\s+(\d+)\s+months?/);
+          if (match) return Number.parseInt(match[1]) * 12 + Number.parseInt(match[2]);
+          const monthMatch = tenure.match(/(\d+)\s+months?/);
+          if (monthMatch) return Number.parseInt(monthMatch[1]);
+          return -1;
+        };
+        const monthsA = getMonths(aValue as string);
+        const monthsB = getMonths(bValue as string);
+        if (monthsA === -1 && monthsB === -1) return 0;
+        if (monthsA === -1) return 1;
+        if (monthsB === -1) return -1;
+        return direction === 'asc' ? monthsA - monthsB : monthsB - monthsA;
+      }
+      // Default string/primitive sort
+      if (aValue === undefined || aValue === null) return 1;
+      if (bValue === undefined || bValue === null) return -1;
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return direction === 'asc'
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+      // Fallback for other types
+      return direction === 'asc'
+        ? (aValue as any) - (bValue as any)
+        : (bValue as any) - (aValue as any);
+    });
+    return sorted;
+  };
+
+  // --- Apply sorting (unless tenure KPI is active, which takes priority) ---
+  let sortedEmployees = filteredEmployees;
+  if (activeFilter === "tenure") {
+    sortedEmployees = sortEmployees(filteredEmployees, 'tenure', 'desc');
+  } else if (sortColumn) {
+    sortedEmployees = sortEmployees(filteredEmployees, sortColumn, sortDirection);
+  }
+
+  // Paginate
+  const paginatedEmployees: EmployeeUI[] = sortedEmployees.slice(
     (report.currentPage - 1) * pageSize,
     report.currentPage * pageSize
   );
@@ -119,18 +304,39 @@ const uniquePositions = Array.from(new Set(filteredEmployees.map((emp: EmployeeU
 const filteredPositions = uniquePositions.filter((position: string) =>
   position.toLowerCase().includes(sidebarSearchTerm.toLowerCase()),
 );
+// Unique & filtered locations
+const uniqueLocations = Array.from(new Set(filteredEmployees.map((emp: EmployeeUI) => emp.location))).sort();
+const filteredLocations = uniqueLocations.filter((location: string) =>
+  location.toLowerCase().includes(sidebarLocationSearch.toLowerCase()),
+);
+// Unique & filtered employment types
+const uniqueEmploymentTypes = Array.from(new Set(filteredEmployees.map((emp: EmployeeUI) => emp.employmentType))).sort();
+const filteredEmploymentTypes = uniqueEmploymentTypes.filter((type: string) =>
+  type.toLowerCase().includes(sidebarEmploymentTypeSearch.toLowerCase()),
+);
+// Unique & filtered contract types
+const uniqueContractTypes = Array.from(new Set(filteredEmployees.map((emp: EmployeeUI) => emp.contractType))).sort();
+const filteredContractTypes = uniqueContractTypes.filter((type: string) =>
+  (type || "").toLowerCase().includes(sidebarContractTypeSearch.toLowerCase()),
+);
 
 const clearAllFilters = () => {
   setSelectedPositions([])
+  setSelectedLocations([])
+  setSelectedEmploymentTypes([])
+  setSelectedContractTypes([])
   setActiveFilter("all")
   setSearchTerm("")
   setSidebarSearchTerm("")
-}
+  setSidebarLocationSearch("")
+  setSidebarEmploymentTypeSearch("")
+  setSidebarContractTypeSearch("")
+} 
 
   // --- Search & Filter Controls (Ant Design & DebouncedInput) ---
 
   const searchFilterBar = (
-    <div className="gba:flex gba:gap-4 gba:mb-4" data-testid="team-report-search-filters">
+    <div className="gba:flex gba:gap-4 gba:mb-4 gba:items-center" data-testid="team-report-search-filters">
       <DebouncedInput
         value={searchTerm}
         onChange={setSearchTerm}
@@ -140,12 +346,21 @@ const clearAllFilters = () => {
         data-testid="team-report-search"
       />
       <Button
-         onClick={clearAllFilters}
+        onClick={clearAllFilters}
         className="gba:ml-2"
         data-testid="team-report-clear-filters"
         type="default"
       >
         Clear Filters
+      </Button>
+      <Button
+        onClick={() => setIsFilterOpen(true)}
+        className="gba:ml-2"
+        icon={<SearchOutlined />}
+        data-testid="team-report-open-filter"
+        type="primary"
+      >
+        Filter
       </Button>
     </div>
   );
@@ -154,10 +369,17 @@ const clearAllFilters = () => {
   const handlePositionToggle = (position: string) => {
     setSelectedPositions((prev) => (prev.includes(position) ? prev.filter((p) => p !== position) : [...prev, position]))
   }
+  const handleLocationToggle = (location: string) => {
+    setSelectedLocations((prev) => (prev.includes(location) ? prev.filter((l) => l !== location) : [...prev, location]))
+  }
+  const handleEmploymentTypeToggle = (type: string) => {
+    setSelectedEmploymentTypes((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]))
+  }
+  const handleContractTypeToggle = (type: string) => {
+    setSelectedContractTypes((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]))
+  }
 
-  
-
-  const hasActiveFilters = selectedPositions.length > 0 || activeFilter !== "all" || searchTerm !== ""
+  const hasActiveFilters = selectedPositions.length > 0 || selectedLocations.length > 0 || selectedEmploymentTypes.length > 0 || selectedContractTypes.length > 0 || activeFilter !== "all" || searchTerm !== ""
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -310,8 +532,11 @@ const getMonths = (tenure: string): number => {
 // const paginatedEmployees = sortedEmployees.slice(...)
 // For now, we use filteredEmployees directly for pagination.
                   if (allEmployeeUIs.length === 0) return '0m';
-                    const monthsArr = allEmployeeUIs.map(e => getMonths(e.tenure));
-                    const avg = monthsArr.reduce((a, b) => a + b, 0) / monthsArr.length;
+                    const validTenures = allEmployeeUIs
+                      .map(e => getMonths(e.tenure))
+                      .filter(months => months > 0);
+                    if (validTenures.length === 0) return '0m';
+                    const avg = validTenures.reduce((a, b) => a + b, 0) / validTenures.length;
                     return `${Math.round(avg)}m`;
                   })()}
                 </div>
@@ -395,10 +620,8 @@ const getMonths = (tenure: string): number => {
                 >
                   <h3 className="gba:text-sm gba:font-medium gba:text-gray-900">Job Position</h3>
                 </Button>
-
                 {isJobPositionExpanded && (
                   <>
-                    {/* Search in Job Position */}
                     <div className="mb-4">
                       <Input
                         placeholder="Search in Job Position..."
@@ -408,20 +631,164 @@ const getMonths = (tenure: string): number => {
                         data-testid="team-report-job-position-search"
                       />
                     </div>
+                    {sidebarSearchTerm.trim() === "" ? (
+                      <div className="gba:text-gray-400 gba:text-sm gba:pl-1" data-testid="team-report-job-position-helper">
+                        Type to search job positions
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {filteredPositions.length > 0 ? (
+                          filteredPositions.map((position) => (
+                            <div key={position} className="flex items-center space-x-3">
+                              <Checkbox
+                                id={position}
+                                checked={selectedPositions.includes(position)}
+                                onChange={() => handlePositionToggle(position)}
+                                className="gba:border-gray-400"
+                                data-testid={`team-report-job-position-checkbox-${position}`}
+                              />
+                              <label htmlFor={position} className="gba:text-sm gba:text-gray-700 gba:cursor-pointer gba:flex-1" data-testid={`team-report-job-position-label-${position}`}>
+                                {position}
+                              </label>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="gba:text-gray-400 gba:text-sm gba:pl-1">No results found</div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
 
-                    {/* Position Checkboxes */}
+              {/* Location Section */}
+              <div className="mb-6">
+                <Button
+                  onClick={() => setIsLocationExpanded(!isLocationExpanded)}
+                  className="gba:flex gba:items-center gba:justify-between gba:w-full gba:text-left gba:mb-4"
+                  type="text"
+                  data-testid="team-report-location-toggle"
+                  icon={isLocationExpanded ? <UpOutlined className="gba:text-gray-400" /> : <DownOutlined className="gba:text-gray-400" />}
+                >
+                  <h3 className="gba:text-sm gba:font-medium gba:text-gray-900">Location</h3>
+                </Button>
+                {isLocationExpanded && (
+                  <>
+                    <div className="mb-4">
+                      <Input
+                        placeholder="Search in Location..."
+                        value={sidebarLocationSearch}
+                        onChange={(e) => setSidebarLocationSearch(e.target.value)}
+                        className="gba:text-sm gba:border-0 gba:border-b gba:border-gray-300 gba:rounded-none gba:focus:ring-0 gba:focus:border-gray-500 gba:px-0"
+                        data-testid="team-report-location-search"
+                      />
+                    </div>
+                    {sidebarLocationSearch.trim() === "" ? (
+                      <div className="gba:text-gray-400 gba:text-sm gba:pl-1" data-testid="team-report-location-helper">
+                        Type to search locations
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {filteredLocations.length > 0 ? (
+                          filteredLocations.map((location) => (
+                            <div key={location} className="flex items-center space-x-3">
+                              <Checkbox
+                                id={location}
+                                checked={selectedLocations.includes(location)}
+                                onChange={() => handleLocationToggle(location)}
+                                className="gba:border-gray-400"
+                                data-testid={`team-report-location-checkbox-${location}`}
+                              />
+                              <label htmlFor={location} className="gba:text-sm gba:text-gray-700 gba:cursor-pointer gba:flex-1" data-testid={`team-report-location-label-${location}`}>
+                                {location}
+                              </label>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="gba:text-gray-400 gba:text-sm gba:pl-1">No results found</div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Employment Type Section */}
+              <div className="mb-6">
+                <Button
+                  onClick={() => setIsEmploymentTypeExpanded(!isEmploymentTypeExpanded)}
+                  className="gba:flex gba:items-center gba:justify-between gba:w-full gba:text-left gba:mb-4"
+                  type="text"
+                  data-testid="team-report-employment-type-toggle"
+                  icon={isEmploymentTypeExpanded ? <UpOutlined className="gba:text-gray-400" /> : <DownOutlined className="gba:text-gray-400" />}
+                >
+                  <h3 className="gba:text-sm gba:font-medium gba:text-gray-900">Employment Type</h3>
+                </Button>
+                {isEmploymentTypeExpanded && (
+                  <>
+                    <div className="mb-4">
+                      <Input
+                        placeholder="Search in Employment Type..."
+                        value={sidebarEmploymentTypeSearch}
+                        onChange={(e) => setSidebarEmploymentTypeSearch(e.target.value)}
+                        className="gba:text-sm gba:border-0 gba:border-b gba:border-gray-300 gba:rounded-none gba:focus:ring-0 gba:focus:border-gray-500 gba:px-0"
+                        data-testid="team-report-employment-type-search"
+                      />
+                    </div>
                     <div className="space-y-3">
-                      {filteredPositions.map((position) => (
-                        <div key={position} className="flex items-center space-x-3">
+                      {filteredEmploymentTypes.map((type) => (
+                        <div key={type} className="flex items-center space-x-3">
                           <Checkbox
-                            id={position}
-                            checked={selectedPositions.includes(position)}
-                            onChange={() => handlePositionToggle(position)}
+                            id={type}
+                            checked={selectedEmploymentTypes.includes(type)}
+                            onChange={() => handleEmploymentTypeToggle(type)}
                             className="gba:border-gray-400"
-                            data-testid={`team-report-job-position-checkbox-${position}`}
+                            data-testid={`team-report-employment-type-checkbox-${type}`}
                           />
-                          <label htmlFor={position} className="gba:text-sm gba:text-gray-700 gba:cursor-pointer gba:flex-1" data-testid={`team-report-job-position-label-${position}`}>
-                            {position}
+                          <label htmlFor={type} className="gba:text-sm gba:text-gray-700 gba:cursor-pointer gba:flex-1" data-testid={`team-report-employment-type-label-${type}`}>
+                            {type}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Contract Type Section */}
+              <div className="mb-6">
+                <Button
+                  onClick={() => setIsContractTypeExpanded(!isContractTypeExpanded)}
+                  className="gba:flex gba:items-center gba:justify-between gba:w-full gba:text-left gba:mb-4"
+                  type="text"
+                  data-testid="team-report-contract-type-toggle"
+                  icon={isContractTypeExpanded ? <UpOutlined className="gba:text-gray-400" /> : <DownOutlined className="gba:text-gray-400" />}
+                >
+                  <h3 className="gba:text-sm gba:font-medium gba:text-gray-900">Contract Type</h3>
+                </Button>
+                {isContractTypeExpanded && (
+                  <>
+                    <div className="mb-4">
+                      <Input
+                        placeholder="Search in Contract Type..."
+                        value={sidebarContractTypeSearch}
+                        onChange={(e) => setSidebarContractTypeSearch(e.target.value)}
+                        className="gba:text-sm gba:border-0 gba:border-b gba:border-gray-300 gba:rounded-none gba:focus:ring-0 gba:focus:border-gray-500 gba:px-0"
+                        data-testid="team-report-contract-type-search"
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      {filteredContractTypes.map((type) => (
+                        <div key={type} className="flex items-center space-x-3">
+                          <Checkbox
+                            id={type}
+                            checked={selectedContractTypes.includes(type)}
+                            onChange={() => handleContractTypeToggle(type)}
+                            className="gba:border-gray-400"
+                            data-testid={`team-report-contract-type-checkbox-${type}`}
+                          />
+                          <label htmlFor={type} className="gba:text-sm gba:text-gray-700 gba:cursor-pointer gba:flex-1" data-testid={`team-report-contract-type-label-${type}`}>
+                            {type}
                           </label>
                         </div>
                       ))}
@@ -514,118 +881,26 @@ const getMonths = (tenure: string): number => {
           data-testid="team-report-employee-table-card"
         >
           <div className="gba:p-0">
-            <div className="gba:overflow-x-auto">
-              <table
-                className="gba:w-full"
-                data-testid="team-report-employee-table"
-              >
-                <thead>
-                  <tr className="gba:border-b gba:border-gray-200 gba:bg-gray-50">
-                    <th className="gba:text-left gba:py-4 gba:px-6 gba:font-medium gba:text-gray-600 gba:text-sm">
-                      Employee Name
-                    </th>
-                    <th className="gba:text-left gba:py-4 gba:px-6 gba:font-medium gba:text-gray-600 gba:text-sm">
-                      Job Position
-                    </th>
-                    <th className="gba:text-left gba:py-4 gba:px-6 gba:font-medium gba:text-gray-600 gba:text-sm">
-                      Location
-                    </th>
-                    <th className="gba:text-left gba:py-4 gba:px-6 gba:font-medium gba:text-gray-600 gba:text-sm">
-                      Employment Type
-                    </th>
-                    <th className="gba:text-left gba:py-4 gba:px-6 gba:font-medium gba:text-gray-600 gba:text-sm">
-                      Contract Type
-                    </th>
-                    <th className="gba:text-left gba:py-4 gba:px-6 gba:font-medium gba:text-gray-600 gba:text-sm">
-                      Start Date
-                    </th>
-                    <th className="gba:text-left gba:py-4 gba:px-6 gba:font-medium gba:text-gray-600 gba:text-sm">
-                      Tenure
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedEmployees.map((employee: EmployeeUI) => (
-                      <tr key={employee.id} data-testid={`team-report-employee-row-${employee.id}`}>
-                      <td className="gba:py-4 gba:px-6 gba:text-gray-900 gba:font-medium">
-                        {employee.name}
-                      </td>
-                      <td className="gba:py-4 gba:px-6 gba:text-gray-700">
-                        {employee.position}
-                      </td>
-                      <td className="gba:py-4 gba:px-6 gba:text-gray-700">
-                        {employee.location}
-                      </td>
-                      <td className="gba:py-4 gba:px-6">
-                        <Tag
-                          color={
-                            employee.employmentType === "Internal"
-                              ? "green"
-                              : employee.employmentType === "External"
-                              ? "orange"
-                              : employee.employmentType === "Contract worker"
-                              ? "purple"
-                              : employee.employmentType === "Demo" || employee.employmentType === "Test"
-                              ? "red"
-                              : "default"
-                          }
-                          className="gba:text-xs gba:font-semibold gba:rounded gba:px-2 gba:py-1"
-                          data-testid={`team-report-employee-type-${employee.id}`}
-                        >
-                          {employee.employmentType}
-                        </Tag>
-                      </td>
-                      <td className="gba:py-4 gba:px-6 gba:text-gray-700">
-                        <Tag
-                          color={
-                            employee.contractType.toLowerCase().includes("full time")
-                              ? "teal"
-                              : employee.contractType.toLowerCase().includes("part time")
-                              ? "blue"
-                              : employee.contractType === "Demo"
-                              ? "red"
-                              : employee.contractType === "Test"
-                              ? "red"
-                              : "default"
-                          }
-                          className="gba:text-xs gba:font-semibold gba:rounded gba:px-2 gba:py-1"
-                          data-testid={`team-report-employee-contract-${employee.id}`}
-                        >
-                          {employee.contractType}
-                        </Tag>
-                      </td>
-                      <td className="gba:py-4 gba:px-6 gba:text-gray-700">{employee.startDate}</td>
-                      <td className="gba:py-4 gba:px-6 gba:text-gray-700">{employee.tenure}</td>
-                    </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="gba:flex gba:justify-between gba:items-center gba:text-sm gba:text-gray-500 gba:pt-4">
-                <span>
-                  Showing {paginatedEmployees.length} of {filteredEmployees.length} employees (filtered on page {report.currentPage})
-                  {(selectedPositions.length > 0 || activeFilter !== "all" || searchTerm !== "") && (
-                    <span className="gba:text-blue-600 gba:font-medium"> (filtered)</span>
-                  )}
-                </span>
-                <span>Last updated: {new Date().toLocaleDateString()}</span>
-              </div>
-              <div className="gba:pt-4 gba:flex gba:justify-end">
-                   <Pagination
-                      current={report.currentPage}
-                      pageSize={pageSize}
-                      total={filteredEmployees.length}
-                      onChange={report.onPageChange}
-                      showSizeChanger={true}
-                      pageSizeOptions={['10','20','50','100']}
-                      onShowSizeChange={(_, size) => {
-                        setPageSize(size);
-                        report.onPageChange(1); // Reset to first page when page size changes
-                      }}
-                      className="gba:ml-auto"
-                      data-testid="team-report-pagination"
-                    />
-              </div>
+            <Table
+              className="gba:w-full gba:rounded-md"
+              data-testid="team-report-employee-table"
+              columns={getEmployeeTableColumns(filteredEmployees, uniquePositions)}
+              dataSource={sortedEmployees}
+              rowKey="id"
+              pagination={{
+                current: report.currentPage,
+                pageSize,
+                total: filteredEmployees.length,
+                onChange: report.onPageChange,
+                showSizeChanger: true,
+                pageSizeOptions: ['10', '20', '50', '100'],
+                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} employees`,
+                onShowSizeChange: (_, size) => {
+                  setPageSize(size);
+                  report.onPageChange(1); // Reset to first page when page size changes
+                }
+              }}
+            />        
           </div>
         </Card> 
       </div>
