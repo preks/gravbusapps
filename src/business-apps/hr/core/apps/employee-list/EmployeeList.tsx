@@ -80,11 +80,12 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
   
   // Handle click outside of employee table to close details
   const handleOutsideClick = useCallback((e: MouseEvent) => {
-    // Check if the click is outside of the employee table
+    // Check if the click is outside of the employee table and outside the details panel
     const target = e.target as HTMLElement;
     const isOutsideEmployeeTable = !target.closest('[data-testid="employee-table-container"]');
+    const isOutsideDetailsPanel = !target.closest('[data-testid="data-details-container"]');
     
-    if (isOutsideEmployeeTable && selectedEmployee) {
+    if (isOutsideEmployeeTable && isOutsideDetailsPanel && selectedEmployee) {
       setSelectedEmployee(null);
     }
   }, [selectedEmployee]);

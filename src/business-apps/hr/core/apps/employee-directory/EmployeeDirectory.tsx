@@ -78,11 +78,12 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
 
   // Handle click outside of employee cards to close details
   const handleOutsideClick = useCallback((e: MouseEvent) => {
-    // Check if the click is outside of any employee card
+    // Check if the click is outside of any employee card and outside the details panel
     const target = e.target as HTMLElement;
     const isOutsideEmployeeCard = !target.closest('.employee-card-wrapper');
+    const isOutsideDetailsPanel = !target.closest('[data-testid="data-details-container"]');
     
-    if (isOutsideEmployeeCard && selectedEmployee) {
+    if (isOutsideEmployeeCard && isOutsideDetailsPanel && selectedEmployee) {
       setSelectedEmployee(null);
     }
   }, [selectedEmployee]);
