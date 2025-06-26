@@ -153,7 +153,7 @@ const { t } = useTranslation();
           {isProcessingFiles ? (
             <>
               <img
-                src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/newwork/spinner.svg"
+                src={ICONS.SPINNER_ICON}
                 alt="Loading"
                 className="gba:uploadIcon"
                 width="36"
@@ -185,7 +185,7 @@ const { t } = useTranslation();
           {isProcessingFiles ? (
             <>
               <img
-                src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/newwork/spinner.svg"
+                src={ICONS.SPINNER_ICON}
                 alt="Loading"
                 className="gba:uploadIconSmall"
                 width="18"
@@ -279,7 +279,7 @@ const { t } = useTranslation();
                   <>
                     <span data-testid="processing-text">{t('lowcoder:create_expense_item.change_expense_item_container.file_add_document_processing', 'Processing the receipt...')}</span>
                     <img
-                      src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/newwork/spinner.svg"
+                      src={ICONS.SPINNER_ICON}
                       alt="Loading"
                       className="gba:uploadIconSmall"
                       width="18"

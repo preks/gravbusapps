@@ -1,13 +1,12 @@
-// GraphQL queries for the ExpenseItem component
 import { showToast } from "./utils/notificationUtils";
-import { API } from "./context/constants";
+import { PROCESSES_ENDPOINT } from "./context/constants";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
-// Function to fetch employee rule data
 export const fetchEmployeeRule = async (employeeId: string, date: string, accessToken: string) => {
   try {
     const formattedDate = date.substring(0, 23) + date.substring(23).replace('Z', '+0300');
     
-    const response = await fetch(`${API.BASE_URL}/processes/employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`, {
+    const response = await fetch(`${PROCESSES_ENDPOINT}/employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -19,14 +18,14 @@ export const fetchEmployeeRule = async (employeeId: string, date: string, access
       return await response.json();
     } else {
       showToast(
-        `Error fetching employee rule: ${response.statusText}`,
+        getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
         "error"
       );
       return null;
     }
   } catch (error) {
     showToast(
-      'Failed to fetch employee rule data',
+      getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
       "error"
     );
     return null;

@@ -344,6 +344,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         }
       } catch (ruleError) {
         setExpenseRuleError(t('lowcoder:create_expense_item.missing_expense_rule_message', 'There is no rule set for your user, please reach out to your administrator.'));
+        showToast(
+          t('lowcoder:create_expense_item.missing_expense_rule_message', 'There is no rule set for your user, please reach out to your administrator.'),
+          "error"
+        );
       }
 
       try {

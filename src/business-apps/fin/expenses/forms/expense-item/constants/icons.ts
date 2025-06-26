@@ -1,13 +1,11 @@
-import { API } from '../context/constants';
+import { ICONS_ENDPOINT } from '../context/constants';
 
-/**
- * Icon URLs for the expense item form
- */
 export const ICONS = {
-  BACK_ARROW: `${API.BASE_URL}/_next/static/media/lowcoder-icons/remixicons/arrow-left-s-line.svg`,
-  FOCUS: `${API.BASE_URL}/_next/static/media/lowcoder-icons/remixicons/focus-mode.svg`,
-  DELETE: `${API.BASE_URL}/_next/static/media/lowcoder-icons/remixicons/delete-bin.svg`,
-  ADD_CIRCLE: `${API.BASE_URL}/_next/static/media/lowcoder-icons/remixicons/add-circle-line.svg`,
-  ATTACHMENT: `${API.BASE_URL}/_next/static/media/lowcoder-icons/remixicons/attachment-line.svg`,
-  ARROW_RIGHT: `${API.BASE_URL}/_next/static/media/lowcoder-icons/remixicons/ArrowRightSLine.svg`
+  BACK_ARROW: `${ICONS_ENDPOINT}/remixicons/arrow-left-s-line.svg`,
+  FOCUS: `${ICONS_ENDPOINT}/remixicons/focus-mode.svg`,
+  DELETE: `${ICONS_ENDPOINT}/remixicons/delete-bin.svg`,
+  ADD_CIRCLE: `${ICONS_ENDPOINT}/remixicons/add-circle-line.svg`,
+  ATTACHMENT: `${ICONS_ENDPOINT}/remixicons/attachment-line.svg`,
+  ARROW_RIGHT: `${ICONS_ENDPOINT}/remixicons/ArrowRightSLine.svg`,
+  SPINNER_ICON:`${ICONS_ENDPOINT}/newwork/spinner.svg`
 };

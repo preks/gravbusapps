@@ -1,3 +1,4 @@
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { notification } from "antd";
 
 /**
@@ -24,13 +25,13 @@ export const showToast = (
 const getDefaultTitle = (type: string): string => {
   switch (type) {
     case "success":
-      return "Success";
+      return getTranslationFromI18nKeyAndLabel('lowcoder:general_notifications.success_title', 'Success');
     case "error":
-      return "Error";
+      return getTranslationFromI18nKeyAndLabel('lowcoder:general_notifications.error_title', 'Error');
     case "warning":
-      return "Warning";
+      return getTranslationFromI18nKeyAndLabel('lowcoder:general_notifications.warning_title', 'Warning');
     case "info":
     default:
-      return "Information";
+      return getTranslationFromI18nKeyAndLabel('lowcoder:general_notifications.information_title', 'Information');
   }
 };

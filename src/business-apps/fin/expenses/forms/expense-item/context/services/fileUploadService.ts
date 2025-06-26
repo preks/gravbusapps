@@ -1,5 +1,6 @@
 import { showToast } from "../../utils/notificationUtils";
 import { TFunction } from "i18next";
+import { FILES_ENGINE_ENDPOINT } from "../constants";
 
 /**
  * Parse uploaded files and send them to the invoice extraction API
@@ -35,7 +36,7 @@ export const parseFileUpload = async (
 
     
     const response = await fetch(
-      "https://dev.newwork.com/docs-engine/api/v1/invoices/from-file",
+      FILES_ENGINE_ENDPOINT + "/invoices/from-file",
       {
         method: "POST",
         headers: {

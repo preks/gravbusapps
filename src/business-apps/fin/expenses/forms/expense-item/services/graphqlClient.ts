@@ -17,7 +17,7 @@ export const createGraphQLClient = (accessToken: string) => ({
     variables?: any;
   }) => {
     const response = await fetch(
-      GRAPHQL_API_ENDPOINT,
+      GRAPHQL_API_ENDPOINT || "",
       {
         method: "POST",
         headers: {

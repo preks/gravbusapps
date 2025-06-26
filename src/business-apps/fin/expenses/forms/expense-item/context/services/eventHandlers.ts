@@ -1,5 +1,5 @@
 import { showToast } from "../../utils/notificationUtils";
-import { API, DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE } from "../constants";
+import { DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE, FILES_ENDPOINT, EMPLOYEE_FILES_LOCATION } from "../constants";
 import { formatDateToISOString } from "../../utils/dateUtils";
 import { calculateTotalAmount } from "../../utils/calculationUtils";
 import { fetchExpenseTypes, fetchCustomFields } from "./dataFetchers";
@@ -46,7 +46,7 @@ export const uploadDocuments = async (
     const uploadPromises = files.map(async (file: File) => {
       const folderPath = encodeURIComponent(`/expenseItemsDocuments/${employeeId}`);
       const mimeType = encodeURIComponent(file.type);
-      const url = `${API.BASE_URL}${API.FILES_ENDPOINT}?appName=expenses&folderPath=${folderPath}&mimeType=${mimeType}`;
+      const url = `${FILES_ENDPOINT}/tenant/files?appName=expenses&folderPath=${folderPath}&mimeType=${mimeType}`;
       const formData = new FormData();
       formData.append('fileContent', file);
       
@@ -73,13 +73,13 @@ export const uploadDocuments = async (
       if (element && element.fileInfo) {
         formattedFiles.push({
           fileType: element.fileInfo.fileMetadata.mimeType,
-          fileUrl: "/api/v1" + "/tenant/files/" + element.fileInfo.fileId,
+          fileUrl: EMPLOYEE_FILES_LOCATION +"/" + element.fileInfo.fileId,
           fileName: element.fileInfo.fileMetadata.originalFileName
         });
       } else if (element && element.fileId) {
         formattedFiles.push({
           fileType: element.fileMetadata?.mimeType || 'application/octet-stream',
-          fileUrl: "/api/v1/tenant/files/" + element.fileId,
+          fileUrl: EMPLOYEE_FILES_LOCATION +"/" + element.fileId,
           fileName: element.fileMetadata?.originalFileName || 'file'
         });
       }
