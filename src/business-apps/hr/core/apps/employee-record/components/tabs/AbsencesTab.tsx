@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import dayjs from 'dayjs';
 import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeData';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { Button } from '@newwork/gravity-ui-catalog';
+import { Button, Card } from '@newwork/gravity-ui-catalog';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Tabs, Pagination, Spin } from 'antd';
@@ -299,9 +299,14 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         </div>
       ) : (
         <div className="gba:charts-section gba:mb-8" data-testid="absence-charts-section">
-          <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
-            {/* Chart 1: Annual Leave Used vs Total */}
-            <div className="gba:chart-container gba:bg-white gba:rounded gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4" data-testid="annual-leave-chart">
+          <Card
+            variant="outlined"
+            className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+            data-testid="absence-charts-container"
+          >
+            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
+              {/* Chart 1: Annual Leave Used vs Total */}
+              <div className="gba:chart-container gba:bg-white gba:rounded gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4" data-testid="annual-leave-chart">
               <div className="gba:text-lg gba:font-medium gba:mb-2">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:absence_hub.annual_leave", 
@@ -554,8 +559,9 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                   </>
                 );
               })()}
+              </div>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
