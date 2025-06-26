@@ -259,7 +259,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         {/* Personal Data Card - Public info is always visible, private info requires permission */}
         <Card
           variant="outlined"
-          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-personal"
         >
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
@@ -276,7 +276,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         {/* Address Card - Always visible but values may be masked */}
         <Card
           variant="outlined"
-          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-address"
         >
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
@@ -288,7 +288,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         {/* Bank Account Card - Always visible but values may be masked */}
         <Card
           variant="outlined"
-          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-bank"
         >
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
@@ -300,7 +300,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         {/* Private Communication Card - Always visible but values may be masked */}
         <Card
           variant="outlined"
-          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-communication"
         >
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
@@ -312,7 +312,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         {/* Emergency Contact Card - Always visible but values may be masked */}
         <Card
           variant="outlined"
-          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-emergency"
         >
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
@@ -324,7 +324,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         {/* Tax Details Card - Always visible but values may be masked */}
         <Card
           variant="outlined"
-          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-tax"
         >
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">

@@ -301,7 +301,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         <div className="gba:charts-section gba:mb-8" data-testid="absence-charts-section">
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
             {/* Chart 1: Annual Leave Used vs Total */}
-            <div className="gba:chart-container gba:bg-white gba:rounded gba:border gba:shadow-sm gba:p-4" data-testid="annual-leave-chart">
+            <div className="gba:chart-container gba:bg-white gba:rounded gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4" data-testid="annual-leave-chart">
               <div className="gba:text-lg gba:font-medium gba:mb-2">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:absence_hub.annual_leave", 
@@ -382,7 +382,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             </div>
             
             {/* Chart 2: Absence Distribution by Type */}
-            <div className="gba:chart-container gba:bg-white gba:rounded gba:border gba:shadow-sm gba:p-4" data-testid="absence-distribution-chart">
+            <div className="gba:chart-container gba:bg-white gba:rounded gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4" data-testid="absence-distribution-chart">
               <div className="gba:text-lg gba:font-medium gba:mb-2">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:absence_hub.absence_distribution", 
@@ -467,7 +467,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             </div>
             
             {/* Chart 3: Absences by Status */}
-            <div className="gba:chart-container gba:bg-white gba:rounded gba:border gba:shadow-sm gba:p-4" data-testid="absences-by-status-chart">
+            <div className="gba:chart-container gba:bg-white gba:rounded gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4" data-testid="absences-by-status-chart">
               <div className="gba:text-lg gba:font-medium gba:mb-2">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:absence_hub.absence_status", 

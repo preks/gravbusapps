@@ -154,7 +154,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
           {employeeSkills.map((skillItem) => (
             <Card
               key={skillItem.id}
-              className="gba:h-full"
+              className="gba:h-full gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
               data-testid={`skill-card-${skillItem.id}`}
             >
               <div className="gba:p-4">

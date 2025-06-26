@@ -213,7 +213,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                 return (
                   <Card 
                     key={`feedback-${feedback.sender ?? ''}-${feedback.date ?? ''}`} 
-                    className="gba:p-4 gba:hover:shadow-md gba:transition-all"
+                    className="gba:p-4 gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
                     data-testid={`feedback-card-${feedback.senderId}`}
                   >
                     <div className="gba:flex gba:items-start">

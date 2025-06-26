@@ -356,7 +356,11 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   // Get the tab content based on the active tab
   const getTabContent = () => {
     const activeTabItem = tabItems.find(tab => tab.key === activeTab);
-    return activeTabItem ? activeTabItem.children : null;
+    return activeTabItem ? (
+      <div className="gba:bg-white gba:p-4 gba:rounded-md">
+        {activeTabItem.children}
+      </div>
+    ) : null;
   };
 
   // Return the current UI state

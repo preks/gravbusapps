@@ -188,7 +188,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                   <Card 
                     key={`goal-${goal.title ?? ''}-${goal.status ?? ''}`} 
                     variant='outlined'
-                    className="gba:hover:shadow-md gba:transition-all"
+                    className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
                     data-testid={`goal-card-${goal.id}`}
                   >
                     <div className="gba:flex gba:flex-col gba:md:flex-row gba:md:items-center gba:justify-between gba:mb-4">

@@ -232,7 +232,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
         {/* Employment Profile Card */}
         <Card
           variant="outlined"
-          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-profile"
         >
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
@@ -244,7 +244,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
         {/* Working Conditions Card */}
         <Card
           variant="outlined"
-          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-conditions"
         >
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
@@ -256,7 +256,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
         {/* Working Hours Card */}
         <Card
           variant="outlined"
-          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-hours"
         >
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
@@ -268,7 +268,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
         {/* Payroll Card */}
         <Card
           variant="outlined"
-          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-payroll"
         >
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
@@ -280,7 +280,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
         {/* Tax Information Card */}
         <Card
           variant="outlined"
-          className="gba:shadow-sm gba:hover:shadow-md gba:transition-all"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-tax"
         >
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">

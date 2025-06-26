@@ -120,8 +120,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken }) => {
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
           <Card 
             variant="outlined"
-            className="gba:shadow-sm gba:hover:shadow-md gba:transition-all" 
-            style={{ minHeight: '420px' }}
+            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-gray-200 gba:transition-all" 
+            style={{ minHeight: '420px', backgroundColor: 'white' }}
             data-testid="summary-section-organization-chart"
           >
             <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
@@ -249,8 +249,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken }) => {
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
           <Card 
             variant="outlined"
-            className="gba:shadow-sm gba:hover:shadow-md gba:transition-all" 
-            style={{ minHeight: '420px' }}
+            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-gray-200 gba:transition-all" 
+            style={{ minHeight: '420px', backgroundColor: 'white' }}
             data-testid="summary-section-job-information"
           >
             <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
@@ -307,8 +307,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken }) => {
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
           <Card 
             variant="outlined"
-            className="gba:shadow-sm gba:hover:shadow-md gba:transition-all" 
-            style={{ minHeight: '420px' }}
+            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-gray-200 gba:transition-all" 
+            style={{ minHeight: '420px', backgroundColor: 'white' }}
             data-testid="summary-section-availability"
           >
             <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
