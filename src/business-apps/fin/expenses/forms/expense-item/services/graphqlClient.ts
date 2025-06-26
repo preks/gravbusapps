@@ -38,7 +38,6 @@ export const useExpenseGraphQLClient = (contextProps: Pick<BusinessAppContextPro
  * @returns A GraphQL client object with a query method
  */
 export const createGraphQLClient = (accessToken: string) => {
-  // Return an object with an async query method
   return {
     query: async ({
       query,
@@ -47,14 +46,11 @@ export const createGraphQLClient = (accessToken: string) => {
       query: string;
       variables?: Record<string, any>;
     }) => {
-      // Dynamically import the graphQLClient to avoid issues with React hooks rules
       const { graphQLClient } = await import('@/common/network/graphql/GraphQLClient');
       
-      // Set access token
       graphQLClient.setAccessToken(accessToken);
       
-      // Make the request
-      const result = await graphQLClient.request(query, variables);
+     const result = await graphQLClient.request(query, variables);
       return { data: result };
     },
   };

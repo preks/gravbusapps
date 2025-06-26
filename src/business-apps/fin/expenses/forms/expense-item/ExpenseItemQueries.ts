@@ -19,7 +19,6 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
    */
   const fetchEmployeeRule = async (employeeId: string, date: string) => {
     try {
-      // Format date as required by the API
       const formattedDate = date.substring(0, 23) + date.substring(23).replace('Z', '+0300');
       const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`;
       

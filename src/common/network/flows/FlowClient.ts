@@ -179,7 +179,6 @@ export class FlowClient extends RestClient {
     }
     
     try {
-      // Ensure path starts with a slash
       const url = path.startsWith('/') ? path : `/${path}`;
       return await this.get<T>(url, options);
     } catch (error) {
