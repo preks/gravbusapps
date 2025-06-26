@@ -92,7 +92,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
   };
 
   return (
-    <div className="gba:skills-tab gba:p-4" data-testid="skills-tab">
+    <div className="gba:skills-tab gba:space-y-8" data-testid="skills-tab">
       <div className="gba:flex gba:justify-between gba:items-start" data-testid="skills-header">
         <div className="gba:skills-header">
           <div
@@ -101,7 +101,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
           >
             {getTranslationFromI18nKeyAndLabel(
               "lowcoder:employee_record.skills_title",
-              "Skills Overview"
+              "Employee Skills"
             )}
           </div>
           <div

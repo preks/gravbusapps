@@ -214,7 +214,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
         >
           {getTranslationFromI18nKeyAndLabel(
             "lowcoder:hr_employee.employment_overview",
-            "Employment Overview"
+            "Employment Data"
           )}
         </div>
         <div

@@ -241,7 +241,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         >
           {getTranslationFromI18nKeyAndLabel(
             "lowcoder:hr_employee.details_overview",
-            "Details Overview"
+            "Employee Details"
           )}
         </div>
         <div

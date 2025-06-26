@@ -69,7 +69,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken }) => {
   }, [employee.employeePosition]);
 
   return (
-    <div className="gba:summary-tab gba:p-4" data-testid="summary-tab-container">
+    <div className="gba:summary-tab gba:space-y-8" data-testid="summary-tab-container">
       {/* Summary Overview Headline with Action Button */}
       <div className="gba:flex gba:justify-between gba:items-start" data-testid="summary-header">
         <div className="gba:summary-header">
@@ -79,16 +79,16 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken }) => {
           >
             {getTranslationFromI18nKeyAndLabel(
               "lowcoder:hr_employee.summary_overview",
-              "Summary Overview"
+              "Employee Overview"
             )}
           </div>
           <div
-            className="gba:text-gray-500 gba:text-lg gba:mb-4"
+            className="gba:text-gray-500 gba:text-lg"
             data-testid="summary-description"
           >
             {getTranslationFromI18nKeyAndLabel(
               "lowcoder:hr_employee.summary_description",
-              "View employee summary information"
+              "View and edit employee profile"
             )}
           </div>
         </div>
