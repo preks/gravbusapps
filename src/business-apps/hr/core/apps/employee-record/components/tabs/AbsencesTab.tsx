@@ -299,14 +299,13 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         </div>
       ) : (
         <div className="gba:charts-section gba:mb-8" data-testid="absence-charts-section">
-          <Card
-            variant="outlined"
-            className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
-            data-testid="absence-charts-container"
-          >
-            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
-              {/* Chart 1: Annual Leave Used vs Total */}
-              <div className="gba:chart-container gba:bg-white gba:rounded gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4" data-testid="annual-leave-chart">
+          <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
+            {/* Chart 1: Annual Leave Used vs Total */}
+            <Card
+              variant="outlined"
+              className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
+              data-testid="annual-leave-chart"
+            >
               <div className="gba:text-lg gba:font-medium gba:mb-2">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:absence_hub.annual_leave", 
@@ -384,10 +383,14 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                   </>
                 );
               })()}
-            </div>
+            </Card>
             
             {/* Chart 2: Absence Distribution by Type */}
-            <div className="gba:chart-container gba:bg-white gba:rounded gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4" data-testid="absence-distribution-chart">
+            <Card
+              variant="outlined"
+              className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
+              data-testid="absence-distribution-chart"
+            >
               <div className="gba:text-lg gba:font-medium gba:mb-2">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:absence_hub.absence_distribution", 
@@ -469,10 +472,14 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                   </>
                 );
               })()}
-            </div>
+            </Card>
             
             {/* Chart 3: Absences by Status */}
-            <div className="gba:chart-container gba:bg-white gba:rounded gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4" data-testid="absences-by-status-chart">
+            <Card
+              variant="outlined"
+              className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
+              data-testid="absences-by-status-chart"
+            >
               <div className="gba:text-lg gba:font-medium gba:mb-2">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:absence_hub.absence_status", 
@@ -559,9 +566,8 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                   </>
                 );
               })()}
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
         </div>
       )}
 
