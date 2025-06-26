@@ -16,8 +16,12 @@ export const createGraphQLClient = (accessToken: string) => ({
     query: string;
     variables?: any;
   }) => {
+    if (!GRAPHQL_API_ENDPOINT) {
+      throw new Error('GraphQL API endpoint is not defined');
+    }
+    
     const response = await fetch(
-      GRAPHQL_API_ENDPOINT || "",
+      GRAPHQL_API_ENDPOINT,
       {
         method: "POST",
         headers: {

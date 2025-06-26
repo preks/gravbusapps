@@ -745,8 +745,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       accessToken,
       userInfo?.employeeDetails?.employeeId,
       additionalData,
-      userInfo,
-      isEditMode
+      userInfo
     );
   };
 

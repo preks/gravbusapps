@@ -269,8 +269,7 @@ export const handleSubmit = async (
   accessToken?: string,
   employeeId?: string,
   additionalData?: any,
-  userInfo?: any,
-  isEditMode?: boolean
+  userInfo?: any
 ) => {
   try {
     setLoading(true);
@@ -292,7 +291,7 @@ export const handleSubmit = async (
     
     if (accessToken && employeeId && hasExpenseRequest) {
       try {
-        const flowResult = await initiateFlow(accessToken, employeeId, t);
+        const flowResult = await initiateFlow(accessToken, employeeId);
         if (flowResult && flowResult && flowResult.id) {
           flowProcessId = flowResult.id;
           const userId = userInfo?.id || "c813b143-360d-491f-a8f5-a4ac6b769fe9";
@@ -300,8 +299,7 @@ export const handleSubmit = async (
           const tasksResult = await getOpenedTaskFlow(
             accessToken,
             userId,
-            flowProcessId as string,
-            t
+            flowProcessId as string
           );
           
           if (tasksResult && Array.isArray(tasksResult) && tasksResult.length > 0) {
@@ -395,8 +393,7 @@ export const handleSubmit = async (
           flowProcessId as string,
           taskName as string,
           taskId as string,
-          submitData,
-          t
+          submitData
         );
         operationSuccessful = true;
       } catch (completeError) {
