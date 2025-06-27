@@ -161,7 +161,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
               {...dataControllerProps}
             />
           )}
-        <div className={cn("gba:flex-1 gba:min-h-0 gba:overflow-auto gba:m-4", {
+        <div className={cn("gba:flex-1 gba:min-h-0 gba:overflow-auto gba:my-4", {
           'gba:bg-gray-50': contentBackground === 'gray',
           'gba:bg-white': contentBackground === 'white'
         })}>

@@ -1,11 +1,39 @@
 "use client";
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTable, Button } from '@newwork/gravity-ui-catalog';
+import { DataTable, Button, Avatar } from '@newwork/gravity-ui-catalog';
 import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees';
-import EmployeeAvatar from '@/business-apps/hr/components/employeeAvatar/EmployeeAvatar';
 import { formatDataTestId } from '@/modules/orgchart/utils';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+
+// Memoized AppActionButton to prevent unnecessary re-renders and API calls
+const MemoizedAppActionButton = memo<{
+  employeeId: string;
+  userId?: string;
+  supervisorEmployeeId?: string;
+  accessToken: string;
+  dataTestIdPrefix: string;
+}>(({ employeeId, userId, supervisorEmployeeId, accessToken, dataTestIdPrefix }) => (
+  <AppActionButton
+    data-testid={formatDataTestId(dataTestIdPrefix, `Actions-${employeeId}`)}
+    variant="primary"
+    size="sm"
+    contextsArray={[FlowContextName.employeeEntity]}
+    externalContextData={{
+      employeeId: employeeId,
+      keycloakUserId: userId,
+      managerId: supervisorEmployeeId
+    }}
+    prefixDataTestId={`${dataTestIdPrefix}-action-${employeeId}`}
+    accessToken={accessToken}
+  >
+
+  </AppActionButton>
+));
+
+MemoizedAppActionButton.displayName = 'MemoizedAppActionButton';
 
 interface EmployeeTableProps {
   employees: Employee[];
@@ -16,6 +44,7 @@ interface EmployeeTableProps {
   total: number;
   onSelectEmployee?: (employee: Employee) => void;
   selectedEmployeeId?: string;
+  accessToken?: string;
 }
 
 const DATA_TEST_ID_PREFIX = 'EmployeeTable';
@@ -28,7 +57,8 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   retry,
   total,
   onSelectEmployee,
-  selectedEmployeeId
+  selectedEmployeeId,
+  accessToken
 }) => {
   const { t } = useTranslation();
 
@@ -54,34 +84,36 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       title: t('employee.name', 'Name'),
       dataIndex: 'name',
       key: 'name',
-      render: (_: any, record: Employee) => (
-        <div 
-          className="gba:flex gba:items-center"
-          onClick={() => handleRowClick(record)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleRowClick(record);
-            }
-          }}
-          role="button"
-          tabIndex={0}
-          style={{ cursor: 'pointer' }}
-          aria-pressed={selectedEmployeeId === record.id}
-        >
+      render: (_: any, record: Employee) => {
+        const initialsValue = record.profilePicture
+          ? undefined
+          : `${record.firstName?.[0] || ''}${record.lastName?.[0] || ''}`.toUpperCase();
+
+        const avatarSrcValue = record.profilePicture
+          ? `data:image/gif;base64,${record.profilePicture}`
+          : undefined;
+
+        const avatarContentTypeValue = record.profilePicture ? 'image' : 'initials';
+
+        return (
           <div className="gba:flex gba:items-center gba:gap-3">
-            <EmployeeAvatar
-              profilePicture={record.profilePicture}
-              firstName={record.firstName}
-              lastName={record.lastName}
-              employeeId={record.id}
-              size={32}
-              randomizeStatus={true}
+            <Avatar
+              src={avatarSrcValue}
+              initials={initialsValue}
+              // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+              contentType={avatarContentTypeValue}
+              alt={`${record.firstName} ${record.lastName}`}
+              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              size="sm"
+              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              shape="circle"
+              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              appearance="gradient"
             />
             <span>{record.firstName} {record.lastName}</span>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: t('employee.job_title', 'Job Title'),
@@ -104,38 +136,41 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       key: 'contractType',
     },
     {
-      title: t('common.actions', 'Actions'),
+      title: '', // Remove the actions column label
       key: 'actions',
       render: (_: any, record: Employee) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleViewProfile(record.id)}
-          data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `ViewProfile-${record.id}`)}
-        >
-          {t('common.view_profile', 'View Profile')}
-        </Button>
+        accessToken ? (
+          <div onClick={(e) => e.stopPropagation()}>
+            <MemoizedAppActionButton
+              employeeId={record.id}
+              userId={record.userId}
+              supervisorEmployeeId={record.supervisorEmployeeId}
+              accessToken={accessToken}
+              dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+            />
+          </div>
+        ) : null
       ),
     },
   ];
 
   // Handle pagination change
   const handleTableChange = (pagination: any) => {
-    console.log('Pagination changed:', { 
-      current: pagination.current, 
+    console.log('Pagination changed:', {
+      current: pagination.current,
       pageSize: pagination.pageSize,
-      total: pagination.total 
+      total: pagination.total
     });
-    
+
     // When page size changes, we should go to page 1
     // When page changes, we use the current page
     const targetPage = pagination.current ?? 1;
     const targetPageSize = pagination.pageSize ?? 20;
-    
+
     // Update state
     setCurrentPage(targetPage);
     setPageSize(targetPageSize);
-    
+
     // Load the data for the selected page with the new page size
     loadPage(targetPage, targetPageSize);
   };
@@ -159,6 +194,14 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
         columns={columns as any}
         loading={loading}
         rowKey="id"
+        onRow={(record: any) => ({
+          onClick: () => handleRowClick(record as Employee),
+          style: { 
+            cursor: 'pointer',
+            backgroundColor: selectedEmployeeId === record.id ? '#f0f9ff' : undefined
+          },
+          'data-testid': formatDataTestId(DATA_TEST_ID_PREFIX, `Row-${record.id}`)
+        })}
         pagination={{
           current: currentPage,
           pageSize: pageSize,
@@ -171,7 +214,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
         scroll={{ x: true }}
         data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'Table')}
       />
-      
+
       {/* Removed Load More button as pagination handles this */}
     </div>
   );

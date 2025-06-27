@@ -8,9 +8,10 @@ import { DataController, DataControllerProps } from '@/components/dataController
 import { useGetEmployees, Employee } from '@/business-apps/hr/core/hooks/useGetEmployees';
 import { useEmployeeFilters } from '@/business-apps/hr/core/hooks/useEmployeeFilters';
 import { EmployeeTable } from './components/EmployeeTable';
-import EmployeeDetails from '@/business-apps/hr/components/employeeDetails';
-import { PiUsersThree,PiUsersThreeDuotone } from 'react-icons/pi';
+import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details';
+import { PiUser, PiUsersThree,PiUsersThreeDuotone } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { startProcess } from '@/common/utils/start-process';
 
 /**
  * Employee List page component. Renders the employee list module with a table view.
@@ -20,6 +21,7 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
   const { accessToken } = props;
   const { t } = useTranslation();
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [hasInitialLoad, setHasInitialLoad] = useState(false);
   
   // Use the centralized employee filters hook
   const {
@@ -34,6 +36,16 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
     getFilters
   } = useEmployeeFilters(accessToken);
   
+  // Handle adding a new employee
+  const handleAddEmployee = useCallback(() => {
+    startProcess({
+      domain: 'employee',
+      processName: 'saveEmployee',
+      builderType: 'NATIVE_SCREEN',
+      payload: {}
+    });
+  }, []);
+
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
     // Use the appropriate function directly
@@ -50,12 +62,18 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
     retry 
   } = useGetEmployees({ ...getFilters(), accessToken });
   
-  // Initial load effect - only runs when component mounts and accessToken is available
+  // Initial load effect - only runs once when component mounts and accessToken is available
   React.useEffect(() => {
-    if (accessToken && !loading && employees.length === 0) {
+    if (accessToken && !hasInitialLoad && !loading) {
       loadPage(1); // Load first page instead of loadMore for true pagination
+      setHasInitialLoad(true);
     }
-  }, [accessToken, loadPage, loading, employees.length]);
+  }, [accessToken, loadPage, loading, hasInitialLoad]);
+  
+  // Reset initial load flag when filters change to allow reloading
+  React.useEffect(() => {
+    setHasInitialLoad(false);
+  }, [search, selectedFilters]);
   
   // Handle employee selection
   const handleEmployeeSelect = useCallback((employee: Employee) => {
@@ -69,11 +87,12 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
   
   // Handle click outside of employee table to close details
   const handleOutsideClick = useCallback((e: MouseEvent) => {
-    // Check if the click is outside of the employee table
+    // Check if the click is outside of the employee table and outside the details panel
     const target = e.target as HTMLElement;
     const isOutsideEmployeeTable = !target.closest('[data-testid="employee-table-container"]');
+    const isOutsideDetailsPanel = !target.closest('[data-testid="data-details-container"]');
     
-    if (isOutsideEmployeeTable && selectedEmployee) {
+    if (isOutsideEmployeeTable && isOutsideDetailsPanel && selectedEmployee) {
       setSelectedEmployee(null);
     }
   }, [selectedEmployee]);
@@ -111,6 +130,11 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
               listTitle: t('employee.list_title', 'Employees'),
               listIcon: <PiUsersThree size={20} />,
               listAmount: total,
+              addButton: {
+                onClick: handleAddEmployee,
+                label: 'Add',
+                'data-testid': 'add-employee-button'
+              },
             }}
             dataFilterProps={{
               filterGroups: filterGroups,
@@ -127,14 +151,15 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
                   total={total}
                   onSelectEmployee={handleEmployeeSelect}
                   selectedEmployeeId={selectedEmployee?.id}
+                  accessToken={accessToken}
                 />
               </div>
             }
             dataDetails={
               selectedEmployee ? {
-                title: t('employee.details_title', 'Employee Details'),
-                icon: <PiUsersThree size={20} />,
-                content: <EmployeeDetails employee={selectedEmployee} />,
+                title: `${selectedEmployee.firstName} ${selectedEmployee.lastName}`,
+                icon: <PiUser size={20} />,
+                content: <EmployeeDetails employeeId={selectedEmployee.id} accessToken={accessToken} userInfo={props.userInfo} />,
                 onClose: handleDetailsPanelClose,
               } : undefined
             }
