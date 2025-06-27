@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Row, Col, Card, Statistic, Spin, Alert, Typography } from 'antd';
 import { PiChartBar, PiCurrencyDollar, PiUsers, PiClipboardText, PiListChecks, PiChartLineUp, PiFileText, PiShieldCheck } from 'react-icons/pi';
 import { useGetExpenseDashboard } from '../../../hooks/useGetExpenseDashboard';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import ExpenseTrendsChart from './components/ExpenseTrendsChart';
+import { ApprovalsModal, ExpenseReportsModal, TeamSpendingAnalyticsModal } from '../../modals';
+import { formatAmount } from '../../../utils/currencyUtils';
 
 const { Title, Text } = Typography;
 
@@ -12,10 +15,10 @@ export interface ExpenseDashboardTabProps extends BusinessAppContextProps {}
 interface RecentRequestItem {
   id: string;
   title: string;
-  employeeName: string;
   totalAmount: number | string;
-  requestDate: string; // Changed from date to requestDate
-  status: string; // Added status field
+  requestDate: string;
+  status: string;
+  employeeName: string;
 }
 
 const getErrorMessage = (err: unknown): string => {
@@ -28,8 +31,11 @@ const getErrorMessage = (err: unknown): string => {
   return 'An unknown error occurred';
 };
 
-const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
+const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
   const { dashboardData, isLoading, error } = useGetExpenseDashboard(props);
+  const [approvalsModalVisible, setApprovalsModalVisible] = useState<boolean>(false);
+  const [reportsModalVisible, setReportsModalVisible] = useState<boolean>(false);
+  const [analyticsModalVisible, setAnalyticsModalVisible] = useState<boolean>(false);
   
   if (isLoading) {
     return (
@@ -54,6 +60,16 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     <div>
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
+          {/* Log dashboard data for debugging */}
+          {(() => { 
+            console.log('Dashboard Data in UI:', { 
+              teamMembersCount: dashboardData?.teamMembersCount,
+              pendingApprovalsCount: dashboardData?.pendingApprovalsCount,
+              monthlyExpensesAmount: dashboardData?.monthlyExpensesAmount,
+              expenseCategoriesCount: dashboardData?.expenseCategoriesCount
+            }); 
+            return null; 
+          })()}
           <Card className="gba:h-full">
             <Statistic
               title="Team Members"
@@ -77,15 +93,22 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           <Card className="gba:h-full">
             <Statistic
               title="Monthly Expenses"
-              value={dashboardData?.monthlyExpensesTotal ?? 0}
-              precision={2}
+              value={dashboardData?.monthlyExpensesAmount ?? 0}
+              formatter={(value) => formatAmount(Number(value))}
               prefix={<PiCurrencyDollar className="gba:mr-2" />}
               suffix="€"
+              data-testid="monthly-expenses-statistic"
             />
           </Card>
         </Col>
         
         <Col xs={24} sm={12} lg={6}>
+          {/* Log expense categories data for debugging */}
+          {(() => { 
+            console.log('Expense Categories - value:', dashboardData?.expenseCategoriesCount); 
+            console.log('Monthly Expenses - value:', dashboardData?.monthlyExpensesAmount); 
+            return null; 
+          })()}
           <Card className="gba:h-full">
             <Statistic
               title="Expense Categories"
@@ -106,21 +129,24 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
               title: 'Review Approvals',
               description: 'Process pending expense requests.',
               icon: <PiListChecks className="gba:text-2xl gba:text-blue-500" />,
-              link: '#/approvals', // Placeholder link
+              onClick: () => setApprovalsModalVisible(true),
+              'data-testid': 'review-approvals-action',
             },
             {
               key: 'analysis',
               title: 'Team Spending Analysis',
               description: 'View spending trends and reports.',
               icon: <PiChartLineUp className="gba:text-2xl gba:text-green-500" />,
-              link: '#/analysis', // Placeholder link
+              onClick: () => setAnalyticsModalVisible(true),
+              'data-testid': 'team-spending-analysis-action',
             },
             {
               key: 'reports',
               title: 'Expense Reports',
               description: 'Generate or view team expense reports.',
               icon: <PiFileText className="gba:text-2xl gba:text-purple-500" />,
-              link: '#/reports', // Placeholder link
+              onClick: () => setReportsModalVisible(true),
+              'data-testid': 'expense-reports-action'
             },
             {
               key: 'policies',
@@ -131,7 +157,12 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
             },
           ].map(action => (
             <Col xs={24} sm={12} lg={6} key={action.key}>
-              <Card hoverable className="gba:h-full gba:flex gba:flex-col" onClick={() => { /* Navigate to action.link */ }}>
+              <Card 
+                hoverable 
+                className="gba:h-full gba:flex gba:flex-col" 
+                onClick={action.onClick || (() => { /* Navigate to action.link */ })} 
+                data-testid={`quick-action-${action.key}`}
+              >
                 <div className="gba:flex gba:items-center gba:mb-2">
                   {action.icon}
                   <Title level={5} className="gba:ml-3 gba:mb-0">{action.title}</Title>
@@ -149,27 +180,34 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           <Card 
             title="Recent Expense Requests"
             className="gba:h-full"
+            data-testid="recent-expense-requests-card"
           >
             {(dashboardData?.recentRequests && dashboardData.recentRequests.length > 0) ? (
               <ul className="gba:list-none gba:p-0">
                 {dashboardData.recentRequests.map((request: RecentRequestItem) => (
-                  <li key={request.id} className="gba:py-2 gba:border-b gba:border-gray-100 gba:last:border-0">
-                    <div className="gba:flex gba:justify-between">
+                  <li key={request.id} className="gba:py-3 gba:border-b gba:border-gray-100 gba:last:border-0">
+                    <div className="gba:flex gba:justify-between gba:mb-1">
                       <div>
                         <Text strong>{request.title}</Text>
-                        <div><Text type="secondary">{request.employeeName}</Text></div>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Text type="secondary">{request.employeeName}</Text>
+                          <span className="gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-gray-100">
+                            {request.status}
+                          </span>
+                        </div>
                       </div>
                       <div className="gba:text-right">
-                        <Text>{request.totalAmount}€</Text>
+                        <Text className="gba:font-medium">€{typeof request.totalAmount === 'number' ? formatAmount(request.totalAmount) : request.totalAmount}</Text>
                         <div><Text type="secondary">{request.requestDate}</Text></div>
-                        {/* Optionally display status: <Text type="secondary">Status: {request.status}</Text> */}
                       </div>
                     </div>
                   </li>
                 ))}
               </ul>
             ) : (
-              <Text type="secondary">No recent expense requests</Text>
+              <div className="gba:py-8 gba:text-center">
+                <Text type="secondary">No recent expense requests</Text>
+              </div>
             )}
           </Card>
         </Col>
@@ -189,8 +227,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                 />
                 <div className="gba:mt-4">
                   <div className="gba:flex gba:justify-between gba:mb-1">
-                    <Text>Used: {dashboardData.teamBudget?.used ?? 0}€</Text>
-                    <Text>Total: {dashboardData.teamBudget?.total ?? 0}€</Text>
+                    <Text>Used: €{formatAmount(dashboardData.teamBudget?.used ?? 0)}</Text>
+                    <Text>Total: €{formatAmount(dashboardData.teamBudget?.total ?? 0)}</Text>
                   </div>
                   <div className="gba:bg-gray-200 gba:rounded-full gba:h-2">
                     <div 
@@ -206,6 +244,41 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           </Card>
         </Col>
       </Row>
+
+      {/* Expense Trends Chart */}
+      <Row gutter={[16, 16]} className="gba:mt-6">
+        <Col xs={24}>
+          <ExpenseTrendsChart 
+            data={dashboardData?.monthlyTrends || []} 
+            title="Monthly Expense Trends"
+          />
+        </Col>
+      </Row>
+      
+      {/* Approvals Modal */}
+      <ApprovalsModal 
+        visible={approvalsModalVisible}
+        onCancel={() => setApprovalsModalVisible(false)}
+        accessToken={props.accessToken}
+        userInfo={props.userInfo}
+      />
+      
+      {/* Expense Reports Modal */}
+      <ExpenseReportsModal
+        visible={reportsModalVisible}
+        onCancel={() => setReportsModalVisible(false)}
+        accessToken={props.accessToken}
+        userInfo={props.userInfo}
+      />
+      
+      {/* Team Spending Analytics Modal */}
+      <TeamSpendingAnalyticsModal
+        visible={analyticsModalVisible}
+        onCancel={() => setAnalyticsModalVisible(false)}
+        accessToken={props.accessToken}
+        userInfo={props.userInfo}
+      />
+      
     </div>
   );
 };

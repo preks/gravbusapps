@@ -1,8 +1,99 @@
-import { message } from "antd";
-import { DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE } from "../constants";
+import { showToast } from "../../utils/notificationUtils";
+import { DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE, FILES_ENDPOINT, EMPLOYEE_FILES_LOCATION } from "../constants";
 import { formatDateToISOString } from "../../utils/dateUtils";
 import { calculateTotalAmount } from "../../utils/calculationUtils";
 import { fetchExpenseTypes, fetchCustomFields } from "./dataFetchers";
+import { initiateFlow, getOpenedTaskFlow, completeTaskFlow } from "./flowHandlers";
+import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
+
+/**
+ * Uploads documents to the file server
+ * @param fileList Array of file objects to upload
+ * @param accessToken Access token for authentication
+ * @param employeeId Employee ID for the folder path
+ * @param t Translation function
+ * @returns Promise with the formatted file data or empty array if no files to upload
+ */
+export const uploadDocuments = async (
+  fileList: any[],
+  accessToken: string,
+  employeeId: string,
+  t: (key: string, fallback: string) => string
+): Promise<Array<{ fileType: string; fileUrl: string; fileName: string }>> => {
+  if (!fileList || fileList.length === 0) {
+    return [];
+  }
+
+  if (!employeeId) {
+    showToast(
+      t("lowcoder:create_expense_type_item.document_upload_error_missing_employee_data", "Cannot upload files: missing employee data"),
+      "error"
+    );
+    return [];
+  }
+
+  try {
+    const files = fileList.map(f => f.originFileObj).filter(Boolean);
+    
+    if (files.length === 0) {
+      showToast(
+        t("lowcoder:create_expense_type_item.document_upload_error_missing_files", "No valid files to upload"),
+        "info"
+      );
+      return [];
+    }
+
+    const uploadPromises = files.map(async (file: File) => {
+      const folderPath = encodeURIComponent(`/expenseItemsDocuments/${employeeId}`);
+      const mimeType = encodeURIComponent(file.type);
+      const url = `${FILES_ENDPOINT}/tenant/files?appName=expenses&folderPath=${folderPath}&mimeType=${mimeType}`;
+      const formData = new FormData();
+      formData.append('fileContent', file);
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`File upload failed for ${file.name}: ${response.status} ${response.statusText}`);
+      }
+      
+      const responseData = await response.json();
+      return responseData;
+    });
+    
+    const results = await Promise.all(uploadPromises);
+    const formattedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = [];
+    
+    results.forEach((element: any) => {
+      if (element && element.fileInfo) {
+        formattedFiles.push({
+          fileType: element.fileInfo.fileMetadata.mimeType,
+          fileUrl: EMPLOYEE_FILES_LOCATION +"/" + element.fileInfo.fileId,
+          fileName: element.fileInfo.fileMetadata.originalFileName
+        });
+      } else if (element && element.fileId) {
+        formattedFiles.push({
+          fileType: element.fileMetadata?.mimeType || 'application/octet-stream',
+          fileUrl: EMPLOYEE_FILES_LOCATION +"/" + element.fileId,
+          fileName: element.fileMetadata?.originalFileName || 'file'
+        });
+      }
+    });
+    
+    return formattedFiles;
+  } catch (error) {
+    showToast(
+      t("lowcoder:create_expense_type_item.document_upload_error_files", "Error uploading files"),
+      "error"
+    );
+    return [];
+  }
+};
 
 
 export const handleExpenseGroupChange = async (
@@ -30,24 +121,15 @@ export const handleExpenseGroupChange = async (
       form.setFieldsValue({
         [`expenseType-${positionIndex}`]: undefined
       });
-      
-
     }
-
-
     const hasExpenseTypesForGroup = Object.keys(expenseTypes).includes(value);
-
-
     if (!hasExpenseTypesForGroup) {
       await fetchExpenseTypes(value, positions, employeeRuleId, graphqlClient, setExpenseTypes, t);
     }
   } catch (error) {
-    console.error("Error handling expense group change:", error);
-    message.error(
-      t(
-        "expense_item.error_message",
-        "Failed to update expense types. Please try again."
-      )
+    showToast(
+      t("lowcoder:create_expense_type_item.process_error_expense_types", "Error processing expense types"),
+      "error"
     );
   }
 };
@@ -91,7 +173,6 @@ export const handleExpenseTypeChange = async (
       }
     }
 
-    // Check if we already have custom fields for this expense type
     const hasCustomFieldsForType = Object.keys(customFields).includes(value);
 
 
@@ -109,12 +190,9 @@ export const handleExpenseTypeChange = async (
       await fetchCustomFields(expenseTypeIds, graphqlClient, setCustomFields, t);
     }
   } catch (error) {
-    console.error("Error handling expense type change:", error);
-    message.error(
-      t(
-        "expense_item.error_message",
-        "Failed to update custom fields. Please try again."
-      )
+    showToast(
+      t("lowcoder:create_expense_type_item.process_error_expense_custom_groups","Error processing custom groups"),
+      "error"
     );
   }
 };
@@ -122,12 +200,26 @@ export const handleExpenseTypeChange = async (
 
 export const handleAddPosition = (
   positions: any[],
-  setPositions: (positions: any[]) => void
+  setPositions: (positions: any[]) => void,
+  defaultCostCenter?: string,
+  form?: any
 ) => {
-  setPositions([
-    ...positions,
-    DEFAULT_POSITION,
-  ]);
+  const newPosition = {
+    ...DEFAULT_POSITION,
+    id: `position-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+    costCenter: defaultCostCenter || "",
+    amount: 0,
+  };
+  
+  const newPositions = [...positions, newPosition];
+  setPositions(newPositions);
+  
+  if (form && defaultCostCenter) {
+    const newPositionIndex = newPositions.length - 1;
+    form.setFieldsValue({
+      [`costCenter-${newPositionIndex}`]: defaultCostCenter
+    });
+  }
 };
 
 
@@ -138,7 +230,10 @@ export const handleRemovePosition = (
   t: (key: string, fallback: string) => string
 ) => {
   if (positions.length === 1) {
-    message.warning(t("expense_item.at_least_one_position", "At least one position is required"));
+    showToast(
+      t("lowcoder:create_expense_type_item.position_deletion_warning", "At least one position is required"),
+      "warning"
+    );
     return;
   }
 
@@ -169,19 +264,61 @@ export const handleSubmit = async (
   setFileList: (files: any[]) => void,
   setCurrentStep: (step: "start" | "form") => void,
   setLoading: (loading: boolean) => void,
-  t: (key: string, fallback: string) => string
+  t: (key: string, fallback: string) => string,
+  fileList?: any[],
+  accessToken?: string,
+  employeeId?: string,
+  additionalData?: any,
+  userInfo?: any
 ) => {
-  setLoading(true);
   try {
+    setLoading(true);
 
     await form.validateFields();
 
-
     const values = form.getFieldsValue();
 
+    let uploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = [];
+    if (fileList && fileList.length > 0 && accessToken && employeeId) {
+      uploadedFiles = await uploadDocuments(fileList, accessToken, employeeId, t);
+    }
+    
+    const hasExpenseRequest = additionalData?.psi_taskPayload?.initialParameters?.expenseRequest;
+    
+    let flowProcessId: string | null = null;
+    let taskId: string | null = null;
+    let taskName: string | null = null;
+    
+    if (accessToken && employeeId && hasExpenseRequest) {
+      try {
+        const flowResult = await initiateFlow(accessToken, employeeId);
+        if (flowResult && flowResult && flowResult.id) {
+          flowProcessId = flowResult.id;
+          const userId = userInfo?.id || "c813b143-360d-491f-a8f5-a4ac6b769fe9";
+
+          const tasksResult = await getOpenedTaskFlow(
+            accessToken,
+            userId,
+            flowProcessId as string
+          );
+          
+          if (tasksResult && Array.isArray(tasksResult) && tasksResult.length > 0) {
+            const firstTask = tasksResult[0];
+            if (firstTask && typeof firstTask.id === 'string' && typeof firstTask.name === 'string') {
+              taskId = firstTask.id;
+              taskName = firstTask.name;
+            }
+          }
+        }
+      } catch (flowError) {
+        showToast(
+          t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
+          "error"
+        );
+      }
+    }
 
     const formattedPositions = positions.map((position, index) => {
-
       const customFieldsArray = [];
       if (
         position.expenseType &&
@@ -203,7 +340,7 @@ export const handleSubmit = async (
         expenseGroupRef: position.expenseGroup,
         expenseTypeRef: position.expenseType,
         totalAmount: position.amount || 0,
-        positionOrder: index,
+        positionOrder: index + 1,
         expenseRuleGeneralExpense: position.expenseType,
         costCenter: position.costCenter,
         reimbursable: position.isReimbursable,
@@ -214,8 +351,6 @@ export const handleSubmit = async (
         expenseRule: employeeRuleId as string,
       };
     });
-
-
     const submitData = {
       expenseItem: {
         title: values.title,
@@ -224,14 +359,14 @@ export const handleSubmit = async (
           : formatDateToISOString(new Date()),
         totalAmount: calculateTotalAmount(positions),
         source: DEFAULT_EXPENSE_SOURCE,
-        currencyRef: values.currency || "EUR",
+        currencyRef: values.currency || "Currency:v1:EUR",
         costCenter: positions[0]?.costCenter || "",
         reimbursable: positions[0]?.isReimbursable || false,
         expenseClassRef: "ExpenseClass:v1:EXPENSE",
         status: DEFAULT_EXPENSE_STATUS,
         multiplePositions: multiPosition,
         expenseRequest: values.expenseRequest || "",
-        employee: generalDataResponse?.data?.Employee?.[0]?.id || "",
+        employee: generalDataResponse?.data?.Employee?.[0]?.id || employeeId || "",
         expenseRule: employeeRuleId as string,
       },
       event: "pse_submit",
@@ -239,29 +374,63 @@ export const handleSubmit = async (
         expensePositions: formattedPositions,
       },
       expenseItemFiles: {
-        expenseFiles: [],
+        expenseFiles: uploadedFiles.map(element => ({
+          fileType: element.fileType,
+          fileUrl: element.fileUrl,
+          fileName: element.fileName
+        })),
       },
     };
 
-    console.log("Submitting data:", submitData);
+    let operationSuccessful = false;
+    
+    if (flowProcessId && taskId && taskName && hasExpenseRequest && accessToken) {
+      try {
+        const userId = userInfo?.id || "2999c7b5-1b62-4887-ae86-2efb10909246";
+        await completeTaskFlow(
+          accessToken,
+          userId,
+          flowProcessId as string,
+          taskName as string,
+          taskId as string,
+          submitData
+        );
+        operationSuccessful = true;
+      } catch (completeError) {
+        showToast(
+          t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
+          "error"
+        );
+      }
+    }
 
+    if(accessToken && employeeId && !hasExpenseRequest){
+      try {
+        dispatchProcessContinueEvent('pse_submit', submitData);
+        // operationSuccessful = true;
+      } catch (processError) {
+        showToast(
+          t("lowcoder:create_expense_type_item.error_flows", "Error in expense approval process"),
+          "error"
+        );
+      }
+    }
 
-    message.success(
-      t("expense_item.success_message", "Expense item created successfully!")
-    );
+    if (operationSuccessful) {
+      showToast(
+        t("lowcoder:create_expense_type_item.created_item_notification_message", "Expense item created successfully!"),
+        "success"
+      );
 
-
-    form.resetFields();
-    setPositions([DEFAULT_POSITION]);
-    setFileList([]);
-    setCurrentStep("start");
+      form.resetFields();
+      setPositions([DEFAULT_POSITION]);
+      setFileList([]);
+      setCurrentStep("start");
+    }
   } catch (error) {
-    console.error("Submit error:", error);
-    message.error(
-      t(
-        "expense_item.error_message",
-        "Failed to create expense item. Please try again."
-      )
+    showToast(
+      t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
+      "error"
     );
   } finally {
     setLoading(false);

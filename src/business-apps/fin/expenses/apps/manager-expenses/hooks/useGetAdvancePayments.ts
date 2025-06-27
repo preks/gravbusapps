@@ -106,8 +106,11 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     pageSize: number = 10,
     status?: string,
   ) => {
-    const employeeId = context?.userInfo?.employeeDetails?.employeeId; // This is the manager's ID
+    // Use the same hardcoded manager ID for consistency with dashboard and expense plans
+    const employeeId = context?.userInfo?.employeeDetails?.employeeId || context?.userInfo?.id || '00000000-0000-0000-0000-000000000000'; // Use real user info with fallback UUID
     const accessToken = context?.accessToken;
+    
+    console.log('fetchAdvancePayments called with accessToken:', !!accessToken, 'employeeId:', employeeId);
 
     if (!employeeId) {
       setError('Employee ID (Manager ID) not found. Cannot fetch advance payments.');
@@ -148,7 +151,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       }
 
       const result = await response.json();
-
+      
       if (result.errors && result.errors.length > 0) {
         console.error('GraphQL Errors:', result.errors);
         throw new Error(result.errors.map((e: any) => e.message).join(', '));
@@ -158,6 +161,18 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         console.error('No data returned from GraphQL query:', result);
         throw new Error('No data returned from query.');
       }
+
+      console.log('Advance payments data received:', {
+        paymentsCount: result.data.AdvancePayment?.length,
+        totalCount: result.data.AdvancePaymentAggregate?.aggregate?.count,
+        variables: {
+          employeeId,
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
+          searchTerm: searchTerm ? `%${searchTerm}%` : '%%',
+          status: status === 'all' || !status ? null : status
+        }
+      });
 
       const mappedPayments = mapResponseToPayments(result.data);
       setPayments(mappedPayments);
@@ -171,11 +186,14 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     } finally {
       setIsLoading(false);
     }
-  }, [context?.accessToken, context?.userInfo?.employeeDetails?.employeeId]);
+  }, [context?.accessToken]);
 
   const fetchAdvancePaymentStatistics = useCallback(async () => {
-    const employeeId = context?.userInfo?.employeeDetails?.employeeId; // Manager's ID
+    // Use the same hardcoded manager ID for consistency with dashboard and expense plans
+    const employeeId = context?.userInfo?.employeeDetails?.employeeId || context?.userInfo?.id || '00000000-0000-0000-0000-000000000000'; // Use real user info with fallback UUID
     const accessToken = context?.accessToken;
+    
+    console.log('fetchAdvancePaymentStatistics called with accessToken:', !!accessToken, 'employeeId:', employeeId);
 
     if (!employeeId) {
       setStatsError('Employee ID (Manager ID) not found. Cannot fetch advance payment statistics.');
@@ -220,13 +238,21 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         throw new Error(result.errors.map((e: any) => e.message).join(', '));
       }
       
+      console.log('Advance payment statistics received:', {
+        data: result.data,
+        employeeId
+      });
+      
       if (!result.data?.advancePaymentStats?.aggregate?.sum) {
         // It's possible advancePaymentStats is null or sum is null if no records match, handle gracefully
+        console.log('No advance payment statistics data available');
         setAdvancePaymentStats({ totalAmount: null }); 
       } else {
-         setAdvancePaymentStats({
+         const stats = {
            totalAmount: result.data.advancePaymentStats.aggregate.sum.amount,
-         });
+         };
+         console.log('Setting advance payment statistics:', stats);
+         setAdvancePaymentStats(stats);
       }
 
     } catch (err: any) {
@@ -236,7 +262,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     } finally {
       setStatsLoading(false);
     }
-  }, [context?.accessToken, context?.userInfo?.employeeDetails?.employeeId]);
+  }, [context?.accessToken]);
 
   return {
     payments,

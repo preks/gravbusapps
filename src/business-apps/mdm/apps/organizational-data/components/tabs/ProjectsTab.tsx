@@ -1,147 +1,121 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, message, Modal, Form, Select, Tag, DatePicker } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ProjectOutlined } from '@ant-design/icons';
+import { 
+  Table, 
+  Button, 
+  Space, 
+  Typography, 
+  message, 
+  Modal, 
+  Form, 
+  Select, 
+  Tag, 
+  Input,
+  Spin,
+  Alert,
+  Tooltip,
+  Descriptions,
+  Divider,
+  Progress,
+  Card,
+  Statistic,
+  Pagination
+} from 'antd';
+import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
+import { 
+  PlusOutlined, 
+  EditOutlined, 
+  DeleteOutlined, 
+  ProjectOutlined,
+  CalendarOutlined,
+  FilterOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  WarningOutlined,
+  TeamOutlined,
+  BuildOutlined,
+  ApartmentOutlined,
+  LinkOutlined,
+  InfoCircleOutlined,
+  FileTextOutlined,
+  IdcardOutlined
+} from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import dayjs from 'dayjs';
+import { useDebounce } from '@/common/hooks/useDebounce';
+import { useProjects } from '../../hooks';
+import { Project } from '../../types';
 
-const { Title } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
-const { RangePicker } = DatePicker;
-
-export interface Project {
-  id: string;
-  name: string;
-  code: string;
-  description?: string;
-  status: 'Active' | 'Planned' | 'Completed' | 'On Hold' | 'Cancelled';
-  startDate?: string;
-  endDate?: string;
-  clientName?: string;
-  projectManager: string;
-  department: string;
-  budget?: number;
-  billable: boolean;
-  priority: 'Low' | 'Medium' | 'High' | 'Critical';
-}
 
 export interface ProjectsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
-// Mock data for demonstration
-const mockProjects: Project[] = [
-  {
-    id: '1',
-    name: 'XING Platform Redesign',
-    code: 'XPR-2024',
-    description: 'Complete redesign of the XING platform with modern UI/UX',
-    status: 'Active',
-    startDate: '2024-01-15',
-    endDate: '2024-06-30',
-    clientName: 'Internal',
-    projectManager: 'Sarah Johnson',
-    department: 'Engineering',
-    budget: 250000,
-    billable: false,
-    priority: 'High'
-  },
-  {
-    id: '2',
-    name: 'kununu Mobile App',
-    code: 'KMA-2024',
-    description: 'Development of native mobile application for kununu',
-    status: 'Active',
-    startDate: '2024-02-01',
-    endDate: '2024-08-31',
-    clientName: 'Internal',
-    projectManager: 'Michael Chen',
-    department: 'Product',
-    budget: 180000,
-    billable: false,
-    priority: 'High'
-  },
-  {
-    id: '3',
-    name: 'Client API Integration',
-    code: 'CAI-2024',
-    description: 'Integration of third-party APIs for enterprise clients',
-    status: 'Planned',
-    startDate: '2024-04-01',
-    endDate: '2024-07-31',
-    clientName: 'Enterprise Solutions AG',
-    projectManager: 'Lisa Weber',
-    department: 'Engineering',
-    budget: 120000,
-    billable: true,
-    priority: 'Medium'
-  },
-  {
-    id: '4',
-    name: 'Data Analytics Platform',
-    code: 'DAP-2024',
-    description: 'Development of internal data analytics and reporting platform',
-    status: 'Active',
-    startDate: '2024-01-01',
-    endDate: '2024-05-31',
-    clientName: 'Internal',
-    projectManager: 'Robert Schmidt',
-    department: 'Data Science',
-    budget: 200000,
-    billable: false,
-    priority: 'Medium'
-  },
-  {
-    id: '5',
-    name: 'Security Audit & Compliance',
-    code: 'SAC-2023',
-    description: 'Comprehensive security audit and GDPR compliance implementation',
-    status: 'Completed',
-    startDate: '2023-09-01',
-    endDate: '2023-12-31',
-    clientName: 'Internal',
-    projectManager: 'Anna Müller',
-    department: 'Security',
-    budget: 80000,
-    billable: false,
-    priority: 'Critical'
-  },
-  {
-    id: '6',
-    name: 'Customer Portal Enhancement',
-    code: 'CPE-2024',
-    description: 'Enhancement of existing customer portal with new features',
-    status: 'On Hold',
-    startDate: '2024-03-01',
-    endDate: '2024-09-30',
-    clientName: 'Various Clients',
-    projectManager: 'Thomas Bauer',
-    department: 'Customer Success',
-    budget: 150000,
-    billable: true,
-    priority: 'Low'
-  }
-];
-
 const ProjectsTab: React.FC<ProjectsTabProps> = ({ 
-  prefixDataTestId 
+  prefixDataTestId,
+  ...context
 }) => {
   const { t } = useTranslation();
   
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
-  const [searchTerm, setSearchTerm] = useState('');
+  // Data integration
+  const {
+    projects,
+    isLoading,
+    error,
+    refetch,
+    totalProjects,
+    internalProjects,
+    externalProjects,
+    activeProjects,
+    expiredProjects,
+    expiringProjects,
+    filterProjects,
+    totalCount,
+    currentPage,
+    pageSize,
+    setCurrentPage,
+    setPageSize
+  } = useProjects(context);
+
+  // Local state
+  const [searchInput, setSearchInput] = useState('');
+  const [selectedProjectType, setSelectedProjectType] = useState<'ALL' | 'INTERNAL' | 'EXTERNAL'>('ALL');
+  const [selectedStatus, setSelectedStatus] = useState<'ALL' | 'Active' | 'Expired' | 'Expiring Soon'>('ALL');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
   const [form] = Form.useForm();
 
-  const filteredProjects = projects.filter(project => 
-    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.projectManager.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.department.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Debounce search input
+  const debouncedSearchTerm = useDebounce(searchInput, 300);
+
+  // Filter projects based on search and filters
+  const filteredProjects = useMemo(() => {
+    // With server-side pagination, we only filter the current page results
+    // The full filtered count will be handled by the API
+    return filterProjects(debouncedSearchTerm, selectedProjectType, selectedStatus);
+  }, [filterProjects, debouncedSearchTerm, selectedProjectType, selectedStatus]);
+  
+  // Handle pagination changes
+  const handlePageChange = useCallback((page: number, pageSize?: number) => {
+    setCurrentPage(page);
+    if (pageSize) {
+      setPageSize(pageSize);
+    }
+  }, [setCurrentPage, setPageSize]);
+  
+  const handlePageSizeChange = useCallback((current: number, size: number) => {
+    setPageSize(size);
+    setCurrentPage(1); // Reset to first page when changing page size
+  }, [setPageSize, setCurrentPage]);
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(e.target.value);
+  }, []);
 
   const handleAdd = () => {
     setEditingProject(null);
@@ -153,16 +127,9 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
     setEditingProject(record);
     form.setFieldsValue({
       name: record.name,
-      code: record.code,
       description: record.description,
-      status: record.status,
-      dateRange: record.startDate && record.endDate ? [dayjs(record.startDate), dayjs(record.endDate)] : null,
-      clientName: record.clientName,
-      projectManager: record.projectManager,
-      department: record.department,
-      budget: record.budget,
-      billable: record.billable,
-      priority: record.priority,
+      projectType: record.projectType,
+      validTo: record.validTo,
     });
     setIsModalVisible(true);
   };
@@ -176,8 +143,8 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          setProjects(prev => prev.filter(project => project.id !== record.id));
-          message.success('Project deleted successfully');
+          // TODO: Implement delete API call when process API is available
+          message.success('Project deletion requested - this will be implemented with process API');
         } catch (error) {
           console.error('Error deleting project:', error);
           message.error('Failed to delete project');
@@ -190,36 +157,12 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
     try {
       const values = await form.validateFields();
       
-      // Handle date range
-      const dateRange = values.dateRange;
-      const startDate = dateRange?.[0]?.format('YYYY-MM-DD');
-      const endDate = dateRange?.[1]?.format('YYYY-MM-DD');
-      
-      const projectData = {
-        ...values,
-        startDate,
-        endDate,
-        dateRange: undefined, // Remove the dateRange field
-      };
-      
       if (editingProject) {
-        // Update existing project
-        setProjects(prev => 
-          prev.map(project => 
-            project.id === editingProject.id 
-              ? { ...project, ...projectData }
-              : project
-          )
-        );
-        message.success('Project updated successfully');
+        // TODO: Implement update API call when process API is available
+        message.success('Project update requested - this will be implemented with process API');
       } else {
-        // Create new project
-        const newProject: Project = {
-          id: Date.now().toString(),
-          ...projectData
-        };
-        setProjects(prev => [...prev, newProject]);
-        message.success('Project created successfully');
+        // TODO: Implement create API call when process API is available
+        message.success('Project creation requested - this will be implemented with process API');
       }
       
       setIsModalVisible(false);
@@ -237,32 +180,17 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Active': return 'green';
-      case 'Planned': return 'blue';
-      case 'Completed': return 'purple';
-      case 'On Hold': return 'orange';
-      case 'Cancelled': return 'red';
+      case 'Expired': return 'red';
+      case 'Expiring Soon': return 'orange';
       default: return 'default';
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'Critical': return 'red';
-      case 'High': return 'orange';
-      case 'Medium': return 'blue';
-      case 'Low': return 'green';
-      default: return 'default';
-    }
+  const getProjectTypeColor = (type: string) => {
+    return type === 'INTERNAL' ? 'blue' : 'purple';
   };
 
   const columns = [
-    {
-      title: 'Code',
-      dataIndex: 'code',
-      key: 'code',
-      width: 120,
-      sorter: (a: Project, b: Project) => a.code.localeCompare(b.code),
-    },
     {
       title: 'Project Name',
       dataIndex: 'name',
@@ -271,68 +199,85 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
       render: (name: string, record: Project) => (
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <ProjectOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-          <span style={{ fontWeight: 'bold' }}>{name}</span>
+          <div>
+            <div style={{ fontWeight: 'bold' }}>{name}</div>
+            {record.description && (
+              <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                {record.description.length > 50 
+                  ? `${record.description.substring(0, 50)}...` 
+                  : record.description
+                }
+              </div>
+            )}
+          </div>
         </div>
       ),
     },
     {
-      title: 'Client',
-      dataIndex: 'clientName',
-      key: 'clientName',
-      width: 150,
-      ellipsis: true,
-    },
-    {
-      title: 'Project Manager',
-      dataIndex: 'projectManager',
-      key: 'projectManager',
-      width: 150,
-      ellipsis: true,
-    },
-    {
-      title: 'Department',
-      dataIndex: 'department',
-      key: 'department',
-      width: 120,
+      title: 'Type',
+      dataIndex: 'projectType',
+      key: 'projectType',
+      width: 100,
+      filters: [
+        { text: 'Internal', value: 'INTERNAL' },
+        { text: 'External', value: 'EXTERNAL' },
+      ],
+      onFilter: (value: any, record: Project) => record.projectType === value,
+      render: (type: string) => (
+        <Tag color={getProjectTypeColor(type)}>
+          {type}
+        </Tag>
+      ),
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      width: 100,
-      render: (status: string) => (
-        <Tag color={getStatusColor(status)}>
-          {status}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Priority',
-      dataIndex: 'priority',
-      key: 'priority',
-      width: 100,
-      render: (priority: string) => (
-        <Tag color={getPriorityColor(priority)}>
-          {priority}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Budget',
-      dataIndex: 'budget',
-      key: 'budget',
       width: 120,
-      render: (budget: number) => budget ? `€${budget.toLocaleString()}` : '-',
+      filters: [
+        { text: 'Active', value: 'Active' },
+        { text: 'Expiring Soon', value: 'Expiring Soon' },
+        { text: 'Expired', value: 'Expired' },
+      ],
+      onFilter: (value: any, record: Project) => record.status === value,
+      render: (status: string, record: Project) => (
+        <div>
+          <Tag color={getStatusColor(status)}>
+            {status}
+          </Tag>
+          {record.daysUntilExpiry !== undefined && (
+            <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>
+              {record.daysUntilExpiry > 0 
+                ? `${record.daysUntilExpiry} days left`
+                : `${Math.abs(record.daysUntilExpiry)} days ago`
+              }
+            </div>
+          )}
+        </div>
+      ),
     },
     {
-      title: 'Billable',
-      dataIndex: 'billable',
-      key: 'billable',
-      width: 80,
-      render: (billable: boolean) => (
-        <Tag color={billable ? 'green' : 'gray'}>
-          {billable ? 'Yes' : 'No'}
-        </Tag>
+      title: 'Valid Until',
+      dataIndex: 'formattedValidTo',
+      key: 'validTo',
+      width: 120,
+      sorter: (a: Project, b: Project) => {
+        if (!a.validTo && !b.validTo) return 0;
+        if (!a.validTo) return 1;
+        if (!b.validTo) return -1;
+        return new Date(a.validTo).getTime() - new Date(b.validTo).getTime();
+      },
+      render: (formattedDate: string, record: Project) => (
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {formattedDate ? (
+            <>
+              <CalendarOutlined style={{ marginRight: '4px', color: '#666' }} />
+              <span>{formattedDate}</span>
+            </>
+          ) : (
+            <span style={{ color: '#999', fontStyle: 'italic' }}>No expiry</span>
+          )}
+        </div>
       ),
     },
     {
@@ -341,24 +286,73 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
       width: 120,
       render: (_: any, record: Project) => (
         <Space size="small">
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-            size="small"
-          />
-          <Button
-            type="text"
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            size="small"
-            danger
-          />
+          <Tooltip title="Edit Project">
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+              size="small"
+            />
+          </Tooltip>
+          <Tooltip title="Delete Project">
+            <Button
+              type="text"
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record)}
+              size="small"
+              danger
+            />
+          </Tooltip>
         </Space>
       ),
     },
   ];
 
+  if (isLoading) {
+    return (
+      <div
+        data-testid={`${prefixDataTestId || ''}-ProjectsTab`}
+        style={{ 
+          background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
+          minHeight: '100%',
+          padding: '24px',
+          borderRadius: '8px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}
+      >
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        data-testid={`${prefixDataTestId || ''}-ProjectsTab`}
+        style={{ 
+          background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
+          minHeight: '100%',
+          padding: '24px',
+          borderRadius: '8px'
+        }}
+      >
+        <Alert
+          message="Error Loading Projects"
+          description={error}
+          type="error"
+          showIcon
+          action={
+            <Button size="small" onClick={() => refetch()}>
+              <ReloadOutlined /> Retry
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+console.log('selectedProject', selectedProject)
   return (
     <div
       data-testid={`${prefixDataTestId || ''}-ProjectsTab`}
@@ -369,6 +363,7 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
         borderRadius: '8px'
       }}
     >
+      {/* Header */}
       <div style={{ marginBottom: '24px' }}>
         <div style={{ 
           display: 'flex', 
@@ -376,9 +371,15 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
           alignItems: 'center',
           marginBottom: '16px'
         }}>
-          <Title level={4} style={{ margin: 0, color: '#1f2937' }}>
-            {t('hr.project_management', 'Project Management')}
-          </Title>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <Title level={4} style={{ margin: 0, color: '#1f2937' }}>
+              {t('hr.project_management', 'Project Management')}
+            </Title>
+            <Tag color="blue">{totalProjects} total</Tag>
+            <Tag color="green">{activeProjects} active</Tag>
+            <Tag color="orange">{expiringProjects} expiring</Tag>
+            <Tag color="red">{expiredProjects} expired</Tag>
+          </div>
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -389,39 +390,96 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
           </Button>
         </div>
         
-        <Input
-          placeholder="Search projects..."
-          prefix={<SearchOutlined />}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ maxWidth: '300px' }}
-          allowClear
-          data-testid={`${prefixDataTestId || ''}-ProjectsTab-SearchInput`}
-        />
+        {/* Filters */}
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <Input
+            placeholder="Search projects..."
+            prefix={<SearchOutlined />}
+            value={searchInput}
+            onChange={handleSearchChange}
+            style={{ width: '300px' }}
+            allowClear
+            data-testid={`${prefixDataTestId || ''}-ProjectsTab-SearchInput`}
+          />
+          
+          <Select
+            value={selectedProjectType}
+            onChange={setSelectedProjectType}
+            style={{ width: '140px' }}
+            placeholder="Project Type"
+            suffixIcon={<FilterOutlined />}
+          >
+            <Option value="ALL">All Types</Option>
+            <Option value="INTERNAL">Internal ({internalProjects})</Option>
+            <Option value="EXTERNAL">External ({externalProjects})</Option>
+          </Select>
+          
+          <Select
+            value={selectedStatus}
+            onChange={setSelectedStatus}
+            style={{ width: '160px' }}
+            placeholder="Status"
+            suffixIcon={<FilterOutlined />}
+          >
+            <Option value="ALL">All Status</Option>
+            <Option value="Active">Active ({activeProjects})</Option>
+            <Option value="Expiring Soon">Expiring Soon ({expiringProjects})</Option>
+            <Option value="Expired">Expired ({expiredProjects})</Option>
+          </Select>
+          
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => refetch()}
+            title="Refresh data"
+          >
+            Refresh
+          </Button>
+        </div>
       </div>
 
+      {/* Table */}
       <Table
         columns={columns}
         dataSource={filteredProjects}
         rowKey="id"
-        pagination={{
-          pageSize: 20,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => 
-            `${range[0]}-${range[1]} of ${total} projects`,
-        }}
-        data-testid={`${prefixDataTestId || ''}-ProjectsTab-Table`}
-        style={{ background: 'white', borderRadius: '8px' }}
-        scroll={{ x: 1200 }}
+        bordered
+        size="middle"
+        scroll={{ x: 'max-content' }}
+        loading={isLoading}
+        pagination={false} // Disable default pagination as we're using custom component
+        onRow={(record) => ({
+          onClick: () => {
+            setSelectedProject(record);
+            setDrawerVisible(true);
+          },
+        })}
       />
+      
+      {/* Pagination control */}
+      <div className="gba:flex gba:justify-between gba:mt-4 gba:items-center">
+        <div className="gba:text-sm gba:text-gray-500">
+          Showing {projects.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} entries
+        </div>
+        <Pagination 
+          current={currentPage}
+          pageSize={pageSize}
+          total={totalCount}
+          onChange={handlePageChange}
+          onShowSizeChange={handlePageSizeChange}
+          showSizeChanger
+          showTotal={(total) => `Total ${total} items`}
+          pageSizeOptions={['10', '20', '50', '100']}
+          data-testid={`${prefixDataTestId || ''}-ProjectsTab-Pagination`}
+        />
+      </div>
 
+      {/* Modal for Add/Edit */}
       <Modal
         title={editingProject ? 'Edit Project' : 'Add Project'}
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
-        width={800}
+        width={600}
         data-testid={`${prefixDataTestId || ''}-ProjectsTab-Modal`}
       >
         <Form
@@ -429,24 +487,14 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
           layout="vertical"
           data-testid={`${prefixDataTestId || ''}-ProjectsTab-Form`}
         >
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Form.Item
-              label="Project Name"
-              name="name"
-              rules={[{ required: true, message: 'Please enter project name' }]}
-            >
-              <Input placeholder="Enter project name" />
-            </Form.Item>
-            
-            <Form.Item
-              label="Project Code"
-              name="code"
-              rules={[{ required: true, message: 'Please enter project code' }]}
-            >
-              <Input placeholder="e.g., XPR-2024" />
-            </Form.Item>
-          </div>
-
+          <Form.Item
+            label="Project Name"
+            name="name"
+            rules={[{ required: true, message: 'Please enter project name' }]}
+          >
+            <Input placeholder="Enter project name" />
+          </Form.Item>
+          
           <Form.Item
             label="Description"
             name="description"
@@ -459,104 +507,239 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Form.Item
-              label="Status"
-              name="status"
-              rules={[{ required: true, message: 'Please select status' }]}
+              label="Project Type"
+              name="projectType"
+              rules={[{ required: true, message: 'Please select project type' }]}
             >
-              <Select placeholder="Select status">
-                <Option value="Active">Active</Option>
-                <Option value="Planned">Planned</Option>
-                <Option value="Completed">Completed</Option>
-                <Option value="On Hold">On Hold</Option>
-                <Option value="Cancelled">Cancelled</Option>
+              <Select placeholder="Select project type">
+                <Option value="INTERNAL">Internal</Option>
+                <Option value="EXTERNAL">External</Option>
               </Select>
             </Form.Item>
             
             <Form.Item
-              label="Priority"
-              name="priority"
-              rules={[{ required: true, message: 'Please select priority' }]}
-            >
-              <Select placeholder="Select priority">
-                <Option value="Low">Low</Option>
-                <Option value="Medium">Medium</Option>
-                <Option value="High">High</Option>
-                <Option value="Critical">Critical</Option>
-              </Select>
-            </Form.Item>
-          </div>
-
-          <Form.Item
-            label="Project Duration"
-            name="dateRange"
-          >
-            <RangePicker 
-              style={{ width: '100%' }}
-              placeholder={['Start Date', 'End Date']}
-            />
-          </Form.Item>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Form.Item
-              label="Client Name"
-              name="clientName"
-            >
-              <Input placeholder="e.g., Internal, Client Company" />
-            </Form.Item>
-            
-            <Form.Item
-              label="Project Manager"
-              name="projectManager"
-              rules={[{ required: true, message: 'Please enter project manager' }]}
-            >
-              <Input placeholder="Enter project manager name" />
-            </Form.Item>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Form.Item
-              label="Department"
-              name="department"
-              rules={[{ required: true, message: 'Please select department' }]}
-            >
-              <Select placeholder="Select department">
-                <Option value="Engineering">Engineering</Option>
-                <Option value="Product">Product</Option>
-                <Option value="Design">Design</Option>
-                <Option value="Marketing">Marketing</Option>
-                <Option value="Sales">Sales</Option>
-                <Option value="Data Science">Data Science</Option>
-                <Option value="Security">Security</Option>
-                <Option value="Customer Success">Customer Success</Option>
-                <Option value="HR">Human Resources</Option>
-                <Option value="Finance">Finance</Option>
-              </Select>
-            </Form.Item>
-            
-            <Form.Item
-              label="Budget (€)"
-              name="budget"
+              label="Valid Until"
+              name="validTo"
             >
               <Input 
-                type="number" 
-                placeholder="Enter budget amount"
-                min={0}
+                type="datetime-local"
+                placeholder="Select expiry date (optional)"
               />
             </Form.Item>
           </div>
-          
-          <Form.Item
-            label="Billable"
-            name="billable"
-            valuePropName="checked"
-          >
-            <input type="checkbox" />
-            <span style={{ marginLeft: '8px' }}>This project is billable to client</span>
-          </Form.Item>
         </Form>
+        
+        <Alert
+          message="CRUD Operations"
+          description="Create, Update, and Delete operations will be implemented when the process API is available."
+          type="info"
+          showIcon
+          style={{ marginTop: '16px' }}
+        />
       </Modal>
+      
+      {/* Project Details Drawer */}
+      <DataDetailsDrawer
+        title={selectedProject?.name || 'Project Details'}
+        icon={<ProjectOutlined className="gba:text-blue-500" />}
+        width={450}
+        placement="right"
+        open={drawerVisible}
+        onClose={() => {
+          setDrawerVisible(false);
+          setSelectedProject(null);
+        }}
+        dataTestId={`${prefixDataTestId || ''}-projects-details-drawer`}
+        navigationLinks={selectedProject ? [
+          {
+            label: 'View Tasks & Milestones',
+            url: `/project-management/tasks?projectId=${selectedProject.id}`,
+            icon: <CheckCircleOutlined />,
+            color: "blue",
+            description: "Track project tasks and upcoming milestones",
+            dataTestId: `${prefixDataTestId || ''}-project-tasks-link`
+          },
+          {
+            label: 'View Team Members',
+            url: `/project-management/teams?projectId=${selectedProject.id}`,
+            icon: <TeamOutlined />,
+            color: "green",
+            description: "See all team members and roles assigned to this project",
+            dataTestId: `${prefixDataTestId || ''}-project-teams-link`
+          },
+          {
+            label: 'View Customer Details',
+            url: selectedProject.customerId ? `/customer-management/customers/${selectedProject.customerId}` : '#',
+            icon: <IdcardOutlined />,
+            color: "purple",
+            description: "View details about the customer for this project",
+            dataTestId: `${prefixDataTestId || ''}-project-customer-link`
+          },
+          {
+            label: 'View Project Reports',
+            url: `/project-management/reports?projectId=${selectedProject.id}`,
+            icon: <FileTextOutlined />,
+            color: "cyan",
+            description: "Access project reports and analytics",
+            dataTestId: `${prefixDataTestId || ''}-project-reports-link`
+          }
+        ] : undefined}
+      >
+        {selectedProject && (
+          <div className="gba:space-y-6">
+            {/* Summary Section */}
+            <div className="gba:bg-gray-50 gba:p-4 gba:rounded-lg">
+              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                <Card bordered={false} className="gba:shadow-sm">
+                  <Statistic 
+                    title="Project Type" 
+                    value={selectedProject.projectType} 
+                    valueStyle={{ color: selectedProject.projectType === 'INTERNAL' ? '#1890ff' : '#722ed1' }}
+                    prefix={<BuildOutlined />} 
+                  />
+                </Card>
+                
+                <Card bordered={false} className="gba:shadow-sm">
+                  <Statistic 
+                    title="Status" 
+                    value={selectedProject.status} 
+                    valueStyle={{ 
+                      color: 
+                        selectedProject.status === 'Active' ? '#52c41a' : 
+                        selectedProject.status === 'Expired' ? '#f5222d' : 
+                        '#fa8c16' 
+                    }}
+                    prefix={
+                      selectedProject.status === 'Active' ? <CheckCircleOutlined /> : 
+                      selectedProject.status === 'Expired' ? <WarningOutlined /> : 
+                      <ClockCircleOutlined />
+                    }
+                  />
+                </Card>
+              </div>
+              
+              {selectedProject.daysUntilExpiry !== undefined && (
+                <div className="gba:mt-4">
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <Text className="gba:font-medium">Time Remaining</Text>
+                    <Text 
+                      type={selectedProject.isActive ? undefined : 'danger'}
+                      strong
+                    >
+                      {selectedProject.daysUntilExpiry > 0 
+                        ? `${selectedProject.daysUntilExpiry} days remaining` 
+                        : `Expired ${Math.abs(selectedProject.daysUntilExpiry)} days ago`}
+                    </Text>
+                  </div>
+                  <Progress 
+                    percent={selectedProject.daysUntilExpiry <= 0 ? 100 : 
+                      selectedProject.daysUntilExpiry > 90 ? 25 : 
+                      selectedProject.daysUntilExpiry > 30 ? 50 : 
+                      selectedProject.daysUntilExpiry > 7 ? 75 : 90} 
+                    status={selectedProject.isActive ? "active" : "exception"}
+                    showInfo={false}
+                    className="gba:mt-2" 
+                  />
+                </div>
+              )}
+            </div>
+            
+            {/* Primary Details */}
+            <div>
+              <Divider orientation="left" className="gba:text-gray-500">
+                <InfoCircleOutlined /> Project Information
+              </Divider>
+              
+              <Descriptions bordered column={1} size="small" className="gba:bg-white gba:rounded-md gba:shadow-sm">
+                <Descriptions.Item 
+                  label={<Text strong className="gba:text-gray-600">Project ID</Text>}
+                  className="gba:py-3 gba:px-4"
+                >
+                  <Text copyable className="gba:text-sm gba:font-mono">{selectedProject.id}</Text>
+                </Descriptions.Item>
+                
+                <Descriptions.Item 
+                  label={<Text strong className="gba:text-gray-600">Structure ID</Text>}
+                  className="gba:py-3 gba:px-4"
+                >
+                  <Text copyable className="gba:text-sm gba:font-mono">{selectedProject.structureId || "-"}</Text>
+                </Descriptions.Item>
+
+                {selectedProject.customerId && (
+                  <Descriptions.Item 
+                    label={<Text strong className="gba:text-gray-600">Customer ID</Text>}
+                    className="gba:py-3 gba:px-4"
+                  >
+                    <Text copyable className="gba:text-sm gba:font-mono">{selectedProject.customerId}</Text>
+                  </Descriptions.Item>
+                )}
+                
+                {selectedProject.validTo && (
+                  <Descriptions.Item 
+                    label={<Text strong className="gba:text-gray-600">Valid Until</Text>}
+                    className="gba:py-3 gba:px-4"
+                  >
+                    <Space>
+                      <CalendarOutlined className="gba:text-blue-500" />
+                      <Text>{selectedProject.formattedValidTo || new Date(selectedProject.validTo).toLocaleDateString()}</Text>
+                    </Space>
+                  </Descriptions.Item>
+                )}
+              </Descriptions>
+            </div>
+            
+            {/* Description Section */}
+            {selectedProject.description && (
+              <div className="gba:bg-white gba:p-4 gba:rounded-lg gba:border gba:border-gray-200">
+                <div className="gba:mb-2 gba:flex gba:items-center">
+                  <FileTextOutlined className="gba:mr-2 gba:text-blue-500" />
+                  <Text strong>Description</Text>
+                </div>
+                <Paragraph className="gba:text-gray-600 gba:whitespace-pre-line">
+                  {selectedProject.description}
+                </Paragraph>
+              </div>
+            )}
+            
+            {/* Actions */}
+            <div className="gba:flex gba:justify-between gba:mt-6">
+              <Button 
+                type="default"
+                icon={<EditOutlined />}
+                onClick={() => {
+                  setDrawerVisible(false);
+                  handleEdit(selectedProject);
+                }}
+              >
+                Edit Project
+              </Button>
+              
+              <Button 
+                type="primary" 
+                danger 
+                icon={<DeleteOutlined />}
+                onClick={() => {
+                  setDrawerVisible(false);
+                  handleDelete(selectedProject);
+                }}
+              >
+                Delete Project
+              </Button>
+            </div>
+            
+            {/* Related Information would go here */}
+            <Alert
+              message="Integration Information"
+              description="Additional related resources like teams, employees, and resources will be available when API integration is complete."
+              type="info"
+              showIcon
+              icon={<LinkOutlined />}
+            />
+          </div>
+        )}
+      </DataDetailsDrawer>
     </div>
   );
 };
 
-export { ProjectsTab }; 
+export default ProjectsTab; 

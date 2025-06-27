@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetAdvancePayments } from '../../../hooks/useGetAdvancePayments';
+import { useMainViewAdvancePayments } from '../../../hooks/useMainViewAdvancePayments';
 import AdvancePaymentStatistics from './AdvancePaymentStatistics';
 import AdvancePaymentsTable from './AdvancePaymentsTable';
 
@@ -20,13 +20,16 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
 
-  // Use hook only for statistics with a large page size
+  // Use the new main view hook for advance payments
   const {
-    advancePaymentStats,
+    paymentStats: advancePaymentStats,
     statsLoading,
     statsError,
-    fetchAdvancePaymentStatistics,
-  } = useGetAdvancePayments(contextProps);
+    fetchPaymentStatistics: fetchAdvancePaymentStatistics,
+  } = useMainViewAdvancePayments({
+    ...contextProps,
+    pageSize: 1000, // Large page size for statistics
+  });
   
   // Fetch statistics on component mount
   useEffect(() => {
@@ -52,6 +55,8 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
   const handleSearchChange = (search: string) => {
     setSearchTerm(search);
   };
+
+
 
 
 

@@ -1,0 +1,644 @@
+import { useState, useEffect, useMemo } from 'react';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { GET_EXPENSE_ANALYTICS_DATA } from '../queries/analytics';
+import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+dayjs.extend(weekday);
+dayjs.extend(localeData);
+
+// Define interfaces for analytics data
+interface EmployeePosition {
+  organizationalUnit?: {
+    id: string;
+    name: string;
+  };
+  siteLocation?: {
+    id: string;
+    name: string;
+  };
+}
+
+interface Employee {
+  id: string;
+  fullName: string;
+  employeePosition?: EmployeePosition;
+}
+
+interface ExpensePosition {
+  expenseGroupRef: string;
+}
+
+interface ExpenseItem {
+  id: string;
+  title: string;
+  expenseDate: string;
+  createdAt: string;
+  status: string;
+  totalAmount: number;
+  currencyRef: string;
+  employee: Employee;
+  expensePosition?: ExpensePosition[];
+}
+
+interface ExpenseRequest {
+  id: string;
+  title: string;
+  createdAt: string;
+  status: string;
+  totalAmount: number;
+  currencyRef: string;
+  employee: Employee;
+}
+
+interface ExpensePlan {
+  id: string;
+  title: string;
+  code: string;
+  createdAt: string;
+  status: string;
+  totalAmount: number;
+  currencyRef: string;
+  employee: Employee;
+}
+
+interface AdvancePayment {
+  id: string;
+  code: string;
+  amount: number;
+  status: string;
+  transactionDate: string;
+  createdAt: string;
+  currencyRef: string;
+  expensePlan: {
+    id: string;
+    title: string;
+    employee: Employee;
+  };
+}
+
+interface AnalyticsData {
+  expenseItems: ExpenseItem[];
+  expenseRequests: ExpenseRequest[];
+  expensePlans: ExpensePlan[];
+  advancePayments: AdvancePayment[];
+}
+
+// Define interfaces for processed analytics data
+interface ChartData {
+  name: string;
+  value: number;
+}
+
+interface TimeSeriesData {
+  date: string;
+  value: number;
+}
+
+interface StatusBreakdown {
+  status: string;
+  count: number;
+}
+
+interface OrgUnitBreakdown {
+  orgUnit: string;
+  count: number;
+  amount: number;
+}
+
+interface LocationBreakdown {
+  location: string;
+  count: number;
+  amount: number;
+}
+
+interface ProcessedAnalyticsData {
+  expenseItemsByCategory: ChartData[];
+  expenseItemsByMonth: TimeSeriesData[];
+  expenseItemsByStatus: StatusBreakdown[];
+  expenseRequestsByMonth: TimeSeriesData[];
+  expenseRequestsByStatus: StatusBreakdown[];
+  expensePlansByMonth: TimeSeriesData[];
+  expensePlansByStatus: StatusBreakdown[];
+  advancePaymentsByMonth: TimeSeriesData[];
+  advancePaymentsByStatus: StatusBreakdown[];
+  expensesByOrgUnit: OrgUnitBreakdown[];
+  expensesByLocation: LocationBreakdown[];
+  totalExpenseAmount: number;
+  totalRequestAmount: number;
+  totalPlanAmount: number;
+  totalAdvanceAmount: number;
+}
+
+// Define date range options
+export enum DateRangeOption {
+  LAST_30_DAYS = 'last30Days',
+  LAST_90_DAYS = 'last90Days',
+  LAST_6_MONTHS = 'last6Months',
+  LAST_YEAR = 'lastYear',
+  YEAR_TO_DATE = 'yearToDate',
+  ALL_TIME = 'allTime',
+  CUSTOM = 'custom'
+}
+
+export interface DateRangeValues {
+  startDate: string | null;
+  endDate: string | null;
+}
+
+// Define the filter interfaces
+export interface LocationFilter {
+  id: string;
+  name: string;
+  selected: boolean;
+}
+
+export interface DepartmentFilter {
+  id: string;
+  name: string;
+  selected: boolean;
+}
+
+export const useTeamSpendingAnalytics = (
+  accessToken: string,
+  managerId: string
+) => {
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRangeOption>(DateRangeOption.LAST_30_DAYS);
+  const [customDateRange, setCustomDateRange] = useState<DateRangeValues>({ startDate: null, endDate: null });
+  const [locationFilters, setLocationFilters] = useState<LocationFilter[]>([]);
+  const [departmentFilters, setDepartmentFilters] = useState<DepartmentFilter[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [departmentSearchTerm, setDepartmentSearchTerm] = useState<string>('');
+  const [rawData, setRawData] = useState<AnalyticsData | null>(null);
+  
+  const graphqlClient = useGraphqlClient(accessToken);
+  
+  // Calculate date range based on selected option
+  const dateRangeValues = useMemo(() => {
+    const now = dayjs();
+    let startDate: string | null = null;
+    let endDate = now.format('YYYY-MM-DD');
+    
+    if (dateRange === DateRangeOption.CUSTOM && customDateRange.startDate && customDateRange.endDate) {
+      return {
+        startDate: customDateRange.startDate,
+        endDate: customDateRange.endDate
+      };
+    }
+    
+    switch (dateRange) {
+      case DateRangeOption.LAST_30_DAYS:
+        startDate = now.subtract(30, 'day').format('YYYY-MM-DD');
+        break;
+      case DateRangeOption.LAST_90_DAYS:
+        startDate = now.subtract(90, 'day').format('YYYY-MM-DD');
+        break;
+      case DateRangeOption.LAST_6_MONTHS:
+        startDate = now.subtract(6, 'month').format('YYYY-MM-DD');
+        break;
+      case DateRangeOption.LAST_YEAR:
+        startDate = now.subtract(1, 'year').format('YYYY-MM-DD');
+        break;
+      case DateRangeOption.YEAR_TO_DATE:
+        startDate = now.startOf('year').format('YYYY-MM-DD');
+        break;
+      case DateRangeOption.ALL_TIME:
+        startDate = null; // No start date means all time
+        break;
+      default:
+        startDate = now.subtract(30, 'day').format('YYYY-MM-DD');
+    }
+    
+    return { startDate, endDate };
+  }, [dateRange, customDateRange]);
+  
+  // Fetch analytics data
+  useEffect(() => {
+    const fetchAnalyticsData = async () => {
+      // Validate required parameters
+      if (!accessToken) {
+        console.error('useTeamSpendingAnalytics - Missing accessToken');
+        setError('Missing authentication token');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!managerId || managerId === 'undefined' || managerId === 'null') {
+        console.error('useTeamSpendingAnalytics - Invalid managerId:', managerId);
+        setError('Invalid manager ID');
+        setIsLoading(false);
+        return;
+      }
+      
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // Ensure managerId is properly formatted for the GraphQL query
+        const validManagerId = managerId.trim();
+        
+        const variables = {
+          managerId: validManagerId,
+          startDate: dateRangeValues.startDate,
+          endDate: dateRangeValues.endDate
+        };
+        
+        console.log('useTeamSpendingAnalytics - Fetching data with variables:', variables);
+        
+        const response = await graphqlClient.request(GET_EXPENSE_ANALYTICS_DATA, variables);
+        // Map the snake_case response to our camelCase interface
+        setRawData({
+          expenseItems: response.expenseItems || [],
+          expenseRequests: response.expenseRequests || [],
+          expensePlans: response.expensePlans || [],
+          advancePayments: response.advancePayments || []
+        });
+      } catch (err) {
+        console.error('Error fetching analytics data:', err);
+        setError('Failed to fetch analytics data. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchAnalyticsData();
+  }, [accessToken, managerId, dateRangeValues, graphqlClient]);
+  
+  // Extract unique locations from raw data
+  useEffect(() => {
+    if (!rawData) return;
+    
+    // Extract unique locations from expense items
+    const uniqueLocations = new Map<string, { id: string; name: string }>();
+    
+    // Extract from expense items
+    rawData.expenseItems.forEach(item => {
+      if (item.employee?.employeePosition?.siteLocation?.id && item.employee?.employeePosition?.siteLocation?.name) {
+        const location = item.employee.employeePosition.siteLocation;
+        uniqueLocations.set(location.id, {
+          id: location.id,
+          name: location.name
+        });
+      }
+    });
+    
+    // Extract from expense requests
+    rawData.expenseRequests.forEach(item => {
+      if (item.employee?.employeePosition?.siteLocation?.id && item.employee?.employeePosition?.siteLocation?.name) {
+        const location = item.employee.employeePosition.siteLocation;
+        uniqueLocations.set(location.id, {
+          id: location.id,
+          name: location.name
+        });
+      }
+    });
+    
+    // Extract from expense plans
+    rawData.expensePlans.forEach(item => {
+      if (item.employee?.employeePosition?.siteLocation?.id && item.employee?.employeePosition?.siteLocation?.name) {
+        const location = item.employee.employeePosition.siteLocation;
+        uniqueLocations.set(location.id, {
+          id: location.id,
+          name: location.name
+        });
+      }
+    });
+    
+    // Convert to array and sort by name
+    const locations = Array.from(uniqueLocations.values())
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(location => ({
+        id: location.id,
+        name: location.name,
+        selected: false
+      }));
+    
+    setLocationFilters(locations);
+  }, [rawData]);
+  
+  // Extract unique departments from raw data
+  useEffect(() => {
+    if (!rawData) return;
+    
+    // Extract unique departments from expense items
+    const uniqueDepartments = new Map<string, { id: string; name: string }>();
+    
+    // Extract from expense items
+    rawData.expenseItems.forEach(item => {
+      if (item.employee?.employeePosition?.organizationalUnit?.id && item.employee?.employeePosition?.organizationalUnit?.name) {
+        const department = item.employee.employeePosition.organizationalUnit;
+        uniqueDepartments.set(department.id, {
+          id: department.id,
+          name: department.name
+        });
+      }
+    });
+    
+    // Extract from expense requests
+    rawData.expenseRequests.forEach(item => {
+      if (item.employee?.employeePosition?.organizationalUnit?.id && item.employee?.employeePosition?.organizationalUnit?.name) {
+        const department = item.employee.employeePosition.organizationalUnit;
+        uniqueDepartments.set(department.id, {
+          id: department.id,
+          name: department.name
+        });
+      }
+    });
+    
+    // Extract from expense plans
+    rawData.expensePlans.forEach(item => {
+      if (item.employee?.employeePosition?.organizationalUnit?.id && item.employee?.employeePosition?.organizationalUnit?.name) {
+        const department = item.employee.employeePosition.organizationalUnit;
+        uniqueDepartments.set(department.id, {
+          id: department.id,
+          name: department.name
+        });
+      }
+    });
+    
+    // Convert to array and sort by name
+    const departments = Array.from(uniqueDepartments.values())
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(department => ({
+        id: department.id,
+        name: department.name,
+        selected: false
+      }));
+    
+    setDepartmentFilters(departments);
+  }, [rawData]);
+  
+  // Function to toggle location filter selection
+  const toggleLocationFilter = (locationId: string) => {
+    setLocationFilters(prevFilters => {
+      return prevFilters.map(filter => {
+        if (filter.id === locationId) {
+          return { ...filter, selected: !filter.selected };
+        }
+        return filter;
+      });
+    });
+  };
+
+  // Function to toggle department filter selection
+  const toggleDepartmentFilter = (departmentId: string) => {
+    setDepartmentFilters(prevFilters => {
+      return prevFilters.map(filter => {
+        if (filter.id === departmentId) {
+          return { ...filter, selected: !filter.selected };
+        }
+        return filter;
+      });
+    });
+  };
+
+  // Function to handle search term changes
+  const handleSearchTermChange = (term: string) => {
+    setSearchTerm(term);
+  };
+
+  // Function to handle department search term changes
+  const handleDepartmentSearchTermChange = (term: string) => {
+    setDepartmentSearchTerm(term);
+  };
+  
+  // Filter locations by search term
+  const filteredLocationFilters = useMemo(() => {
+    if (!searchTerm) return locationFilters;
+    
+    return locationFilters.filter(location => 
+      location.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [locationFilters, searchTerm]);
+  
+  // Filter departments by search term
+  const filteredDepartmentFilters = useMemo(() => {
+    if (!departmentSearchTerm) return departmentFilters;
+    
+    return departmentFilters.filter(department => 
+      department.name.toLowerCase().includes(departmentSearchTerm.toLowerCase())
+    );
+  }, [departmentFilters, departmentSearchTerm]);
+  
+  // Process raw data into chart-friendly formats
+  const processedData: ProcessedAnalyticsData | null = useMemo(() => {
+    if (!rawData) return null;
+    
+    // Get selected location IDs for filtering
+    const selectedLocationIds = locationFilters
+      .filter(location => location.selected)
+      .map(location => location.id);
+    
+    // Get selected department IDs for filtering
+    const selectedDepartmentIds = departmentFilters
+      .filter(department => department.selected)
+      .map(department => department.id);
+    
+    // Apply location filters if any are selected
+    const filterByLocation = (items: any[]) => {
+      if (selectedLocationIds.length === 0) return items;
+      
+      return items.filter(item => {
+        const locationId = item.employee?.employeePosition?.siteLocation?.id;
+        return locationId && selectedLocationIds.includes(locationId);
+      });
+    };
+    
+    // Apply department filters if any are selected
+    const filterByDepartment = (items: any[]) => {
+      if (selectedDepartmentIds.length === 0) return items;
+      
+      return items.filter(item => {
+        const departmentId = item.employee?.employeePosition?.organizationalUnit?.id;
+        return departmentId && selectedDepartmentIds.includes(departmentId);
+      });
+    };
+    
+    // Apply filters to all data types
+    const filteredExpenseItems = filterByDepartment(filterByLocation(rawData.expenseItems));
+    const filteredExpenseRequests = filterByDepartment(filterByLocation(rawData.expenseRequests));
+    const filteredExpensePlans = filterByDepartment(filterByLocation(rawData.expensePlans));
+    const filteredAdvancePayments = filterByDepartment(filterByLocation(rawData.advancePayments));
+    
+    // Process expense items by category
+    const categoryMap = new Map<string, number>();
+    filteredExpenseItems.forEach((item: ExpenseItem) => {
+      // Check if expensePosition exists and is an array
+      if (item.expensePosition && Array.isArray(item.expensePosition)) {
+        // Group by expense category
+        const positions = item.expensePosition;
+        if (positions.length > 0) {
+          // Group amounts by category
+          positions.forEach((position: ExpensePosition) => {
+            const category = position.expenseGroupRef || 'Uncategorized';
+            const currentAmount = categoryMap.get(category) || 0;
+            // For array positions, we need to divide the total amount proportionally
+            // Here we're simply dividing equally among positions, which may need refinement
+            const amountPerPosition = (item.totalAmount || 0) / positions.length;
+            categoryMap.set(category, currentAmount + amountPerPosition);
+          });
+        } else {
+          // If no positions, add to uncategorized
+          const currentAmount = categoryMap.get('Uncategorized') || 0;
+          categoryMap.set('Uncategorized', currentAmount + (item.totalAmount || 0));
+        }
+      } else {
+        // If no position, add to uncategorized
+        const currentAmount = categoryMap.get('Uncategorized') || 0;
+        categoryMap.set('Uncategorized', currentAmount + (item.totalAmount || 0));
+      }
+    });
+    
+    const expenseItemsByCategory: ChartData[] = Array.from(categoryMap.entries())
+      .map(([name, value]) => ({
+        name,
+        value
+      }))
+      .sort((a, b) => b.value - a.value); // Sort by value descending
+    
+    // Process time series data
+    const processTimeSeriesData = (items: any[], amountField: string = 'totalAmount') => {
+      if (!Array.isArray(items)) return [];
+      
+      const monthMap = new Map<string, number>();
+      
+      items.forEach(item => {
+        if (!item || !item.createdAt) return;
+        
+        const date = dayjs(item.createdAt).format('YYYY-MM');
+        const currentAmount = monthMap.get(date) || 0;
+        monthMap.set(date, currentAmount + (item[amountField] || 0));
+      });
+      
+      // Sort by date
+      return Array.from(monthMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([date, value]) => ({ date, value }));
+    };
+    
+    // Process data by status
+    const processStatusData = (items: any[]) => {
+      if (!Array.isArray(items)) return [];
+      
+      const statusMap = new Map<string, number>();
+      
+      items.forEach(item => {
+        if (!item) return;
+        
+        const status = item.status || 'Unknown';
+        const currentCount = statusMap.get(status) || 0;
+        statusMap.set(status, currentCount + 1);
+      });
+      
+      return Array.from(statusMap.entries())
+        .map(([status, count]) => ({ status, count }))
+        .sort((a, b) => b.count - a.count);
+    };
+    
+    // Process by organizational unit
+    const orgUnitMap = new Map<string, { count: number; amount: number }>();
+    const processOrgUnitData = (items: any[], amountField: string = 'totalAmount') => {
+      if (!Array.isArray(items)) return;
+      
+      items.forEach(item => {
+        if (!item) return;
+        
+        const employee = item.employee || (item.expensePlan?.employee);
+        if (!employee) return;
+        
+        const orgUnit = employee.employeePosition?.organizationalUnit?.name || 'Unknown';
+        const current = orgUnitMap.get(orgUnit) || { count: 0, amount: 0 };
+        
+        orgUnitMap.set(orgUnit, {
+          count: current.count + 1,
+          amount: current.amount + (item[amountField] || 0)
+        });
+      });
+    };
+    
+    // Process by location
+    const locationMap = new Map<string, { count: number; amount: number }>();
+    const processLocationData = (items: any[], amountField: string = 'totalAmount') => {
+      if (!Array.isArray(items)) return;
+      
+      items.forEach(item => {
+        if (!item) return;
+        
+        const employee = item.employee || (item.expensePlan?.employee);
+        if (!employee) return;
+        
+        const location = employee.employeePosition?.siteLocation?.name || 'Unknown';
+        const current = locationMap.get(location) || { count: 0, amount: 0 };
+        
+        locationMap.set(location, {
+          count: current.count + 1,
+          amount: current.amount + (item[amountField] || 0)
+        });
+      });
+    };
+    
+    // Process all data types
+    processOrgUnitData(filteredExpenseItems);
+    processOrgUnitData(filteredExpenseRequests);
+    processOrgUnitData(filteredExpensePlans);
+    processOrgUnitData(filteredAdvancePayments, 'amount');
+    
+    processLocationData(filteredExpenseItems);
+    processLocationData(filteredExpenseRequests);
+    processLocationData(filteredExpensePlans);
+    processLocationData(filteredAdvancePayments, 'amount');
+    
+    // Calculate totals
+    const totalExpenseAmount = filteredExpenseItems.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+    const totalRequestAmount = filteredExpenseRequests.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+    const totalPlanAmount = filteredExpensePlans.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+    const totalAdvanceAmount = filteredAdvancePayments.reduce((sum, item) => sum + (item.amount || 0), 0);
+    
+    return {
+      expenseItemsByCategory,
+      expenseItemsByMonth: processTimeSeriesData(filteredExpenseItems),
+      expenseItemsByStatus: processStatusData(filteredExpenseItems),
+      expenseRequestsByMonth: processTimeSeriesData(filteredExpenseRequests),
+      expenseRequestsByStatus: processStatusData(filteredExpenseRequests),
+      expensePlansByMonth: processTimeSeriesData(filteredExpensePlans),
+      expensePlansByStatus: processStatusData(filteredExpensePlans),
+      advancePaymentsByMonth: processTimeSeriesData(filteredAdvancePayments, 'amount'),
+      advancePaymentsByStatus: processStatusData(filteredAdvancePayments),
+      expensesByOrgUnit: Array.from(orgUnitMap.entries()).map(([orgUnit, data]) => ({
+        orgUnit,
+        count: data.count,
+        amount: data.amount
+      })),
+      expensesByLocation: Array.from(locationMap.entries()).map(([location, data]) => ({
+        location,
+        count: data.count,
+        amount: data.amount
+      })),
+      totalExpenseAmount,
+      totalRequestAmount,
+      totalPlanAmount,
+      totalAdvanceAmount
+    };
+  }, [rawData]);
+
+  return {
+    isLoading,
+    error,
+    data: processedData,
+    dateRange,
+    setDateRange,
+    customDateRange,
+    setCustomDateRange,
+    locationFilters: filteredLocationFilters,
+    toggleLocationFilter,
+    searchTerm,
+    setSearchTerm: handleSearchTermChange,
+    departmentFilters: filteredDepartmentFilters,
+    toggleDepartmentFilter,
+    departmentSearchTerm,
+    setDepartmentSearchTerm: handleDepartmentSearchTermChange
+  };
+};

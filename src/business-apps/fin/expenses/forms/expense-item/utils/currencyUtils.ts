@@ -48,7 +48,6 @@ export const transformCurrencies = (currencyData: ApiCurrency[]): Currency[] => 
       name: c.value, 
     }));
   } catch (error) {
-    console.error("Error transforming currencies:", error);
     
     const sortedCurrencies = [...currencyData].sort(
       (a: ApiCurrency, b: ApiCurrency) => {

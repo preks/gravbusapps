@@ -251,7 +251,10 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${accessToken}`,
+              'Origin': window.location.origin,
             },
+            credentials: 'include', // Include cookies for CORS requests
+            mode: 'cors', // Explicitly set CORS mode
             body: JSON.stringify({
               query: GET_EXPENSE_ITEMS_BY_EMPLOYEE,
               variables: {

@@ -13,11 +13,11 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
       entries: [
         {
           label: t('hr.employment_types', 'Employment Types'),
-          url: '/mdm/apps/employment-data?tab=employment-types'
+          url: '/platform/mdm/employment-data?tab=employment-types'
         },
         {
           label: t('hr.contract_types', 'Contract Types'),
-          url: '/mdm/apps/employment-data?tab=contract-types'
+          url: '/platform/mdm/employment-data?tab=contract-types'
         }
       ]
     },
@@ -26,9 +26,18 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
       description: t('hr.compensation_data_description', 'Manage compensation bands and salary structures'),
       icon: <RiMoneyDollarCircleLine />,
       entries: [
+        
+        {
+          label: t('hr.pay_grades', 'Pay Grades'),
+          url: '/platform/mdm/compensation-data?tab=pay-grades'
+        },
+        {
+          label: t('hr.career_bands', 'Career Bands'),
+          url: '/platform/mdm/compensation-data?tab=career-bands'
+        },
         {
           label: t('hr.compensation_bands', 'Compensation Bands'),
-          url: '/mdm/apps/compensation-data?tab=compensation-bands'
+          url: '/platform/mdm/compensation-data?tab=compensation-bands'
         }
       ]
     },
@@ -39,19 +48,19 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
       entries: [
         {
           label: t('hr.job_families', 'Job Families'),
-          url: '/mdm/apps/job-structure-data?tab=job-families'
+          url: '/platform/mdm/job-structure-data?tab=job-families'
         },
         {
           label: t('hr.job_levels', 'Job Levels'),
-          url: '/mdm/apps/job-structure-data?tab=job-levels'
+          url: '/platform/mdm/job-structure-data?tab=job-levels'
         },
         {
           label: t('hr.job_functions', 'Job Functions'),
-          url: '/mdm/apps/job-structure-data?tab=job-functions'
+          url: '/platform/mdm/job-structure-data?tab=job-functions'
         },
         {
           label: t('hr.job_profiles', 'Job Profiles'),
-          url: '/mdm/apps/job-structure-data?tab=job-profiles'
+          url: '/platform/mdm/job-structure-data?tab=job-profiles'
         }
       ]
     },
@@ -62,31 +71,31 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
       entries: [
         {
           label: t('hr.companies', 'Companies'),
-          url: '/mdm/apps/organizational-data?tab=companies'
+          url: '/platform/mdm/organizational-data?tab=companies'
         },
         {
           label: t('hr.projects', 'Projects'),
-          url: '/mdm/apps/organizational-data?tab=projects'
+          url: '/platform/mdm/organizational-data?tab=projects'
         },
         {
           label: t('hr.site_locations', 'Site Locations'),
-          url: '/mdm/apps/organizational-data?tab=site-locations'
+          url: '/platform/mdm/organizational-data?tab=site-locations'
         },
         {
           label: t('hr.capabilities', 'Capabilities'),
-          url: '/mdm/apps/organizational-data?tab=capabilities'
+          url: '/platform/mdm/organizational-data?tab=capabilities'
         },
         {
           label: t('hr.cost_centers', 'Cost Centers'),
-          url: '/mdm/apps/organizational-data?tab=cost-centers'
+          url: '/platform/mdm/organizational-data?tab=cost-centers'
         },
         {
           label: t('hr.departments', 'Departments'),
-          url: '/mdm/apps/organizational-data?tab=departments'
+          url: '/platform/mdm/organizational-data?tab=departments'
         },
         {
           label: t('hr.teams', 'Teams'),
-          url: '/mdm/apps/organizational-data?tab=teams'
+          url: '/platform/mdm/organizational-data?tab=teams'
         }
       ]
     }

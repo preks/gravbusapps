@@ -1,177 +1,197 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, message, Modal, Form, Select, Tag } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, BankOutlined } from '@ant-design/icons';
+import { 
+  Tree, 
+  Button, 
+  Input, 
+  Space, 
+  Typography, 
+  message, 
+  Modal, 
+  Form, 
+  Tag, 
+  Spin, 
+  Alert,
+  Tooltip,
+  Empty,
+  Descriptions
+} from 'antd';
+import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
+import { 
+  PlusOutlined, 
+  EditOutlined, 
+  DeleteOutlined, 
+  SearchOutlined, 
+  BankOutlined,
+  ExpandAltOutlined,
+  CompressOutlined,
+  FolderOutlined,
+  FolderOpenOutlined,
+  TeamOutlined,
+  UserOutlined
+} from '@ant-design/icons';
+import type { DataNode } from 'antd/es/tree';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCompanies } from '../../hooks';
+import { Company } from '../../types';
 
-const { Title } = Typography;
-const { Option } = Select;
-
-export interface Company {
-  id: string;
-  name: string;
-  code: string;
-  legalName: string;
-  industry: string;
-  size: string;
-  founded: string;
-  headquarters: string;
-  website?: string;
-  description?: string;
-  status: 'Active' | 'Inactive';
-  legalForm: string;
-  vatId?: string;
-  registrationNumber?: string;
-}
+const { Title, Text } = Typography;
+const { Search } = Input;
 
 export interface CompaniesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
-// Mock data for demonstration
-const mockCompanies: Company[] = [
-  {
-    id: '1',
-    name: 'NEWWORK SE',
-    code: 'NWSE',
-    legalName: 'NEWWORK SE',
-    industry: 'Technology',
-    size: '1000-5000',
-    founded: '2006',
-    headquarters: 'Hamburg, Germany',
-    website: 'https://www.new-work.se',
-    description: 'Leading platform for work and career in the German-speaking region',
-    status: 'Active',
-    legalForm: 'SE (Societas Europaea)',
-    vatId: 'DE123456789',
-    registrationNumber: 'HRB 123456'
-  },
-  {
-    id: '2',
-    name: 'XING GmbH',
-    code: 'XING',
-    legalName: 'XING GmbH',
-    industry: 'Technology',
-    size: '500-1000',
-    founded: '2003',
-    headquarters: 'Hamburg, Germany',
-    website: 'https://www.xing.com',
-    description: 'Professional networking platform',
-    status: 'Active',
-    legalForm: 'GmbH',
-    vatId: 'DE987654321',
-    registrationNumber: 'HRB 654321'
-  },
-  {
-    id: '3',
-    name: 'kununu GmbH',
-    code: 'KUNUNU',
-    legalName: 'kununu GmbH',
-    industry: 'Technology',
-    size: '100-500',
-    founded: '2007',
-    headquarters: 'Vienna, Austria',
-    website: 'https://www.kununu.com',
-    description: 'Employer rating and company culture platform',
-    status: 'Active',
-    legalForm: 'GmbH',
-    vatId: 'AT123456789',
-    registrationNumber: 'FN 123456a'
-  },
-  {
-    id: '4',
-    name: 'honeypot GmbH',
-    code: 'HONEY',
-    legalName: 'honeypot GmbH',
-    industry: 'Technology',
-    size: '50-100',
-    founded: '2015',
-    headquarters: 'Berlin, Germany',
-    website: 'https://www.honeypot.io',
-    description: 'Developer-focused job platform',
-    status: 'Active',
-    legalForm: 'GmbH',
-    vatId: 'DE555666777',
-    registrationNumber: 'HRB 789012'
-  },
-  {
-    id: '5',
-    name: 'XING Events GmbH',
-    code: 'XEVENTS',
-    legalName: 'XING Events GmbH',
-    industry: 'Technology',
-    size: '10-50',
-    founded: '2012',
-    headquarters: 'Hamburg, Germany',
-    website: 'https://www.xing-events.com',
-    description: 'Event management and ticketing platform',
-    status: 'Inactive',
-    legalForm: 'GmbH',
-    vatId: 'DE111222333',
-    registrationNumber: 'HRB 345678'
-  }
-];
-
-const CompaniesTab: React.FC<CompaniesTabProps> = ({ 
-  prefixDataTestId 
-}) => {
+const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
   const { t } = useTranslation();
+  const { prefixDataTestId } = context;
   
-  const [companies, setCompanies] = useState<Company[]>(mockCompanies);
-  const [searchTerm, setSearchTerm] = useState('');
+  const {
+    rootCompanies,
+    allCompanies,
+    expandedIds,
+    isLoading,
+    error,
+    refetch,
+    setExpandedIds,
+    expandToLevel,
+    collapseAll,
+    getCompanyByNodeId,
+    searchCompanies
+  } = useCompanies(context);
+
+  const [searchQuery, setSearchQuery] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
   const [form] = Form.useForm();
 
-  const filteredCompanies = companies.filter(company => 
-    company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    company.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    company.legalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    company.industry.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    company.headquarters.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Convert Company to Ant Design Tree DataNode
+  const convertToTreeData = (companies: Company[]): DataNode[] => {
+    return companies.map(company => ({
+      key: company.nodeId,
+      title: (
+        <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
+          <div className="gba:flex gba:items-center gba:space-x-3">
+            <BankOutlined className="gba:text-blue-500" />
+            <div>
+              <Text strong className="gba:text-base">{company.name}</Text>
+              <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
+                <Tag color="blue" className="gba:text-xs">
+                  {company.code}
+                </Tag>
+                {company.children.length > 0 && (
+                  <Tag color="green" className="gba:text-xs">
+                    {company.children.length} subsidiaries
+                  </Tag>
+                )}
+                <Tag color="orange" className="gba:text-xs">
+                  Level {company.level}
+                </Tag>
+                {company.numberOfAssignedEmployees > 0 && (
+                  <Tag color="purple" className="gba:text-xs" icon={<UserOutlined />}>
+                    {company.numberOfAssignedEmployees} employees
+                  </Tag>
+                )}
+                {company.numberOfChildUnits > 0 && (
+                  <Tag color="cyan" className="gba:text-xs" icon={<TeamOutlined />}>
+                    {company.numberOfChildUnits} units
+                  </Tag>
+                )}
+              </div>
+              {company.description && (
+                <Text type="secondary" className="gba:text-sm gba:block gba:mt-1">
+                  {company.description}
+                </Text>
+              )}
+              {company.parentCompanyName && (
+                <Text type="secondary" className="gba:text-xs gba:block">
+                  Parent: {company.parentCompanyName}
+                </Text>
+              )}
+            </div>
+          </div>
+          <Space size="small" onClick={(e) => e.stopPropagation()}>
+            <Tooltip title="Add Subsidiary">
+              <Button
+                type="text"
+                size="small"
+                icon={<PlusOutlined />}
+                onClick={() => handleAddSubsidiary(company.nodeId)}
+                data-testid={`${prefixDataTestId}-add-subsidiary-${company.nodeId}`}
+              />
+            </Tooltip>
+            <Tooltip title="Edit Company">
+              <Button
+                type="text"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => handleEditCompany(company)}
+                data-testid={`${prefixDataTestId}-edit-company-${company.nodeId}`}
+              />
+            </Tooltip>
+            <Tooltip title="Delete Company">
+              <Button
+                type="text"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => handleDeleteCompany(company)}
+                data-testid={`${prefixDataTestId}-delete-company-${company.nodeId}`}
+              />
+            </Tooltip>
+          </Space>
+        </div>
+      ),
+      icon: company.children.length > 0 
+        ? (expandedIds.has(company.nodeId) ? <FolderOpenOutlined /> : <FolderOutlined />)
+        : <BankOutlined />,
+      children: company.children.length > 0 ? convertToTreeData(company.children) : undefined,
+      isLeaf: company.children.length === 0
+    }));
+  };
 
-  const handleAdd = () => {
+  const handleAddRoot = () => {
     setEditingCompany(null);
     form.resetFields();
     setIsModalVisible(true);
   };
 
-  const handleEdit = (record: Company) => {
-    setEditingCompany(record);
+  const handleAddSubsidiary = (parentNodeId: string) => {
+    setEditingCompany(null);
+    form.resetFields();
+    form.setFieldsValue({ parentNodeId });
+    setIsModalVisible(true);
+  };
+
+  const handleEditCompany = (company: Company) => {
+    setEditingCompany(company);
     form.setFieldsValue({
-      name: record.name,
-      code: record.code,
-      legalName: record.legalName,
-      industry: record.industry,
-      size: record.size,
-      founded: record.founded,
-      headquarters: record.headquarters,
-      website: record.website,
-      description: record.description,
-      status: record.status,
-      legalForm: record.legalForm,
-      vatId: record.vatId,
-      registrationNumber: record.registrationNumber,
+      name: company.name,
+      code: company.code,
+      description: company.description,
+      parentNodeId: company.parentNodeId
     });
     setIsModalVisible(true);
   };
 
-  const handleDelete = async (record: Company) => {
+  const handleDeleteCompany = (company: Company) => {
+    const hasChildren = company.children.length > 0;
+    const title = 'Delete Company';
+    const content = hasChildren
+      ? `Are you sure you want to delete "${company.name}"? This will also delete all subsidiary companies.`
+      : `Are you sure you want to delete company "${company.name}"?`;
+
     Modal.confirm({
-      title: 'Delete Company',
-      content: `Are you sure you want to delete "${record.name}"?`,
+      title,
+      content,
       okText: 'Delete',
       okType: 'danger',
       cancelText: 'Cancel',
       onOk: async () => {
-        try {
-          setCompanies(prev => prev.filter(company => company.id !== record.id));
-          message.success('Company deleted successfully');
-        } catch (error) {
-          console.error('Error deleting company:', error);
-          message.error('Failed to delete company');
-        }
+        message.warning('Delete functionality will be implemented with process API integration');
+        await refetch();
       },
     });
   };
@@ -181,28 +201,15 @@ const CompaniesTab: React.FC<CompaniesTabProps> = ({
       const values = await form.validateFields();
       
       if (editingCompany) {
-        // Update existing company
-        setCompanies(prev => 
-          prev.map(company => 
-            company.id === editingCompany.id 
-              ? { ...company, ...values }
-              : company
-          )
-        );
-        message.success('Company updated successfully');
+        message.warning('Edit company functionality will be implemented with process API integration');
       } else {
-        // Create new company
-        const newCompany: Company = {
-          id: Date.now().toString(),
-          ...values
-        };
-        setCompanies(prev => [...prev, newCompany]);
-        message.success('Company created successfully');
+        message.warning('Add company functionality will be implemented with process API integration');
       }
       
       setIsModalVisible(false);
+      await refetch();
     } catch (error) {
-      console.error('Error saving company:', error);
+      console.error('Error saving:', error);
       message.error('Failed to save company');
     }
   };
@@ -212,294 +219,318 @@ const CompaniesTab: React.FC<CompaniesTabProps> = ({
     form.resetFields();
   };
 
-  const columns = [
-    {
-      title: 'Code',
-      dataIndex: 'code',
-      key: 'code',
-      width: 100,
-      sorter: (a: Company, b: Company) => a.code.localeCompare(b.code),
-    },
-    {
-      title: 'Company Name',
-      dataIndex: 'name',
-      key: 'name',
-      sorter: (a: Company, b: Company) => a.name.localeCompare(b.name),
-      render: (name: string, record: Company) => (
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <BankOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-          <span style={{ fontWeight: 'bold' }}>{name}</span>
-        </div>
-      ),
-    },
-    {
-      title: 'Legal Name',
-      dataIndex: 'legalName',
-      key: 'legalName',
-      ellipsis: true,
-    },
-    {
-      title: 'Industry',
-      dataIndex: 'industry',
-      key: 'industry',
-      width: 120,
-      sorter: (a: Company, b: Company) => a.industry.localeCompare(b.industry),
-    },
-    {
-      title: 'Size',
-      dataIndex: 'size',
-      key: 'size',
-      width: 100,
-    },
-    {
-      title: 'Headquarters',
-      dataIndex: 'headquarters',
-      key: 'headquarters',
-      ellipsis: true,
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status: string) => (
-        <Tag color={status === 'Active' ? 'green' : 'red'}>
-          {status}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 120,
-      render: (_: any, record: Company) => (
-        <Space size="small">
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-            size="small"
-          />
-          <Button
-            type="text"
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            size="small"
-            danger
-          />
-        </Space>
-      ),
-    },
-  ];
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+  };
 
-  return (
-    <div
-      data-testid={`${prefixDataTestId || ''}-CompaniesTab`}
-      style={{ 
-        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-        minHeight: '100%',
-        padding: '24px',
-        borderRadius: '8px'
-      }}
-    >
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: '16px'
-        }}>
-          <Title level={4} style={{ margin: 0, color: '#1f2937' }}>
-            {t('hr.companies_management', 'Companies Management')}
-          </Title>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            data-testid={`${prefixDataTestId || ''}-CompaniesTab-AddButton`}
-          >
-            Add Company
-          </Button>
-        </div>
-        
-        <Input
-          placeholder="Search companies..."
-          prefix={<SearchOutlined />}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ maxWidth: '300px' }}
-          allowClear
-          data-testid={`${prefixDataTestId || ''}-CompaniesTab-SearchInput`}
+  const handleExpand = (expandedKeys: React.Key[]) => {
+    // Directly set the expanded IDs to match the tree component
+    const newExpandedIds = new Set(expandedKeys.map(key => key.toString()));
+    setExpandedIds(newExpandedIds);
+  };
+
+  // Filter tree data based on search
+  const getFilteredTreeData = () => {
+    if (!searchQuery.trim()) {
+      return convertToTreeData(rootCompanies);
+    }
+
+    const matchingCompanies = searchCompanies(searchQuery);
+    const filteredRoots = rootCompanies.filter(root => 
+      matchingCompanies.some(match => 
+        match.nodeId === root.nodeId || match.nodeId.startsWith(root.nodeId)
+      )
+    );
+
+    return convertToTreeData(filteredRoots);
+  };
+
+  if (error) {
+    return (
+      <div className="gba:p-6 gba:text-center">
+        <Alert
+          message="Error Loading Companies"
+          description={error}
+          type="error"
+          showIcon
+          action={
+            <Button size="small" onClick={refetch}>
+              Retry
+            </Button>
+          }
         />
       </div>
+    );
+  }
 
-      <Table
-        columns={columns}
-        dataSource={filteredCompanies}
-        rowKey="id"
-        pagination={{
-          pageSize: 20,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => 
-            `${range[0]}-${range[1]} of ${total} companies`,
-        }}
-        data-testid={`${prefixDataTestId || ''}-CompaniesTab-Table`}
-        style={{ background: 'white', borderRadius: '8px' }}
-      />
+  return (
+    <div className="gba:p-6">
+      <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
+        <div>
+          <Title level={3} className="gba:mb-2">Companies</Title>
+          <Text type="secondary">
+            Manage companies in a hierarchical structure. Companies represent the organizational structure of your business.
+          </Text>
+        </div>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleAddRoot}
+          data-testid={`${prefixDataTestId}-add-root-company`}
+        >
+          Add Root Company
+        </Button>
+      </div>
+
+      <div className="gba:mb-4 gba:flex gba:items-center gba:space-x-4">
+        <Search
+          placeholder="Search companies..."
+          allowClear
+          value={searchQuery}
+          onChange={(e) => handleSearch(e.target.value)}
+          onSearch={handleSearch}
+          style={{ width: 300 }}
+          prefix={<SearchOutlined />}
+        />
+        <Space>
+          <Tooltip title="Expand All Levels">
+            <Button
+              icon={<ExpandAltOutlined />}
+              onClick={() => expandToLevel(3)}
+              data-testid={`${prefixDataTestId}-expand-all`}
+            >
+              Expand All
+            </Button>
+          </Tooltip>
+          <Tooltip title="Collapse All">
+            <Button
+              icon={<CompressOutlined />}
+              onClick={collapseAll}
+              data-testid={`${prefixDataTestId}-collapse-all`}
+            >
+              Collapse All
+            </Button>
+          </Tooltip>
+        </Space>
+        {allCompanies.length > 0 && (
+          <Tag color="blue">{allCompanies.length} companies total</Tag>
+        )}
+      </div>
+
+      <div className="gba:bg-white gba:rounded-lg gba:shadow-sm gba:min-h-96">
+        {rootCompanies.length === 0 && !isLoading ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              <div>
+                <Text type="secondary">No companies found</Text>
+                <div className="gba:mt-2">
+                  <Button type="primary" icon={<PlusOutlined />} onClick={handleAddRoot}>
+                    Create First Company
+                  </Button>
+                </div>
+              </div>
+            }
+          />
+        ) : isLoading ? (
+          <div className="gba:text-center gba:py-8">
+            <Spin size="large" />
+            <div className="gba:mt-4">
+              <Typography.Text>Loading companies...</Typography.Text>
+            </div>
+          </div>
+        ) : (
+          <Tree
+            showIcon
+            showLine={{ showLeafIcon: false }}
+            expandedKeys={Array.from(expandedIds)}
+            onExpand={handleExpand}
+            onSelect={(selectedKeys, info) => {
+              if (selectedKeys.length > 0 && info.node) {
+                // Extract the company key/id from the selected node
+                const nodeKey = selectedKeys[0].toString();
+                // Find the matching company object
+                const company = getCompanyByNodeId(nodeKey);
+                if (company) {
+                  setSelectedCompany(company);
+                  setDrawerVisible(true);
+                }
+              }
+            }}
+            treeData={getFilteredTreeData()}
+            className="gba:companies-tree gba:p-4"
+            blockNode
+          />
+        )}
+      </div>
 
       <Modal
         title={editingCompany ? 'Edit Company' : 'Add Company'}
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
-        width={800}
-        data-testid={`${prefixDataTestId || ''}-CompaniesTab-Modal`}
+        width={600}
+        okText="Save"
+        cancelText="Cancel"
       >
         <Form
           form={form}
           layout="vertical"
-          data-testid={`${prefixDataTestId || ''}-CompaniesTab-Form`}
+          className="gba:mt-4"
         >
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Form.Item
-              label="Company Name"
-              name="name"
-              rules={[{ required: true, message: 'Please enter company name' }]}
-            >
-              <Input placeholder="Enter company name" />
-            </Form.Item>
-            
-            <Form.Item
-              label="Code"
-              name="code"
-              rules={[{ required: true, message: 'Please enter company code' }]}
-            >
-              <Input placeholder="Enter company code" />
-            </Form.Item>
-          </div>
-
           <Form.Item
-            label="Legal Name"
-            name="legalName"
-            rules={[{ required: true, message: 'Please enter legal name' }]}
+            name="name"
+            label="Company Name"
+            rules={[{ required: true, message: 'Please enter company name' }]}
           >
-            <Input placeholder="Enter legal company name" />
+            <Input placeholder="e.g., NEWWORK SE, XING GmbH" />
           </Form.Item>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Form.Item
-              label="Industry"
-              name="industry"
-              rules={[{ required: true, message: 'Please select industry' }]}
-            >
-              <Select placeholder="Select industry">
-                <Option value="Technology">Technology</Option>
-                <Option value="Finance">Finance</Option>
-                <Option value="Healthcare">Healthcare</Option>
-                <Option value="Manufacturing">Manufacturing</Option>
-                <Option value="Retail">Retail</Option>
-                <Option value="Consulting">Consulting</Option>
-                <Option value="Other">Other</Option>
-              </Select>
-            </Form.Item>
-            
-            <Form.Item
-              label="Company Size"
-              name="size"
-              rules={[{ required: true, message: 'Please select company size' }]}
-            >
-              <Select placeholder="Select company size">
-                <Option value="1-10">1-10 employees</Option>
-                <Option value="10-50">10-50 employees</Option>
-                <Option value="50-100">50-100 employees</Option>
-                <Option value="100-500">100-500 employees</Option>
-                <Option value="500-1000">500-1000 employees</Option>
-                <Option value="1000-5000">1000-5000 employees</Option>
-                <Option value="5000+">5000+ employees</Option>
-              </Select>
-            </Form.Item>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Form.Item
-              label="Founded"
-              name="founded"
-            >
-              <Input placeholder="e.g., 2006" />
-            </Form.Item>
-            
-            <Form.Item
-              label="Legal Form"
-              name="legalForm"
-            >
-              <Select placeholder="Select legal form">
-                <Option value="GmbH">GmbH</Option>
-                <Option value="AG">AG</Option>
-                <Option value="SE">SE (Societas Europaea)</Option>
-                <Option value="KG">KG</Option>
-                <Option value="OHG">OHG</Option>
-                <Option value="LLC">LLC</Option>
-                <Option value="Corp">Corporation</Option>
-                <Option value="Other">Other</Option>
-              </Select>
-            </Form.Item>
-          </div>
-
           <Form.Item
-            label="Headquarters"
-            name="headquarters"
+            name="code"
+            label="Company Code"
+            rules={[{ required: true, message: 'Please enter company code' }]}
           >
-            <Input placeholder="e.g., Hamburg, Germany" />
+            <Input placeholder="e.g., NWSE, XING" />
           </Form.Item>
-
-          <Form.Item
-            label="Website"
-            name="website"
-          >
-            <Input placeholder="https://www.example.com" />
-          </Form.Item>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Form.Item
-              label="VAT ID"
-              name="vatId"
-            >
-              <Input placeholder="e.g., DE123456789" />
-            </Form.Item>
-            
-            <Form.Item
-              label="Registration Number"
-              name="registrationNumber"
-            >
-              <Input placeholder="e.g., HRB 123456" />
-            </Form.Item>
-          </div>
           
           <Form.Item
-            label="Description"
             name="description"
+            label="Description"
           >
             <Input.TextArea 
-              placeholder="Enter company description (optional)" 
+              placeholder="Describe this company and its business activities"
               rows={3}
             />
           </Form.Item>
-          
-          <Form.Item
-            label="Status"
-            name="status"
-            rules={[{ required: true, message: 'Please select status' }]}
-          >
-            <Select placeholder="Select status">
-              <Option value="Active">Active</Option>
-              <Option value="Inactive">Inactive</Option>
-            </Select>
+
+          <Form.Item name="parentNodeId" label="Parent Company" hidden>
+            <Input disabled />
           </Form.Item>
         </Form>
       </Modal>
+
+      <DataDetailsDrawer
+        title="Company Details"
+        icon={<BankOutlined className="gba:text-blue-500" />}
+        placement="right"
+        onClose={() => {
+          setDrawerVisible(false);
+          setSelectedCompany(null);
+        }}
+        open={drawerVisible}
+        width={400}
+        dataTestId={`${prefixDataTestId}-company-details-drawer`}
+        navigationLinks={selectedCompany ? [
+          {
+            label: 'View Departments',
+            url: `/organizational-data/departments?companyId=${selectedCompany.id}`,
+            dataTestId: `${prefixDataTestId}-company-departments-link`
+          },
+          {
+            label: 'View Employees',
+            url: `/employee-directory?companyId=${selectedCompany.id}`,
+            dataTestId: `${prefixDataTestId}-company-employees-link`
+          },
+          {
+            label: 'View Job Positions',
+            url: `/job-positions?companyId=${selectedCompany.id}`,
+            dataTestId: `${prefixDataTestId}-company-jobs-link`
+          },
+          {
+            label: 'View Cost Centers',
+            url: `/organizational-data/cost-centers?companyId=${selectedCompany.id}`,
+            dataTestId: `${prefixDataTestId}-company-cost-centers-link`
+          }
+        ] : undefined}
+      >
+        <div className="gba:py-2">
+          <Descriptions layout="vertical" column={1} bordered>
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Company Name</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.name || "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Company Code</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.code || "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Structure ID</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.structureId || "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Assigned Employees</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.numberOfAssignedEmployees ?? "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Assigned Job Positions</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.numberOfAssignedJobPositions ?? "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Open Job Positions</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.numberOfOpenJobPositions ?? "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Total Job Positions</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.numberOfTotalJobPositions ?? "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Child Units</span>}
+              className="gba:py-2 gba:px-4 gba:border-b"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.numberOfChildUnits ?? "-"}
+              </span>
+            </Descriptions.Item>
+            
+            <Descriptions.Item 
+              label={<span className="gba:text-sm gba:font-medium">Company Assigned Units</span>}
+              className="gba:py-2 gba:px-4"
+            >
+              <span className="gba:text-sm">
+                {selectedCompany?.numberOfCompanyAssignedUnits ?? "-"}
+              </span>
+            </Descriptions.Item>
+          </Descriptions>
+        </div>
+      </DataDetailsDrawer>
     </div>
   );
 };
 
-export { CompaniesTab }; 
+export default CompaniesTab; 

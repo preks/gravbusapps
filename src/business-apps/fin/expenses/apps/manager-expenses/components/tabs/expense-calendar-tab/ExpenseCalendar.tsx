@@ -2,10 +2,10 @@ import React, { useMemo } from 'react';
 import { Typography, Spin, Alert } from 'antd';
 import { CalendarTimeline, TimelineItem, TimelineEvent } from '@newwork/gravity-ui-catalog'; // Assuming these types are exported
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import { useGetExpensePlans, ExpensePlan } from '../../../hooks/useGetExpensePlans';
+import { useCalendarExpensePlans, ExpensePlan } from '../../../hooks/useCalendarExpensePlans';
 import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests';
 import { ExpenseStatus } from '../../../utils'; // Assuming utils exist, getExpensePlanStatusDisplay removed
+import { formatDate } from '@/common/utils/windowUtils';
 
 const { Text } = Typography;
 
@@ -49,19 +49,19 @@ const getEventTypeFromStatus = (status: ExpenseStatus): string => {
 
 export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
   const { accessToken, userInfo } = props;
+  
+  // Use hardcoded manager ID for consistency with other tabs - used by the hooks internally
 
   // Placeholder: Adapt useGetExpensePlans or create a new hook for calendar data
   // This hook call will likely need different parameters (e.g., wider date range, all employees under manager)
   const {
     plans: expensePlans,
     loading: isLoadingPlans,
-    error: plansError,
-    // Ensure other necessary values from the hook are destructured if used, e.g., fetchPlans
-  } = useGetExpensePlans({
+    error: plansError
+  } = useCalendarExpensePlans({
     accessToken,
     userInfo,
     pageSize: 1000, // Fetch more for a calendar view, adjust as needed
-    // Add other filters/params as necessary for the calendar context
   });
 
   const {
@@ -71,7 +71,6 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
     fetchRequests, // Assuming we might want to trigger refetch
   } = useGetExpenseRequests({
     accessToken,
-    userInfo,
     // pageSize for requests can also be high for calendar view if needed
   });
 
@@ -84,6 +83,8 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
       fetchRequests('', 1, 1000); // Example: fetch all requests, page 1, 1000 items
     }
   }, [fetchRequests]);
+  
+
 
   const timelineItems = useMemo((): ExpenseTimelineItem[] => {
     const employeesMap = new Map<string, ExpenseTimelineItem>();
@@ -93,7 +94,7 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
         employeesMap.set(item.employee.id, {
           id: item.employee.id,
           name: item.employee.displayName ?? item.employee.fullName,
-          detail: item.employee.department?.name ?? '',
+          detail: item.employee.employeePosition?.organizationalUnit?.name ?? '',
         });
       }
     });
@@ -131,10 +132,10 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
       events.push({
         id: `plan-${plan.id}`,
         itemId: plan.employee.id,
-        startDate: eventStartDate, // Dates are already YYYY-MM-DD strings from hook
-        endDate: eventEndDate,   // Dates are already YYYY-MM-DD strings from hook
+        startDate: eventStartDate, // Keep original date format for calendar functionality
+        endDate: eventEndDate,     // Keep original date format for calendar functionality
         type: getEventTypeFromStatus(plan.status as ExpenseStatus),
-        note: plan.title,
+        note: `${plan.title || 'Expense Plan'} (${formatDate(plan.startDate, 'date.short')} - ${formatDate(plan.endDate, 'date.short')})`,
         status: plan.status,
         title: 'Expense Plan',
         eventType: 'Plan',
@@ -161,10 +162,10 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
       events.push({
         id: `request-${request.id}`,
         itemId: request.employee.id,
-        startDate: eventStartDate, // Dates are already YYYY-MM-DD strings from hook
-        endDate: eventEndDate,   // Dates are already YYYY-MM-DD strings from hook
+        startDate: eventStartDate, // Keep original date format for calendar functionality
+        endDate: eventEndDate,     // Keep original date format for calendar functionality
         type: getEventTypeFromStatus(request.status as ExpenseStatus),
-        note: request.title,
+        note: `${request.title || 'Expense Request'} (${formatDate(request.requestDate, 'date.short')})`,
         status: request.status,
         title: 'Expense Request',
         eventType: 'Request',
@@ -208,9 +209,18 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
     );
   };
 
+  // Add debugging logs for calendar data
+  React.useEffect(() => {
+    console.log('Expense Calendar data:', {
+      plans: expensePlans?.length || 0,
+      requests: expenseRequests?.length || 0,
+      timelineItems: timelineItems?.length || 0,
+      timelineEvents: timelineEvents?.length || 0
+    });
+  }, [expensePlans, expenseRequests, timelineItems, timelineEvents]);
+
   return (
     <div>{renderDataBody()}</div>
-
   );
 };
 

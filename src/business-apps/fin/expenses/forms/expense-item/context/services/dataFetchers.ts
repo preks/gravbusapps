@@ -1,8 +1,8 @@
-import { message } from "antd";
 import { ExpenseType, CustomField } from "../../types";
 import { getNewTypes, getCustomFields, fetchExpenseData } from "../../ExpenseItemQueries";
 import { prepareExpenseRequestsList } from "../../utils/expenseRequestUtils";
 import { getCurrentActiveUserLocale } from "../../../../../../../common/utils/windowUtils";
+import { showToast } from "../../utils/notificationUtils";
 import dayjs from 'dayjs'
 
 export const fetchExpenseTypes = async (
@@ -15,7 +15,6 @@ export const fetchExpenseTypes = async (
 ) => {
   try {
     if (typeof employeeRuleId === "object" || !employeeRuleId) {
-      console.error("Invalid employeeRuleId for fetching expense types");
       return [];
     }
 
@@ -41,7 +40,10 @@ export const fetchExpenseTypes = async (
     });
 
     if (!response?.data?.ExpenseRuleGeneralExpense) {
-      console.error("Invalid response structure for expense types");
+      showToast(
+        t("lowcoder:create_expense_type_item.process_error_expense_types", "Error processing expense types"),
+        "error"
+      );
       return [];
     }
 
@@ -70,8 +72,10 @@ export const fetchExpenseTypes = async (
 
     return expenseTypesList;
   } catch (error) {
-    console.error("Error fetching expense types:", error);
-    message.error(t("expense_item.error_message", "Failed to load expense types"));
+    showToast(
+      t("lowcoder:create_expense_type_item.process_error_expense_types", "Error processing expense types"),
+      "error"
+    );
     return [];
   }
 };
@@ -96,7 +100,10 @@ export const fetchCustomFields = async (
     });
 
     if (!response?.data?.ExpenseRuleOtherInfo) {
-      console.error("Invalid response structure for custom fields");
+      showToast(
+        t("lowcoder:create_expense_type_item.process_error_expense_custom_groups","Error processing custom groups"),
+        "error"
+      );
       return [];
     }
 
@@ -129,8 +136,10 @@ export const fetchCustomFields = async (
 
     return customFieldsList;
   } catch (error) {
-    console.error("Error fetching custom fields:", error);
-    message.error(t("expense_item.error_message", "Failed to load custom fields"));
+    showToast(
+      t("lowcoder:create_expense_type_item.process_error_expense_custom_groups","Error processing custom groups"),
+      "error"
+    );
     return [];
   }
 };
@@ -169,35 +178,41 @@ export const setOnePositionItem = async (
         });
       }
     } catch (error) {
-      console.error('Error setting date field:', error);
     }
   }
 
   const isMultiPosition = item.multiplePositions || (item.expensePosition && item.expensePosition.length > 1);
   setMultiPosition(isMultiPosition);
 
-  if (item.currency?.code) {
+  if (item.currency?.id) {
     form.setFieldsValue({
-      currency: item.currency.code
+      currency: item.currency.id
     });
   }
   
   if (item.expenseRequest) {
- form.setFieldsValue({
+    form.setFieldsValue({
       expenseRequestId: item.expenseRequest.id
     });
-    
-   }
+  }
   
   if (position) {
+    const positionId = `position-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
     const newPosition = {
+      id: positionId,
       expenseGroup: position.expenseGroup?.id,
       expenseType: position.expenseRuleGeneralExpenseId,
       amount: position.totalAmount,
       isReimbursable: position.reimbursable !== undefined ? position.reimbursable : true,
       costCenter: position.costCenter?.id || item.costCenter?.id,
-      customField: position.additionalProperties?.customFields || [],
+      customField: "",
     };
+    if (position.additionalProperties?.customFields && 
+        Array.isArray(position.additionalProperties.customFields) && 
+        position.additionalProperties.customFields.length > 0) {
+      newPosition.customField = position.additionalProperties.customFields[0]?.value || "";
+    }
 
     setPositions([newPosition]);
 
@@ -211,14 +226,19 @@ export const setOnePositionItem = async (
     
     if (position.expenseGroup?.id) {
       try {
-        const positionsForQuery = [{
-          ...newPosition,
-          expenseGroup: position.expenseGroup?.id
-        }];
+        await fetchExpenseTypes(
+          position.expenseGroup.id,
+          [newPosition],
+          employeeRuleId,
+          graphqlClient,
+          setExpenseTypes,
+          t
+        );
+        
         await handleExpenseGroupChange(
           position.expenseGroup.id, 
           0, 
-          positionsForQuery, 
+          [newPosition], 
           setPositions, 
           expenseTypes,
           employeeRuleId, 
@@ -233,10 +253,23 @@ export const setOnePositionItem = async (
             form.setFieldsValue({
               [`expenseType-0`]: position.expenseRuleGeneralExpenseId
             });
+            
+            const updatedPositions = [...form.getFieldValue('positions') || [newPosition]];
+            updatedPositions[0].expenseType = position.expenseRuleGeneralExpenseId;
+            setPositions(updatedPositions);
+            
+            if (newPosition.customField) {
+              form.setFieldsValue({
+                [`customField-0`]: newPosition.customField
+              });
+            }
           }
-        }, 1000); 
+        }, 500); 
       } catch (error) {
-        console.error('Error fetching expense types:', error);
+        showToast(
+          t("lowcoder:create_expense_type_item.process_error_expense_types", "Error processing expense types"),
+          "error"
+        );
       }
     }
   }
@@ -284,7 +317,6 @@ export const setMultiPositionItem = async (
         });
       }
     } catch (error) {
-      console.error('Error setting date field:', error);
     }
   }
 
@@ -292,9 +324,9 @@ export const setMultiPositionItem = async (
   setMultiPosition(true);
 
 
-  if (item.currency?.code) {
+  if (item.currency?.id) {
     form.setFieldsValue({
-      currency: item.currency.code
+      currency: item.currency.id
     });
   }
   
@@ -363,7 +395,10 @@ export const setMultiPositionItem = async (
               form
             );
           } catch (error) {
-            console.error(`Error processing expense group for position ${i}:`, error);
+            showToast(
+              t("lowcoder:create_expense_type_item.process_error_expense_group", "Error processing expense groups"),
+              "error"
+            );
           }
         }
       }
@@ -443,7 +478,7 @@ export const setByEdit = async (
   customFields: { [expenseTypeId: string]: any[] } = {},
   setCustomFields: (fields: any) => void = () => {},
   employeeRuleId: string | null | object = null,
-  t: (key: string, fallback: string) => string = (key, fallback) => fallback,
+  t: (key: string, fallback: string) => string = (_key, fallback) => fallback,
 ) => {
   try {
     const response = await graphqlClient.query({
@@ -491,7 +526,10 @@ export const setByEdit = async (
     
     return response.data;
   } catch (error) {
-    message.error('Failed to load expense data for editing');
+    showToast(
+      t("lowcoder:create_expense_type_item.process_error_data_process","Error processing data"),
+      "error"
+    );
     return null;
   }
 };
@@ -503,10 +541,9 @@ export const addRequests = (
 ) => {
   try {
     if (!requestData || !requestData.data) {
-      console.debug('addRequests: catalogueDataResponse or its data property is undefined');
       setExpenseRequests([{
         id: "0",
-        name: t("create_expense_type_item.none", "None")
+        name: t("lowcoder:create_expense_type_item.none", "None")
       }]);
       return;
     }
@@ -515,15 +552,18 @@ export const addRequests = (
     
     const formattedRequests = prepareExpenseRequestsList(
       expenseRequests,
-      t("create_expense_type_item.none", "None")
+      t("lowcoder:create_expense_type_item.none", "None")
     );
     
     setExpenseRequests(formattedRequests);
   } catch (error) {
-    console.error('Error in addRequests:', error);
+    showToast(
+      t("lowcoder:create_expense_type_item.process_error_expense_requests_fetch", "Error processing expense requests"),
+      "error"
+    );
     setExpenseRequests([{
       id: "0",
-      name: t("create_expense_type_item.none", "None")
+      name: t("lowcoder:create_expense_type_item.none", "None")
     }]);
   }
 };

@@ -1,4 +1,4 @@
-export { default as EmploymentData } from './EmploymentData';
+export { default } from './EmploymentData';
 export { EmploymentData as EmploymentDataComponent } from './EmploymentData';
 export type { EmploymentDataProps } from './EmploymentData';
 export { EmploymentDataTabs } from './EmploymentData';

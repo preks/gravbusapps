@@ -48,24 +48,25 @@ export const SinglePositionComponent: React.FC<
   const { isProcessingFiles, form, handleCurrencyChange } = useExpenseItem();
 
   return (
-    <div>
+    <div data-testid="single-position-container">
       {positions.map((position, index) => (
         <React.Fragment key={index}>
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`expense-group-container-${index}`}>
             <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`expenseGroup-${index}`}
-                rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_expense_group_custom_rule', 'Please select an expense group') }]}
+                rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_expense_group_custom_rule', 'Please select an expense group') }]}
                 style={{ marginBottom: 0 }}
               >
                 <SelectField
                   allowClear
                   label={t(
-                    "create_expense_item.change_expense_item_container.current_expense_group_label",
+                    "lowcoder:create_expense_item.change_expense_item_container.current_expense_group_label",
                     "Expense Group"
                   )}
                   disabled={isProcessingFiles}
                   name="expenseGroup"
+                  data-testid={`expense-group-select-${index}`}
                   data={
                     expenseGroups
                       ? expenseGroups.map((group) => ({
@@ -78,7 +79,7 @@ export const SinglePositionComponent: React.FC<
                     handleExpenseGroupChange(value.value, index);
                   }}
                   placeholder={t(
-                    "create_expense_item.change_expense_item_container.current_expense_group_placeholder",
+                    "lowcoder:create_expense_item.change_expense_item_container.current_expense_group_placeholder",
                     "Select Expense Group"
                   )}
                   value={position.expenseGroup || undefined}
@@ -88,21 +89,22 @@ export const SinglePositionComponent: React.FC<
             </div>
           </div>
 
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`expense-type-container-${index}`}>
             <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`expenseType-${index}`}
-                rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_expense_type_custom_rule', 'Please select an expense type') }]}
+                rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_expense_type_custom_rule', 'Please select an expense type') }]}
                 style={{ marginBottom: 0 }}
               >
                 <SelectField
                   allowClear
                   label={t(
-                    "create_expense_item.change_expense_item_container.current_expense_type_label",
+                    "lowcoder:create_expense_item.change_expense_item_container.current_expense_type_label",
                     "Expense Type"
                   )}
                   disabled={isProcessingFiles || !position.expenseGroup}
                   name="expenseType"
+                  data-testid={`expense-type-select-${index}`}
                   data={
                     position.expenseGroup && expenseTypes[position.expenseGroup]
                       ? expenseTypes[position.expenseGroup].map((type) => ({
@@ -115,7 +117,7 @@ export const SinglePositionComponent: React.FC<
                     handleExpenseTypeChange(value?.value || "", index);
                   }}
                   placeholder={t(
-                    "create_expense_item.change_expense_item_container.current_expense_type_placeholder",
+                    "lowcoder:create_expense_item.change_expense_item_container.current_expense_type_placeholder",
                     "Select Expense Type"
                   )}
                   value={position.expenseType || undefined}
@@ -127,7 +129,7 @@ export const SinglePositionComponent: React.FC<
           {position.expenseType &&
             customFields[position.expenseType] &&
             customFields[position.expenseType].length > 0 && (
-              <div className={`gba:marginBottom16`}>
+              <div className={`gba:marginBottom16`} data-testid={`custom-field-container-${index}`}>
                 <div
                   className={`gba:relativePosition`}
                 >
@@ -135,29 +137,32 @@ export const SinglePositionComponent: React.FC<
                     name={`customField-${index}`}
                     rules={[
                       customFields[position.expenseType][0]?.mandatory 
-                        ? { required: true, message: t('create_expense_item.change_expense_item_container.custom_field_required', 'Please enter a value for this field') }
+                        ? { required: true, message: t('lowcoder:create_expense_type_item.custom_field_default_error_message', 'Please enter a value for this field') }
                         : {}
                     ]}
                     style={{ marginBottom: 0 }}
                   >
                     <InputField
                       name={`customField-${index}`}
+                      data-testid={`custom-field-input-${index}`}
                       label={
                         customFields[position.expenseType][0]?.infoValue ||
                         t(
-                          "create_expense_item.change_expense_item_container.custom_field_label",
+                          "lowcoder:create_expense_type_item.custom_field_default_label",
                           "Custom Field"
                         )
                       }
                       onChange={(field) => {
+                        form.setFieldsValue({ [`customField-${index}`]: field.value });
+                        
                         const updatedPositions = [...positions];
                         updatedPositions[index].customField = field.value as string;
                         setPositions(updatedPositions);
                       }}
-                      placeholder={t(
-                        "create_expense_item.change_expense_item_container.custom_field_placeholder",
-                        "Enter custom field value"
-                      )}
+                      placeholder={t('lowcoder:create_expense_type_item.enter', 'Enter') + ' ' + 
+                        (customFields[position.expenseType][0]?.infoValue || 
+                         t("lowcoder:create_expense_type_item.custom_field_default_label", "Custom Field"))
+                      }
                       required={
                         customFields[position.expenseType][0]?.mandatory || false
                       }
@@ -167,27 +172,28 @@ export const SinglePositionComponent: React.FC<
                 </div>
               </div>
             )}
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`amount-currency-container-${index}`}>
             <div className="gba:amountCurrencyRow">
-              <div className="gba:amountField">
+              <div className="gba:amountField" data-testid={`amount-field-container-${index}`}>
                 <Form.Item
                   name={`amount-${index}`}
-                  rules={[{ required: true, message: t('create_expense_item.change_expense_item_container.current_amount_custom_rule', 'Please enter an amount') }]}
+                  rules={[{ required: true, message: t('lowcoder:create_expense_type_item.amount_error_message', 'Please enter an amount') }]}
                   style={{ marginBottom: 0 }}
                 >
                   <InputField
                     label={t(
-                      "create_expense_item.change_expense_item_container.current_amount_label",
+                      "lowcoder:create_expense_item.change_expense_item_container.current_amount_label",
                       "Amount"
                     )}
                     disabled={isProcessingFiles}
                     name={`amount-${index}`}
+                    data-testid={`amount-input-${index}`}
                     type="number"
                     step="0.01"
                     min="0"
                     className="gba:no-spinner"
                     placeholder={t(
-                      "create_expense_item.change_expense_item_container.current_amount_placeholder",
+                      "lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder",
                       "Enter Amount"
                     )}
                     onChange={(field) => {
@@ -208,22 +214,24 @@ export const SinglePositionComponent: React.FC<
                 </Form.Item>
               </div>
 
-              <div className="gba:currencyField">
+              <div className="gba:currencyField" data-testid={`currency-field-container-${index}`}>
                 <Form.Item
                   name="currency"
                   style={{ marginBottom: 0 }}
+                  rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_currency_custom_rule', 'Please select a currency') }]}
                 >
                   <SelectField
                     label={t(
-                      "create_expense_item.change_expense_item_container.current_currency_label",
+                      "lowcoder:create_expense_item.change_expense_item_container.current_currency_label",
                       "Currency"
                     )}
                     disabled={isProcessingFiles}
                     name="currency"
+                    data-testid={`currency-select-${index}`}
                     isDataSorted={false}
                     allowClear
                     data={currencies.map((currency) => ({
-                      id: currency.code,
+                      id: currency.id,
                       name: currency.code,
                     }))}
                     onChange={(value: any) => {
@@ -234,7 +242,7 @@ export const SinglePositionComponent: React.FC<
                       }
                     }}
                     placeholder={t(
-                      "create_expense_item.change_expense_item_container.current_currency_placeholder",
+                      "lowcoder:create_expense_item.change_expense_item_container.current_currency_placeholder",
                       "Select Currency"
                     )}
                     required={true}
@@ -244,17 +252,18 @@ export const SinglePositionComponent: React.FC<
             </div>
           </div>
 
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`cost-center-container-${index}`}>
             <div className={`gba:relativePosition`}>
               <Form.Item
                 name={`costCenter-${index}`}
-                rules={[{ required: true, message: t('create_expense_request.expense_request_container.current_cost_center_custom_rule', 'Please select a cost center') }]}
+                rules={[{ required: true, message: t('lowcoder:create_expense_request.expense_request_container.current_cost_center_custom_rule', 'Please select a cost center') }]}
                 style={{ marginBottom: 0 }}
               >
                 <SelectField
                   allowClear
                   name="costCenter"
                   disabled={isProcessingFiles}
+                  data-testid={`cost-center-select-${index}`}
                   data={costCenters.map((center) => ({
                     id: center.id,
                     name: center.name,
@@ -265,11 +274,11 @@ export const SinglePositionComponent: React.FC<
                     setPositions(updatedPositions);
                   }}
                   label={t(
-                    "create_expense_request.expense_request_container.current_cost_center_label",
+                    "lowcoder:create_expense_request.expense_request_container.current_cost_center_label",
                     "Cost Center"
                   )}
                   placeholder={t(
-                    "create_expense_request.expense_request_container.current_cost_center_placeholder",
+                    "lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder",
                     "Select Cost Center"
                   )}
                   value={position.costCenter || undefined}
@@ -279,15 +288,16 @@ export const SinglePositionComponent: React.FC<
             </div>
           </div>
 
-          <div className={`gba:marginBottom16`}>
+          <div className={`gba:marginBottom16`} data-testid={`reimbursable-container-${index}`}>
             <div style={{ marginBottom: "16px" }}>
               <Switch
                 label={t(
-                  "create_expense_item.is_reimbursable",
-                  "Is Reimbursable"
+                  "lowcoder:create_expense_type_item.is_reimbursable_solo_switch",
+                  "is reimbursable"
                 )}
                 disabled={isProcessingFiles}
                 name={"isReimbursable" + index}
+                data-testid={`reimbursable-switch-${index}`}
                 value={position.isReimbursable}
                 onChange={(checked) => {
                   const updatedPositions = [...positions];

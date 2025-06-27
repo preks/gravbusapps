@@ -20,6 +20,9 @@ const { Text } = Typography;
 
 // Helper function to format currency values
 const formatCurrency = (value: number): string => {
+  if (typeof value !== 'number') {
+    return '-';
+  }
   return value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
@@ -229,7 +232,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
               if (record.currency?.value) {
                 currencySymbol = record.currency.value === 'European euro' ? '€' : record.currency.value.charAt(0);
               }
-              return `${currencySymbol}${formatCurrency(amount)}`;
+              return `${currencySymbol}${formatCurrency(amount ?? 0)}`;
             }
           },
           {
@@ -251,6 +254,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                 onClick={(e) => e.stopPropagation()}
                 flowData={[
                   {
+                    category: 'Navigations',
                     key: 'view-details',
                     label: 'View Details',
                     onClick: (e?: React.MouseEvent) => {
@@ -259,6 +263,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                     }
                   },
                   {
+                    category: 'Navigations',
                     key: 'view-documents',
                     label: 'View Documents',
                     onClick: (e?: React.MouseEvent) => {
@@ -267,6 +272,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                     }
                   },
                   {
+                    category: 'Actions',
                     key: 'edit',
                     label: 'Edit',
                     onClick: (e?: React.MouseEvent) => {
@@ -317,6 +323,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
         }}
         dataFilterProps={{}}
         hideFilter={true}
+        floatingDetails={true}
         dataBody={renderDataBody()}
         contentBackground="white"
         dataDetails={selectedItem ? {

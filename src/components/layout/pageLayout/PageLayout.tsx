@@ -27,6 +27,7 @@ import { cn } from "../../../common/utils/cn";
 export interface PageLayoutProps {
   headerIcon: React.ReactNode;
   headerLabel: string;
+  headerLabelClassName?: string;
   pageHeaderCenter?: React.ReactNode;
   pageHeaderRight?: React.ReactNode;
   pageController?: React.ReactNode;
@@ -39,6 +40,7 @@ export interface PageLayoutProps {
 export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
   headerIcon,
   headerLabel,
+  headerLabelClassName = "",
   pageHeaderCenter,
   pageHeaderRight,
   pageController,
@@ -58,13 +60,14 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
   // Icon size will be controlled through the parent container size
 
   const labelClasses = cn(
-    "gba:leading-none gba:font-medium gba:self-center",
+    "gba:text-xl gba:font-semibold gba:tracking-tight gba:truncate",
+    headerLabelClassName,
     isDisplay ? "gba:text-4xl gba:font-secondary gba:mb-2" : "gba:text-2xl font-secondary gba:mb-1"
   );
 
   return (
     <div
-      className={`gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:bg-white gba:rounded-xl gba:shadow-md gba:overflow-hidden ${className}`.trim()}
+      className={`gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:bg-white gba:rounded-xl gba:shadow-md gba:overflow-visible ${className}`.trim()}
       style={{ minHeight: "0", minWidth: "0" }}
     >
       <header className="gba:flex gba:flex-col gba:box-border gba:border-b gba:border-gray-200 gba:relative">

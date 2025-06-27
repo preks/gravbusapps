@@ -3,6 +3,8 @@ import { Typography, Button, Descriptions } from 'antd';
 import { CheckOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { formatDate } from '@/common/utils/windowUtils';
+import { formatAmount } from '../../../utils/currencyUtils';
 
 const { Title } = Typography;
 
@@ -73,8 +75,8 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
         <Descriptions.Item label="Title">{payment.title}</Descriptions.Item>
         <Descriptions.Item label="Employee">{payment.employee?.fullName}</Descriptions.Item>
         <Descriptions.Item label="Department">{payment.employee?.department}</Descriptions.Item>
-        <Descriptions.Item label="Request Date">{payment.requestDate}</Descriptions.Item>
-        <Descriptions.Item label="Due Date">{payment.dueDate}</Descriptions.Item>
+        <Descriptions.Item label="Request Date">{payment.requestDate ? formatDate(payment.requestDate, 'date.short') : '-'}</Descriptions.Item>
+        <Descriptions.Item label="Due Date">{payment.dueDate ? formatDate(payment.dueDate, 'date.short') : '-'}</Descriptions.Item>
         {daysRemaining !== null && (
           <Descriptions.Item label="Days Remaining">
             <Typography.Text type={getTextType(daysRemaining)}>
@@ -82,7 +84,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
             </Typography.Text>
           </Descriptions.Item>
         )}
-        <Descriptions.Item label="Amount">€{payment.amount?.toFixed(2)}</Descriptions.Item>
+        <Descriptions.Item label="Amount">€{payment.amount ? formatAmount(payment.amount) : '0,00'}</Descriptions.Item>
         <Descriptions.Item label="Purpose">{payment.purpose ?? 'No purpose provided'}</Descriptions.Item>
         <Descriptions.Item label="Description">{payment.description ?? 'No description provided'}</Descriptions.Item>
       </Descriptions>
@@ -92,7 +94,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
           <Title level={5} className="gba:mb-2">Approval Information</Title>
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="Approved By">{payment.approvedBy ?? 'Unknown'}</Descriptions.Item>
-            <Descriptions.Item label="Approved Date">{payment.approvedDate}</Descriptions.Item>
+            <Descriptions.Item label="Approved Date">{payment.approvedDate ? formatDate(payment.approvedDate, 'date.short') : '-'}</Descriptions.Item>
             <Descriptions.Item label="Comments">{payment.approvalComments ?? 'No comments'}</Descriptions.Item>
           </Descriptions>
         </div>
@@ -103,7 +105,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
           <Title level={5} className="gba:mb-2">Rejection Information</Title>
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="Rejected By">{payment.rejectedBy}</Descriptions.Item>
-            <Descriptions.Item label="Rejected Date">{payment.rejectedDate}</Descriptions.Item>
+            <Descriptions.Item label="Rejected Date">{payment.rejectedDate ? formatDate(payment.rejectedDate, 'date.short') : '-'}</Descriptions.Item>
             <Descriptions.Item label="Rejection Reason">{payment.rejectionReason ?? 'No reason provided'}</Descriptions.Item>
           </Descriptions>
         </div>
