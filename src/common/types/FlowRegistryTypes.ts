@@ -12,7 +12,11 @@ export enum FlowContextName {
     flowInstance = 'flowInstance',
     taskInstance = 'taskInstance',
     documentPersonal = 'documentPersonal',
-    employeeAbsenceRecord = 'employeeAbsenceRecord'
+    employeeAbsenceRecord = 'employeeAbsenceRecord',
+    employeePerformanceGoal = 'employeePerformanceGoal',
+    employeeGiveFeedback = 'employeeGiveFeedback',
+    employeeRequestFeedback = 'employeeRequestFeedback',
+    employeeSkills = 'employeeSkills'
 }
 
 export type ContextData = {

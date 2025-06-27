@@ -2,8 +2,7 @@
 
 import React from 'react';
 import dayjs from 'dayjs';
-import { Collapse } from 'antd';
-import { CaretRightOutlined } from '@ant-design/icons';
+import { Card } from '@newwork/gravity-ui-catalog';
 import { Employee } from '../../hooks/useEmployeeData';
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
 
@@ -123,9 +122,75 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
 
   const workingHoursData = getWorkingHoursData();
 
-  // Helper function to render data items in a grid
-  const renderDataItems = (data: Array<{label: string; value: string}>, columns = 2) => (
-    <div className={`gba:grid gba:grid-cols-1 ${columns === 2 ? 'md:grid-cols-2' : ''} gba:gap-3 gba:mt-2`}>
+  // Prepare payroll data
+  const getPayrollData = () => {
+    return [
+      {
+        label: "Salary Group",
+        value: employee.employeePosition?.costCenter?.name || ''
+      },
+      {
+        label: "Payment Method",
+        value: 'Direct Deposit'
+      },
+      {
+        label: "Bank Account",
+        value: employee.bankAccounts?.[0]?.iban || ''
+      },
+      {
+        label: "Bank Name",
+        value: employee.bankAccounts?.[0]?.bankName || ''
+      },
+      {
+        label: "Account Holder",
+        value: employee.bankAccounts?.[0]?.accountHolder || ''
+      },
+      {
+        label: "Full-Time Equivalent",
+        value: employee.fullTimeEquivalent?.toString() || ''
+      }
+    ];
+  };
+
+  const payrollData = getPayrollData();
+
+  // Prepare tax information data
+  const getTaxInformationData = () => {
+    const taxDetails = employee.taxDetails?.[0] || {};
+    
+    return [
+      {
+        label: "Tax Number",
+        value: taxDetails.taxNumber || ''
+      },
+      {
+        label: "Tax Identification Number",
+        value: taxDetails.taxIdentificationNumber || ''
+      },
+      {
+        label: "Social Security Number",
+        value: taxDetails.socialSecurityNumber || ''
+      },
+      {
+        label: "Health Insurance",
+        value: taxDetails.healthInsuranceName || ''
+      },
+      {
+        label: "Child Tax Allowance",
+        value: taxDetails.childTaxAllowance?.toString() || ''
+      },
+      {
+        label: "Tax Bracket",
+        value: taxDetails.taxBracketRef || ''
+      }
+    ];
+  };
+
+  const taxInformationData = getTaxInformationData();
+
+  // Helper function to render data items in a grid with 3 columns
+  const renderDataItems = (data: Array<{label: string; value: string}>) => (
+    <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-3 gba:mt-2">
       {data.map((item) => (
         <div 
           key={`${item.label}-${item.value}`} 
@@ -149,7 +214,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
         >
           {getTranslationFromI18nKeyAndLabel(
             "lowcoder:hr_employee.employment_overview",
-            "Employment Overview"
+            "Employment Data"
           )}
         </div>
         <div
@@ -163,56 +228,67 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
         </div>
       </div>
 
-      <Collapse 
-        expandIcon={({ isActive }) => (
-          <CaretRightOutlined rotate={isActive ? 90 : 0} className="gba:text-blue-600" />
-        )}
-        className="gba:bg-white gba:border-0 gba:shadow-sm"
-        defaultActiveKey={['profile', 'conditions', 'hours']}
-        data-testid="employment-accordion"
-      >
-        {/* Employment Profile Section */}
-        <Collapse.Panel 
-          key="profile" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Employment Profile</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6" data-testid="employment-cards">
+        {/* Employment Profile Card */}
+        <Card
+          variant="outlined"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-profile"
         >
-          {renderDataItems(organizationalData, 2)}
-        </Collapse.Panel>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Employment Profile</h3>
+          </div>
+          {renderDataItems(organizationalData)}
+        </Card>
 
-        {/* Working Conditions Section */}
-        <Collapse.Panel 
-          key="conditions" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Working Conditions</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+        {/* Working Conditions Card */}
+        <Card
+          variant="outlined"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-conditions"
         >
-          {renderDataItems(workingConditionsData, 2)}
-        </Collapse.Panel>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Conditions</h3>
+          </div>
+          {renderDataItems(workingConditionsData)}
+        </Card>
 
-        {/* Working Hours Section */}
-        <Collapse.Panel 
-          key="hours" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Working Hours</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+        {/* Working Hours Card */}
+        <Card
+          variant="outlined"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-hours"
         >
-          {renderDataItems(workingHoursData, 2)}
-        </Collapse.Panel>
-      </Collapse>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Hours</h3>
+          </div>
+          {renderDataItems(workingHoursData)}
+        </Card>
+
+        {/* Payroll Card */}
+        <Card
+          variant="outlined"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          data-testid="employment-section-payroll"
+        >
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Payroll</h3>
+          </div>
+          {renderDataItems(payrollData)}
+        </Card>
+
+        {/* Tax Information Card */}
+        <Card
+          variant="outlined"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          data-testid="employment-section-tax"
+        >
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Tax Information</h3>
+          </div>
+          {renderDataItems(taxInformationData)}
+        </Card>
+      </div>
     </div>
   );
 };
