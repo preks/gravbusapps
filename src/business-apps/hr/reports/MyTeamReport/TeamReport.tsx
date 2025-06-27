@@ -1,6 +1,7 @@
 "use client"
 
-import { Card, Button, Checkbox, Input, Tag, Table } from 'antd';
+import { Card, Button, Tag, Table, Input, Checkbox } from 'antd';
+import { KpiCard } from './components';
 import dayjs from 'dayjs';
 import { getEmployeeTenure } from './utils/tenureUtils';
 import {
@@ -10,15 +11,16 @@ import {
   CheckOutlined,
   UpOutlined,
   DownOutlined,
-
   CloseOutlined,
   ClockCircleOutlined,
   SolutionOutlined
 } from '@ant-design/icons';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetEmployeesReport } from './hooks/useGetEmployeesReport';
+import { useTeamReportFilters } from './hooks/useTeamReportFilters';
+import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 
 interface TeamReportProps extends BusinessAppContextProps {}
 type EmployeeUI = {
@@ -143,10 +145,32 @@ function getEmployeeTableColumns(
 }
 
 const TeamReport: React.FC<TeamReportProps> = (props) => {
-
-  // Fetch employee report data using the hook
+  const { accessToken } = props;
+  
+  // Local UI state
   const [pageSize, setPageSize] = useState<number>(20);
-  const report = useGetEmployeesReport({ accessToken: props.accessToken, pageSize });
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [isFiltersVisible, setIsFiltersVisible] = useState<boolean>(false);
+  const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [selectedEmploymentTypes, setSelectedEmploymentTypes] = useState<string[]>([]);
+  
+  // Sidebar filter states
+  const [sidebarSearchTerm, setSidebarSearchTerm] = useState<string>('');
+  const [sidebarLocationSearch, setSidebarLocationSearch] = useState<string>('');
+  const [sidebarEmploymentTypeSearch, setSidebarEmploymentTypeSearch] = useState<string>('');
+  const [sidebarContractTypeSearch, setSidebarContractTypeSearch] = useState<string>('');
+  
+  // Expanded sections states
+  const [isJobPositionExpanded, setIsJobPositionExpanded] = useState<boolean>(true);
+  const [isLocationExpanded, setIsLocationExpanded] = useState<boolean>(true);
+  const [isEmploymentTypeExpanded, setIsEmploymentTypeExpanded] = useState<boolean>(true);
+  
+  // Get employee data
+  const report = useGetEmployeesReport({ accessToken, pageSize });
   const allEmployees = report.allEmployees || [];
 
   // Map all employees to UI structure
@@ -176,23 +200,7 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
   // Debug: Log all employees (non-sensitive)
   console.log('[TeamReport] allEmployeeUIs:', allEmployeeUIs);
 
-  const [activeFilter, setActiveFilter] = useState<string>("all")
-  const [searchTerm, setSearchTerm] = useState("")
-  // Job Position
-  const [selectedPositions, setSelectedPositions] = useState<string[]>([])
-  const [sidebarSearchTerm, setSidebarSearchTerm] = useState("")
-  const [isJobPositionExpanded, setIsJobPositionExpanded] = useState(true)
-  // Location
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([])
-  const [sidebarLocationSearch, setSidebarLocationSearch] = useState("")
-  const [isLocationExpanded, setIsLocationExpanded] = useState(true)
-  // Employment Type
-  const [selectedEmploymentTypes, setSelectedEmploymentTypes] = useState<string[]>([])
-  const [sidebarEmploymentTypeSearch, setSidebarEmploymentTypeSearch] = useState("")
-  const [isEmploymentTypeExpanded, setIsEmploymentTypeExpanded] = useState(true)
-  // Contract Type
   const [selectedContractTypes, setSelectedContractTypes] = useState<string[]>([])
-  const [sidebarContractTypeSearch, setSidebarContractTypeSearch] = useState("")
   const [isContractTypeExpanded, setIsContractTypeExpanded] = useState(true)
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -233,10 +241,6 @@ const TeamReport: React.FC<TeamReportProps> = (props) => {
   });
   // Debug: Log filtered employees (non-sensitive)
   console.log('[TeamReport] filteredEmployees:', filteredEmployees);
-
-  // --- Sorting State ---
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // --- Sorting Logic ---
   const sortEmployees = (
@@ -320,6 +324,7 @@ const filteredContractTypes = uniqueContractTypes.filter((type: string) =>
   (type || "").toLowerCase().includes(sidebarContractTypeSearch.toLowerCase()),
 );
 
+// Function to clear all active filters
 const clearAllFilters = () => {
   setSelectedPositions([])
   setSelectedLocations([])
@@ -331,13 +336,14 @@ const clearAllFilters = () => {
   setSidebarLocationSearch("")
   setSidebarEmploymentTypeSearch("")
   setSidebarContractTypeSearch("")
-} 
+}
 
   // --- Search & Filter Controls (Ant Design & DebouncedInput) ---
-
+  
   const searchFilterBar = (
     <div className="gba:flex gba:gap-4 gba:mb-4 gba:items-center" data-testid="team-report-search-filters">
       <DebouncedInput
+        key={searchTerm === "" ? "empty" : "not-empty"}
         value={searchTerm}
         onChange={setSearchTerm}
         placeholder="Search employees..."
@@ -393,197 +399,128 @@ const clearAllFilters = () => {
 
           {searchFilterBar}
 
-          {/* KPI Tiles - Full Width */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-8">
-            <Card
-              className={`gba:bg-white gba:shadow-sm gba:border-l-4 gba:border-l-blue-500 gba:cursor-pointer gba:transition-all gba:hover:shadow-md ${
-                activeFilter === "all" ? "gba:ring-2 gba:ring-blue-200 gba:bg-blue-50" : ""
-              }`}
+          {/* KPI Tiles - Flex Row */}
+          <div className="gba:flex gba:flex-wrap gba:gap-4 gba:mb-8 gba:w-full">
+            <KpiCard
+              icon={<UserOutlined className="gba:text-blue-500" />}
+              value={allEmployeeUIs.length}
+              label="Total"
+              subLabel="All members"
+              accentColor="blue"
+              active={activeFilter === "all"}
               onClick={() => setActiveFilter("all")}
               data-testid="team-report-kpi-all"
-            >
-              <Card.Meta
-                avatar={<UserOutlined className="gba:text-blue-500" />}
-                title={<span className="gba:text-sm gba:font-medium gba:text-gray-600">Total</span>}
-                className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2"
-              />
-              <div className="gba:px-4 gba:py-2">
-                <div className="gba:text-2xl gba:font-bold gba:text-gray-900">{allEmployeeUIs.length}</div>
-                <p className="gba:text-xs gba:text-gray-500 gba:mt-1">All members</p>
-              </div>
-            </Card>
+              {...props}
+            />
             {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Internal").length > 0 && (
-              <Card
-                className={`gba:bg-white gba:shadow-sm gba:border-l-4 gba:border-l-green-500 gba:cursor-pointer gba:transition-all gba:hover:shadow-md ${
-                  activeFilter === "internal" ? "gba:ring-2 gba:ring-green-200 gba:bg-green-50" : ""
-                }`}
+              <KpiCard
+                icon={<CheckOutlined className="gba:text-green-500" />}
+                value={allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Internal").length}
+                label="Internal"
+                subLabel="Employees"
+                accentColor="green"
+                active={activeFilter === "internal"}
                 onClick={() => setActiveFilter("internal")}
                 data-testid="team-report-kpi-internal"
-              >
-                <Card.Meta
-                  avatar={<CheckOutlined className="gba:text-green-500" />}
-                  title={<span className="gba:text-sm gba:font-medium gba:text-gray-600">Internal</span>}
-                  className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2"
-                />
-                <div className="gba:px-4 gba:py-2">
-                  <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                    {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Internal").length}
-                  </div>
-                  <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Employees</p>
-                </div>
-              </Card>
+                {...props}
+              />
             )}
-
             {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "External").length > 0 && (
-              <Card
-                className={`gba:bg-white gba:shadow-sm gba:border-l-4 gba:border-l-orange-500 gba:cursor-pointer gba:transition-all gba:hover:shadow-md ${
-                  activeFilter === "external" ? "gba:ring-2 gba:ring-orange-200 gba:bg-orange-50" : ""
-                }`}
+              <KpiCard
+                icon={<CheckOutlined className="gba:text-orange-500" />}
+                value={allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "External").length}
+                label="External"
+                subLabel="Workers"
+                accentColor="orange"
+                active={activeFilter === "external"}
                 onClick={() => setActiveFilter("external")}
                 data-testid="team-report-kpi-external"
-              >
-                <Card.Meta
-                  avatar={<CheckOutlined className="gba:text-orange-500" />}
-                  title={<span className="gba:text-sm gba:font-medium gba:text-gray-600">External</span>}
-                  className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2"
-                />
-                <div className="gba:px-4 gba:py-2">
-                  <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                    {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "External").length}
-                  </div>
-                  <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Workers</p>
-                </div>
-              </Card>
+                {...props}
+              />
             )}
-
             {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Contract worker").length > 0 && (
-              <Card
-                className={`gba:bg-white gba:shadow-sm gba:border-l-4 gba:border-l-purple-500 gba:cursor-pointer gba:transition-all gba:hover:shadow-md ${
-                  activeFilter === "contract" ? "gba:ring-2 gba:ring-purple-200 gba:bg-purple-50" : ""
-                }`}
+              <KpiCard
+                icon={<SolutionOutlined className="gba:text-purple-500" />}
+                value={allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Contract worker").length}
+                label="Contract"
+                subLabel="Contractors"
+                accentColor="purple"
+                active={activeFilter === "contract"}
                 onClick={() => setActiveFilter("contract")}
                 data-testid="team-report-kpi-contract"
-              >
-                <Card.Meta
-                  avatar={<SolutionOutlined className="gba:text-purple-500" />}
-                  title={<span className="gba:text-sm gba:font-medium gba:text-gray-600">Contract</span>}
-                  className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2"
-                />
-                <div className="gba:px-4 gba:py-2">
-                  <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                    {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Contract worker").length}
-                  </div>
-                  <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Contractors</p>
-                </div>
-              </Card>
+                {...props}
+              />
             )}
-
             {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Demo" || employee.employmentType === "Test").length > 0 && (
-              <Card
-                className={`gba:bg-white gba:shadow-sm gba:border-l-4 gba:border-l-red-500 gba:cursor-pointer gba:transition-all gba:hover:shadow-md ${
-                  activeFilter === "demo" ? "gba:ring-2 gba:ring-red-200 gba:bg-red-50" : ""
-                }`}
+              <KpiCard
+                icon={<CloseOutlined className="gba:text-red-500" />}
+                value={allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Demo" || employee.employmentType === "Test").length}
+                label="Demo/Test"
+                subLabel="Test users"
+                accentColor="red"
+                active={activeFilter === "demo"}
                 onClick={() => setActiveFilter("demo")}
                 data-testid="team-report-kpi-demo"
-              >
-                <Card.Meta
-                  avatar={<CloseOutlined className="gba:text-red-500" />}
-                  title={<span className="gba:text-sm gba:font-medium gba:text-gray-600">Demo/Test</span>}
-                  className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2"
-                />
-                <div className="gba:px-4 gba:py-2">
-                  <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                    {allEmployeeUIs.filter((employee: EmployeeUI) => employee.employmentType === "Demo" || employee.employmentType === "Test").length}
-                  </div>
-                  <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Test users</p>
-                </div>
-              </Card>
+                {...props}
+              />
             )}
-
-            <Card
-              className={`gba:bg-white gba:shadow-sm gba:border-l-4 gba:border-l-amber-500 gba:cursor-pointer gba:transition-all gba:hover:shadow-md ${activeFilter === "tenure" ? "gba:ring-2 gba:ring-amber-200 gba:bg-amber-50" : ""}`}
+            <KpiCard
+              icon={<ClockCircleOutlined className="gba:text-amber-500" />}
+              value={(() => {
+                // Calculate average tenure in months from allEmployees
+                const getMonths = (tenure: string): number => {
+                  if (tenure === "N/A") return 0;
+                  const match = tenure.match(/(\d+)\s+years?\s+and\s+(\d+)\s+months?/);
+                  if (match) {
+                    return Number.parseInt(match[1]) * 12 + Number.parseInt(match[2]);
+                  }
+                  const monthMatch = tenure.match(/(\d+)\s+months?/);
+                  if (monthMatch) {
+                    return Number.parseInt(monthMatch[1]);
+                  }
+                  return 0;
+                };
+                if (allEmployeeUIs.length === 0) return '0m';
+                const validTenures = allEmployeeUIs
+                  .map(e => getMonths(e.tenure))
+                  .filter(months => months > 0);
+                if (validTenures.length === 0) return '0m';
+                const avg = validTenures.reduce((a, b) => a + b, 0) / validTenures.length;
+                return `${Math.round(avg)}m`;
+              })()}
+              label="Avg. Tenure"
+              subLabel="Average months"
+              accentColor="amber"
+              active={activeFilter === "tenure"}
               onClick={() => setActiveFilter("tenure")}
               data-testid="team-report-kpi-tenure"
-            >
-              <Card.Meta
-                avatar={<ClockCircleOutlined className="gba:text-amber-500" />}
-                title={<span className="gba:text-sm gba:font-medium gba:text-gray-600">Avg. Tenure</span>}
-                className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2"
-              />
-              <div className="gba:px-4 gba:py-2">
-                <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                  {(() => {
-                    // Calculate average tenure in months from allEmployees
-const getMonths = (tenure: string): number => {
-  if (tenure === "N/A") return 0;
-  const match = tenure.match(/(\d+)\s+years?\s+and\s+(\d+)\s+months?/);
-  if (match) {
-    return Number.parseInt(match[1]) * 12 + Number.parseInt(match[2]);
-  }
-  const monthMatch = tenure.match(/(\d+)\s+months?/);
-  if (monthMatch) {
-    return Number.parseInt(monthMatch[1]);
-  }
-  return 0;
-};
-
-// If tenure sorting is needed, add it directly to filteredEmployees before slicing for pagination, e.g.:
-// const sortedEmployees = [...filteredEmployees].sort((a, b) => getMonths(b.tenure) - getMonths(a.tenure));
-// const paginatedEmployees = sortedEmployees.slice(...)
-// For now, we use filteredEmployees directly for pagination.
-                  if (allEmployeeUIs.length === 0) return '0m';
-                    const validTenures = allEmployeeUIs
-                      .map(e => getMonths(e.tenure))
-                      .filter(months => months > 0);
-                    if (validTenures.length === 0) return '0m';
-                    const avg = validTenures.reduce((a, b) => a + b, 0) / validTenures.length;
-                    return `${Math.round(avg)}m`;
-                  })()}
-                </div>
-                <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Average months</p>
-              </div>
-            </Card>
-
+              {...props}
+            />
             {allEmployeeUIs.filter((employee: EmployeeUI) => employee.contractType?.toLowerCase().includes("full time")).length > 0 && (
-              <Card
-                className={`bg-white shadow-sm border-l-4 border-l-teal-500 cursor-pointer transition-all hover:shadow-md ${
-                  activeFilter === "fulltime" ? "ring-2 ring-teal-200 bg-teal-50" : ""
-                }`}
+              <KpiCard
+                icon={<SolutionOutlined className="gba:text-teal-500" />}
+                value={allEmployeeUIs.filter((employee: EmployeeUI) => employee.contractType?.toLowerCase().includes("full time")).length}
+                label="Full Time"
+                subLabel="Full-time"
+                accentColor="teal"
+                active={activeFilter === "fulltime"}
                 onClick={() => setActiveFilter("fulltime")}
-              >
-                <Card.Meta
-                  avatar={<SolutionOutlined className="gba:text-teal-500" />}
-                  title={<span className="gba:text-sm gba:font-medium gba:text-gray-600">Full Time</span>}
-                  className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2"
-                />
-                <div className="gba:px-4 gba:py-2">
-                  <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                    {allEmployeeUIs.filter((employee: EmployeeUI) => employee.contractType?.toLowerCase().includes("full time")).length}
-                  </div>
-                  <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Full-time</p>
-                </div>
-              </Card>
+                data-testid="team-report-kpi-fulltime"
+                {...props}
+              />
             )}
-
             {allEmployeeUIs.filter((employee: EmployeeUI) => employee.contractType?.toLowerCase().includes("part time")).length > 0 && (
-              <Card
-                className={`bg-white shadow-sm border-l-4 border-l-indigo-500 cursor-pointer transition-all hover:shadow-md ${
-                  activeFilter === "parttime" ? "ring-2 ring-indigo-200 bg-indigo-50" : ""
-                }`}
+              <KpiCard
+                icon={<ClockCircleOutlined className="gba:text-indigo-500" />}
+                value={allEmployeeUIs.filter((employee: EmployeeUI) => employee.contractType?.toLowerCase().includes("part time")).length}
+                label="Part Time"
+                subLabel="Part-time"
+                accentColor="indigo"
+                active={activeFilter === "parttime"}
                 onClick={() => setActiveFilter("parttime")}
-              >
-                <Card.Meta
-                  avatar={<ClockCircleOutlined className="gba:text-indigo-500" />}
-                  title={<span className="gba:text-sm gba:font-medium gba:text-gray-600">Part Time</span>}
-                  className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-2"
-                />
-                <div className="gba:px-4 gba:py-2">
-                  <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                    {allEmployeeUIs.filter((employee: EmployeeUI) => employee.contractType?.toLowerCase().includes("part time")).length}
-                  </div>
-                  <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Part-time</p>
-                </div>
-              </Card>
+                data-testid="team-report-kpi-parttime"
+                {...props}
+              />
             )}
           </div>
         </div>
@@ -818,16 +755,15 @@ const getMonths = (tenure: string): number => {
         )}
 
         {/* Main Content Area */}
-        <div>
+        {/* <div>
           <SearchOutlined className="gba:absolute gba:left-3 gba:top-1/2 -gba:translate-y-1/2 gba:text-gray-400 gba:h-4 gba:w-4" />
           <Input
             placeholder="Search in My Team"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="gba:pl-10 gba:bg-gray-100 gba:border-0 gba:rounded-full"
-            data-testid="team-report-search-input"
           />
-        </div>
+        </div> */}
 
           {/* Active Filters Display */}
           {hasActiveFilters && (
@@ -866,9 +802,12 @@ const getMonths = (tenure: string): number => {
                   closeIcon={
                     <CloseOutlined className="gba:h-3 gba:w-3 gba:cursor-pointer" />
                   }
-                  onClose={() => setSearchTerm("")}
+                  onClose={e => {
+                      e.preventDefault();
+                      setSearchTerm("");
+                  }}
                 >
-                  {searchTerm}
+                  Search: {searchTerm}
                 </Tag>
               )}
             </div>
