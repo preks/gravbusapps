@@ -27,7 +27,7 @@ export class AuthorizationClient extends RestClient {
   private constructor() {
     // Using the base URL from environment variables
     // Strip '/api/v1' from the permissions API URL to get the base URL
-    const permissionsApiUrl = env('NEXT_PUBLIC_PERMISSIONS_API') || 'https://newwork-dev.newwork.com/authorization/api/v1';
+    const permissionsApiUrl = env('NEXT_PUBLIC_PERMISSIONS_API') || '';
     const baseUrl = permissionsApiUrl.replace(/\/api\/v1$/, '');
     super(baseUrl);
   }
