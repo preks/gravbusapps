@@ -20,9 +20,9 @@ interface BusinessAppInfo {
 const businessApps: BusinessAppInfo[] = [];
 
 for (const path in modules) {
-  if (path.includes('/opportunity-tabs/') || 
-      path.includes('/oportunity-tabs/') || 
-      path.includes('/opportunity-components/')) {
+  if (path.includes('/opportunity-tabs/') ||
+    path.includes('/oportunity-tabs/') ||
+    path.includes('/opportunity-components/')) {
     continue;
   }
 
@@ -73,11 +73,9 @@ export interface CompMeta {
   layoutInfo?: any;
 }
 
-// Handle process events in the local development environment
 const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
   const { domain, processName, processInstanceId, startProcessBody } = event;
-  
-  // Display a notification for the process event
+
   notification.info({
     message: 'Process Start Event Detected',
     description: `Domain: ${domain}, \nProcess: ${processName}${processInstanceId ? `, ID: ${processInstanceId}` : ''}\nProcess body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`,
@@ -126,7 +124,6 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     if (savedRecentApps) {
       try {
         const parsed = JSON.parse(savedRecentApps);
-        console.log('Loaded recent apps from localStorage:', parsed);
         setRecentlyUsedApps(parsed);
       } catch (error) {
         console.error('Failed to parse recent apps:', error);
@@ -157,24 +154,17 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     };
 
     setRecentlyUsedApps(currentRecent => {
-      // Remove existing entry if it exists
       const filtered = currentRecent.filter(recent => recent.name !== app.name);
-      
-      // Add new entry at the beginning
       const updated = [newRecentApp, ...filtered];
-      
-      // Keep only the most recent MAX_RECENT_APPS apps
       const final = updated.slice(0, MAX_RECENT_APPS);
-      
-      console.log('Updated recent apps:', final);
+
       localStorage.setItem(STORAGE_KEY_RECENT_APPS, JSON.stringify(final));
-      
+
       return final;
     });
   };
 
   const handleAppSelect = (app: BusinessAppInfo) => {
-    console.log('App selected:', app.name);
     updateRecentlyUsedApps(app);
     setSelectedApp(app);
   };
@@ -197,7 +187,6 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     }
   };
 
-  // Save settings to localStorage and close modal
   const saveSettings = () => {
     localStorage.setItem(STORAGE_KEY_USER_INFO, userInfo);
     localStorage.setItem(STORAGE_KEY_ACCESS_TOKEN, accessToken);
@@ -228,14 +217,13 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       if (!moduleGroups[app.module][subModuleName]) {
         moduleGroups[app.module][subModuleName] = [];
       }
-      
+
       moduleGroups[app.module][subModuleName].push(app);
     });
 
     const moduleMenuItems = Object.entries(moduleGroups).map(([module, subModules]) => {
       const subModuleEntries = Object.entries(subModules);
-      
-      // If there's only one sub-module and it's 'default', flatten the structure
+
       if (subModuleEntries.length === 1 && subModuleEntries[0][0] === 'default') {
         return {
           key: module,
@@ -244,13 +232,11 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
         };
       }
 
-      // Create proper 3-level hierarchy: Module > Sub-module > Apps
       const children = subModuleEntries.map(([subModule, apps]) => {
         if (subModule === 'default') {
-          // If there are apps without a specific sub-module, group them directly under the module
           return apps.map(createAppMenuItem);
         }
-        
+
         return {
           key: `${module}/${subModule}`,
           label: subModule.charAt(0).toUpperCase() + subModule.slice(1),
@@ -265,7 +251,6 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       };
     });
 
-    // Add Home as first menu item
     const homeMenuItem = {
       key: 'home',
       label: 'Home',
@@ -276,7 +261,6 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     return [homeMenuItem, ...moduleMenuItems];
   };
 
-  // Parse userInfo string to UserInfoProps object
   const parsedUserInfo = useCallback((): UserInfoProps | undefined => {
     if (userInfo?.length > 2) {
       try {
@@ -292,7 +276,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />
-      
+
       {/* Full-width Header */}
       <Header style={{
         background: '#fff',
@@ -315,10 +299,10 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             <div className="gba:flex gba:items-center">
               <div className="gba:py-[12px]">
                 <a href="#" onClick={(e) => { e.preventDefault(); goToStartScreen(); }}>
-                  <img 
-                    src={HeaderLogo} 
-                    alt="Business Apps IDE" 
-                    width="120" 
+                  <img
+                    src={HeaderLogo}
+                    alt="Business Apps IDE"
+                    width="120"
                     height="14"
                     className="gba:w-[120px] gba:h-[14px]"
                   />
@@ -328,10 +312,10 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             <span className="gba:text-xs gba:text-[#666]">v{packageVersion}</span>
           </div>
         </div>
-        
+
         {/* Center section: Search Placeholder - Perfectly centered */}
         <div className="gba:flex gba:items-center gba:justify-center">
-          <button 
+          <button
             className="gba:w-[219px] gba:h-8 gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF] gba:outline-none"
             data-testid="GlobalSearchButton-Button"
           >
@@ -376,7 +360,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             overflow: 'hidden'
           }}
         >
-          <div style={{ 
+          <div style={{
             height: 'calc(100% - 56px)', // Total height minus button height
             overflow: 'auto',
             position: 'relative'
@@ -388,8 +372,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
               items={getMenuItems()}
             />
           </div>
-          
-          <div 
+
+          <div
             className="gba:border-t gba:border-[#e1e3eb] gba:p-2 gba:flex gba:justify-center gba:bg-white"
             style={{
               position: 'sticky',
@@ -404,7 +388,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                 type="text"
                 icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                 onClick={() => setCollapsed(!collapsed)}
-                style={{ 
+                style={{
                   fontSize: '16px',
                   width: '100%',
                   height: '40px',
@@ -416,7 +400,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             </Tooltip>
           </div>
         </Sider>
-        
+
         <Layout style={{ marginLeft: collapsed ? 68 : 264, transition: 'margin-left 0.2s' }}>
           <Content style={{ overflow: 'initial', background: '#fff', minHeight: 'calc(100vh - 48px)' }}>
             {selectedApp ? (
