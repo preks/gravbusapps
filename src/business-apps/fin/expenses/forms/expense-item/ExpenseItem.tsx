@@ -7,13 +7,13 @@ import { ExpenseItemProps } from "./types";
 import StartScreenComponent from "./components/StartScreenComponent";
 import FormScreenComponent from "./components/FormScreenComponent";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { ICONS } from "./constants/icons";
 
 const { Title } = Typography;
 
 const ExpenseItemContent: React.FC = () => {
   const { t } = useTranslation();
   
-  // Get all states and functions from context
   const {
     form,
     currentStep,
@@ -37,12 +37,13 @@ const ExpenseItemContent: React.FC = () => {
     handleAddPosition,
     handleRemovePosition,
     calculateTotal,
-    currencies
+    currencies,
+    isEditMode
   } = useExpenseItem();
 
   return (
-    <div className={`gba:mainContainer`}>
-      <div className={`gba:headerContainer`}>
+    <div className={`gba:mainContainer`} data-testid="expense-item-main-container">
+      <div className={`gba:headerContainer`} data-testid="expense-item-header-container">
         {currentStep === "form" && (
           <Button
             variant="ghost"
@@ -54,21 +55,25 @@ const ExpenseItemContent: React.FC = () => {
             data-testid="back-button"
           >
             <img 
-              src="https://newwork-dev.newwork.com/_next/static/media/lowcoder-icons/remixicons/arrow-left-s-line.svg" 
-              alt="Back" 
+              src={ICONS.BACK_ARROW} 
+              alt={t('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.back_btn', 'Back')} 
               className={`gba:backIcon`}
               width="24"
               height="24"
+              data-testid="back-button-icon"
             />
           </Button>
         )}
-        <div className={`gba:titleContainer`}>
-          <Title level={4} className={`gba:headerTitle`}>
-            {t("expense_item.title", "New Expense Item")}
+        <div className={`gba:titleContainer`} data-testid="expense-item-title-container">
+          <Title level={4} className={`gba:headerTitle`} data-testid="expense-item-header-title">
+            {isEditMode 
+              ? t("lowcoder:create_expense_type_item.header_container_title_edit", "Edit Item | Expense")
+              : t("lowcoder:create_expense_type_item.header_container_title_new", "New Item | Expense")
+            }
           </Title>
         </div>
       </div>
-      <Divider className={`gba:headerDivider`} />
+      <Divider className={`gba:headerDivider`} data-testid="expense-item-header-divider" />
 
       {currentStep === "start" ? (
         <StartScreenComponent 
@@ -105,7 +110,6 @@ const ExpenseItemContent: React.FC = () => {
   );
 };
 
-// Wrapper component that provides the context
 const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ accessToken, userInfo, additionalData }) => {
   return (
     <ExpenseItemProvider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}>

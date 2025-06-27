@@ -421,6 +421,28 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
         open={drawerVisible}
         width={400}
         dataTestId={`${prefixDataTestId}-company-details-drawer`}
+        navigationLinks={selectedCompany ? [
+          {
+            label: 'View Departments',
+            url: `/organizational-data/departments?companyId=${selectedCompany.id}`,
+            dataTestId: `${prefixDataTestId}-company-departments-link`
+          },
+          {
+            label: 'View Employees',
+            url: `/employee-directory?companyId=${selectedCompany.id}`,
+            dataTestId: `${prefixDataTestId}-company-employees-link`
+          },
+          {
+            label: 'View Job Positions',
+            url: `/job-positions?companyId=${selectedCompany.id}`,
+            dataTestId: `${prefixDataTestId}-company-jobs-link`
+          },
+          {
+            label: 'View Cost Centers',
+            url: `/organizational-data/cost-centers?companyId=${selectedCompany.id}`,
+            dataTestId: `${prefixDataTestId}-company-cost-centers-link`
+          }
+        ] : undefined}
       >
         <div className="gba:py-2">
           <Descriptions layout="vertical" column={1} bordered>

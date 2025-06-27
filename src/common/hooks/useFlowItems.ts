@@ -121,7 +121,7 @@ const mapFlowItemsToActionOptions = (
       // Additional properties for internal use
       processName: flowItem.processName,
       domain: flowItem.domain,
-      category: flowItem.builderType,
+      category: flowItem.flowType,
       payload
     } as ActionOption;
   });

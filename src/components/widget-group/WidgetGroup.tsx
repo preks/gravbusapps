@@ -12,6 +12,10 @@ export interface WidgetItem {
   suffix?: ReactNode;
   color?: string;
   precision?: number;
+  /**
+   * Flag to indicate if the value is already formatted as a string
+   */
+  valueIsString?: boolean;
   span?: {
     xs?: number;
     sm?: number;
@@ -216,7 +220,9 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
                       </span>
                     )}
                     <span className="ant-statistic-content-value" style={{ fontSize: '24px', fontWeight: 600 }}>
-                      {typeof widget.value === 'number' && widget.precision !== undefined ? (
+                      {widget.valueIsString ? (
+                        widget.value ?? '0,00'
+                      ) : typeof widget.value === 'number' && widget.precision !== undefined ? (
                         <>
                           <span className="ant-statistic-content-value-int">
                             {Math.floor(widget.value).toString()}

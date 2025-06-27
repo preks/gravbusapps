@@ -2,6 +2,7 @@ import React from 'react';
 import { ClockCircleOutlined, FileOutlined, DollarOutlined } from '@ant-design/icons';
 import { ExpenseRequestStatisticsData } from '../../../hooks/useGetExpenseRequests';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
+import { formatAmount } from '../../../utils/currencyUtils';
 
 interface ExpenseRequestStatisticsProps {
   requestStats: ExpenseRequestStatisticsData | null;
@@ -34,11 +35,11 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     {
       key: 'pending-amount',
       title: 'Pending Amount',
-      value: requestStats.pendingAmount,
+      value: requestStats.pendingAmount ? formatAmount(requestStats.pendingAmount) : '0,00',
       color: '#faad14',
       prefix: <DollarOutlined />,
       suffix: '€',
-      precision: 2,
+      valueIsString: true,
       span: { xs: 24, sm: 12, md: 6, lg: 6 },
       description: 'Total pending funds'
     },
@@ -54,11 +55,11 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     {
       key: 'total-submitted-amount',
       title: 'Total Submitted Amount',
-      value: requestStats.totalSubmittedAmount,
+      value: requestStats.totalSubmittedAmount ? formatAmount(requestStats.totalSubmittedAmount) : '0,00',
       color: '#3f8600',
       prefix: <DollarOutlined />,
       suffix: '€',
-      precision: 2,
+      valueIsString: true,
       span: { xs: 24, sm: 12, md: 6, lg: 6 },
       description: 'All expense requests'
     }
