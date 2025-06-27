@@ -60,7 +60,7 @@ export const ProfileLayout: React.FC<Readonly<ProfileLayoutProps>> = ({
         )}
         
         {/* Main content container */}
-        <div className="gba:bg-gray-100 gba:flex-1 gba:min-h-0 gba:p-4 gba:overflow-auto">{contentContainer}</div>
+        <div className="gba:bg-white gba:flex-1 gba:min-h-0 gba:p-4 gba:overflow-auto">{contentContainer}</div>
       </div>
     </div>
   );

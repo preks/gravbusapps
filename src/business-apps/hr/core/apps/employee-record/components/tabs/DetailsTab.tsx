@@ -2,23 +2,29 @@
 
 import React, { useMemo } from 'react';
 import dayjs from 'dayjs';
-import { Collapse } from 'antd';
-import { CaretRightOutlined } from '@ant-design/icons';
+import { Card } from '@newwork/gravity-ui-catalog';
 import { Employee } from '../../hooks/useEmployeeData';
 import { formatPhoneNumber } from '../../utils/formatters';
 import { useGetAcademicTitles } from '../../../../hooks/useGetAcademicTitles';
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
+import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions';
 
 interface DetailsTabProps {
   employee: Employee;
   accessToken: string;
+  employeeId?: string; // Optional employeeId override for permissions check
 }
 
 /**
  * Details Tab Component
  * Displays detailed personal information about the employee
  */
-const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
+const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employeeId }) => {
+  // Use employee ID from props or fallback to employee data
+  const employeeIdForPermissions = employeeId || employee?.id;
+  
+  // Check permissions for sections
+  const { isSectionVisible } = useEmployeePermissions(employeeIdForPermissions, accessToken);
   // Fetch academic titles from catalog
   const { titles: academicTitles, loading: loadingTitles } = useGetAcademicTitles(accessToken);
 
@@ -191,47 +197,27 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
 
   const emergencyContactData = getEmergencyContact();
 
-  // Prepare payroll data
-  const getPayrollData = () => {
-    const taxDetails = employee.taxDetails?.[0];
+  // Payroll data has been moved to EmploymentTab
+
+  // Helper function to mask value if user doesn't have permission
+  const getMaskedValue = (value: string, sectionKey: string) => {
+    // Return dash for empty values regardless of permissions
+    if (!value || value.trim() === '') {
+      return '-';
+    }
     
-    return [
-      {
-        label: "Tax Class",
-        value: taxDetails?.taxBracketRef || ''
-      },
-      {
-        label: "Social Insurance No.",
-        value: taxDetails?.socialSecurityNumber || ''
-      },
-      {
-        label: "Tax Identification No.",
-        value: taxDetails?.taxIdentificationNumber || ''
-      },
-      {
-        label: "Health Insurance Provider",
-        value: taxDetails?.healthInsuranceName || ''
-      },
-      {
-        label: "Confession",
-        value: taxDetails?.taxableChurchAffiliationRef || ''
-      },
-      {
-        label: "Type of Health Insurance",
-        value: taxDetails?.healthInsuranceTypeRef || ''
-      },
-      {
-        label: "Child Tax Allowance",
-        value: taxDetails?.childTaxAllowance?.toString() || ''
-      }
-    ];
+    // Check permissions for non-empty values
+    if (isSectionVisible('details', sectionKey)) {
+      return value;
+    }
+    
+    // Only mask if there's actual data to protect
+    return '••••••••';
   };
 
-  const payrollData = getPayrollData();
-
-  // Helper function to render data items in a grid
-  const renderDataItems = (data: Array<{label: string; value: string}>, columns = 2) => (
-    <div className={`gba:grid gba:grid-cols-1 ${columns === 2 ? 'md:grid-cols-2' : ''} gba:gap-3 gba:mt-2`}>
+  // Helper function to render data items in a grid with 3 columns
+  const renderDataItems = (data: Array<{label: string; value: string; sectionKey?: string}>) => (
+    <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-3 gba:mt-2">
       {data.map((item) => (
         <div 
           key={`${item.label}-${item.value}`} 
@@ -239,7 +225,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
           data-testid={`details-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
         >
           <span className="gba:text-sm gba:text-gray-500 gba:mb-0.5">{item.label}</span>
-          <span className="gba:font-medium gba:text-gray-800">{item.value || '-'}</span>
+          <span className="gba:font-medium gba:text-gray-800">{item.sectionKey ? getMaskedValue(item.value, item.sectionKey) : (item.value || '-')}</span>
         </div>
       ))}
     </div>
@@ -255,7 +241,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
         >
           {getTranslationFromI18nKeyAndLabel(
             "lowcoder:hr_employee.details_overview",
-            "Details Overview"
+            "Employee Details"
           )}
         </div>
         <div
@@ -269,98 +255,117 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken }) => {
         </div>
       </div>
 
-      <Collapse 
-        expandIcon={({ isActive }) => (
-          <CaretRightOutlined rotate={isActive ? 90 : 0} className="gba:text-blue-600" />
-        )}
-        className="gba:bg-white gba:border-0 gba:shadow-sm"
-        defaultActiveKey={['personal', 'address', 'bank', 'communication', 'emergency', 'payroll']}
-        data-testid="details-accordion"
-      >
-        {/* Personal Data Section */}
-        <Collapse.Panel 
-          key="personal" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Personal Data</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6" data-testid="details-cards">
+        {/* Personal Data Card - Public info is always visible, private info requires permission */}
+        <Card
+          variant="outlined"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-personal"
         >
-          {renderDataItems(personalData, 2)}
-        </Collapse.Panel>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Personal Data</h3>
+          </div>
+          {renderDataItems(personalData.map((item, index) => {
+            // Add sectionKey for private fields (index >= 7)
+            return index >= 7 
+              ? {...item, sectionKey: SECTION_KEYS.details.personalInfoPrivate}
+              : item;
+          }))}
+        </Card>
 
-        {/* Address Section */}
-        <Collapse.Panel 
-          key="address" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Address</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+        {/* Address Card - Always visible but values may be masked */}
+        <Card
+          variant="outlined"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-address"
         >
-          {renderDataItems(addressData, 1)}
-        </Collapse.Panel>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Address</h3>
+          </div>
+          {renderDataItems(addressData.map(item => ({...item, sectionKey: SECTION_KEYS.details.addressPublic})))}
+        </Card>
 
-        {/* Bank Account Section */}
-        <Collapse.Panel 
-          key="bank" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Bank Account</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+        {/* Bank Account Card - Always visible but values may be masked */}
+        <Card
+          variant="outlined"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-bank"
         >
-          {renderDataItems(bankAccountData, 1)}
-        </Collapse.Panel>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Bank Account</h3>
+          </div>
+          {renderDataItems(bankAccountData.map(item => ({...item, sectionKey: SECTION_KEYS.details.bankAccount})))}
+        </Card>
 
-        {/* Private Communication Section */}
-        <Collapse.Panel 
-          key="communication" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Private Communication</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+        {/* Private Communication Card - Always visible but values may be masked */}
+        <Card
+          variant="outlined"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-communication"
         >
-          {renderDataItems(privateCommunicationData, 1)}
-        </Collapse.Panel>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Private Communication</h3>
+          </div>
+          {renderDataItems(privateCommunicationData.map(item => ({...item, sectionKey: SECTION_KEYS.details.contactInfoPrivate})))}
+        </Card>
 
-        {/* Emergency Contact Section */}
-        <Collapse.Panel 
-          key="emergency" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Emergency Contact</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+        {/* Emergency Contact Card - Always visible but values may be masked */}
+        <Card
+          variant="outlined"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-emergency"
         >
-          {renderDataItems(emergencyContactData, 1)}
-        </Collapse.Panel>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Emergency Contact</h3>
+          </div>
+          {renderDataItems(emergencyContactData.map(item => ({...item, sectionKey: SECTION_KEYS.details.relationships})))}
+        </Card>
 
-        {/* Payroll Data Section */}
-        <Collapse.Panel 
-          key="payroll" 
-          header={
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium">Payroll</span>
-            </div>
-          }
-          className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
-          data-testid="details-section-payroll"
+        {/* Tax Details Card - Always visible but values may be masked */}
+        <Card
+          variant="outlined"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          data-testid="details-section-tax"
         >
-          {renderDataItems(payrollData, 2)}
-        </Collapse.Panel>
-      </Collapse>
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Tax Details</h3>
+          </div>
+          {renderDataItems([
+              {
+                label: "Tax Number",
+                value: employee.taxDetails?.[0]?.taxNumber || '',
+                sectionKey: SECTION_KEYS.details.taxDetails
+              },
+              {
+                label: "Tax Bracket",
+                value: employee.taxDetails?.[0]?.taxBracketRef || '',
+                sectionKey: SECTION_KEYS.details.taxDetails
+              },
+              {
+                label: "Tax Identification Number",
+                value: employee.taxDetails?.[0]?.taxIdentificationNumber || '',
+                sectionKey: SECTION_KEYS.details.taxDetails
+              },
+              {
+                label: "Social Security Number",
+                value: employee.taxDetails?.[0]?.socialSecurityNumber || '',
+                sectionKey: SECTION_KEYS.details.taxDetails
+              },
+              {
+                label: "Church Affiliation",
+                value: employee.taxDetails?.[0]?.taxableChurchAffiliationRef || '',
+                sectionKey: SECTION_KEYS.details.taxDetails
+              },
+              {
+                label: "Child Tax Allowance",
+                value: employee.taxDetails?.[0]?.childTaxAllowance?.toString() || '',
+                sectionKey: SECTION_KEYS.details.taxDetails
+              }
+            ])}
+        </Card>
+
+        {/* Payroll Data Card has been moved to EmploymentTab */}
+      </div>
     </div>
   );
 };

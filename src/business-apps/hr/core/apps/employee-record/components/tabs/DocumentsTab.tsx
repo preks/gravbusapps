@@ -11,7 +11,6 @@ import 'dayjs/plugin/localeData';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { useFileClient } from '@/common/network/files/useFileClient';
 import { employeeDocumentsQuery, documentTypeCatalogQuery } from '../../queries/documentQueries';
-import { startProcess } from '@/common/utils/start-process';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -105,22 +104,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
   const fileClient = useFileClient({
     accessToken
   });
-
-  // Using FileClient for document downloads
-  // Note: We no longer need flowClient as we're using startProcess directly
-
-  // Function to trigger startProcess directly for uploading documents
-  const showUploadModal = () => {
-    startProcess({
-      domain: 'employee',
-      processName: 'uploadEmployeeDocument',
-      payload: {
-        employeeDocument: {
-          employeeId: employee.id
-        }
-      }
-    });
-  };
 
   // Function to fetch documents and document types/groups
   const fetchDocuments = async () => {
@@ -603,8 +586,61 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
   if (documents.length === 0) {
     return (
       <div className="gba:space-y-4" data-testid="documents-tab-container">
-        {/* Documents Overview Headline */}
-        <div className="gba:documents-header" data-testid="documents-header">
+        {/* Documents Overview Headline with Action Button */}
+        <div className="gba:flex gba:justify-between gba:items-start" data-testid="documents-header">
+          <div className="gba:documents-header">
+            <div
+              className="gba:font-bold gba:text-2xl"
+              data-testid="documents-title"
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:hr_documents.documents_overview",
+                "Documents Overview"
+              )}
+            </div>
+            <div
+              className="gba:text-gray-500 gba:text-lg"
+              data-testid="documents-description"
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:hr_documents.documents_description",
+                "View and manage employee documents"
+              )}
+            </div>
+          </div>
+          
+          {/* Upload document button */}
+          <div>
+            <AppActionButton
+              data-testid="upload-document-button"
+              variant="primary"
+              contextsArray={[FlowContextName.documentPersonal]}
+              externalContextData={{
+                employeeId: employee?.id
+              }}
+              prefixDataTestId="upload-document"
+              accessToken={accessToken}
+              autoExecuteSingleAction={true}
+            >
+              Upload Document
+            </AppActionButton>
+          </div>
+        </div>
+
+        <Empty 
+          description="No documents available" 
+          className="gba:py-10" 
+          data-testid="empty-documents-state"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="gba:space-y-4" data-testid="documents-tab-container">
+      {/* Documents Overview Headline with Action Button */}
+      <div className="gba:flex gba:justify-between gba:items-start" data-testid="documents-header">
+        <div className="gba:documents-header">
           <div
             className="gba:font-bold gba:text-2xl"
             data-testid="documents-title"
@@ -625,10 +661,9 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
           </div>
         </div>
         
-        {/* Upload document button */}
-        <div className="gba:flex gba:justify-end gba:mb-4">
+        {/* Upload button */}
+        <div>
           <AppActionButton
-            onClick={showUploadModal}
             data-testid="upload-document-button"
             variant="primary"
             contextsArray={[FlowContextName.documentPersonal]}
@@ -637,65 +672,16 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
             }}
             prefixDataTestId="upload-document"
             accessToken={accessToken}
+            autoExecuteSingleAction={true}
           >
             Upload Document
           </AppActionButton>
-        </div>
-
-        <Empty 
-          description="No documents available" 
-          className="gba:py-10" 
-          data-testid="empty-documents-state"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="gba:space-y-4" data-testid="documents-tab-container">
-      {/* Documents Overview Headline */}
-      <div className="gba:documents-header" data-testid="documents-header">
-        <div
-          className="gba:font-bold gba:text-2xl"
-          data-testid="documents-title"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_documents.documents_overview",
-            "Documents Overview"
-          )}
-        </div>
-        <div
-          className="gba:text-gray-500 gba:text-lg"
-          data-testid="documents-description"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_documents.documents_description",
-            "View and manage employee documents"
-          )}
         </div>
       </div>
       
-      {/* Header with upload button and search */}
-      <div className="gba:flex gba:flex-col gba:md:flex-row gba:justify-between gba:items-start gba:gap-4 gba:mb-4">
-        {/* Upload button - now on the left */}
-        <div className="gba:flex gba:justify-start">
-          <AppActionButton
-            onClick={showUploadModal}
-            data-testid="upload-document-button"
-            variant="primary"
-            contextsArray={[FlowContextName.documentPersonal]}
-            externalContextData={{
-              employeeId: employee?.id
-            }}
-            prefixDataTestId="upload-document"
-            accessToken={accessToken}
-          >
-            Upload Document
-          </AppActionButton>
-        </div>
-        
-        {/* Search section - now on the right */}
-        <div className="gba:flex gba:flex-col gba:md:flex-row gba:items-center gba:gap-3 gba:w-full gba:md:w-auto gba:md:ml-auto">
+      {/* Search section */}
+      <div className="gba:flex gba:justify-start gba:items-center gba:mb-4">
+        <div className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:md:w-auto">
           <div className="gba:flex gba:items-center gba:gap-3 gba:w-full">
             <div className="gba:flex gba:items-center gba:w-full gba:border gba:border-gray-200 gba:rounded-md gba:shadow-md gba:bg-white gba:transition-all gba:duration-200 gba:hover:shadow-lg gba:focus-within:ring-2 gba:focus-within:ring-blue-500 gba:focus-within:border-blue-500">
               <div className="gba:flex gba:items-center gba:justify-center gba:pl-3 gba:w-10 gba:text-blue-500">
@@ -770,7 +756,13 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
                       <span className="gba:text-sm gba:text-gray-500">{docs.length} {docs.length === 1 ? 'document' : 'documents'}</span>
                     </div>
                   }
-                  className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+                  className={`gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden ${
+                    group === 'Salary' ? 'gba:bg-blue-50' : 
+                    group === 'Expenses' ? 'gba:bg-green-50' : 
+                    group === 'Development' ? 'gba:bg-purple-50' : 
+                    group === 'Personal' ? 'gba:bg-orange-50' : 
+                    'gba:bg-indigo-50'
+                  }`}
                   data-testid={`document-group-${group.toLowerCase()}`}
                 >
                   <List
@@ -805,7 +797,13 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
                     <span className="gba:text-sm gba:text-gray-500">{docs.length} {docs.length === 1 ? 'document' : 'documents'}</span>
                   </div>
                 }
-                className="gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden"
+                className={`gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden ${
+                  group === 'Salary' ? 'gba:bg-blue-50' : 
+                  group === 'Expenses' ? 'gba:bg-green-50' : 
+                  group === 'Development' ? 'gba:bg-purple-50' : 
+                  group === 'Personal' ? 'gba:bg-orange-50' : 
+                  'gba:bg-indigo-50'
+                }`}
                 data-testid={`document-group-${group.toLowerCase()}`}
               >
                 <List
@@ -856,8 +854,8 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
         ) : documentUrl ? (
           <div className="gba:flex gba:flex-col gba:w-full">
             {/* Document viewer - top */}
-            <div className="gba:w-full gba:min-h-[400px] gba:flex gba:items-center gba:justify-center gba:p-6 gba:pb-8">
-            {isPdfDocument(currentDocument) ? (
+            <div className="gba:w-full gba:min-h-[400px] gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-6">
+              {isPdfDocument(currentDocument) ? (
                 <div className="gba:w-full gba:overflow-hidden gba:rounded-md gba:shadow-sm">
                   <object
                     data={documentUrl}
@@ -883,7 +881,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
                             
                             // Option 1: Try to extract original filename from file path if exists
                             if (currentDocument.file) {
-                              const filePathMatch = currentDocument.file.match(/[^\/]+$/); // Extract filename from path
+                              const filePathMatch = currentDocument.file.match(/[^\/]+$/);
                               if (filePathMatch && filePathMatch[0]) {
                                 filename = decodeURIComponent(filePathMatch[0]);
                               }
@@ -913,15 +911,15 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
                                     // Fallback to generic extension from mime type
                                     const fileType = currentDocument.mimeType.split('/')?.[1];
                                     if (fileType) {
-                                      filename += '.' + fileType.split(';')[0]; // Remove any parameters from mime type
+                                      filename += '.' + fileType.split(';')[0];
                                     }
                                   }
                                 } else if (isPdfDocument(currentDocument)) {
                                   filename += '.pdf';
                                 } else if (isImageDocument(currentDocument)) {
-                                  filename += '.jpg'; // Default image extension
+                                  filename += '.jpg';
                                 } else {
-                                  filename += '.dat'; // Generic binary data
+                                  filename += '.dat';
                                 }
                               }
                             }
@@ -946,33 +944,19 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
                   </object>
                 </div>
               ) : isImageDocument(currentDocument) ? (
-                <div className="gba:flex gba:items-center gba:justify-center gba:bg-gray-50 gba:rounded-md gba:shadow-sm gba:p-4">
-                  <img 
-                    src={documentUrl}
-                    alt={currentDocument?.title || 'Document'}
-                    className="gba:max-w-full gba:object-contain gba:rounded-md"
-                    style={{ maxWidth: '100%', maxHeight: '500px' }}
-                    onError={() => {
-                      setError('The image could not be displayed. It may be in an unsupported format.');
-                    }}
-                    data-testid="image-viewer"
-                  />
-                </div>
-              ) : (
-                <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-gray-50 gba:rounded-md gba:shadow-sm gba:min-h-[300px]">
-                  <div className="gba:mb-6">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-24 gba:w-24 gba:text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="2" y="2" width="20" height="20" rx="2" ry="2"></rect>
-                      <path d="M7 2v20"></path>
-                      <path d="M17 2v20"></path>
-                      <path d="M2 12h20"></path>
-                      <path d="M2 7h5"></path>
-                      <path d="M2 17h5"></path>
-                      <path d="M17 17h5"></path>
-                      <path d="M17 7h5"></path>
-                    </svg>
+                <>
+                  <div className="gba:flex gba:items-center gba:justify-center gba:bg-gray-50 gba:rounded-md gba:shadow-sm gba:p-4 gba:w-full">
+                    <img 
+                      src={documentUrl}
+                      alt={currentDocument?.title || 'Document'}
+                      className="gba:max-w-full gba:object-contain gba:rounded-md"
+                      style={{ maxWidth: '100%', maxHeight: '500px' }}
+                      onError={() => {
+                        setError('The image could not be displayed. It may be in an unsupported format.');
+                      }}
+                      data-testid="image-viewer"
+                    />
                   </div>
-                  <p className="gba:mb-4 gba:text-center gba:text-gray-500 gba:text-base">This document type cannot be previewed directly.</p>
                   <Button 
                     onClick={() => {
                       if (documentUrl) {
@@ -982,8 +966,48 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
                         a.click();
                       }
                     }}
-                    className="gba:mt-2"
-                    data-testid="document-download-button-preview"
+                    className="gba:mt-4"
+                    data-testid="image-download-button"
+                    variant="primary"
+                    size="small"
+                    iconPosition="start"
+                    icon={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    }
+                  >
+                    Download Image
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-gray-50 gba:rounded-md gba:shadow-sm gba:min-h-[300px] gba:w-full">
+                    <div className="gba:mb-6">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-24 gba:w-24 gba:text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="2" width="20" height="20" rx="2" ry="2"></rect>
+                        <path d="M7 2v20"></path>
+                        <path d="M17 2v20"></path>
+                        <path d="M2 12h20"></path>
+                        <path d="M2 7h5"></path>
+                        <path d="M2 17h5"></path>
+                        <path d="M17 17h5"></path>
+                        <path d="M17 7h5"></path>
+                      </svg>
+                    </div>
+                    <p className="gba:mb-4 gba:text-center gba:text-gray-500 gba:text-base">This document type cannot be previewed directly.</p>
+                  </div>
+                  <Button 
+                    onClick={() => {
+                      if (documentUrl) {
+                        const a = document.createElement('a');
+                        a.href = documentUrl;
+                        a.download = currentDocument?.title || 'document';
+                        a.click();
+                      }
+                    }}
+                    className="gba:mt-4"
+                    data-testid="document-download-button"
                     variant="primary"
                     size="small"
                     iconPosition="start"
@@ -995,7 +1019,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
                   >
                     Download
                   </Button>
-                </div>
+                </>
               )}
             </div>
             
@@ -1051,43 +1075,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
                 </div>
               </div>
               
-              <div className="gba:mt-6 gba:flex gba:flex-row gba:gap-4">
-                <Button 
-                  onClick={() => {
-                    if (documentUrl) {
-                      const a = document.createElement('a');
-                      a.href = documentUrl;
-                      a.download = currentDocument?.title || 'document';
-                      a.click();
-                    }
-                  }}
-                  className="gba:flex-1"
-                  data-testid="document-download-button"
-                  variant="primary"
-                  iconPosition="start"
-                  icon={
-                    <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                  }
-                >
-                  Download
-                </Button>
-                <Button 
-                  onClick={closeDocumentViewer}
-                  className="gba:flex-1"
-                  data-testid="document-close-button"
-                  variant="secondary"
-                  iconPosition="start"
-                  icon={
-                    <svg xmlns="http://www.w3.org/2000/svg" className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  }
-                >
-                  Close
-                </Button>
-              </div>
+
             </div>
           </div>
         ) : (
