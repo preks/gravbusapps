@@ -47,63 +47,139 @@ export const useTeamReportV2Filters = (
   const EXIT_STATUS_OPTIONS = ['activeOnly', 'inactiveOnly'];
   
   // Define filter groups - memoized so they don't cause re-renders
-  const filterGroups = useMemo<DataFilterGroup[]>(() => [
-    {
-      id: 'position',
-      title: 'Position',
-      filters: uniquePositions.map(position => ({
-        id: `position:${position}`,
-        label: position,
-        selected: selectedFilters.includes(`position:${position}`)
-      }))
-    },
-    {
-      id: 'location',
-      title: 'Location',
-      filters: uniqueLocations.map(location => ({
-        id: `location:${location}`,
-        label: location,
-        selected: selectedFilters.includes(`location:${location}`)
-      }))
-    },
-    {
-      id: 'employmentType',
-      title: 'Employment Type',
-      filters: uniqueEmploymentTypes.map(type => ({
-        id: `employmentType:${type}`,
-        label: type,
-        selected: selectedFilters.includes(`employmentType:${type}`)
-      }))
-    },
-    {
-      id: 'contractType',
-      title: 'Contract Type',
-      filters: uniqueContractTypes.map(type => ({
-        id: `contractType:${type}`,
-        label: type,
-        selected: selectedFilters.includes(`contractType:${type}`)
-      }))
-    },
-    {
-      id: 'tenurePeriod',
-      title: 'Tenure Period',
-      filters: [
-        { id: 'lessThan3m', label: 'Less than 3 months', selected: selectedFilters.includes('lessThan3m') },
-        { id: '3to6m', label: '3 to 6 months', selected: selectedFilters.includes('3to6m') },
-        { id: '6to12m', label: '6 to 12 months', selected: selectedFilters.includes('6to12m') },
-        { id: '1to3y', label: '1 to 3 years', selected: selectedFilters.includes('1to3y') },
-        { id: 'moreThan3y', label: 'More than 3 years', selected: selectedFilters.includes('moreThan3y') }
-      ]
-    },
-    {
+  const filterGroups = useMemo<DataFilterGroup[]>(() => {
+    const SEARCH_THRESHOLD = 10;
+    const groups: DataFilterGroup[] = [];
+
+    // Helper function to create a backendSearch implementation for local data
+    const createSearchHandler = (
+      prefix: string,
+      allItems: string[]
+    ) => (search: string) => {
+      const selectedForGroup = selectedFilters
+        .filter(f => f.startsWith(`${prefix}:`))
+        .map(f => f.replace(`${prefix}:`, ''));
+
+      // If no search term is provided...
+      if (!search) {
+        // If there are selected filters, show them.
+        if (selectedForGroup.length > 0) {
+          const filters = selectedForGroup.map(item => ({
+            id: `${prefix}:${item}`,
+            label: item,
+            selected: true,
+          }));
+          return { filters, loading: false, error: null };
+        }
+        // Otherwise, show a loading state to prompt user to search.
+        return { filters: [], loading: true, error: null };
+      }
+
+      // If a search term is provided, find matches.
+      const matchingItems = allItems.filter(item =>
+        item.toLowerCase().includes(search.toLowerCase())
+      );
+
+      // Always include selected items in the results.
+      const allItemsToShow = [...new Set([...selectedForGroup, ...matchingItems])];
+
+      const filters = allItemsToShow.map(item => ({
+        id: `${prefix}:${item}`,
+        label: item,
+        selected: selectedFilters.includes(`${prefix}:${item}`),
+      }));
+
+      return { filters, loading: false, error: null };
+    };
+
+    // Position
+    if (uniquePositions.length > SEARCH_THRESHOLD) {
+      groups.push({
+        id: 'position',
+        title: 'Position',
+        backendSearch: createSearchHandler('position', uniquePositions),
+      });
+    } else {
+      groups.push({
+        id: 'position',
+        title: 'Position',
+        filters: uniquePositions.map(position => ({
+          id: `position:${position}`,
+          label: position,
+          selected: selectedFilters.includes(`position:${position}`),
+        })),
+      });
+    }
+
+    // Location
+    if (uniqueLocations.length > SEARCH_THRESHOLD) {
+      groups.push({
+        id: 'location',
+        title: 'Location',
+        backendSearch: createSearchHandler('location', uniqueLocations),
+      });
+    } else {
+      groups.push({
+        id: 'location',
+        title: 'Location',
+        filters: uniqueLocations.map(location => ({
+          id: `location:${location}`,
+          label: location,
+          selected: selectedFilters.includes(`location:${location}`),
+        })),
+      });
+    }
+
+    // Employment Type
+    if (uniqueEmploymentTypes.length > SEARCH_THRESHOLD) {
+      groups.push({
+        id: 'employmentType',
+        title: 'Employment Type',
+        backendSearch: createSearchHandler('employmentType', uniqueEmploymentTypes),
+      });
+    } else {
+      groups.push({
+        id: 'employmentType',
+        title: 'Employment Type',
+        filters: uniqueEmploymentTypes.map(type => ({
+          id: `employmentType:${type}`,
+          label: type,
+          selected: selectedFilters.includes(`employmentType:${type}`),
+        })),
+      });
+    }
+
+    // Contract Type
+    if (uniqueContractTypes.length > SEARCH_THRESHOLD) {
+      groups.push({
+        id: 'contractType',
+        title: 'Contract Type',
+        backendSearch: createSearchHandler('contractType', uniqueContractTypes),
+      });
+    } else {
+      groups.push({
+        id: 'contractType',
+        title: 'Contract Type',
+        filters: uniqueContractTypes.map(type => ({
+          id: `contractType:${type}`,
+          label: type,
+          selected: selectedFilters.includes(`contractType:${type}`),
+        })),
+      });
+    }
+
+    // Status (always a short list)
+    groups.push({
       id: 'exitStatus',
       title: 'Status',
       filters: [
         { id: 'activeOnly', label: 'Active employees only', selected: selectedFilters.includes('activeOnly') },
-        { id: 'inactiveOnly', label: 'Inactive employees only', selected: selectedFilters.includes('inactiveOnly') }
-      ]
-    }
-  ], [selectedFilters, uniquePositions, uniqueLocations, uniqueEmploymentTypes, uniqueContractTypes]);
+        { id: 'inactiveOnly', label: 'Inactive employees only', selected: selectedFilters.includes('inactiveOnly') },
+      ],
+    });
+
+    return groups;
+  }, [selectedFilters, uniquePositions, uniqueLocations, uniqueEmploymentTypes, uniqueContractTypes]);
   
   // Build the filter label map dynamically
   const filterLabelMap = useMemo(() => {

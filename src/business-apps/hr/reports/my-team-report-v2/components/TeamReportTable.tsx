@@ -72,14 +72,13 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
           aria-pressed={selectedEmployeeId === record.id}
         >
           <div className="gba:flex gba:items-center gba:gap-3">
-            <EmployeeAvatar
-              profilePicture={record.profilePicture}
+            {/* <EmployeeAvatar
               firstName={record.firstName}
               lastName={record.lastName}
               employeeId={record.id}
               size={32}
               randomizeStatus={true}
-            />
+            /> */}
             <span>{record.firstName} {record.lastName}</span>
           </div>
         </div>
