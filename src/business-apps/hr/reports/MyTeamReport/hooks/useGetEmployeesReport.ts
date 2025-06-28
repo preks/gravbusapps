@@ -25,14 +25,15 @@ export interface Employee {
 /**
  * Filters for the employee directory query.
  */
-export type EmployeeFilters = {
-  alpha?: string | null;
+export interface EmployeeFilters {
   search?: string;
-  organizationalUnits?: string[];
-  employmentTypes?: string[];
-  contractTypes?: string[];
-  matrixTeams?: string[];
-};
+  position?: string[];
+  location?: string[];
+  employmentType?: string[];
+  contractType?: string[];
+  tenurePeriod?: string;
+  exitStatus?: 'active' | 'inactive' | null;
+}
 
 
 /**
@@ -127,19 +128,75 @@ const EMPLOYEE_POSITION_QUERY = `
  * @param filters Filters for the employee directory.
  * @returns Employees, total count, loading, error, hasMore, loadMore, retry
  */
-export function useGetEmployeesReport({ accessToken, pageSize = 20 }: { accessToken: string; pageSize?: number }) {
+export function useGetEmployeesReport({
+  accessToken,
+  pageSize = 20,
+  filters,
+  search,
+}: {
+  accessToken: string;
+  pageSize?: number;
+  filters: EmployeeFilters;
+  search: string;
+}) {
   const ALL_EMPLOYEES_LIMIT = 10000;
   const client = useGraphqlClient(accessToken);
   
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
+
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Fetch paginated employees for table
-  const fetchEmployees = useCallback((page: number) => {
+  const buildWhereClause = useCallback(() => {
+    const where: any = {};
+    const andClauses = [
+      { jobPositionId: { _isNull: false } },
+      { employeeId: { _isNull: false } },
+    ];
+
+    if (search) {
+      andClauses.push({
+        _or: [
+          { firstName: { _ilike: `%${search}%` } },
+          { lastName: { _ilike: `%${search}%` } },
+        ],
+      });
+    }
+
+    if (filters.position && filters.position.length > 0) {
+      andClauses.push({ jobPosition: { name: { _in: filters.position } } });
+    }
+
+    if (filters.location && filters.location.length > 0) {
+      andClauses.push({ organizationalUnit: { name: { _in: filters.location } } });
+    }
+
+    if (filters.employmentType && filters.employmentType.length > 0) {
+      andClauses.push({ employee: { workingCondition: { employmentType: { value: { _in: filters.employmentType } } } } });
+    }
+
+    if (filters.contractType && filters.contractType.length > 0) {
+      andClauses.push({ employee: { workingCondition: { contractType: { value: { _in: filters.contractType } } } } });
+    }
+
+    if (filters.exitStatus) {
+      if (filters.exitStatus === 'active') {
+        andClauses.push({ employee: { workingCondition: { exitDate: { _isNull: true } } } });
+      } else {
+        andClauses.push({ employee: { workingCondition: { exitDate: { _isNull: false } } } });
+      }
+    }
+
+    if (andClauses.length > 0) {
+      where._and = andClauses;
+    }
+
+    return where;
+  }, [filters, search]);
+
+  const fetchEmployees = useCallback((page: number, whereClause: any) => {
     if (typeof window === 'undefined') return; // Prevent SSR execution
     if (!client) {
       setError(new Error('GraphQL client unavailable'));
@@ -150,7 +207,7 @@ export function useGetEmployeesReport({ accessToken, pageSize = 20 }: { accessTo
     const variables = {
       limit: pageSize,
       offset: (page - 1) * pageSize,
-      where: {}
+      where: whereClause,
     };
     client.request?.(EMPLOYEE_POSITION_QUERY, variables)
       .then((res: any) => {
@@ -191,40 +248,10 @@ export function useGetEmployeesReport({ accessToken, pageSize = 20 }: { accessTo
 
   useEffect(() => {
     if (accessToken && client) {
-      fetchEmployees(currentPage);
-      // Fetch all employees for KPI (unpaginated)
-      const variables = {
-        limit: ALL_EMPLOYEES_LIMIT,
-        offset: 0,
-        where: {}
-      };
-      client.request?.(EMPLOYEE_POSITION_QUERY, variables)
-        .then((res: any) => {
-          const employeePositions = res.EmployeePosition ?? [];
-          const newEmployees = employeePositions.map((ep: any) => {
-            const workingCondition = ep.employee?.workingCondition?.[0];
-            return {
-              id: ep.employeeId,
-              userId: ep.userId,
-              supervisor: ep.supervisor,
-              firstName: ep.firstName,
-              lastName: ep.lastName,
-              jobTitle: ep.jobPosition?.name ?? '',
-              organizationalUnit: ep.organizationalUnit?.name ?? '',
-              email: '',
-              employmentType: workingCondition?.employmentType?.value ?? '',
-              contractType: workingCondition?.contractType?.value ?? '',
-              matrixTeams: extractMatrixTeamNames(ep.matrixUnitEmployees),
-              profilePicture: ep.employee?.pictureThumbnail ?? '',
-              startDate: workingCondition?.hireDate ?? '',
-              exitDate: workingCondition?.exitDate ?? ''
-            };
-          });
-          setAllEmployees(newEmployees);
-        });
+      const whereClause = buildWhereClause();
+      fetchEmployees(currentPage, whereClause);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, client, currentPage, pageSize]);
+  }, [accessToken, client, currentPage, pageSize, fetchEmployees, buildWhereClause]);
 
   const onPageChange = (page: number) => {
     setCurrentPage(page);
@@ -232,9 +259,10 @@ export function useGetEmployeesReport({ accessToken, pageSize = 20 }: { accessTo
 
   const retry = useCallback(() => {
     setError(null);
-    fetchEmployees(currentPage);
-  }, [fetchEmployees, currentPage]);
+    const whereClause = buildWhereClause();
+    fetchEmployees(currentPage, whereClause);
+  }, [fetchEmployees, currentPage, buildWhereClause]);
 
-  return { employees, allEmployees, total, loading, error, currentPage, onPageChange, retry };
+  return { employees, total, loading, error, currentPage, onPageChange, retry };
 }
 
