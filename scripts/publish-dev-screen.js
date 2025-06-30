@@ -139,27 +139,35 @@ async function publishMainCss() {
 }
 
 async function main() {
-  const screenPathArg = process.argv[2];
-  // Default to false if no second argument is provided
-  const singleScreenCss = process.argv[3] === "true" || process.argv[3] === "SINGLE_SCREEN_CSS=true";
-  
+  let screenPathArg = process.argv[2];
+
   if (!screenPathArg) {
     console.error("Error: Screen path argument is missing.");
     console.log(
-      "Usage: npm run publish:screen -- <product>/[path/to/]/<ScreenName> [SINGLE_SCREEN_CSS=true|false]"
+      "Usage: npm run publish:screen -- /<product>/[path/to/]/<ScreenName>"
     );
     console.log(
-      "Example: npm run publish:screen -- irm/overview-screens/LeadOverview"
+      "Example: npm run publish:screen -- /irm/overview-screens/LeadOverview"
     );
-    console.log("Example: npm run publish:screen -- .debug/DebugView SINGLE_SCREEN_CSS=true");
+    console.log("Example: npm run publish:screen -- /.debug/DebugView");
+
     console.log(
-      "Example: npm run publish:screen -- assets/main.css (to publish the main CSS file)"
+      "Example: npm run publish:screen -- /assets/main.css (to publish the main CSS file)"
     );
     process.exit(1);
   }
+
+  console.log(`Original screenPathArg: ${screenPathArg}`);
+
+  // Remove leading slash if present
+  if (screenPathArg.startsWith("/")) {
+    screenPathArg = screenPathArg.substring(1);
+  }
   
-  // Log whether single screen CSS is enabled
-  console.log(`Single Screen CSS: ${singleScreenCss ? "enabled" : "disabled (default)"}`);
+  // Fix Git Bash path issue: detect and handle C:/Program Files/Git prefix
+  if (screenPathArg.startsWith("C:/Program Files/Git/")) {
+    screenPathArg = screenPathArg.substring("C:/Program Files/Git/".length);
+  }
 
   // Special case for publishing main.css
   if (screenPathArg === "assets/main.css") {
@@ -169,15 +177,12 @@ async function main() {
   const screenPathParts = screenPathArg.split("/");
   if (screenPathParts.length < 2) {
     console.error(
-      "Error: Invalid screen path format. Expected at least <product>/<ScreenName>"
+      "Error: Invalid screen path format. Expected at least /<product>/<ScreenName>"
     );
     console.log(
-      "Example: npm run publish:screen -- irm/overview-screens/LeadOverview"
+      "Example: npm run publish:screen -- /irm/overview-screens/LeadOverview"
     );
-    console.log("Example: npm run publish:screen -- .debug/DebugView");
-    console.log(
-      "Example: npm run publish:screen -- assets/main.css (to publish the main CSS file)"
-    );
+    console.log("Example: npm run publish:screen -- /.debug/DebugView");
     process.exit(1);
   }
 
@@ -310,22 +315,26 @@ async function main() {
   // The temp directory is already created and files are directly written there
 
   // Use cross-env compatible approach for Windows with additional env vars for temp files
-  const viteBuildCommand = `cross-env PROJECT_ROOT_DIR="${projectRootDir.replace(
-    /\\/g,
-    "/"
-  )}" VITE_GIT_USER="${
-    process.env.VITE_GIT_USER ||
-    execSync("git config user.name").toString().trim()
-  }" VITE_PUBLISH_TIME="${new Date().toISOString()}" TARGET_ENTRY_FILE=${sourceEntryFile} TARGET_ENTRY_KEY=${viteEntryKey} TEMP_INDEX_CSS=${path
-    .join(tempDir, "index.css")
-    .replace(/\\/g, "/")} SINGLE_SCREEN_CSS=${singleScreenCss} vite build`;
+  // Create an object with all environment variables to pass to execSync
+  const buildEnv = {
+    ...process.env,
+    PROJECT_ROOT_DIR: projectRootDir,
+    VITE_GIT_USER: process.env.VITE_GIT_USER || execSync("git config user.name").toString().trim(),
+    VITE_PUBLISH_TIME: new Date().toISOString(),
+    TARGET_ENTRY_FILE: sourceEntryFile,
+    TARGET_ENTRY_KEY: viteEntryKey,
+    TEMP_INDEX_CSS: tempIndexCssPath.replace(/\\/g, "/"),
+    SINGLE_SCREEN_CSS: "true"
+  };
+  
+  const viteBuildCommand = `vite build`;
 
   console.log(`   Executing: ${viteBuildCommand} with environment variables`);
   try {
     execSync(viteBuildCommand, {
       stdio: "inherit",
       cwd: projectRootDir,
-      env: { ...process.env },
+      env: buildEnv,
     });
     console.log("✅ Screen built successfully.");
 
@@ -346,9 +355,6 @@ async function main() {
   await uploadDirectory(cssOutputDir, azureDestinationPath);
   console.log("✅ Screen CSS published successfully to Azure!");
 }
-
-// Show additional usage info
-console.log("NOTE: You can specify SINGLE_SCREEN_CSS=true or false as a second argument to control whether custom CSS is generated.");
 
 main().catch((error) => {
   console.error("❌ An unexpected error occurred:", error);

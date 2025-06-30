@@ -27,7 +27,6 @@ import type { ColumnsType } from 'antd/es/table';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { GET_COMPANIES, CompanyData, GetCompaniesResponse } from './graphql/company-queries';
-import './styles/CompanyOverview.css';
 
 const { Title, Text } = Typography;
 

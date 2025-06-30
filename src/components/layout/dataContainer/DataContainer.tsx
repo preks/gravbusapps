@@ -1,7 +1,7 @@
 import React from 'react';
 import { DataController, DataControllerProps } from '@/components/dataController';
 import { DataFilter, DataFilterProps } from '@/components/data-filter';
-import { DetailsDefault } from '@/components/details';
+import { DataDetails } from '@/components/data-details';
 import { cn } from '../../../common/utils/cn';
 
 /**
@@ -124,8 +124,15 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
     setShowDataFilter(false);
   }, []);
 
+  const handleDetailsClose = React.useCallback(() => {
+    if (dataDetails?.onClose) {
+      dataDetails.onClose();
+    }
+    onDetailsPanelClose();
+  }, [dataDetails, onDetailsPanelClose]);
+
   return (
-    <div className={cn("gba:flex gba:flex-row gba:h-full gba:w-full gba:bg-gray-100", className
+    <div className={cn("gba:flex gba:flex-row gba:h-full gba:w-full gba:bg-gray-100 gba:relative", className
     )}>
       {/* Filter Sidebar - left column, visible if open */}
       {showDataFilter && (
@@ -154,7 +161,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
               {...dataControllerProps}
             />
           )}
-        <div className={cn("gba:flex-1 gba:min-h-0 gba:overflow-auto gba:p-4", {
+        <div className={cn("gba:flex-1 gba:min-h-0 gba:overflow-auto gba:my-4", {
           'gba:bg-gray-50': contentBackground === 'gray',
           'gba:bg-white': contentBackground === 'white'
         })}>
@@ -163,19 +170,24 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
       </div>
       {/* Details Sidebar - right column or floating, only if present */}
       {dataDetails && (
-        <div className={cn("gba:flex gba:flex-col gba:w-[336px] gba:min-h-0 gba:border-l gba:border-gray-100 gba:bg-white", {
-            "gba:z-0": !floatingDetails,
-            "gba:z-10 gba:absolute gba:right-0 gba:top-0 gba:bottom-0 gba:shadow-lg": floatingDetails
+        <div 
+          className={cn({
+            // Standard right column layout
+            "gba:flex gba:flex-col gba:w-[336px] gba:min-h-0 gba:border-l gba:border-gray-100 gba:bg-white gba:z-0": !floatingDetails,
+            // Floating layout - fixed position from top of viewport excluding header, full height minus header
+            "gba:fixed gba:top-12 gba:right-0 gba:bottom-0 gba:w-[400px] gba:bg-white gba:border-l gba:border-gray-200 gba:z-20 gba:flex gba:flex-col gba:!shadow-lg": floatingDetails
           }
-        )}>
-          <DetailsDefault
+        )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <DataDetails
             title={dataDetails.title}
             icon={dataDetails.icon}
-            onClose={dataDetails.onClose || handleCloseDataFilter} /* Use specific onClose for details if provided, else fallback */
+            onClose={handleDetailsClose}
             footer={dataDetails.footer}
           >
             {dataDetails.content}
-          </DetailsDefault>
+          </DataDetails>
         </div>
       )}
     </div>

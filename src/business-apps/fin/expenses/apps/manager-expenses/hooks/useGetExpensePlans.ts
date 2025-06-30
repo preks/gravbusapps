@@ -71,7 +71,7 @@ interface ExpensePlanStatisticsResponse {
 
 interface UseGetExpensePlansProps extends BusinessAppContextProps {
   pageSize?: number;
-  employeeId?: string; // This seems to be for a different context, manager's own expenses?
+  // We're using managerId from userInfo instead of a separate employeeId parameter
   searchTerm?: string; // Added
   currentStatusFilter?: string | null; // Added
 }
@@ -83,7 +83,11 @@ export const useGetExpensePlans = ({
   searchTerm,
   currentStatusFilter,
 }: UseGetExpensePlansProps) => {
-  const employeeId = userInfo?.employeeDetails?.employeeId;
+  // Get managerId from userInfo or use a fallback for development
+  const managerId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
+  
+  // Log the managerId to help with debugging
+  console.log('useGetExpensePlans - managerId:', managerId);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [plans, setPlans] = useState<ExpensePlan[]>([]);
@@ -97,7 +101,7 @@ export const useGetExpensePlans = ({
   const [statsError, setStatsError] = useState<Error | null>(null);
 
   const fetchPlans = useCallback(async () => {
-    console.log('fetchPlans called with accessToken:', !!accessToken, 'employeeId:', employeeId);
+    console.log('fetchPlans called with accessToken:', !!accessToken, 'managerId:', managerId);
     
     if (!accessToken) {
       setError(new Error('Access token not found. Cannot fetch expense plans.'));
@@ -105,8 +109,8 @@ export const useGetExpensePlans = ({
       return;
     }
     
-    if (!employeeId) {
-      setError(new Error('Employee ID not found. Cannot fetch expense plans.'));
+    if (!managerId) {
+      setError(new Error('Manager ID not found. Cannot fetch expense plans.'));
       setLoading(false);
       return;
     }
@@ -118,7 +122,7 @@ export const useGetExpensePlans = ({
       const searchValue = searchTerm ? `%${searchTerm}%` : '%%'; 
       const offset = (currentPage - 1) * pageSize;
       
-      console.log('Fetching expense plans with employeeId:', employeeId);
+      console.log('Fetching expense plans with managerId:', managerId);
       
       const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
         method: 'POST',
@@ -129,7 +133,7 @@ export const useGetExpensePlans = ({
         body: JSON.stringify({
           query: GET_EXPENSE_PLANS_BY_MANAGER,
           variables: {
-            employeeId,
+            managerId,
             limit: pageSize,
             offset,
             searchTerm: searchValue,
@@ -145,7 +149,12 @@ export const useGetExpensePlans = ({
       }
 
       const data = result.data as ExpensePlanResponse;
-      console.log('Expense plans data received:', data);
+      console.log('Expense plans data received:', {
+        plansCount: data.ExpensePlan?.length,
+        totalCount: data.ExpensePlanAggregate?.aggregate?.count,
+        firstPlan: data.ExpensePlan?.[0],
+        managerId
+      });
       
       // Apply client-side filtering for status and employee
       let filteredPlans = data.ExpensePlan;
@@ -164,15 +173,15 @@ export const useGetExpensePlans = ({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, employeeId, currentPage, pageSize, searchTerm, currentStatusFilter, employeeFilter]); // Updated dependencies
+  }, [accessToken, managerId, currentPage, pageSize, searchTerm, currentStatusFilter, employeeFilter]);
 
   useEffect(() => {
     fetchPlans();
   }, [fetchPlans]);
 
   const fetchPlanStatistics = useCallback(async () => {
-    if (!accessToken || !employeeId) {
-      setStatsError(new Error('Access token or Employee ID not found for statistics.'));
+    if (!accessToken || !managerId) {
+      setStatsError(new Error('Missing required parameters'));
       setStatsLoading(false);
       return;
     }
@@ -187,7 +196,7 @@ export const useGetExpensePlans = ({
         },
         body: JSON.stringify({
           query: GET_EXPENSE_PLAN_STATISTICS,
-          variables: { employeeId }
+          variables: { managerId }
         })
       });
       const result = await response.json();
@@ -195,6 +204,14 @@ export const useGetExpensePlans = ({
         throw new Error(result.errors[0].message);
       }
       const data = result.data as ExpensePlanStatisticsResponse;
+      
+      console.log('Expense plan statistics received:', {
+        totalCount: data.allPlansStats?.aggregate.totalCount,
+        sumTotalAmount: data.allPlansStats?.aggregate.sum?.totalAmount,
+        pendingCount: data.pendingPlansStats?.aggregate.pendingCount,
+        pendingAmount: data.pendingPlansStats?.aggregate.sum?.totalAmount
+      });
+      
       setPlanStats({
         totalCount: data.allPlansStats?.aggregate.totalCount ?? 0,
         sumTotalAmount: data.allPlansStats?.aggregate.sum?.totalAmount ?? null,
@@ -207,7 +224,7 @@ export const useGetExpensePlans = ({
     } finally {
       setStatsLoading(false);
     }
-  }, [accessToken, employeeId]);
+  }, [accessToken, managerId]);
 
   useEffect(() => {
     fetchPlanStatistics();
@@ -222,8 +239,8 @@ export const useGetExpensePlans = ({
     setCurrentPage(page);
   };
 
-  const approvePlan = async (planId: string, comments?: string) => {
-    if (!accessToken || !employeeId) return;
+  const approvePlan = useCallback(async (planId: string, comments: string = '') => {
+    if (!accessToken || !managerId) return;
 
     setApproving(true);
     try {
@@ -237,7 +254,7 @@ export const useGetExpensePlans = ({
           query: APPROVE_EXPENSE_PLAN,
           variables: {
             planId,
-            approverEmployeeId: employeeId,
+            approverEmployeeId: managerId,
             comments: comments ?? null
           }
         })
@@ -258,10 +275,10 @@ export const useGetExpensePlans = ({
     } finally {
       setApproving(false);
     }
-  };
+  }, [accessToken, managerId]);
 
-  const rejectPlan = async (planId: string, reason: string) => {
-    if (!accessToken || !employeeId) return;
+  const rejectPlan = useCallback(async (planId: string, reason: string) => {
+    if (!accessToken || !managerId) return;
 
     setRejecting(true);
     try {
@@ -275,7 +292,7 @@ export const useGetExpensePlans = ({
           query: REJECT_EXPENSE_PLAN,
           variables: {
             planId,
-            rejectorEmployeeId: employeeId,
+            rejectorEmployeeId: managerId,
             reason
           }
         })
@@ -289,14 +306,14 @@ export const useGetExpensePlans = ({
 
       message.success('Expense plan rejected successfully');
       fetchPlans();
+      fetchPlanStatistics();
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to reject expense plan'));
-      message.error('Failed to reject expense plan');
       console.error('Error rejecting expense plan:', err);
+      message.error('Failed to reject expense plan');
     } finally {
       setRejecting(false);
     }
-  };
+  }, [accessToken, managerId, fetchPlans, fetchPlanStatistics]);
 
   return {
     loading,

@@ -405,7 +405,7 @@ export default wrapWithUiCatalog(OriginalComponent);
     wrappedEntries[entryKey] = wrappedEntryPath;
   });
 
-  console.log('[vite.config.ts] wrappedEntries:', wrappedEntries)
+  console.log("[vite.config.ts] wrappedEntries:", wrappedEntries);
 
   return {
     plugins: [
@@ -460,7 +460,10 @@ export default wrapWithUiCatalog(OriginalComponent);
         input: isSingleBuild
           ? {
               // Use TEMP_INDEX_CSS if provided, otherwise fallback to default index.css
-              main: env.TEMP_INDEX_CSS && env.SINGLE_SCREEN_CSS === 'true' ? env.TEMP_INDEX_CSS : resolve(projectRootDir, "src/index.css"),
+              main:
+                env.TEMP_INDEX_CSS && env.SINGLE_SCREEN_CSS === "true"
+                  ? env.TEMP_INDEX_CSS
+                  : resolve(projectRootDir, "src/index.css"),
               ...wrappedEntries,
             }
           : {
@@ -474,6 +477,8 @@ export default wrapWithUiCatalog(OriginalComponent);
           "react",
           "react-dom",
           "antd",
+          "@ant-design/icons",
+          "react-icons/pi",
           "react/jsx-runtime",
           "@dnd-kit/core",
           "@dnd-kit/sortable",
@@ -508,8 +513,10 @@ export default wrapWithUiCatalog(OriginalComponent);
             react: "React",
             "react-dom": "ReactDOM",
             antd: "antd",
+            "@ant-design/icons": "antDesignIcons",
             "react-i18next": "reactI18next",
             "react-icons": "reactIcons",
+            "react-icons/pi": "reactIconsPi",
             clsx: "clsx",
             "tailwind-merge": "tailwindMerge",
             "@dnd-kit/core": "DNDKitCore",

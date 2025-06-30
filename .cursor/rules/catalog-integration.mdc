@@ -1,0 +1,54 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Catalog API Integration Pattern
+
+When working with Catalog APIs for reference data:
+
+- Use `useCatalogManagerClient()` from `src/common/network/catalogs/useCatalogManagerClient.ts`
+- Common catalogs: `JobLevelGroup`, `CompensationBand`, `Department` (all version `v1`)
+- Use `getCatalogEntriesList` method with proper parameters
+
+@src/business-apps/mdm/apps/compensation-data/hooks/useJobLevelGroups.ts
+
+## Common Catalog Constants
+```typescript
+export const JOB_LEVEL_GROUP_CATALOG = 'JobLevelGroup';
+export const CATALOG_VERSION = 'v1';
+```
+
+## Catalog Hook Pattern
+```typescript
+export const useEntityCatalog = (context: BusinessAppContextProps) => {
+  const catalogClient = useCatalogManagerClient(context.accessToken);
+
+  const fetchEntityCatalog = async (params?: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+  }) => {
+    const response = await catalogClient.getCatalogEntriesList(
+      {
+        catalogIdentifier: ENTITY_CATALOG,
+        version: CATALOG_VERSION
+      },
+      {
+        limit: params?.limit || 100,
+        offset: params?.offset || 0,
+        returnTotalRecords: true,
+        includeChildCatalogEntries: true,
+        ...(params?.search && { searchCriteria: params.search })
+      }
+    );
+    return response;
+  };
+
+  return { fetchEntityCatalog };
+};
+```
+
+
+
+

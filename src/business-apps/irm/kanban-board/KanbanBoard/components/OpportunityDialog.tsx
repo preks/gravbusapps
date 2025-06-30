@@ -97,12 +97,11 @@ export function OpportunityDialog() {
           <InputNumber
             style={{ width: '100%' }}
             formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-            // Use a type assertion to tell TypeScript that this function returns the expected type
             parser={(value) => {
               if (!value) return 0;
               const parsed = value.replace(/\$\s?|(,*)/g, '');
               const num = isNaN(Number(parsed)) ? 0 : Number(parsed);
-              return num as 0; // Type assertion to match the expected return type
+              return num as 0;
             }}
             min={0}
           />

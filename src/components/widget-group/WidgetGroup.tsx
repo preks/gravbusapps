@@ -12,6 +12,10 @@ export interface WidgetItem {
   suffix?: ReactNode;
   color?: string;
   precision?: number;
+  /**
+   * Flag to indicate if the value is already formatted as a string
+   */
+  valueIsString?: boolean;
   span?: {
     xs?: number;
     sm?: number;
@@ -24,6 +28,10 @@ export interface WidgetItem {
    */
   description?: string;
   customContent?: ReactNode;
+  /**
+   * Optional click handler for the widget
+   */
+  onClick?: () => void;
 }
 
 export interface WidgetGroupProps {
@@ -46,6 +54,11 @@ export interface WidgetGroupProps {
    * Function to call when retry button is clicked
    */
   onRetry?: () => void;
+  
+  /**
+   * Function to call when a widget is clicked
+   */
+  onWidgetClick?: (widgetKey: string) => void;
   
   /**
    * Custom class names to apply to the container
@@ -97,6 +110,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   isLoading = false,
   error = null,
   onRetry,
+  onWidgetClick,
   className = 'gba:py-2',
   gutter = [16, 16],
   hoverable = true,
@@ -182,7 +196,15 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
             <Card
               size="small"
               hoverable={hoverable}
-              style={{ background: cardBackground, padding: '16px', height: '140px' }}
+              style={{ background: cardBackground, padding: '16px', height: '140px', cursor: widget.onClick || onWidgetClick ? 'pointer' : 'auto' }}
+              onClick={() => {
+                if (widget.onClick) {
+                  widget.onClick();
+                }
+                if (onWidgetClick) {
+                  onWidgetClick(widget.key);
+                }
+              }}
               className="gba:flex gba:flex-col gba:overflow-hidden" // Fixed height with overflow handling
             >
               {widget.customContent || (
@@ -198,7 +220,9 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
                       </span>
                     )}
                     <span className="ant-statistic-content-value" style={{ fontSize: '24px', fontWeight: 600 }}>
-                      {typeof widget.value === 'number' && widget.precision !== undefined ? (
+                      {widget.valueIsString ? (
+                        widget.value ?? '0,00'
+                      ) : typeof widget.value === 'number' && widget.precision !== undefined ? (
                         <>
                           <span className="ant-statistic-content-value-int">
                             {Math.floor(widget.value).toString()}

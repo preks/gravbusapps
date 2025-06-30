@@ -129,7 +129,7 @@ export function DataCards<T>({
   return (
     <div 
       ref={scrollContainerRef} 
-      className={`w-full h-full overflow-y-auto ${className}`.trim()}
+      className={`w-full h-full overflow-y-auto gba:m-4 ${className}`.trim()}
     >
       <div 
         className="gba:p-4 gba:grid gba:justify-center" 

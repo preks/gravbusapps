@@ -1,0 +1,187 @@
+.gba\:absenceListTitle {
+  text-align: left;
+  margin-bottom: 28px;
+  font-size: 22px;
+  font-weight: 600;
+}
+.gba\:absenceListEmpty {
+  text-align: center;
+  color: #999;
+  font-size: 18px;
+  margin-top: 40px;
+}
+
+.gba\:absenceListCards {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.gba\:absenceListCard {
+  background: #fff;
+  border-radius: 16px;
+  border: 1.5px solid #e5e7eb;
+  padding: 22px 26px 18px 26px;
+  margin-bottom: 18px;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.gba\:absenceListCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.gba\:absenceType {
+  display: inline-block;
+  padding: 2px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  position: relative;
+  background: transparent;
+  color: var(--gba-pill-color, #27ae60);
+  border: 1px solid var(--gba-pill-border, #27ae60);
+  margin-right: 6px;
+  vertical-align: middle;
+  line-height: normal;
+  z-index: 1;
+}
+
+.gba\:absenceType::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--gba-pill-bg, #eafff3);
+  opacity: 0.15;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.gba\:absenceType > * {
+  position: relative;
+  z-index: 1;
+}
+.gba\:absenceType--red {
+  background: transparent;
+  color: #e53935;
+  border: 1px solid #e53935;
+}
+.gba\:absenceType--blue {
+  background: transparent;
+  background: #e3f0ff;
+  color: #1976d2;
+}
+.gba\:absenceType--yellow {
+  background: #fffde7;
+  color: #fb8c00;
+}
+.gba\:absenceType--green {
+  background: #eafff3;
+  color: #27ae60;
+}
+.gba\:absenceStatus {
+  display: inline-block;
+  padding: 2px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  vertical-align: middle;
+  line-height: normal;
+  position: relative;
+  background: transparent;
+  color: var(--gba-pill-color, #27ae60);
+  border: 1px solid var(--gba-pill-border, #27ae60);
+  z-index: 1;
+}
+
+.gba\:absenceStatus::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--gba-pill-bg, #eafff3);
+  opacity: 0.15;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.gba\:absenceStatus > * {
+  position: relative;
+  z-index: 1;
+}
+.gba\:status--approved {
+  background: #e6f9f0;
+  color: #27ae60;
+}
+.gba\:status--pending {
+  background: #fff3e0;
+  color: #fb8c00;
+}
+.gba\:status--rejected {
+  background: #ffebee;
+  color: #e53935;
+}
+.gba\:status--info {
+  background: #e3f0ff;
+  color: #1976d2;
+}
+.gba\:viewDetailsBtn {
+  border: 1.5px solid #e5e7eb;
+  background: #fff;
+  color: #222;
+  border-radius: 8px;
+  padding: 5px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-left: 12px;
+  transition: background 0.15s, color 0.15s;
+}
+.gba\:viewDetailsBtn:hover, .gba\:viewDetailsBtn:focus {
+  background: #f7f7fa;
+  color: #18181a;
+}
+.gba\:absenceListCardTitle {
+  font-size: 1.19rem;
+  font-weight: 700;
+  color: #18181a;
+  margin-bottom: 2px;
+}
+.gba\:absenceListCardDetails {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.98rem;
+  color: #6b7280;
+  margin-bottom: 2px;
+}
+.gba\:absenceListCardIcon {
+  font-size: 1.1rem;
+  margin-right: 2px;
+  color: #1976d2;
+}
+.gba\:absenceListDates {
+  font-size: 14px;
+  color: #6b7280;
+}
+.gba\:absenceDuration {
+  font-size: 0.95rem;
+  color: #6b7280;
+}
+.gba\:absenceDescription {
+  font-size: 1.01rem;
+  color: #333;
+  margin-top: 2px;
+}
+.gba\:absenceRequestedInfo {
+  font-size: 0.93rem;
+  color: #999;
+  margin-top: 2px;
+}

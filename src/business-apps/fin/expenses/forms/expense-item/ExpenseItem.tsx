@@ -1,0 +1,121 @@
+import React from "react";
+import { useTranslation } from "react-i18next";
+import { ExpenseItemProvider, useExpenseItem } from './context';
+import { Button } from "@newwork/gravity-ui-catalog";
+import { Typography, Divider } from "antd";
+import { ExpenseItemProps } from "./types";
+import StartScreenComponent from "./components/StartScreenComponent";
+import FormScreenComponent from "./components/FormScreenComponent";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { ICONS } from "./constants/icons";
+
+const { Title } = Typography;
+
+const ExpenseItemContent: React.FC = () => {
+  const { t } = useTranslation();
+  
+  const {
+    form,
+    currentStep,
+    setCurrentStep,
+    fileList,
+    setFileList,
+    positions,
+    setPositions,
+    expenseGroups,
+    expenseRequests,
+    loading,
+    expenseTypes,
+    customFields,
+    costCenters,
+    multiPosition,
+    setCurrentSelectedDate,
+    setMultiPosition,
+    handleSubmit,
+    handleExpenseGroupChange,
+    handleExpenseTypeChange,
+    handleAddPosition,
+    handleRemovePosition,
+    calculateTotal,
+    currencies,
+    isEditMode
+  } = useExpenseItem();
+
+  return (
+    <div className={`gba:mainContainer`} data-testid="expense-item-main-container">
+      <div className={`gba:headerContainer`} data-testid="expense-item-header-container">
+        {currentStep === "form" && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setCurrentStep("start");
+              setFileList([]);
+            }}
+            className={`gba:backButton`}
+            data-testid="back-button"
+          >
+            <img 
+              src={ICONS.BACK_ARROW} 
+              alt={t('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.back_btn', 'Back')} 
+              className={`gba:backIcon`}
+              width="24"
+              height="24"
+              data-testid="back-button-icon"
+            />
+          </Button>
+        )}
+        <div className={`gba:titleContainer`} data-testid="expense-item-title-container">
+          <Title level={4} className={`gba:headerTitle`} data-testid="expense-item-header-title">
+            {isEditMode 
+              ? t("lowcoder:create_expense_type_item.header_container_title_edit", "Edit Item | Expense")
+              : t("lowcoder:create_expense_type_item.header_container_title_new", "New Item | Expense")
+            }
+          </Title>
+        </div>
+      </div>
+      <Divider className={`gba:headerDivider`} data-testid="expense-item-header-divider" />
+
+      {currentStep === "start" ? (
+        <StartScreenComponent 
+          fileList={fileList}
+          setFileList={setFileList}
+          setCurrentStep={setCurrentStep}
+        />
+      ) : (
+        <FormScreenComponent
+          form={form}
+          fileList={fileList}
+          setFileList={setFileList}
+          positions={positions}
+          setPositions={setPositions}
+          expenseGroups={expenseGroups}
+          expenseTypes={expenseTypes}
+          customFields={customFields}
+          costCenters={costCenters}
+          currencies={currencies}
+          expenseRequests={expenseRequests}
+          multiPosition={multiPosition}
+          setCurrentSelectedDate={setCurrentSelectedDate}
+          setMultiPosition={setMultiPosition}
+          handleSubmit={handleSubmit}
+          handleExpenseGroupChange={handleExpenseGroupChange}
+          handleExpenseTypeChange={handleExpenseTypeChange}
+          handleAddPosition={handleAddPosition}
+          handleRemovePosition={handleRemovePosition}
+          loading={loading}
+          calculateTotal={calculateTotal}
+        />
+      )}
+    </div>
+  );
+};
+
+const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ accessToken, userInfo, additionalData }) => {
+  return (
+    <ExpenseItemProvider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}>
+      <ExpenseItemContent />
+    </ExpenseItemProvider>
+  );
+};
+
+export default ExpenseItem;

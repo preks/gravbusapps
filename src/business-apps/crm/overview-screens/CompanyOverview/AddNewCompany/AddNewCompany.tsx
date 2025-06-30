@@ -23,7 +23,7 @@ import {
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import './styles/AddNewCompany.css';
+import { env } from '@/common/env/EnvUtils';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -267,7 +267,7 @@ const AddNewCompany: React.FC<AddNewCompanyProps> = ({ accessToken, employeeDeta
       };
 
       const response = await fetch(
-        'https://newwork-dev.newwork.com/processes/customer-relations/saveAccount',
+        `${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveAccount`,
         {
           method: 'POST',
           headers: {

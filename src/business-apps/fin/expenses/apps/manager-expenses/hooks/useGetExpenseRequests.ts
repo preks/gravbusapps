@@ -80,7 +80,8 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
   const [requestStatsLoading, setRequestStatsLoading] = useState<boolean>(false);
   const [requestStatsError, setRequestStatsError] = useState<string | null>(null);
 
-  const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId;
+  // Use the real manager ID from userInfo with a fallback UUID for development
+  const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId || userInfo?.id || '00000000-0000-0000-0000-000000000000';
 
   /**
    * Helper function to build GraphQL variables for the query
@@ -138,19 +139,27 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
   
   // Function to fetch requests with search, pagination, and filtering
   const fetchRequests = useCallback(async (
-    searchTerm: string = '', 
-    page: number = 1, 
+    searchTerm: string = '',
+    page: number = 1,
     pageSize: number = 10,
     employeeId: string = 'all', // This is a filter parameter, distinct from supervisor's ID
     status: string = 'all'
   ) => {
-    if (!supervisorEmployeeId) {
-      setError('Manager ID not found. Cannot fetch expense requests.');
-      setRequests([]);
-      setTotalCount(0);
+    if (!accessToken) {
+      setError('Access token not available.');
       setIsLoading(false);
       return;
     }
+    
+    console.log('Fetching expense requests with:', {
+      managerId: supervisorEmployeeId,
+      searchTerm,
+      page,
+      pageSize,
+      employeeId,
+      status
+    });
+    
 
     setIsLoading(true);
     setError(null);
@@ -177,9 +186,16 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
 
       const result = await response.json();
 
-      if (result.errors && result.errors.length > 0) {
+      if (result.errors) {
+        console.error('GraphQL errors in expense requests:', result.errors);
         throw new Error(result.errors.map((e: any) => e.message).join(', '));
       }
+      
+      console.log('Expense requests data received:', {
+        requestsCount: result.data.ExpenseRequest?.length,
+        totalCount: result.data.ExpenseRequestAggregate?.aggregate?.count,
+        variables: variables
+      });
       
       // Get total count from aggregate query
       const count = result.data?.ExpenseRequestAggregate?.aggregate?.count ?? 0;
@@ -242,7 +258,7 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
       setError(err instanceof Error ? err.message : String(err));
       return false;
     }
-  }, [accessToken]);
+  }, [accessToken, setError, setRequests]);
 
   // Function to reject an expense request
   const rejectRequest = useCallback(async (requestId: string, rejectionReason?: string): Promise<boolean> => {
@@ -290,15 +306,17 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
       setError(err instanceof Error ? err.message : String(err));
       return false;
     }
-  }, [accessToken, setRequests, setError]);
+  }, [accessToken, setError, setRequests]);
 
   const fetchRequestStatistics = useCallback(async () => {
-    if (!accessToken || !supervisorEmployeeId) {
-      setRequestStatsError('Access token or employee ID not available for statistics.');
+    if (!accessToken) {
+      setRequestStatsError('Access token not available for statistics.');
       setRequestStats(null);
       setRequestStatsLoading(false);
       return;
     }
+    
+    console.log('Fetching expense request statistics for manager:', supervisorEmployeeId);
     setRequestStatsLoading(true);
     setRequestStatsError(null);
     try {
@@ -315,8 +333,11 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
       });
       const result = await response.json();
       if (result.errors) {
+        console.error('GraphQL errors in expense request statistics:', result.errors);
         throw new Error(result.errors.map((e: any) => e.message).join(', '));
       }
+      
+      console.log('Expense request statistics received:', result.data);
       const data = result.data;
       setRequestStats({
         pendingCount: data.pendingRequests?.aggregate?.count ?? 0,
@@ -334,16 +355,16 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     } finally {
       setRequestStatsLoading(false);
     }
-  }, [accessToken, supervisorEmployeeId, setRequestStats, setRequestStatsLoading, setRequestStatsError]);
+  }, [accessToken, setRequestStats, setRequestStatsLoading, setRequestStatsError]);
 
   // Initial data fetch (requests, and statistics)
   useEffect(() => {
-    if (accessToken && supervisorEmployeeId) {
+    if (accessToken) {
       fetchRequests(); // Fetches the first page of requests
       fetchRequestStatistics();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, supervisorEmployeeId, fetchRequests, fetchRequestStatistics]);
+  }, [accessToken, fetchRequests, fetchRequestStatistics]);
 
   return {
     requests,

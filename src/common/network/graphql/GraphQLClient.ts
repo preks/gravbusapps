@@ -21,10 +21,9 @@ export class GraphQLClient {
   async request<T = any>(query: string,
     variables?: Record<string, any>
   ): Promise<T> {
-
     const response = await fetch(this.endpoint, {
       method: 'POST',
-      credentials: 'include',
+      credentials: 'same-origin',
       mode: 'cors',
       headers: {
         'Content-Type': 'application/json',
@@ -36,13 +35,26 @@ export class GraphQLClient {
       }),
     });
 
+    if (response.status === 302 || response.status === 301) {
+      const location = response.headers.get('location');
+      console.error(`GraphQL request redirected (${response.status}) to: ${location}`);
+      throw new Error(`Redirect detected: ${response.status} ${response.statusText} -> ${location}`);
+    }
+
     if (!response.ok) {
-      throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}`);
+      try {
+        const errorText = await response.text();
+        console.error('Error response body:', errorText);
+        throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}\nResponse: ${errorText}`);
+      } catch (e) {
+        throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}`);
+      }
     }
 
     const result = await response.json();
 
     if (result.errors) {
+      console.error('GraphQL errors:', result.errors);
       throw new Error(`GraphQL error: ${JSON.stringify(result.errors)}`);
     }
 
