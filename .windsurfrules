@@ -91,6 +91,8 @@ src
 - If the API request is Catalog, search for existing hooks and use them, otherwise create a new one. Example: src\business-apps\hr\hooks\useGetContractTypes.ts
 - In the singleton client REST class, the URL key is in the `.env` file. Example: `env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')`, NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT is in `.env`.
 - For all API requests, make sure accessToken exists.
+- Never use hardcoded base URLs like "https://newwork-dev.newwork.com/<rest_of_the_base_url>". Always use `env` from '@/common/env/EnvUtils'.
+- If a base URL does not exist, make sure to add it to the .env file, use `NEXT_PUBLIC_BASE_URL` or `NEXT_PUBLIC_API_SERVER` for the host part and concatenate the URL path in a new variable.
 
 # Project Development
 - Simplify the code as much as possible and keep it clean

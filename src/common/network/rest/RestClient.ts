@@ -1,3 +1,5 @@
+import { env } from "@/common/env/EnvUtils";
+
 export enum HttpMethod {
   GET = 'GET',
   POST = 'POST',
@@ -30,7 +32,11 @@ export class RestClient {
   protected headers: Record<string, string> = {};
   protected baseUrl: string;
 
-  constructor(baseUrl: string, headers: Record<string, string> = {}) {
+  constructor(baseUrl?: string, headers: Record<string, string> = {}) {
+    if (!baseUrl) {
+      baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? "";
+    }
+
     this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     this.headers = headers;
   }
