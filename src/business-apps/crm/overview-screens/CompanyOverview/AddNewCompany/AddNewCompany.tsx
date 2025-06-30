@@ -290,10 +290,6 @@ const AddNewCompany: React.FC<AddNewCompanyProps> = ({ accessToken, employeeDeta
       if (response.ok || responseData?.account?.id) {
         message.success('Company created successfully');
         
-        if (responseData?.account?.id) {
-          console.log('Created company with ID:', responseData.account.id);
-        }
-        
         handleBack(); 
       } else {
         const errorMessage = responseData.message || response.statusText || 'Unknown error';

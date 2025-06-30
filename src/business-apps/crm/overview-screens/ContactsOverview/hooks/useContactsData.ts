@@ -13,6 +13,11 @@ export interface Contact {
   xingUrl?: string;
   updatedAt?: string;
   createdAt?: string;
+  accountId?: string;
+  account?: {
+    name?: string;
+    id?: string;
+  };
   ownerEmployee?: {
     fullName?: string;
     employeePosition?: {
@@ -55,6 +60,11 @@ const CONTACTS_QUERY = `
           }
         } 
       }
+      accountId
+      account {
+        name
+        id
+      }
       email
       phone
       jobTitle
@@ -80,7 +90,6 @@ export const useContactsData = (accessToken: string) => {
     meetingsScheduled: { count: 0, change: '0%', changeType: 'increase' }
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
   
   const client = useGraphqlClient(accessToken)
   const fetchContacts = async () => {
@@ -93,11 +102,8 @@ export const useContactsData = (accessToken: string) => {
         setContacts(contactsData);
         
         calculateMetrics(contactsData);
-      } else {
-        setError(new Error('No contacts data found in the response'));
-      }
+      } 
     } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setLoading(false);
     }
@@ -142,7 +148,6 @@ export const useContactsData = (accessToken: string) => {
     contacts,
     metrics,
     loading,
-    error,
     refetch: fetchContacts
   };
 };
