@@ -35,7 +35,7 @@ import {
 import { useContactsData, Contact } from './hooks/useContactsData';
 import { BusinessAppContextProps } from "@/business-apps/types";
 import { env } from '@/common/env/EnvUtils';
-import { ContactProfile } from '../../../irm/contact-screens/ContactProfile/ContactProfile';
+import { ContactProfile } from '../ContactProfile/ContactProfile';
 
 const { Title, Text, Paragraph } = Typography;
 const { useBreakpoint } = Grid;
