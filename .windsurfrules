@@ -110,6 +110,7 @@ src
 - apps and forms need to be published on a daily basis
 - apps: Use npm run publish:screen -- /<module>/<sub-module>/apps/<app-folder> to publish an app
 - forms: Use npm run publish:screen -- /<module>/<sub-module>/forms/<form-folder> to publish a form
+- options: Use  `--fast` or `-f` for Fast publish mode - skips all prompts and defaults to No for resource URL options
 
 # Keep files small and maintainable
 - No single file should exceed 300 lines of code.

@@ -38,8 +38,12 @@ npm run build
 **Usage:**
 
 ```bash
-npm run publish:screen -- /<product>/<path-to-screen>/<screen-name>
+npm run publish:screen -- /<product>/<path-to-screen>/<screen-name> [options]
 ```
+
+**Options:**
+
+- `--fast` or `-f`: Fast publish mode - skips all prompts and defaults to No for resource URL options
 
 **Examples:**
 
@@ -50,6 +54,12 @@ npm run publish:screen -- /irm/overview-screens/LeadOverview
 
 # Publish the OpportunityDetail screen from the CRM product
 npm run publish:screen -- /crm/detail-screens/OpportunityDetail
+
+# Fast publish (skip all prompts) the EmployeeDirectory screen
+npm run publish:screen -- /hr/employee-screens/EmployeeDirectory --fast
+
+# Fast publish using the short flag
+npm run publish:screen -- /hr/employee-screens/EmployeeDirectory -f
 ```
 
 
