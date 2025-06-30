@@ -158,8 +158,6 @@ export const ContactProfile: FC<ContactProfileProps> = ({ accessToken, employeeI
         }
       };
 
-      console.log('Sending payload:', JSON.stringify(savePayload, null, 2));
-      
       const response = await fetch(
         `${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveContact`,
         {
@@ -172,10 +170,8 @@ export const ContactProfile: FC<ContactProfileProps> = ({ accessToken, employeeI
         }
       );
       
-      console.log('Response status:', response.status);
       
       const responseText = await response.text();
-      console.log('Response text:', responseText);
       
       let responseData;
       try {

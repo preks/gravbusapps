@@ -83,7 +83,6 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
   }, [screens]);
   
   const { contacts: contactsData, metrics: metricsData, loading, error, refetch: refetchContacts } = useContactsData(accessToken);
-  console.log(contactsData)
   useEffect(() => {
     if (contactsData && contactsData.length > 0) {
       setContacts(contactsData.map(contact => ({

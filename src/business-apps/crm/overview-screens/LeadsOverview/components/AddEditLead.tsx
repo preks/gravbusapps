@@ -64,18 +64,14 @@ const AddEditLead: React.FC<AddEditLeadProps> = ({
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   
-  // Fetch data for dropdowns
   const { accounts, loading: accountsLoading } = useAccountsData(accessToken);
   const { contacts, loading: contactsLoading } = useContactsData(accessToken);
   const { employees, loading: employeesLoading } = useEmployeesData(accessToken);
   const { leadSources, leadStatuses, leadRatings, loading: catalogsLoading } = useLeadCatalogs(accessToken);
-  console.log(leadSources, leadStatuses, leadRatings)
-  // Reset form when component mounts or initialData changes
   useEffect(() => {
     form.resetFields();
     
     if (initialData) {
-      // Format the data for the form
       const formattedData = {
         name: initialData.name,
         companyName: initialData.companyName,
@@ -92,14 +88,12 @@ const AddEditLead: React.FC<AddEditLeadProps> = ({
       
       form.setFieldsValue(formattedData);
     } else {
-      // Set default values for new lead
       form.setFieldsValue({
         ownerId: employeeId || '',
       });
     }
   }, [initialData, form, employeeId]);
 
-  // Handle contact selection to auto-populate email and phone
   const handleContactChange = (contactId: string) => {
     const selectedContact = contacts.find(contact => contact.id === contactId);
     if (selectedContact) {
@@ -116,12 +110,9 @@ const AddEditLead: React.FC<AddEditLeadProps> = ({
       const values = await form.validateFields();
       setLoading(true);
       
-      // Get selected account and contact names
       const selectedAccount = accounts.find(account => account.id === values.accountId);
       const selectedContact = contacts.find(contact => contact.id === values.contactId);
       const selectedEmployee = employees.find(employee => employee.id === values.ownerId);
-      console.log("values", values)
-      // Prepare data for saving
       const savePayload = isEditing ? {
         changeMode: "UPDATE",
         lead: {
@@ -149,8 +140,6 @@ const AddEditLead: React.FC<AddEditLeadProps> = ({
           leadRatingRef: values.leadRatingId || null,
         }
       };
-      
-      console.log(savePayload)
       
       try {
         // Make the API call using fetch
@@ -197,8 +186,6 @@ const AddEditLead: React.FC<AddEditLeadProps> = ({
             createdAt: initialData?.createdAt || new Date().toISOString(),
             lastActivity: new Date().toISOString(),
           };
-          console.log('Lead data being returned:', leadData);
-          // Call the onSave callback to update the UI
           onSave(leadData);
         } else {
           const errorMessage = responseData.message || response.statusText || 'Unknown error';

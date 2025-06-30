@@ -82,7 +82,6 @@ export const useContactData = (accessToken: string, contactId?: string) => {
         }
         
         const response = await client.request(CONTACT_QUERY, { id: contactId });
-        console.log('Contact data response:', response);
         
         if (response?.ContactByPk) {
           const contactData = {

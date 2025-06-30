@@ -76,7 +76,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
   }, [screens]);
   
   const { leads: leadsData, loading, refetch: refetchLeads } = useLeadsData(accessToken);
-  console.log(leadsData)
   useEffect(() => {
     if (leadsData && leadsData.length > 0) {
       const mappedLeads = leadsData.map(lead => {

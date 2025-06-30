@@ -44,11 +44,9 @@ export function useLeadCatalogs(accessToken: string): UseLeadCatalogsResult {
           setLeadSources(sourcesResponse.data);
         }
 
-        // Fetch lead statuses
         const statusesResponse = await catalogClient.getCatalogEntriesList(
           { catalogIdentifier: 'SalesLeadStatus', version: 'v1' }
         );
-        console.log(statusesResponse)
         if (statusesResponse && Array.isArray(statusesResponse.data)) {
           setLeadStatuses(statusesResponse.data);
         }
