@@ -2,7 +2,7 @@ import { execSync } from "child_process";
 import path, { dirname } from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import dotenv from "dotenv";
+import dotenv from "@dotenvx/dotenvx";
 import { BlobServiceClient } from "@azure/storage-blob";
 import { glob } from "glob";
 import inquirer from "inquirer";
