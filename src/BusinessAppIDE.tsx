@@ -1,9 +1,11 @@
 import { UiCatalogProvider } from '@newwork/gravity-ui-catalog';
 import { useState, useEffect, createElement, useCallback } from "react";
 import { Layout, Menu, Modal, Form, Input, Typography, Button, Tooltip, notification } from "antd";
-import { SettingOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
+import { SettingOutlined, MenuFoldOutlined, MenuUnfoldOutlined, HomeOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
 import ProcessEventListener, { ProcessLocalDevEvent } from './common/components/ProcessEventListener';
+import { IDEStartScreen } from './components/ide-start-screen';
+import HeaderLogo from './assets/icons/header_logo.svg';
 
 const modules = import.meta.glob('./business-apps/**/[A-Z]*.tsx', { eager: true });
 
@@ -18,9 +20,9 @@ interface BusinessAppInfo {
 const businessApps: BusinessAppInfo[] = [];
 
 for (const path in modules) {
-  if (path.includes('/opportunity-tabs/') || 
-      path.includes('/oportunity-tabs/') || 
-      path.includes('/opportunity-components/')) {
+  if (path.includes('/opportunity-tabs/') ||
+    path.includes('/oportunity-tabs/') ||
+    path.includes('/opportunity-components/')) {
     continue;
   }
 
@@ -55,17 +57,25 @@ const { Text } = Typography;
 const STORAGE_KEY_USER_INFO = 'business-app-ide-user-info';
 const STORAGE_KEY_ACCESS_TOKEN = 'business-app-ide-access-token';
 const STORAGE_KEY_SIDEBAR_COLLAPSED = 'business-app-ide-sidebar-collapsed';
+const STORAGE_KEY_RECENT_APPS = 'business-app-ide-recent-apps';
+
+interface RecentlyUsedApp {
+  name: string;
+  module: string;
+  subModule?: string;
+  lastUsed: number;
+}
+
+const MAX_RECENT_APPS = 5;
 
 export interface CompMeta {
   name: string;
   layoutInfo?: any;
 }
 
-// Handle process events in the local development environment
 const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
   const { domain, processName, processInstanceId, startProcessBody } = event;
-  
-  // Display a notification for the process event
+
   notification.info({
     message: 'Process Start Event Detected',
     description: `Domain: ${domain}, \nProcess: ${processName}${processInstanceId ? `, ID: ${processInstanceId}` : ''}\nProcess body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`,
@@ -89,16 +99,18 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
   const appFromUrl = urlParams.get('app');
 
-  const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(getAppByName(appFromUrl || '') || (businessApps.length > 0 ? businessApps[0] : null));
+  const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(getAppByName(appFromUrl || '') || null);
   const [userInfo, setUserInfo] = useState<string>("");
   const [userInfoError, setUserInfoError] = useState<string>("");
   const [accessToken, setAccessToken] = useState<string>("");
   const [settingsModalVisible, setSettingsModalVisible] = useState<boolean>(false);
   const [collapsed, setCollapsed] = useState<boolean>(localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === 'true');
+  const [recentlyUsedApps, setRecentlyUsedApps] = useState<RecentlyUsedApp[]>([]);
 
   useEffect(() => {
     const savedUserInfo = localStorage.getItem(STORAGE_KEY_USER_INFO);
     const savedAccessToken = localStorage.getItem(STORAGE_KEY_ACCESS_TOKEN);
+    const savedRecentApps = localStorage.getItem(STORAGE_KEY_RECENT_APPS);
 
     if (savedUserInfo) {
       setUserInfo(savedUserInfo);
@@ -108,6 +120,15 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     if (savedAccessToken) {
       setAccessToken(savedAccessToken);
     }
+
+    if (savedRecentApps) {
+      try {
+        const parsed = JSON.parse(savedRecentApps);
+        setRecentlyUsedApps(parsed);
+      } catch (error) {
+        console.error('Failed to parse recent apps:', error);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -115,12 +136,42 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   }, [collapsed]);
 
   useEffect(() => {
+    const url = new URL(window.location.href);
     if (selectedApp) {
-      const url = new URL(window.location.href);
       url.searchParams.set('app', selectedApp.name);
-      window.history.pushState({}, '', url.toString());
+    } else {
+      url.searchParams.delete('app');
     }
+    window.history.pushState({}, '', url.toString());
   }, [selectedApp]);
+
+  const updateRecentlyUsedApps = (app: BusinessAppInfo): void => {
+    const newRecentApp: RecentlyUsedApp = {
+      name: app.name,
+      module: app.module,
+      subModule: app.subModule,
+      lastUsed: Date.now()
+    };
+
+    setRecentlyUsedApps(currentRecent => {
+      const filtered = currentRecent.filter(recent => recent.name !== app.name);
+      const updated = [newRecentApp, ...filtered];
+      const final = updated.slice(0, MAX_RECENT_APPS);
+
+      localStorage.setItem(STORAGE_KEY_RECENT_APPS, JSON.stringify(final));
+
+      return final;
+    });
+  };
+
+  const handleAppSelect = (app: BusinessAppInfo) => {
+    updateRecentlyUsedApps(app);
+    setSelectedApp(app);
+  };
+
+  const goToStartScreen = () => {
+    setSelectedApp(null);
+  };
 
   const validateUserInfo = (value: string): void => {
     if (!value) {
@@ -136,7 +187,6 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     }
   };
 
-  // Save settings to localStorage and close modal
   const saveSettings = () => {
     localStorage.setItem(STORAGE_KEY_USER_INFO, userInfo);
     localStorage.setItem(STORAGE_KEY_ACCESS_TOKEN, accessToken);
@@ -146,7 +196,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   const createAppMenuItem = (app: BusinessAppInfo) => ({
     key: app.name,
     label: app.name,
-    onClick: () => setSelectedApp(app)
+    onClick: () => handleAppSelect(app)
   });
 
   const getMenuItems = (): any => {
@@ -167,14 +217,13 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       if (!moduleGroups[app.module][subModuleName]) {
         moduleGroups[app.module][subModuleName] = [];
       }
-      
+
       moduleGroups[app.module][subModuleName].push(app);
     });
 
-    return Object.entries(moduleGroups).map(([module, subModules]) => {
+    const moduleMenuItems = Object.entries(moduleGroups).map(([module, subModules]) => {
       const subModuleEntries = Object.entries(subModules);
-      
-      // If there's only one sub-module and it's 'default', flatten the structure
+
       if (subModuleEntries.length === 1 && subModuleEntries[0][0] === 'default') {
         return {
           key: module,
@@ -183,13 +232,11 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
         };
       }
 
-      // Create proper 3-level hierarchy: Module > Sub-module > Apps
       const children = subModuleEntries.map(([subModule, apps]) => {
         if (subModule === 'default') {
-          // If there are apps without a specific sub-module, group them directly under the module
           return apps.map(createAppMenuItem);
         }
-        
+
         return {
           key: `${module}/${subModule}`,
           label: subModule.charAt(0).toUpperCase() + subModule.slice(1),
@@ -203,9 +250,17 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
         children
       };
     });
+
+    const homeMenuItem = {
+      key: 'home',
+      label: 'Home',
+      icon: <HomeOutlined />,
+      onClick: goToStartScreen
+    };
+
+    return [homeMenuItem, ...moduleMenuItems];
   };
 
-  // Parse userInfo string to UserInfoProps object
   const parsedUserInfo = useCallback((): UserInfoProps | undefined => {
     if (userInfo?.length > 2) {
       try {
@@ -221,97 +276,150 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />
-      <Sider
-        width={264}
-        collapsedWidth={68}
-        collapsible
-        collapsed={collapsed}
-        onCollapse={setCollapsed}
-        trigger={null}
-        theme="light"
-        style={{
-          overflow: 'auto',
-          height: '100vh',
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          boxShadow: '2px 0 8px rgba(0,0,0,0.05)'
-        }}
-      >
-        <div className="logo gba:p-4 gba:flex gba:items-center gba:justify-center gba:border-b gba:border-[#e1e3eb]">
-          <span className="gba:text-lg gba:font-bold gba:w-full gba:text-center">{collapsed ? 'BA' : 'Business Apps'}</span>
+
+      {/* Full-width Header */}
+      <Header style={{
+        background: '#fff',
+        padding: '0 16px',
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr 1fr',
+        alignItems: 'center',
+        height: 48,
+        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+        borderBottom: '1px solid #e8e8e8',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1000
+      }}>
+        {/* Left section: Package Info */}
+        <div className="gba:flex gba:items-center gba:flex-nowrap gba:justify-start">
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <div className="gba:flex gba:items-center">
+              <div className="gba:py-[12px]">
+                <a href="#" onClick={(e) => { e.preventDefault(); goToStartScreen(); }}>
+                  <img
+                    src={HeaderLogo}
+                    alt="Business Apps IDE"
+                    width="120"
+                    height="14"
+                    className="gba:w-[120px] gba:h-[14px]"
+                  />
+                </a>
+              </div>
+            </div>
+            <span className="gba:text-xs gba:text-[#666]">v{packageVersion}</span>
+          </div>
         </div>
-        <Menu
-          mode="inline"
-          selectedKeys={selectedApp ? [selectedApp.name] : []}
-          style={{ borderRight: 0 }}
-          items={getMenuItems()}
-        />
-      </Sider>
-      <Layout style={{ marginLeft: collapsed ? 68 : 264, transition: 'margin-left 0.2s' }}>
-        <Header style={{
-          background: '#fff',
-          padding: '0 16px',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr 1fr',
-          alignItems: 'center',
-          height: 48,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-          borderBottom: '1px solid #e8e8e8'
-        }}>
-          {/* Left section: Menu + Package Info */}
-          <div className="gba:flex gba:items-center gba:flex-nowrap gba:justify-start">
+
+        {/* Center section: Search Placeholder - Perfectly centered */}
+        <div className="gba:flex gba:items-center gba:justify-center">
+          <button
+            className="gba:w-[219px] gba:h-8 gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF] gba:outline-none"
+            data-testid="GlobalSearchButton-Button"
+          >
+            <div className="gba:w-[418px] gba:h-[26px] gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF]">
+              <div className="gba:text-sm gba:text-[#999999]" data-testid="GlobalSearchButton-Text">
+                Search in NEWWORK
+              </div>
+            </div>
+          </button>
+        </div>
+
+        {/* Right section: Settings Button */}
+        <div className="gba:flex gba:items-center gba:justify-end">
+          <Tooltip title="Settings">
             <Button
               type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
-              className="gba:flex-shrink-0"
-              style={{ fontSize: '16px', marginRight: 16 }}
+              icon={<SettingOutlined />}
+              onClick={() => setSettingsModalVisible(true)}
+              style={{ fontSize: '16px' }}
             />
-            <div className="pkg-name gba:flex gba:flex-col gba:sm:flex-row gba:sm:items-center">
-              <span className="gba:text-sm gba:font-bold">{packageName}</span>
-              <span className="gba:ml-0 gba:sm:ml-1 gba:text-xs gba:text-[#333]"> - Version: {packageVersion}</span>
-            </div>
-          </div>
-          
-          {/* Center section: Search Placeholder - Perfectly centered */}
-          <div className="gba:flex gba:items-center gba:justify-center">
-            <button 
-              className="gba:w-[219px] gba:h-8 gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF] gba:outline-none"
-              data-testid="GlobalSearchButton-Button"
-            >
-              <div className="gba:w-[418px] gba:h-[26px] gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF]">
-                <div className="gba:text-sm gba:text-[#999999]" data-testid="GlobalSearchButton-Text">
-                  Search in NEWWORK
-                </div>
-              </div>
-            </button>
+          </Tooltip>
+        </div>
+      </Header>
+
+      {/* Layout with Sidebar and Content below header */}
+      <Layout style={{ marginTop: 48 }}>
+        <Sider
+          width={264}
+          collapsedWidth={68}
+          collapsible
+          collapsed={collapsed}
+          onCollapse={setCollapsed}
+          trigger={null}
+          theme="light"
+          style={{
+            height: 'calc(100vh - 48px)',
+            position: 'fixed',
+            left: 0,
+            top: 48,
+            bottom: 0,
+            boxShadow: '2px 0 8px rgba(0,0,0,0.05)',
+            overflow: 'hidden'
+          }}
+        >
+          <div style={{
+            height: 'calc(100% - 56px)', // Total height minus button height
+            overflow: 'auto',
+            position: 'relative'
+          }}>
+            <Menu
+              mode="inline"
+              selectedKeys={selectedApp ? [selectedApp.name] : ['home']}
+              style={{ borderRight: 0 }}
+              items={getMenuItems()}
+            />
           </div>
 
-          {/* Right section: Settings Button */}
-          <div className="gba:flex gba:items-center gba:justify-end">
-            <Tooltip title="Settings">
+          <div
+            className="gba:border-t gba:border-[#e1e3eb] gba:p-2 gba:flex gba:justify-center gba:bg-white"
+            style={{
+              position: 'sticky',
+              bottom: 0,
+              height: '56px',
+              zIndex: 10,
+              boxShadow: '0 -2px 8px rgba(0,0,0,0.1)'
+            }}
+          >
+            <Tooltip title={collapsed ? "Expand Menu" : "Collapse Menu"}>
               <Button
                 type="text"
-                icon={<SettingOutlined />}
-                onClick={() => setSettingsModalVisible(true)}
-                style={{ fontSize: '16px' }}
+                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                onClick={() => setCollapsed(!collapsed)}
+                style={{
+                  fontSize: '16px',
+                  width: '100%',
+                  height: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
               />
             </Tooltip>
           </div>
-        </Header>
-        <Content style={{ overflow: 'initial', background: '#fff', minHeight: 280 }}>
-          {selectedApp && (
-            <div className="gba:w-full gba:h-full gba:overflow-auto">
-              {createElement(selectedApp.component, {
-                userInfo: parsedUserInfo(),
-                accessToken: accessToken ?? undefined,
-                key: `${selectedApp.name}-${JSON.stringify(parsedUserInfo())}-${accessToken}`
-              })}
-            </div>
-          )}
-        </Content>
+        </Sider>
+
+        <Layout style={{ marginLeft: collapsed ? 68 : 264, transition: 'margin-left 0.2s' }}>
+          <Content style={{ overflow: 'initial', background: '#fff', minHeight: 'calc(100vh - 48px)' }}>
+            {selectedApp ? (
+              <div className="gba:w-full gba:h-full gba:overflow-auto">
+                {createElement(selectedApp.component, {
+                  userInfo: parsedUserInfo(),
+                  accessToken: accessToken ?? undefined,
+                  key: `${selectedApp.name}-${JSON.stringify(parsedUserInfo())}-${accessToken}`
+                })}
+              </div>
+            ) : (
+              <IDEStartScreen
+                businessApps={businessApps}
+                onAppSelect={handleAppSelect}
+                recentlyUsedApps={recentlyUsedApps}
+              />
+            )}
+          </Content>
+        </Layout>
       </Layout>
 
       <Modal
