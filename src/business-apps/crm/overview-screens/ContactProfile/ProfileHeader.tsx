@@ -1,8 +1,8 @@
 import { ExternalLink, Globe, Mail, MapPin, Phone } from "lucide-react"
-import { Badge } from "../../ContactProfile/common/components/ui/badge"
-import { Card } from "../../ContactProfile/common/components/ui/card"
-import { Separator } from "../../ContactProfile/common/components/ui/separator"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../ContactProfile/common/components/ui/tooltip"
+import { Badge } from "./common/components/ui/badge"
+import { Card } from "./common/components/ui/card"
+import { Separator } from "./common/components/ui/separator"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./common/components/ui/tooltip"
 
 export function ProfileHeader() {
   return (

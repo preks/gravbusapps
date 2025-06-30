@@ -115,6 +115,7 @@ interface Lead {
 
 interface LeadDetailsProps extends BusinessAppContextProps {
   leadId: string;
+  onBack?: () => void;
 }
 
 const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
@@ -481,6 +482,7 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
           type="text"
           icon={<ArrowLeftOutlined />}
           data-testid="back-button"
+          onClick={props.onBack}
         >
           <span style={{ marginLeft: '4px' }}>Back to Leads</span>
         </Button>

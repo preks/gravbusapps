@@ -5,6 +5,8 @@ import { fileURLToPath } from "url";
 import dotenv from "@dotenvx/dotenvx";
 import { BlobServiceClient } from "@azure/storage-blob";
 import { glob } from "glob";
+import inquirer from "inquirer";
+import { addAppResourceUrl, addCustomResourceUrl, addScreenConfigToScreenManagement } from "./api-client.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -354,6 +356,66 @@ async function main() {
   const cssOutputDir = path.join(projectRootDir, "dist", "assets");
   await uploadDirectory(cssOutputDir, azureDestinationPath);
   console.log("✅ Screen CSS published successfully to Azure!");
+
+  // Ask user if they want to add resource URL
+  const addResourceUrlAnswer = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'shouldAdd',
+      message: 'You can add this screen as a resource URL of the format "/apps/hr/employee-directory". Would you like to add it?',
+      default: true
+    }
+  ]);
+
+  if (addResourceUrlAnswer.shouldAdd) {
+    try {
+      await addAppResourceUrl(azureDestinationPath);
+    } catch (error) {
+      console.error("Failed to add resource URL:", error.message);
+    }
+  }
+
+  // Ask user if they want to add a custom URL
+  const addCustomUrlAnswer = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'shouldAdd',
+      message: 'You can add this screen as a resource URL with any URL path you want. Would you like to add it?',
+      default: false
+    }
+  ]);
+
+  if (addCustomUrlAnswer.shouldAdd) {
+    const customUrlInput = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'customUrl',
+        message: 'Please enter the custom URL path (e.g., "/hr/employee-directory"):',
+        validate: (input) => {
+          if (input.trim() === '') {
+            return 'Path cannot be empty';
+          }
+          return true;
+        }
+      }
+    ]);
+
+    const customUrlPath = customUrlInput.customUrl.trim();
+    
+    try {
+      // Add custom URL to navigation
+      const resourceAdded = await addCustomResourceUrl(customUrlPath.startsWith('/') ? customUrlPath.substring(1) : customUrlPath);
+      
+      // If resource was added or already exists, add screen config
+      if (resourceAdded) {
+        await addScreenConfigToScreenManagement(azureDestinationPath, customUrlPath.startsWith('/') ? customUrlPath.substring(1) : customUrlPath);
+      }
+    } catch (error) {
+      console.error("Failed to set up custom URL:", error.message);
+    }
+  }
+
+  // All API functionality has been moved to api-client.js and implemented above
 }
 
 main().catch((error) => {
