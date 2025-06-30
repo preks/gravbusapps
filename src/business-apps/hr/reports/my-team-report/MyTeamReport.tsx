@@ -50,7 +50,7 @@ const KpiIcon = ({ name }: { name: string }) => {
  * @returns {JSX.Element}
  */
 export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
-  const { accessToken } = props;
+  const { accessToken, userInfo } = props;
   const { t } = useTranslation();
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [activeKpi, setActiveKpi] = useState<string>('all');
@@ -63,7 +63,7 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
     loading,
     error,
     retry,
-  } = useGetEmployeesReport({ accessToken: accessToken || '' });
+  } = useGetEmployeesReport({ accessToken: accessToken || '', userInfo });
 
   // Calculate average tenure using the utility function
   const averageTenureFormatted = useMemo(() => {
@@ -214,11 +214,12 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
         headerIcon={<CalendarOutlined className="gba:text-blue-600 gba:text-3xl" />}
         headerLabel={'My Team'}
         contentHeader={
-          <div className="gba:grid gba:gap-4 gba:pb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+          <div className="gba:grid gba:gap-4 gba:pb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 0fr))' }}>
             {kpiCards.map(kpi => (
               <KpiCard
                 {...props}
                 key={kpi.key}
+                kpiKey={kpi.key}
                 data-testid={`team-report-kpi-${kpi.key}`}
                 icon={<KpiIcon name={kpi.iconName} />}
                 label={kpi.label}

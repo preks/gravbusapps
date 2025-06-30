@@ -6,6 +6,7 @@ export interface KpiCardProps extends BusinessAppContextProps {
   icon: React.ReactNode;
   value: number | string;
   label: string;
+  kpiKey: string;
   subLabel?: string;
   accentColor: string;
   active?: boolean;
@@ -17,6 +18,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
   icon,
   value,
   label,
+  kpiKey,
   subLabel,
   accentColor,
   active = false,
@@ -30,7 +32,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
       aria-pressed={active}
       className={[
         'gba:relative',
-        'gba:min-w-[100px] gba:min-h-[120px] gba:p-6',
+        'gba:w-[200px] gba:min-h-[120px] gba:p-6',
         'gba:rounded-2xl',
         'gba:border gba:border-l-[8px] gba:shadow-md',
         active ? 'gba:bg-gray-50' : 'gba:bg-white',
@@ -46,7 +48,8 @@ const KpiCard: React.FC<KpiCardProps> = ({
       }}
       data-testid={dataTestid}
       style={{
-        borderLeftColor: accentColor,
+        border: '1px solid #e5e7eb',
+        // borderLeftColor: accentColor,
       }}
     >
       <div>
@@ -76,7 +79,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
         data-testid={`${dataTestid}-icon`}
         style={{ color: accentColor }}
       >
-        {icon}
+        {(kpiKey === 'all' || kpiKey === 'tenure') && icon}
       </div>
     </div>
   );

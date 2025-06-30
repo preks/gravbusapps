@@ -137,13 +137,20 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
 
         // Use exitDate if it exists, otherwise use today's date.
         const endDate = record.exitDate ? dayjs(record.exitDate) : dayjs();
-        const tenureYears = endDate.diff(dayjs(startDate), 'year');
+        const start = dayjs(startDate);
 
-        if (tenureYears >= 10) return '10+ years';
-        if (tenureYears >= 5) return '5-10 years';
-        if (tenureYears >= 3) return '3-5 years';
-        if (tenureYears >= 1) return '1-3 years';
-        return '0-1 years';
+        const totalMonths = endDate.diff(start, 'month');
+        const years = Math.floor(totalMonths / 12);
+        const months = totalMonths % 12;
+
+        const yearString = years > 0 ? `${years} year${years > 1 ? 's' : ''}` : '';
+        const monthString = months > 0 ? `${months} month${months > 1 ? 's' : ''}` : '';
+
+        if (yearString && monthString) {
+          return `${yearString} and ${monthString}`;
+        }
+        
+        return yearString || monthString || '0 months';
       },
     },
   ];

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 /**
  * Employee type definition for the directory.
@@ -30,14 +31,15 @@ export interface Employee {
  */
 
 const EMPLOYEE_POSITION_QUERY = `
-  query EmployeePositions($limit: Int!) {
+    query EmployeePositions($limit: Int!, $supervisorId: uuid!) {
     EmployeePosition(
       limit: $limit,
       orderBy: [{ firstName: ASC }, { lastName: ASC }],
       where: {
         _and: [
           { jobPositionId: { _isNull: false } },
-          { employeeId: { _isNull: false } }
+          { employeeId: { _isNull: false } },
+          { supervisor: { id: { _eq: $supervisorId } } }
         ]
       }
     ) {
@@ -126,22 +128,26 @@ function calculateTenure(startDate: string | undefined, exitDate: string | null 
  * @param accessToken The access token for authentication.
  * @returns All employees, loading state, error, and a retry function.
  */
-export function useGetEmployeesReport({ accessToken }: { accessToken: string; }) {
+interface UseGetEmployeesReportProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {}
+
+export function useGetEmployeesReport({ accessToken, userInfo }: UseGetEmployeesReportProps) {
   const ALL_EMPLOYEES_LIMIT = 10000;
-  const client = useGraphqlClient(accessToken);
+    const client = useGraphqlClient(accessToken);
+  const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId;
   
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchEmployees = useCallback(() => {
-    if (typeof window === 'undefined' || !client) return;
+    const fetchEmployees = useCallback(() => {
+    if (typeof window === 'undefined' || !client || !supervisorEmployeeId) return;
 
     setLoading(true);
     setError(null);
 
-    const variables = {
+        const variables = {
       limit: ALL_EMPLOYEES_LIMIT,
+      supervisorId: supervisorEmployeeId,
     };
 
     client.request?.(EMPLOYEE_POSITION_QUERY, variables)
@@ -178,20 +184,19 @@ export function useGetEmployeesReport({ accessToken }: { accessToken: string; })
         setEmployees(newEmployees);
       })
       .catch((err: any) => {
-        console.error('Error fetching employees:', err);
         setError(err);
         setEmployees([]);
       })
       .finally(() => {
         setLoading(false);
       });
-  }, [client]);
+    }, [client, supervisorEmployeeId]);
 
-  useEffect(() => {
-    if (accessToken) {
+    useEffect(() => {
+    if (accessToken && supervisorEmployeeId) {
       fetchEmployees();
     }
-  }, [accessToken, fetchEmployees]);
+  }, [accessToken, supervisorEmployeeId, fetchEmployees]);
 
   const retry = useCallback(() => {
     fetchEmployees();
