@@ -8,9 +8,9 @@ export const ICONS_ENDPOINT = env("NEXT_PUBLIC_BASE_URL") + "/_next/static/media
 
 export const FILES_ENDPOINT = env("NEXT_PUBLIC_FILE_SERVICE_ENDPOINT")
 
-export const EMPLOYEE_FILES_LOCATION = env("NEXT_PUBLIC_FILE__EMPLOYEE_AZURE_LOCATION")
+export const EMPLOYEE_FILES_LOCATION = "/api/v1/tenant/files"
 
-export const FILES_ENGINE_ENDPOINT = env("NEXT_PUBLIC_DOCS_ENGINE_ENDPOINT")
+export const FILES_ENGINE_ENDPOINT = env("NEXT_PUBLIC_API_SERVER") + "/docs-engine/api/v1"
 
 export const PROCESSES_ENDPOINT = env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
 
