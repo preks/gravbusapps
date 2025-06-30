@@ -7,11 +7,11 @@ export interface TeamReportFilter {
   location?: string[];
   employmentType?: string[];
   contractType?: string[];
-  tenurePeriod?: string;
+  tenurePeriod?: string[];
   exitStatus?: 'active' | 'inactive' | null;
 }
 
-// Interface for the return type of useTeamReportV2Filters
+// Interface for the return type of useTeamReportFilters
 export interface UseTeamReportV2FiltersReturn {
   search: string;
   setSearch: (search: string) => void;
@@ -32,7 +32,7 @@ export interface FilterOption {
   name: string;
 }
 
-export const useTeamReportV2Filters = (
+export const useTeamReportFilters = (
   uniquePositions: string[] = [],
   uniqueLocations: string[] = [],
   uniqueEmploymentTypes: string[] = [],
@@ -43,7 +43,14 @@ export const useTeamReportV2Filters = (
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
   // Define these as constants for stable references
-  const TENURE_PERIOD_OPTIONS = ['lessThan3m', '3to6m', '6to12m', '1to3y', 'moreThan3y'];
+  const TENURE_OPTIONS = [
+    { id: '0-1y', label: '0-1 years' },
+    { id: '1-3y', label: '1-3 years' },
+    { id: '3-5y', label: '3-5 years' },
+    { id: '5-10y', label: '5-10 years' },
+    { id: '10+y', label: '10+ years' },
+  ];
+  const TENURE_OPTION_IDS = TENURE_OPTIONS.map(o => o.id);
   const EXIT_STATUS_OPTIONS = ['activeOnly', 'inactiveOnly'];
   
   // Define filter groups - memoized so they don't cause re-renders
@@ -168,15 +175,42 @@ export const useTeamReportV2Filters = (
       });
     }
 
-    // Status (always a short list)
+    const tenureSearchHandler = (search: string) => {
+      const allItems = TENURE_OPTIONS;
+      let filteredItems = allItems;
+
+      if (search) {
+        filteredItems = allItems.filter(item => {
+          const searchTerm = search.toLowerCase();
+          return item.label.toLowerCase().includes(searchTerm) || item.id.toLowerCase().includes(searchTerm);
+        });
+      }
+
+      const filters = filteredItems.map(item => ({
+        id: item.id,
+        label: item.label,
+        selected: selectedFilters.includes(item.id),
+      }));
+
+      return { filters, loading: false, error: null };
+    };
+
+    // Tenure
     groups.push({
-      id: 'exitStatus',
-      title: 'Status',
-      filters: [
-        { id: 'activeOnly', label: 'Active employees only', selected: selectedFilters.includes('activeOnly') },
-        { id: 'inactiveOnly', label: 'Inactive employees only', selected: selectedFilters.includes('inactiveOnly') },
-      ],
+      id: 'tenure',
+      title: 'Tenure',
+      backendSearch: tenureSearchHandler,
     });
+
+    // Status (Active/Inactive)
+    // groups.push({
+    //   id: 'exitStatus',
+    //   title: 'Status',
+    //   filters: [
+    //     { id: 'activeOnly', label: 'Active employees only', selected: selectedFilters.includes('activeOnly') },
+    //     { id: 'inactiveOnly', label: 'Inactive employees only', selected: selectedFilters.includes('inactiveOnly') },
+    //   ],
+    // });
 
     return groups;
   }, [selectedFilters, uniquePositions, uniqueLocations, uniqueEmploymentTypes, uniqueContractTypes]);
@@ -184,14 +218,13 @@ export const useTeamReportV2Filters = (
   // Build the filter label map dynamically
   const filterLabelMap = useMemo(() => {
     const labelMap: Record<string, string> = {
-      'lessThan3m': 'Less than 3 months',
-      '3to6m': '3 to 6 months',
-      '6to12m': '6 to 12 months',
-      '1to3y': '1 to 3 years',
-      'moreThan3y': 'More than 3 years',
       'activeOnly': 'Active employees only',
       'inactiveOnly': 'Inactive employees only'
     };
+
+    TENURE_OPTIONS.forEach(option => {
+      labelMap[option.id] = option.label;
+    });
 
     uniquePositions.forEach(position => {
       labelMap[`position:${position}`] = `Position: ${position}`;
@@ -215,11 +248,6 @@ export const useTeamReportV2Filters = (
   // Add filter with proper dependency handling
   const addFilter = useCallback((filterId: string) => {
     setSelectedFilters(prev => {
-      // Special handling for radio filter types (tenure period)
-      if (TENURE_PERIOD_OPTIONS.includes(filterId)) {
-        const withoutTenurePeriods = prev.filter(f => !TENURE_PERIOD_OPTIONS.includes(f));
-        return [...withoutTenurePeriods, filterId];
-      }
       
       // Special handling for exit status (active/inactive)
       if (EXIT_STATUS_OPTIONS.includes(filterId)) {
@@ -269,7 +297,7 @@ export const useTeamReportV2Filters = (
       .filter(f => f.startsWith('contractType:'))
       .map(f => f.replace('contractType:', ''));
     
-    const tenurePeriod = selectedFilters.find(f => TENURE_PERIOD_OPTIONS.includes(f));
+    const tenurePeriods = selectedFilters.filter(f => TENURE_OPTION_IDS.includes(f));
     
     const exitStatus = selectedFilters.find(f => EXIT_STATUS_OPTIONS.includes(f));
     
@@ -290,8 +318,8 @@ export const useTeamReportV2Filters = (
       filter.contractType = contractTypeFilters;
     }
     
-    if (tenurePeriod) {
-      filter.tenurePeriod = tenurePeriod;
+    if (tenurePeriods.length > 0) {
+      filter.tenurePeriod = tenurePeriods;
     }
     
     if (exitStatus) {
@@ -314,4 +342,4 @@ export const useTeamReportV2Filters = (
   };
 };
 
-export default useTeamReportV2Filters;
+export default useTeamReportFilters;

@@ -30,7 +30,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
       aria-pressed={active}
       className={[
         'gba:relative',
-        'gba:min-w-[220px] gba:min-h-[120px] gba:p-6',
+        'gba:min-w-[100px] gba:min-h-[120px] gba:p-6',
         'gba:rounded-2xl',
         'gba:border gba:border-l-[8px] gba:shadow-md',
         active ? 'gba:bg-gray-50' : 'gba:bg-white',

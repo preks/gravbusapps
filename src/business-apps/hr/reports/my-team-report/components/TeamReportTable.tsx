@@ -7,7 +7,7 @@ import dayjs from 'dayjs';
 import weekday from 'dayjs/plugin/weekday';
 import localeData from 'dayjs/plugin/localeData';
 import { Employee } from '../hooks/useGetEmployeesReport';
-import EmployeeAvatar from '@/business-apps/hr/components/employeeAvatar/EmployeeAvatar';
+import { SortConfig } from '../utils/sortUtils';
 import { formatDataTestId } from '@/modules/orgchart/utils';
 
 // Initialize the required plugins
@@ -23,6 +23,8 @@ interface TeamReportTableProps {
   total: number;
   onSelectEmployee?: (employee: Employee) => void;
   selectedEmployeeId?: string;
+  sortConfig: SortConfig | null;
+  onSort: (key: keyof Employee) => void;
 }
 
 const DATA_TEST_ID_PREFIX = 'TeamReportTable';
@@ -35,7 +37,9 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
   retry,
   total,
   onSelectEmployee,
-  selectedEmployeeId
+  selectedEmployeeId,
+  sortConfig,
+  onSort,
 }) => {
   const { t } = useTranslation();
 
@@ -54,8 +58,10 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
   const columns = [
     {
       title: t('employee.name', 'Name'),
-      dataIndex: 'name',
-      key: 'name',
+      dataIndex: 'firstName',
+      key: 'firstName',
+      sorter: true,
+      sortOrder: sortConfig?.key === 'firstName' ? sortConfig.direction : undefined,
       render: (_: any, record: Employee) => (
         <div 
           className="gba:flex gba:items-center"
@@ -88,46 +94,73 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
       title: t('employee.job_position', 'Job Position'),
       dataIndex: 'jobPosition',
       key: 'jobPosition',
+      sorter: true,
+      sortOrder: sortConfig?.key === 'jobPosition' ? sortConfig.direction : undefined,
     },
     {
       title: t('employee.location', 'Location'),
       dataIndex: 'location',
       key: 'location',
+      sorter: true,
+      sortOrder: sortConfig?.key === 'location' ? sortConfig.direction : undefined,
     },
     {
       title: t('employee.employment_type', 'Employment Type'),
       dataIndex: 'employmentType',
       key: 'employmentType',
+      sorter: true,
+      sortOrder: sortConfig?.key === 'employmentType' ? sortConfig.direction : undefined,
     },
     {
       title: t('employee.contract_type', 'Contract Type'),
       dataIndex: 'contractType',
       key: 'contractType',
+      sorter: true,
+      sortOrder: sortConfig?.key === 'contractType' ? sortConfig.direction : undefined,
     },
     {
       title: t('employee.start_date', 'Start Date'),
       dataIndex: 'startDate',
       key: 'startDate',
+      sorter: true,
+      sortOrder: sortConfig?.key === 'startDate' ? sortConfig.direction : undefined,
       render: (startDate: string) => startDate ? dayjs(startDate).format('YYYY-MM-DD') : '-',
     },
     {
       title: t('employee.tenure', 'Tenure'),
-      dataIndex: 'tenure',
-      key: 'tenure',
+      dataIndex: 'startDate', // Use startDate for calculation
+      key: 'tenure', // Keep key as tenure for sorting purposes
+      sorter: true,
+      sortOrder: sortConfig?.key === 'tenure' ? sortConfig.direction : undefined,
+      render: (startDate: string, record: Employee) => {
+        if (!startDate) return '-';
+
+        // Use exitDate if it exists, otherwise use today's date.
+        const endDate = record.exitDate ? dayjs(record.exitDate) : dayjs();
+        const tenureYears = endDate.diff(dayjs(startDate), 'year');
+
+        if (tenureYears >= 10) return '10+ years';
+        if (tenureYears >= 5) return '5-10 years';
+        if (tenureYears >= 3) return '3-5 years';
+        if (tenureYears >= 1) return '1-3 years';
+        return '0-1 years';
+      },
     },
   ];
 
-  // Handle pagination change
-  const handleTableChange = (pagination: any) => {
+  // Handle pagination and sorting changes
+  const handleTableChange = (pagination: any, _filters: any, sorter: any) => {
+    // Handle pagination
     const targetPage = pagination.current ?? 1;
     const targetPageSize = pagination.pageSize ?? 20;
-    
-    // Update state
     setCurrentPage(targetPage);
     setPageSize(targetPageSize);
-    
-    // Load the data for the selected page with the new page size
     loadPage(targetPage, targetPageSize);
+
+    // Handle sorting
+    if (sorter && sorter.columnKey) {
+      onSort(sorter.columnKey as keyof Employee);
+    }
   };
 
   // Show error message if there's an error

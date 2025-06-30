@@ -8,19 +8,48 @@ import { DataController, DataControllerProps } from '@/components/dataController
 import { useGetEmployeesReport, Employee } from './hooks/useGetEmployeesReport';
 import { calculateAverageTenure } from './utils/employeeUtils';
 import { applyEmployeeFilters } from './utils/filterUtils';
-import { useTeamReportV2Filters } from './hooks/useTeamReportV2Filters';
+import { generateKpiCards, matchesKpi as kpiMatcher } from './utils/kpiUtils';
+import { useTeamReportFilters } from './hooks/useTeamReportFilters';
+import { useSort } from './hooks/useSort';
+import { sortData } from './utils/sortUtils';
 import { TeamReportTable } from './components/TeamReportTable';
 import EmployeeDetails from '@/business-apps/hr/components/employeeDetails';
 import { PiUsersThree } from 'react-icons/pi';
-import { CalendarOutlined } from '@ant-design/icons';
+import {
+  CalendarOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  IdcardOutlined,
+  SolutionOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import KpiCard from './components/KpiCard';
+
+const KpiIcon = ({ name }: { name: string }) => {
+  switch (name) {
+    case 'UserOutlined':
+      return <UserOutlined />;
+    case 'CalendarOutlined':
+      return <CalendarOutlined />;
+    case 'CheckOutlined':
+      return <CheckOutlined />;
+    case 'CloseOutlined':
+      return <CloseOutlined />;
+    case 'SolutionOutlined':
+      return <SolutionOutlined />;
+    case 'IdcardOutlined':
+      return <IdcardOutlined />;
+    default:
+      return null;
+  }
+};
 
 /**
  * My Team Report V2 page component. Renders the team member list with a table view.
  * @returns {JSX.Element}
  */
-export const MyTeamReportV2: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
+export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
   const { accessToken } = props;
   const { t } = useTranslation();
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -41,6 +70,13 @@ export const MyTeamReportV2: React.FC<BusinessAppContextProps> = (props: Busines
     return calculateAverageTenure(allEmployees).formatted;
   }, [allEmployees]);
 
+  const kpiCards = useMemo(() => {
+    return generateKpiCards(allEmployees, averageTenureFormatted);
+  }, [allEmployees, averageTenureFormatted]);
+
+  // Instantiate the sorting hook
+  const { sortConfig, handleSort } = useSort();
+
   const {
     search,
     setSearch,
@@ -50,7 +86,7 @@ export const MyTeamReportV2: React.FC<BusinessAppContextProps> = (props: Busines
     clearFilters,
     filterGroups,
     filterLabelMap,
-  } = useTeamReportV2Filters(
+  } = useTeamReportFilters(
     [...new Set(allEmployees.map((e: Employee) => e.jobPosition).filter((p): p is string => !!p))],
     [...new Set(allEmployees.map((e: Employee) => e.location).filter((l): l is string => !!l))],
     [...new Set(allEmployees.map((e: Employee) => e.employmentType).filter((t): t is string => !!t))],
@@ -58,15 +94,7 @@ export const MyTeamReportV2: React.FC<BusinessAppContextProps> = (props: Busines
   );
 
   const matchesKpi = useCallback((employee: Employee): boolean => {
-    if (activeKpi === 'all') return true;
-    if (activeKpi === 'tenure') return !!employee.startDate;
-    if (activeKpi === 'active') return !employee.exitDate;
-    if (activeKpi === 'inactive') return !!employee.exitDate;
-    if (activeKpi === 'internal') return employee.employmentType === 'Internal';
-    if (activeKpi === 'external') return employee.employmentType === 'External';
-    if (activeKpi === 'fulltime') return !!employee.contractType?.toLowerCase().includes('full time');
-    if (activeKpi === 'parttime') return !!employee.contractType?.toLowerCase().includes('part time');
-    return true;
+    return kpiMatcher(employee, activeKpi);
   }, [activeKpi]);
 
   // Apply filters to the employee list using the utility function
@@ -74,16 +102,22 @@ export const MyTeamReportV2: React.FC<BusinessAppContextProps> = (props: Busines
     return applyEmployeeFilters(allEmployees, search, selectedFilters, matchesKpi);
   }, [allEmployees, search, selectedFilters, matchesKpi]);
 
+  // Apply sorting to the filtered list
+  const sortedEmployees = useMemo(() => {
+    return sortData(filteredEmployees, sortConfig);
+  }, [filteredEmployees, sortConfig]);
+
   // Apply client-side pagination
   const paginatedEmployees = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
-    return filteredEmployees.slice(startIndex, startIndex + pageSize);
-  }, [filteredEmployees, currentPage, pageSize]);
+    return sortedEmployees.slice(startIndex, startIndex + pageSize);
+  }, [sortedEmployees, currentPage, pageSize]);
 
   // Reset to page 1 when filters change
+  // Reset to page 1 when filters or sorting change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [search, selectedFilters]);
+  }, [search, selectedFilters, sortConfig]);
   
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback((filterId: string, checked: boolean) => {
@@ -94,48 +128,44 @@ export const MyTeamReportV2: React.FC<BusinessAppContextProps> = (props: Busines
     }
   }, [addFilter, removeFilter]);
 
-  const kpiCards = useMemo(() => [
-    { key: 'all', label: 'All', subLabel: 'Employees', value: allEmployees.length, color: '#1890ff' },
-    // { key: 'active', label: 'Active', subLabel: 'Employees', value: allEmployees.filter(e => !e.exitDate).length, color: '#52c41a' },
-    // { key: 'inactive', label: 'Inactive', subLabel: 'Employees', value: allEmployees.filter(e => e.exitDate).length, color: '#f5222d' },
-    { key: 'internal', label: 'Internal', subLabel: 'Workers', value: allEmployees.filter(e => e.employmentType === 'Internal').length, color: '#faad14' },
-    { key: 'external', label: 'External', subLabel: 'Workers', value: allEmployees.filter(e => e.employmentType === 'External').length, color: '#13c2c2' },
-    { key: 'fulltime', label: 'Full-time', subLabel: 'Full-time', value: allEmployees.filter(e => e.contractType?.toLowerCase().includes('full time')).length, color: '#722ed1' },
-    { key: 'tenure', label: 'Avg. Tenure', subLabel: 'Years & Months', value: averageTenureFormatted, color: '#fa8c16' },
-  ], [allEmployees, averageTenureFormatted]);
-
   const displayFilters = useMemo(() => {
-    return [...selectedFilters, ...(activeKpi !== 'all' ? [activeKpi] : [])];
-  }, [selectedFilters, activeKpi]);
+    const kpiFilter = kpiCards.find(kpi => kpi.key === activeKpi);
+    const kpiFilterPill = kpiFilter && activeKpi !== 'all' ? [`kpi:${activeKpi}`] : [];
+    return [...kpiFilterPill, ...selectedFilters];
+  }, [activeKpi, selectedFilters, kpiCards]);
 
-  const kpiLabelMap = useMemo(() => {
-    return kpiCards.reduce((acc, kpi) => {
-      acc[kpi.key] = kpi.label;
+  const displayLabelMap = useMemo(() => {
+    const kpiLabelMap = kpiCards.reduce((acc, kpi) => {
+      acc[`kpi:${kpi.key}`] = kpi.label;
       return acc;
     }, {} as Record<string, string>);
-  }, [kpiCards]);
 
-  const displayLabelMap = useMemo(() => ({
-    ...filterLabelMap,
-    ...kpiLabelMap,
-  }), [filterLabelMap, kpiLabelMap]);
+    return { ...kpiLabelMap, ...filterLabelMap };
+  }, [kpiCards, filterLabelMap]);
 
-  const handleDisplayFilterChange = useCallback((newDisplayFilters: string[]) => {
-    const kpiKeys = kpiCards.map(kpi => kpi.key);
+  // When a filter pill is removed, update the correct state
+  const handleDisplayFilterChange = useCallback((newFilters: string[]) => {
+    const kpiPillPrefix = 'kpi:';
+    const newKpiFilters = newFilters.filter(f => f.startsWith(kpiPillPrefix));
+    const newRegularFilters = newFilters.filter(f => !f.startsWith(kpiPillPrefix));
 
-    if (newDisplayFilters.length === 0) {
+    // Handle KPI filter changes
+    if (newKpiFilters.length === 0 && activeKpi !== 'all') {
+      setActiveKpi('all'); // Reset to 'all' if the KPI pill is removed
+    } else {
+      const newActiveKpi = newKpiFilters[0]?.replace(kpiPillPrefix, '');
+      if (newActiveKpi && newActiveKpi !== activeKpi) {
+        setActiveKpi(newActiveKpi);
+      }
+    }
+
+    // Handle regular filter changes
+    if (newRegularFilters.length === 0 && selectedFilters.length > 0) {
       clearFilters();
-      setActiveKpi('all');
-      return;
     }
 
-    if (activeKpi !== 'all' && !newDisplayFilters.includes(activeKpi)) {
-      setActiveKpi('all');
-    }
-
-    const newRegularFilters = newDisplayFilters.filter(f => !kpiKeys.includes(f));
     const removedRegularFilters = selectedFilters.filter(f => !newRegularFilters.includes(f));
-    
+
     removedRegularFilters.forEach(filterToRemove => {
       removeFilter(filterToRemove);
     });
@@ -187,9 +217,10 @@ export const MyTeamReportV2: React.FC<BusinessAppContextProps> = (props: Busines
           <div className="gba:grid gba:gap-4 gba:pb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
             {kpiCards.map(kpi => (
               <KpiCard
+                {...props}
                 key={kpi.key}
-                accessToken={accessToken}
-                icon={<PiUsersThree />}
+                data-testid={`team-report-kpi-${kpi.key}`}
+                icon={<KpiIcon name={kpi.iconName} />}
                 label={kpi.label}
                 subLabel={kpi.subLabel}
                 value={kpi.value}
@@ -231,6 +262,8 @@ export const MyTeamReportV2: React.FC<BusinessAppContextProps> = (props: Busines
                   total={filteredEmployees.length} // Use filtered length for total
                   onSelectEmployee={handleEmployeeSelect}
                   selectedEmployeeId={selectedEmployee?.id}
+                  sortConfig={sortConfig} // Pass sortConfig
+                  onSort={handleSort} // Pass handleSort
                 />
               </div>
             }
@@ -249,4 +282,4 @@ export const MyTeamReportV2: React.FC<BusinessAppContextProps> = (props: Busines
   );
 };
 
-export default MyTeamReportV2;
+export default MyTeamReport;
