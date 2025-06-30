@@ -6,6 +6,7 @@ import {
   REJECT_EXPENSE_REQUEST,
   GET_EXPENSE_REQUEST_STATISTICS
 } from '../queries/expenseRequests';
+import { env } from '@/common/env/EnvUtils';
 
 // Props for the hook, ensuring accessToken and userInfo are provided
 export interface UseGetExpenseRequestsProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {}
@@ -168,7 +169,7 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
       // Build query variables with helper function
       const variables = buildQueryVariables(supervisorEmployeeId, searchTerm, page, pageSize, employeeId, status);
       
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -222,7 +223,7 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     }
 
     try {
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -268,7 +269,7 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     }
 
     try {
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -320,7 +321,7 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     setRequestStatsLoading(true);
     setRequestStatsError(null);
     try {
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

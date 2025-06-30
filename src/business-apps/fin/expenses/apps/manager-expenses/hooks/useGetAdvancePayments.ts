@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_ADVANCE_PAYMENTS_BY_MANAGER, GET_ADVANCE_PAYMENT_STATISTICS } from '../queries/advancePayments';
+import { env } from '@/common/env/EnvUtils';
 
 // Define types for the hook
 export interface AdvancePaymentItem {
@@ -134,7 +135,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     try {
       const variables = buildQueryVariables(employeeId, searchTerm, page, pageSize, status);
       
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -215,7 +216,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     try {
       const variables = { employeeId };
       
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

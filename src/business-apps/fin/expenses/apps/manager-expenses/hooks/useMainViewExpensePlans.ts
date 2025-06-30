@@ -6,6 +6,7 @@ import {
   GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS 
 } from '../queries/mainViewExpensePlans';
 import { APPROVE_EXPENSE_PLAN, REJECT_EXPENSE_PLAN } from '../queries/expensePlans';
+import { env } from '@/common/env/EnvUtils';
 
 export interface ExpensePlan {
   id: string;
@@ -127,7 +128,7 @@ export const useMainViewExpensePlans = ({
       
       console.log('Fetching expense plans with managerId:', managerId);
       
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -192,7 +193,7 @@ export const useMainViewExpensePlans = ({
     setStatsError(null);
 
     try {
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -246,7 +247,7 @@ export const useMainViewExpensePlans = ({
     setApproving(true);
     try {
       console.log(`Approving plan ${planId} with comments: ${comments}`);
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -286,7 +287,7 @@ export const useMainViewExpensePlans = ({
 
     setRejecting(true);
     try {
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

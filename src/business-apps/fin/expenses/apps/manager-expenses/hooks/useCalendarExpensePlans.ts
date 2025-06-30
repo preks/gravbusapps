@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { message } from 'antd';
 import { GET_CALENDAR_EXPENSE_PLANS } from '../queries/calendarExpensePlans';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { env } from '@/common/env/EnvUtils';
 
 // Reuse the ExpensePlan interface since the structure is the same
 export interface ExpensePlan {
@@ -84,7 +85,7 @@ export const useCalendarExpensePlans = ({
       
       console.log('Fetching calendar expense plans with managerId:', managerId);
       
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

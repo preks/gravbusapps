@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_DASHBOARD_BY_EMPLOYEE } from '../queries/expenseDashboard';
+import { env } from '@/common/env/EnvUtils';
 
 export interface ExpenseDashboard {
   pendingPayouts: number;
@@ -60,7 +61,7 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

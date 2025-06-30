@@ -5,6 +5,7 @@ import {
   GET_MAIN_VIEW_ADVANCE_PAYMENTS, 
   GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS 
 } from '../queries/mainViewAdvancePayments';
+import { env } from '@/common/env/EnvUtils';
 
 export interface AdvancePayment {
   id: string;
@@ -128,7 +129,7 @@ export const useMainViewAdvancePayments = ({
       
       console.log('Fetching advance payments with managerId:', managerId);
       
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -193,7 +194,7 @@ export const useMainViewAdvancePayments = ({
     setStatsError(null);
 
     try {
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

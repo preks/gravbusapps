@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useRestClient } from "@/common/network/rest/useRestClient";
+import { env } from '@/common/env/EnvUtils';
 import { Project, ProjectData } from "../types";
 
 // Interface for API response with paging
@@ -17,7 +18,7 @@ export interface PaginatedProjectRecords {
 const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_CURRENT_PAGE = 1;
 
-const ORGCHART_BASE_URL = "https://newwork-dev.newwork.com/orgchart/api/v1";
+const ORGCHART_BASE_URL = env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_ORGCHART')!;
 
 // Transform API project data to UI-friendly Project interface
 const transformProject = (projectData: ProjectData): Project => {
