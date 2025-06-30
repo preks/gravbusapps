@@ -4,7 +4,7 @@ export const DEFAULT_EMPLOYEE_ID = "";
 
 export const GRAPHQL_API_ENDPOINT = env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK");
 
-export const ICONS_ENDPOINT = env("NEXT_PUBLIC_ICONS_ENDPOINT")
+export const ICONS_ENDPOINT = env("NEXT_PUBLIC_BASE_URL") + "/_next/static/media/lowcoder-icons"
 
 export const FILES_ENDPOINT = env("NEXT_PUBLIC_FILE_SERVICE_ENDPOINT")
 
