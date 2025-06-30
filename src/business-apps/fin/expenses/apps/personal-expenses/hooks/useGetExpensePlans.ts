@@ -124,12 +124,12 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
     } finally {
       setIsLoading(false);
     }
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, setItems, setIsLoading, setError, setTotalCount]);
+  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]);
 
   // Initial fetch on component mount
   useEffect(() => {
     fetchItems();
-  }, [fetchItems]); // Only re-run when employeeId or accessToken changes
+  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]); // Only re-run when employeeId or accessToken changes
 
   return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems };
 };
