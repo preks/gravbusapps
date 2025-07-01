@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageLayout } from '@/components/layout/pageLayout';
+import { Row, Col } from 'antd';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { DataController, DataControllerProps } from '@/components/dataController';
 import { useGetEmployeesReport, Employee } from './hooks/useGetEmployeesReport';
@@ -214,23 +215,23 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
         headerIcon={<CalendarOutlined className="gba:text-blue-600 gba:text-3xl" />}
         headerLabel={'My Team'}
         contentHeader={
-          <div className="gba:grid gba:gap-4 gba:pb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 0fr))' }}>
+          <Row gutter={[16, 16]} className="gba:pb-6">
             {kpiCards.map(kpi => (
-              <KpiCard
-                {...props}
-                key={kpi.key}
-                kpiKey={kpi.key}
-                data-testid={`team-report-kpi-${kpi.key}`}
-                icon={<KpiIcon name={kpi.iconName} />}
-                label={kpi.label}
-                subLabel={kpi.subLabel}
-                value={kpi.value}
-                accentColor={kpi.color}
-                active={activeKpi === kpi.key}
-                onClick={() => setActiveKpi(kpi.key)}
-              />
+              <Col xs={24} sm={12} lg={6} key={kpi.key}>
+                <KpiCard
+                  {...props}
+                  kpiKey={kpi.key}
+                  data-testid={`team-report-kpi-${kpi.key}`}
+                  icon={<KpiIcon name={kpi.iconName} />}
+                  label={kpi.label}
+                  subLabel={kpi.subLabel}
+                  value={kpi.value}
+                  active={activeKpi === kpi.key}
+                  onClick={() => setActiveKpi(kpi.key)}
+                />
+              </Col>
             ))}
-          </div>
+          </Row>
         }
         contentContainer={
           <DataContainer<DataControllerProps>

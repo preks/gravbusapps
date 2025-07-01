@@ -5,7 +5,6 @@ export interface KpiCardData {
   label: string;
   subLabel: string;
   value: number | string;
-  color: string;
   iconName: string;
   shouldShow: boolean;
 }
@@ -29,7 +28,6 @@ export const generateKpiCards = (
       label: 'Total',
       subLabel: 'All members',
       value: allEmployees.length,
-      color: 'blue',
       iconName: 'UserOutlined',
       shouldShow: true,
     },
@@ -38,7 +36,6 @@ export const generateKpiCards = (
       label: 'Internal',
       subLabel: 'Employees',
       value: internalEmployees.length,
-      color: 'green',
       iconName: 'CheckOutlined',
       shouldShow: internalEmployees.length > 0,
     },
@@ -47,7 +44,6 @@ export const generateKpiCards = (
       label: 'External',
       subLabel: 'Workers',
       value: externalEmployees.length,
-      color: 'orange',
       iconName: 'CheckOutlined',
       shouldShow: externalEmployees.length > 0,
     },
@@ -56,7 +52,6 @@ export const generateKpiCards = (
       label: 'Contract',
       subLabel: 'Contractors',
       value: contractWorkers.length,
-      color: 'purple',
       iconName: 'SolutionOutlined',
       shouldShow: contractWorkers.length > 0,
     },
@@ -65,7 +60,6 @@ export const generateKpiCards = (
       label: 'Demo/Test',
       subLabel: 'Test users',
       value: demoTestUsers.length,
-      color: 'red',
       iconName: 'CloseOutlined',
       shouldShow: demoTestUsers.length > 0,
     },
@@ -74,7 +68,6 @@ export const generateKpiCards = (
       label: 'Avg. Tenure',
       subLabel: 'Years & Months',
       value: averageTenureFormatted,
-      color: 'indigo',
       iconName: 'CalendarOutlined',
       shouldShow: true,
     },
@@ -83,7 +76,6 @@ export const generateKpiCards = (
       label: 'Full-time',
       subLabel: 'Employees',
       value: fullTimeEmployees.length,
-      color: 'teal',
       iconName: 'IdcardOutlined',
       shouldShow: fullTimeEmployees.length > 0,
     },
@@ -92,7 +84,6 @@ export const generateKpiCards = (
       label: 'Part-time',
       subLabel: 'Employees',
       value: partTimeEmployees.length,
-      color: 'geekblue',
       iconName: 'CheckOutlined',
       shouldShow: partTimeEmployees.length > 0,
     },
@@ -101,7 +92,6 @@ export const generateKpiCards = (
     //   label: 'Active',
     //   subLabel: 'Currently employed',
     //   value: activeEmployees.length,
-    //   color: 'teal',
     //   iconName: 'CheckOutlined',
     //   shouldShow: activeEmployees.length > 0,
     // },
@@ -110,7 +100,6 @@ export const generateKpiCards = (
     //   label: 'Inactive',
     //   subLabel: 'Former employees',
     //   value: inactiveEmployees.length,
-    //   color: 'gray',
     //   iconName: 'CloseOutlined',
     //   shouldShow: inactiveEmployees.length > 0,
     // },
