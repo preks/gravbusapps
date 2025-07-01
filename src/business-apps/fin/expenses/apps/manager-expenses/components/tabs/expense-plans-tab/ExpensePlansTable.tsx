@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Spin, Alert, Space, Button, Tooltip, Modal, Input } from 'antd';
 import { DataTable, Avatar } from '@newwork/gravity-ui-catalog';
-import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, FileTextOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
@@ -322,7 +322,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   }, [plans, isLoading, error, currentPage, pageSize, totalCount, columns, handleTableChange]);
 
   return (
-    <>
+    <div className="gba:h-full gba:flex gba:flex-col">
       <DataContainer
         contentBackground="white"
         dataControllerProps={{
@@ -342,9 +342,12 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
           onFilterChange: handleDataFilterChange,
         }}
         hideFilter={false}
+        floatingDetails={true}
         dataBody={renderDataBody()}
+        contentBackground="white"
         dataDetails={selectedPlan ? {
-          title: 'Expense Plan Details',
+          title: selectedPlan.title || 'Expense Plan Details',
+          icon: <FileTextOutlined />,
           content: (
             <ExpensePlanDetails
               {...props}
@@ -354,6 +357,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             />
           ),
           onClose: handleCloseDetails,
+          footer: null // Remove footer close button as it's now in the details component
         } : undefined}
       />
 
@@ -393,7 +397,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
           data-testid="rejection-reason-input"
         />
       </Modal>
-    </>
+    </div>
   );
 };
 

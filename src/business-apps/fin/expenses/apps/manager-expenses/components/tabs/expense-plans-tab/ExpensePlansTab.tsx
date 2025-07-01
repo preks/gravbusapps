@@ -80,12 +80,14 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   };
 
   return (
-    <ExpensePlansTable
-      {...contextProps}
-      search={searchTerm}
-      onSearchChange={handleSearchChange}
-      employeeId={props.employeeId}
-    />
+    <div className="gba:h-full gba:flex gba:flex-col">
+      <ExpensePlansTable
+        {...contextProps}
+        search={searchTerm}
+        onSearchChange={handleSearchChange}
+        employeeId={props.employeeId}
+      />
+    </div>
   );
 };
 

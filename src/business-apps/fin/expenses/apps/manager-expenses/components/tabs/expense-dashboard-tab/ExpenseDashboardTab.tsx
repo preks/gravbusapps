@@ -147,14 +147,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
               icon: <PiFileText className="gba:text-2xl gba:text-purple-500" />,
               onClick: () => setReportsModalVisible(true),
               'data-testid': 'expense-reports-action'
-            },
-            {
-              key: 'policies',
-              title: 'Manage Policies',
-              description: 'Review and update expense policies.',
-              icon: <PiShieldCheck className="gba:text-2xl gba:text-orange-500" />,
-              link: '#/policies', // Placeholder link
-            },
+            }
           ].map(action => (
             <Col xs={24} sm={12} lg={6} key={action.key}>
               <Card 
