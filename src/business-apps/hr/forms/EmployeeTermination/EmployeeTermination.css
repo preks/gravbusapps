@@ -1,4 +1,4 @@
-.input-date-picker {
+.gba\:input-date-picker {
   width: 100%;
   background: transparent;
   border: none;
@@ -8,28 +8,28 @@
   font-size: 14px;
   line-height: 20px;
 }
-.input-date-picker input::placeholder {
+.gba\:input-date-picker input::placeholder {
   color: #707070;
   font-size: 14px;
   font-weight: 500;
 }
-.ant-picker {
+.gba\:ant-picker {
   background-color: #F7F7F7;
   border: none;
   padding: 0;
 }
-.ant-picker-outlined:hover {
+.gba\:ant-picker-outlined:hover {
   border: none;
   background-color: #F7F7F7;
   box-shadow: none;
 }
-.ant-picker-outlined:focus-within {
+.gba\:ant-picker-outlined:focus-within {
   border: none;
   background-color: #F7F7F7;
   box-shadow: none;
 }
 
-.btn-primary {
+.gba\:btn-primary {
   background: #000;
   color: #fff;
   border-radius: 9999px;
@@ -42,11 +42,11 @@
   border: none;
   box-shadow: none;
 }
-.btn-primary:hover {
+.gba\:btn-primary:hover {
   background-color: lightGray !important;
   color: #fff !important;
 }
-.btn-secondary {
+.gba\:btn-secondary {
   background: #fff;
   color: #000;
   border-radius: 9999px;
@@ -59,12 +59,12 @@
   border: 2px solid #000;
   box-shadow: none;
 }
-.btn-secondary:hover {
+.gba\:btn-secondary:hover {
   background-color: lightGray !important;
   border-color: #000 !important;
   color: #000 !important;
 }
-.flowIcon{
+.gba\:flowIcon{
   filter: brightness(0);
   fill: #000;
   width: 24px;
