@@ -38,16 +38,34 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
 
   // Define the statuses that should be used for filtering, grouped by their display labels
   const availableFilterStatuses: ExpenseStatus[] = [
-    ExpenseStatus.PENDING,       // Shows as "Approval Required"
-    ExpenseStatus.APPROVED,      // Shows as "In Transit" (grouped with VERIFIED, BOOKED, TRANSFERRED)
-    ExpenseStatus.PAID,          // Shows as "Paid"
-    ExpenseStatus.RETURNED,      // Shows as "In Revision"
-    ExpenseStatus.CLOSED,        // Shows as "Closed"
+    // Group 1: Approval Required
+    ExpenseStatus.PENDING,
+    
+    // Group 2: In Transit (group multiple statuses under one label)
+    ExpenseStatus.APPROVED,
+    ExpenseStatus.VERIFIED,
+    ExpenseStatus.BOOKED,
+    ExpenseStatus.TRANSFERRED,
+    
+    // Group 3: In Revision
+    ExpenseStatus.RETURNED,
+    
+    // Group 4: Paid
+    ExpenseStatus.PAID,
+    
+    // Group 5: Completed
+    ExpenseStatus.CLOSED,
   ];
   
-  // Map of status to display label (for statuses that have unique labels)
+  // Map of status to display label (for statuses that should be grouped or have custom labels)
   const statusDisplayMap: Partial<Record<ExpenseStatus, string>> = {
+    [ExpenseStatus.PENDING]: 'Approval Required',
     [ExpenseStatus.APPROVED]: 'In Transit',
+    [ExpenseStatus.VERIFIED]: 'In Transit',
+    [ExpenseStatus.BOOKED]: 'In Transit',
+    [ExpenseStatus.TRANSFERRED]: 'In Transit',
+    [ExpenseStatus.RETURNED]: 'In Revision',
+    [ExpenseStatus.CLOSED]: 'Completed',
   };
 
   // Create a mapping of filter IDs to their display labels

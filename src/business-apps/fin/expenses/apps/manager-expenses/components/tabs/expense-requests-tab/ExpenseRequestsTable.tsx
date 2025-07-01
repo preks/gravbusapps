@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Button, Typography, Space, Spin, Alert, Select } from 'antd';
+import { Button, Typography, Space, Spin, Alert } from 'antd';
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { DataTable, Avatar } from '@newwork/gravity-ui-catalog';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests';
-import ExpenseRequestDetails from './ExpenseRequestDetails';
+import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters';
 import { getExpenseRequestStatusDisplay } from '../../../utils';
+import ExpenseRequestDetails from './ExpenseRequestDetails';
 import { ensureShortDateFormat } from '../../../utils/dateUtils';
 import { formatAmount } from '../../../utils/currencyUtils';
 
 const { Text } = Typography;
-const { Option } = Select;
 
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   search?: string;
@@ -29,13 +29,23 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   }), [props.accessToken, props.userInfo]);
   
   // Local state management
-  const [searchText, setSearchText] = useState<string>(search ?? '');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [selectedRequest, setSelectedRequest] = useState<ExpenseRequest | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   
+  // Use the expense request filters hook
+  const {
+    search: searchText,
+    setSearch,
+    selectedFilters,
+    filterGroups,
+    filterLabelMap,
+    addFilter,
+    removeFilter,
+    getFilters
+  } = useExpenseRequestFilters();
+
   // Get expense requests data using the hook
   const {
     requests,
@@ -50,31 +60,32 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   // Sync with parent search prop if provided
   useEffect(() => {
     if (search !== undefined && search !== searchText) {
-      setSearchText(search);
+      setSearch(search);
     }
-  }, [search, searchText]);
+  }, [search, setSearch]);
 
-  // Fetch requests when filters change
+  // Fetch requests when filters or pagination changes
   useEffect(() => {
-    fetchRequests(searchText, currentPage, pageSize, undefined, statusFilter === 'all' ? undefined : statusFilter);
-  }, [fetchRequests, searchText, currentPage, pageSize, statusFilter]);
+    const filters = getFilters();
+    fetchRequests(
+      searchText,
+      currentPage,
+      pageSize,
+      undefined, // sortBy
+      filters.status ? filters.status[0] : undefined // status filter
+    );
+  }, [searchText, currentPage, pageSize, getFilters, fetchRequests]);
 
   // Handle search changes
   const handleSearchChange = useCallback((value: string) => {
-    setSearchText(value);
+    setSearch(value);
     setCurrentPage(1);
     
     // Notify parent if callback exists
     if (onSearchChange) {
       onSearchChange(value);
     }
-  }, [onSearchChange]);
-
-  // Handle status filter change
-  const handleStatusChange = useCallback((value: string) => {
-    setStatusFilter(value);
-    setCurrentPage(1);
-  }, []);
+  }, [onSearchChange, setSearch]);
 
   const handleTableChange = (pagination: any, _filters: any, _sorter: any) => {
     setCurrentPage(pagination.current);
@@ -109,20 +120,34 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     const success = await approveRequest(requestId);
     if (success) {
       // Refresh the list after approval
-      fetchRequests(searchText, currentPage, pageSize, undefined, statusFilter === 'all' ? undefined : statusFilter);
+      const filters = getFilters();
+      fetchRequests(
+        search,
+        currentPage,
+        pageSize,
+        undefined,
+        filters.status ? filters.status[0] : undefined
+      );
       setSelectedRequest(null);
     }
-  }, [approveRequest, fetchRequests, searchText, currentPage, pageSize, statusFilter]);
+  }, [approveRequest, fetchRequests, search, currentPage, pageSize, getFilters]);
   
   // Handle rejecting a request
   const handleRejectRequest = useCallback(async (requestId: string) => {
     const success = await rejectRequest(requestId);
     if (success) {
       // Refresh the list after rejection
-      fetchRequests(searchText, currentPage, pageSize, undefined, statusFilter === 'all' ? undefined : statusFilter);
+      const filters = getFilters();
+      fetchRequests(
+        search,
+        currentPage,
+        pageSize,
+        undefined,
+        filters.status ? filters.status[0] : undefined
+      );
       setSelectedRequest(null);
     }
-  }, [rejectRequest, fetchRequests, searchText, currentPage, pageSize, statusFilter]);
+  }, [rejectRequest, fetchRequests, search, currentPage, pageSize, getFilters]);
 
   // Define table columns
   const columns = [
@@ -271,43 +296,70 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     );
   };
 
-  const filterControlsNode = (
-    <Select
-      value={statusFilter}
-      onChange={handleStatusChange}
-      style={{ width: 200 }}
-      placeholder="Filter by status"
-      data-testid="status-filter-select"
-    >
-      <Option value="all">All Statuses</Option>
-      <Option value="PENDING">Pending</Option>
-      <Option value="APPROVED">Approved</Option>
-      <Option value="REJECTED">Rejected</Option>
-      <Option value="DRAFT">Draft</Option>
-    </Select>
-  );
+
+
+  // Handle filter changes from the filter sidebar
+  const handleFilterChange = useCallback((filterId: string, isSelected: boolean) => {
+    if (isSelected) {
+      addFilter(filterId);
+    } else {
+      removeFilter(filterId);
+    }
+    setCurrentPage(1);
+  }, [addFilter, removeFilter]);
+
+  // Get the selected filters array
+  const activeFilters = [...selectedFilters];
+  
+  // Update the URL or any other side effects when filters change
+  useEffect(() => {
+    const filters = getFilters();
+    fetchRequests(
+      searchText,
+      currentPage,
+      pageSize,
+      undefined, // sortBy
+      filters.status ? filters.status[0] : undefined // status filter
+    );
+  }, [selectedFilters, searchText, currentPage, pageSize, getFilters, fetchRequests]);
 
   return (
     <DataContainer
       dataControllerProps={{
         search: searchText,
         setSearch: handleSearchChange,
-        filter: statusFilter === 'all' ? [] : [statusFilter],
-        setFilter: (filters: string[]) => {
-          setStatusFilter(filters[0] ?? 'all');
+        filter: activeFilters,
+        setFilter: (filters: string[]): void => {
+          // Create a set of new filter IDs for easier comparison
+          const newFilters = new Set(filters);
+          
+          // First, remove any filters that are not in the new filters
+          selectedFilters.forEach((filter: string) => {
+            if (!newFilters.has(filter)) {
+              removeFilter(filter);
+            }
+          });
+          
+          // Then, add any new filters that aren't already selected
+          filters.forEach((filter: string) => {
+            if (!selectedFilters.includes(filter)) {
+              addFilter(filter);
+            }
+          });
+          
           setCurrentPage(1);
         },
         placeholder: 'Search by request title, code, employee...', 
-        actions: [filterControlsNode],
+        filterLabelMap,
         listTitle: 'Expense Requests',
         listAmount: totalCount,
         debounceDelay: 300,
       }}
       dataFilterProps={{ 
-        filterGroups: [],
-        onFilterChange: () => {},
+        filterGroups,
+        onFilterChange: handleFilterChange,
       }}
-      hideFilter={true} 
+      hideFilter={false}
       dataBody={renderDataBody()}
       contentBackground="white"
       dataDetails={selectedRequest ? {
