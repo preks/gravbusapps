@@ -64,3 +64,49 @@
   border-color: #000 !important;
   color: #000 !important;
 }
+.flowIcon{
+  filter: brightness(0);
+  fill: #000;
+  width: 24px;
+  height: 24px;
+}
+
+.gba\:date-picker-custom .ant-picker {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.gba\:date-picker-custom .ant-picker-input > input {
+  font-weight: 700 !important;
+  color: #000 !important;
+  background: transparent !important;
+}
+.gba\:date-picker-custom .ant-picker-suffix {
+  color: #bfbfbf !important;
+}
+
+.gba\:ant-form-item-row > div{
+  display: flex;
+  flex-direction: column;
+}
+
+.gba\:form .ant-form-item-label{
+  display: flex;
+  padding: 7px 0px 0px 15px;
+  span{
+    font-weight: 600;
+  }
+  label{
+    height: fit-content !important
+  }
+}
+
+.gba\:form .ant-form-item-label > label::before{
+  content: none !important;
+  display: none !important;
+}
+
+.gba\:form .ant-form-item-label > label::after{
+  content: none !important;
+  display: none !important;
+}
