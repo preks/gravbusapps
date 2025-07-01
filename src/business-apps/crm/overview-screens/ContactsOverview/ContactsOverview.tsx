@@ -33,8 +33,9 @@ import {
   GlobalOutlined
 } from '@ant-design/icons';
 import { useContactsData, Contact } from './hooks/useContactsData';
-import { BusinessAppContextProps } from '../../../types';
-import { ContactProfile } from '../../../irm/contact-screens/ContactProfile/ContactProfile';
+import { BusinessAppContextProps } from "@/business-apps/types";
+import { env } from '@/common/env/EnvUtils';
+import { ContactProfile } from '../ContactProfile/ContactProfile';
 
 const { Title, Text, Paragraph } = Typography;
 const { useBreakpoint } = Grid;
@@ -82,7 +83,6 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
   }, [screens]);
   
   const { contacts: contactsData, metrics: metricsData, loading, error, refetch: refetchContacts } = useContactsData(accessToken);
-  
   useEffect(() => {
     if (contactsData && contactsData.length > 0) {
       setContacts(contactsData.map(contact => ({
@@ -94,7 +94,7 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
         lastUpdated: contact.updatedAt,
         jobTitle: contact.jobTitle || '',
         status: 'active' as const,
-        company: contact.ownerEmployee?.employeePosition?.company?.name || '',
+        company: contact.account?.name || '',
         relatedOpportunities: []
       })));
     }
@@ -153,11 +153,9 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
       const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     
     if (diffInSeconds < 60) {
-      // Handle edge cases: negative or zero seconds should show as "1 second ago"
       if (diffInSeconds <= 0) {
         return `1 second ago${isCreatedAt ? '' : ''}`;
       }
-      // Handle singular/plural form correctly
       return `${diffInSeconds} ${diffInSeconds === 1 ? 'second' : 'seconds'} ago${isCreatedAt ? '' : ''}`;
     }  
       
@@ -198,7 +196,6 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
     return `${contact.firstName} ${contact.lastName}`;
   };
   
-  // Function to show contact profile component
   const handleRowClick = (record: ExtendedContact) => {
     if (record && record.id) {
       setSelectedContactId(record.id);
@@ -210,7 +207,6 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
     }
   };
   
-  // Function to handle back button click in contact profile
   const handleContactProfileBack = () => {
     setIsContactProfileVisible(false);
     setSelectedContactId(undefined);
@@ -218,7 +214,6 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
     setIsEditMode(false);
   };
   
-  // Function to create a new contact
   const handleAddContact = () => {
     setIsNewContact(true);
     setIsEditMode(true);
@@ -226,7 +221,6 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
     setSelectedContactId(undefined);
   };
   
-  // Function to delete a contact
   const handleDeleteContact = async (contact: ExtendedContact) => {
     if (!contact || !contact.id) {
       message.error('Cannot delete: Contact information is missing');
@@ -244,7 +238,7 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
         }
       };
       
-      const response = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveContact', {
+      const response = await fetch(`${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveContact`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -259,7 +253,6 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
       
       message.success('Contact deleted successfully');
       
-      // Refresh the contacts list
       refetchContacts();
     } catch (error) {
       console.error('Error deleting contact:', error);

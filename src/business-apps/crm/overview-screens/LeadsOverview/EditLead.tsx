@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Typography, Form, Input, Button, message, Spin, Select } from "antd";
 import { DollarOutlined, GlobalOutlined, ArrowLeftOutlined, TeamOutlined, BankOutlined } from "@ant-design/icons";
-import { BusinessAppContextProps } from "../../../../common/BusinessAppContext";
+import { BusinessAppContextProps } from "@/business-apps/types";
+import { env } from '@/common/env/EnvUtils';
 import { useCatalogManagerClient } from "../../../../common/network/catalogs/useCatalogManagerClient";
 
 const { Title } = Typography;
@@ -342,7 +343,7 @@ const EditLead: React.FC<EditLeadProps> = (props) => {
       };
       
       // Call the REST API to save the lead data
-      const response = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveLead', {
+      const response = await fetch(`${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveLead`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,

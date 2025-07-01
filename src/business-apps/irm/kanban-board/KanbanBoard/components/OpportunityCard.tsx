@@ -1,24 +1,18 @@
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { formatCurrency } from "../lib/utils";
-import { CalendarOutlined, UserOutlined, ClockCircleOutlined, HomeOutlined, TagOutlined } from "@ant-design/icons";
+import { CalendarOutlined, UserOutlined, HomeOutlined, TagOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { useKanbanStore } from "../lib/kanban-store";
-import type { Opportunity } from "../lib/data";
+import { FIXED_STAGES } from '../lib/stages';
+import type { Opportunity } from "../lib/types";
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
+  onCardClick?: (id: string) => void;
 }
 
-function daysSince(dateString: string): number {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffTime = Math.abs(now.getTime() - date.getTime());
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
-}
-
-export function OpportunityCard({ opportunity }: OpportunityCardProps) {
-  const { stages } = useKanbanStore();
+export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardProps) {
+  const { selectOpportunity } = useKanbanStore();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: opportunity.id,
     data: {
@@ -33,23 +27,42 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
       }
     : undefined;
 
-  const currentStage = stages.find((stage) => stage.id === opportunity.stageId);
-
-  let isRotting = false;
-  let rottingDays = 0;
-  let daysInStage = 0;
-
-  if (opportunity.stageEnteredAt && currentStage?.rotting) {
-    rottingDays = opportunity.rottingDays || currentStage.rottingDays;
-    daysInStage = daysSince(opportunity.stageEnteredAt);
-    isRotting = daysInStage >= rottingDays;
+  let formattedDate = "";
+  if (opportunity.closeDate) {
+    const closeDate = new Date(opportunity.closeDate);
+    formattedDate = new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+    }).format(closeDate);
   }
+  
+  let formattedCreatedAt = "";
+  if (opportunity.createdAt) {
+    const createdDate = new Date(opportunity.createdAt);
+    formattedCreatedAt = new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    }).format(createdDate);
+  }
+  
+  const amount = opportunity.estimatedAmount || 0;
+  const companyName = opportunity.account?.name || '';
+  const ownerName = opportunity.ownerEmployee?.fullName || '';
+  const stage = FIXED_STAGES.find(stage => stage.id === opportunity.stageId);
+  const stageName = stage ? stage.name : '';
 
-  const lastActivityDate = new Date(opportunity.lastActivityAt);
-  const formattedDate = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(lastActivityDate);
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!isDragging) {
+      if (onCardClick) {
+        onCardClick(opportunity.id);
+      } else {
+        selectOpportunity(opportunity.id);
+      }
+    }
+  };
 
   return (
     <div
@@ -57,54 +70,66 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
       {...attributes}
       {...listeners}
       style={style}
-      className={`gba:bg-white gba:dark:bg-gray-800 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-700 gba:flex gba:flex-col ${
+      onClick={handleClick}
+      className={`gba:bg-white gba:dark:bg-gray-800 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-700 gba:flex gba:flex-col gba:cursor-pointer ${
         isDragging ? 'opacity-50' : ''
       }`}
     >
-      <div className="gba:p-3 gba:space-y-2">
+      <div className="gba:p-3 gba:space-y-2" data-testid={`opportunity-card-${opportunity.id}`}>
         <div>
           <h4 className="gba:font-medium gba:text-sm gba:line-clamp-2">
-            <span className="gba:text-sm gba:font-medium gba:text-gray-900 gba:dark:text-gray-100 gba:flex gba:items-center">
-              {isRotting && (
-                <ClockCircleOutlined className="gba:mr-1 gba:text-red-500" title={`This opportunity has been in this stage for ${daysInStage} days (threshold: ${rottingDays} days)`} />
-              )}
-              {opportunity.title}
+            <span className="gba:text-sm gba:font-medium gba:text-gray-900 gba:dark:text-gray-100">
+              {opportunity.name}
             </span>
           </h4>
-          {opportunity.description && (
-            <p className="gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:line-clamp-2 gba:mt-1">{opportunity.description}</p>
+          <p className="gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:line-clamp-1 gba:mt-1">
+            {companyName}
+          </p>
+          {stageName && (
+            <p className="gba:text-xs gba:text-gray-400 gba:font-medium gba:mt-1">
+              {stageName}
+            </p>
           )}
         </div>
+
         <div className="gba:flex gba:items-center gba:justify-between">
-          <span className="gba:text-sm gba:font-medium gba:text-gray-900 gba:dark:text-gray-100">
-            {formatCurrency(opportunity.value)}
+          <span className="gba:text-md gba:font-bold gba:text-gray-900 gba:dark:text-gray-100">
+            {formatCurrency(amount)}
           </span>
-          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
-            <CalendarOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
-            {formattedDate}
-          </div>
+          {formattedDate && (
+            <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
+              <CalendarOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
+              {formattedDate}
+            </div>
+          )}
         </div>
       </div>
-      <div className="gba:p-3 gba:pt-0 gba:flex gba:flex-wrap gba:gap-2 gba:border-t gba:border-gray-100 gba:dark:border-gray-800">
-        {opportunity.company && (
-          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
+
+      <div className="gba:p-3 gba:pt-0 gba:border-t gba:border-gray-100 gba:dark:border-gray-800">
+        {companyName && (
+          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:mb-2">
             <HomeOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
-            {opportunity.company}
+            {companyName}
           </div>
         )}
-        {opportunity.contact && (
-          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
-            <UserOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
-            {opportunity.contact}
-          </div>
-        )}
-        {opportunity.stageEnteredAt && (
-          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400" title="Days in current stage / Rotting threshold">
-            <ClockCircleOutlined style={{ fontSize: '12px', marginRight: '4px', color: isRotting ? '#f5222d' : undefined }} />
-            {daysInStage} / {rottingDays} days
-          </div>
-        )}
+        
+        <div className="gba:flex gba:justify-between gba:items-center">
+          {ownerName && (
+            <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
+              <UserOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
+              {ownerName}
+            </div>
+          )}
+          
+          {formattedCreatedAt && (
+            <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:ml-auto">
+              <ClockCircleOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
+              {formattedCreatedAt}
+            </div>
+          )}
+        </div>
       </div>
+
       {opportunity.tags && opportunity.tags.length > 0 && (
         <div className="gba:p-3 gba:pt-0 gba:flex gba:flex-wrap gba:gap-1 gba:border-t gba:border-gray-100 gba:dark:border-gray-800">
           {opportunity.tags.map((tag) => (

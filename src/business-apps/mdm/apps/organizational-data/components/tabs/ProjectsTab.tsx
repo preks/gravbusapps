@@ -352,7 +352,7 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
       </div>
     );
   }
-
+console.log('selectedProject', selectedProject)
   return (
     <div
       data-testid={`${prefixDataTestId || ''}-ProjectsTab`}
@@ -456,8 +456,8 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
       />
       
       {/* Pagination control */}
-      <div className="gba-flex gba-justify-between gba-mt-4 gba-items-center">
-        <div className="gba-text-sm gba-text-gray-500">
+      <div className="gba:flex gba:justify-between gba:mt-4 gba:items-center">
+        <div className="gba:text-sm gba:text-gray-500">
           Showing {projects.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} entries
         </div>
         <Pagination 
@@ -540,16 +540,50 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({
       
       {/* Project Details Drawer */}
       <DataDetailsDrawer
-        title={selectedProject?.name || "Project Details"}
+        title={selectedProject?.name || 'Project Details'}
         icon={<ProjectOutlined className="gba:text-blue-500" />}
+        width={450}
         placement="right"
+        open={drawerVisible}
         onClose={() => {
           setDrawerVisible(false);
           setSelectedProject(null);
         }}
-        open={drawerVisible}
-        width={500}
-        dataTestId={`${prefixDataTestId || ''}-project-details-drawer`}
+        dataTestId={`${prefixDataTestId || ''}-projects-details-drawer`}
+        navigationLinks={selectedProject ? [
+          {
+            label: 'View Tasks & Milestones',
+            url: `/project-management/tasks?projectId=${selectedProject.id}`,
+            icon: <CheckCircleOutlined />,
+            color: "blue",
+            description: "Track project tasks and upcoming milestones",
+            dataTestId: `${prefixDataTestId || ''}-project-tasks-link`
+          },
+          {
+            label: 'View Team Members',
+            url: `/project-management/teams?projectId=${selectedProject.id}`,
+            icon: <TeamOutlined />,
+            color: "green",
+            description: "See all team members and roles assigned to this project",
+            dataTestId: `${prefixDataTestId || ''}-project-teams-link`
+          },
+          {
+            label: 'View Customer Details',
+            url: selectedProject.customerId ? `/customer-management/customers/${selectedProject.customerId}` : '#',
+            icon: <IdcardOutlined />,
+            color: "purple",
+            description: "View details about the customer for this project",
+            dataTestId: `${prefixDataTestId || ''}-project-customer-link`
+          },
+          {
+            label: 'View Project Reports',
+            url: `/project-management/reports?projectId=${selectedProject.id}`,
+            icon: <FileTextOutlined />,
+            color: "cyan",
+            description: "Access project reports and analytics",
+            dataTestId: `${prefixDataTestId || ''}-project-reports-link`
+          }
+        ] : undefined}
       >
         {selectedProject && (
           <div className="gba:space-y-6">

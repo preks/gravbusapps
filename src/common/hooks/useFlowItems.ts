@@ -114,12 +114,14 @@ const mapFlowItemsToActionOptions = (
         startProcess({
           processName: flowItem.processName,
           domain: flowItem.domain,
-          payload
+          payload,
+          builderType: flowItem.builderType === 'NATIVE_SCREEN' ? 'NATIVE_SCREEN' : 'LOWCODER'
         });
       },
       // Additional properties for internal use
       processName: flowItem.processName,
       domain: flowItem.domain,
+      category: flowItem.flowType,
       payload
     } as ActionOption;
   });

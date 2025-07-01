@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_PLANS_BY_EMPLOYEE } from '../queries/expensePlans';
+import { env } from '@/common/env/EnvUtils';
 
 // Translation interface for catalog entries
 export interface Translation {
@@ -83,7 +84,7 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
       const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`;
       const offset = (page - 1) * pageSize;
       
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -124,12 +125,12 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
     } finally {
       setIsLoading(false);
     }
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, setItems, setIsLoading, setError, setTotalCount]);
+  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]);
 
   // Initial fetch on component mount
   useEffect(() => {
     fetchItems();
-  }, [fetchItems]); // Only re-run when employeeId or accessToken changes
+  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]); // Only re-run when employeeId or accessToken changes
 
   return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems };
 };

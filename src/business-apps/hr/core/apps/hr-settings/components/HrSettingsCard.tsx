@@ -1,6 +1,6 @@
 import { cloneElement, isValidElement, ReactElement } from 'react'
 import { RiArrowRightSLine } from '@remixicon/react'
-import { Card, Typography, Divider, Badge } from 'antd'
+import { Card, Typography } from 'antd'
 
 export interface HrSettingsCardEntry {
   label: string
@@ -73,9 +73,9 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
 
       {entries && entries.length > 0 && (
         <div style={{ position: 'relative' }}>
-          <Badge.Ribbon 
-            text={`${entries.length} items`} 
-            color="blue" 
+          <div
+            // text={`${entries.length} items`} 
+            // color="blue" 
             style={{ fontSize: '12px' }}
           >
             <div style={{ paddingTop: '8px' }}>
@@ -144,7 +144,7 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
                 </div>
               ))}
             </div>
-          </Badge.Ribbon>
+          </div>
         </div>
       )}
     </Card>

@@ -6,9 +6,11 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
 import ExpensePlanDetails from './ExpensePlanDetails';
-import useGetExpensePlans, { ExpensePlan } from '../../../hooks/useGetExpensePlans';
+import { useMainViewExpensePlans, ExpensePlan } from '../../../hooks/useMainViewExpensePlans';
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters';
 import { getExpensePlanStatusDisplay, ExpenseStatus } from '../../../utils';
+import { formatDate } from '@/common/utils/windowUtils';
+import { formatAmount } from '../../../utils/currencyUtils';
 
 const { Text } = Typography;
 
@@ -41,10 +43,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
 
   // Synchronize search from parent if provided
   useEffect(() => {
-    if (search !== undefined && search !== searchTerm) {
+    if (search !== undefined) {
       setSearchTerm(search);
     }
-  }, [search, setSearchTerm]);
+  }, [search]);
 
   // Set up local state
   const [pageSize, setPageSize] = useState<number>(10);
@@ -53,13 +55,13 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   const [approvalComments, setApprovalComments] = useState<string>('');
   const [isRejectModalVisible, setIsRejectModalVisible] = useState<boolean>(false);
   const [isApproveModalVisible, setIsApproveModalVisible] = useState<boolean>(false);
-  const [planIdToAction, setPlanIdToAction] = useState<string>('');
+  const [currentActionPlanId, setCurrentActionPlanId] = useState<string>('');
 
   // Get expense plans data and functions
   const {
+    plans,
     loading: isLoading,
     error,
-    plans,
     totalCount,
     currentPage,
     setCurrentPage,
@@ -67,9 +69,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     rejecting,
     approvePlan,
     rejectPlan,
-  } = useGetExpensePlans({
-    accessToken: contextProps.accessToken,
-    userInfo: contextProps.userInfo,
+  } = useMainViewExpensePlans({
+    ...contextProps,
     pageSize,
     searchTerm: debouncedSearchTerm,
     currentStatusFilter: statusFilter,
@@ -81,12 +82,23 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     if (props.onSearchChange) {
       props.onSearchChange(value);
     }
-  }, [props.onSearchChange, setSearchTerm]);
+  }, [props]);
 
   // Handle viewing details for a plan
   const handleViewDetails = useCallback((plan: ExpensePlan) => {
     setSelectedPlan(plan);
   }, []);
+
+  // Debug logging for approval and rejection actions
+  useEffect(() => {
+    if (approving || rejecting) {
+      console.log('ExpensePlansTable - Action in progress:', { 
+        approving, 
+        rejecting, 
+        currentActionPlanId 
+      });
+    }
+  }, [approving, rejecting, currentActionPlanId]);
 
   // Handle closing details panel
   const handleCloseDetails = useCallback(() => {
@@ -95,37 +107,37 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
 
   // Modal management for approve/reject
   const showApproveModal = useCallback((planId: string) => {
-    setPlanIdToAction(planId);
+    setCurrentActionPlanId(planId);
     setIsApproveModalVisible(true);
   }, []);
 
   const showRejectModal = useCallback((planId: string) => {
-    setPlanIdToAction(planId);
+    setCurrentActionPlanId(planId);
     setIsRejectModalVisible(true);
   }, []);
 
   const handleApproveConfirm = useCallback(async () => {
-    await approvePlan(planIdToAction, approvalComments);
+    await approvePlan(currentActionPlanId, approvalComments);
     setIsApproveModalVisible(false);
     setApprovalComments('');
-    setPlanIdToAction('');
-    if (selectedPlan?.id === planIdToAction) {
+    setCurrentActionPlanId('');
+    if (selectedPlan?.id === currentActionPlanId) {
       setSelectedPlan(null);
     }
-  }, [approvePlan, planIdToAction, approvalComments, selectedPlan?.id]);
+  }, [approvePlan, currentActionPlanId, approvalComments, selectedPlan?.id]);
 
   const handleRejectConfirm = useCallback(async () => {
     if (!rejectReason.trim()) {
       return;
     }
-    await rejectPlan(planIdToAction, rejectReason);
+    await rejectPlan(currentActionPlanId, rejectReason);
     setIsRejectModalVisible(false);
     setRejectReason('');
-    setPlanIdToAction('');
-    if (selectedPlan?.id === planIdToAction) {
+    setCurrentActionPlanId('');
+    if (selectedPlan?.id === currentActionPlanId) {
       setSelectedPlan(null);
     }
-  }, [rejectPlan, planIdToAction, rejectReason, selectedPlan?.id]);
+  }, [rejectPlan, currentActionPlanId, rejectReason, selectedPlan?.id]);
 
   const handleApprovePlan = useCallback((planId: string) => {
     if (selectedPlan) {
@@ -165,7 +177,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             <Text strong>{value}</Text>
             {record.startDate && record.endDate && (
               <div style={{ fontSize: '12px', color: '#888', fontWeight: 'normal' }}>
-                {new Date(record.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} - {new Date(record.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                {formatDate(record.startDate, 'date.short')} - {formatDate(record.endDate, 'date.short')}
               </div>
             )}
           </Button>
@@ -194,7 +206,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       render: (totalAmount: number) => {
         return (
           <Text>
-            {typeof totalAmount === 'number' ? `€${totalAmount.toFixed(2)}` : 'N/A'}
+            {typeof totalAmount === 'number' ? `€${formatAmount(totalAmount)}` : 'N/A'}
           </Text>
         );
       },
@@ -221,11 +233,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   type="primary"
                   style={{ backgroundColor: 'green', borderColor: 'green' }}
                   icon={<CheckOutlined />}
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     handleApprovePlan(record.id);
                   }}
-                  loading={approving && planIdToAction === record.id}
+                  loading={approving && currentActionPlanId === record.id}
                   data-testid={`approve-plan-button-${record.id}`}
                 />
               </Tooltip>
@@ -236,11 +248,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   type="primary"
                   danger
                   icon={<CloseOutlined />}
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     handleRejectPlan(record.id);
                   }}
-                  loading={rejecting && planIdToAction === record.id}
+                  loading={rejecting && currentActionPlanId === record.id}
                   data-testid={`reject-plan-button-${record.id}`}
                 />
               </Tooltip>
@@ -253,28 +265,59 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
 
   // Render the data body with error handling and loading states
   const renderDataBody = useCallback(() => {
-    if (isLoading && !plans.length) return <Spin tip="Loading expense plans..." data-testid="expense-plans-loading" />;
-    if (error) return <Alert message={`Error: ${error.message}`} type="error" showIcon data-testid="expense-plans-error" />;
-    if (!plans || plans.length === 0) return <Alert message="No expense plans found matching your criteria." type="info" showIcon data-testid="expense-plans-empty" />;
+    // Add debugging info
+    const debugInfo = (
+      <div className="gba:mb-4" data-testid="expense-plans-debug-info">
+        {(() => { 
+          console.log('ExpensePlansTable - rendering with data:', { 
+            plansCount: plans.length, 
+            totalCount, 
+            currentPage, 
+            pageSize,
+            searchTerm: debouncedSearchTerm,
+            statusFilter 
+          });
+          return null;
+        })()}
+      </div>
+    );
+    
+    if (isLoading && !plans.length) return <>
+      {debugInfo}
+      <Spin tip="Loading expense plans..." data-testid="expense-plans-loading" />
+    </>;
+    
+    if (error) return <>
+      {debugInfo}
+      <Alert message={`Error: ${error.message}`} type="error" showIcon data-testid="expense-plans-error" />
+    </>;
+    
+    if (!plans || plans.length === 0) return <>
+      {debugInfo}
+      <Alert message="No expense plans found matching your criteria." type="info" showIcon data-testid="expense-plans-empty" />
+    </>;
 
     return (
-      <DataTable
-        columns={columns}
-        dataSource={plans}
-        rowKey="id"
-        loading={isLoading}
-        pagination={{
-          current: currentPage,
-          pageSize: pageSize,
-          total: totalCount,
-          showSizeChanger: true,
-          pageSizeOptions: ['10', '20', '50', '100'],
-          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-        }}
-        onChange={handleTableChange}
-        scroll={{ x: 'max-content' }}
-        data-testid="expense-plans-table"
-      />
+      <>
+        {debugInfo}
+        <DataTable
+          columns={columns}
+          dataSource={plans}
+          rowKey="id"
+          loading={isLoading}
+          pagination={{
+            current: currentPage,
+            pageSize: pageSize,
+            total: totalCount,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+          }}
+          onChange={handleTableChange}
+          scroll={{ x: 'max-content' }}
+          data-testid="expense-plans-table"
+        />
+      </>
     );
   }, [plans, isLoading, error, currentPage, pageSize, totalCount, columns, handleTableChange]);
 

@@ -6,6 +6,7 @@ import ExpenseItemStatistics from './ExpenseItemStatistics';
 import ExpenseItemsTable from './ExpenseItemsTable';
 import { useExpenseFilters } from '../../../hooks/useExpenseFilters';
 import { startProcess } from '@/common/utils/start-process';
+import { env } from '@/common/env/EnvUtils';
 
 export interface ExpenseItemsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -138,7 +139,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
         throw new Error('Missing employee ID or access token');
       }
       
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -246,12 +247,15 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
             return;
           }
           
-          const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+          const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${accessToken}`,
+              'Origin': window.location.origin,
             },
+            credentials: 'include', // Include cookies for CORS requests
+            mode: 'cors', // Explicitly set CORS mode
             body: JSON.stringify({
               query: GET_EXPENSE_ITEMS_BY_EMPLOYEE,
               variables: {

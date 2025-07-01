@@ -18,3 +18,5 @@ trigger: always_on
 
 - Do not generate mocked data. Instead, use the existing clients in `src/common/network` to integrate real data.
 - For all API requests, make sure accessToken exists.
+- Never use hardcoded base URLs like "https://newwork-dev.newwork.com/<rest_of_the_base_url>". Always use `env` from '@/common/env/EnvUtils'.
+- If a base URL does not exist, make sure to add it to the .env file, use `NEXT_PUBLIC_BASE_URL` or `NEXT_PUBLIC_API_SERVER` for the host part and concatenate the URL path in a new variable.

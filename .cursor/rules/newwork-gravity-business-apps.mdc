@@ -101,5 +101,7 @@ src/business-apps/
 
 ## Publishing
 - **Frequency**: Daily basis
-- **Apps**: `npm run publish:screen -- /<module>/<sub-module>/apps/<app-folder>`
-- **Forms**: `npm run publish:screen -- /<module>/<sub-module>/forms/<form-folder>`
+- **Apps**: `npm run publish:screen -- /<module>/<sub-module>/apps/<app-folder> [options]`
+- **Forms**: `npm run publish:screen -- /<module>/<sub-module>/forms/<form-folder> [options]`
+- **Options**:
+  - `--fast` or `-f`: Fast publish mode - skips all prompts and defaults to No for resource URL options

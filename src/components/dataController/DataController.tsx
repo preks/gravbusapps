@@ -133,7 +133,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   }, [showSearchInput]);
 
   return (
-    <div className="gba:w-full gba:bg-white gba:px-6">
+    <div className="gba:w-full gba:bg-white">
       <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:gap-2">
         {/* Left: Filter and Search */}
         <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:shrink-0">

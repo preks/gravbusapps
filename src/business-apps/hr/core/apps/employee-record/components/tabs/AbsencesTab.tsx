@@ -1,23 +1,33 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import dayjs from 'dayjs';
 import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeData';
-import { Button } from '@newwork/gravity-ui-catalog';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import { Button, Card } from '@newwork/gravity-ui-catalog';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Tabs, Pagination, Spin } from 'antd';
 import {
   CalendarOutlined,
   UnorderedListOutlined,
-  BarChartOutlined,
   PaperClipOutlined,
+  LeftOutlined,
+  RightOutlined,
 } from '@ant-design/icons';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
+import weekday from 'dayjs/plugin/weekday';
+import weekOfYear from 'dayjs/plugin/weekOfYear';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import updateLocale from 'dayjs/plugin/updateLocale';
 
 // Register dayjs plugins
 dayjs.extend(isBetween);
+dayjs.extend(weekday);
+dayjs.extend(weekOfYear);
+dayjs.extend(customParseFormat);
+dayjs.extend(updateLocale);
 import {
   formatDate,
   getCurrentActiveUserLocale,
@@ -40,16 +50,6 @@ interface AbsenceListCardAbsence {
   requestDate: string;
 }
 
-interface StatItem {
-  title: string;
-  used: number;
-  total: number;
-  progress: number;
-  icon: React.ReactNode;
-  color?: string;
-  textColor?: string;
-  daysLeft: number;
-}
 
 interface Entitlement {
   type: string;
@@ -105,11 +105,16 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [activeTab, setActiveTab] = useState("calendar");
   const [absenceList, setAbsenceList] = useState<AbsenceListCardAbsence[]>([]);
   const [entitlements, setEntitlements] = useState<Entitlement[]>([]);
-  const [stats, setStats] = useState<StatItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  
+  // Calendar state
+  const [currentDate, setCurrentDate] = useState(dayjs());
+  
+  // Helper function to create a new dayjs instance (like clone)
+  const cloneDayjs = (date: dayjs.Dayjs) => dayjs(date.valueOf());
   
   // Paginated absence list
   const paginatedAbsenceList = useMemo(() => {
@@ -210,36 +215,17 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         setEntitlements(
           employeeAbsenceEntitlement.map((ent) => ({
             type: getTypeValue(ent.type),
-            color: ent.type?.objectValue?.color || "blue",
+            color: ent.type?.objectValue?.color || '1976d2',
             used: ent.approved,
             total: ent.total,
             pending: ent.pending,
             available: ent.available,
             icon: (
               <PaperClipOutlined
-                style={{
-                  color: ent.type?.objectValue?.color
-                    ? `#${ent.type.objectValue.color}`
-                    : "#1976d2",
-                }}
+                style={{ color: `#${ent.type?.objectValue?.color || '1976d2'}` }}
               />
             ),
             checkEntitlement: ent.type?.objectValue?.checkEntitlement,
-          }))
-        );
-
-        setStats(
-          employeeAbsenceEntitlement.map((ent) => ({
-            title: getTypeValue(ent.type),
-            used: ent.approved,
-            total: ent.total,
-            progress: ent.total
-              ? Math.round((ent.approved / ent.total) * 100)
-              : 0,
-            icon: <PaperClipOutlined style={{ color: "#1976d2" }} />,
-            color: ent.type?.objectValue?.color,
-            textColor: ent.type?.objectValue?.color,
-            daysLeft: ent.available,
           }))
         );
       })
@@ -257,30 +243,31 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
   return (
     <div className="gba:absences-tab gba:space-y-8">
-      {/* Absence Overview Headline */}
-      <div className="gba:absence-header" data-testid="absencehub-header">
-        <div
-          className="gba:font-bold gba:text-2xl"
-          data-testid="absencehub-title"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_absences.absence_overview",
-            "Absence Overview"
-          )}
+      {/* Absence Overview Headline with Action Button */}
+      <div className="gba:flex gba:justify-between gba:items-start" data-testid="absencehub-header">
+        <div className="gba:absence-header">
+          <div
+            className="gba:font-bold gba:text-2xl"
+            data-testid="absencehub-title"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:hr_absences.absence_overview",
+              "Absence Overview"
+            )}
+          </div>
+          <div
+            className="gba:text-gray-500 gba:text-lg"
+            data-testid="absencehub-description"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:absence_hub.absence_description",
+              "View and manage your absences"
+            )}
+          </div>
         </div>
-        <div
-          className="gba:text-gray-500 gba:text-lg"
-          data-testid="absencehub-description"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:absence_hub.absence_description",
-            "View and manage your absences"
-          )}
-        </div>
-      </div>
-      {/* Request Absence Section */}
-      <div>
-        <div className="gba:flex gba:flex-wrap gba:gap-4">
+        
+        {/* Request Absence Button */}
+        <div>
           <AppActionButton
             data-testid="request-vacation-button"
             variant="primary"
@@ -297,6 +284,292 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           </AppActionButton>
         </div>
       </div>
+
+      {/* Absence Charts Section */}
+      {loading ? (
+        <div className="gba:loading gba:flex gba:justify-center gba:items-center gba:py-8">
+          <Spin size="large" />
+        </div>
+      ) : error ? (
+        <div className="gba:error gba:text-red-500 gba:py-8 gba:text-center">
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:absence_hub.error_loading",
+            "Failed to load absence data."
+          )}
+        </div>
+      ) : (
+        <div className="gba:charts-section gba:mb-8" data-testid="absence-charts-section">
+          <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
+            {/* Chart 1: Annual Leave Used vs Total */}
+            <Card
+              variant="outlined"
+              className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
+              data-testid="annual-leave-chart"
+            >
+              <div className="gba:text-lg gba:font-medium gba:mb-2">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.annual_leave", 
+                  "Annual Leave"
+                )}
+              </div>
+              <div className="gba:text-sm gba:text-gray-500 gba:mb-4">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.annual_leave_description", 
+                  "Used vs. Total Annual Leave"
+                )}
+              </div>
+              {(() => {
+                const annualLeaveEntitlement = entitlements.find(e => 
+                  e.type.toLowerCase().includes('annual') || 
+                  e.type.toLowerCase().includes('vacation') || 
+                  e.type.toLowerCase().includes('leave')
+                );
+                const used = annualLeaveEntitlement?.used || 0;
+                const total = annualLeaveEntitlement?.total || 0;
+                const remaining = total - used;
+                
+                // Chart color scheme
+                const chartColors = ['#22c55e', '#f97316'];
+                
+                const data = [
+                  { name: 'Remaining Days', value: remaining, color: chartColors[0] },
+                  { name: 'Used Days', value: used, color: chartColors[1] }
+                ];
+                
+                return (
+                  <>
+                    <div className="gba:h-[180px] gba:border gba:border-gray-200 gba:rounded-md">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={data}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={50}
+                            outerRadius={70}
+                            fill="#8884d8"
+                          >
+                            {data.map((_, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={chartColors[index % chartColors.length]} 
+                              />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip
+                            formatter={(value, name) => [`${value} days`, name]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="gba:flex gba:justify-center gba:items-center gba:gap-2 gba:mt-2">
+                      <div className="gba:flex gba:items-center gba:gap-1.5">
+                        <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-[#22c55e]"></div>
+                        <span className="gba:text-sm">{remaining} {getTranslationFromI18nKeyAndLabel(
+                          "lowcoder:absence_hub.remaining",
+                          "Remaining"
+                        )}</span>
+                      </div>
+                      <div className="gba:flex gba:items-center gba:gap-1.5">
+                        <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-[#f97316]"></div>
+                        <span className="gba:text-sm">{used} {getTranslationFromI18nKeyAndLabel(
+                          "lowcoder:absence_hub.used",
+                          "Used"
+                        )}</span>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </Card>
+            
+            {/* Chart 2: Absence Distribution by Type */}
+            <Card
+              variant="outlined"
+              className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
+              data-testid="absence-distribution-chart"
+            >
+              <div className="gba:text-lg gba:font-medium gba:mb-2">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.absence_distribution", 
+                  "Absence Distribution"
+                )}
+              </div>
+              <div className="gba:text-sm gba:text-gray-500 gba:mb-4">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.by_type", 
+                  "By Type"
+                )}
+              </div>
+              {(() => {
+                // Group absences by type and count days
+                const absenceByType: Record<string, number> = {};
+                absenceList.forEach(absence => {
+                  if (absence.status.toLowerCase() === 'approved' || absence.status.toLowerCase() === 'action required') {
+                    const type = absence.type || 'Other';
+                    if (!absenceByType[type]) {
+                      absenceByType[type] = 0;
+                    }
+                    const duration = parseInt(absence.duration) || 0;
+                    absenceByType[type] += duration;
+                  }
+                });
+                
+                // Define consistent colors for chart
+                const chartColors = [
+                  '#22c55e', // Green
+                  '#f97316', // Orange
+                  'rgba(13, 188, 123, 1)', // Another green
+                  'rgba(255, 158, 2, 1)', // Another orange
+                  'rgba(141, 145, 153, 1)' // Gray
+                ];
+                
+                const keys = Object.keys(absenceByType);
+                const data = keys.map((type, index) => ({
+                  name: type,
+                  value: absenceByType[type],
+                  color: chartColors[index % chartColors.length]
+                }));
+                
+                return (
+                  <>
+                    <div className="gba:h-[180px] gba:border gba:border-gray-200 gba:rounded-md">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={data}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={50}
+                            outerRadius={70}
+                            fill="#8884d8"
+                          >
+                            {data.map((_, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={chartColors[index % chartColors.length]} 
+                              />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip
+                            formatter={(value, name) => [`${value} days`, name]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:mt-2">
+                      {data.map((entry, index) => (
+                        <div key={`legend-${index}`} className="gba:flex gba:items-center gba:gap-1.5">
+                          <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: entry.color }}></div>
+                          <span className="gba:text-sm">{entry.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
+            </Card>
+            
+            {/* Chart 3: Absences by Status */}
+            <Card
+              variant="outlined"
+              className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
+              data-testid="absences-by-status-chart"
+            >
+              <div className="gba:text-lg gba:font-medium gba:mb-2">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.absence_status", 
+                  "Absence Status"
+                )}
+              </div>
+              <div className="gba:text-sm gba:text-gray-500 gba:mb-4">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.status_distribution", 
+                  "Status Distribution"
+                )}
+              </div>
+              {(() => {
+                // Group absences by status
+                const absenceByStatus: Record<string, number> = {};
+                absenceList.forEach(absence => {
+                  const status = absence.status || 'Unknown';
+                  if (!absenceByStatus[status]) {
+                    absenceByStatus[status] = 0;
+                  }
+                  const duration = parseInt(absence.duration) || 0;
+                  absenceByStatus[status] += duration;
+                });
+                
+                // Define consistent colors for chart
+                const chartColors = [
+                  'rgba(13, 188, 123, 1)',  // Green - Approved
+                  'rgba(255, 158, 2, 1)',   // Orange - Action Required
+                  'rgba(222, 29, 73, 1)',   // Red - Rejected
+                  'rgba(141, 145, 153, 1)', // Gray - Cancelled
+                  '#94a3b8'                 // Light Gray - Unknown
+                ];
+                
+                const statusColorMap: Record<string, number> = {
+                  'Approved': 0,
+                  'Action Required': 1,
+                  'Rejected': 2,
+                  'Cancelled': 3,
+                  'Unknown': 4
+                };
+                
+                const data = Object.keys(absenceByStatus).map(status => ({
+                  name: status,
+                  value: absenceByStatus[status],
+                  color: chartColors[statusColorMap[status] !== undefined ? statusColorMap[status] : 4]
+                }));
+                
+                return (
+                  <>
+                    <div className="gba:h-[180px] gba:border gba:border-gray-200 gba:rounded-md">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={data}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={50}
+                            outerRadius={70}
+                            fill="#8884d8"
+                          >
+                            {data.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={chartColors[statusColorMap[entry.name] !== undefined ? statusColorMap[entry.name] : 4]} 
+                              />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip
+                            formatter={(value, name) => [`${value} days`, name]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:mt-2">
+                      {data.map((entry, index) => (
+                        <div key={`legend-${index}`} className="gba:flex gba:items-center gba:gap-1.5">
+                          <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: entry.color }}></div>
+                          <span className="gba:text-sm">{entry.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
+            </Card>
+          </div>
+        </div>
+      )}
 
       {/* Absence Hub Integration */}
       <div className="gba:absence-hub-integration" data-testid="absence-hub-integration">
@@ -339,14 +612,16 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                           {/* Calendar Header */}
                           <div className="gba:calendar-header gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b">
                             <div className="gba:calendar-month-year gba:font-medium gba:text-lg">
-                              {dayjs().format('MMMM YYYY')}
+                              {currentDate.format('MMMM YYYY')}
                             </div>
                             <div className="gba:calendar-nav gba:flex gba:gap-2">
                               <Button 
                                 variant="secondary"
                                 className="gba:px-3 gba:py-1"
                                 data-testid="calendar-prev-month"
+                                onClick={() => setCurrentDate(cloneDayjs(currentDate).subtract(1, 'month'))}
                               >
+                                <LeftOutlined className="gba:mr-1" />
                                 {getTranslationFromI18nKeyAndLabel(
                                   "lowcoder:absence_hub.previous",
                                   "Previous"
@@ -356,6 +631,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                                 variant="secondary"
                                 className="gba:px-3 gba:py-1"
                                 data-testid="calendar-today"
+                                onClick={() => setCurrentDate(dayjs())}
                               >
                                 {getTranslationFromI18nKeyAndLabel(
                                   "lowcoder:absence_hub.today",
@@ -366,11 +642,13 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                                 variant="secondary"
                                 className="gba:px-3 gba:py-1"
                                 data-testid="calendar-next-month"
+                                onClick={() => setCurrentDate(cloneDayjs(currentDate).add(1, 'month'))}
                               >
                                 {getTranslationFromI18nKeyAndLabel(
                                   "lowcoder:absence_hub.next",
                                   "Next"
                                 )}
+                                <RightOutlined className="gba:ml-1" />
                               </Button>
                             </div>
                           </div>
@@ -388,32 +666,48 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                             
                             {/* Calendar Days */}
                             <div className="gba:grid gba:grid-cols-7 gba:gap-1">
-                              {/* Generate placeholder days for a month */}
-                              {Array.from({ length: 35 }).map((_, idx) => {
-                                const day = idx + 1;
-                                const isToday = day === dayjs().date();
-                                const hasAbsence = absenceList.some((absence: AbsenceListCardAbsence) => {
-                                  const absenceStart = dayjs(absence.startDate);
-                                  const absenceEnd = dayjs(absence.endDate);
-                                  const currentDate = dayjs().date(day);
-                                  return currentDate.isBetween(absenceStart, absenceEnd, null, '[]');
-                                });
+                              {/* Generate days for the current month with proper offset */}
+                              {(() => {
+                                const daysInMonth = currentDate.daysInMonth();
+                                const firstDayOfMonth = currentDate.startOf('month');
+                                const startOfCalendar = firstDayOfMonth.startOf('week');
                                 
-                                return (
-                                  <div 
-                                    key={idx}
-                                    className={`gba:calendar-day gba:p-2 gba:h-20 gba:border gba:rounded ${isToday ? 'gba:bg-blue-50 gba:border-blue-300' : 'gba:bg-white'}`}
-                                    data-testid={`calendar-day-${day}`}
-                                  >
-                                    <div className={`gba:day-number gba:text-right ${isToday ? 'gba:font-bold gba:text-blue-600' : ''}`}>
-                                      {day <= dayjs().daysInMonth() ? day : ''}
+                                // Calculate how many days to display (either 35 or 42 depending on the month)
+                                const daysToDisplay = Math.ceil((daysInMonth + firstDayOfMonth.day()) / 7) * 7;
+                                
+                                return Array.from({ length: daysToDisplay }).map((_, idx) => {
+                                  // Create a new dayjs object for each day to avoid mutation issues
+                                  const currentDay = cloneDayjs(startOfCalendar).add(idx, 'day');
+                                  const isCurrentMonth = currentDay.month() === currentDate.month();
+                                  const isToday = currentDay.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
+                                  
+                                  const hasAbsence = absenceList.some((absence: AbsenceListCardAbsence) => {
+                                    const absenceStart = dayjs(absence.startDate);
+                                    const absenceEnd = dayjs(absence.endDate);
+                                    return currentDay.isBetween(absenceStart, absenceEnd, null, '[]');
+                                  });
+                                  
+                                  return (
+                                    <div 
+                                      key={idx}
+                                      className={`gba:calendar-day gba:p-2 gba:h-16 gba:border gba:rounded 
+                                        ${isToday ? 'gba:bg-blue-50 gba:border-blue-300' : 'gba:bg-white'} 
+                                        ${!isCurrentMonth ? 'gba:opacity-40' : ''}`}
+                                      data-testid={`calendar-day-${currentDay.date()}`}
+                                    >
+                                      <div className={`gba:day-number gba:text-right 
+                                        ${isToday ? 'gba:font-bold gba:text-blue-600' : ''} 
+                                        ${!isCurrentMonth ? 'gba:text-gray-400' : ''}`}
+                                      >
+                                        {currentDay.date()}
+                                      </div>
+                                      {hasAbsence && isCurrentMonth && (
+                                        <div className="gba:absence-indicator gba:mt-1 gba:h-2 gba:bg-blue-400 gba:rounded-full"></div>
+                                      )}
                                     </div>
-                                    {hasAbsence && (
-                                      <div className="gba:absence-indicator gba:mt-1 gba:h-2 gba:bg-blue-400 gba:rounded-full"></div>
-                                    )}
-                                  </div>
-                                );
-                              })}
+                                  );
+                                });
+                              })()}
                             </div>
                           </div>
                           
@@ -443,20 +737,28 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 children: (
                   <div className="gba:absenceList" data-testid="absencehub-absence-list">
                     {loading ? (
-                      <div className="gba:loading gba:flex gba:justify-center gba:items-center gba:py-8">
-                        <Spin size="large" />
+                      <div className="gba:loading-skeleton gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4" data-testid="absencehub-loading">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="gba:h-40 gba:bg-gray-100 gba:rounded gba:animate-pulse"></div>
+                        ))}
                       </div>
                     ) : error ? (
-                      <div className="gba:error gba:text-red-500 gba:py-8 gba:text-center">
-                        {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:absence_hub.error_loading",
-                          "Failed to load absence data."
-                        )}
+                      <div className="gba:error-container gba:text-center gba:py-8" data-testid="absencehub-error">
+                        <div className="gba:text-red-500 gba:text-lg gba:mb-2">
+                          {getTranslationFromI18nKeyAndLabel(
+                            "lowcoder:absence_hub.error_loading",
+                            "Failed to load absence data."
+                          )}
+                        </div>
+                        <div className="gba:text-gray-500">
+                          {getTranslationFromI18nKeyAndLabel(
+                            "lowcoder:absence_hub.try_again_later",
+                            "Please try again later or contact support if the problem persists."
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <>
-
-                        
                         <h3 className="gba:absenceListTitle gba:text-lg gba:font-medium gba:mb-4" data-testid="absencehub-absence-history-title">
                           {getTranslationFromI18nKeyAndLabel(
                             "lowcoder:absence_hub.absence_history",
@@ -464,54 +766,77 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                           )}
                         </h3>
                         
-                        <div className="gba:absenceListCards gba:space-y-4" data-testid="absencehub-absence-list-cards">
-                          {absenceList.length > 0 ? (
-                            paginatedAbsenceList.map((absence, idx) => (
+                        {absenceList.length > 0 ? (
+                          <div className="gba:absenceListCards gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4" data-testid="absencehub-absence-list-cards">
+                            {paginatedAbsenceList.map((absence, idx) => (
                               <div 
                                 key={idx + (currentPage - 1) * pageSize}
-                                className="gba:absence-card gba:border gba:rounded gba:p-4 gba:shadow-sm"
+                                className="gba:absence-card gba:border gba:rounded gba:p-4 gba:shadow-sm gba:bg-white gba:hover:shadow-md gba:transition-shadow"
                                 data-testid={`absence-card-${idx}`}
                               >
-                                <div className="gba:flex gba:justify-between gba:items-start">
-                                  <div>
-                                    <div className="gba:flex gba:items-center gba:gap-2">
-                                      <span className="gba:icon">{absence.icon}</span>
-                                      <h4 className="gba:text-lg gba:font-medium">{absence.title}</h4>
-                                    </div>
-                                    <div className="gba:text-gray-500 gba:mt-1">
+                                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                                  <div 
+                                    className="gba:icon-container gba:p-2 gba:rounded-full" 
+                                    style={{ backgroundColor: `${absence.typeColor}20` }}
+                                  >
+                                    <span className="gba:icon">{absence.icon}</span>
+                                  </div>
+                                  <h4 className="gba:text-lg gba:font-medium">{absence.title}</h4>
+                                </div>
+                                
+                                <div className="gba:absence-details gba:mt-3">
+                                  <div className="gba:flex gba:justify-between gba:items-center gba:mb-2">
+                                    <div className="gba:text-gray-500">
                                       {formatDate(absence.startDate, "date.long")} - {formatDate(absence.endDate, "date.long")}
                                     </div>
-                                    <div className="gba:mt-2">{absence.duration}</div>
-                                    {absence.description && (
-                                      <div className="gba:mt-2 gba:text-gray-700">{absence.description}</div>
-                                    )}
-                                  </div>
-                                  <div>
                                     <div 
-                                      className="gba:status-badge gba:px-3 gba:py-1 gba:rounded" 
+                                      className="gba:status-badge gba:px-3 gba:py-1 gba:rounded gba:text-sm" 
                                       style={{ backgroundColor: absence.statusColor }}
                                     >
                                       {absence.status}
                                     </div>
-                                    <div className="gba:text-gray-400 gba:text-sm gba:mt-2">
+                                  </div>
+                                  
+                                  <div className="gba:mb-2">
+                                    <span className="gba:text-gray-500 gba:mr-1">
                                       {getTranslationFromI18nKeyAndLabel(
-                                        "lowcoder:absence_hub.requested_on",
-                                        "Requested on"
-                                      )}: {formatDate(absence.requestDate, "date.short")}
+                                        "lowcoder:absence_hub.duration",
+                                        "Duration"
+                                      )}:
+                                    </span>
+                                    <span>{absence.duration}</span>
+                                  </div>
+                                  
+                                  {absence.description && (
+                                    <div className="gba:mb-2 gba:text-gray-700">
+                                      <span className="gba:text-gray-500 gba:mr-1">
+                                        {getTranslationFromI18nKeyAndLabel(
+                                          "lowcoder:absence_hub.description",
+                                          "Description"
+                                        )}:
+                                      </span>
+                                      <span>{absence.description}</span>
                                     </div>
+                                  )}
+                                  
+                                  <div className="gba:text-gray-400 gba:text-sm gba:mt-3 gba:text-right">
+                                    {getTranslationFromI18nKeyAndLabel(
+                                      "lowcoder:absence_hub.requested_on",
+                                      "Requested on"
+                                    )}: {formatDate(absence.requestDate, "date.short")}
                                   </div>
                                 </div>
                               </div>
-                            ))
-                          ) : (
-                            <div className="gba:absenceListEmpty gba:text-center gba:py-8 gba:text-gray-500" data-testid="absencehub-absence-list-empty">
-                              {getTranslationFromI18nKeyAndLabel(
-                                "lowcoder:absence_hub.no_absences_found",
-                                "No absences found."
-                              )}
-                            </div>
-                          )}
-                        </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="gba:absenceListEmpty gba:text-center gba:py-8 gba:text-gray-500" data-testid="absencehub-absence-list-empty">
+                            {getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:absence_hub.no_absences_found",
+                              "No absences found."
+                            )}
+                          </div>
+                        )}
                         
                         {absenceList.length > pageSize && (
                           <div
@@ -665,85 +990,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                           </div>
                         ))}
                       </div>
-                    )}
-                  </div>
-                ),
-              },
-              {
-                key: "statistics",
-                label: (
-                  <span className="gba:tabLabel">
-                    <BarChartOutlined className="gba:tabIcon" />
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:absence_hub.statistics",
-                      "Statistics"
-                    )}
-                  </span>
-                ),
-                children: (
-                  <div className="gba:stats-grid gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
-                    {loading ? (
-                      <div className="gba:loading gba:flex gba:justify-center gba:items-center gba:py-8">
-                        <Spin size="large" />
-                      </div>
-                    ) : error ? (
-                      <div className="gba:error gba:text-red-500 gba:py-8 gba:text-center">
-                        {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:absence_hub.error_loading",
-                          "Failed to load absence data."
-                        )}
-                      </div>
-                    ) : stats.length === 0 ? (
-                      <div className="gba:no-stats gba:text-center gba:text-gray-500 gba:py-8">
-                        {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:absence_hub.no_statistics",
-                          "No statistics available"
-                        )}
-                      </div>
-                    ) : (
-                      stats.map((stat: StatItem, idx: number) => (
-                        <div 
-                          key={idx} 
-                          className="gba:stat-card gba:border gba:rounded gba:p-4 gba:shadow-sm gba:bg-white"
-                          data-testid={`stat-card-${idx}`}
-                        >
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-                            <span className="gba:icon">{stat.icon}</span>
-                            <h4 className="gba:text-lg gba:font-medium">{stat.title}</h4>
-                          </div>
-                          
-                          <div className="gba:stats-details gba:mb-3">
-                            <div className="gba:flex gba:justify-between gba:mb-2">
-                              <span>
-                                {getTranslationFromI18nKeyAndLabel(
-                                  "lowcoder:absence_hub.used",
-                                  "Used"
-                                )}: {stat.used} / {stat.total}
-                              </span>
-                              <span>
-                                {stat.daysLeft} {getTranslationFromI18nKeyAndLabel(
-                                  "lowcoder:absence_hub.days_left",
-                                  "days left"
-                                )}
-                              </span>
-                            </div>
-                            
-                            <div className="gba:bg-gray-200 gba:rounded-full gba:h-2 gba:overflow-hidden">
-                              <div 
-                                className="gba:h-full gba:rounded-full" 
-                                style={{
-                                  width: `${stat.progress}%`,
-                                  backgroundColor: `#${stat.color || '1976d2'}`
-                                }}
-                              ></div>
-                            </div>
-                          </div>
-                          
-                          <div className="gba:progress-text gba:text-right gba:text-sm gba:font-medium" style={{ color: `#${stat.textColor || '1976d2'}` }}>
-                            {stat.progress}%
-                          </div>
-                        </div>
-                      ))
                     )}
                   </div>
                 ),

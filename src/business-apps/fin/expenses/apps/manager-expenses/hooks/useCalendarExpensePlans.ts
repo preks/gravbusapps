@@ -1,0 +1,144 @@
+import { useState, useEffect, useCallback } from 'react';
+import { message } from 'antd';
+import { GET_CALENDAR_EXPENSE_PLANS } from '../queries/calendarExpensePlans';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { env } from '@/common/env/EnvUtils';
+
+// Reuse the ExpensePlan interface since the structure is the same
+export interface ExpensePlan {
+  id: string;
+  code: string;
+  title: string;
+  description?: string | null;
+  status: string;
+  startDate: string;
+  endDate: string;
+  planDate: string;
+  totalAmount: number;
+  createdAt: string;
+  updatedAt: string;
+  employee: {
+    id: string;
+    displayName?: string;
+    fullName: string;
+    email?: string;
+    pictureThumbnail?: string;
+    employeePosition?: {
+      organizationalUnit?: {
+        id: string;
+        name: string;
+      };
+    };
+  };
+}
+
+export interface ExpensePlanResponse {
+  ExpensePlan: ExpensePlan[];
+  ExpensePlanAggregate: {
+    aggregate: {
+      count: number;
+    };
+  };
+}
+
+interface UseCalendarExpensePlansProps extends BusinessAppContextProps {
+  pageSize?: number;
+  searchTerm?: string;
+}
+
+export const useCalendarExpensePlans = ({
+  accessToken,
+  userInfo,
+  pageSize = 1000, // Default to a larger page size for calendar view
+  searchTerm,
+}: UseCalendarExpensePlansProps) => {
+  // Get managerId from userInfo or use a fallback for development
+  const managerId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
+  
+  // Log the managerId to help with debugging
+  console.log('useCalendarExpensePlans - managerId:', managerId);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [plans, setPlans] = useState<ExpensePlan[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+
+  const fetchPlans = useCallback(async () => {
+    console.log('fetchCalendarPlans called with accessToken:', !!accessToken, 'managerId:', managerId);
+    
+    if (!accessToken) {
+      setError(new Error('Access token not found. Cannot fetch expense plans.'));
+      setLoading(false);
+      return;
+    }
+    
+    if (!managerId) {
+      setError(new Error('Manager ID not found. Cannot fetch expense plans.'));
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const searchValue = searchTerm ? `%${searchTerm}%` : '%%'; 
+      
+      console.log('Fetching calendar expense plans with managerId:', managerId);
+      
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          query: GET_CALENDAR_EXPENSE_PLANS,
+          variables: {
+            managerId,
+            limit: pageSize,
+            offset: 0, // Always start from the beginning for calendar view
+            searchTerm: searchValue,
+          }
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
+      }
+
+      const data = result.data as ExpensePlanResponse;
+      console.log('Calendar expense plans data received:', {
+        plansCount: data.ExpensePlan?.length,
+        totalCount: data.ExpensePlanAggregate?.aggregate?.count,
+        firstPlan: data.ExpensePlan?.[0],
+        managerId
+      });
+      
+      setPlans(data.ExpensePlan);
+      setTotalCount(data.ExpensePlanAggregate.aggregate.count);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to fetch calendar expense plans'));
+      console.error('Error fetching calendar expense plans:', err);
+      message.error('Failed to load expense plans for calendar view');
+    } finally {
+      setLoading(false);
+    }
+  }, [accessToken, managerId, pageSize, searchTerm]);
+
+  // Fetch plans when the component mounts or when dependencies change
+  useEffect(() => {
+    fetchPlans();
+  }, [fetchPlans]);
+
+  return {
+    plans,
+    loading,
+    error,
+    totalCount,
+    fetchPlans,
+  };
+};
+
+export default useCalendarExpensePlans;

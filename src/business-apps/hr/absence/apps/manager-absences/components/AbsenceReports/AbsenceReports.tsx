@@ -2,6 +2,7 @@ import { Card, Spin, Alert } from "antd";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { RiBarChartLine } from "@remixicon/react";
 import { useState, useEffect } from "react";
+import { env } from "@/common/env/EnvUtils";
 
 interface ResourceUrl {
   id: string;
@@ -88,7 +89,7 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
       setLoading(true);
       try {
         const response = await fetch(
-          'https://newwork-dev.newwork.com/navigation/api/v1/menuItems',
+          `${env('NEXT_PUBLIC_NAVIGATION_SERVICE_API')}/menuItems`,
           {
             headers: {
               'Authorization': `Bearer ${accessToken}`,

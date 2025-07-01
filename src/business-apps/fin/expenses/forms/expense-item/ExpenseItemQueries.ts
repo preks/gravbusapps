@@ -1,26 +1,63 @@
-// GraphQL queries for the ExpenseItem component
+import { showToast } from "./utils/notificationUtils";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { useFlowClient } from "@/common/network/flows/useFlowClient";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
-// Function to fetch employee rule data
-export const fetchEmployeeRule = async (employeeId: string, date: string, accessToken: string) => {
-  try {
-    const formattedDate = date.substring(0, 23) + date.substring(23).replace('Z', '+0300');
-    
-    const response = await fetch(`https://newwork-dev.newwork.com/processes/employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      }
-    });
-    
-    if (response.ok) {
-      return await response.json();
-    } else {
-      console.error('Error fetching employee rule:', response.statusText);
+/**
+ * Hook for fetching employee rule data
+ * @param contextProps - Business app context props
+ * @returns Function to fetch employee rule data
+ */
+export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps, 'accessToken'>) => {
+  const flowClient = useFlowClient(contextProps);
+  
+  /**
+   * Fetch employee rule data
+   * @param employeeId Employee ID
+   * @param date Date in ISO format
+   * @returns Promise with employee rule data or null if error
+   */
+  const fetchEmployeeRule = async (employeeId: string, date: string) => {
+    try {
+      const formattedDate = date.substring(0, 23) + date.substring(23).replace('Z', '+0300');
+      const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`;
+      
+      return await flowClient.getResource(path);
+    } catch (error) {
+      showToast(
+        getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
+        "error"
+      );
       return null;
     }
+  };
+  
+  return { fetchEmployeeRule };
+};
+
+/**
+ * Legacy function for fetching employee rule data
+ * @deprecated Use useEmployeeRuleQuery hook instead
+ */
+export const fetchEmployeeRule = async (employeeId: string, date: string, accessToken: string) => {
+  try {
+    // Import flowClient directly for non-hook usage
+    const { flowClient } = await import("@/common/network/flows/FlowClient");
+    
+    // Set access token
+    flowClient.setAccessToken(accessToken);
+    
+    // Format date as required by the API
+    const formattedDate = date.substring(0, 23) + date.substring(23).replace('Z', '+0300');
+    const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`;
+    
+    // Use the getResource method
+    return await flowClient.getResource(path);
   } catch (error) {
-    console.error('Exception fetching employee rule:', error);
+    showToast(
+      getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
+      "error"
+    );
     return null;
   }
 };

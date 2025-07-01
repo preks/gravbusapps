@@ -6,7 +6,7 @@ import fs from "fs"; // For synchronous file system operations
 import { readFile, rename as fsRename } from "fs/promises"; // For asynchronous file system operations in the plugin
 import crypto from "crypto";
 import path from "path";
-import dotenv from "dotenv";
+import dotenv from "@dotenvx/dotenvx";
 
 // Function to get dynamic entries for Vite build using synchronous fs methods
 function getDynamicEntries(projectRootDir: string): Record<string, string> {
@@ -291,11 +291,11 @@ if (globalThis.__APP_BUILD_INFO__) {
   }
 
   const extraPlugins: PluginOption[] = [
-    // Add dotenv plugin only for development mode
+    // Add @dotenvx/dotenvx plugin only for development mode
     ...(mode === "development"
       ? [
           {
-            name: "dotenv",
+            name: "@dotenvx/dotenvx",
             config() {
               dotenv.config({ path: ".env" });
               return {

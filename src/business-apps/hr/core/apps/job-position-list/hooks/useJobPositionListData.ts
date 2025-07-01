@@ -2,6 +2,125 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
+import { JOB_POSITION_QUERY } from '../queries/JobPositionQueries';
+
+/**
+ * Job Function type definition.
+ */
+export interface JobFunction {
+  id: string;
+  name: string;
+  jobFamily: JobFamily | null;
+}
+
+/**
+ * Job Level type definition.
+ */
+export interface JobLevel {
+  id: string;
+  name: string;
+}
+
+/**
+ * Job Profile type definition.
+ */
+export interface JobProfile {
+  id: string;
+  name: string;
+}
+
+/**
+ * Job Family translation definition.
+ */
+export interface JobFamilyTranslation {
+  value: string;
+  localeCode: string;
+  id: string;
+}
+
+/**
+ * Job Family definition.
+ */
+export interface JobFamily {
+  value: string;
+  id: string;
+  code: string;
+  catalogId: string;
+  translations: JobFamilyTranslation[];
+}
+
+/**
+ * Contract Type translation definition.
+ */
+export interface ContractTypeTranslation {
+  value: string;
+  localeCode: string;
+  id: string;
+}
+
+/**
+ * Contract Type definition.
+ */
+export interface ContractType {
+  value: string;
+  id: string;
+  code: string;
+  catalogId: string;
+  translations: ContractTypeTranslation[];
+}
+
+/**
+ * Employment Type translation definition.
+ */
+export interface EmploymentTypeTranslation {
+  value: string;
+  localeCode: string;
+  id: string;
+}
+
+/**
+ * Employment Type definition.
+ */
+export interface EmploymentType {
+  value: string;
+  id: string;
+  code: string;
+  catalogId: string;
+  translations: EmploymentTypeTranslation[];
+}
+
+/**
+ * Organizational Unit definition.
+ */
+export interface OrganizationalUnit {
+  name: string;
+  id: string;
+}
+
+/**
+ * Organizational Unit Employee definition.
+ */
+export interface OrganizationalUnitEmployee {
+  organizationalUnit: OrganizationalUnit;
+}
+
+/**
+ * Employee type definition.
+ */
+export interface Employee {
+  pictureThumbnail: string | null;
+}
+
+/**
+ * Employee Position type definition.
+ */
+export interface EmployeePosition {
+  firstName: string;
+  lastName: string;
+  employeeId: string;
+  employee: Employee;
+}
 
 /**
  * Job Position type definition for the list.
@@ -9,15 +128,13 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 export interface JobPosition {
   id: string;
   name: string;
-  organizationalUnit: string;
-  organizationalUnitId: string;
-  jobProfile: string;
-  jobProfileId: string;
-  isVacant: boolean;
-  employeeId?: string;
-  employeeFirstName?: string;
-  employeeLastName?: string;
-  employeeProfilePicture?: string;
+  jobFunction: JobFunction | null;
+  jobLevel: JobLevel | null;
+  jobProfile: JobProfile | null;
+  employeePositions: EmployeePosition[];
+  contractType: ContractType | null;
+  employmentType: EmploymentType | null;
+  organizationalUnitEmployees: OrganizationalUnitEmployee[];
 }
 
 /**
@@ -27,27 +144,25 @@ export type JobPositionListFilters = {
   search?: string;
   organizationalUnits?: string[];
   jobProfiles?: string[];
-  showVacantOnly?: boolean;
+  jobFunctions?: string[];
+  jobLevels?: string[];
+  jobFamilies?: string[];
+  contractTypes?: string[];
+  employmentTypes?: string[];
+  vacant?: boolean; // true = vacant only, false = non-vacant only, undefined = both
 };
 
-const POSITIONS_PER_PAGE = 20;
+/**
+ * Vacancy filter type for the hook.
+ */
+export type VacancyFilter = 'vacant' | 'filled' | 'all';
 
-// GraphQL query to fetch job positions with employee positions
-const JOB_POSITION_QUERY = `
-  query JobPositions($limit: Int!, $offset: Int!) {
-    JobPosition(where: {employeePositionsAggregate: {count: {predicate: {_eq: 0}}}}, limit: 20, offset: 0) {
-      name
-      jobProfile {
-        name
-      }
-    }
-  }
-`;
+const POSITIONS_PER_PAGE = 20;
 
 /**
  * Custom hook to fetch job position list data with filters and pagination.
  * @param filters Filters for the job position list.
- * @returns Job positions, total count, loading, error, hasMore, loadMore, retry
+ * @returns Job positions, total count, loading, error, hasMore, loadMore, loadPage, retry
  */
 export function useJobPositionListData(filters: JobPositionListFilters & { accessToken: string }) {
   const client = useGraphqlClient(filters.accessToken);
@@ -57,60 +172,118 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
   const [error, setError] = useState<Error | null>(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const { search, organizationalUnits, jobProfiles, showVacantOnly } = filters;
-  const searchFilter = search ? `%${search}%` : `%`;
+  const { search, organizationalUnits, jobProfiles, jobFunctions, jobLevels, jobFamilies, contractTypes, employmentTypes, vacant } = filters;
+  
+  // Get the structureId from the BusinessAppContext
+  const structureId = getCurrentActiveStructureId();
 
   // Reset on filter change
   useEffect(() => {
     setJobPositions([]);
     setOffset(0);
     setHasMore(true);
-  }, [search, JSON.stringify(organizationalUnits), JSON.stringify(jobProfiles), showVacantOnly]);
+    setTotal(0);
+  }, [search, JSON.stringify(organizationalUnits), JSON.stringify(jobProfiles), JSON.stringify(jobFunctions), JSON.stringify(jobLevels), JSON.stringify(jobFamilies), JSON.stringify(contractTypes), JSON.stringify(employmentTypes), vacant]);
 
   /**
-   * Loads more job positions from the API. Guards against undefined client and SSR.
+   * Loads a specific page of job positions. Used for true pagination.
+   * @param page Page number (1-based)
+   * @param pageSize Number of positions per page
+   * @param overrideFilters Optional filters to override the current ones
    */
-  const loadMore = useCallback(() => {
+  const loadPage = useCallback((page: number, pageSize: number = POSITIONS_PER_PAGE, overrideFilters?: JobPositionListFilters) => {
     if (typeof window === 'undefined') return; // Prevent SSR execution
     if (!client) {
       setError(new Error('GraphQL client unavailable'));
       setLoading(false);
       return;
     }
-    if (loading || !hasMore) return;
+    if (loading) return;
+    
+    const pageOffset = (page - 1) * pageSize;
     setLoading(true);
 
-    // Build the where filter
-    const where: any = {
-      ...(search ? {
-        _or: [
-          { name: { _ilike: searchFilter } },
-          { jobProfile: { name: { _ilike: searchFilter } } },
-          { organizationalUnit: { name: { _ilike: searchFilter } } }
-        ]
-      } : {})
+    // Use provided filters or current filters
+    const currentFilters = overrideFilters || filters;
+
+    // Build filter object for all filter types
+    const filterConditions: any[] = [];
+    
+    if (currentFilters.organizationalUnits && currentFilters.organizationalUnits.length > 0) {
+      filterConditions.push({
+        organizationalUnitEmployees: {
+          organizationalUnit: {
+            id: { _in: currentFilters.organizationalUnits }
+          }
+        }
+      });
+    }
+    
+    if (currentFilters.jobProfiles && currentFilters.jobProfiles.length > 0) {
+      filterConditions.push({
+        jobProfile: {
+          id: { _in: currentFilters.jobProfiles }
+        }
+      });
+    }
+    
+    if (currentFilters.jobFunctions && currentFilters.jobFunctions.length > 0) {
+      filterConditions.push({
+        jobFunction: {
+          id: { _in: currentFilters.jobFunctions }
+        }
+      });
+    }
+    
+    if (currentFilters.jobLevels && currentFilters.jobLevels.length > 0) {
+      filterConditions.push({
+        jobLevel: {
+          id: { _in: currentFilters.jobLevels }
+        }
+      });
+    }
+    
+    if (currentFilters.jobFamilies && currentFilters.jobFamilies.length > 0) {
+      filterConditions.push({
+        jobFunction: {
+          jobFamily: {
+            id: { _in: currentFilters.jobFamilies }
+          }
+        }
+      });
+    }
+    
+    if (currentFilters.contractTypes && currentFilters.contractTypes.length > 0) {
+      filterConditions.push({
+        contractType: {
+          id: { _in: currentFilters.contractTypes }
+        }
+      });
+    }
+    
+    if (currentFilters.employmentTypes && currentFilters.employmentTypes.length > 0) {
+      filterConditions.push({
+        employmentType: {
+          id: { _in: currentFilters.employmentTypes }
+        }
+      });
+    }
+
+    // Prepare query variables
+    const variables: any = {
+      structureId,
+      limit: pageSize,
+      offset: pageOffset,
+      filter: filterConditions.length > 0 ? { _and: filterConditions } : {},
+      search: currentFilters.search ? `%${currentFilters.search}%` : '%'
     };
 
-    // Add organizational unit filter if provided
-    if (organizationalUnits && organizationalUnits.length > 0) {
-      where.organizationalUnitId = { _in: organizationalUnits };
+    // Add vacant filter if specified
+    if (currentFilters.vacant !== undefined) {
+      variables.vacant = currentFilters.vacant;
     }
 
-    // Add job profile filter if provided
-    if (jobProfiles && jobProfiles.length > 0) {
-      where.jobProfileId = { _in: jobProfiles };
-    }
-
-    // Add vacant only filter if enabled
-    if (showVacantOnly) {
-      where.employeePositions = { _not_exists: {} };
-    }
-
-    client.request?.(JOB_POSITION_QUERY, {
-      limit: POSITIONS_PER_PAGE,
-      offset,
-      where
-    })
+    client.request?.(JOB_POSITION_QUERY, variables)
       .then((res: any) => {
         if (!res) {
           setError(new Error('No response from GraphQL query'));
@@ -119,33 +292,16 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
         }
 
         const positions = res.JobPosition ?? [];
-        const newPositions = positions.map((jp: any) => {
-          // Check if the job position has any employee positions
-          const hasEmployeePosition = jp.employeePositions && jp.employeePositions.length > 0;
-          const employeePosition = hasEmployeePosition ? jp.employeePositions[0] : null;
-          const employee = employeePosition?.employee;
-
-          return {
-            id: jp.id,
-            name: jp.name,
-            organizationalUnit: jp.organizationalUnit?.name ?? '',
-            organizationalUnitId: jp.organizationalUnit?.id ?? '',
-            jobProfile: jp.jobProfile?.name ?? '',
-            jobProfileId: jp.jobProfile?.id ?? '',
-            isVacant: !hasEmployeePosition,
-            employeeId: employee?.id,
-            employeeFirstName: employee?.firstName,
-            employeeLastName: employee?.lastName,
-            employeeProfilePicture: employee?.pictureThumbnail 
-              ? `data:image/jpeg;base64,${employee.pictureThumbnail}`
-              : undefined
-          };
-        });
-
-        setJobPositions((prev: JobPosition[]) => [...prev, ...newPositions]);
+        
+        // Server-side filtering is now handled in the GraphQL query
+        setJobPositions(positions);
         setTotal(res.JobPositionAggregate.aggregate.count);
-        setOffset(prev => prev + POSITIONS_PER_PAGE);
-        setHasMore(newPositions.length === POSITIONS_PER_PAGE);
+        setOffset(pageOffset);
+        
+        // Check if there are more positions to load
+        const hasMoreData = positions.length === pageSize;
+        setHasMore(hasMoreData);
+        
         setLoading(false);
       })
       .catch((err: any) => {
@@ -153,13 +309,24 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
         setHasMore(false);
         setLoading(false);
       });
-  }, [loading, hasMore, client, offset, search, organizationalUnits, jobProfiles, showVacantOnly, searchFilter]);
+  }, [loading, client, structureId]); // Removed filters from dependencies
+
+  /**
+   * Loads more job positions from the API (for backward compatibility).
+   * @deprecated Use loadPage instead for proper pagination
+   */
+  const loadMore = useCallback(() => {
+    loadPage(1, POSITIONS_PER_PAGE);
+  }, [loadPage]);
 
   const retry = useCallback(() => {
     setError(null);
     setHasMore(true);
-    loadMore();
-  }, [loadMore]);
+    setOffset(0);
+    setJobPositions([]);
+    setTotal(0);
+    loadPage(1);
+  }, [loadPage]);
 
-  return { jobPositions, total, loading, error, hasMore, loadMore, retry };
+  return { jobPositions, total, loading, error, hasMore, loadMore, loadPage, retry };
 }

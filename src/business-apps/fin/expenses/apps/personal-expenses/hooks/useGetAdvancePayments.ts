@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_ADVANCE_PAYMENTS_BY_EMPLOYEE } from '../queries/advancePayments';
+import { env } from '@/common/env/EnvUtils';
 
 // Type for advance payment data
 export interface AdvancePayment {
@@ -65,7 +66,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`;
       const offset = (page - 1) * pageSize;
       
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

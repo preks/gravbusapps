@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_ITEMS_BY_EMPLOYEE, GET_EXPENSE_ITEM_BY_ID } from '../queries/expenseItems';
+import { env } from '@/common/env/EnvUtils';
 
 // Define types for the hook
 export interface ExpenseItem {
@@ -181,7 +182,7 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
       }
       console.log('Query variables:', JSON.stringify(variables));
       
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -315,7 +316,7 @@ export const useGetExpenseItem = (context?: BusinessAppContextProps, initialId?:
     setError(null);
     
     try {
-      const response = await fetch('https://newwork-dev.newwork.com/v1/graphql', {
+      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

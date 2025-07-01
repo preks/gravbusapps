@@ -7,9 +7,9 @@ import { PageLayout } from '@/components/layout/pageLayout';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { DataController, DataControllerProps } from '@/components/dataController';
 import { DataCards } from '@/components/dataCards';
-import { PiUsersThree, PiUsersThreeDuotone } from 'react-icons/pi';
+import { PiUser, PiUsersThree, PiUsersThreeDuotone } from 'react-icons/pi';
 import { EmployeeCard } from './components/EmployeeCard.component';
-import EmployeeDetails from '@/business-apps/hr/components/employeeDetails';
+import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details';
 //import { useTranslation } from 'react-i18next';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
@@ -78,11 +78,12 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
 
   // Handle click outside of employee cards to close details
   const handleOutsideClick = useCallback((e: MouseEvent) => {
-    // Check if the click is outside of any employee card
+    // Check if the click is outside of any employee card and outside the details panel
     const target = e.target as HTMLElement;
     const isOutsideEmployeeCard = !target.closest('.employee-card-wrapper');
+    const isOutsideDetailsPanel = !target.closest('[data-testid="data-details-container"]');
     
-    if (isOutsideEmployeeCard && selectedEmployee) {
+    if (isOutsideEmployeeCard && isOutsideDetailsPanel && selectedEmployee) {
       setSelectedEmployee(null);
     }
   }, [selectedEmployee]);
@@ -127,7 +128,7 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
                 getKey={(emp) => emp.id}
                 renderItem={(emp: Employee) => (
                   <div 
-                    className={`gba:cursor-pointer ${selectedEmployee?.id === emp.id ? 'gba:ring-2 gba:ring-primary-500 gba:bg-gray-50' : ''}`}
+                    className="gba:cursor-pointer"
                     onClick={() => handleEmployeeSelect(emp)}
                     role="button"
                     tabIndex={0}
@@ -139,7 +140,7 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
                     }}
                     aria-pressed={selectedEmployee?.id === emp.id}
                   >
-                    <EmployeeCard employee={emp} />
+                    <EmployeeCard employee={emp} isSelected={selectedEmployee?.id === emp.id} />
                   </div>
                 )}
                 hasMore={hasMore}
@@ -153,9 +154,9 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
             floatingDetails={true}
             dataDetails={
               selectedEmployee ? {
-                title: 'Employee Details',
-                icon: <PiUsersThree size={20} />,
-                content: <EmployeeDetails employee={selectedEmployee} />,
+                title: `${selectedEmployee.firstName} ${selectedEmployee.lastName}`,
+                icon: <PiUser size={20} />,
+                content: <EmployeeDetails employeeId={selectedEmployee.id} accessToken={accessToken} userInfo={props.userInfo} />,
                 // No footer needed here as the EmployeeDetails component has its own action buttons
               } : undefined
             }

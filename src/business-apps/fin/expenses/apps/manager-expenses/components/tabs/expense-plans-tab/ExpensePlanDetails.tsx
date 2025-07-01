@@ -3,6 +3,7 @@ import { Typography, Button, Descriptions } from 'antd';
 import { CheckOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { formatDate } from '@/common/utils/windowUtils';
 
 const { Title, Text } = Typography;
 
@@ -69,8 +70,8 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
         <Descriptions.Item label="Title">{plan.title}</Descriptions.Item>
         <Descriptions.Item label="Employee">{plan.employee?.fullName}</Descriptions.Item>
         <Descriptions.Item label="Department">{plan.employee?.department}</Descriptions.Item>
-        <Descriptions.Item label="Start Date">{plan.startDate}</Descriptions.Item>
-        <Descriptions.Item label="End Date">{plan.endDate}</Descriptions.Item>
+        <Descriptions.Item label="Start Date">{plan.startDate ? formatDate(plan.startDate, 'date.short') : '-'}</Descriptions.Item>
+        <Descriptions.Item label="End Date">{plan.endDate ? formatDate(plan.endDate, 'date.short') : '-'}</Descriptions.Item>
         <Descriptions.Item label="Total Amount">€{plan.amount?.toFixed(2)}</Descriptions.Item>
         <Descriptions.Item label="Description">{plan.description ?? 'No description provided'}</Descriptions.Item>
       </Descriptions>

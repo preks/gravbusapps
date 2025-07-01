@@ -2,6 +2,7 @@ import React from 'react';
 import { CalendarOutlined, FileOutlined, DollarOutlined } from '@ant-design/icons';
 import { ExpensePlanStatistics } from '../../../hooks/useGetExpensePlans'; // Assuming this type is exported from your hook
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
+import { formatAmount } from '../../../utils/currencyUtils';
 
 interface ExpensePlanStatisticsProps {
   planStats: ExpensePlanStatistics | null;
@@ -30,11 +31,11 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
     {
       key: 'pending-amount',
       title: 'Pending Amount',
-      value: planStats.pendingAmount ?? 0,
+      value: planStats.pendingAmount ? formatAmount(planStats.pendingAmount) : '0,00',
       prefix: <DollarOutlined />,
       suffix: '€',
       color: '#faad14',
-      precision: 2,
+      valueIsString: true,
       span: { xs: 24, sm: 6 },
       description: 'Awaiting approval'
     },
@@ -50,11 +51,11 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
     {
       key: 'total-amount',
       title: 'Total Amount (Submitted)',
-      value: planStats.sumTotalAmount,
+      value: planStats.sumTotalAmount ? formatAmount(planStats.sumTotalAmount) : '0,00',
       prefix: <DollarOutlined />,
       suffix: '€',
       color: '#3f8600',
-      precision: 2,
+      valueIsString: true,
       span: { xs: 24, sm: 6 },
       description: 'Across all plans'
     }

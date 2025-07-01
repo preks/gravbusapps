@@ -35,6 +35,7 @@ export interface PageLayoutProps {
   contentContainer?: React.ReactNode;
   className?: string;
   variant?: "default" | "display";
+  backgroundImage?: string;
 }
 
 export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
@@ -48,6 +49,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
   contentContainer,
   className = "",
   variant = "default",
+  backgroundImage,
 }) => {
   // Determine styles based on variant
   const isDisplay = variant === "display";
@@ -65,10 +67,25 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
     isDisplay ? "gba:text-4xl gba:font-secondary gba:mb-2" : "gba:text-2xl font-secondary gba:mb-1"
   );
 
+  const backgroundStyle = backgroundImage
+    ? {
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        minHeight: '100vh',
+        minWidth: "0"
+      }
+    : { minHeight: "0", minWidth: "0" };
+
+  const containerClasses = backgroundImage
+    ? `gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:overflow-visible ${className}`.trim()
+    : `gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:bg-white gba:rounded-xl gba:shadow-md gba:overflow-visible ${className}`.trim();
+
   return (
     <div
-      className={`gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:bg-white gba:rounded-xl gba:shadow-md gba:overflow-visible ${className}`.trim()}
-      style={{ minHeight: "0", minWidth: "0" }}
+      className={containerClasses}
+      style={backgroundStyle}
     >
       <header className="gba:flex gba:flex-col gba:box-border gba:border-b gba:border-gray-200 gba:relative">
         <div className="gba:h-24 gba:grid gba:grid-cols-3 gba:items-center gba:w-full">

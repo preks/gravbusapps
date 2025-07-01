@@ -5,6 +5,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const EntitlementCard: React.FC<EntitlementCardProps> = ({ entitlement }) => {
   const { type, color, used, total, pending, available, checkEntitlement } = entitlement;
+  const year = dayjs().year();
 
   if (checkEntitlement === false) {
     return (
@@ -39,7 +40,7 @@ const EntitlementCard: React.FC<EntitlementCardProps> = ({ entitlement }) => {
             {getTranslationFromI18nKeyAndLabel(
               used === 1 ? 'lowcoder:absence_hub.day' : 'lowcoder:absence_hub.days',
               used === 1 ? 'day' : 'days'
-            )} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used', 'used')} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.in_year', 'in {{year}}', { year: dayjs().year() })}
+            )} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used', 'used')} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.in_year', `in ${year}`, { year })}
           </div>
         </div>
       </div>
