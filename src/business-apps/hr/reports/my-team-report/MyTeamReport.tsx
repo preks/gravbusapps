@@ -14,7 +14,7 @@ import { useTeamReportFilters } from './hooks/useTeamReportFilters';
 import { useSort } from './hooks/useSort';
 import { sortData } from './utils/sortUtils';
 import { TeamReportTable } from './components/TeamReportTable';
-import EmployeeDetails from '@/business-apps/hr/components/employeeDetails';
+import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details';
 import { PiUsersThree } from 'react-icons/pi';
 import {
   CalendarOutlined,
@@ -222,7 +222,7 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
                   {...props}
                   kpiKey={kpi.key}
                   data-testid={`team-report-kpi-${kpi.key}`}
-                  icon={<KpiIcon name={kpi.iconName} />}
+                  icon={kpi.key === 'all' || kpi.key === 'tenure' ? <KpiIcon name={kpi.iconName} /> : null}
                   label={kpi.label}
                   subLabel={kpi.subLabel}
                   value={kpi.value}
@@ -273,7 +273,7 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
               selectedEmployee ? {
                 title: t('employee.details_title', 'Employee Details'),
                 icon: <PiUsersThree size={20} />,
-                content: <EmployeeDetails employee={selectedEmployee} />,
+                content: <EmployeeDetails employeeId={selectedEmployee.id} {...props} />,
                 onClose: handleDetailsPanelClose,
               } : undefined
             }
