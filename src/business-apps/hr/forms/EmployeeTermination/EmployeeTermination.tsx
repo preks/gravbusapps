@@ -37,7 +37,6 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
       terminationDate: terminationDate ? terminationDate : null,
       terminateJobPosition,
     };
-    console.log('Submitting values:', values);
     startProcess({
       domain: "employee",
       processName: "terminateEmployee",
@@ -53,7 +52,6 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
       terminationDate: terminationDate ? terminationDate : null,
       terminateJobPosition,
     };
-    console.log('Cancelling with values:', values);
     startProcess({
       domain: "employee",
       processName: "terminateEmployee",
