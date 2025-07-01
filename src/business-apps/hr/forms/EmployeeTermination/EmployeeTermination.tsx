@@ -1,6 +1,6 @@
 import React from "react";
 import dayjs from "dayjs";
-import { Button, Checkbox, Avatar, DatePicker, Form } from "antd";
+import { Button, Checkbox, Avatar, DatePicker } from "antd";
 import flowSmall from "../../../../assets/icons/flowSmall.svg";
 import { useGetEmployeeData } from "../../core/hooks/useGetEmployeeData";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -21,50 +21,48 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
     accessToken,
   });
 
-  const [form] = Form.useForm();
-  const [formValues, setFormValues] = React.useState({
-    terminationDate: dayjs(),
-    terminateJobPosition: true,
-    employeeId: employeeId,
-  });
+  const [terminationDate, setTerminationDate] = React.useState<dayjs.Dayjs | null>(dayjs());
+  const [terminateJobPosition, setTerminateJobPosition] = React.useState(false);
 
-  const buildPayload = () => ({
-    employeeId: form.getFieldValue("employeeId"),
-    terminationDate:
-      form.getFieldValue("terminationDate") &&
-      dayjs.isDayjs(form.getFieldValue("terminationDate"))
-        ? form.getFieldValue("terminationDate")
-        : undefined,
-    terminateJobPosition: form.getFieldValue("terminateJobPosition"),
-  });
+  const isSubmitDisabled =
+    !terminateJobPosition ||
+    !terminationDate ||
+    !dayjs.isDayjs(terminationDate) ||
+    !terminationDate.isValid();
 
-  const handleSubmit = () => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const values = {
+      employeeId,
+      terminationDate: terminationDate ? terminationDate : null,
+      terminateJobPosition,
+    };
+    console.log('Submitting values:', values);
     startProcess({
       domain: "employee",
       processName: "terminateEmployee",
-      payload: buildPayload(),
+      payload: values,
       builderType: "NATIVE_SCREEN",
     });
-    dispatchProcessContinueEvent("pse_submit", buildPayload());
+    dispatchProcessContinueEvent("pse_submit", values);
   };
 
   const handleCancel = () => {
+    const values = {
+      employeeId,
+      terminationDate: terminationDate ? terminationDate : null,
+      terminateJobPosition,
+    };
+    console.log('Cancelling with values:', values);
     startProcess({
       domain: "employee",
       processName: "terminateEmployee",
-      payload: buildPayload(),
+      payload: values,
       builderType: "NATIVE_SCREEN",
     });
-    dispatchProcessContinueEvent("pse_cancel", buildPayload());
-    form.setFieldsValue({
-      terminationDate: dayjs(),
-      terminateJobPosition: true,
-    });
-    setFormValues({
-      ...formValues,
-      terminationDate: dayjs(),
-      terminateJobPosition: true,
-    });
+    dispatchProcessContinueEvent("pse_cancel", values);
+    setTerminationDate(dayjs());
+    setTerminateJobPosition(false);
   };
 
   const getImageSrc = (thumbnail?: string) => {
@@ -77,7 +75,7 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
     <>
       <div className="gba:max-w-[500px] gba:mx-auto gba:bg-white gba:rounded-2xl gba:shadow-lg gba:flex gba:flex-col gba:min-h-[600px] gba:p-0">
         <div className="gba:flex gba:items-center gba:gap-3 gba:pt-8 gba:pb-6 gba:border-b gba:border-[#F0F0F0] gba:font-roboto gba:font-bold gba:text-[20px] gba:leading-6 gba:text-black">
-          <img src={flowSmall} alt="Flow Small" className="flowIcon" />
+          <img src={flowSmall} alt="Flow Small" className="gba:flowIcon" />
           <span className="gba:font-roboto gba:font-medium gba:text-[24px] gba:leading-6 gba:text-black gba:flex gba:items-center gba:h-6">
             {getTranslationFromI18nKeyAndLabel(
               "lowcoder:employee_termination.title",
@@ -85,24 +83,11 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
             )}
           </span>
         </div>
-        <Form
-          form={form}
-          onFinish={handleSubmit}
-          initialValues={formValues}
-          onValuesChange={(_, allValues) => setFormValues(allValues)}
-          className="gba:flex-1 gba:flex gba:flex-col gba:justify-between gba:pb-10"
-        >
-          <Form.Item
-            name="employeeId"
-            initialValue={employeeId}
-            style={{ display: "none" }}
-          >
-            <input type="hidden" />
-          </Form.Item>
+        <form onSubmit={handleSubmit} className="gba:flex-1 gba:flex gba:flex-col gba:justify-between gba:pb-10">
           <div className="gba:pb-10 gba:pt-4">
             <div className="gba:flex gba:items-center gba:mb-8">
               {loading ? (
-                <div>Loading employee info...</div>
+                <div className="gba:text-base">Loading employee info...</div>
               ) : error ? (
                 <div className="gba:text-red-600">
                   Error loading employee info
@@ -129,59 +114,52 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
                 </>
               )}
             </div>
-            <div className="gba:mb-6 gba:form gba:bg-[#F5F5F5]">
-              <Form.Item
-                name="terminationDate"
-                label={
-                  <span className="gba:block gba:text-[12px] gba:font-semibold gba:text-[#707070] gba:tracking-[0.5px] gba:font-roboto">
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:employee_termination.exit_date_input",
-                      "Exit Date"
-                    )}
-                  </span>
-                }
-                className="gba:ant-form-item-row"
-              >
-                <div className="gba:bg-[#F5F5F5] gba:px-[15px] gba:py-[7px] gba:border-none">
+            <div className="gba:form gba:bg-[#F5F5F5]">
+              <div className="gba:ant-form-item-row">
+                <label className="gba:block gba:text-[12px] gba:font-semibold gba:text-[#707070] gba:tracking-[0.5px] gba:font-roboto gba:pl-[15px] gba:pt-[7px]">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:employee_termination.exit_date_input",
+                    "Exit Date"
+                  )}
+                </label>
+                <div className="gba:bg-[#F5F5F5] gba:px-[15px] gba:py-[7px] gba:border-none gba:date-picker-custom">
                   <DatePicker
-                    className="gba:w-full gba:bg-transparent gba:border-none gba:outline-none gba:shadow-none gba:font-bold gba:text-black gba:date-picker-custom"
+                    className="gba:w-full gba:bg-transparent gba:border-none gba:outline-none gba:shadow-none gba:font-bold gba:text-black"
                     format="DD.MM.YYYY"
                     data-testid="exit-date-picker"
                     allowClear={true}
-                    popupClassName="gba:z-50"
                     placeholder={getTranslationFromI18nKeyAndLabel(
                       "lowcoder:absences_overview_entry_screen.select_placeholder",
                       "Please Select"
                     )}
+                    value={dayjs.isDayjs(terminationDate) && terminationDate.isValid() ? terminationDate : null}
+                    onChange={date => setTerminationDate(date ?? null)}
                   />
                 </div>
-              </Form.Item>
+              </div>
             </div>
             <div className="gba:pt-6">
-              <Form.Item name="terminateJobPosition" valuePropName="checked">
+              <label>
                 <Checkbox
                   data-testid="terminate-job-checkbox"
                   className="gba:font-roboto gba:text-[14px] gba:font-semibold gba:text-black gba:tracking-[0.5px] gba:mt-6"
-                >
-                  {getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:employee_termination.checkbox_label",
-                    "Terminate Job Position"
-                  )}
-                </Checkbox>
-              </Form.Item>
+                  checked={terminateJobPosition}
+                  onChange={(e) => setTerminateJobPosition(e.target.checked)}
+                />
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:employee_termination.checkbox_label",
+                  "Terminate Job Position"
+                )}
+              </label>
             </div>
           </div>
           <div className="gba:border-t gba:border-[#F0F0F0] gba:flex gba:gap-4 gba:justify-start">
             <Button
               type="primary"
               htmlType="submit"
-              className="btn-primary"
+              className="gba:btn-primary"
               data-testid="submit-termination-btn"
-              disabled={
-                !formValues.terminateJobPosition ||
-                !dayjs.isDayjs(formValues.terminationDate) ||
-                (dayjs.isDayjs(formValues.terminationDate) && !formValues.terminationDate.isValid())
-              }
+              disabled={isSubmitDisabled}
             >
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:hr_absences.create_absence.submit",
@@ -190,7 +168,7 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
             </Button>
             <Button
               type="default"
-              className="btn-secondary"
+              className="gba:btn-secondary"
               data-testid="cancel-termination-btn"
               onClick={handleCancel}
             >
@@ -200,7 +178,7 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
               )}
             </Button>
           </div>
-        </Form>
+        </form>
       </div>
     </>
   );

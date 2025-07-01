@@ -1,4 +1,9 @@
-.gba\:input-date-picker {
+.gba\:date-picker-custom .ant-picker input::placeholder {
+  color: #707070 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+  /* .input-date-picker {
   width: 100%;
   background: transparent;
   border: none;
@@ -7,26 +12,39 @@
   font-weight: 500;
   font-size: 14px;
   line-height: 20px;
+} */
+
+.gba\:date-picker-custom .ant-picker {
+  background-color: #F7F7F7 !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
 }
-.gba\:input-date-picker input::placeholder {
-  color: #707070;
-  font-size: 14px;
-  font-weight: 500;
+
+
+.gba\:date-picker-custom .ant-picker .ant-picker-outlined:hover {
+  border: none !important;
+  background-color: #F7F7F7 !important;
+  box-shadow: none !important;
 }
-.gba\:ant-picker {
-  background-color: #F7F7F7;
-  border: none;
-  padding: 0;
+
+
+.gba\:date-picker-custom .ant-picker .ant-picker-outlined:hover {
+  border: none !important;
+  background-color: #F7F7F7 !important;
+  box-shadow: none !important;
 }
-.gba\:ant-picker-outlined:hover {
-  border: none;
-  background-color: #F7F7F7;
-  box-shadow: none;
+
+.gba\:date-picker-custom  .ant-picker .ant-picker-outlined:focus-within {
+  border: none !important;
+  background-color: #F7F7F7 !important;
+  box-shadow: none !important;
 }
-.gba\:ant-picker-outlined:focus-within {
-  border: none;
-  background-color: #F7F7F7;
-  box-shadow: none;
+
+.gba\:date-picker-custom .ant-picker .ant-picker-outlined {
+  border: none !important;
+  background-color: #F7F7F7 !important;
+  box-shadow: none !important;
 }
 
 .gba\:btn-primary {
@@ -71,7 +89,7 @@
   height: 24px;
 }
 
-.gba\:date-picker-custom .ant-picker {
+/* .gba\:date-picker-custom .ant-picker {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -80,10 +98,10 @@
   font-weight: 700 !important;
   color: #000 !important;
   background: transparent !important;
-}
-.gba\:date-picker-custom .ant-picker-suffix {
+} */
+ /* .ant-picker-suffix {
   color: #bfbfbf !important;
-}
+} */
 
 .gba\:ant-form-item-row > div{
   display: flex;
