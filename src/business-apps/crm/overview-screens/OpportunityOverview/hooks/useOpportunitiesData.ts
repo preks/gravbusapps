@@ -22,9 +22,11 @@ export interface OpportunityData {
   salesPipelineStage: {
     value: string;
   };
+  stage:string;
   ownerEmployee: {
-    displayName: string;
+    displayName:string;
   };
+  createdAt: string;
 }
 
 export interface OpportunitiesQueryResponse {
@@ -43,28 +45,65 @@ export const useOpportunitiesData = (accessToken: string) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20); // Default limit of 20 per project guidelines
   const [searchTerm, setSearchTerm] = useState('');
+  // Track the current orderBy condition
+  const [orderBy, setOrderBy] = useState<string | undefined>(undefined);
 
   const graphQLClient = useGraphqlClient(accessToken);
 
-  const fetchOpportunities = async () => {
+  // Modified to accept optional orderBy parameter
+  const fetchOpportunities = async (orderByValue?: string) => {
+    // Update the orderBy state if a value is provided
+    if (orderByValue !== undefined) {
+      setOrderBy(orderByValue);
+    }
+
     setLoading(true);
     try {
       const offset = (currentPage - 1) * pageSize;
-      const variables = {
+      const variables: any = {
         offset,
         limit: pageSize,
+        orderBy: [{ createdAt: "DESC_NULLS_LAST" }]
       };
       
-      // Optional: Add filter variables for search
-      // if (searchTerm) {
-      //   variables.filter = { name: { contains: searchTerm } };
-      // }
+      if (orderByValue || orderBy) {
+        try {
+          const orderByString = orderByValue || orderBy;
+          const orderByObject = JSON.parse(orderByString || '{}');
+          
+          variables.orderBy = [orderByObject];
+          
+        } catch (error) {
+          console.error('Error parsing orderBy JSON:', error);
+        }
+      }
+      
+      if (searchTerm) {
+        // Check if searchTerm is a number
+        const isNumber = !isNaN(Number(searchTerm));
+        
+        const searchConditions = [
+          { name: { _iregex: searchTerm } },
+          { "account": { "name": { _iregex: searchTerm } } },
+          { "ownerEmployee": { "displayName": { _iregex: searchTerm } } }
+        ];
+        
+        // Add number-specific conditions if the search term can be parsed as a number
+        if (isNumber) {
+          const numericValue = Number(searchTerm);
+          searchConditions.push({ "estimatedAmount": { _eq: numericValue } });
+          searchConditions.push({ "winningChance": { _eq: numericValue } });
+        }
+        
+        variables.where = { 
+          _or: searchConditions
+        };
+      }
 
       const response = await graphQLClient.request<OpportunitiesQueryResponse>(
         getOpportunitiesQuery,
         variables
       );
-
       if (response?.Opportunity) {
         setOpportunities(response.Opportunity);
         
@@ -102,8 +141,6 @@ export const useOpportunitiesData = (accessToken: string) => {
 
   // Function to delete an opportunity
   const deleteOpportunity = async (id: string) => {
-    console.log('Delete function called with ID:', id);
-    
     if (!id) {
       console.error('Cannot delete opportunity: ID is missing');
       return { 
@@ -116,15 +153,11 @@ export const useOpportunitiesData = (accessToken: string) => {
     try {
       // Create the variables object for the GraphQL mutation
       const variables = { id };
-      console.log('Deleting opportunity with variables:', variables);
-      
       // Execute the GraphQL mutation
       const response = await graphQLClient.request(
         deleteOpportunityMutation,
         variables
       );
-      
-      console.log('Delete response:', response);
       
       // Refresh opportunities list after deletion
       await fetchOpportunities();

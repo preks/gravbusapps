@@ -1,6 +1,6 @@
 export const getOpportunitiesQuery = `
-  query GetOpportunities($offset: Int, $limit: Int) {
-    Opportunity(offset: $offset, limit: $limit) {
+  query GetOpportunities($offset: Int, $limit: Int, $orderBy: [OpportunityOrderBy!], $where: OpportunityBoolExp) {
+    Opportunity(offset: $offset, limit: $limit, orderBy:$orderBy, where: $where) {
       id
       version
       name
@@ -17,14 +17,16 @@ export const getOpportunitiesQuery = `
       salesPipeline {
         value
       }
+      stage
       salesPipelineStage {
         value
       }
       ownerEmployee {
         displayName
       }
+      createdAt
     }
-    OpportunityAggregate {
+    OpportunityAggregate(where: $where) {
       aggregate {
         count
       }

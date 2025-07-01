@@ -9,6 +9,20 @@ export interface LeadData {
   companyPhone: string;
   firstName: string;
   lastName: string;
+  status: {
+    value: string;
+    code: string;
+    type: string;
+  };
+  statusRef: string;
+  source: {
+    id: string;
+    type: string;
+    value: string;
+    code: string;
+  };
+  sourceRef: string;
+  rating: string;
   annualRevenue: {
     type: string;
     value: string;
@@ -54,20 +68,58 @@ export interface LeadData {
   phoneNumber: string;
   ownerEmployeeId: string;
   postalCode: string;
-  status: {
-    value: string;
-    code: string;
-    type: string;
-  };
-  statusRef: string;
   region: {
     value: string;
     type: string;
     id: string;
     code: string;
   };
+  accountId:string;
+  account: {
+    id: string;
+    version: string;
+    name: string;
+    industryRef: string;
+    industry: {
+      code: string;
+      id: string;
+      type: string;
+      value: string;
+    };
+    numberOfEmployees: {
+      type: string;
+      value: string;
+      id: string;
+      code: string;
+    };
+    numberOfEmployeesRef: string;
+    addressLine: string;
+    foundationDate: string;
+    annualRevenueRef: string;
+    annualRevenue: {
+      type: string;
+      value: string;
+      id: string;
+      code: string;
+    };
+    website: string;
+    ownerEmployeeId: string;
+    ownerEmployee: {
+      firstName: string;
+      lastName: string;
+    };
+  };
   regionRef: string;
+  leadRating: {
+    id: string;
+    type: string;
+    value: string;
+    code: string;
+  };
+  leadRatingRef: string;
   contact: {
+    id: string;
+    version: string;
     email: string;
     firstName: string;
     lastName: string;
@@ -75,6 +127,7 @@ export interface LeadData {
     pictureUrl: string;
     jobTitle:string;
   };
+
 }
 
 export interface GetLeadByIdResponse {
@@ -93,10 +146,69 @@ export const GET_LEAD_BY_ID = `
       city
       version
       companyName
+      rating
+      statusRef
+      status {
+        id
+        code
+        value
+        type
+      }
+      leadRatingRef
+      leadRating{
+        id
+        type
+        value
+        code
+      }
+      sourceRef
+      source {
+       id
+       type
+       value
+       code
+      }
       companyPhone
       firstName
       lastName
+      accountId
+      account {
+        id
+        version
+        name
+        industryRef
+        industry {
+          code
+          id
+          type
+          value
+        }
+        numberOfEmployees {
+          type
+          value
+          id
+          code
+        }
+        numberOfEmployeesRef
+        ownerEmployeeId
+        ownerEmployee {
+          firstName
+          lastName
+        }
+        addressLine
+        foundationDate
+        annualRevenueRef
+        annualRevenue {
+          type
+          value
+          id
+          code
+        }
+        website
+      }
       contact {
+        id
+        version
         email
         firstName
         lastName
@@ -149,12 +261,6 @@ export const GET_LEAD_BY_ID = `
       phoneNumber
       ownerEmployeeId
       postalCode
-      status {
-        value
-        code
-        type
-      }
-      statusRef
       region {
         value
         type
