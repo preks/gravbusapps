@@ -3,16 +3,6 @@
   font-size: 14px !important;
   font-weight: 500 !important;
 }
-  /* .input-date-picker {
-  width: 100%;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #000;
-  font-weight: 500;
-  font-size: 14px;
-  line-height: 20px;
-} */
 
 .gba\:date-picker-custom .ant-picker {
   background-color: #F7F7F7 !important;
@@ -88,20 +78,6 @@
   width: 24px;
   height: 24px;
 }
-
-/* .gba\:date-picker-custom .ant-picker {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-.gba\:date-picker-custom .ant-picker-input > input {
-  font-weight: 700 !important;
-  color: #000 !important;
-  background: transparent !important;
-} */
- /* .ant-picker-suffix {
-  color: #bfbfbf !important;
-} */
 
 .gba\:ant-form-item-row > div{
   display: flex;
