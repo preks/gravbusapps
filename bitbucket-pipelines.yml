@@ -3,7 +3,7 @@ image: node:18
 definitions:
   caches:
     yarn: ~/.cache/yarn
-  
+
   steps:
     - step: &detect-changed-screens
         name: Detect Changed Screens (Dry Run)
@@ -11,27 +11,32 @@ definitions:
           - node
           - yarn
         script:
-          # - yarn install
+          - yarn install
           - bash scripts/detect-changed-screens.sh
-    
+        artifacts:
+          - changed-tsx.txt
+
     - step: &publish-changed-screens
         name: Publish Changed Screens
         caches:
           - node
           - yarn
         script:
-          # - yarn install
+          - yarn install
           - bash scripts/detect-and-publish-changed-screens.sh
+        artifacts:
+          - changed-tsx.txt
+
 pipelines:
   pull-requests:
     '**':
       - step: *detect-changed-screens
-  
+
   branches:
     develop:
       - step: *detect-changed-screens
       # - step: *publish-changed-screens
-    
+
     hotfix/*:
       - step: *detect-changed-screens
       # - step: *publish-changed-screens
@@ -39,7 +44,7 @@ pipelines:
   custom:
     dry-run:
       - step: *detect-changed-screens
-    
+
     publish-manual:
       - step: *detect-changed-screens
       # - step: *publish-changed-screens
