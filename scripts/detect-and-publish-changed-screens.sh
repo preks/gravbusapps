@@ -16,14 +16,12 @@ while IFS= read -r file; do
   
   # Get the directory path (remove the filename)
   dir_path=$(dirname "$file")
-  # Get the component name without extension
-  component_name=$(basename "$file" .tsx)
   
   # Remove src/business-apps/ prefix from the directory path
   dir_path_no_prefix=${dir_path#src/business-apps/}
   
-  # Format as module/submodule/apps/app-folder/ComponentName
-  publish_path="$dir_path_no_prefix/$component_name"
+  # the build system already appends the component name for us
+  publish_path="$dir_path_no_prefix"
   
   echo "Publishing: $publish_path"
 
