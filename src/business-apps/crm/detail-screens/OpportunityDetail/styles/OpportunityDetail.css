@@ -1,5 +1,12 @@
 .gba\:opportunity-detail-container {
-  padding: 24px;
+  padding-left: 24px;
+  padding-right: 16px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  background-color: white;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .gba\:header {
@@ -85,4 +92,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.gba\:opportunity-detail-container .ant-collapse-content-box {
+  padding-left: 24px !important;
+}
+
+.gba\:opportunity-header {
+  padding-left: 24px !important;
 }

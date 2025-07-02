@@ -13,12 +13,51 @@ export const getOpportunityByIdQuery = `
         value
         code
       }
+      lead {
+        id
+        version
+        contact {
+          id
+          version
+          email
+          lastName
+          phone
+          pictureUrl
+          firstName
+          jobTitle
+        }
+      }
       account {
         id
+        version
         name
-        website
+        industryRef
+        foundationDate
         industry {
+          code
+          id
+          type
           value
+        }
+        numberOfEmployees {
+          type
+          value
+          id
+          code
+        }
+        numberOfEmployeesRef
+        annualRevenueRef
+        annualRevenue {
+          type
+          value
+          id
+          code
+        }
+        website
+        ownerEmployeeId
+        ownerEmployee {
+          firstName
+          lastName
         }
       }
       accountId

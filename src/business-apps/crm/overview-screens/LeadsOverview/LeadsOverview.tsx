@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Table, Input, Button, Card, message, Dropdown, List, Empty, Avatar, Row, Col } from 'antd';
+import { Table, Input, Button, Card, message, Spin, Dropdown, List, Empty, Avatar, Modal, Form, Select, Divider, Row, Col, Typography } from 'antd';
 import { Grid } from 'antd';
 const { useBreakpoint } = Grid;
-import { SearchOutlined, PlusOutlined, EditOutlined, MoreOutlined, CloseCircleOutlined, UserOutlined } from '@ant-design/icons';
-import { Typography } from 'antd';
+import { SearchOutlined, PlusOutlined, EditOutlined, MoreOutlined, CloseCircleOutlined, UserOutlined, PhoneOutlined, MailOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { PieChartOutlined, TeamOutlined, FieldTimeOutlined, StarOutlined } from '@ant-design/icons';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -11,7 +10,9 @@ import weekday from 'dayjs/plugin/weekday';
 import localeData from 'dayjs/plugin/localeData';
 
 import { useLeadsData } from './hooks/useLeadsData';
-import AddEditLead, { LeadFormData } from './components/AddEditLead';
+import { useAccountsData } from './hooks/useAccountsData';
+import { useContactsData } from './hooks/useContactsData';
+import { useEmployeesData } from './hooks/useEmployeesData';
 import LeadDetails from './LeadDetails';
 
 dayjs.extend(relativeTime);
@@ -59,23 +60,64 @@ interface LeadTableItem {
   };
 }
 
+interface LeadFormData {
+  id?: string;
+  companyName: string;
+  contactName: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  ownerId?: string;
+  ownerName?: string;
+  contactId?: string;
+  accountId?: string;
+  createdAt?: string;
+  lastActivity?: string;
+  version?: number;
+}
+
 function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
-  const [searchText, setSearchText] = useState('');
+  // State for UI operations
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<string | undefined>();
   const [isLeadDetailVisible, setIsLeadDetailVisible] = useState(false);
-  const [isNewLead, setIsNewLead] = useState<boolean>(false);
-  const [isEditMode, setIsEditMode] = useState<boolean>(false);
-  const [editingLead, setEditingLead] = useState<LeadTableItem | undefined>(undefined);
+  const [isNewLead, setIsNewLead] = useState<boolean>(false); // Used for new lead creation
+  const [editingLead, setEditingLead] = useState<LeadTableItem | undefined>(undefined); // Store the lead being edited
   const [leads, setLeads] = useState<LeadTableItem[]>([]);
   const screens = useBreakpoint();
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Modal state
+  const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Form instance
+  const [form] = Form.useForm();
+  
+  // Fetch data for dropdowns
+  const { accounts, loading: accountsLoading } = useAccountsData(accessToken);
+  const { contacts, loading: contactsLoading } = useContactsData(accessToken);
+  const { employees, loading: employeesLoading } = useEmployeesData(accessToken);
   
   useEffect(() => {
     setIsMobile(!screens.md);
   }, [screens]);
   
-  const { leads: leadsData, loading, refetch: refetchLeads } = useLeadsData(accessToken);
+  // Fetch leads data
+  const { 
+    leads: leadsData, 
+    loading, 
+    error, 
+    refetch: refetchLeads,
+    totalCount,
+    currentPage,
+    pageSize,
+    handlePageChange,
+    searchTerm,
+    handleSearch,
+    orderBy,
+    handleOrderByChange 
+  } = useLeadsData(accessToken);
+  
   useEffect(() => {
     if (leadsData && leadsData.length > 0) {
       const mappedLeads = leadsData.map(lead => {
@@ -85,10 +127,142 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
           selected: false
         };
       });
-      
       setLeads(mappedLeads);
     }
   }, [leadsData]);
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isAddEditModalOpen) {
+      form.resetFields();
+      
+      if (editingLead) {
+        // Format the data for the form
+        const formattedData = {
+          companyName: editingLead.companyName,
+          contactName: editingLead.contactName,
+          contactEmail: editingLead.contactEmail,
+          contactPhone: editingLead.contactPhone,
+          accountId: editingLead.accountId,
+          contactId: editingLead.contactId,
+          ownerId: editingLead.ownerId,
+        };
+        
+        form.setFieldsValue(formattedData);
+      }
+    }
+  }, [isAddEditModalOpen, editingLead, form]);
+  
+  // Handle contact selection to auto-populate email and phone
+  const handleContactChange = (contactId: string) => {
+    const selectedContact = contacts.find(contact => contact.id === contactId);
+    if (selectedContact) {
+      form.setFieldsValue({
+        contactEmail: selectedContact.email,
+        contactPhone: selectedContact.phone,
+        contactName: selectedContact.fullName
+      });
+    }
+  };
+
+  // Form submission for lead creation/editing
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      setIsSubmitting(true);
+      
+      // Get selected account and contact names
+      const selectedAccount = accounts.find(account => account.id === values.accountId);
+      const selectedContact = contacts.find(contact => contact.id === values.contactId);
+      const selectedEmployee = employees.find(employee => employee.id === values.ownerId);
+      
+      // Prepare data for saving
+      const savePayload = !isNewLead ? {
+        changeMode: "UPDATE",
+        lead: {
+          id: editingLead?.id,
+          version: editingLead?.version || 0,
+          companyName: selectedAccount?.name || values.companyName,
+          ownerEmployee: values.ownerId,
+          account: values.accountId,
+          contact: values.contactId,
+          createdAt: editingLead?.createdAt,
+          updatedAt: new Date().toISOString(),
+          status: { id: 'ACTIVE' }, // Ensure status is included
+        }
+      } : {
+        changeMode: "INSERT",
+        lead: {
+          companyName: selectedAccount?.name || values.companyName,
+          ownerEmployee: values.ownerId || null,
+          account: values.accountId || null,
+          contact: values.contactId || null,
+        }
+      };
+
+      try {
+        // Make the API call using fetch
+        const response = await fetch(
+          'https://newwork-dev.newwork.com/processes/customer-relations/saveLead',
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(savePayload)
+          }
+        );
+        
+        const responseText = await response.text();
+        
+        let responseData;
+        try {
+          responseData = JSON.parse(responseText);
+        } catch (e) {
+          responseData = { message: responseText };
+        }
+        
+        if (response.ok || responseData?.lead?.id) {
+          message.success(`Lead ${!isNewLead ? 'updated' : 'created'} successfully!`);
+          
+          // Close modal and reset state
+          setIsAddEditModalOpen(false);
+          setIsNewLead(false);
+          setEditingLead(undefined);
+          
+          // Refresh leads data
+          refetchLeads();
+        } else {
+          const errorMessage = responseData.message || response.statusText || 'Unknown error';
+          throw new Error(`Failed to ${!isNewLead ? 'update' : 'create'} lead: ${errorMessage}`);
+        }
+      } catch (err: any) {
+        console.error('Error saving lead:', err);
+        message.error(`Failed to ${!isNewLead ? 'update' : 'create'} lead: ${err.message || 'Unknown error'}`);
+      } finally {
+        setIsSubmitting(false);
+      }
+    } catch (error) {
+      console.error('Form validation failed:', error);
+      setIsSubmitting(false);
+    }
+  };
+  
+  // Handle table sort change
+  const handleTableSortChange = (sorter: any) => {
+    if (!sorter.order || !sorter.field) return;
+    
+    const sortOrder = sorter.order === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST';
+    const sortField = sorter.field;
+    
+    const orderByObject = {};
+    orderByObject[sortField] = sortOrder;
+    
+    handleOrderByChange(JSON.stringify(orderByObject));
+  };
+  
+  // Format relative time for last activity
   const formatTimeDifference = (dateString: string | undefined) => {
     if (!dateString) return 'No activity';
     
@@ -155,18 +329,19 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
   const handleLeadDetailBack = () => {
     setIsLeadDetailVisible(false);
     setSelectedLeadId(undefined);
+    refetchLeads();
   };
   
   const handleAddLead = () => {
     setIsNewLead(true);
-    setIsEditMode(true);
-    setIsLeadDetailVisible(false);
-    setSelectedLeadId(undefined);
-    setEditingLead(undefined); 
+    setEditingLead(undefined); // Clear any previous editing state
+    setIsAddEditModalOpen(true); // Open modal instead
+    refetchLeads();
   };
 
-  const handleEditLead = () => {
-    if (selectedRowKeys.length === 0) {
+  // Handle edit selected lead
+const handleEditLead = () => {
+  if (selectedRowKeys.length === 0) {
       message.warning('Please select a lead to edit');
       return;
     }
@@ -179,11 +354,18 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
     
     setEditingLead(leadToEdit);
     setIsNewLead(false);
-    setIsEditMode(true);
-    setIsLeadDetailVisible(false);
-    setSelectedLeadId(undefined);
+    setIsAddEditModalOpen(true); // Open modal instead
   };
-  
+
+  // Handle cancel of lead edit/create
+  const handleCancelLeadEdit = () => {
+    setIsAddEditModalOpen(false);
+    setIsNewLead(false);
+    setEditingLead(undefined);
+    form.resetFields();
+  };
+
+  // Handle mark as lost
   const handleMarkAsLost = async (lead: LeadTableItem) => {
     if (!lead || !lead.id) {
       message.error('Cannot mark as lost: Lead information is missing');
@@ -221,7 +403,8 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
       message.error(`Failed to mark lead as lost: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
-  
+
+  // Table columns configuration
   const columns = [
     {
       title: 'Name',
@@ -418,26 +601,6 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
           leadId={selectedLeadId}
           onBack={handleLeadDetailBack}
         />
-      ) : isNewLead || isEditMode ? (
-        <AddEditLead
-          onCancel={() => {
-            setIsNewLead(false);
-            setIsEditMode(false);
-            setSelectedLeadId(undefined);
-            setEditingLead(undefined);
-          }}
-          onSave={(_: LeadFormData) => {
-            setIsNewLead(false);
-            setIsEditMode(false);
-            setSelectedLeadId(undefined);
-            setEditingLead(undefined);
-            refetchLeads();
-          }}
-          initialData={editingLead}
-          isEditing={!isNewLead && !!editingLead}
-          accessToken={accessToken}
-          employeeId={''}
-        />
       ) : (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }} data-testid="leads-header">
@@ -567,8 +730,8 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
             <Input
               placeholder="Search leads..."
               prefix={<SearchOutlined />}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
               style={{ width: 300 }}
               allowClear
             />
@@ -578,25 +741,15 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
           {isMobile ? (
             <List
               loading={loading}
-              dataSource={leads.filter(lead => 
-                lead.companyName.toLowerCase().includes(searchText.toLowerCase()) ||
-                lead.contactName.toLowerCase().includes(searchText.toLowerCase()) ||
-                lead.ownerName.toLowerCase().includes(searchText.toLowerCase())
-              )}
+              dataSource={leads}
               renderItem={renderLeadCard}
               data-testid="leads-mobile-list"
               locale={{ emptyText: <Empty description="No leads found" /> }}
             />
           ) : (
             <Table
-              dataSource={leads.filter(lead => 
-                lead.companyName.toLowerCase().includes(searchText.toLowerCase()) ||
-                lead.contactName.toLowerCase().includes(searchText.toLowerCase()) ||
-                lead.ownerName.toLowerCase().includes(searchText.toLowerCase())
-              )}
               columns={columns}
-              pagination={{ pageSize: 10 }}
-              loading={loading}
+              dataSource={leads}
               rowKey="id"
               rowSelection={{
                 type: 'checkbox',
@@ -606,10 +759,178 @@ function LeadsOverviewComponent({ accessToken }: BusinessAppContextProps) {
               onRow={(record) => ({
                 onClick: () => handleRowClick(record)
               })}
+              loading={loading}
+              pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                total: totalCount,
+                showSizeChanger: true,
+                pageSizeOptions: ['10', '20', '50', '100'],
+                onChange: handlePageChange,
+                showTotal: (total) => `Total ${total} leads`
+              }}
+              onChange={(pagination, filters, sorter) => handleTableSortChange(sorter)}
               data-testid="leads-table"
-              locale={{ emptyText: <Empty description="No leads found" /> }}
+              className="gba:w-full"
             />
           )}
+          
+          {/* Add/Edit Lead Modal */}
+          <Modal
+            title={isNewLead ? "Create New Lead" : "Edit Lead"}
+            open={isAddEditModalOpen}
+            onCancel={handleCancelLeadEdit}
+            footer={[
+              <Button 
+                key="cancel" 
+                onClick={handleCancelLeadEdit}
+                data-testid="modal-cancel-button"
+              >
+                Cancel
+              </Button>,
+              <Button 
+                key="submit" 
+                type="primary" 
+                loading={isSubmitting}
+                onClick={handleSubmit}
+                data-testid="modal-save-button"
+              >
+                {isNewLead ? 'Create Lead' : 'Update Lead'}
+              </Button>
+            ]}
+            maskClosable={false}
+            destroyOnClose={true}
+            className="gba:add-edit-lead-modal"
+            data-testid="add-edit-lead-modal"
+          >
+            <Spin spinning={accountsLoading || contactsLoading || employeesLoading}>
+              <Form
+                form={form}
+                layout="vertical"
+                requiredMark={false}
+                data-testid="lead-form"
+              >
+                <Divider orientation="left">Company Information</Divider>
+                <Row gutter={16}>
+                  <Col span={24}>
+                    <Form.Item
+                      name="accountId"
+                      label="Company Name"
+                      rules={[{ required: true, message: 'Please select a company' }]}
+                      data-testid="company-name-field"
+                    >
+                      <Select 
+                        placeholder="Select a company"
+                        data-testid="company-name-select"
+                        loading={accountsLoading}
+                        showSearch
+                        optionFilterProp="children"
+                        filterOption={(input, option) =>
+                          (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+                        }
+                      >
+                        {accounts.map(account => (
+                          <Select.Option key={account.id} value={account.id}>
+                            {account.name}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <Divider orientation="left">Contact Information</Divider>
+                <Row gutter={16}>
+                  <Col span={24}>
+                    <Form.Item
+                      name="contactId"
+                      label="Contact Name"
+                      rules={[{ required: true, message: 'Please select a contact' }]}
+                      data-testid="contact-name-field"
+                    >
+                      <Select 
+                        placeholder="Select a contact"
+                        data-testid="contact-name-select"
+                        loading={contactsLoading}
+                        showSearch
+                        optionFilterProp="children"
+                        onChange={handleContactChange}
+                        filterOption={(input, option) =>
+                          (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+                        }
+                      >
+                        {contacts.map(contact => (
+                          <Select.Option key={contact.id} value={contact.id}>
+                            {contact.fullName}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                </Row>
+                
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item
+                      name="contactEmail"
+                      label="Email"
+                      data-testid="contact-email-field"
+                    >
+                      <Input 
+                        prefix={<MailOutlined />} 
+                        placeholder="Email will auto-populate from contact" 
+                        data-testid="contact-email-input"
+                        disabled
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item
+                      name="contactPhone"
+                      label="Phone"
+                      data-testid="contact-phone-field"
+                    >
+                      <Input 
+                        prefix={<PhoneOutlined />} 
+                        placeholder="Phone will auto-populate from contact" 
+                        data-testid="contact-phone-input"
+                        disabled
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <Divider orientation="left">Lead Details</Divider>
+                <Row gutter={16}>
+                  <Col span={24}>
+                    <Form.Item
+                      name="ownerId"
+                      label="Lead Owner"
+                      rules={[{ required: true, message: 'Please select a lead owner' }]}
+                      data-testid="owner-field"
+                    >
+                      <Select 
+                        placeholder="Select lead owner"
+                        data-testid="owner-select"
+                        loading={employeesLoading}
+                        showSearch
+                        optionFilterProp="children"
+                        filterOption={(input, option) =>
+                          (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+                        }
+                      >
+                        {employees.map(employee => (
+                          <Select.Option key={employee.id} value={employee.id}>
+                            {employee.fullName}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </Form>
+            </Spin>
+          </Modal>
         </>
       )}
     </div>

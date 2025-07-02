@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Typography, Row, Col, Spin, message } from 'antd';
+import { Typography, Row, Col, Spin, message, Form, Input, Select, DatePicker, Avatar } from 'antd';
 import { 
   MailOutlined, 
   PhoneOutlined, 
@@ -14,18 +14,27 @@ import {
   TeamOutlined,
   CalendarOutlined,
   CaretDownOutlined,
-  CommentOutlined
+  CommentOutlined,
+  BankOutlined,
+  UserOutlined,
+  StarOutlined,
+  TagsOutlined,
+  FunnelPlotOutlined,
+  EditOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from "../../../../common/BusinessAppContext";
-import { Avatar  } from "./common/ui/avatar";
 import { Button } from "./common/ui/button";
 import { useGraphqlClient } from "../../../../common/network/graphql/useGraphQLClient";
 import { GET_LEAD_BY_ID, GetLeadByIdResponse } from "./queries/getLeadById";
 import EditLead from "./EditLead";
+import { useCatalogManagerClient } from "../../../../common/network/catalogs/useCatalogManagerClient";
+import dayjs from 'dayjs';
+import {getActivityByLeadId} from "./queries/getActivityByLeadId";
 
 const { Text } = Typography;
+const { Option } = Select;
 
-interface Activity {
+interface Activity { 
   id: string;
   type: 'call' | 'email' | 'meeting' | 'note';
   title: string;
@@ -50,6 +59,8 @@ interface Opportunity {
 }
 
 interface Contact {
+  id: string;
+  version: string;
   email: string;
   name: string;
   phone: string;
@@ -64,6 +75,14 @@ interface Lead {
   status: string;
   version: string;
   statusRef?: string;
+  source: {
+    id: string;
+    type: string;
+    value: string;
+    code: string;
+  };
+  sourceRef: string;
+  rating: string;
   industryRef?: string;
   industry: {
     value?: string;
@@ -77,7 +96,6 @@ interface Lead {
     id?: string;
     code?: string;
   };
-  countryRef?: string;
   numberOfEmployeesRef?: string;
   numberOfEmployees?: {
     value?: string;
@@ -88,6 +106,11 @@ interface Lead {
   companyWebsite: string;
   address: string;
   revenue: string;
+  ownerEmployeeId: string;
+  ownerEmployee: {
+    firstName: string;
+    lastName: string;
+  }
   annualRevenueRef?: string;
   annualRevenue?: {
     value?: string;
@@ -103,8 +126,50 @@ interface Lead {
     code?: string;
   };
   legalFormRef?: string;
+  accountId:string;
+  account?: {
+    id: string;
+    version: string;
+    name: string;
+    industryRef: string;
+    industry: {
+      code: string;
+      id: string;
+      type: string;
+      value: string;
+    };
+    numberOfEmployees: {
+      type: string;
+      value: string;
+      id: string;
+      code: string;
+    };
+    numberOfEmployeesRef: string;
+    addressLine: string;
+    foundationDate: string;
+    annualRevenueRef: string;
+    annualRevenue: {
+      type: string;
+      value: string;
+      id: string;
+      code: string;
+    };
+    website: string;
+    ownerEmployeeId?: string;
+    ownerEmployee?: {
+      firstName: string;
+      lastName: string;
+    };
+  } | null;
+  leadRating: {
+    id: string;
+    type: string;
+    value: string;
+    code: string;
+  };
+  leadRatingRef: string;
   contact: Contact;
-  activities: Activity[];
+  activities: LeadActivity[];
   opportunities: Opportunity[];
   aiSummary: {
     text: string;
@@ -113,54 +178,68 @@ interface Lead {
   };
 }
 
+interface LeadActivity {
+  id: string;
+  version: string;
+  title: string;
+  leadId: string;
+  opportunityId: string;
+  ownerEmployeeId: string;
+  ownerEmployee: {
+    firstName: string;
+    lastName: string;
+  };
+  createdAt: string;
+  description: string;
+  activityType: {
+    code: string;
+    id: string;
+    type: string;
+    value: string;
+  };
+}
+
 interface LeadDetailsProps extends BusinessAppContextProps {
   leadId: string;
   onBack?: () => void;
 }
 
+interface ReferenceData {
+  id: string;
+  code: string;
+  value: string;
+}
+
 const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
   const { leadId } = props;
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [isEditingCompanyInfo, setIsEditingCompanyInfo] = useState<boolean>(false);
+  const [isEditingContactInfo, setIsEditingContactInfo] = useState<boolean>(false);
+  const [isEditingLeadInfo, setIsEditingLeadInfo] = useState<boolean>(false);
+  const [form] = Form.useForm();
+  const [contactForm] = Form.useForm();
+  const [leadForm] = Form.useForm();
+  const [revenueSizeOptions, setRevenueSizeOptions] = useState<ReferenceData[]>([]);
+  const [leadSourceOptions, setLeadSourceOptions] = useState<ReferenceData[]>([]);
+  const [leadStatusOptions, setLeadStatusOptions] = useState<ReferenceData[]>([]);
+  const [industryOptions, setIndustryOptions] = useState<ReferenceData[]>([]);
+  const [numberOfEmployeesOptions, setNumberOfEmployeesOptions] = useState<ReferenceData[]>([]);
+  const [countryOptions, setCountryOptions] = useState<ReferenceData[]>([]);
+  const [leadRatingOptions, setLeadRatingOptions] = useState<ReferenceData[]>([]);
+  const [loadingCatalogData, setLoadingCatalogData] = useState<boolean>(false);
+  const [savingCompanyInfo, setSavingCompanyInfo] = useState<boolean>(false);
+  const [savingContactInfo, setSavingContactInfo] = useState<boolean>(false);
+  const [savingLeadInfo, setSavingLeadInfo] = useState<boolean>(false);
   
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [leadData, setLeadData] = useState<Lead | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+
+  // Get the catalog client at component level
+  const catalogClient = useCatalogManagerClient(props.accessToken);
   
   const graphQLClient = useGraphqlClient(props.accessToken);
-  
-  const hardcodedActivities: Activity[] = [
-    {
-      id: "act1",
-      type: "meeting",
-      title: "Initial Discovery Call",
-      date: "2023-05-01",
-      user: {
-        name: "John Doe",
-      },
-      description: "Discussed their current needs and pain points. They're looking to upgrade their CRM system within the next quarter.",
-    },
-    {
-      id: "act2",
-      type: "email",
-      title: "Follow-up Email",
-      date: "2023-05-03",
-      user: {
-        name: "John Doe",
-      },
-      description: "Sent a summary of our discussion and some initial product information.",
-    },
-    {
-      id: "act3",
-      type: "call",
-      title: "Technical Requirements Call",
-      date: "2023-05-10",
-      user: {
-        name: "Sarah Lee",
-      },
-      description: "Deep dive into their technical requirements and integration needs.",
-    },
-  ];
   
   const hardcodedOpportunities: Opportunity[] = [
     {
@@ -222,12 +301,57 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
             id: leadId
           }
         );
+
+        const activityResult = await graphQLClient.request(
+          getActivityByLeadId,
+            {
+              id: leadId,
+              limit: 20,
+              offset: 0
+            }
+      );
+
+      const activities: LeadActivity[] = 
+      (activityResult?.SalesActivity && activityResult.SalesActivity.length > 0) 
+        ? activityResult.SalesActivity.map((activity: any) => ({
+            id: activity.id || "",
+            version: activity.version || "1",
+            title: activity.title || "",
+            leadId: activity.leadId || leadId,
+            opportunityId: activity.opportunityId || "",
+            ownerEmployeeId: activity.ownerEmployeeId || "",
+            ownerEmployee: activity.ownerEmployee ? {
+              firstName: activity.ownerEmployee.firstName || "",
+              lastName: activity.ownerEmployee.lastName || ""
+            } : {
+              firstName: "",
+              lastName: ""
+            },
+            createdAt: activity.createdAt || "",
+            description: activity.description || "",
+            activityType: activity.activityType || {
+              code: activity.type?.toUpperCase() || "NOTE",
+              id: `InvestmentActivityType:v1:${activity.type?.toUpperCase() || "NOTE"}`,
+              type: "activity",
+              value: activity.type ? activity.type.charAt(0).toUpperCase() + activity.type.slice(1) : "Note"
+            }
+          }))
+        : [];
+          console.log("Activities:", activityResult);
         if (result && result.Lead && result.Lead[0]) {
           const apiData = result.Lead[0];
           const transformedData: Lead = {
             id: apiData.id,
             name: apiData.companyName || `${apiData.firstName} ${apiData.lastName}`,
             version: apiData.version,
+            source: {
+              id: apiData.source?.id || "",
+              type: apiData.source?.type || "",
+              value: apiData.source?.value || "",
+              code: apiData.source?.code || ""
+            },
+            sourceRef: apiData.sourceRef,
+            rating: apiData.rating,
             status: apiData.status?.value || "New",
             statusRef: apiData.statusRef,
             industry: {
@@ -250,6 +374,13 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
               id: apiData.numberOfEmployees?.id || "",
               code: apiData.numberOfEmployees?.code || ""
             },
+            leadRating: {
+              id: apiData.leadRating?.id || "",
+              type: apiData.leadRating?.type || "",
+              value: apiData.leadRating?.value || "",
+              code: apiData.leadRating?.code || ""
+            },
+            leadRatingRef: apiData.leadRatingRef,
             numberOfEmployeesRef: apiData.numberOfEmployeesRef,
             companyWebsite: apiData.companyWebsite,
             address: [
@@ -271,6 +402,8 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
             
             contact: apiData.contact ? 
               {
+                id: apiData.contact.id || "",
+                version: apiData?.contact?.version,
                 name: `${apiData.contact.firstName || ''} ${apiData.contact.lastName || ''}`.trim(),
                 email: apiData.contact.email || "",
                 phone: apiData.contact.phone || "",
@@ -284,11 +417,50 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
                 jobTitle: "",
                 pictureUrl: ""
               },
-            activities: hardcodedActivities,
+            accountId: apiData.accountId || "",
+            account: apiData.account ? {
+              id: apiData.account.id || "",
+              version: apiData?.account?.version,
+              name: apiData.account.name || "",
+              industryRef: apiData.account.industryRef || "",
+              industry: {
+                code: apiData.account.industry?.code || "",
+                id: apiData.account.industry?.id || "",
+                type: apiData.account.industry?.type || "",
+                value: apiData.account.industry?.value || ""
+              },
+              numberOfEmployees: {
+                type: apiData.account.numberOfEmployees?.type || "",
+                value: apiData.account.numberOfEmployees?.value || "",
+                id: apiData.account.numberOfEmployees?.id || "",
+                code: apiData.account.numberOfEmployees?.code || ""
+              },
+              numberOfEmployeesRef: apiData.account.numberOfEmployeesRef || "",
+              addressLine: apiData.account.addressLine || "",
+              foundationDate: apiData.account.foundationDate || "",
+              annualRevenueRef: apiData.account.annualRevenueRef || "",
+              annualRevenue: {
+                type: apiData.account.annualRevenue?.type || "",
+                value: apiData.account.annualRevenue?.value || "",
+                id: apiData.account.annualRevenue?.id || "",
+                code: apiData.account.annualRevenue?.code || ""
+              },
+              website: apiData.account.website || "",
+              ownerEmployeeId: apiData.account.ownerEmployeeId || "",
+              ownerEmployee: {
+                firstName: apiData.account.ownerEmployee?.firstName || '',
+                lastName: apiData.account.ownerEmployee?.lastName || ''
+              }
+            } : null,
+            ownerEmployeeId: apiData.ownerEmployeeId || "",
+            ownerEmployee: {
+              firstName: apiData.ownerEmployee?.firstName || '',
+              lastName: apiData.ownerEmployee?.lastName || ''
+            },
+            activities: activities,
             opportunities: hardcodedOpportunities,
             aiSummary: hardcodedAiSummary
           };
-          
           setLeadData(transformedData);
         } else {
           throw new Error("Lead not found");
@@ -297,13 +469,21 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
         console.error("Error fetching lead data:", err);
         setError("Failed to load lead data. Please try again later.");
         message.error("Failed to load lead data");
-        
+
         setLeadData({
           id: leadData?.id || "",
           version: leadData?.version || "",
           name: leadData?.name || "",
           status: leadData?.status || "",
           statusRef: leadData?.statusRef || "",
+          source: {
+            id: leadData?.source?.id || "",
+            type: leadData?.source?.type || "",
+            value: leadData?.source?.value || "",
+            code: leadData?.source?.code || ""
+          },
+          sourceRef: leadData?.sourceRef || "",
+          rating: leadData?.rating || "",
           industry: {
             value: leadData?.industry?.value || "",
             type: leadData?.industry?.type || "",
@@ -332,6 +512,8 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
           legalForm: leadData?.legalForm || "",
           legalFormRef: leadData?.legalFormRef || "",
           contact: leadData?.contact || {
+            id: leadData?.contact?.id || "",
+            version: leadData?.contact?.version || "",
             name: leadData?.contact?.name || "",
             email: leadData?.contact?.email || "",
             phone: leadData?.contact?.phone || "",
@@ -344,8 +526,54 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
             id: leadData?.country?.id || "",
             code: leadData?.country?.code || ""
           },
-          countryRef: leadData?.countryRef || "",
-          activities: hardcodedActivities,
+          accountId:leadData?.accountId || "",
+          account: leadData?.account ? {
+            id: leadData.account.id || "",
+            version: leadData.account.version || "",
+            name: leadData.account.name || "",
+            industryRef: leadData.account.industryRef || "",
+            industry: {
+              code: leadData.account.industry?.code || "",
+              id: leadData.account.industry?.id || "",
+              type: leadData.account.industry?.type || "",
+              value: leadData.account.industry?.value || ""
+            },
+            numberOfEmployees: {
+              type: leadData.account.numberOfEmployees?.type || "",
+              value: leadData.account.numberOfEmployees?.value || "",
+              id: leadData.account.numberOfEmployees?.id || "",
+              code: leadData.account.numberOfEmployees?.code || ""
+            },
+            numberOfEmployeesRef: leadData.account.numberOfEmployeesRef || "",
+            addressLine: leadData.account.addressLine || "",
+            foundationDate: leadData.account.foundationDate || "",
+            annualRevenueRef: leadData.account.annualRevenueRef || "",
+            annualRevenue: {
+              type: leadData.account.annualRevenue?.type || "",
+              value: leadData.account.annualRevenue?.value || "",
+              id: leadData.account.annualRevenue?.id || "",
+              code: leadData.account.annualRevenue?.code || ""
+            },
+            website: leadData.account.website || "",
+            ownerEmployeeId: leadData.account.ownerEmployeeId || "",
+            ownerEmployee: {
+              firstName: leadData.account.ownerEmployee?.firstName || '',
+              lastName: leadData.account.ownerEmployee?.lastName || ''
+            }
+          } : null,
+          leadRating: {
+            id: leadData?.leadRating?.id || "",
+            type: leadData?.leadRating?.type || "",
+            value: leadData?.leadRating?.value || "",
+            code: leadData?.leadRating?.code || ""
+          },
+          leadRatingRef: leadData?.leadRatingRef || "",
+          ownerEmployeeId: leadData?.ownerEmployeeId || "",
+          ownerEmployee: leadData?.ownerEmployee || {
+            firstName: leadData?.ownerEmployee?.firstName || '',
+            lastName: leadData?.ownerEmployee?.lastName || ''
+          },
+          activities: leadData.activities || [],
           opportunities: hardcodedOpportunities,
           aiSummary: hardcodedAiSummary
         });
@@ -360,7 +588,7 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
   const [activeTab, setActiveTab] = useState("overview");
   const [activeActivityTab, setActiveActivityTab] = useState("activities");
   
-  
+    
   if (loading) {
     return (
       <div className="gba:loading-container" data-testid="lead-loading-container" style={{ 
@@ -400,6 +628,755 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
     setRefreshTrigger(prev => prev + 1);
   };
 
+  const handleAddAccount = async () => {
+    setIsEditingCompanyInfo(true);
+    await fetchRevenueSizeOptions();
+    
+    // Set initial form values
+    if (leadData) {
+      form.resetFields();
+    }
+  };
+
+  const handleUpdateAccount = async () => {
+    if (!leadData?.account) return;
+    
+    setIsEditingCompanyInfo(true);
+    await fetchRevenueSizeOptions();
+    
+    // Set initial form values
+    if (leadData) {
+      const foundationDate = leadData.account?.foundationDate 
+        ? dayjs(leadData.account.foundationDate) 
+        : undefined;
+        
+      // Set form values including the date
+      form.setFieldsValue({
+        companyName: leadData.account?.name || '',
+        addressLine: leadData.account?.addressLine || '',
+        annualRevenue: leadData.account?.annualRevenueRef || '',
+        foundationDate: foundationDate,
+        website: leadData.account?.website || ''
+      });
+    }
+  };
+
+  const handleSaveCompanyInfo = async () => {
+    try {
+      const values = await form.validateFields();
+      setSavingCompanyInfo(true);
+      
+      if (leadData) {
+        const selectedRevenueSize = values.annualRevenue
+          ? revenueSizeOptions.find(option => option.id === values.annualRevenue)
+          : null;
+
+        let changeMode = leadData.account ? "UPDATE" : "INSERT";
+        let accountId = leadData.accountId;
+        let accountVersion = leadData.account?.version;
+
+        const accountData = {
+          ...(changeMode === "UPDATE" && { 
+            id: accountId,
+            version: accountVersion 
+          }),
+          ...(values.companyName && values.companyName !== "") && { name: values.companyName },
+          ...(values.addressLine && values.addressLine !== "") && { addressLine: values.addressLine },
+          ...(values.website && values.website !== "") && { website: values.website },
+          ...(values.foundationDate 
+            ? { foundationDate: values.foundationDate.format('YYYY-MM-DD') }
+            : (leadData.account?.foundationDate && leadData.account.foundationDate !== "")
+              ? { foundationDate: leadData.account.foundationDate }
+              : {}),
+          ...(leadData?.ownerEmployeeId && leadData.ownerEmployeeId !== "") && 
+            { ownerEmployeeId: leadData.ownerEmployeeId },
+          ...(leadData?.ownerEmployeeId && leadData.ownerEmployeeId !== "") && 
+            { ownerEmployee: leadData.ownerEmployeeId }
+        };
+        if (selectedRevenueSize) {
+          accountData.annualRevenueRef = selectedRevenueSize.id;
+          accountData.annualRevenue = {
+            id: selectedRevenueSize.id,
+            code: selectedRevenueSize.code,
+            value: selectedRevenueSize.value,
+            type: "RevenueSize"
+          };
+        } else if (leadData.account?.annualRevenueRef && leadData.account.annualRevenueRef !== "") {
+          accountData.annualRevenueRef = leadData.account.annualRevenueRef;
+          if (leadData.account?.annualRevenue) {
+            accountData.annualRevenue = leadData.account.annualRevenue;
+          }
+        }
+
+        const payload = {
+          account: accountData,
+          changeMode: changeMode
+        };
+
+        const response = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveAccount', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${props.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData?.message || 'Failed to save account data');
+        }
+
+        const newAccount = await response.json();
+        if (changeMode === "INSERT" && newAccount.id && leadData.id && (leadData.version !== undefined && leadData.version !== null)) {
+          try {
+            const updateLeadPayload = {
+              changeMode: "UPDATE",
+              lead: {
+                id: leadData.id,
+                version: leadData.version,
+                account: newAccount.account.id
+              }
+            };
+
+            const updateLeadResponse = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveLead', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${props.accessToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(updateLeadPayload)
+            });
+            
+            if (!updateLeadResponse.ok) {
+              const errorText = await updateLeadResponse.text();
+              console.error('Error updating lead with accountId:', errorText);
+              message.warning('Company added but failed to link it to the lead');
+            } else {
+              const updatedLead = await updateLeadResponse.json();
+              
+              // Update the local leadData with the returned version from the API
+              if (updatedLead) {
+                // Update both version and accountId in the local leadData object
+                leadData.version = updatedLead.version || leadData.version;
+                leadData.accountId = newAccount.id;
+                
+              }
+            }
+          } catch (error) {
+            console.error('Error updating lead with accountId:', error);
+            message.warning('Company added but failed to link it to the lead');
+          }
+        }
+
+        setLeadData(prev => {
+          if (!prev) return null;
+          
+          return {
+            ...prev,
+            accountId: newAccount.id,
+            account: {
+              ...(prev.account || {}),
+              id: newAccount.id ?? accountData.id,
+              version: newAccount.version ?? accountData.version,
+              name: values.companyName,
+              addressLine: values.addressLine,
+              foundationDate: values.foundationDate
+                ? values.foundationDate.format('YYYY-MM-DD')
+                : prev.account?.foundationDate || '',
+              website: values.website,
+              industryRef: prev.account?.industryRef || '',
+              industry: prev.account?.industry || {
+                code: '',
+                id: '',
+                type: '',
+                value: ''
+              },
+              numberOfEmployeesRef: prev.account?.numberOfEmployeesRef || '',
+              numberOfEmployees: prev.account?.numberOfEmployees || {
+                type: '',
+                value: '',
+                id: '',
+                code: ''
+              },
+              annualRevenueRef: selectedRevenueSize
+                ? selectedRevenueSize.id
+                : prev.account?.annualRevenueRef || '',
+              annualRevenue: selectedRevenueSize
+                ? {
+                  id: selectedRevenueSize.id,
+                  code: selectedRevenueSize.code,
+                  value: selectedRevenueSize.value,
+                  type: "RevenueSize"
+                }
+                : prev.account?.annualRevenue || {
+                  id: '',
+                  code: '',
+                  value: '',
+                  type: ''
+                },
+              ownerEmployeeId: prev.account?.ownerEmployeeId,
+              ownerEmployee: prev.account?.ownerEmployee
+            }
+          };
+        });
+
+        // Trigger a refetch of lead data by updating refreshTrigger
+        setRefreshTrigger(prev => prev + 1);
+
+        message.success(`Company information ${changeMode === "INSERT" ? "added" : "updated"} successfully`);
+        setIsEditingCompanyInfo(false);
+      }
+    } catch (error) {
+      console.error("Error saving company information:", error);
+      message.error(`Failed to ${leadData?.account ? "update" : "add"} company information`);
+    } finally {
+      setSavingCompanyInfo(false);
+    }
+  };
+
+  const handleCancelCompanyEdit = () => {
+    form.resetFields();
+    setIsEditingCompanyInfo(false);
+  };
+
+  const handleAddContact = () => {
+    setIsEditingContactInfo(true);
+    
+    // Reset contact form
+    contactForm.resetFields();
+  };
+
+  const handleUpdateContact = () => {
+    if (!leadData?.contact) return;
+    
+    setIsEditingContactInfo(true);
+    
+    // Set initial form values
+    if (leadData) {
+      // Set form values
+      contactForm.setFieldsValue({
+        contactName: leadData.contact?.name || '',
+        contactEmail: leadData.contact?.email || '',
+        contactPhone: leadData.contact?.phone || '',
+        contactJobTitle: leadData.contact?.jobTitle || ''
+      });
+    }
+  };
+
+  const handleSaveContactInfo = async () => {
+    try {
+      const values = await contactForm.validateFields();
+      setSavingContactInfo(true);
+      
+      if (leadData) {
+        let changeMode = leadData.contact && leadData.contact.id ? "UPDATE" : "INSERT";
+        let contactId = leadData.contact?.id;
+        let contactVersion = leadData.contact?.version;
+
+        // Split the name into firstName and lastName
+        let firstName = "";
+        let lastName = "";
+        
+        if (values.contactName) {
+          const nameParts = values.contactName.trim().split(' ');
+          if (nameParts.length > 0) {
+            firstName = nameParts[0];
+            lastName = nameParts.slice(1).join(' ');
+          }
+        }
+
+        const contactData = {
+          ...(changeMode === "UPDATE" && { 
+            id: contactId,
+            version: contactVersion 
+          }),
+          firstName,
+          lastName,
+          email: values.contactEmail || "",
+          phone: values.contactPhone || "",
+          jobTitle: values.contactJobTitle || ""
+        };
+
+        const payload = {
+          contact: contactData,
+          changeMode: changeMode
+        };
+
+        const response = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveContact', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${props.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData?.message || 'Failed to save contact data');
+        }
+
+        const newContact = await response.json();
+        
+        if (changeMode === "INSERT" && newContact.id && leadData.id && (leadData.version !== undefined && leadData.version !== null)) {
+          try {
+            const updateLeadPayload = {
+              changeMode: "UPDATE",
+              lead: {
+                id: leadData.id,
+                version: leadData.version,
+                contact: newContact.contact.id
+              }
+            };
+
+            const updateLeadResponse = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveLead', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${props.accessToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(updateLeadPayload)
+            });
+            
+            if (!updateLeadResponse.ok) {
+              const errorText = await updateLeadResponse.text();
+              console.error('Error updating lead with contactId:', errorText);
+              message.warning('Contact added but failed to link it to the lead');
+            } else {
+              const updatedLead = await updateLeadResponse.json();
+              
+              // Update the local leadData with the returned version from the API
+              if (updatedLead) {
+                // Update both version and contactId in the local leadData object
+                leadData.version = updatedLead.version || leadData.version;
+              }
+            }
+          } catch (error) {
+            console.error('Error updating lead with contactId:', error);
+            message.warning('Contact added but failed to link it to the lead');
+          }
+        }
+
+        setLeadData(prev => {
+          if (!prev) return null;
+          
+          return {
+            ...prev,
+            contact: {
+              id: newContact.id || contactId || "",
+              version: newContact.version || contactVersion || "",
+              name: values.contactName || "",
+              email: values.contactEmail || "",
+              phone: values.contactPhone || "",
+              jobTitle: values.contactJobTitle || "",
+              pictureUrl: prev.contact?.pictureUrl || ""
+            }
+          };
+        });
+
+        // Trigger a refetch of lead data by updating refreshTrigger
+        setRefreshTrigger(prev => prev + 1);
+
+        message.success(`Contact information ${changeMode === "INSERT" ? "added" : "updated"} successfully`);
+        setIsEditingContactInfo(false);
+      }
+    } catch (error) {
+      console.error("Error saving contact information:", error);
+      message.error(`Failed to ${leadData?.contact?.id ? "update" : "add"} contact information`);
+    } finally {
+      setSavingContactInfo(false);
+    }
+  };
+
+  const handleCancelContactEdit = () => {
+    contactForm.resetFields();
+    setIsEditingContactInfo(false);
+  };
+
+  const fetchRevenueSizeOptions = async () => {
+    if (revenueSizeOptions.length === 0) {
+      try {
+        setLoadingCatalogData(true);
+        
+        const fetchAllCatalogEntries = async (catalogIdentifier: string, version: string = 'v1') => {
+          let allEntries: any[] = [];
+          let offset = 0;
+          const limit = 100; 
+          let hasMore = true;
+
+          while (hasMore) {
+            const response = await catalogClient.getCatalogEntriesList({
+              catalogIdentifier,
+              version
+            }, {
+              limit,
+              offset
+            });
+
+            if (response.data && response.data.length > 0) {
+              allEntries = [...allEntries, ...response.data];
+              offset += limit;
+              
+              if (response.data.length < limit) {
+                hasMore = false;
+              }
+            } else {
+              hasMore = false;
+            }
+          }
+
+          return allEntries
+            .map((entry: any) => ({
+              id: entry.id,
+              code: entry.code,
+              value: entry.value
+            }))
+            .sort((a, b) => a.value.localeCompare(b.value));
+        };
+        
+        const revenueSizeData = await fetchAllCatalogEntries('RevenueSize');
+        setRevenueSizeOptions(revenueSizeData);
+      } catch (err) {
+        console.error('Error fetching catalog data:', err);
+        message.error('Failed to load reference data');
+      } finally {
+        setLoadingCatalogData(false);
+      }
+    }
+  };
+
+  const handleUpdateLeadInfo = async () => {
+    setIsEditingLeadInfo(true);
+
+    try {
+      // First ensure all catalog options are fully loaded
+      setLoadingCatalogData(true);
+      await fetchCatalogOptions(catalogClient);
+      
+      // Now set initial form values from current lead data
+      if (leadData) {
+        leadForm.setFieldsValue({
+          leadName: leadData.name || '',
+          leadRating: leadData.leadRatingRef || '',
+          leadStatus: leadData.statusRef || '',
+          leadSource: leadData.sourceRef || '',
+          industry: leadData.industryRef || '',
+          numberOfEmployees: leadData.numberOfEmployeesRef || '',
+          revenue: leadData.annualRevenueRef || '',
+          companyWebsite: leadData.companyWebsite || '',
+          country: leadData.countryRef || '',
+          address: leadData.address || ''
+        });
+        
+        // Force form to update its values after options are loaded
+        setTimeout(() => {
+          leadForm.setFieldsValue({
+            leadSource: leadData.sourceRef || ''
+          });
+        }, 100);
+      }
+    } finally {
+      setLoadingCatalogData(false);
+    }
+  };
+
+  const handleCancelLeadInfoEdit = () => {
+    leadForm.resetFields();
+    setIsEditingLeadInfo(false);
+  };
+
+  const handleSaveLeadInfo = async () => {
+    try {
+      const values = await leadForm.validateFields();
+      setSavingLeadInfo(true);
+      
+      if (leadData) {
+        // Find the selected options from the dropdown lists
+        const selectedStatus = leadStatusOptions.find(option => option.id === values.leadStatus);
+        const selectedSource = leadSourceOptions.find(option => option.id === values.leadSource);
+        const selectedIndustry = industryOptions.find(option => option.id === values.industry);
+        const selectedEmployeeSize = numberOfEmployeesOptions.find(option => option.id === values.numberOfEmployees);
+        const selectedRevenueSize = revenueSizeOptions.find(option => option.id === values.revenue);
+        const selectedCountry = countryOptions.find(option => option.id === values.country);
+        const selectedLeadRating = leadRatingOptions.find(option => option.id === values.leadRating);
+        
+        // Prepare the payload for the API
+        const savePayload = {
+          changeMode: "UPDATE",
+          lead: {
+            id: leadData.id,
+            version: leadData.version,
+            ...(values.leadName && { companyName: values.leadName }),
+            
+            ...(values.leadStatus && { statusRef: values.leadStatus }),
+            ...(selectedStatus && { 
+              status: {
+                id: selectedStatus.id,
+                code: selectedStatus.code,
+                value: selectedStatus.value
+              }
+            }),
+            ...(values.leadSource && { sourceRef: values.leadSource }),
+            ...(selectedSource && { 
+              source: {
+                id: selectedSource.id,
+                code: selectedSource.code,
+                value: selectedSource.value,
+                type: "LeadSource"
+              }
+            }),
+            
+            // Add industry fields
+            ...(values.industry && { industryRef: values.industry }),
+            ...(selectedIndustry && { 
+              industry: {
+                id: selectedIndustry.id, 
+                code: selectedIndustry.code,
+                value: selectedIndustry.value
+              }
+            }),
+            
+            // Add employees fields
+            ...(values.numberOfEmployees && { numberOfEmployeesRef: values.numberOfEmployees }),
+            ...(selectedEmployeeSize && {
+              numberOfEmployees: {
+                id: selectedEmployeeSize.id,
+                code: selectedEmployeeSize.code,
+                value: selectedEmployeeSize.value
+              }
+            }),
+            
+            // Add revenue fields
+            ...(values.revenue && { annualRevenueRef: values.revenue }),
+            ...(selectedRevenueSize && {
+              annualRevenue: {
+                id: selectedRevenueSize.id,
+                code: selectedRevenueSize.code,
+                value: selectedRevenueSize.value
+              }
+            }),
+            
+            // Add website and address
+            ...(values.companyWebsite && { companyWebsite: values.companyWebsite }),
+            ...(values.address && { address: values.address }),
+            
+            // Add country
+            ...(values.country && { countryRef: values.country }),
+            ...(selectedCountry && {
+              country: {
+                id: selectedCountry.id,
+                code: selectedCountry.code,
+                value: selectedCountry.value
+              }
+            }),
+
+            // Add lead rating
+            ...(values.leadRating && { leadRatingRef: values.leadRating }),
+            ...(selectedLeadRating && { 
+              leadRating: {
+                id: selectedLeadRating.id,
+                code: selectedLeadRating.code,
+                value: selectedLeadRating.value,
+                type: "SalesLeadRating"
+              }
+            }),
+
+          }
+        };
+        
+        const response = await fetch('https://newwork-dev.newwork.com/processes/customer-relations/saveLead', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${props.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(savePayload)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData?.message || 'Failed to save lead data');
+        }
+
+        const updatedLead = await response.json();
+        
+        // Update the leadData state with new values
+        setLeadData(prev => {
+          if (!prev) return null;
+          
+          return {
+            ...prev,
+            name: values.leadName || prev.name,
+            
+            // Update status and source
+            status: selectedStatus?.value || prev.status,
+            statusRef: values.leadStatus || prev.statusRef,
+            source: selectedSource ? {
+              id: selectedSource.id,
+              code: selectedSource.code,
+              value: selectedSource.value,
+              type: prev.source?.type || ""
+            } : prev.source,
+            sourceRef: values.leadSource || prev.sourceRef,
+            
+            // Update industry
+            industry: selectedIndustry ? {
+              id: selectedIndustry.id, 
+              code: selectedIndustry.code,
+              value: selectedIndustry.value,
+              type: prev.industry?.type || ""
+            } : prev.industry,
+            industryRef: values.industry || prev.industryRef,
+            
+            // Update employee size
+            numberOfEmployees: selectedEmployeeSize ? {
+              id: selectedEmployeeSize.id,
+              code: selectedEmployeeSize.code,
+              value: selectedEmployeeSize.value,
+              type: prev.numberOfEmployees?.type || ""
+            } : prev.numberOfEmployees,
+            numberOfEmployeesRef: values.numberOfEmployees || prev.numberOfEmployeesRef,
+            
+            // Update revenue
+            annualRevenue: selectedRevenueSize ? {
+              id: selectedRevenueSize.id,
+              code: selectedRevenueSize.code,
+              value: selectedRevenueSize.value,
+              type: prev.annualRevenue?.type || ""
+            } : prev.annualRevenue,
+            annualRevenueRef: values.revenue || prev.annualRevenueRef,
+            
+            // Update website and address
+            companyWebsite: values.companyWebsite || prev.companyWebsite,
+            address: values.address || prev.address,
+            
+            // Update country
+            country: selectedCountry ? {
+              id: selectedCountry.id,
+              code: selectedCountry.code,
+              value: selectedCountry.value,
+              type: prev.country?.type || ""
+            } : prev.country,
+            countryRef: values.country,
+            
+            // Update lead rating
+            leadRatingRef: values.leadRating || prev.leadRatingRef,
+            leadRating: selectedLeadRating ? {
+              id: selectedLeadRating.id,
+              code: selectedLeadRating.code,
+              value: selectedLeadRating.value,
+              type: "SalesLeadRating"
+            } : prev.leadRating,
+
+            // Update version from API response
+            version: updatedLead.version || prev.version
+          };
+        });
+        setRefreshTrigger(prev => prev + 1);
+
+        message.success("Lead information updated successfully");
+        setIsEditingLeadInfo(false);
+      }
+    } catch (error) {
+      console.error("Error saving lead information:", error);
+      message.error("Failed to update lead information");
+    } finally {
+      setSavingLeadInfo(false);
+    }
+  };
+
+  const fetchCatalogOptions = async (catalogClient: any) => {
+    if (revenueSizeOptions.length === 0 || leadSourceOptions.length === 0 || leadStatusOptions.length === 0 || industryOptions.length === 0 || numberOfEmployeesOptions.length === 0 || countryOptions.length === 0 || leadRatingOptions.length === 0) {
+      try {
+        setLoadingCatalogData(true);
+        
+        const fetchAllCatalogEntries = async (catalogIdentifier: string, version: string = 'v1') => {
+          let allEntries: any[] = [];
+          let offset = 0;
+          const limit = 100; 
+          let hasMore = true;
+
+          while (hasMore) {
+            const response = await catalogClient.getCatalogEntriesList({
+              catalogIdentifier,
+              version
+            }, {
+              limit,
+              offset
+            });
+
+            if (response.data && response.data.length > 0) {
+              allEntries = [...allEntries, ...response.data];
+              offset += limit;
+              
+              if (response.data.length < limit) {
+                hasMore = false;
+              }
+            } else {
+              hasMore = false;
+            }
+          }
+
+          return allEntries
+            .map((entry: any) => ({
+              id: entry.id,
+              code: entry.code,
+              value: entry.value
+            }))
+            .sort((a, b) => a.value.localeCompare(b.value));
+        };
+        
+        // Fetch revenue size options if not already loaded
+        if (revenueSizeOptions.length === 0) {
+          const revenueSizeData = await fetchAllCatalogEntries('RevenueSize');
+          setRevenueSizeOptions(revenueSizeData);
+        }
+        
+        // Fetch lead source options if not already loaded
+        if (leadSourceOptions.length === 0) {
+          const leadSourceData = await fetchAllCatalogEntries('LeadSource');
+          setLeadSourceOptions(leadSourceData);
+        }
+        
+        // Fetch lead status options if not already loaded
+        if (leadStatusOptions.length === 0) {
+          const leadStatusData = await fetchAllCatalogEntries('LeadStatus');
+          setLeadStatusOptions(leadStatusData);
+        }
+        
+        // Fetch industry options
+        if (industryOptions.length === 0) {
+          const industryData = await fetchAllCatalogEntries('IndustryClass');
+          setIndustryOptions(industryData);
+        }
+        
+        // Fetch employee size options
+        if (numberOfEmployeesOptions.length === 0) {
+          const employeeSizeData = await fetchAllCatalogEntries('EmployeeSize');
+          setNumberOfEmployeesOptions(employeeSizeData);
+        }
+        
+        // Fetch country options
+        if (countryOptions.length === 0) {
+          const countryData = await fetchAllCatalogEntries('Country');
+          setCountryOptions(countryData);
+        }
+        
+        // Fetch lead rating options
+        if (leadRatingOptions.length === 0) {
+          const leadRatingData = await fetchAllCatalogEntries('SalesLeadRating');
+          setLeadRatingOptions(leadRatingData);
+        }
+      } catch (err) {
+        console.error('Error fetching catalog data:', err);
+        message.error('Failed to load reference data');
+      } finally {
+        setLoadingCatalogData(false);
+      }
+    }
+  };
+
   const CollapsibleCard: React.FC<{
     title: string;
     defaultOpen?: boolean;
@@ -425,8 +1402,7 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
       fontSize: '16px',
       fontWeight: 500,
       color: '#333333',
-      borderBottom: id === "ai-summary-card" && isOpen ? '1px solid #f0f0f0' : 'none',
-      cursor: 'pointer'
+      borderBottom: id === "ai-summary-card" && isOpen ? '1px solid #f0f0f0' : 'none'
     };
 
     const contentStyle: React.CSSProperties = {
@@ -438,19 +1414,25 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
       <div className={`gba:collapsible-card-${id}`} data-testid={`collapsible-card-${id}`} style={panelStyle}>
         <div 
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...headerStyle }}
-          onClick={() => setIsOpen(!isOpen)}
         >
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <span>{title}</span>
             {showArrow && (
-              <CaretDownOutlined
-                style={{ 
-                  fontSize: '12px', 
-                  marginLeft: '8px',
-                  transition: 'transform 0.3s',
-                  transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)'
-                }}
-              />
+              <div 
+                className="gba:collapse-arrow"
+                data-testid={`collapse-arrow-${id}`}
+                onClick={() => setIsOpen(!isOpen)}
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
+              >
+                <CaretDownOutlined
+                  style={{ 
+                    fontSize: '12px', 
+                    marginLeft: '8px',
+                    transition: 'transform 0.3s',
+                    transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)'
+                  }}
+                />
+              </div>
             )}
           </div>
           {extra}
@@ -521,10 +1503,10 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
               </div>
               <div style={{ color: '#8c8c8c', fontSize: '14px' }}>
                 <BulbOutlined style={{ marginRight: '4px' }} />
-                <span>{typeof lead.industry === 'object' ? lead?.industry?.value || 'Unknown' : lead.industry || 'Unknown'}</span>
+                <span>{typeof lead?.account?.industry === 'object' ? lead?.account?.industry?.value || 'Unknown' : lead?.account?.industry || 'Unknown'}</span>
                 <span style={{ margin: '0 8px' }}>•</span>
                 <TeamOutlined style={{ marginRight: '4px' }} />
-                <span>{typeof lead.numberOfEmployees === 'object' ? lead?.numberOfEmployees?.value || 'Unknown' : lead.numberOfEmployees || 'Unknown'}</span>
+                <span>{typeof lead?.account?.numberOfEmployees === 'object' ? lead?.account?.numberOfEmployees?.value || 'Unknown' : lead?.account?.numberOfEmployees || 'Unknown'}</span>
               </div>
             </div>
           </div>
@@ -554,9 +1536,9 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
                 borderRadius: '4px'
               }}
               data-testid="edit-lead-button"
-              onClick={() => setIsEditing(true)}
+              onClick={handleUpdateAccount}
             >
-              Edit Lead
+              Edit
             </Button>
             
             <Button 
@@ -589,38 +1571,203 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
             id="company-info-card"
             style={{ marginBottom: '24px' }}
             showArrow={true}
-          >
-            <div data-testid="company-info" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                <EnvironmentOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
-                <div>
-                  <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Address</div>
-                  <div style={{ fontSize: '16px', color: '#000000' }}>{lead.address || '---'}</div>
-                </div>
+            extra={isEditingCompanyInfo ? (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button
+                  type="primary"
+                  size="small"
+                  onClick={handleSaveCompanyInfo}
+                  data-testid="save-company-info-button"
+                  loading={savingCompanyInfo}
+                >
+                  Save
+                </Button>
+                <Button
+                  size="small"
+                  onClick={handleCancelCompanyEdit}
+                  data-testid="cancel-company-info-button"
+                  disabled={savingCompanyInfo}
+                >
+                  Cancel
+                </Button>
               </div>
+            ) : (
+              lead?.account === null ? (
+                <Button
+                  type="text" 
+                  icon={<PlusCircleOutlined />} 
+                  style={{
+                    color: '#000000',
+                    padding: '0',
+                    height: 'auto',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                  data-testid="add-account-button"
+                  onClick={handleAddAccount}
+                >
+                  Add
+                </Button>
+              ) : (
+                <Button
+                  type="text"
+                  icon={<EditOutlined />}
+                  style={{
+                    color: '#000000',
+                    padding: '0',
+                    height: 'auto',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                  data-testid="edit-company-info-button"
+                  onClick={handleUpdateAccount}
+                >
+                  Edit
+                </Button>
+              )
+            )}
+          > 
+            {isEditingCompanyInfo ? (
+              <Form
+                form={form}
+                layout="vertical"
+                initialValues={{
+                  companyName: lead?.account?.name || '',
+                  addressLine: lead?.account?.addressLine || '',
+                  annualRevenue: lead?.account?.annualRevenueRef || '',
+                  foundationDate: lead?.account?.foundationDate ? dayjs(lead.account.foundationDate) : undefined,
+                  website: lead?.account?.website || ''
+                }}
+                data-testid="company-info-form"
+              >
+                <Form.Item
+                  name="companyName"
+                  label="Company Name"
+                  data-testid="company-name-input"
+                  style={{ marginBottom: '16px' }}
+                >
+                  <Input prefix={<BankOutlined style={{ color: '#8c8c8c' }} />} />
+                </Form.Item>
+                
+                <Form.Item
+                  name="addressLine"
+                  label="Address"
+                  data-testid="address-input"
+                  style={{ marginBottom: '16px' }}
+                >
+                  <Input prefix={<EnvironmentOutlined style={{ color: '#8c8c8c' }} />} />
+                </Form.Item>
 
-              <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                <CalendarOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
-                <div>
-                  <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Annual Revenue</div>
-                  <div style={{ fontSize: '16px', color: '#000000' }}>{lead.annualRevenue?.value || '---'}</div>
-                </div>
-              </div>
+                <Form.Item
+                  name="annualRevenue"
+                  label="Annual Revenue"
+                  data-testid="revenue-input"
+                  style={{ marginBottom: '16px' }}
+                >
+                  <Select
+                    placeholder="Select annual revenue"
+                    loading={loadingCatalogData}
+                    allowClear
+                    style={{ width: '100%' }}
+                    data-testid="annual-revenue-select"
+                  >
+                    {revenueSizeOptions.map(option => (
+                      <Select.Option key={option.id} value={option.id}>
+                        {option.value}
+                      </Select.Option>
+                    ))}
+                  </Select>
+                </Form.Item>
 
-              <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                <GlobalOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
-                <div>
-                  <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Website</div>
-                  {lead.companyWebsite ? (
-                    <a href={`https://${lead.companyWebsite}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '16px', color: '#1677ff' }}>
-                      {lead.companyWebsite}
-                    </a>
-                  ) : (
-                    <div style={{ fontSize: '16px', color: '#000000' }}>---</div>
-                  )}
+                <Form.Item
+                  name="foundationDate"
+                  label="Foundation Date"
+                  data-testid="foundation-date-input"
+                  style={{ marginBottom: '16px' }}
+                >
+                  <DatePicker 
+                    style={{ 
+                      width: '100%',
+                      border: '1px solid #d9d9d9',
+                      borderRadius: '2px'
+                    }} 
+                    format="YYYY-MM-DD"
+                    placeholder="Select foundation date"
+                    data-testid="foundation-date-picker"
+                    suffixIcon={<CalendarOutlined style={{ color: '#8c8c8c' }} />}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="website"
+                  label="Website"
+                  data-testid="website-input"
+                >
+                  <Input prefix={<GlobalOutlined style={{ color: '#8c8c8c' }} />} />
+                </Form.Item>
+              </Form>
+            ) : (
+              lead?.account === null ? (
+                <div data-testid="no-company-info" style={{ textAlign: 'center', padding: '20px 0' }}>
+                  <div style={{ fontSize: '16px', color: '#8c8c8c', marginBottom: '12px' }}>
+                    Company information does not exist
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
+                    Click the Add button to create company information
+                  </div>
                 </div>
-              </div>
-            </div>
+              ) : (
+                <div data-testid="company-info" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start' }} data-testid="company-name">
+                    <BankOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Company Name</div>
+                      <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.account?.name || '---'}</div>
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                    <EnvironmentOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Address</div>
+                      <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.account?.addressLine || '---'}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                    <CalendarOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Annual Revenue</div>
+                      <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.account?.annualRevenue?.value || '---'}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start' }} data-testid="foundation-date">
+                    <CalendarOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Foundation Date</div>
+                      <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.account?.foundationDate || '---'}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                    <GlobalOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Website</div>
+                      {lead?.account?.website ? (
+                        <a href={`https://${lead?.account?.website}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '16px', color: '#1677ff' }}>
+                          {lead?.account?.website}
+                        </a>
+                      ) : (
+                        <div style={{ fontSize: '16px', color: '#000000' }}>---</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            )}
           </CollapsibleCard>
           
           {/* Contacts section */}
@@ -628,10 +1775,30 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
             title="Contacts"
             defaultOpen={true}
             id="contacts-card"
-            extra={
+            extra={isEditingContactInfo ? (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button
+                  type="primary"
+                  size="small"
+                  onClick={handleSaveContactInfo}
+                  data-testid="save-contact-info-button"
+                  loading={savingContactInfo}
+                >
+                  Save
+                </Button>
+                <Button
+                  size="small"
+                  onClick={handleCancelContactEdit}
+                  data-testid="cancel-contact-info-button"
+                  disabled={savingContactInfo}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
               <Button 
                 type="text" 
-                icon={<UserAddOutlined />} 
+                icon={<EditOutlined />} 
                 style={{
                   color: '#000000',
                   padding: '0',
@@ -642,281 +1809,518 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
                 }}
                 data-testid="add-contact-button"
                 className="gba:add-contact-button"
+                onClick={!lead.contact || !lead.contact.id ? handleAddContact : handleUpdateContact}
               >
-                Add
+                {!lead.contact || !lead.contact.id ? "Add" : "Edit"}
               </Button>
-            }
+            )}
             style={{ marginBottom: '24px' }}
             showArrow={true}
           >
-            {lead.contact && lead.contact.name ? (
-              <div data-testid="contacts-list" className="gba:contacts-list" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div 
-                  className="gba:contact-item"
-                  data-testid="contact-item"
-                  style={{ paddingBottom: '24px' }}
+            {isEditingContactInfo ? (
+              <Form
+                form={contactForm}
+                layout="vertical"
+                initialValues={{
+                  contactName: lead?.contact?.name || '',
+                  contactEmail: lead?.contact?.email || '',
+                  contactPhone: lead?.contact?.phone || '',
+                  contactJobTitle: lead?.contact?.jobTitle || ''
+                }}
+                data-testid="contact-info-form"
+              >
+                <Form.Item
+                  name="contactName"
+                  label="Full Name"
+                  data-testid="contact-name-input"
+                  rules={[{ required: true, message: 'Please enter a name' }]}
+                  style={{ marginBottom: '16px' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '16px' }}>
-                    <div
-                      className="gba:contact-avatar"
-                      data-testid="contact-avatar"
-                      style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '50%',
-                        backgroundColor: '#f5f5f5',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: '16px',
-                        fontSize: '16px',
-                        color: '#666',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      {lead.contact.name.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div className="gba:contact-details" style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-                        <div 
-                          className="gba:contact-name" 
-                          data-testid="contact-name" 
-                          style={{ fontSize: '16px', fontWeight: '500', marginRight: '8px' }}
-                        >
-                          {lead.contact.name}
+                  <Input prefix={<UserOutlined style={{ color: '#8c8c8c' }} />} />
+                </Form.Item>
+                
+                <Form.Item
+                  name="contactJobTitle"
+                  label="Job Title"
+                  data-testid="job-title-input"
+                  style={{ marginBottom: '16px' }}
+                >
+                  <Input prefix={<TeamOutlined style={{ color: '#8c8c8c' }} />} />
+                </Form.Item>
+                
+                <Form.Item
+                  name="contactEmail"
+                  label="Email"
+                  data-testid="contact-email-input"
+                  style={{ marginBottom: '16px' }}
+                  rules={[
+                    { 
+                      type: 'email',
+                      message: 'Please enter a valid email'
+                    }
+                  ]}
+                >
+                  <Input prefix={<MailOutlined style={{ color: '#8c8c8c' }} />} />
+                </Form.Item>
+
+                <Form.Item
+                  name="contactPhone"
+                  label="Phone"
+                  data-testid="contact-phone-input"
+                >
+                  <Input prefix={<PhoneOutlined style={{ color: '#8c8c8c' }} />} />
+                </Form.Item>
+              </Form>
+            ) : (
+              lead.contact && lead.contact.name ? (
+                <div data-testid="contacts-list" className="gba:contacts-list" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  <div 
+                    className="gba:contact-item"
+                    data-testid="contact-item"
+                    style={{ paddingBottom: '24px' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start' }} data-testid="contact-name">
+                      <div
+                        className="gba:contact-avatar"
+                        data-testid="contact-avatar"
+                        style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '50%',
+                          backgroundColor: '#f5f5f5',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: '16px',
+                          fontSize: '16px',
+                          color: '#666',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        {lead.contact.name.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <div className="gba:contact-details" style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                          <div 
+                            className="gba:contact-name" 
+                            data-testid="contact-name" 
+                            style={{ fontSize: '16px', fontWeight: '500', marginRight: '8px' }}
+                          >
+                            {lead.contact.name}
+                          </div>
+                          <span
+                            className="gba:contact-primary-badge"
+                            data-testid="contact-primary-badge"
+                            style={{
+                              fontSize: '12px',
+                              padding: '2px 8px',
+                              backgroundColor: '#1677ff',
+                              color: 'white',
+                              borderRadius: '10px',
+                              fontWeight: 'normal',
+                            }}
+                          >
+                            Primary
+                          </span>
                         </div>
-                        <span
-                          className="gba:contact-primary-badge"
-                          data-testid="contact-primary-badge"
-                          style={{
-                            fontSize: '12px',
-                            padding: '2px 8px',
-                            backgroundColor: '#1677ff',
-                            color: 'white',
-                            borderRadius: '10px',
-                            fontWeight: 'normal',
-                          }}
+                        <div 
+                          className="gba:contact-position" 
+                          data-testid="contact-position"
+                          style={{ color: '#8c8c8c', fontSize: '14px', marginBottom: '12px' }}
                         >
-                          Primary
-                        </span>
-                      </div>
-                      <div 
-                        className="gba:contact-position" 
-                        data-testid="contact-position"
-                        style={{ color: '#8c8c8c', fontSize: '14px', marginBottom: '12px' }}
-                      >
-                        {lead.contact.jobTitle}
-                      </div>
-                      
-                      <div 
-                        className="gba:contact-email"
-                        data-testid="contact-email"
-                        style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', color: '#595959' }}
-                      >
-                        <MailOutlined style={{ marginRight: '8px', fontSize: '14px', color: '#8c8c8c' }} />
-                        <div>{lead.contact.email}</div>
-                      </div>
-                      <div 
-                        className="gba:contact-phone"
-                        data-testid="contact-phone"
-                        style={{ display: 'flex', alignItems: 'center', color: '#595959' }}
-                      >
-                        <PhoneOutlined style={{ marginRight: '8px', fontSize: '14px', color: '#8c8c8c' }} />
-                        <div>{lead.contact.phone}</div>
+                          {lead.contact.jobTitle}
+                        </div>
+                        
+                        <div 
+                          className="gba:contact-email"
+                          data-testid="contact-email"
+                          style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', color: '#595959' }}
+                        >
+                          <MailOutlined style={{ marginRight: '8px', fontSize: '14px', color: '#8c8c8c' }} />
+                          <div>{lead.contact.email}</div>
+                        </div>
+                        <div 
+                          className="gba:contact-phone"
+                          data-testid="contact-phone"
+                          style={{ display: 'flex', alignItems: 'center', color: '#595959' }}
+                        >
+                          <PhoneOutlined style={{ marginRight: '8px', fontSize: '14px', color: '#8c8c8c' }} />
+                          <div>{lead.contact.phone}</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="gba:contact-actions" style={{ display: 'flex', gap: '16px' }}>
-                    <Button 
-                      className="gba:contact-call-button"
-                      data-testid="contact-call-button"
-                      style={{ 
-                        flex: 1, 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        alignItems: 'center',
-                        height: '40px' 
-                      }}
-                      icon={<PhoneOutlined />}
-                    >
-                      Call
-                    </Button>
-                    <Button 
-                      className="gba:contact-email-button"
-                      data-testid="contact-email-button"
-                      style={{ 
-                        flex: 1, 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        alignItems: 'center',
-                        height: '40px' 
-                      }}
-                      icon={<MailOutlined />}
-                    >
-                      Email
-                    </Button>
+                    <div className="gba:contact-actions" style={{ display: 'flex', gap: '16px' }}>
+                      <Button 
+                        className="gba:contact-call-button"
+                        data-testid="contact-call-button"
+                        style={{ 
+                          flex: 1, 
+                          display: 'flex', 
+                          justifyContent: 'center', 
+                          alignItems: 'center',
+                          height: '40px' 
+                        }}
+                        icon={<PhoneOutlined />}
+                      >
+                        Call
+                      </Button>
+                      <Button 
+                        className="gba:contact-email-button"
+                        data-testid="contact-email-button"
+                        style={{ 
+                          flex: 1, 
+                          display: 'flex', 
+                          justifyContent: 'center', 
+                          alignItems: 'center',
+                          height: '40px' 
+                        }}
+                        icon={<MailOutlined />}
+                      >
+                        Email
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : null}
+              ) : (
+                <div data-testid="no-contact-info" style={{ textAlign: 'center', padding: '20px 0' }}>
+                  <div style={{ fontSize: '16px', color: '#8c8c8c', marginBottom: '12px' }}>
+                    Contact information does not exist
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
+                    Click the Add button to create contact information
+                  </div>
+                </div>
+              )
+            )}
           </CollapsibleCard>
           
-          {/* Opportunities section */}
-          <CollapsibleCard
-            title="Opportunities"
-            defaultOpen={true}
-            id="opportunities-card"
-            extra={
-              <Button 
-                type="text" 
-                icon={<PlusCircleOutlined />}
-                style={{
-                  color: '#000000',
-                  padding: '0 8px',
-                  height: 'auto',
-                  fontSize: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  border: '1px solid #d9d9d9',
-                  borderRadius: '4px'
-                }} 
-                data-testid="add-opportunity-button"
-                className="gba:add-opportunity-button"
-              >
-                Add
-              </Button>
-            }
-            style={{ 
-              marginBottom: '24px',
-              backgroundColor: 'white',
-              borderRadius: '8px',
-              border: '1px solid #f0f0f0',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)'
-            }}
-            showArrow={true}
-          >
-            <div data-testid="opportunities-list" className="gba:opportunities-list" style={{ display: 'flex', flexDirection: 'column' }}>
-              {lead.opportunities.map((opportunity, index) => {
-                // All progress bars are black
-                const progressBarColor = '#000000';
-                
-                // Determine the badge background color based on the stage
-                let badgeBgColor = '#f9f0ff'; // Light purple for Proposal
-                let badgeTextColor = '#722ed1'; // Purple
-                
-                if (opportunity.stage === 'Discovery') {
-                  badgeBgColor = '#e6f7ff'; // Light blue
-                  badgeTextColor = '#1890ff'; // Blue
-                } else if (opportunity.stage === 'Negotiation') {
-                  badgeBgColor = '#fff7e6'; // Light yellow
-                  badgeTextColor = '#fa8c16'; // Orange
-                }
-                
-                return (
-                  <div 
-                    key={opportunity.id}
-                    className="gba:opportunity-item"
-                    data-testid={`opportunity-item-${opportunity.id}`}
-                    style={{
-                      padding: '24px',
-                      margin: '8px 0',
-                      border: '1px solid #f0f0f0',
-                      borderRadius: '8px',
-                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                      <div style={{ flex: 1 }}>
-                        <div 
-                          className="gba:opportunity-name"
-                          data-testid={`opportunity-name-${opportunity.id}`}
-                          style={{ 
-                            fontSize: '16px', 
-                            fontWeight: '700', 
-                            marginBottom: '8px',
-                            color: '#262626'
-                          }}
-                        >
-                          {opportunity.name}
-                        </div>
-                        <div 
-                          className="gba:opportunity-value"
-                          data-testid={`opportunity-value-${opportunity.id}`}
-                          style={{ 
-                            fontSize: '16px', 
-                            fontWeight: '700', 
-                            color: '#262626',
-                            marginBottom: '16px'
-                          }}
-                        >
-                          $ {opportunity.value.toLocaleString()}
-                        </div>
-                      </div>
-                      <div
-                        className="gba:opportunity-stage-badge"
-                        data-testid={`opportunity-stage-${opportunity.id}`}
-                        style={{
-                          padding: '4px 12px',
-                          borderRadius: '16px',
-                          backgroundColor: badgeBgColor,
-                          color: badgeTextColor,
-                          fontSize: '14px',
-                          fontWeight: '600',
-                        }}
-                      >
-                        {opportunity.stage}
-                      </div>
-                    </div>
-                    
-                    <div style={{ marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <div 
-                          className="gba:opportunity-probability-label"
-                          style={{ fontSize: '14px', color: '#8c8c8c' }}
-                        >
-                          Probability
-                        </div>
-                        <div 
-                          className="gba:opportunity-probability-value"
-                          data-testid={`opportunity-probability-${opportunity.id}`}
-                          style={{ fontSize: '14px', fontWeight: '500' }}
-                        >
-                          {opportunity.probability}%
-                        </div>
-                      </div>
-                      <div 
-                        className="gba:opportunity-progress-bar"
-                        style={{ 
-                          height: '6px', 
-                          backgroundColor: '#f5f5f5', 
-                          borderRadius: '3px', 
-                          overflow: 'hidden',
-                          marginBottom: '12px'
-                        }}
-                      >
-                        <div 
-                          style={{ 
-                            width: `${opportunity.probability}%`, 
-                            height: '100%', 
-                            backgroundColor: progressBarColor 
-                          }} 
-                        />
-                      </div>
-                    </div>
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#8c8c8c' }}>
-                      <div className="gba:opportunity-close-date">
-                        Expected close: <span style={{ color: '#595959' }}>{opportunity.expectedCloseDate}</span>
-                      </div>
-                      <div className="gba:opportunity-owner">
-                        Owner: <span style={{ color: '#595959' }}>{opportunity.owner}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CollapsibleCard>
+
+<CollapsibleCard
+  title="Lead Information"
+  defaultOpen={true}
+  id="lead-info-card"
+  style={{ 
+    marginBottom: '24px',
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    border: '1px solid #f0f0f0',
+    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)'
+  }}
+  showArrow={true}
+  extra={isEditingLeadInfo ? (
+    <div style={{ display: 'flex', gap: '8px' }}>
+      <Button
+        type="primary"
+        size="small"
+        onClick={handleSaveLeadInfo}
+        data-testid="save-lead-info-button"
+        loading={savingLeadInfo}
+      >
+        Save
+      </Button>
+      <Button
+        size="small"
+        onClick={handleCancelLeadInfoEdit}
+        data-testid="cancel-lead-info-button"
+        disabled={savingLeadInfo}
+      >
+        Cancel
+      </Button>
+    </div>
+  ) : (
+    <Button 
+      type="text" 
+      icon={<EditOutlined />} 
+      style={{
+        color: '#000000',
+        padding: '0',
+        height: 'auto',
+        fontSize: '14px',
+        display: 'flex',
+        alignItems: 'center'
+      }}
+      data-testid="edit-lead-info-button"
+      onClick={handleUpdateLeadInfo}
+    >
+      Edit
+    </Button>
+  )}
+>
+  {isEditingLeadInfo ? (
+    <Form
+      form={leadForm}
+      layout="vertical"
+      initialValues={{
+        leadName: lead?.name || '',
+        leadRating: lead?.leadRatingRef || '',
+        leadStatus: lead?.statusRef || '',
+        leadSource: lead?.sourceRef || '',
+        industry: lead?.industryRef || '',
+        numberOfEmployees: lead?.numberOfEmployeesRef || '',
+        revenue: lead?.annualRevenueRef || '',
+        companyWebsite: lead?.companyWebsite || '',
+        country: lead?.countryRef || '',
+        address: lead?.address || ''
+      }}
+      data-testid="lead-info-form"
+    >
+      <Form.Item
+        name="leadName"
+        label="Company Name"
+        data-testid="lead-name-input"
+        style={{ marginBottom: '16px' }}
+      >
+        <Input prefix={<BankOutlined style={{ color: '#8c8c8c' }} />} />
+      </Form.Item>
+      
+      <Form.Item
+        name="leadRating"
+        label="Rating"
+        data-testid="lead-rating-input"
+        style={{ marginBottom: '16px' }}
+      >
+        <Select 
+          placeholder="Select rating"
+          data-testid="lead-rating-select"
+          suffixIcon={<StarOutlined style={{ color: '#8c8c8c' }} />}
+          allowClear
+          style={{ width: '100%' }}
+        >
+          {leadRatingOptions.map(option => (
+            <Select.Option key={option.id} value={option.id}>
+              {option.value}
+            </Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      <Form.Item
+        name="leadStatus"
+        label="Status"
+        data-testid="lead-status-input"
+        style={{ marginBottom: '16px' }}
+      >
+        <Select
+          placeholder="Select status"
+          allowClear
+          style={{ width: '100%' }}
+          data-testid="lead-status-select"
+        >
+          {leadStatusOptions.map(option => (
+            <Select.Option key={option.id} value={option.id}>
+              {option.value}
+            </Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      <Form.Item
+        name="leadSource"
+        label="Source"
+        data-testid="lead-source-input"
+        style={{ marginBottom: '16px' }}
+      >
+        <Select
+          placeholder="Select source"
+          allowClear
+          style={{ width: '100%' }}
+          data-testid="lead-source-select"
+        >
+          {leadSourceOptions.map(option => (
+            <Select.Option key={option.id} value={option.id}>
+              {option.value}
+            </Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      <Form.Item
+        name="industry"
+        label="Industry"
+        data-testid="industry-input"
+        style={{ marginBottom: '16px' }}
+      >
+        <Select
+          placeholder="Select industry"
+          allowClear
+          style={{ width: '100%' }}
+          data-testid="industry-select"
+        >
+          {industryOptions.map(option => (
+            <Select.Option key={option.id} value={option.id}>
+              {option.value}
+            </Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      <Form.Item
+        name="numberOfEmployees"
+        label="Number of Employees"
+        data-testid="number-of-employees-input"
+        style={{ marginBottom: '16px' }}
+      >
+        <Select
+          placeholder="Select number of employees"
+          allowClear
+          style={{ width: '100%' }}
+          data-testid="number-of-employees-select"
+        >
+          {numberOfEmployeesOptions.map(option => (
+            <Select.Option key={option.id} value={option.id}>
+              {option.value}
+            </Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      <Form.Item
+        name="revenue"
+        label="Revenue"
+        data-testid="revenue-input"
+        style={{ marginBottom: '16px' }}
+      >
+        <Select
+          placeholder="Select revenue"
+          allowClear
+          style={{ width: '100%' }}
+          data-testid="revenue-select"
+        >
+          {revenueSizeOptions.map(option => (
+            <Select.Option key={option.id} value={option.id}>
+              {option.value}
+            </Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      <Form.Item
+        name="companyWebsite"
+        label="Company Website"
+        data-testid="company-website-input"
+        style={{ marginBottom: '16px' }}
+      >
+        <Input prefix={<GlobalOutlined style={{ color: '#8c8c8c' }} />} />
+      </Form.Item>
+
+      <Form.Item
+        name="country"
+        label="Country"
+        data-testid="country-input"
+        style={{ marginBottom: '16px' }}
+      >
+        <Select
+          placeholder="Select country"
+          allowClear
+          style={{ width: '100%' }}
+          data-testid="country-select"
+        >
+          {countryOptions.map(option => (
+            <Select.Option key={option.id} value={option.id}>
+              {option.value}
+            </Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      <Form.Item
+        name="address"
+        label="Address"
+        data-testid="address-input"
+      >
+        <Input prefix={<EnvironmentOutlined style={{ color: '#8c8c8c' }} />} />
+      </Form.Item>
+    </Form>
+  ) : (
+    <div data-testid="lead-info" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+        <UserOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Company Name</div>
+          <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.name || '---'}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+        <StarOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Rating</div>
+          <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.leadRating.value || '---'}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+        <TagsOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Status</div>
+          <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.status || '---'}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+        <FunnelPlotOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Source</div>
+          <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.source?.value || '---'}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+        <BankOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Industry</div>
+          <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.industry?.value || '---'}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+        <TeamOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Number of Employees</div>
+          <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.numberOfEmployees?.value || '---'}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+        <CalendarOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Revenue</div>
+          <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.annualRevenue?.value || '---'}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+        <GlobalOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Company Website</div>
+          {lead?.companyWebsite ? (
+            <a href={`https://${lead?.companyWebsite}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '16px', color: '#1677ff' }}>
+              {lead?.companyWebsite}
+            </a>
+          ) : (
+            <div style={{ fontSize: '16px', color: '#000000' }}>---</div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+        <EnvironmentOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Country</div>
+          <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.country?.value || '---'}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+        <EnvironmentOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Address</div>
+          <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.address || '---'}</div>
+        </div>
+      </div>
+    </div>
+  )}
+</CollapsibleCard>
 
           {/* Quick Actions section */}
           <CollapsibleCard
@@ -1074,6 +2478,7 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
               marginBottom: '24px'
             }}
           >
+            
             {/* Tabs */}
             <div 
               className="gba:activity-tabs" 
@@ -1182,503 +2587,146 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
 
               {/* Activity Timeline Items */}
               <div style={{ padding: '0 24px', position: 'relative' }}>
-                {/* Activity 1 */}
+                {/* Vertical timeline line */}
                 <div 
-                  className="gba:activity-item" 
-                  data-testid="activity-item-1"
-                  style={{ 
-                    padding: '24px 0', 
-                    position: 'relative'
+                  style={{
+                    position: 'absolute',
+                    left: '24px',
+                    top: '48px',
+                    bottom: '24px',
+                    width: '1px',
+                    backgroundColor: '#f0f0f0',
+                    zIndex: 1
                   }}
-                >
+                />
+                
+                {lead.activities && lead.activities.length > 0 ? (
+                  lead.activities.map((activity, index) => {
+                    // Determine the icon based on activity type
+                    let ActivityIcon = CommentOutlined; // Default icon
+                    if (activity.activityType.code === 'CALL') {
+                      ActivityIcon = PhoneOutlined;
+                    } else if (activity.activityType.code === 'EMAIL') {
+                      ActivityIcon = MailOutlined;
+                    } else if (activity.activityType.code === 'MEETING') {
+                      ActivityIcon = VideoCameraOutlined;
+                    }
+                    
+                    // Format date
+                    const formattedDate = activity.createdAt ? dayjs(activity.createdAt).format('MMM D, YYYY, h:mm A') : '';
+                    
+                    // Generate initials from owner name
+                    const ownerName = `${activity.ownerEmployee.firstName} ${activity.ownerEmployee.lastName}`.trim();
+                    const initials = ownerName.split(' ')
+                      .map(part => part[0])
+                      .join('')
+                      .toUpperCase()
+                      .substring(0, 2) || 'NA';
+                      
+                    return (
+                      <div 
+                        key={activity.id || index}
+                        className="gba:activity-item" 
+                        data-testid={`activity-item-${index + 1}`}
+                        style={{ 
+                          padding: '24px 0', 
+                          position: 'relative'
+                        }}
+                      >
+                        <div 
+                          className="gba:activity-icon" 
+                          style={{
+                            position: 'absolute',
+                            left: '0',
+                            top: '24px',
+                            zIndex: 2 /* Ensure icon is above the vertical line */
+                          }}
+                        >
+                          <ActivityIcon style={{ 
+                            fontSize: '16px', 
+                            padding: '8px', 
+                            borderRadius: '50%', 
+                            border: '1px solid #f0f0f0',
+                            backgroundColor: '#fff' /* Ensure background is white to cover the line */
+                          }} />
+                        </div>
+
+                        <div style={{ marginLeft: '40px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <div 
+                              className="gba:activity-title"
+                              data-testid={`activity-title-${index + 1}`}
+                              style={{ 
+                                fontWeight: '600', 
+                                fontSize: '16px' 
+                              }}
+                            >
+                              {activity.title}
+                            </div>
+                            <div 
+                              className="gba:activity-time"
+                              data-testid={`activity-time-${index + 1}`}
+                              style={{ 
+                                color: '#8c8c8c', 
+                                fontSize: '14px' 
+                              }}
+                            >
+                              {formattedDate}
+                            </div>
+                          </div>
+
+                          {activity.description && (
+                            <div 
+                              className="gba:activity-description"
+                              data-testid={`activity-description-${index + 1}`}
+                              style={{ 
+                                marginBottom: '12px',
+                                fontSize: '14px',
+                                color: '#595959'
+                              }}
+                            >
+                              {activity.description}
+                            </div>
+                          )}
+
+                          <div 
+                            className="gba:activity-owner"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <Avatar 
+                              style={{ 
+                                backgroundColor: index % 3 === 0 ? '#1890ff' : index % 3 === 1 ? '#722ed1' : '#f5f5f5',
+                                marginRight: '8px',
+                                fontSize: '12px',
+                                color: index % 3 === 2 ? '#595959' : '#fff',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center'
+                              }}
+                              size={24}
+                            >
+                              {initials}
+                            </Avatar>
+                            <span style={{ fontSize: '14px', color: '#595959' }}>{ownerName}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
                   <div 
-                    className="gba:activity-icon" 
-                    style={{
-                      position: 'absolute',
-                      left: '0',
-                      top: '24px',
-                      zIndex: 2 /* Ensure icon is above the vertical line */
+                    style={{ 
+                      textAlign: 'center', 
+                      color: '#8c8c8c',
+                      padding: '36px 0'
                     }}
                   >
-                    <PhoneOutlined style={{ 
-                      fontSize: '16px', 
-                      padding: '8px', 
-                      borderRadius: '50%', 
-                      border: '1px solid #f0f0f0',
-                      backgroundColor: '#fff' /* Ensure background is white to cover the line */
-                    }} />
+                    No activities found for this lead
                   </div>
-
-                  <div style={{ marginLeft: '40px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <div 
-                        className="gba:activity-title"
-                        data-testid="activity-title-1"
-                        style={{ 
-                          fontWeight: '600', 
-                          fontSize: '16px' 
-                        }}
-                      >
-                        Sales call with Jane Smith
-                      </div>
-                      <div 
-                        className="gba:activity-time"
-                        data-testid="activity-time-1"
-                        style={{ 
-                          color: '#8c8c8c', 
-                          fontSize: '14px' 
-                        }}
-                      >
-                        May 20, 2023, 5:30 PM
-                      </div>
-                    </div>
-
-                    <div 
-                      className="gba:activity-description"
-                      data-testid="activity-description-1"
-                      style={{ 
-                        marginBottom: '12px',
-                        fontSize: '14px',
-                        color: '#595959'
-                      }}
-                    >
-                      Discussed product features and pricing options. Jane showed interest in our enterprise plan.
-                    </div>
-
-                    <div 
-                      className="gba:activity-details"
-                      data-testid="activity-details-1"
-                      style={{ 
-                        backgroundColor: '#f9f9f9',
-                        padding: '12px',
-                        borderRadius: '4px',
-                        marginBottom: '12px'
-                      }}
-                    >
-                      <div style={{ display: 'flex', marginBottom: '4px' }}>
-                        <div style={{ fontWeight: '500', marginRight: '8px', fontSize: '14px' }}>Duration:</div>
-                        <div style={{ fontSize: '14px', color: '#595959' }}>25 minutes</div>
-                      </div>
-                      <div style={{ display: 'flex' }}>
-                        <div style={{ fontWeight: '500', marginRight: '8px', fontSize: '14px' }}>Outcome:</div>
-                        <div style={{ fontSize: '14px', color: '#595959' }}>Positive</div>
-                      </div>
-                    </div>
-
-                    <div 
-                      className="gba:activity-owner"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <Avatar 
-                        style={{ 
-                          backgroundColor: '#1890ff',
-                          marginRight: '8px',
-                          fontSize: '12px',
-                          display: 'flex',
-                          justifyContent: 'center',
-                          alignItems: 'center'
-                        }}
-                        size={24}
-                      >
-                        AJ
-                      </Avatar>
-                      <span style={{ fontSize: '14px', color: '#595959' }}>Alex Johnson</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Activity 2 */}
-                <div 
-                  className="gba:activity-item" 
-                  data-testid="activity-item-2"
-                  style={{ 
-                    padding: '24px 0', 
-                    position: 'relative'
-                  }}
-                >
-                  <div 
-                    className="gba:activity-icon" 
-                    style={{
-                      position: 'absolute',
-                      left: '0',
-                      top: '24px',
-                      zIndex: 2 /* Ensure icon is above the vertical line */
-                    }}
-                  >
-                    <MailOutlined style={{ 
-                      fontSize: '16px', 
-                      padding: '8px', 
-                      borderRadius: '50%', 
-                      border: '1px solid #f0f0f0',
-                      backgroundColor: '#fff' /* Ensure background is white to cover the line */
-                    }} />
-                  </div>
-
-                  <div style={{ marginLeft: '40px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <div 
-                        className="gba:activity-title"
-                        data-testid="activity-title-2"
-                        style={{ 
-                          fontWeight: '600', 
-                          fontSize: '16px' 
-                        }}
-                      >
-                        Sent proposal to John Doe
-                      </div>
-                      <div 
-                        className="gba:activity-time"
-                        data-testid="activity-time-2"
-                        style={{ 
-                          color: '#8c8c8c', 
-                          fontSize: '14px' 
-                        }}
-                      >
-                        May 18, 2023, 1:15 PM
-                      </div>
-                    </div>
-
-                    <div 
-                      className="gba:activity-description"
-                      data-testid="activity-description-2"
-                      style={{ 
-                        marginBottom: '12px',
-                        fontSize: '14px',
-                        color: '#595959'
-                      }}
-                    >
-                      Sent the customized proposal with pricing details and implementation timeline.
-                    </div>
-
-                    <div 
-                      className="gba:activity-details"
-                      data-testid="activity-details-2"
-                      style={{ 
-                        backgroundColor: '#f9f9f9',
-                        padding: '12px',
-                        borderRadius: '4px',
-                        marginBottom: '12px'
-                      }}
-                    >
-                      <div style={{ display: 'flex' }}>
-                        <div style={{ fontWeight: '500', marginRight: '8px', fontSize: '14px' }}>Attachments:</div>
-                        <div style={{ fontSize: '14px', color: '#1890ff', cursor: 'pointer' }}>Proposal_Acme_Corp_v1.pdf</div>
-                      </div>
-                    </div>
-
-                    <div 
-                      className="gba:activity-owner"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <Avatar 
-                        style={{ 
-                          backgroundColor: '#f5f5f5',
-                          marginRight: '8px',
-                          color: '#595959',
-                          fontSize: '12px',
-                          display: 'flex',
-                          justifyContent: 'center',
-                          alignItems: 'center'
-                        }}
-                        size={24}
-                      >
-                        SW
-                      </Avatar>
-                      <span style={{ fontSize: '14px', color: '#595959' }}>Sarah Williams</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Activity 3 */}
-                <div 
-                  className="gba:activity-item" 
-                  data-testid="activity-item-3"
-                  style={{ 
-                    padding: '24px 0', 
-                    position: 'relative'
-                  }}
-                >
-                  <div 
-                    className="gba:activity-icon" 
-                    style={{
-                      position: 'absolute',
-                      left: '0',
-                      top: '24px',
-                      zIndex: 2 /* Ensure icon is above the vertical line */
-                    }}
-                  >
-                    <VideoCameraOutlined style={{ 
-                      fontSize: '16px', 
-                      padding: '8px', 
-                      borderRadius: '50%', 
-                      border: '1px solid #f0f0f0',
-                      backgroundColor: '#fff' /* Ensure background is white to cover the line */
-                    }} />
-                  </div>
-
-                  <div style={{ marginLeft: '40px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <div 
-                        className="gba:activity-title"
-                        data-testid="activity-title-3"
-                        style={{ 
-                          fontWeight: '600', 
-                          fontSize: '16px' 
-                        }}
-                      >
-                        Product demo with technical team
-                      </div>
-                      <div 
-                        className="gba:activity-time"
-                        data-testid="activity-time-3"
-                        style={{ 
-                          color: '#8c8c8c', 
-                          fontSize: '14px' 
-                        }}
-                      >
-                        May 15, 2023, 6:00 PM
-                      </div>
-                    </div>
-
-                    <div 
-                      className="gba:activity-description"
-                      data-testid="activity-description-3"
-                      style={{ 
-                        marginBottom: '12px',
-                        fontSize: '14px',
-                        color: '#595959'
-                      }}
-                    >
-                      Demonstrated our platform's API integration capabilities to their development team.
-                    </div>
-
-                    <div 
-                      className="gba:activity-details"
-                      data-testid="activity-details-3"
-                      style={{ 
-                        backgroundColor: '#f9f9f9',
-                        padding: '12px',
-                        borderRadius: '4px',
-                        marginBottom: '12px'
-                      }}
-                    >
-                      <div style={{ display: 'flex', marginBottom: '4px' }}>
-                        <div style={{ fontWeight: '500', marginRight: '8px', fontSize: '14px' }}>Duration:</div>
-                        <div style={{ fontSize: '14px', color: '#595959' }}>1 hour</div>
-                      </div>
-                      <div style={{ display: 'flex' }}>
-                        <div style={{ fontWeight: '500', marginRight: '8px', fontSize: '14px' }}>Attendees:</div>
-                        <div style={{ fontSize: '14px', color: '#595959' }}>Jane Smith, John Doe, Technical Team</div>
-                      </div>
-                    </div>
-
-                    <div 
-                      className="gba:activity-owner"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <Avatar 
-                        style={{ 
-                          backgroundColor: '#722ed1',
-                          marginRight: '8px',
-                          fontSize: '12px',
-                          display: 'flex',
-                          justifyContent: 'center',
-                          alignItems: 'center'
-                        }}
-                        size={24}
-                      >
-                        MC
-                      </Avatar>
-                      <span style={{ fontSize: '14px', color: '#595959' }}>Michael Chen</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Activity 4 */}
-                <div 
-                  className="gba:activity-item" 
-                  data-testid="activity-item-4"
-                  style={{ 
-                    padding: '24px 0', 
-                    position: 'relative'
-                  }}
-                >
-                  <div 
-                    className="gba:activity-icon" 
-                    style={{
-                      position: 'absolute',
-                      left: '0',
-                      top: '24px',
-                      zIndex: 2 /* Ensure icon is above the vertical line */
-                    }}
-                  >
-                    <CommentOutlined style={{ 
-                      fontSize: '16px', 
-                      padding: '8px', 
-                      borderRadius: '50%', 
-                      border: '1px solid #f0f0f0',
-                      backgroundColor: '#fff' /* Ensure background is white to cover the line */
-                    }} />
-                  </div>
-
-                  <div style={{ marginLeft: '40px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <div 
-                        className="gba:activity-title"
-                        data-testid="activity-title-4"
-                        style={{ 
-                          fontWeight: '600', 
-                          fontSize: '16px' 
-                        }}
-                      >
-                        Follow-up message to Jane Smith
-                      </div>
-                      <div 
-                        className="gba:activity-time"
-                        data-testid="activity-time-4"
-                        style={{ 
-                          color: '#8c8c8c', 
-                          fontSize: '14px' 
-                        }}
-                      >
-                        May 14, 2023, 12:45 PM
-                      </div>
-                    </div>
-
-                    <div 
-                      className="gba:activity-description"
-                      data-testid="activity-description-4"
-                      style={{ 
-                        marginBottom: '12px',
-                        fontSize: '14px',
-                        color: '#595959'
-                      }}
-                    >
-                      Sent a message to check if they had any questions about the proposal.
-                    </div>
-
-                    <div 
-                      className="gba:activity-owner"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <Avatar 
-                        style={{ 
-                          backgroundColor: '#1890ff',
-                          marginRight: '8px',
-                          fontSize: '12px',
-                          display: 'flex',
-                          justifyContent: 'center',
-                          alignItems: 'center'
-                        }}
-                        size={24}
-                      >
-                        AJ
-                      </Avatar>
-                      <span style={{ fontSize: '14px', color: '#595959' }}>Alex Johnson</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Activity 5 */}
-                <div 
-                  className="gba:activity-item" 
-                  data-testid="activity-item-5"
-                  style={{ 
-                    padding: '24px 0', 
-                    position: 'relative'
-                  }}
-                >
-                  <div 
-                    className="gba:activity-icon" 
-                    style={{
-                      position: 'absolute',
-                      left: '0',
-                      top: '24px',
-                      zIndex: 2 /* Ensure icon is above the vertical line */
-                    }}
-                  >
-                    <MailOutlined style={{ 
-                      fontSize: '16px', 
-                      padding: '8px', 
-                      borderRadius: '50%', 
-                      border: '1px solid #f0f0f0',
-                      backgroundColor: '#fff' /* Ensure background is white to cover the line */
-                    }} />
-                  </div>
-
-                  <div style={{ marginLeft: '40px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <div 
-                        className="gba:activity-title"
-                        data-testid="activity-title-5"
-                        style={{ 
-                          fontWeight: '600', 
-                          fontSize: '16px' 
-                        }}
-                      >
-                        Initial outreach
-                      </div>
-                      <div 
-                        className="gba:activity-time"
-                        data-testid="activity-time-5"
-                        style={{ 
-                          color: '#8c8c8c', 
-                          fontSize: '14px' 
-                        }}
-                      >
-                        May 10, 2023, 2:30 PM
-                      </div>
-                    </div>
-
-                    <div 
-                      className="gba:activity-description"
-                      data-testid="activity-description-5"
-                      style={{ 
-                        marginBottom: '12px',
-                        fontSize: '14px',
-                        color: '#595959'
-                      }}
-                    >
-                      Sent an introduction email highlighting our solutions relevant to their industry.
-                    </div>
-
-                    <div 
-                      className="gba:activity-owner"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <Avatar 
-                        style={{ 
-                          backgroundColor: '#f5f5f5',
-                          marginRight: '8px',
-                          color: '#595959',
-                          fontSize: '12px',
-                          display: 'flex',
-                          justifyContent: 'center',
-                          alignItems: 'center'
-                        }}
-                        size={24}
-                      >
-                        SW
-                      </Avatar>
-                      <span style={{ fontSize: '14px', color: '#595959' }}>Sarah Williams</span>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
             )}
