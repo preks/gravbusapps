@@ -17,6 +17,9 @@ while IFS= read -r file; do
   # Remove src/business-apps/ prefix if it exists
   publish_path=${file#src/business-apps/}
   
+  # Remove .tsx extension
+  publish_path=${publish_path%.tsx}
+  
   echo "Publishing: $publish_path"
 
   # Publish the screen
