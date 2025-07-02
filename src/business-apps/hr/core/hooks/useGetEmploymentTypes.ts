@@ -10,12 +10,14 @@ export interface EmploymentTypeOption {
 }
 
 /**
- * Custom hook to fetch employment types with a search filter and pagination (limit 5).
+ * Custom hook to fetch employment types with a search filter and pagination.
  * Uses the catalog-management API utilities for consistency and CORS compliance.
- * @param searchRegex Search regex string for filtering employment types.
+ * @param accessToken Access token for authentication
+ * @param searchRegex Search regex string for filtering employment types
  * @param offset Pagination offset
+ * @param limit Number of items to fetch (default: 100 to fetch all employment types)
  */
-export function useGetEmploymentTypes(accessToken: string, searchRegex: string, offset: number = 0) {
+export function useGetEmploymentTypes(accessToken: string, searchRegex: string, offset: number = 0, limit: number = 100) {
   const userLocale = useUserLocale() ?? 'en-US';
   const [types, setTypes] = useState<EmploymentTypeOption[]>([]);
   const [hasMore, setHasMore] = useState(true);
@@ -31,7 +33,7 @@ export function useGetEmploymentTypes(accessToken: string, searchRegex: string, 
       version: 'v1',
     },
     {
-      limit: 5,
+      limit: limit,
       offset,
       returnTotalRecords: true,
       localeCode: userLocale,
@@ -56,7 +58,7 @@ export function useGetEmploymentTypes(accessToken: string, searchRegex: string, 
         }));
       
       setTypes(typesArr);
-      setHasMore(entries.length === 5);
+      setHasMore(entries.length === limit);
     })
     .catch((err: any) => {
       console.error('Error fetching employment types:', err);
