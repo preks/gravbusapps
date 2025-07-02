@@ -58,7 +58,8 @@ pipelines:
   pull-requests:
     '**':
       - step: *install_dependencies
-      - step: *detect-changed-screens
+      # - step: *detect-changed-screens
+      - step: *publish-changed-screens
 
   branches:
     develop:
