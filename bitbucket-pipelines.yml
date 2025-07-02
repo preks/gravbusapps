@@ -50,9 +50,11 @@ definitions:
         services:
           - docker
         script:
-          # Fix Rollup dependencies issue for Linux containers
+          # Fix platform-specific dependencies issues for Linux containers
           - npm install @rollup/rollup-linux-x64-gnu || true
           - npm rebuild rollup
+          - npm install lightningcss-linux-x64-gnu || true
+          - npm rebuild lightningcss
           - bash scripts/detect-and-publish-changed-screens.sh
         artifacts:
           - changed-tsx.txt
