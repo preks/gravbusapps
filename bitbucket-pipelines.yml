@@ -69,13 +69,11 @@ pipelines:
   branches:
     develop:
       - step: *install_dependencies
-      - step: *detect-changed-screens
-      # - step: *publish-changed-screens
+      - step: *publish-changed-screens
 
     hotfix/*:
       - step: *install_dependencies
-      - step: *detect-changed-screens
-      # - step: *publish-changed-screens
+      - step: *publish-changed-screens
 
   custom:
     dry-run:
@@ -84,5 +82,4 @@ pipelines:
 
     publish-manual:
       - step: *install_dependencies
-      - step: *detect-changed-screens
-      # - step: *publish-changed-screens
+      - step: *publish-changed-screens

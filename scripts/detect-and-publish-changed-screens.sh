@@ -14,16 +14,19 @@ fi
 while IFS= read -r file; do
   echo "Processing $file …"
   
-  # Remove src/business-apps/ prefix if it exists
-  publish_path=${file#src/business-apps/}
+  # Get the directory path (remove the filename)
+  dir_path=$(dirname "$file")
+  # Get the component name without extension
+  component_name=$(basename "$file" .tsx)
   
-  # Remove .tsx extension
-  publish_path=${publish_path%.tsx}
+  # Remove src/business-apps/ prefix from the directory path
+  dir_path_no_prefix=${dir_path#src/business-apps/}
+  
+  # Format as module/submodule/apps/app-folder/ComponentName
+  publish_path="$dir_path_no_prefix/$component_name"
   
   echo "Publishing: $publish_path"
 
   # Publish the screen
-  yarn publish:screen -- "$publish_path" || {
-    echo "Failed to publish $publish_path, continuing with others"
-  }
+  yarn publish:screen -- "$publish_path"
 done < changed-tsx.txt
