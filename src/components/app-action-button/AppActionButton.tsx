@@ -1,16 +1,12 @@
 "use client";
 
-import React from "react";
-import {
-  ActionButton,
-  ActionOption,
-  type ActionButtonProps,
-} from "@newwork/gravity-ui-catalog";
-import { useTranslation } from "react-i18next";
-import { useMainContextsData } from "@/common/hooks/useMainContextsData";
-import { useFlowItems, ExternalContextData } from "@/common/hooks/useFlowItems";
-import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import React, { useState, useEffect } from 'react'
+import { ActionButton } from '@newwork/nw-design-system'
+import { useTranslation } from 'react-i18next'
+import { useMainContextsData } from '@/common/hooks/useMainContextsData'
+import { useFlowItems, ExternalContextData } from '@/common/hooks/useFlowItems'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
 export type AppActionButtonProps = Omit<ActionButtonProps, "flowData"> & {
   contextsArray?: FlowContextName[];
@@ -25,6 +21,16 @@ export type AppActionButtonProps = Omit<ActionButtonProps, "flowData"> & {
    */
   emptyStateBehavior?: 'disable' | 'hide' | 'enabled';
 };
+
+export type AppActionButtonProps = {
+  contextsArray?: FlowContextName[]
+  externalContextData?: ExternalContextData
+  staticFlowData?: any[]
+  prefixDataTestId?: string
+  accessToken?: string
+  className?: string
+  onClick?: (e: React.MouseEvent) => void
+}
 
 const DATA_TEST_ID_PREFIX = "AppActionButton";
 
@@ -43,6 +49,7 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
   const [hasDeferredFetchAttempted, setHasDeferredFetchAttempted] = React.useState(false);
 
   // Use manual mode when deferring requests until click
+  const [isLoading, setIsLoading] = useState(false)
   const {
     mainContextsData,
     fetchMainContextsData,
@@ -68,8 +75,19 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
   // Track overall loading state - true if either contexts or flows are loading
   const isLoading = isLoadingContexts || isLoadingFlows;
 
+  
+  // Combine static and dynamic flow data
   const combinedData = [...(props.staticFlowData ?? []), ...flowData];
-
+  
+  // Set loading state based on flow data availability
+  /* useEffect(() => {
+    // If we have main context data, wait for flow data to be fetched
+    if (mainContextsData && Object.keys(mainContextsData).length > 0) {
+      // Set loading to false after flow data has been processed
+      setIsLoading(false)
+    }
+  }, [mainContextsData, flowData]) */
+  
   // Process execution is now handled directly in the onClick handler of each ActionOption
 
   // Extract custom props that shouldn't be passed to DOM
