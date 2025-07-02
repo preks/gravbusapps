@@ -1,10 +1,38 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Row, Col, Card, Typography, Button, List, Space } from 'antd';
 import { PlusCircleOutlined, SendOutlined, ExperimentOutlined, UploadOutlined } from '@ant-design/icons';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { startProcess } from '@/common/utils/start-process';
 
 const { Title, Text, Paragraph } = Typography;
 
-const QuickActionCards: React.FC = () => {
+const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
+  const { userInfo } = props;
+
+  const handleRecordExpense = useCallback(() => {
+    if (userInfo?.employeeDetails?.employeeId) {
+      startProcess({
+        domain: 'employee-expense',
+        processName: 'changeExpenseItem',
+        payload: {
+          employeeId: userInfo.employeeDetails.employeeId
+        }
+      });
+    }
+  }, [userInfo?.employeeDetails?.employeeId]);
+
+  const handleSubmitRequest = useCallback(() => {
+    if (userInfo?.employeeDetails?.employeeId) {
+      startProcess({
+        domain: 'employee-expense',
+        processName: 'changeExpenseRequest',
+        payload: {
+          employeeId: userInfo.employeeDetails.employeeId
+        }
+      });
+    }
+  }, [userInfo?.employeeDetails?.employeeId]);
+
   const actionCards = [
     {
       id: 'record-expense',
@@ -18,7 +46,7 @@ const QuickActionCards: React.FC = () => {
       ],
       buttonText: 'New Expense',
       buttonIcon: <PlusCircleOutlined />,
-      buttonAction: () => console.log('Record expense clicked')
+      buttonAction: handleRecordExpense
     },
     {
       id: 'submit-request',
@@ -32,7 +60,7 @@ const QuickActionCards: React.FC = () => {
       ],
       buttonText: 'New Request',
       buttonIcon: <SendOutlined />,
-      buttonAction: () => console.log('Submit request clicked')
+      buttonAction: handleSubmitRequest
     },
     {
       id: 'view-reports',
@@ -48,26 +76,26 @@ const QuickActionCards: React.FC = () => {
       buttonIcon: <ExperimentOutlined />,
       buttonAction: () => console.log('View reports clicked')
     },
-    {
-      id: 'upload-receipts',
-      title: 'Upload Receipts',
-      description: 'Quickly upload receipts for your expense items. Supports multiple file formats.',
-      icon: <UploadOutlined style={{ fontSize: '24px', color: '#fa8c16' }} />,
-      features: [
-        'Batch upload',
-        'Auto-categorization',
-        'Comply with policies'
-      ],
-      buttonText: 'Upload Receipts',
-      buttonIcon: <UploadOutlined />,
-      buttonAction: () => console.log('Upload receipts clicked')
-    }
+    // {
+    //   id: 'upload-receipts',
+    //   title: 'Upload Receipts',
+    //   description: 'Quickly upload receipts for your expense items. Supports multiple file formats.',
+    //   icon: <UploadOutlined style={{ fontSize: '24px', color: '#fa8c16' }} />,
+    //   features: [
+    //     'Batch upload',
+    //     'Auto-categorization',
+    //     'Comply with policies'
+    //   ],
+    //   buttonText: 'Upload Receipts',
+    //   buttonIcon: <UploadOutlined />,
+    //   buttonAction: () => console.log('Upload receipts clicked')
+    // }
   ];
 
   return (
     <Row gutter={[16, 16]}>
       {actionCards.map(card => (
-        <Col key={card.id} xs={24} sm={12} md={8} lg={6}>
+                <Col key={card.id} xs={24} sm={12} md={8} lg={8}>
           <Card hoverable className="gba:quick-action-card">
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <Space align="center">

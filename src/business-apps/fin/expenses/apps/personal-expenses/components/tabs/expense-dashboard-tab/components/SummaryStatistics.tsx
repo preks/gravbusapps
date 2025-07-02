@@ -40,13 +40,13 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
   if (!stats) return null;
   
   const currentTotal = stats.currentMonthExpenses?.total || 0;
-  const previousTotal = stats.lastMonthExpenses?.total || 0;
+  const previousTotal = stats.previousMonthExpenses?.total || 0;
   const percentChange = calculatePercentChange(currentTotal, previousTotal);
   const isPositiveChange = percentChange >= 0;
 
   return (
     <Row gutter={[16, 16]} className="gba:summary-stats">
-      <Col xs={24} sm={12} md={6}>
+      <Col xs={24} sm={12} md={8}>
         <Card bordered={true}>
             <Statistic
               title="Current Month Expenses"
@@ -64,10 +64,10 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
               }
               formatter={(value) => formatCurrency(Number(value))}
             />
-            <Text type="secondary">{stats?.currentMonthExpenses?.count || 0} expense items</Text>
+            <Text type="secondary">{stats?.currentMonthExpenses?.count || 0} expense requests</Text>
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={12} md={8}>
           <Card bordered={true}>
             <Statistic
               title="Pending Payouts"
@@ -80,7 +80,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
             <Text type="secondary">Awaiting payment</Text>
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        {/* <Col xs={24} sm={12} md={8}>
           <Card bordered={true}>
             <Statistic
               title="Flagged Items"
@@ -90,8 +90,8 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
             />
             <Text type="secondary">Requiring attention</Text>
           </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
+        </Col> */}
+        <Col xs={24} sm={12} md={8}>
           <Card bordered={true}>
             <Statistic
               title="Upcoming Trips"
@@ -102,6 +102,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
             <Text type="secondary">Planned business trips</Text>
           </Card>
         </Col>
+        
       </Row>
   );
 };

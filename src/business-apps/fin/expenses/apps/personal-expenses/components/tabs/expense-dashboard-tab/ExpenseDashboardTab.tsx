@@ -56,17 +56,17 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           <SummaryStatistics stats={stats ?? undefined} isLoading={isLoading} error={error ? new Error(error) : null} />
         </div>
         
-        <div>
+        {/* <div>
           <AiAssistant 
             stats={stats ?? undefined} 
             isLoading={isLoading} 
             error={error ? new Error(error) : null}
             navigateToExpenseItems={navigateToExpenseItems}
           />
-        </div>
+        </div> */}
 
         <div>
-          <QuickActionCards />
+          <QuickActionCards {...props} />
         </div>
 
         <div>

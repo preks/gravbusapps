@@ -19,8 +19,14 @@ export interface MonthlyExpense {
 
 export interface DashboardStats {
   currentMonthExpenses?: MonthlyExpense;
-  lastMonthExpenses?: MonthlyExpense;
+  previousMonthExpenses?: MonthlyExpense;
+  currentQuarterExpenses?: MonthlyExpense;
+  previousQuarterExpenses?: MonthlyExpense;
+  currentYearExpenses?: MonthlyExpense;
+  previousYearExpenses?: MonthlyExpense;
   pendingPayouts?: number;
+  bookedExpenseRequests?: number;
+  pendingAdvancePayments?: number;
   flaggedItems?: number;
   upcomingTrips?: number;
   expensesByType?: Record<string, number>;

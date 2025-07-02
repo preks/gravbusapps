@@ -73,6 +73,14 @@ export const formatDate = (
   if (typeof window?.lowcoder?.i18n?.formatDate !== 'function') {
     return date.toISOString();
   }
+  
 
   return window?.lowcoder?.i18n?.formatDate(date, format, customSpecificFormat);
 };
+
+export const formatNumberFunction=(number :string, format :string="0.00[,]00"):string=>{
+  if (!window.lowcoder?.i18n?.formatNumber || typeof window.lowcoder.i18n?.formatNumber !== 'function') {
+    return number;
+  }
+  return window.lowcoder.i18n.formatNumber(number, format);
+}

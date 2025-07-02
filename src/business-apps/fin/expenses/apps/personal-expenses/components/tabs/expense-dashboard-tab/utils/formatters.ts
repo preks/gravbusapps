@@ -1,6 +1,9 @@
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+
 // Helper function to format currency
-export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+export const formatCurrency = (amount: number, currency = 'EUR'): string => {
+  const locale = getCurrentActiveUserLocale();
+  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount);
 };
 
 // Helper function to calculate percentage change
