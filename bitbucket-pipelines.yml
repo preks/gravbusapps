@@ -1,28 +1,55 @@
-image: node:18
-
+image: node:20.18.0
 definitions:
+  services:
+    docker:
+      memory: 3072
   caches:
-    yarn: ~/.cache/yarn
+    nodecustom:
+      key:
+        files:
+          - package-lock.json
+      path: ./node_modules
 
   steps:
+    - step: &install_dependencies
+        name: Install dependencies
+        size: 2x
+        clone:
+          enabled: true
+          depth: full
+        caches:
+          - nodecustom
+        services:
+          - docker
+        script:
+          - set -e
+          - echo $NEWWORK_NMP_CREDENTIALS | base64 -d > ~/.npmrc
+          - apt-get update && apt-get install gettext -y
+          - npm install
+        artifacts:
+          - pipeline/scripts/**
+          - envs/**
+
     - step: &detect-changed-screens
         name: Detect Changed Screens (Dry Run)
+        size: 2x
         caches:
-          - node
-          - yarn
+          - nodecustom
+        services:
+          - docker
         script:
-          - yarn install
           - bash scripts/detect-changed-screens.sh
         artifacts:
           - changed-tsx.txt
 
     - step: &publish-changed-screens
         name: Publish Changed Screens
+        size: 2x
         caches:
-          - node
-          - yarn
+          - nodecustom
+        services:
+          - docker
         script:
-          - yarn install
           - bash scripts/detect-and-publish-changed-screens.sh
         artifacts:
           - changed-tsx.txt
@@ -30,21 +57,26 @@ definitions:
 pipelines:
   pull-requests:
     '**':
+      - step: *install_dependencies
       - step: *detect-changed-screens
 
   branches:
     develop:
+      - step: *install_dependencies
       - step: *detect-changed-screens
       # - step: *publish-changed-screens
 
     hotfix/*:
+      - step: *install_dependencies
       - step: *detect-changed-screens
       # - step: *publish-changed-screens
 
   custom:
     dry-run:
+      - step: *install_dependencies
       - step: *detect-changed-screens
 
     publish-manual:
+      - step: *install_dependencies
       - step: *detect-changed-screens
       # - step: *publish-changed-screens
