@@ -12,12 +12,15 @@ fi
 
 # Loop through each changed .tsx file and publish it
 while IFS= read -r file; do
-  echo "Publishing $file …"
-  # your publish command here, e.g.:
-  echo "Publishing: $file"
-                
-    # Publish the screen
-    yarn publish:screen -- "$file" || {
-      echo "Failed to publish $file, continuing with others"
-    }
+  echo "Processing $file …"
+  
+  # Remove src/business-apps/ prefix if it exists
+  publish_path=${file#src/business-apps/}
+  
+  echo "Publishing: $publish_path"
+
+  # Publish the screen
+  yarn publish:screen -- "$publish_path" || {
+    echo "Failed to publish $publish_path, continuing with others"
+  }
 done < changed-tsx.txt

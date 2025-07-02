@@ -48,7 +48,7 @@ const getUrlParams = () => {
 // Handle loading UI
 const LoadingUI = () => (
   <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-    <Spinner size="small" />
+    <Spinner size="large" />
   </div>
 );
 

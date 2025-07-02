@@ -9,7 +9,7 @@ git fetch origin "${TARGET_BRANCH}:${TARGET_BRANCH}"
 
 # List only the .tsx files changed between TARGET_BRANCH and HEAD
 git diff --name-only "${TARGET_BRANCH}...HEAD" \
-  | grep -E '\.tsx$' \
+  | grep -E '^src/business-apps/.*\.tsx$' \
   > changed-tsx.txt
 
 if [[ ! -s changed-tsx.txt ]]; then
