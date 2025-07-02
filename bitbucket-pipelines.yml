@@ -50,6 +50,9 @@ definitions:
         services:
           - docker
         script:
+          # Fix Rollup dependencies issue for Linux containers
+          - npm install @rollup/rollup-linux-x64-gnu || true
+          - npm rebuild rollup
           - bash scripts/detect-and-publish-changed-screens.sh
         artifacts:
           - changed-tsx.txt
