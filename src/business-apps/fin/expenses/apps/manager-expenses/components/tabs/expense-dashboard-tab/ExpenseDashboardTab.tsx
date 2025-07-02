@@ -6,6 +6,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import ExpenseTrendsChart from './components/ExpenseTrendsChart';
 import { ApprovalsModal, ExpenseReportsModal, TeamSpendingAnalyticsModal } from '../../modals';
 import { formatAmount } from '../../../utils/currencyUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const { Title, Text } = Typography;
 
@@ -72,7 +73,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
           })()}
           <Card className="gba:h-full">
             <Statistic
-              title="Team Members"
+              title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_members', 'Team Members')}
               value={dashboardData?.teamMembersCount ?? 0}
               prefix={<PiUsers className="gba:mr-2" />}
             />
@@ -82,7 +83,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
         <Col xs={24} sm={12} lg={6}>
           <Card className="gba:h-full">
             <Statistic
-              title="Pending Approvals"
+              title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.pending_approvals', 'Pending Approvals')}
               value={dashboardData?.pendingApprovalsCount ?? 0}
               prefix={<PiClipboardText className="gba:mr-2" />}
             />
@@ -92,7 +93,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
         <Col xs={24} sm={12} lg={6}>
           <Card className="gba:h-full">
             <Statistic
-              title="Monthly Expenses"
+              title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expenses', 'Monthly Expenses')}
               value={dashboardData?.monthlyExpensesAmount ?? 0}
               formatter={(value) => formatAmount(Number(value))}
               prefix={<PiCurrencyDollar className="gba:mr-2" />}
@@ -111,7 +112,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
           })()}
           <Card className="gba:h-full">
             <Statistic
-              title="Expense Categories"
+              title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_categories', 'Expense Categories')}
               value={dashboardData?.expenseCategoriesCount ?? 0}
               prefix={<PiChartBar className="gba:mr-2" />}
             />
@@ -126,7 +127,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
           [
             {
               key: 'approvals',
-              title: 'Review Approvals',
+              title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.review_approvals', 'Review Approvals'),
               description: 'Process pending expense requests.',
               icon: <PiListChecks className="gba:text-2xl gba:text-blue-500" />,
               onClick: () => setApprovalsModalVisible(true),
@@ -134,7 +135,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
             },
             {
               key: 'analysis',
-              title: 'Team Spending Analysis',
+              title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_spending_analysis', 'Team Spending Analysis'),
               description: 'View spending trends and reports.',
               icon: <PiChartLineUp className="gba:text-2xl gba:text-green-500" />,
               onClick: () => setAnalyticsModalVisible(true),
@@ -142,7 +143,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
             },
             {
               key: 'reports',
-              title: 'Expense Reports',
+              title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.absence_same_location_btn', 'Expense Reports'),
               description: 'Generate or view team expense reports.',
               icon: <PiFileText className="gba:text-2xl gba:text-purple-500" />,
               onClick: () => setReportsModalVisible(true),
@@ -171,7 +172,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
       <Row gutter={[16, 16]} className="gba:mt-6">
         <Col xs={24} lg={12}>
           <Card 
-            title="Recent Expense Requests"
+            title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.recent_expense_requests', 'Recent Expense Requests')}
             className="gba:h-full"
             data-testid="recent-expense-requests-card"
           >
@@ -207,21 +208,21 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
         
         <Col xs={24} lg={12}>
           <Card 
-            title="Team Budget Status"
+            title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_budget_status', 'Team Budget Status')}
             className="gba:h-full"
           >
             {dashboardData?.teamBudget ? (
               <div>
                 <Statistic
-                  title="Budget Used"
+                  title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_budget_used', 'Budget Used')}
                   value={dashboardData.teamBudget.total > 0 ? ((dashboardData.teamBudget.used / dashboardData.teamBudget.total) * 100) : 0}
                   precision={1}
                   suffix="%"
                 />
                 <div className="gba:mt-4">
                   <div className="gba:flex gba:justify-between gba:mb-1">
-                    <Text>Used: €{formatAmount(dashboardData.teamBudget?.used ?? 0)}</Text>
-                    <Text>Total: €{formatAmount(dashboardData.teamBudget?.total ?? 0)}</Text>
+                    <Text>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} €{formatAmount(dashboardData.teamBudget?.used ?? 0)}</Text>
+                    <Text>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} €{formatAmount(dashboardData.teamBudget?.total ?? 0)}</Text>
                   </div>
                   <div className="gba:bg-gray-200 gba:rounded-full gba:h-2">
                     <div 
@@ -243,7 +244,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
         <Col xs={24}>
           <ExpenseTrendsChart 
             data={dashboardData?.monthlyTrends || []} 
-            title="Monthly Expense Trends"
+            title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', 'Monthly Expense Trends')}
           />
         </Col>
       </Row>
