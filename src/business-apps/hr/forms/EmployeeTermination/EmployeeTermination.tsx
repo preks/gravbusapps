@@ -1,10 +1,9 @@
-import React from "react";
+import { useState } from "react";
 import dayjs from "dayjs";
 import { Button, Checkbox, Avatar, DatePicker, Form } from "antd";
 import flowSmall from "../../../../assets/icons/flowSmall.svg";
 import { useGetEmployeeData } from "../../core/hooks/useGetEmployeeData";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { startProcess } from "@/common/utils/start-process";
 import { dispatchProcessContinueEvent } from "../../../../common/utils/processEventUtils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
@@ -22,7 +21,7 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
   });
 
   const [form] = Form.useForm();
-  const [formValues, setFormValues] = React.useState({
+  const [formValues, setFormValues] = useState({
     terminationDate: dayjs(),
     terminateJobPosition: false,
     employeeId: employeeId,
@@ -39,22 +38,10 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
   });
 
   const handleSubmit = () => {
-    startProcess({
-      domain: "employee",
-      processName: "terminateEmployee",
-      payload: buildPayload(),
-      builderType: "NATIVE_SCREEN",
-    });
     dispatchProcessContinueEvent("pse_submit", buildPayload());
   };
 
   const handleCancel = () => {
-    startProcess({
-      domain: "employee",
-      processName: "terminateEmployee",
-      payload: buildPayload(),
-      builderType: "NATIVE_SCREEN",
-    });
     dispatchProcessContinueEvent("pse_cancel", buildPayload());
     form.setFieldsValue({
       terminationDate: dayjs(),
@@ -141,6 +128,7 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
                   </span>
                 }
                 className="gba:ant-form-item-row"
+                initialValue={dayjs()}
               >
                 <div className="gba:bg-[#F5F5F5] gba:px-[15px] gba:py-[7px] gba:border-none gba:date-picker-custom">
                   <DatePicker
@@ -148,7 +136,10 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
                     format="DD.MM.YYYY"
                     data-testid="exit-date-picker"
                     allowClear={true}
-                    onChange={(date) => form.setFieldValue("terminationDate", date)}
+                    defaultValue={dayjs()}
+                    onChange={(date) =>
+                      form.setFieldValue("terminationDate", date)
+                    }
                     placeholder={getTranslationFromI18nKeyAndLabel(
                       "lowcoder:absences_overview_entry_screen.select_placeholder",
                       "Please Select"
@@ -180,7 +171,8 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
               disabled={
                 !formValues.terminateJobPosition ||
                 !dayjs.isDayjs(formValues.terminationDate) ||
-                (dayjs.isDayjs(formValues.terminationDate) && !formValues.terminationDate.isValid())
+                (dayjs.isDayjs(formValues.terminationDate) &&
+                  !formValues.terminationDate.isValid())
               }
             >
               {getTranslationFromI18nKeyAndLabel(

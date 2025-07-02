@@ -9,7 +9,6 @@ import {
   ArrowLeftOutlined,
   EnvironmentOutlined,
   GlobalOutlined,
-  UserAddOutlined,
   BulbOutlined,
   TeamOutlined,
   CalendarOutlined,
@@ -73,6 +72,7 @@ interface Lead {
   name: string;
   logo?: string;
   status: string;
+  leadName:string;
   version: string;
   statusRef?: string;
   source: {
@@ -301,7 +301,6 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
             id: leadId
           }
         );
-
         const activityResult = await graphQLClient.request(
           getActivityByLeadId,
             {
@@ -337,12 +336,12 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
             }
           }))
         : [];
-          console.log("Activities:", activityResult);
         if (result && result.Lead && result.Lead[0]) {
           const apiData = result.Lead[0];
           const transformedData: Lead = {
             id: apiData.id,
             name: apiData.companyName || `${apiData.firstName} ${apiData.lastName}`,
+            leadName: apiData.name,
             version: apiData.version,
             source: {
               id: apiData.source?.id || "",
@@ -474,6 +473,7 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
           id: leadData?.id || "",
           version: leadData?.version || "",
           name: leadData?.name || "",
+          leadName: leadData?.leadName || "",
           status: leadData?.status || "",
           statusRef: leadData?.statusRef || "",
           source: {
@@ -2236,8 +2236,8 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
         <UserOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
         <div>
-          <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Company Name</div>
-          <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.name || '---'}</div>
+          <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}> Name</div>
+          <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.leadName || '---'}</div>
         </div>
       </div>
 
