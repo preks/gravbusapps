@@ -46,6 +46,13 @@ interface Lead {
     jobTitle: string;
   };
 }
+
+interface OpportunityStatus {
+  id: string;
+  value: string;
+  code: string;
+}
+
 interface Currency {
   id: string;
   value: string;
@@ -111,6 +118,7 @@ interface OpportunityData {
   version: number;
   name: string;
   notesSummary: string;
+  stage:string;
   estimatedAmount: number;
   winningChance: number;
   currencyRef: string;
@@ -133,6 +141,7 @@ interface OpportunityData {
   accountWebsite:string;
   salesPipeline: SalesPipeline;
   salesPipelineStage: SalesPipelineStage;
+  opportunityStatus: OpportunityStatus;
   ownerEmployee: OwnerEmployee;
   createdAt: string;
   updatedAt: string;
@@ -339,6 +348,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({ opportunityId, on
             estimatedAmount: apiData.estimatedAmount,
             currency: apiData?.currency?.value,
             currencyRef: apiData.currencyRef,
+            stage: apiData?.stage,
             salesPipelineStage: apiData?.salesPipelineStage,
             numberOfEmployeesRef: apiData?.account?.numberOfEmployeesRef,
             numberOfEmployees: apiData?.account?.numberOfEmployees?.value,
@@ -349,6 +359,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({ opportunityId, on
             accountWebsite: apiData?.account?.website,
             industry: apiData?.account?.industry?.value,
             industryRef: apiData?.account?.industry?.id,
+            opportunityStatus: apiData?.opportunityStatus,
             notesSummary: apiData.notesSummary,
             account: apiData.account,
             accountId: apiData.accountId,
@@ -1148,7 +1159,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({ opportunityId, on
           
 
           <CollapsibleCard
-            title="Lead Information"
+            title="Opportunity Information"
             defaultOpen={true}
             id="lead-info-card"
             style={{ 
@@ -1205,6 +1216,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({ opportunityId, on
                 initialValues={{
                   opportunityName: opportunityData?.name || '',
                   winningChance: opportunityData?.winningChance || '',
+                  currency: opportunityData?.currencyRef || '',
                   leadStatus: opportunityData?.statusRef || '',
                   leadSource: opportunityData?.sourceRef || '',
                   industry: opportunityData?.industryRef || '',
@@ -1234,7 +1246,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({ opportunityId, on
                 </Form.Item>
 
                 <Form.Item
-                  name="companyWebsite"
+                    name="companyWebsite"
                   label="Company Website"
                   data-testid="company-website-input"
                   style={{ marginBottom: '16px' }}
@@ -1275,7 +1287,7 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({ opportunityId, on
                 <div style={{ display: 'flex', alignItems: 'flex-start' }}>
                   <UserOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
                   <div>
-                    <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Opportunity Name</div>
+                    <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}> Name</div>
                     <div style={{ fontSize: '16px', color: '#000000' }}>{opportunityData?.name || '---'}</div>
                   </div>
                 </div>
@@ -1289,14 +1301,6 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({ opportunityId, on
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                  <TagsOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
-                  <div>
-                    <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Estimated Amount</div>
-                    <div style={{ fontSize: '16px', color: '#000000' }}>{opportunityData?.estimatedAmount || '---'}</div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
                   <FunnelPlotOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
                   <div>
                     <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Currency</div>
@@ -1305,19 +1309,34 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({ opportunityId, on
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                  <BankOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+                  <TagsOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
                   <div>
-                    <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Pipeline stage</div>
-                    <div style={{ fontSize: '16px', color: '#000000' }}>{opportunityData?.salesPipelineStage?.value || '---'}</div>
+                    <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Estimated Amount</div>
+                    <div style={{ fontSize: '16px', color: '#000000' }}>{opportunityData?.estimatedAmount || '---'}</div>
                   </div>
                 </div>
 
-                
                 <div style={{ display: 'flex', alignItems: 'flex-start' }}>
                   <BankOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
                   <div>
-                    <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Pipeline name</div>
+                    <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Sales Pipeline</div>
                     <div style={{ fontSize: '16px', color: '#000000' }}>{opportunityData?.salesPipeline?.value || '---'}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                  <BankOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+                  <div>
+                    <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Stage</div>
+                    <div style={{ fontSize: '16px', color: '#000000' }}>{opportunityData?.stage || '---'}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                  <BankOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
+                  <div>
+                    <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Opportunity Status</div>
+                    <div style={{ fontSize: '16px', color: '#000000' }}>{opportunityData?.opportunityStatus?.value || '---'}</div>
                   </div>
                 </div>
               </div>

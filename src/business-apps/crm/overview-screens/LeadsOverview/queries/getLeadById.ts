@@ -4,6 +4,7 @@ export interface LeadData {
   id: string;
   code: string;
   city: string;
+  name: string;
   version: string;
   companyName: string;
   companyPhone: string;
@@ -143,6 +144,7 @@ export const GET_LEAD_BY_ID = `
     ) {
       id
       code
+      name
       city
       version
       companyName
