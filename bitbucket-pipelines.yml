@@ -50,7 +50,6 @@ definitions:
         services:
           - docker
         script:
-          # Fix platform-specific dependencies issues for Linux containers
           - npm install @rollup/rollup-linux-x64-gnu || true
           - npm rebuild rollup
           - npm install lightningcss-linux-x64-gnu || true
@@ -63,8 +62,7 @@ pipelines:
   pull-requests:
     '**':
       - step: *install_dependencies
-      # - step: *detect-changed-screens
-      - step: *publish-changed-screens
+      - step: *detect-changed-screens
 
   branches:
     develop:
