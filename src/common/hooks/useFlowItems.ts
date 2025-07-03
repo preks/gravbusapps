@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FlowItemReduced } from '../types/FlowRegistryTypes';
-import { Action } from '@newwork/nw-design-system';
+import { ActionOption } from '@newwork/gravity-ui-catalog';
 import { startProcess } from '../utils/start-process';
 import { useFlowRegistryClient } from '../network/flows/useFlowRegistryClient';
 
@@ -20,7 +20,7 @@ interface UseFlowItemsProps {
  * Hook to fetch and process flow items from the flow registry
  */
 export const useFlowItems = ({ mainContextsData, externalContextData, accessToken = '', manualFetch = false }: UseFlowItemsProps) => {
-  const [flowData, setFlowData] = useState<Action[]>([]);
+  const [flowData, setFlowData] = useState<ActionOption[]>([]);
   const [isLoading, setIsLoading] = useState(!manualFetch);
   const flowRegistry = useFlowRegistryClient(accessToken);
 
@@ -71,7 +71,7 @@ export const useFlowItems = ({ mainContextsData, externalContextData, accessToke
 const mapFlowItemsToActionOptions = (
   flowItems: FlowItemReduced[],
   externalContextData: ExternalContextData
-): Action[] => {
+): ActionOption[] => {
   return flowItems.map((flowItem) => {
     // Extract data from context for payload
     const payload: Record<string, any> = {};
@@ -112,7 +112,7 @@ const mapFlowItemsToActionOptions = (
       });
     }
 
-    // Create Action with required properties
+    // Create ActionOption with required properties
     const id = flowItem.id || '';
     const flowName = typeof flowItem.flowNameTranslation === 'string' ? 
       flowItem.flowNameTranslation : 
@@ -121,7 +121,7 @@ const mapFlowItemsToActionOptions = (
     return {
       key: id,
       label: flowName,
-      onSelect: () => {
+      onClick: () => {
         startProcess({
           processName: flowItem.processName,
           domain: flowItem.domain,
@@ -134,6 +134,6 @@ const mapFlowItemsToActionOptions = (
       domain: flowItem.domain,
       category: flowItem.flowType,
       payload
-    } as Action;
+    } as ActionOption;
   });
 };
