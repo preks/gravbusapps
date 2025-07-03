@@ -28,20 +28,21 @@ if [ "$CURRENT_BRANCH" == "$TARGET_BRANCH" ] || [ "$CURRENT_BRANCH" == "HEAD" -a
 else
   echo "Comparing changes between $CURRENT_BRANCH and $TARGET_BRANCH."
   
-  # Safely update our knowledge of remote branches without modifying local branches
+  # Safely fetch updates without updating local branches
+  echo "Fetching latest updates from origin..."
   git fetch origin
   
-  # Use origin/$TARGET_BRANCH for comparison instead of trying to update local branches
+  # Create a temporary ref for comparison to avoid modifying local branches
+  git update-ref refs/temp-target-compare origin/$TARGET_BRANCH
+  
+  # Find changes between our current HEAD and the target branch on origin
   echo "Finding changes between origin/$TARGET_BRANCH and HEAD"
-  
-  # Find merge base between current HEAD and the target branch on origin
-  MERGE_BASE=$(git merge-base HEAD origin/$TARGET_BRANCH 2>/dev/null || echo "HEAD~10")
-  echo "Using merge-base: $MERGE_BASE"
-  
-  # Compare current HEAD with the merge base
-  git diff --name-only "$MERGE_BASE..HEAD" \
+  git diff --name-only "refs/temp-target-compare...HEAD" \
     | grep -E '^src/business-apps/.*\.tsx$' \
     > changed-tsx.txt
+    
+  # Clean up the temporary ref
+  git update-ref -d refs/temp-target-compare
 fi
 
 if [[ ! -s changed-tsx.txt ]]; then
