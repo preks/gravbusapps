@@ -141,7 +141,7 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
         // Process expenses by type to create a summary object
         const expenseTypes: Record<string, number> = {};
         data?.expensesByType?.forEach((item: any) => {
-          const type = item.expenseClass?.value || 'Other';
+          const type = item.expenseGroup?.value || 'Other';
           if (!expenseTypes[type]) {
             expenseTypes[type] = 0;
           }

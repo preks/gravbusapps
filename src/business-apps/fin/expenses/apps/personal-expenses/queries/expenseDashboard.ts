@@ -208,51 +208,22 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       expenseDate
     }
     
-    # Last 6 months expense data for charts
-    monthlyExpenses: ExpenseItemAggregate(
-      where: {
-        employeeId: {_eq: $employeeId},
-        isDeleted: {_eq: false},
-        createdAt: {_gte: "2024-12-01", _lt: "2025-07-01"},
-        currencyRef: {_eq: $currency}
-      }
-    ) {
-      aggregate {
-        sum {
-          totalAmount
-        }
-        count
-      }
-    }
-    
-    # Last month's expenses (for comparison)
-    lastMonthExpenses: ExpenseItemAggregate(
-      where: {
-        employeeId: {_eq: $employeeId}, 
-        isDeleted: {_eq: false},
-        createdAt: {_gte: "2025-05-01", _lt: "2025-06-01"},
-        currencyRef: {_eq: $currency}
-      }
-    ) {
-      aggregate {
-        sum {
-          totalAmount
-        }
-        count
-      }
-    }
+
     
     # Expenses by type for donut chart
-    expensesByType: ExpenseItem(
+    expensesByType: ExpensePosition(
       where: {
-        employeeId: {_eq: $employeeId},
-        isDeleted: {_eq: false},
-        createdAt: {_gte: "2025-01-01"},
-        currencyRef: {_eq: $currency}
+        expenseItem: {
+          employeeId: {_eq: $employeeId},
+          isDeleted: {_eq: false},
+          status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
+          createdAt: {_gte: $currentYearStart, _lt: $currentYearEnd},
+          currencyRef: {_eq: $currency}
+        }
       }
     ) {
       totalAmount
-      expenseClass {
+      expenseGroup {
         value
       }
     }
