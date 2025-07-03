@@ -1,6 +1,6 @@
 import React from 'react';
 import { Row, Col, Card, Typography, Statistic, Tooltip, Spin, Alert } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined, ClockCircleOutlined, WarningOutlined, GlobalOutlined } from '@ant-design/icons';
+import { ArrowUpOutlined, ArrowDownOutlined, ClockCircleOutlined, GlobalOutlined } from '@ant-design/icons';
 import { PiCurrencyCircleDollar } from 'react-icons/pi';
 import { formatCurrency, calculatePercentChange } from '../utils/formatters';
 import { DashboardStats } from '../types';

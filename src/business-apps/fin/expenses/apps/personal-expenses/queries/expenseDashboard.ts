@@ -191,10 +191,10 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
-        currencyRef: {_eq: $currency}
+        currencyRef: {_eq: $currency},
+        createdAt: {_gte: $currentMonthStart, _lt: $currentMonthEnd}
       },
-      orderBy: {updatedAt: DESC},
-      limit: 10
+      orderBy: {updatedAt: DESC}
     ) {
       id
       title

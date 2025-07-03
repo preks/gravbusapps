@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, Button, List, Space, Typography, Tag, Empty, Spin, Alert } from 'antd';
-import { EyeOutlined, DollarCircleOutlined } from '@ant-design/icons';
+import { EyeOutlined, EyeInvisibleOutlined, DollarCircleOutlined } from '@ant-design/icons';
 import { DashboardStats, RecentActivity } from '../types';
 import { formatCurrency, getStatusColor } from '../utils/formatters';
 
@@ -13,6 +13,7 @@ interface ActionFeedProps {
 }
 
 export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error }) => {
+  const [showAll, setShowAll] = useState(false);
   if (isLoading) {
     return (
       <Card className="gba:action-feed-card">
@@ -37,45 +38,78 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
   }
 
   const recentActivity = stats?.recentActivity || [];
-  
+  const activitiesToShow = showAll ? recentActivity : recentActivity.slice(0, 10);
+
   return (
-    <Card 
+    <Card
       title="Action Feed"
       className="gba:action-feed-card"
       size="small"
       bodyStyle={{ padding: '6px 8px' }}
       headStyle={{ paddingTop: '6px', paddingBottom: '6px', fontSize: '14px' }}
       extra={
-        <Button type="link" icon={<EyeOutlined />} size="small" style={{ fontSize: '12px', height: '22px', padding: '0 4px' }}>View All</Button>
+        recentActivity.length > 10 ? (
+          showAll ? (
+            <Button
+              type="link"
+              icon={<EyeInvisibleOutlined />}
+              size="small"
+              style={{ fontSize: '12px', height: '22px', padding: '0 4px' }}
+              onClick={() => setShowAll(false)}
+            >
+              View Less
+            </Button>
+          ) : (
+            <Button
+              type="link"
+              icon={<EyeOutlined />}
+              size="small"
+              style={{ fontSize: '12px', height: '22px', padding: '0 4px' }}
+              onClick={() => setShowAll(true)}
+            >
+              View All
+            </Button>
+          )
+        ) : null
       }
     >
       {recentActivity.length > 0 ? (
-        <List
-          size="small"
-          itemLayout="horizontal"
-          dataSource={recentActivity}
-          split={false}
-          renderItem={(item: RecentActivity) => (
-            <List.Item style={{ padding: '4px 0' }}>
-              <Space size={4} style={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
-                <Text strong style={{ fontSize: '13px' }}>{item.title}</Text>
-                <Space size={4}>
-                  <Tag color={getStatusColor(item.status)} style={{ margin: 0, padding: '0 4px', fontSize: '11px', lineHeight: '16px' }}>
-                    {item.status}
-                  </Tag>
-                  {item.expenseType && 
-                    <Tag color="blue" style={{ margin: 0, padding: '0 4px', fontSize: '11px', lineHeight: '16px' }}>
-                      {item.expenseType}
-                    </Tag>
-                  }
-                  <Text type="secondary" style={{ fontSize: '12px' }}>
-                    <DollarCircleOutlined /> {formatCurrency(Number(item.totalAmount))}
+        <div style={showAll ? { maxHeight: '300px', overflowY: 'auto', paddingRight: '8px' } : {}}>
+          <List
+            size="small"
+            itemLayout="horizontal"
+            dataSource={activitiesToShow}
+            split={false}
+            renderItem={(item: RecentActivity) => (
+              <List.Item style={{ padding: '4px 0' }}>
+                <Space size={4} style={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
+                  <Text strong style={{ fontSize: '13px' }}>
+                    {item.title}
                   </Text>
+                  <Space size={4}>
+                    <Tag
+                      color={getStatusColor(item.status)}
+                      style={{ margin: 0, padding: '0 4px', fontSize: '11px', lineHeight: '16px' }}
+                    >
+                      {item.status}
+                    </Tag>
+                    {item.expenseType && (
+                      <Tag
+                        color="blue"
+                        style={{ margin: 0, padding: '0 4px', fontSize: '11px', lineHeight: '16px' }}
+                      >
+                        {item.expenseType}
+                      </Tag>
+                    )}
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      <DollarCircleOutlined /> {formatCurrency(Number(item.totalAmount))}
+                    </Text>
+                  </Space>
                 </Space>
-              </Space>
-            </List.Item>
-          )}
-        />
+              </List.Item>
+            )}
+          />
+        </div>
       ) : (
         <Empty description="No recent activity" />
       )}

@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Row, Col, Card, Typography, Button, List, Space } from 'antd';
-import { PlusCircleOutlined, SendOutlined, ExperimentOutlined, UploadOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, SendOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { startProcess } from '@/common/utils/start-process';
 
