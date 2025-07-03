@@ -80,7 +80,7 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
                   <Text style={{ marginRight: 'auto' }}>{item.type}</Text>
                   <Text strong>{percentage}%</Text>
                   <Text type="secondary" style={{ marginLeft: 8 }}>
-                    {formatCurrency(item.amount, 'EUR')}
+                    {formatCurrency(item.amount)}
                   </Text>
                 </div>
               );

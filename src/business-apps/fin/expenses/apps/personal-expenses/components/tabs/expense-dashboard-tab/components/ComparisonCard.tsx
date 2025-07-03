@@ -30,7 +30,7 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
             title={currentLabel}
             value={currentValue}
             precision={2}
-            formatter={(value) => formatCurrency(Number(value), 'EUR')}
+            formatter={(value) => formatCurrency(Number(value))}
             valueStyle={{ color: '#108ee9' }}
           />
         </Col>
@@ -40,7 +40,7 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
             title={previousLabel}
             value={previousValue}
             precision={2}
-            formatter={(value) => formatCurrency(Number(value), 'EUR')}
+            formatter={(value) => formatCurrency(Number(value))}
             valueStyle={{ color: '#8c8c8c' }}
           />
         </Col>

@@ -85,19 +85,19 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
       setError(null);
       try {
         const currentMonthStart = dayjs().startOf('month').toISOString();
-        const currentMonthEnd = dayjs().add(1, 'month').startOf('month').toISOString();
+        const currentMonthEnd = dayjs().endOf('month').toISOString();
         const previousMonthStart = dayjs().subtract(1, 'month').startOf('month').toISOString();
-        const previousMonthEnd = dayjs().startOf('month').toISOString();
+        const previousMonthEnd = dayjs().subtract(1, 'month').endOf('month').toISOString();
 
         const currentQuarterStart = dayjs().startOf('quarter').toISOString();
-        const currentQuarterEnd = dayjs().add(1, 'quarter').startOf('quarter').toISOString();
+        const currentQuarterEnd = dayjs().endOf('quarter').toISOString();
         const previousQuarterStart = dayjs().subtract(1, 'quarter').startOf('quarter').toISOString();
-        const previousQuarterEnd = dayjs().startOf('quarter').toISOString();
+        const previousQuarterEnd = dayjs().subtract(1, 'quarter').endOf('quarter').toISOString();
 
         const currentYearStart = dayjs().startOf('year').toISOString();
-        const currentYearEnd = dayjs().add(1, 'year').startOf('year').toISOString();
+        const currentYearEnd = dayjs().endOf('year').toISOString();
         const previousYearStart = dayjs().subtract(1, 'year').startOf('year').toISOString();
-        const previousYearEnd = dayjs().startOf('year').toISOString();
+        const previousYearEnd = dayjs().subtract(1, 'year').endOf('year').toISOString();
 
         const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
           method: 'POST',

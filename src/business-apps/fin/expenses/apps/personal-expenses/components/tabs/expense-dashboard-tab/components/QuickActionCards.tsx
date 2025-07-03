@@ -16,7 +16,8 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
         processName: 'changeExpenseItem',
         payload: {
           employeeId: userInfo.employeeDetails.employeeId
-        }
+        },
+        builderType: 'NATIVE_SCREEN'
       });
     }
   }, [userInfo?.employeeDetails?.employeeId]);
