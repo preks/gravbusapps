@@ -33,6 +33,7 @@
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/upcomingAbsenceCard.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/statsCard.css";
 @import "./business-apps/hr/forms/EmployeeTermination/EmployeeTermination.css";
+@import "@newwork/nw-design-system/dist/index.css";
 
 @custom-variant dark (&:is(.dark *));
 
