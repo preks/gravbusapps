@@ -4,11 +4,13 @@ set -euo pipefail
 # Determine target branch (for PRs this is auto-set, otherwise use develop)
 TARGET_BRANCH="${BITBUCKET_PR_DESTINATION_BRANCH:-develop}"
 
-# Get the current branch
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+# Get the current branch - prefer Bitbucket environment variables over git commands
+CURRENT_BRANCH="${BITBUCKET_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
+echo "Detected current branch: $CURRENT_BRANCH"
+echo "Target branch: $TARGET_BRANCH"
 
 # Different detection strategy based on whether we're on the target branch or not
-if [ "$CURRENT_BRANCH" == "$TARGET_BRANCH" ]; then
+if [ "$CURRENT_BRANCH" == "$TARGET_BRANCH" ] || [ "$CURRENT_BRANCH" == "HEAD" -a "$BITBUCKET_BRANCH" == "$TARGET_BRANCH" ]; then
   echo "Current branch is the target branch ($TARGET_BRANCH). Using recent commits strategy."
   
   # When on develop branch, look at the last commit's changes
