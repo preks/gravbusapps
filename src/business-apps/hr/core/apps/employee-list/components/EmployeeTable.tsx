@@ -28,6 +28,8 @@ const MemoizedAppActionButton = memo<{
     }}
     prefixDataTestId={`${dataTestIdPrefix}-action-${employeeId}`}
     accessToken={accessToken}
+    emptyStateBehavior="enabled"
+    deferMainContextRequestsUntilClick
   >
 
   </AppActionButton>

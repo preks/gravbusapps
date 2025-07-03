@@ -20,11 +20,13 @@ export function useGetContractTypes(accessToken: string, searchRegex: string, of
   const [types, setTypes] = useState<ContractTypeOption[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const client = useCatalogManagerClient(accessToken);
 
   useEffect(() => {
     setError(null);
+    setLoading(true);
     
     client.getCatalogEntriesList({
       catalogIdentifier: 'ContractType',
@@ -57,14 +59,16 @@ export function useGetContractTypes(accessToken: string, searchRegex: string, of
       
       setTypes(typesArr);
       setHasMore(entries.length === 5);
+      setLoading(false);
     })
     .catch((err: any) => {
       console.error('Error fetching contract types:', err);
       setError(err);
       setTypes([]);
       setHasMore(false);
+      setLoading(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchRegex, offset, userLocale, client]);
-  return { types, loading: false, error, hasMore };
+  return { types, loading, error, hasMore };
 }
