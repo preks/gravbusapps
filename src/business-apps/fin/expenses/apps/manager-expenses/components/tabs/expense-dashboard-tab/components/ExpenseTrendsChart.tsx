@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Empty } from 'antd';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpenseTrendsChartProps {
   data: {
@@ -13,7 +14,7 @@ interface ExpenseTrendsChartProps {
 /**
  * Component to display monthly expense trends as a bar chart
  */
-const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({ data, title = 'Monthly Expense Trends' }) => {
+const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({ data, title = getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', 'Monthly Expense Trends') }) => {
   if (!data || data.length === 0) {
     return (
       <Card title={title} className="gba:h-full">
