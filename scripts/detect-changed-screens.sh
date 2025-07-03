@@ -28,22 +28,20 @@ if [ "$CURRENT_BRANCH" == "$TARGET_BRANCH" ] || [ "$CURRENT_BRANCH" == "HEAD" -a
 else
   echo "Comparing changes between $CURRENT_BRANCH and $TARGET_BRANCH."
   
-  # Try to fetch the base branch so we can diff against it
-  git fetch origin "${TARGET_BRANCH}:${TARGET_BRANCH}" || {
-    echo "Warning: Could not fetch $TARGET_BRANCH. Using fallback method."
-    # Fallback: find common ancestor and use that for diff
-    MERGE_BASE=$(git merge-base HEAD origin/$TARGET_BRANCH 2>/dev/null || git merge-base HEAD $TARGET_BRANCH 2>/dev/null || echo "HEAD~10")
-    git diff --name-only "${MERGE_BASE}...HEAD" \
-      | grep -E '^src/business-apps/.*\.tsx$' \
-      > changed-tsx.txt
-    # Exit the block after fallback
-    true
-  } && {
-    # Normal case - fetch worked, do the diff
-    git diff --name-only "${TARGET_BRANCH}...HEAD" \
-      | grep -E '^src/business-apps/.*\.tsx$' \
-      > changed-tsx.txt
-  }
+  # Safely update our knowledge of remote branches without modifying local branches
+  git fetch origin
+  
+  # Use origin/$TARGET_BRANCH for comparison instead of trying to update local branches
+  echo "Finding changes between origin/$TARGET_BRANCH and HEAD"
+  
+  # Find merge base between current HEAD and the target branch on origin
+  MERGE_BASE=$(git merge-base HEAD origin/$TARGET_BRANCH 2>/dev/null || echo "HEAD~10")
+  echo "Using merge-base: $MERGE_BASE"
+  
+  # Compare current HEAD with the merge base
+  git diff --name-only "$MERGE_BASE..HEAD" \
+    | grep -E '^src/business-apps/.*\.tsx$' \
+    > changed-tsx.txt
 fi
 
 if [[ ! -s changed-tsx.txt ]]; then
