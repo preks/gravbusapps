@@ -92,7 +92,7 @@ export const SpendingOverview: React.FC<SpendingOverviewProps> = ({
     >
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>
-          <ExpenseDistribution stats={stats} />
+          <ExpenseDistribution stats={stats} chartView={chartView} />
         </Col>
         <Col xs={24} lg={12}>
           <ComparisonCard {...comparisonProps} />

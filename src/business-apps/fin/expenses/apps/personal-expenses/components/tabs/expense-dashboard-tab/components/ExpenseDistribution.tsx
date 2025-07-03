@@ -7,15 +7,27 @@ const { Text } = Typography;
 
 interface ExpenseDistributionProps {
   stats: DashboardStats | undefined;
+  chartView: string | number;
 }
 
-export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats }) => {
-  const expenseTypes: ExpenseType[] =
-    stats?.expensesByType
-      ? Object.entries(stats.expensesByType)
-          .map(([type, amount]) => ({ type, amount }))
-          .sort((a, b) => b.amount - a.amount)
-      : [];
+export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats, chartView }) => {
+  const getExpensesByType = () => {
+    switch (chartView) {
+      case 'Quarterly':
+        return stats?.expensesByTypeQuarter || {};
+      case 'Yearly':
+        return stats?.expensesByTypeYear || {};
+      case 'Monthly':
+      default:
+        return stats?.expensesByTypeMonth || {};
+    }
+  };
+
+  const expensesByType = getExpensesByType();
+
+  const expenseTypes: ExpenseType[] = Object.entries(expensesByType)
+    .map(([type, amount]) => ({ type, amount: amount as number }))
+    .sort((a, b) => b.amount - a.amount);
 
   const totalExpenses = expenseTypes.reduce((sum, item) => sum + item.amount, 0);
 

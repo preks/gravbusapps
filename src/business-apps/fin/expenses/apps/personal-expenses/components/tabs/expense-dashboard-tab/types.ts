@@ -29,7 +29,9 @@ export interface DashboardStats {
   pendingAdvancePayments?: number;
   flaggedItems?: number;
   upcomingTrips?: number;
-  expensesByType?: Record<string, number>;
+  expensesByTypeMonth?: Record<string, number>;
+  expensesByTypeQuarter?: Record<string, number>;
+  expensesByTypeYear?: Record<string, number>;
   recentActivity?: RecentActivity[];
   expenseItemsWithoutReceipts?: number;
 }

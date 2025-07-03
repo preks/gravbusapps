@@ -210,8 +210,44 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
     
 
     
-    # Expenses by type for donut chart
-    expensesByType: ExpensePosition(
+    # Expenses by type for donut chart (monthly)
+    expensesByTypeMonth: ExpensePosition(
+      where: {
+        expenseItem: {
+          employeeId: {_eq: $employeeId},
+          isDeleted: {_eq: false},
+          status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
+          createdAt: {_gte: $currentMonthStart, _lt: $currentMonthEnd},
+          currencyRef: {_eq: $currency}
+        }
+      }
+    ) {
+      totalAmount
+      expenseGroup {
+        value
+      }
+    }
+
+    # Expenses by type for donut chart (quarterly)
+    expensesByTypeQuarter: ExpensePosition(
+      where: {
+        expenseItem: {
+          employeeId: {_eq: $employeeId},
+          isDeleted: {_eq: false},
+          status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
+          createdAt: {_gte: $currentQuarterStart, _lt: $currentQuarterEnd},
+          currencyRef: {_eq: $currency}
+        }
+      }
+    ) {
+      totalAmount
+      expenseGroup {
+        value
+      }
+    }
+
+    # Expenses by type for donut chart (yearly)
+    expensesByTypeYear: ExpensePosition(
       where: {
         expenseItem: {
           employeeId: {_eq: $employeeId},

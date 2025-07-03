@@ -45,7 +45,9 @@ export interface ExpenseDashboard {
     expenseType?: string;
     expenseDate?: string;
   }>;
-  expensesByType: Record<string, number>;
+  expensesByTypeMonth: Record<string, number>;
+  expensesByTypeQuarter: Record<string, number>;
+  expensesByTypeYear: Record<string, number>;
   expenseItemsWithoutReceipts: number;
 }
 
@@ -136,18 +138,22 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
         }
         
         const data = result.data;
-        console.log('Full query data:', data);
-        
-        // Process expenses by type to create a summary object
-        const expenseTypes: Record<string, number> = {};
-        data?.expensesByType?.forEach((item: any) => {
-          const type = item.expenseGroup?.value || 'Other';
-          if (!expenseTypes[type]) {
-            expenseTypes[type] = 0;
-          }
-          expenseTypes[type] += item.totalAmount || 0;
-        });
-        
+        const processExpensesByType = (expenseData: any[]): Record<string, number> => {
+          const expenseTypes: Record<string, number> = {};
+          expenseData?.forEach((item: any) => {
+            const type = item.expenseGroup?.value || 'Other';
+            if (!expenseTypes[type]) {
+              expenseTypes[type] = 0;
+            }
+            expenseTypes[type] += item.totalAmount || 0;
+          });
+          return expenseTypes;
+        };
+
+        const expensesByTypeMonth = processExpensesByType(data?.expensesByTypeMonth);
+        const expensesByTypeQuarter = processExpensesByType(data?.expensesByTypeQuarter);
+        const expensesByTypeYear = processExpensesByType(data?.expensesByTypeYear);
+
         const bookedExpenseRequests = data?.bookedExpenseRequests?.aggregate?.sum?.totalAmount ?? 0;
         const pendingAdvancePayments = data?.pendingAdvancePayments?.aggregate?.sum?.amount ?? 0;
 
@@ -190,7 +196,9 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
             expenseType: item.expenseClass?.value ?? 'General',
             expenseDate: item.expenseDate ? new Date(item.expenseDate).toLocaleDateString() : 'N/A',
           })) ?? [],
-          expensesByType: expenseTypes,
+          expensesByTypeMonth,
+          expensesByTypeQuarter,
+          expensesByTypeYear,
           expenseItemsWithoutReceipts: data?.itemsWithoutReceipts?.aggregate?.count ?? 0,
         };
         
