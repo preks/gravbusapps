@@ -11,6 +11,8 @@ import { useTenureByOrgUnit } from '../../hooks/useTenureByOrgUnit';
 import TenureHeatmapChart from '../charts/TenureHeatmapChart';
 import EmploymentTypePieChart from '../charts/EmploymentTypePieChart';
 import ContractTypePieChart from '../charts/ContractTypePieChart';
+import GapRateByOrgUnitChart from '../charts/GapRateByOrgUnitChart';
+import ProbationRateByOrgUnitChart from '../charts/ProbationRateByOrgUnitChart';
 
 const { Title, Text } = Typography;
 
@@ -246,6 +248,15 @@ const Workforce: React.FC<WorkforceProps> = ({ accessToken = '' }) => {
             loading={tenureDistributionLoading}
             error={tenureDistributionError}
           />
+        </Col>
+      </Row>
+      
+      <Row gutter={[16, 16]} className="gba:mb-6">
+        <Col xs={24} md={12}>
+          <GapRateByOrgUnitChart accessToken={accessToken} />
+        </Col>
+        <Col xs={24} md={12}>
+          <ProbationRateByOrgUnitChart accessToken={accessToken} />
         </Col>
       </Row>
       

@@ -133,7 +133,8 @@ const YearlyPayrollChart: React.FC<YearlyPayrollChartProps> = ({ accessToken }) 
           <Bar 
             name={getTranslationFromI18nKeyAndLabel('hr_analytics_total_payroll', 'Total Payroll')} 
             dataKey="totalPayroll" 
-            fill="#8884d8" 
+            fill="#8884d8"
+            barSize={38} // Bar width (increased by 25% from 30)
           />
           </BarChart>
         </ResponsiveContainer>

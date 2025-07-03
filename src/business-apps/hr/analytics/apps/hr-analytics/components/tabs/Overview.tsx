@@ -5,8 +5,10 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { AnalyticsKpiData } from '../../types/analyticsTypes';
 import HiresPerYearChart from '../charts/HiresPerYearChart';
 import EmployeesPerYearChart from '../charts/EmployeesPerYearChart';
+import EmployeesByOrgUnitChart from '../charts/EmployeesByOrgUnitChart';
 import { YearlyHireData } from '../../hooks/useHiresPerYear';
 import { YearlyEmployeeData } from '../../hooks/useEmployeesPerYear';
+import { OrgUnitEmployeeData } from '../../hooks/useEmployeesByOrgUnit';
 
 const { Title, Text } = Typography;
 
@@ -18,9 +20,22 @@ interface OverviewTabProps {
   employeesPerYearData: YearlyEmployeeData[];
   employeesChartLoading: boolean;
   employeesChartError?: Error | null;
+  departmentData: OrgUnitEmployeeData[];
+  departmentChartLoading: boolean;
+  departmentChartError?: Error | null;
+  accessToken: string;
 }
 
-const Overview: React.FC<OverviewTabProps> = ({ analyticsData, hiresPerYearData, hiresChartLoading, hiresChartError, employeesPerYearData, employeesChartLoading, employeesChartError }) => {
+const Overview: React.FC<OverviewTabProps> = ({ 
+  analyticsData, 
+  hiresPerYearData, 
+  hiresChartLoading, 
+  hiresChartError, 
+  employeesPerYearData, 
+  employeesChartLoading, 
+  employeesChartError,
+  accessToken
+}) => {
   const {
     totalEmployees,
     newHires,
@@ -136,14 +151,19 @@ const Overview: React.FC<OverviewTabProps> = ({ analyticsData, hiresPerYearData,
       
       {/* Charts Section */}
       <div className="gba:mt-8 gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
+        {/* Employees Per Year Chart */}
+        <div className="gba:col-span-1" data-testid="employees-per-year-chart-container">
+          <EmployeesPerYearChart data={employeesPerYearData} loading={employeesChartLoading} error={employeesChartError} />
+        </div>
+        
         {/* Hires Per Year Chart */}
         <div className="gba:col-span-1" data-testid="hires-per-year-chart-container">
           <HiresPerYearChart data={hiresPerYearData} loading={hiresChartLoading} error={hiresChartError} />
         </div>
-        
-        {/* Employees Per Year Chart */}
-        <div className="gba:col-span-1" data-testid="employees-per-year-chart-container">
-          <EmployeesPerYearChart data={employeesPerYearData} loading={employeesChartLoading} error={employeesChartError} />
+
+        {/* Employees By Org Unit Chart */}
+        <div className="gba:col-span-1 gba:md:col-span-2 gba:mt-4" data-testid="employees-by-org-unit-chart-container">
+          <EmployeesByOrgUnitChart accessToken={accessToken} />
         </div>
       </div>
     </div>

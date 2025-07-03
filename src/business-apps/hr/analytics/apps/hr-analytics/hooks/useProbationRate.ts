@@ -99,18 +99,18 @@ export const useProbationRate = (accessToken: string) => {
         throw new Error('[useProbationRate] Completed probation count is not a valid number');
       }
       
-      // Calculate employees in probation (total - completed)
-      // We need to ensure we don't get negative numbers in case of data inconsistency
-      const inProbation = Math.max(0, total - completedProbation);
+      // With our updated query, completedProbation now represents employees currently in probation
+      // (those with probation end date > today)
+      const inProbation = completedProbation;
       
-      // Calculate probation rate (percentage of employees still in probation)
+      // Calculate probation rate (percentage of employees currently in probation)
       const calculatedProbationRate = total > 0 ? (inProbation / total) * 100 : 0;
       
       // Round to one decimal place
       const roundedProbationRate = Math.round(calculatedProbationRate * 10) / 10;
       
       // Log the results
-      console.info(`[useProbationRate] Total employees: ${total}, Completed probation: ${completedProbation}, In probation: ${inProbation}, Rate: ${roundedProbationRate}%`);
+      console.info(`[useProbationRate] Total employees: ${total}, Employees in probation: ${inProbation}, Rate: ${roundedProbationRate}%`);
       
       // Update state if component is still mounted
       if (isMounted.current) {

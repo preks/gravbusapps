@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Card, Typography, Spin, Alert } from 'antd';
+import { Card, Typography, Spin, Alert, Row, Col } from 'antd';
 import { DollarOutlined, ArrowUpOutlined, TrophyOutlined } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -9,6 +9,8 @@ import { useAverageSalary } from '../../hooks/useAverageSalary';
 import { useSalaryByOrgUnit } from '../../hooks/useSalaryByOrgUnit';
 import YearlyPayrollChart from '../charts/YearlyPayrollChart';
 import SalaryByOrgUnitChart from '../charts/SalaryByOrgUnitChart';
+import HealthInsurerDistributionChart from '../charts/HealthInsurerDistributionChart';
+import HealthInsuranceTypeDistributionChart from '../charts/HealthInsuranceTypeDistributionChart';
 
 const { Title, Text } = Typography;
 
@@ -186,6 +188,22 @@ const CompensationTab: React.FC<CompensationTabProps> = ({ accessToken }) => {
         loading={salaryByOrgUnitLoading}
         error={salaryByOrgUnitError}
       />
+      
+      {/* Health Insurance Charts */}
+      <div className="gba:mt-4">
+        <Row gutter={16} className="gba:w-full">
+          <Col span={12}>
+            <HealthInsurerDistributionChart
+              accessToken={accessToken}
+            />
+          </Col>
+          <Col span={12}>
+            <HealthInsuranceTypeDistributionChart
+              accessToken={accessToken}
+            />
+          </Col>
+        </Row>
+      </div>
     </div>
   );
 };

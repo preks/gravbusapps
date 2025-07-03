@@ -33,8 +33,15 @@ export const getSalaryByOrgUnitQuery = `
       }
     }
     
-    # Get all organizational units for the given structure
-    OrganizationalUnit(where: {structureId: {_eq: $structureId}}) {
+    # Get all organizational units for the given structure (excluding deleted)
+    OrganizationalUnit(
+      where: {
+        _and: [
+          { isDeleted: { _eq: false } },
+          { structureId: { _eq: $structureId } }
+        ]
+      }
+    ) {
       id
       name
     }

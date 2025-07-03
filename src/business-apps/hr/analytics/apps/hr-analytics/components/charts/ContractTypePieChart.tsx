@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
-import { Card, Typography, Spin, Empty, Tooltip } from 'antd';
+import React from 'react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts';
+import { Card, Typography, Spin, Empty, Tooltip, theme } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
-import { Pie } from '@ant-design/plots';
 import { BusinessAppContextProps } from '@/business-apps/types';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useContractTypeDistribution } from '../../hooks/useContractTypeDistribution';
@@ -13,113 +13,82 @@ const { Title } = Typography;
  * With a center statistic showing total employee count and custom tooltips
  */
 export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+  const { token } = theme.useToken();
+  const [activeIndex, setActiveIndex] = React.useState<number>(-1);
+  
   // Fetch contract type distribution data
   const { distribution: data, loading, error } = useContractTypeDistribution(accessToken);
 
   // Transform data for pie chart
-  const chartData = useMemo(() => {
+  const chartData = React.useMemo(() => {
     return data.map(item => ({
-      type: item.name,
+      name: item.name,
       value: item.count,
-      percentage: parseFloat(item.percentage.toFixed(1))
+      percentage: parseFloat(item.percentage.toFixed(1)),
+      // Add formatted display value for consistent presentation
+      displayValue: `${item.count.toLocaleString()} (${item.percentage.toFixed(1)}%)`
     }));
   }, [data]);
 
-  // Config for the pie chart - simplified configuration with optimized styling
-  const config = {
-    // Add padding for chart spacing
-    appendPadding: [10, 10, 10, 10], // [top, right, bottom, left]
-    data: chartData,
-    angleField: 'value',
-    colorField: 'type',
-    radius: 0.8,
-    innerRadius: 0.6,
-    label: {
-      type: 'outer',
-      content: '{name} {value} ({percentage}%)',
-      style: {
-        fontSize: 18,
-        fontWeight: 600,
-        fill: '#000000'
-      }
-    },
-    // Simplified tooltip configuration that works correctly with Ant Design Plots
-    tooltip: {
-      title: (datum: any) => datum.type,
-      formatter: (datum: any) => {
-        return [
-          { name: 'Count', value: datum.value.toLocaleString() },
-          { name: 'Percentage', value: `${datum.percentage}%` }
-        ];
-      },
-      domStyles: {
-        'g2-tooltip': {
-          backgroundColor: '#fff',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
-          padding: '12px 16px',
-          fontSize: '16px',
-          borderRadius: '4px',
-          border: '1px solid #eaeaea'
-        },
-        'g2-tooltip-title': {
-          fontWeight: '700',
-          fontSize: '18px',
-          color: '#000',
-          marginBottom: '10px',
-          borderBottom: '1px solid #f0f0f0',
-          paddingBottom: '6px'
-        },
-        'g2-tooltip-list': {
-          paddingLeft: '0'
-        },
-        'g2-tooltip-list-item': {
-          display: 'flex',
-          justifyContent: 'space-between',
-          marginBottom: '4px',
-          alignItems: 'center',
-          fontSize: '15px'
-        },
-        'g2-tooltip-marker': {
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          display: 'inline-block',
-          marginRight: '6px'
-        },
-        'g2-tooltip-value': {
-          marginLeft: '12px',
-          fontWeight: '600',
-          fontSize: '16px'
-        }
-      }
-    },
-    interactions: [
-      { type: 'element-selected' },
-      { type: 'element-active' }
-    ],
-    statistic: {
-      title: {
-        style: {
-          fontWeight: 600,
-          fontSize: 22,
-          color: '#333'
-        },
-        formatter: () => getTranslationFromI18nKeyAndLabel('hr_analytics_contract_types', 'Contract Types')
-      },
-      content: {
-        style: {
-          fontWeight: 700,
-          fontSize: 28,
-          color: '#000'
-        },
-        formatter: () => {
-          // Sum all contract types for total employee count
-          return data.reduce((sum, item) => sum + item.count, 0).toLocaleString();
-        }
-      }
-    },
-    // Completely disable the built-in legend since we're using a custom one below
-    legend: false,
+  // Standard Ant Design colors to match the chart's default color palette
+  const COLORS = [
+    '#1890FF', '#2FC25B', '#FACC14', '#223273', '#8543E0', '#13C2C2', 
+    '#3436C7', '#F04864', '#D0021B', '#5B8FF9', '#5AD8A6', '#5D7092',
+    '#F6BD16', '#E8684A', '#6DC8EC', '#9270CA', '#FF9D4D', '#269A99'
+  ];
+
+  // Calculate the total number of employees
+  const totalEmployees = React.useMemo(() => {
+    return chartData.reduce((sum, item) => sum + item.value, 0);
+  }, [chartData]);
+
+  // Custom active shape for the pie chart when hovering
+  const renderActiveShape = (props: any) => {
+    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, value } = props;
+
+    return (
+      <g>
+        <Sector
+          cx={cx}
+          cy={cy}
+          innerRadius={innerRadius}
+          outerRadius={outerRadius + 10}
+          startAngle={startAngle}
+          endAngle={endAngle}
+          fill={fill}
+          opacity={0.8}
+        />
+        <Sector
+          cx={cx}
+          cy={cy}
+          startAngle={startAngle}
+          endAngle={endAngle}
+          innerRadius={innerRadius - 6}
+          outerRadius={innerRadius - 2}
+          fill={fill}
+        />
+        <text x={cx} y={cy - 20} textAnchor="middle" fill={token.colorText} fontSize={20} fontWeight="600">
+          {payload.name}
+        </text>
+        <text x={cx} y={cy + 10} textAnchor="middle" fill={token.colorTextSecondary} fontSize={16}>
+          {value.toLocaleString()} employees
+        </text>
+        <text x={cx} y={cy + 35} textAnchor="middle" fill={token.colorPrimary} fontSize={16} fontWeight="600">
+          {payload.percentage}%
+        </text>
+      </g>
+    );
+  };
+
+  // Tooltip has been removed as per requirement
+  
+  // Event handlers for pie slice hover
+  const onPieEnter = (_: any, index: number) => {
+    setActiveIndex(index);
+  };
+  
+  const onPieLeave = () => {
+    setActiveIndex(-1);
   };
 
   return (
@@ -175,7 +144,43 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
               />
             </div>
           ) : (
-            <Pie {...config} data-testid="contract-type-pie-chart-rendered" />
+            <ResponsiveContainer width="100%" height="100%" data-testid="contract-type-pie-chart-rendered">
+              <PieChart>
+                {/* Tooltip removed as requested */}
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  activeIndex={activeIndex}
+                  activeShape={renderActiveShape}
+                  innerRadius="60%"
+                  outerRadius="80%"
+                  dataKey="value"
+                  onMouseEnter={onPieEnter}
+                  onMouseLeave={onPieLeave}
+                  animationBegin={0}
+                  animationDuration={1200}
+                  animationEasing="ease-out"
+                >
+                  {chartData.map((_, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={COLORS[index % COLORS.length]} 
+                      stroke={token.colorBgContainer} 
+                      strokeWidth={2}
+                    />
+                  ))}
+                  {/* Custom center label rendered directly */}
+                  <text x="50%" y="47%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: '20px', fill: token.colorText, fontWeight: 600 }}>
+                    {getTranslationFromI18nKeyAndLabel('hr_analytics_contract_types', 'Contract Types')}
+                  </text>
+                  <text x="50%" y="57%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: '28px', fontWeight: 'bold', fill: token.colorTextHeading }}>
+                    {totalEmployees.toLocaleString()}
+                  </text>
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
           )}
         </div>
         
@@ -226,7 +231,7 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
                     }}
                   />
                   <div style={{ fontWeight: 500, fontSize: '16px' }}>
-                    <span style={{ marginRight: '8px' }}>{item.type}:</span> 
+                    <span style={{ marginRight: '8px' }}>{item.name}:</span> 
                     <span style={{ fontWeight: 700 }}>
                       {item.value.toLocaleString()} ({item.percentage}%)
                     </span>

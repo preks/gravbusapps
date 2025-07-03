@@ -12,6 +12,7 @@ import { useTurnoverRate } from './hooks/useTurnoverRate';
 import { useAverageSalary } from './hooks/useAverageSalary';
 import { useHiresPerYear } from './hooks/useHiresPerYear';
 import { useEmployeesPerYear } from './hooks/useEmployeesPerYear';
+import { useEmployeesByOrgUnit } from './hooks/useEmployeesByOrgUnit';
 
 const { Title, Text } = Typography;
 
@@ -29,9 +30,10 @@ const HrAnalytics: React.FC<HrAnalyticsProps> = ({ accessToken }) => {
   const { averageSalary, loading: salaryLoading } = useAverageSalary(accessToken);
   const { hiresData, loading: hiresYearlyLoading, error: hiresYearlyError } = useHiresPerYear(accessToken);
   const { data: employeesYearlyData, loading: employeesYearlyLoading, error: employeesYearlyError } = useEmployeesPerYear(accessToken);
+  const { data: departmentData, loading: departmentLoading, error: departmentError } = useEmployeesByOrgUnit(accessToken);
 
   // Combine loading states
-  const loading = employeeLoading || hiresLoading || turnoverLoading || salaryLoading || hiresYearlyLoading || employeesYearlyLoading;
+  const loading = employeeLoading || hiresLoading || turnoverLoading || salaryLoading || hiresYearlyLoading || employeesYearlyLoading || departmentLoading;
 
   // Analytics data with real counts from API
   const analyticsData: AnalyticsKpiData = useMemo(() => ({
@@ -75,6 +77,10 @@ const HrAnalytics: React.FC<HrAnalyticsProps> = ({ accessToken }) => {
         employeesPerYearData={employeesYearlyData}
         employeesChartLoading={employeesYearlyLoading}
         employeesChartError={employeesYearlyError}
+        departmentData={departmentData}
+        departmentChartLoading={departmentLoading}
+        departmentChartError={departmentError}
+        accessToken={accessToken}
       />
     },
     {
