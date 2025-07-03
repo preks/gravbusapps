@@ -3,48 +3,31 @@ set -euo pipefail
 
 # Determine target branch (for PRs this is auto-set, otherwise use develop)
 TARGET_BRANCH="${BITBUCKET_PR_DESTINATION_BRANCH:-develop}"
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-# Get the current branch - prefer Bitbucket environment variables over git commands
-CURRENT_BRANCH="${BITBUCKET_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
-echo "Detected current branch: $CURRENT_BRANCH"
-echo "Target branch: $TARGET_BRANCH"
-
-# Different detection strategy based on whether we're on the target branch or not
-if [ "$CURRENT_BRANCH" == "$TARGET_BRANCH" ] || [ "$CURRENT_BRANCH" == "HEAD" -a "$BITBUCKET_BRANCH" == "$TARGET_BRANCH" ]; then
-  echo "Current branch is the target branch ($TARGET_BRANCH). Using recent commits strategy."
+# If we're not on a PR and we're running on the target branch itself
+if [[ "$CURRENT_BRANCH" == "$TARGET_BRANCH" && -z "${BITBUCKET_PR_DESTINATION_BRANCH:-}" ]]; then
+  echo "Running on $TARGET_BRANCH branch - using git log to detect recent changes"
   
-  # When on develop branch, look at the last commit's changes
-  git diff-tree --no-commit-id --name-only -r HEAD \
-    | grep -E '^src/business-apps/.*\.tsx$' \
-    > changed-tsx.txt
+  # Get all .tsx files changed in the last commit on this branch
+  git log -1 --name-only --pretty="format:" | grep -E '^src/business-apps/.*\.tsx$' > changed-tsx.txt
   
-  # If no changes found in the last commit, check the last 5 commits
+  # If nothing found in last commit, look at the last 5 commits
   if [[ ! -s changed-tsx.txt ]]; then
-    echo "No changes found in the last commit. Checking last 5 commits..."
-    git diff-tree --no-commit-id --name-only -r HEAD~5..HEAD \
-      | grep -E '^src/business-apps/.*\.tsx$' \
-      > changed-tsx.txt
+    echo "No changes in last commit, checking last 5 commits..."
+    git log -5 --name-only --pretty="format:" | grep -E '^src/business-apps/.*\.tsx$' > changed-tsx.txt
   fi
 else
-  echo "Comparing changes between $CURRENT_BRANCH and $TARGET_BRANCH."
+  echo "Running against target branch: $TARGET_BRANCH"
   
-  # Simple and robust approach - always use origin references
-  echo "Fetching latest updates from origin..."
-  git fetch origin
+  # Fetch the base branch so we can diff against it
+  git fetch origin "${TARGET_BRANCH}:${TARGET_BRANCH}" || echo "Warning: Failed to fetch $TARGET_BRANCH branch"
   
-  echo "Finding changes between origin/$TARGET_BRANCH and HEAD"
-  
-  # Use simpler approach to avoid complex logic and potential errors
-  git diff --name-only "origin/${TARGET_BRANCH}...HEAD" 2>/dev/null | grep -E '^src/business-apps/.*\.tsx$' > changed-tsx.txt
-  
-  # If that failed (e.g., no common ancestor), try merge-base approach
-  if [ $? -ne 0 ] || [ ! -s changed-tsx.txt ]; then
-    echo "Using merge-base approach as fallback"
-    MERGE_BASE=$(git merge-base HEAD "origin/${TARGET_BRANCH}" 2>/dev/null || echo "HEAD~10")
-    git diff --name-only "${MERGE_BASE}..HEAD" | grep -E '^src/business-apps/.*\.tsx$' > changed-tsx.txt
-  fi
+  # List only the .tsx files changed between TARGET_BRANCH and HEAD
+  git diff --name-only "${TARGET_BRANCH}...HEAD" | grep -E '^src/business-apps/.*\.tsx$' > changed-tsx.txt || true
 fi
 
+# Handle the results
 if [[ ! -s changed-tsx.txt ]]; then
   echo "No changed .tsx files found."
 else
