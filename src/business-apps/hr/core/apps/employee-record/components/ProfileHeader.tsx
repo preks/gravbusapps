@@ -12,14 +12,14 @@ import {
   PiPencilSimple,
   PiVideoCamera,
   PiChat,
-  PiCurrencyDollar,
-} from "react-icons/pi";
-import { Avatar } from "@newwork/gravity-ui-catalog";
-import { Employee } from "../hooks/useEmployeeData";
-import { formatPhoneNumber, getEmployeeFullName } from "../utils/formatters";
-import { BusinessAppContextProps } from "../../../../../../common/BusinessAppContext";
-import AppActionButton from "@/components/app-action-button/AppActionButton";
-import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+  PiCurrencyDollar
+} from 'react-icons/pi';
+import { Avatar } from '@newwork/gravity-ui-catalog';
+import { Employee } from '../hooks/useEmployeeData';
+import { formatPhoneNumber, getEmployeeFullName } from '../utils/formatters';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import AppActionButton from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 // TO-DO: ADD TRANSLATION for new availability status labels
 
@@ -239,9 +239,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                     />
 
                     {/* Edit button overlay */}
-                    <button
-                      type="button"
-                      className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-transparent gba:hover:bg-black/50 gba:rounded-full gba:cursor-pointer gba:transition-colors gba:duration-200"
+                    <div
+                      className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center"
                       onMouseEnter={() => setIsHovering(true)}
                       onMouseLeave={() => setIsHovering(false)}
                       aria-label={"Edit profile picture"}
@@ -249,7 +248,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                       {isHovering && (
                         <AppActionButton
                           data-testid="employee-action-button"
-                          variant="primary"
+                          variant="secondary"
                           contextsArray={[
                             FlowContextName.employeeProfilePicture,
                           ]}
@@ -263,7 +262,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                           emptyStateBehavior="hide"
                         />
                       )}
-                    </button>
+                    </div>
                   </div>
                 </div>
 

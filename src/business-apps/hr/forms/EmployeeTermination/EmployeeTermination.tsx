@@ -1,11 +1,25 @@
 import { useState } from "react";
 import dayjs from "dayjs";
+import advancedFormat from 'dayjs/plugin/advancedFormat'
+import customParseFormat from 'dayjs/plugin/customParseFormat'
+import localeData from 'dayjs/plugin/localeData'
+import weekday from 'dayjs/plugin/weekday'
+import weekOfYear from 'dayjs/plugin/weekOfYear'
+import weekYear from 'dayjs/plugin/weekYear'
 import { Button, Checkbox, Avatar, DatePicker, Form } from "antd";
 import flowSmall from "../../../../assets/icons/flowSmall.svg";
 import { useGetEmployeeData } from "../../core/hooks/useGetEmployeeData";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { dispatchProcessContinueEvent } from "../../../../common/utils/processEventUtils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+
+
+dayjs.extend(customParseFormat)
+dayjs.extend(advancedFormat)
+dayjs.extend(weekday)
+dayjs.extend(localeData)
+dayjs.extend(weekOfYear)
+dayjs.extend(weekYear)
 
 export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
   props
@@ -39,6 +53,7 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
 
   const handleSubmit = () => {
     dispatchProcessContinueEvent("pse_submit", buildPayload());
+    console.log("buildPayload", buildPayload());
   };
 
   const handleCancel = () => {
