@@ -26,6 +26,7 @@
 @import "./business-apps/hr/absence/apps/AbsenceCalendar/styles/AbsenceCalendar.css";
 @import "./business-apps/fin/expenses/forms/expense-item/ExpenseItem.css";
 @import "./business-apps/fin/expenses/forms/expense-request/ExpenseRequest.css";
+@import "./business-apps/fin/expenses/forms/expense-request-invalid/ExpenseRequestInvalid.css";
 @import "@newwork/gravity-ui-catalog/dist/assets/style.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/absenceHub.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/absenceListCard.css";
