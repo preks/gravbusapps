@@ -144,6 +144,4 @@ const ExpensePlanAdvancePayments: React.FC<ExpensePlanAdvancePaymentsProps> = ({
   );
 };
 
-
-
 export default ExpensePlanAdvancePayments;
