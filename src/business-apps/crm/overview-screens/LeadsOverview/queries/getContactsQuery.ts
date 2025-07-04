@@ -1,6 +1,10 @@
 export const getContactsQuery = `
-  query GetContacts($offset: Int, $limit: Int) {
-    Contact(offset: $offset, limit: $limit) {
+  query GetContacts($offset: Int, $limit: Int, $where: ContactBoolExp) {
+    Contact(
+      offset: $offset, 
+      limit: $limit,
+      where: $where
+    ) {
       id
       firstName
       lastName
