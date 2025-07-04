@@ -21,5 +21,5 @@ while IFS= read -r app_dir; do
   echo "Publishing: $publish_path"
 
   # Publish the screen
-  yarn publish:screen -- "$publish_path" --fast
+  yarn publish:screen -- "$publish_path"
 done < changed-tsx.txt
