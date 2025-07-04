@@ -3,12 +3,13 @@ import { Button } from "@newwork/gravity-ui-catalog";
 import { useTranslation } from "react-i18next";
 import UploadComponent from "../UploadComponent";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
-import { ICONS } from "../../constants/icons";
+import { FORM_STEPS, FormStepType } from "../../constants/constants";
+import { ICONS } from "@/business-apps/fin/expenses/utils/icons";
 
 interface StartScreenComponentProps {
   fileList: any[];
   setFileList: (files: any[]) => void;
-  setCurrentStep: (step: "start" | "form") => void;
+  setCurrentStep: (step: FormStepType) => void;
 }
 
 export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
@@ -31,7 +32,7 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
       <div className={`gba:buttonContainer`} data-testid="continue-button-container">
         <Button
           variant="ghost"
-          onClick={() => setCurrentStep("form")}
+          onClick={() => setCurrentStep(FORM_STEPS.FORM)}
           className={`gba:continueButton`}
           disabled={isProcessingFiles}
           data-testid="continue-button"
@@ -39,7 +40,7 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
           <div className={`gba:buttonWithIcon`} data-testid="continue-button-content">
             <span className="gba:fontMedium" data-testid="continue-without-receipt-text">{t("lowcoder:create_expense_type_item.continue_button", "Continue without receipt")}</span>
             <img 
-              src={ICONS.ARROW_RIGHT} 
+              src={ICONS.RIGHT_ARROW} 
               alt={t('lowcoder:create_expense_type_item.continue_alt_text', 'Continue')} 
               className={`gba:arrowIcon`}
               data-testid="continue-button-arrow"

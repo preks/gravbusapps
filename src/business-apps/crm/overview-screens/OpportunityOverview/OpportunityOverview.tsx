@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Row, Col, Tag, Button, Tooltip, message, Modal, Input, Typography, Table, Spin, Empty, Form, InputNumber, Select }from 'antd';
+import { Row, Col, Tag, Button, Tooltip, message, Modal, Input, Typography, Table, Spin, Empty, Form, InputNumber, Select, DatePicker } from 'antd';
 import { 
   PlusOutlined, 
   SearchOutlined, 
@@ -116,11 +116,20 @@ export function OpportunityOverview({ accessToken, userInfo }: BusinessAppContex
         });
         
         if (statusResponse.data) {
-          setSalesOpportunityStatusOptions(statusResponse.data.map((entry: any) => ({
+          const statusOptions = statusResponse.data.map((entry: any) => ({
             id: entry.id,
             code: entry.code,
             value: entry.value
-          })));
+          }));
+          setSalesOpportunityStatusOptions(statusOptions);
+          
+          const openStatus = statusOptions.find(status => 
+            status.value.toLowerCase() === 'open' || 
+            status.code.toLowerCase() === 'open'
+          );
+          if (openStatus) {
+            form.setFieldsValue({ salesOpportunityStatusId: openStatus.id });
+          }
         }
         
         // Fetch Currency options
@@ -145,7 +154,7 @@ export function OpportunityOverview({ accessToken, userInfo }: BusinessAppContex
     };
     
     fetchCatalogData();
-  }, [accessToken, catalogClient]);
+  }, [accessToken, catalogClient, form]);
 
   // Add state to track sorting
   const [sortField, setSortField] = useState<string | null>(null);
@@ -241,6 +250,7 @@ export function OpportunityOverview({ accessToken, userInfo }: BusinessAppContex
     salesLeadSourceId: string;
     salesOpportunityStatusId: string;
     currencyId: string;
+    closeDate: string;
   }) {
     setIsSubmitting(true);
     try {
@@ -255,6 +265,7 @@ export function OpportunityOverview({ accessToken, userInfo }: BusinessAppContex
           "salesLeadSourceRef": values.salesLeadSourceId,
           "salesOpportunityStatusRef": values.salesOpportunityStatusId,
           "currencyRef": values.currencyId,
+          "closeDate": values.closeDate,
           "ownerEmployee": userInfo.employeeDetails.employeeId
         }
       };
@@ -262,7 +273,6 @@ export function OpportunityOverview({ accessToken, userInfo }: BusinessAppContex
       const response = await fetch(
        'https://newwork-dev.newwork.com/processes/customer-relations/saveOpportunity',
         {
-          method: 'POST',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
@@ -578,6 +588,22 @@ export function OpportunityOverview({ accessToken, userInfo }: BusinessAppContex
                   <Option key={option.id} value={option.id}>{option.value}</Option>
                 ))}
               </Select>
+            </Form.Item>
+
+            <Form.Item
+              name="closeDate"
+              label="Closing Date"
+              rules={[
+                { required: true, message: 'Please select a closing date' }
+              ]}
+              data-testid="opportunity-closing-date-field"
+            >
+              <DatePicker 
+                className="gba:w-full"
+                placeholder="Select closing date" 
+                data-testid="opportunity-closing-date-picker"
+                format="YYYY-MM-DD"
+              />
             </Form.Item>
 
             <Form.Item

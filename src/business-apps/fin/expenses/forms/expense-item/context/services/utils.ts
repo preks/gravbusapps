@@ -1,7 +1,7 @@
-import { showToast } from "../../utils/notificationUtils";
 import { TFunction } from "i18next";
 import { parseFileUpload } from "./fileUploadService";
 import { calculateTotalAmount } from "../../utils/calculationUtils";
+import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils";
 
 /**
  * Calculate total amount from all positions

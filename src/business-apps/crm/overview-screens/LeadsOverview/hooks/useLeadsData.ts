@@ -202,7 +202,6 @@ export function useLeadsData(accessToken: string): UseLeadsDataResult {
 
       // Set the leads data
       setLeads(transformedLeads);
-      console.log(transformedLeads)
       // Set total count if available in the response
       if (response.LeadAggregate?.aggregate?.count !== undefined) {
         setTotalCount(response.LeadAggregate.aggregate.count);
