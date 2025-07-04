@@ -35,7 +35,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <PiPath style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.dashboard_btn', 'Expense Plans')}</span>
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')}</span>
         </div>
       ),
       children: <ExpensePlansTab 
