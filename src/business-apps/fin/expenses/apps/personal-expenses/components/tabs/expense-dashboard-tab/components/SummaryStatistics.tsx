@@ -47,7 +47,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
   return (
     <Row gutter={[16, 16]} className="gba:summary-stats">
       <Col xs={24} sm={12} md={8}>
-        <Card bordered={true}>
+        <Card variant="bordered">
             <Statistic
               title="Current Month Expenses"
               value={currentTotal}
@@ -68,7 +68,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8}>
-          <Card bordered={true}>
+          <Card variant="bordered">
             <Statistic
               title="Pending Payouts"
               value={stats?.pendingPayouts || 0}
@@ -81,7 +81,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
           </Card>
         </Col>
         {/* <Col xs={24} sm={12} md={8}>
-          <Card bordered={true}>
+          <Card variant="bordered">
             <Statistic
               title="Flagged Items"
               value={stats?.flaggedItems || 0}
@@ -92,7 +92,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
           </Card>
         </Col> */}
         <Col xs={24} sm={12} md={8}>
-          <Card bordered={true}>
+          <Card variant="bordered">
             <Statistic
               title="Upcoming Trips"
               value={stats?.upcomingTrips || 0}

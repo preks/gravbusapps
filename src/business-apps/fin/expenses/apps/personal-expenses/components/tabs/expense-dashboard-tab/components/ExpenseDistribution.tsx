@@ -39,7 +39,7 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
 
   if (data.length === 0) {
     return (
-      <Card title="Expense Distribution" bordered={false} data-testid="expense-distribution-card-empty">
+      <Card title="Expense Distribution" data-testid="expense-distribution-card-empty">
         <Empty description="No expense data available" />
       </Card>
     );
@@ -49,7 +49,7 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
   const COLORS = generateColors(data.length);
 
   return (
-    <Card title="Expense Distribution" bordered={false} data-testid="expense-distribution-card">
+    <Card title="Expense Distribution" data-testid="expense-distribution-card">
       <div style={{ height: 300 }} data-testid="expense-distribution-chart-container">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>

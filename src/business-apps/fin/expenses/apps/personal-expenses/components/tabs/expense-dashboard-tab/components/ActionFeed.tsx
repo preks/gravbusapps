@@ -45,8 +45,10 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
       title="Action Feed"
       className="gba:action-feed-card"
       size="small"
-      bodyStyle={{ padding: '6px 8px' }}
-      headStyle={{ paddingTop: '6px', paddingBottom: '6px', fontSize: '14px' }}
+      styles={{ 
+        body: { padding: '6px 8px' }, 
+        header: { paddingTop: '6px', paddingBottom: '6px', fontSize: '14px' } 
+      }}
       extra={
         recentActivity.length > 10 ? (
           showAll ? (

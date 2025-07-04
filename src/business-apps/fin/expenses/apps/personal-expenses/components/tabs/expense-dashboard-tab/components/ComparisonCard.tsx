@@ -22,7 +22,7 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
   const max = Math.max(currentValue, previousValue);
 
   return (
-    <Card title={title} bordered={false} data-testid={`comparison-card-${title.toLowerCase().replace(' ', '-')}`}>
+    <Card title={title} data-testid={`comparison-card-${title.toLowerCase().replace(' ', '-')}`}>
       <Row gutter={[16, 16]} align="middle" style={{ marginBottom: '16px' }}>
         <Col span={12}>
           <Statistic
