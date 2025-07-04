@@ -1,273 +1,44 @@
-import { useState } from "react";
-import dayjs from "dayjs";
-import advancedFormat from 'dayjs/plugin/advancedFormat'
-import customParseFormat from 'dayjs/plugin/customParseFormat'
-import localeData from 'dayjs/plugin/localeData'
-import weekday from 'dayjs/plugin/weekday'
-import weekOfYear from 'dayjs/plugin/weekOfYear'
-import weekYear from 'dayjs/plugin/weekYear'
-import { Button, Checkbox, Avatar, DatePicker, Form } from "antd";
-import flowSmall from "@/assets/icons/flowSmall.svg";
-import { useGetEmployeeData } from "../../hooks/useGetEmployeeData";
+import React from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { EmployeeTerminationProvider } from "./context/EmployeeTerminationContext";
+import { EmployeeTerminationForm } from "./components/EmployeeTerminationForm";
 
+export const EmployeeTermination: React.FC<BusinessAppContextProps> = (props) => {
+  const { accessToken, userInfo, additionalData } = props;
 
-dayjs.extend(customParseFormat)
-dayjs.extend(advancedFormat)
-dayjs.extend(weekday)
-dayjs.extend(localeData)
-dayjs.extend(weekOfYear)
-dayjs.extend(weekYear)
+  // Extract employeeId from additionalData (like job-position form does)
+  // Fallback to URL parameters if additionalData is not available
+  const employeeId = additionalData?.employeeId || 
+    (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get("id") : null);
 
-export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
-  props
-) => {
-  const { accessToken } = props;
+  console.log('🔍 EmployeeTermination - Employee ID:', employeeId);
+  console.log('📊 EmployeeTermination - Additional Data:', additionalData);
 
-  const employeeId =
-    new URLSearchParams(window.location.search).get("id") || "";
+  if (!accessToken) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
+        <div className="gba:text-gray-500">Access token required</div>
+      </div>
+    );
+  }
 
-  const { employee, loading, error } = useGetEmployeeData({
-    employeeId,
-    accessToken,
-  });
-
-  const [form] = Form.useForm();
-  const [formValues, setFormValues] = useState({
-    terminationDate: dayjs(),
-    terminateJobPosition: false,
-    employeeId: employeeId,
-  });
-
-  const buildPayload = () => ({
-    employeeId: form.getFieldValue("employeeId"),
-    terminationDate:
-      form.getFieldValue("terminationDate") &&
-      dayjs.isDayjs(form.getFieldValue("terminationDate"))
-        ? form.getFieldValue("terminationDate")
-        : undefined,
-    terminateJobPosition: form.getFieldValue("terminateJobPosition"),
-  });
-
-  const handleSubmit = () => {
-    dispatchProcessContinueEvent("pse_submit", buildPayload());
-    console.log("buildPayload", buildPayload());
-  };
-
-  const handleCancel = () => {
-    dispatchProcessContinueEvent("pse_cancel", buildPayload());
-    form.setFieldsValue({
-      terminationDate: dayjs(),
-      terminateJobPosition: false,
-    });
-    setFormValues({
-      ...formValues,
-      terminationDate: dayjs(),
-      terminateJobPosition: false,
-    });
-  };
-
-  const getImageSrc = (thumbnail?: string) => {
-    if (!thumbnail) return undefined;
-    if (thumbnail.startsWith("data:image/")) return thumbnail;
-    return `data:image/jpeg;base64,${thumbnail}`;
-  };
+  if (!employeeId) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
+        <div className="gba:text-gray-500">Employee ID required</div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <div className="gba:max-w-[500px] gba:mx-auto gba:bg-white gba:rounded-2xl gba:shadow-lg gba:flex gba:flex-col gba:min-h-[600px] gba:p-0">
-        <div className="gba:flex gba:items-center gba:gap-3 gba:pt-8 gba:pb-6 gba:border-b gba:border-[#F0F0F0] gba:font-roboto gba:font-bold gba:text-[20px] gba:leading-6 gba:text-black">
-          <img 
-            src={flowSmall} 
-            alt="Flow Small" 
-            style={{
-              filter: 'brightness(0)',
-              fill: '#000',
-              width: '24px',
-              height: '24px'
-            }}
-          />
-          <span className="gba:font-roboto gba:font-medium gba:text-[24px] gba:leading-6 gba:text-black gba:flex gba:items-center gba:h-6">
-            {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:employee_termination.title",
-              "Employee Termination"
-            )}
-          </span>
-        </div>
-        <Form
-          form={form}
-          onFinish={handleSubmit}
-          initialValues={formValues}
-          onValuesChange={(_, allValues) => setFormValues(allValues)}
-          className="gba:flex-1 gba:flex gba:flex-col gba:justify-between gba:pb-10"
-        >
-          <Form.Item
-            name="employeeId"
-            initialValue={employeeId}
-            style={{ display: "none" }}
-          >
-            <input type="hidden" />
-          </Form.Item>
-          <div className="gba:pb-10 gba:pt-4">
-            <div className="gba:flex gba:items-center gba:mb-8">
-              {loading ? (
-                <div className="gba:text-base">Loading employee info...</div>
-              ) : error ? (
-                <div className="gba:text-red-600">
-                  Error loading employee info
-                </div>
-              ) : (
-                <>
-                  <Avatar
-                    size={64}
-                    src={getImageSrc(employee?.pictureThumbnail)}
-                  >
-                    {employee?.firstName}
-                  </Avatar>
-                  <div className="gba:ml-2">
-                    <div className="gba:font-bold gba:text-[16px] gba:leading-5 gba:text-black gba:font-roboto">
-                      {`${employee?.firstName} ${employee?.lastName}`}
-                    </div>
-                    <div className="gba:text-[13px] gba:text-[#8C8C8C] gba:leading-4 gba:mb-[2px] gba:font-roboto">
-                      {employee?.employeePosition?.organizationalUnit?.name}
-                    </div>
-                    <div className="gba:text-[13px] gba:text-[#8C8C8C] gba:leading-4 gba:mb-[2px] gba:font-roboto">
-                      {employee?.employeePosition?.jobPosition?.name}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="gba:mb-6 gba:bg-[#F5F5F5]">
-              <Form.Item
-                name="terminationDate"
-                label={
-                  <span className="gba:block gba:text-[12px] gba:font-semibold gba:text-[#707070] gba:tracking-[0.5px] gba:font-roboto">
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:employee_termination.exit_date_input",
-                      "Exit Date"
-                    )}
-                  </span>
-                }
-                style={{ display: 'flex', flexDirection: 'column' }}
-                initialValue={dayjs()}
-                labelCol={{ style: { display: 'flex', padding: '7px 0px 0px 15px' } }}
-              >
-                <div className="gba:bg-[#F5F5F5] gba:px-[15px] gba:py-[7px] gba:border-none">
-                  <DatePicker
-                    className="gba:w-full gba:bg-transparent gba:border-none gba:outline-none gba:shadow-none gba:font-bold gba:text-black"
-                    style={{
-                      backgroundColor: '#F7F7F7',
-                      border: 'none',
-                      padding: '0',
-                      boxShadow: 'none'
-                    }}
-                    format="DD.MM.YYYY"
-                    data-testid="exit-date-picker"
-                    allowClear={true}
-                    defaultValue={dayjs()}
-                    onChange={(date) =>
-                      form.setFieldValue("terminationDate", date)
-                    }
-                    placeholder={getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:absences_overview_entry_screen.select_placeholder",
-                      "Please Select"
-                    )}
-                  />
-                </div>
-              </Form.Item>
-            </div>
-            <div className="gba:pt-6">
-              <Form.Item name="terminateJobPosition" valuePropName="checked">
-                <Checkbox
-                  data-testid="terminate-job-checkbox"
-                  className="gba:font-roboto gba:text-[14px] gba:font-semibold gba:text-black gba:tracking-[0.5px] gba:mt-6"
-                >
-                  {getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:employee_termination.checkbox_label",
-                    "Terminate Job Position"
-                  )}
-                </Checkbox>
-              </Form.Item>
-            </div>
-          </div>
-          <div className="gba:border-t gba:border-[#F0F0F0] gba:flex gba:gap-4 gba:justify-start">
-            <Button
-              type="primary"
-              htmlType="submit"
-              style={{
-                background: '#000',
-                color: '#fff',
-                borderRadius: '9999px',
-                fontWeight: 700,
-                fontSize: '15px',
-                lineHeight: '20px',
-                minWidth: '120px',
-                height: '40px',
-                padding: '0 32px',
-                border: 'none',
-                boxShadow: 'none'
-              }}
-              data-testid="submit-termination-btn"
-              disabled={
-                !formValues.terminateJobPosition ||
-                !dayjs.isDayjs(formValues.terminationDate) ||
-                (dayjs.isDayjs(formValues.terminationDate) &&
-                  !formValues.terminationDate.isValid())
-              }
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'lightGray';
-                e.currentTarget.style.color = '#fff';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#000';
-                e.currentTarget.style.color = '#fff';
-              }}
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:hr_absences.create_absence.submit",
-                "Submit"
-              )}
-            </Button>
-            <Button
-              type="default"
-              style={{
-                background: '#fff',
-                color: '#000',
-                borderRadius: '9999px',
-                fontWeight: 700,
-                fontSize: '15px',
-                lineHeight: '20px',
-                minWidth: '120px',
-                height: '40px',
-                padding: '0 32px',
-                border: '2px solid #000',
-                boxShadow: 'none'
-              }}
-              data-testid="cancel-termination-btn"
-              onClick={handleCancel}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'lightGray';
-                e.currentTarget.style.borderColor = '#000';
-                e.currentTarget.style.color = '#000';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#fff';
-                e.currentTarget.style.borderColor = '#000';
-                e.currentTarget.style.color = '#000';
-              }}
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:hr_absences.create_absence.cancel",
-                "Cancel"
-              )}
-            </Button>
-          </div>
-        </Form>
-      </div>
-    </>
+    <EmployeeTerminationProvider
+      employeeId={employeeId}
+      accessToken={accessToken}
+      userInfo={userInfo}
+      additionalData={additionalData}
+    >
+      <EmployeeTerminationForm />
+    </EmployeeTerminationProvider>
   );
 };
 
