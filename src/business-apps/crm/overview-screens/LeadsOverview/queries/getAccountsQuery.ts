@@ -1,6 +1,6 @@
 export const getAccountsQuery = `
-  query GetAccounts($offset: Int, $limit: Int) {
-    Account(offset: $offset, limit: $limit) {
+  query GetAccounts($offset: Int, $limit: Int, $where: AccountBoolExp ) {
+    Account(offset: $offset, limit: $limit, where: $where) {
       id
       name
       createdAt

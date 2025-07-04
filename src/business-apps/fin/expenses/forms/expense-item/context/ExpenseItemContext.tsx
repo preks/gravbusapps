@@ -8,7 +8,6 @@ import React, {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Form, message } from "antd";
-import { showToast } from "../utils/notificationUtils";
 import {
   ExpensePosition,
   ExpenseType,
@@ -26,7 +25,7 @@ import {
   expenseRequestByCurrencyQuery,
 } from "../ExpenseItemQueries";
 import { fetchEmployeeRule } from "../ExpenseItemQueries";
-import { DEFAULT_EMPLOYEE_ID, DEFAULT_POSITION } from "./constants";
+import { DEFAULT_EMPLOYEE_ID, DEFAULT_POSITION, FORM_STEPS, FormStepType } from "../constants/constants";
 import { transformCurrencies } from "../utils/currencyUtils";
 import { createGraphQLClient } from "../services/graphqlClient";
 import {
@@ -41,6 +40,9 @@ import {
   handleFileUpload,
   setByEdit,
 } from "./services";
+import { showToast } from "../../../utils/notificationUtils";
+import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
+import { EVENTS } from "../../../utils/constants";
 
 interface ExpenseItemContextProps {
   form: any;
@@ -74,6 +76,7 @@ interface ExpenseItemContextProps {
   calculateTotal: () => number;
   handleFileUpload: (files: File[]) => Promise<any | null>;
   handleSubmit: () => Promise<void>;
+  handleCancel: () => void;
   handleExpenseGroupChange: (
     value: string,
     positionIndex: number
@@ -110,7 +113,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const { t } = useTranslation();
 
   const [form] = Form.useForm();
-  const [currentStep, setCurrentStep] = useState<"start" | "form">("start");
+  const [currentStep, setCurrentStep] = useState<FormStepType>(FORM_STEPS.START);
   const [loading, setLoading] = useState<boolean>(false);
   const [fileList, setFileList] = useState<any[]>([]);
   const [isProcessingFiles, setIsProcessingFiles] = useState<boolean>(false);
@@ -729,7 +732,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   };
 
   const handleSubmitWrapper = async (): Promise<void> => {
-    await handleSubmit(
+    return await handleSubmit(
       form,
       positions,
       customFields,
@@ -747,6 +750,23 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       additionalData,
       userInfo
     );
+  };
+
+  const handleCancelWrapper = () => {
+    try {
+        dispatchProcessContinueEvent(EVENTS.CANCEL, {"event":EVENTS.ABORT,pso_exitStrategy:"abort",
+          pso_completeNotification:{type: 'error',
+          messageKey: t('lowcoder:absence_module.toast_notification_cancel_create_absence','The action has been canceled.') } });
+    } catch (error) {
+      showToast(
+        t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
+        "error"
+      );
+      form.resetFields();
+      setPositions([DEFAULT_POSITION]);
+      setFileList([]);
+      setCurrentStep("start");
+    }
   };
 
   const handleExpenseGroupChangeWrapper = async (
@@ -909,6 +929,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     calculateTotal: calculateTotalWrapper,
     handleFileUpload: handleFileUploadWrapper,
     handleSubmit: handleSubmitWrapper,
+    handleCancel: handleCancelWrapper,
     handleExpenseGroupChange: handleExpenseGroupChangeWrapper,
     handleExpenseTypeChange: handleExpenseTypeChangeWrapper,
     handleAddPosition: handleAddPositionWrapper,

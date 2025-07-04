@@ -8,16 +8,32 @@ import { useFlowRegistryClient } from '../network/flows/useFlowRegistryClient';
  * Hook to fetch main context data from the flow registry
  * @param contexts - List of context names to fetch data for
  * @param accessToken - Access token for authentication
+ * @param manualMode - When true, data will not be fetched automatically on mount
  */
-export const useMainContextsData = (contexts: FlowContextName[], accessToken: string) => {
+export const useMainContextsData = (contexts: FlowContextName[], accessToken: string, manualMode: boolean = false) => {
   const [mainContextsData, setMainContextsData] = useState<Record<string, string> | undefined>();
+  const [isLoading, setIsLoading] = useState(!manualMode);
   const { t } = useTranslation();
   const flowRegistry = useFlowRegistryClient(accessToken);
 
-  useEffect(() => {
-    if (contexts.length === 0) return;
+  // Function to fetch context data that can be called manually
+  const fetchMainContextsData = async () => {
+    if (contexts.length === 0) return null;
+    
+    setIsLoading(true);
+    try {
+      const data = await getAllMainContextsData(contexts);
+      if (data) {
+        setMainContextsData(data);
+        return data; // Return the data directly
+      }
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    const getAllMainContextsData = async (contextsToFetch: FlowContextName[]) => {
+  const getAllMainContextsData = async (contextsToFetch: FlowContextName[]) => {
       try {
         const mainContexts = await flowRegistry.getMainContextData({
           contextNames: contextsToFetch
@@ -41,13 +57,12 @@ export const useMainContextsData = (contexts: FlowContextName[], accessToken: st
       return {};
     };
 
-    const fetchData = async () => {
-      const data = await getAllMainContextsData(contexts);
-      data && setMainContextsData(data);
-    };
+  // Only automatically fetch data if not in manual mode
+  useEffect(() => {
+    if (!manualMode) {
+      fetchMainContextsData();
+    }
+  }, [contexts, manualMode]);
 
-    fetchData();
-  }, [contexts]);
-
-  return { mainContextsData };
+  return { mainContextsData, fetchMainContextsData, isLoading };
 };

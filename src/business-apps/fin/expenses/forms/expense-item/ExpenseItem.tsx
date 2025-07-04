@@ -7,7 +7,8 @@ import { ExpenseItemProps } from "./types";
 import StartScreenComponent from "./components/StartScreenComponent";
 import FormScreenComponent from "./components/FormScreenComponent";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { ICONS } from "./constants/icons";
+import { ICONS } from "../../utils/icons";
+import { FORM_STEPS } from "./constants/constants";
 
 const { Title } = Typography;
 
@@ -32,6 +33,7 @@ const ExpenseItemContent: React.FC = () => {
     setCurrentSelectedDate,
     setMultiPosition,
     handleSubmit,
+    handleCancel,
     handleExpenseGroupChange,
     handleExpenseTypeChange,
     handleAddPosition,
@@ -44,11 +46,11 @@ const ExpenseItemContent: React.FC = () => {
   return (
     <div className={`gba:mainContainer`} data-testid="expense-item-main-container">
       <div className={`gba:headerContainer`} data-testid="expense-item-header-container">
-        {currentStep === "form" && (
+        {currentStep === FORM_STEPS.FORM && (
           <Button
             variant="ghost"
             onClick={() => {
-              setCurrentStep("start");
+              setCurrentStep(FORM_STEPS.START);
               setFileList([]);
             }}
             className={`gba:backButton`}
@@ -75,7 +77,7 @@ const ExpenseItemContent: React.FC = () => {
       </div>
       <Divider className={`gba:headerDivider`} data-testid="expense-item-header-divider" />
 
-      {currentStep === "start" ? (
+      {currentStep === FORM_STEPS.START ? (
         <StartScreenComponent 
           fileList={fileList}
           setFileList={setFileList}
@@ -98,6 +100,7 @@ const ExpenseItemContent: React.FC = () => {
           setCurrentSelectedDate={setCurrentSelectedDate}
           setMultiPosition={setMultiPosition}
           handleSubmit={handleSubmit}
+          handleCancel={handleCancel}
           handleExpenseGroupChange={handleExpenseGroupChange}
           handleExpenseTypeChange={handleExpenseTypeChange}
           handleAddPosition={handleAddPosition}

@@ -1,10 +1,10 @@
 import React, { useRef, useState, useCallback } from "react";
 import { Modal, Upload } from "antd";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
-import { ICONS } from "../../constants/icons";
 import { Button } from "@newwork/gravity-ui-catalog";
 import { useTranslation } from "react-i18next";
-import { showToast } from "../../utils/notificationUtils";
+import { ICONS } from "@/business-apps/fin/expenses/utils/icons";
+import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils";
 
 interface UploadComponentProps {
   fileList: any[];

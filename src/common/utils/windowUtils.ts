@@ -76,3 +76,25 @@ export const formatDate = (
 
   return window?.lowcoder?.i18n?.formatDate(date, format, customSpecificFormat);
 };
+
+export const formatNumberFunction=(number :string, format :string="0.00[,]00"):string=>{
+  if (!window.lowcoder?.i18n?.formatNumber || typeof window.lowcoder.i18n?.formatNumber !== 'function') {
+    return number;
+  }
+  return window.lowcoder.i18n.formatNumber(number, format);
+}
+
+export const formatDateToISO= (dateValue:Date) : Date | string | undefined => {
+  if(!dateValue)
+    return ""
+ try {
+  if (!window?.lowcoder?.i18n?.l10nResources?.dateTime['fullDateTime.ISO']) {
+    return dateValue;
+  }
+  if(window.lowcoder.formatDate)
+  return window.lowcoder.formatDate(dateValue, 'fullDateTime.ISO');
+return dateValue.toISOString()
+  } catch {
+    return dateValue;
+  }
+}

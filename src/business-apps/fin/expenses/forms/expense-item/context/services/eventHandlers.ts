@@ -1,10 +1,11 @@
-import { showToast } from "../../utils/notificationUtils";
-import { DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE, FILES_ENDPOINT, EMPLOYEE_FILES_LOCATION } from "../constants";
 import { formatDateToISOString } from "../../utils/dateUtils";
 import { calculateTotalAmount } from "../../utils/calculationUtils";
 import { fetchExpenseTypes, fetchCustomFields } from "./dataFetchers";
 import { initiateFlow, getOpenedTaskFlow, completeTaskFlow } from "./flowHandlers";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
+import { EMPLOYEE_FILES_LOCATION, EVENTS, FILES_ENDPOINT } from "@/business-apps/fin/expenses/utils/constants";
+import { DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE } from "../../constants/constants";
+import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils";
 
 /**
  * Uploads documents to the file server
@@ -369,7 +370,7 @@ export const handleSubmit = async (
         employee: generalDataResponse?.data?.Employee?.[0]?.id || employeeId || "",
         expenseRule: employeeRuleId as string,
       },
-      event: "pse_submit",
+      event: EVENTS.SUBMIT,
       expensePositions: {
         expensePositions: formattedPositions,
       },
@@ -406,7 +407,7 @@ export const handleSubmit = async (
 
     if(accessToken && employeeId && !hasExpenseRequest){
       try {
-        dispatchProcessContinueEvent('pse_submit', submitData);
+        dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
         // operationSuccessful = true;
       } catch (processError) {
         showToast(

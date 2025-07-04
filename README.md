@@ -43,7 +43,7 @@ npm run publish:screen -- /<product>/<path-to-screen>/<screen-name> [options]
 
 **Options:**
 
-- `--fast` or `-f`: Fast publish mode - skips all prompts and defaults to No for resource URL options
+- `--resource` or `-r`: Resource URL mode - enables prompts for creating resource URLs (by default, direct publishing without prompts)
 
 **Examples:**
 
@@ -55,11 +55,11 @@ npm run publish:screen -- /irm/overview-screens/LeadOverview
 # Publish the OpportunityDetail screen from the CRM product
 npm run publish:screen -- /crm/detail-screens/OpportunityDetail
 
-# Fast publish (skip all prompts) the EmployeeDirectory screen
-npm run publish:screen -- /hr/employee-screens/EmployeeDirectory --fast
+# Publish with resource URL prompts enabled for the EmployeeDirectory screen
+npm run publish:screen -- /hr/employee-screens/EmployeeDirectory --resource
 
-# Fast publish using the short flag
-npm run publish:screen -- /hr/employee-screens/EmployeeDirectory -f
+# Publish with resource URL prompts using the short flag
+npm run publish:screen -- /hr/employee-screens/EmployeeDirectory -r
 ```
 
 
