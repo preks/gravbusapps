@@ -1,5 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { employeeExpenseClient } from './EmployeeExpenseClient';
+import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export const useEmployeeExpenseRule = (accessToken: string) => {
   employeeExpenseClient.setAccessToken(accessToken);
@@ -23,7 +25,10 @@ export const useEmployeeExpenseRule = (accessToken: string) => {
       const data = await employeeExpenseClient.getEmployeeRule(employeeId, allowanceDate);
       return data;
     } catch (error) {
-      console.error('Error fetching employee expense rule:', error);
+            showToast(
+              getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_request.error_employee_rule", "Error fetching employee expense rule"),
+              "error"
+            );
       throw error;
     }
   }, [employeeExpenseClient, accessToken]);

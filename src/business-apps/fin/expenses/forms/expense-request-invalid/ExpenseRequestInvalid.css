@@ -1,0 +1,59 @@
+/* ExpenseRequestInvalid component styles */
+.gba\:mainContainer {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.gba\:headerContainer {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.gba\:titleContainer {
+  flex: 1;
+}
+
+.gba\:headerTitle {
+  margin: 0;
+}
+
+.gba\:headerDivider {
+  margin: 0 0 46px 0;
+}
+
+.gba\:validationContainer {
+  background-color: #f8d8e4;
+  padding: 16px 24px;
+  border-radius: 4px;
+  margin-bottom: 32px;
+}
+
+.gba\:validationTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ff0000;
+  margin-bottom: 8px;
+}
+
+.gba\:validationMessage {
+  font-size: 14px;
+  color: #595959;
+  margin: 0;
+}
+
+.gba\:footerContainer {
+  margin-top: auto;
+  width: 100%;
+}
+
+.gba\:actionButtonsContainer {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 0;
+}
+
+.gba\:divider {
+  margin: 16px 0;
+}

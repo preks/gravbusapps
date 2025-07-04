@@ -10,21 +10,16 @@ if [[ ! -s changed-tsx.txt ]]; then
   exit 0
 fi
 
-# Loop through each changed .tsx file and publish it
-while IFS= read -r file; do
-  echo "Processing $file …"
-  
-  # Get the directory path (remove the filename)
-  dir_path=$(dirname "$file")
+# Loop through each changed app directory and publish it
+while IFS= read -r app_dir; do
+  echo "Processing $app_dir …"
   
   # Remove src/business-apps/ prefix from the directory path
-  dir_path_no_prefix=${dir_path#src/business-apps/}
-  
-  # the build system already appends the component name for us
-  publish_path="$dir_path_no_prefix"
+  # Note: app_dir is already a directory path, not a file path
+  publish_path=${app_dir#src/business-apps/}
   
   echo "Publishing: $publish_path"
 
   # Publish the screen
-  yarn publish:screen -- "$publish_path" --fast
+  yarn publish:screen -- "$publish_path"
 done < changed-tsx.txt

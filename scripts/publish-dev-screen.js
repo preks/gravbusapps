@@ -44,6 +44,31 @@ function getContentType(fileName) {
   }
 }
 
+async function checkIfFirstTimePublish(azureDestinationPath) {
+  if (!AZURE_STORAGE_ACCOUNT_NAME || !AZURE_STORAGE_SAS_TOKEN) {
+    console.error(
+      "Error: AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_SAS_TOKEN must be set in .env for SDK upload."
+    );
+    process.exit(1);
+  }
+
+  const blobServiceUrl = `https://${AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/?${AZURE_STORAGE_SAS_TOKEN}`;
+  const blobServiceClient = new BlobServiceClient(blobServiceUrl);
+  const containerClient = blobServiceClient.getContainerClient(AZURE_CONTAINER_NAME);
+
+  try {
+    // Check if index.js exists at the target path
+    const blobName = `${azureDestinationPath}/index.js`.replace(/\\/g, "/");
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    
+    const exists = await blockBlobClient.exists();
+    return !exists; // Return true if the file doesn't exist (first time publish)
+  } catch (error) {
+    console.log("🔍 Checking if first time publish: error occurred, assuming first time");
+    return true; // If error occurs, assume it's first time publish
+  }
+}
+
 async function uploadDirectory(buildOutputDir, azureDestinationPath) {
   if (!AZURE_STORAGE_ACCOUNT_NAME || !AZURE_STORAGE_SAS_TOKEN) {
     console.error(
@@ -144,9 +169,9 @@ async function publishMainCss() {
 
 // Parse command line arguments
 const argv = yargs(hideBin(process.argv))
-  .option('fast', {
-    alias: 'f',
-    description: 'Fast publish mode - skip all prompts and default to No for resource URL options',
+  .option('resource', {
+    alias: 'r',
+    description: 'Resource URL mode - enable prompts for creating resource URLs',
     type: 'boolean',
     default: false
   })
@@ -363,17 +388,24 @@ async function main() {
     process.exit(1);
   }
 
+  // Check if this is the first time publishing the screen
+  const isFirstTimePublish = await checkIfFirstTimePublish(azureDestinationPath);
+
   await uploadDirectory(buildOutputDir, azureDestinationPath);
   console.log("✅ Screen JS published successfully to Azure!");
 
   const cssOutputDir = path.join(projectRootDir, "dist", "assets");
   await uploadDirectory(cssOutputDir, azureDestinationPath);
   console.log("✅ Screen CSS published successfully to Azure!");
-
-  // Handle resource URL addition based on fast flag
+  
+  // Handle resource URL addition based on flags and first-time publish
   let shouldAddResourceUrl = false;
   
-  if (!argv.fast) {
+  if (argv.resource || isFirstTimePublish) {
+    if (isFirstTimePublish) {
+      console.log("🆕 First time publishing this screen - resource URL prompt enabled");
+    }
+    
     // Ask user if they want to add resource URL
     const addResourceUrlAnswer = await inquirer.prompt([
       {
@@ -385,7 +417,7 @@ async function main() {
     ]);
     shouldAddResourceUrl = addResourceUrlAnswer.shouldAdd;
   } else {
-    console.log("⏩ Skipping resource URL addition (fast mode)");
+    console.log("⏩ Skipping resource URL addition (direct publish mode)");
   }
 
   if (shouldAddResourceUrl) {
@@ -396,10 +428,10 @@ async function main() {
     }
   }
 
-  // Handle custom URL addition based on fast flag
+  // Handle custom URL addition on first-time publish or if resource flag is provided
   let shouldAddCustomUrl = false;
   
-  if (!argv.fast) {
+  if (isFirstTimePublish || argv.resource) {
     // Ask user if they want to add a custom URL
     const addCustomUrlAnswer = await inquirer.prompt([
       {
@@ -411,7 +443,7 @@ async function main() {
     ]);
     shouldAddCustomUrl = addCustomUrlAnswer.shouldAdd;
   } else {
-    console.log("⏩ Skipping custom URL addition (fast mode)");
+    console.log("⏩ Skipping custom URL addition (not first-time publish and no --resource flag)");
   }
 
   if (shouldAddCustomUrl) {

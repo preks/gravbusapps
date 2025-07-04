@@ -10,6 +10,13 @@
   margin: 0;
 }
 
+.gba\:actionButtonsContainer {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 0;
+  width: 100%;
+}
+
 .gba\:amountCurrencyRow {
   display: flex;
   gap: 16px;
@@ -156,12 +163,9 @@
 }
 
 .gba\:formUploadContainer {
-  margin: 30px 0 30px 0;
+  margin: 0px 0 30px 0;
 }
 
-.gba\:startScreenContainer {
-  margin-top: 30px;
-}
 
 .gba\:uploadWrapper {
   margin-bottom: 30px;
@@ -260,7 +264,7 @@
 }
 
 .gba\:submitButton {
-  width: 100%;
+  width: auto;
   border-radius: 20px !important;
 }
 

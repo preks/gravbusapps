@@ -1,16 +1,15 @@
-import React, { useState, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import { 
-  Table, 
-  Button, 
-  Input, 
-  Space, 
-  Typography, 
-  message, 
-  Modal, 
-  Form, 
-  Tag, 
-  Spin, 
+import React, { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Table,
+  Button,
+  Input,
+  Space,
+  Typography,
+  message,
+  Modal,
+  Tag,
+  Spin,
   Alert,
   Avatar,
   Card,
@@ -20,14 +19,14 @@ import {
   Col,
   Empty,
   Descriptions,
-  Divider,
-  Progress
-} from 'antd';
-import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
-import { 
-  PlusOutlined, 
-  EditOutlined, 
-  DeleteOutlined, 
+  Progress,
+} from "antd";
+import { startProcess } from "@/common/utils/start-process";
+import { DataDetailsDrawer } from "@/components/data-details/DataDetailsDrawer";
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
   TeamOutlined,
   UserOutlined,
   CrownOutlined,
@@ -36,18 +35,15 @@ import {
   AppstoreOutlined,
   BarsOutlined,
   FileImageOutlined,
-  CloseOutlined,
   InfoCircleOutlined,
-  NumberOutlined,
   GlobalOutlined,
-  HistoryOutlined,
   SortAscendingOutlined,
   IdcardOutlined,
-  ProjectOutlined
-} from '@ant-design/icons';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useTeams } from '../../hooks';
-import { Team } from '../../types';
+  ProjectOutlined,
+} from "@ant-design/icons";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useTeams } from "../../hooks";
+import { Team } from "../../types";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -58,8 +54,8 @@ export interface TeamsTabProps extends BusinessAppContextProps {
 
 const TeamsTab: React.FC<TeamsTabProps> = (context) => {
   const { t } = useTranslation();
-  const { prefixDataTestId } = context;
-  
+  const { prefixDataTestId, userInfo } = context;
+
   const {
     teams,
     isLoading,
@@ -72,92 +68,91 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
     activeTeams,
     inactiveTeams,
     teamsWithLeaders,
-    teamsWithoutLeaders
+    teamsWithoutLeaders,
   } = useTeams(context);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Inactive'>('All');
-  const [sortBy, setSortBy] = useState<'name' | 'rank' | 'created' | 'leader'>('rank');
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards');
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "All" | "Active" | "Inactive"
+  >("All");
+  const [sortBy, setSortBy] = useState<"name" | "rank" | "created" | "leader">(
+    "rank"
+  );
+  const [viewMode, setViewMode] = useState<"table" | "cards">("cards");
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [form] = Form.useForm();
 
   // Get filtered and sorted teams
   const getDisplayTeams = (): Team[] => {
     let displayTeams = teams;
-    
+
     // Apply search filter
     if (searchQuery) {
       displayTeams = searchTeams(searchQuery);
     }
-    
+
     // Apply status filter
-    if (statusFilter !== 'All') {
-      displayTeams = displayTeams.filter(team => team.status === statusFilter);
+    if (statusFilter !== "All") {
+      displayTeams = displayTeams.filter(
+        (team) => team.status === statusFilter
+      );
     }
-    
+
     // Apply sorting
-    return getSortedTeams(sortBy).filter(team => 
-      searchQuery ? searchTeams(searchQuery).includes(team) : true
-    ).filter(team =>
-      statusFilter === 'All' ? true : team.status === statusFilter
-    );
+    return getSortedTeams(sortBy)
+      .filter((team) =>
+        searchQuery ? searchTeams(searchQuery).includes(team) : true
+      )
+      .filter((team) =>
+        statusFilter === "All" ? true : team.status === statusFilter
+      );
   };
 
   const handleAddTeam = () => {
-    setEditingTeam(null);
-    form.resetFields();
-    setIsModalVisible(true);
+    startProcess({
+      domain: "dummy-domain",
+      processName: "changeTeam",
+      payload: {
+        employeeId: userInfo?.employeeDetails.employeeId,
+      },
+      builderType: "NATIVE_SCREEN",
+    });
   };
 
   const handleEditTeam = (team: Team) => {
-    setEditingTeam(team);
-    form.setFieldsValue({
-      name: team.name,
-      description: team.description,
-      rank: team.rank
+    // When edit is triggered from the row, just set the selected team and show the drawer
+    setSelectedTeam(team);
+    setDrawerVisible(true);
+  };
+  
+  const handleDrawerEdit = (team: Team) => {
+    // When edit is triggered from inside the drawer, start the process
+    startProcess({
+      domain: "dummy-domain",
+      processName: "changeTeam",
+      payload: {
+        employeeId: userInfo?.employeeDetails.employeeId,
+        team: team,
+      },
+      builderType: "NATIVE_SCREEN",
     });
-    setIsModalVisible(true);
   };
 
   const handleDeleteTeam = (team: Team) => {
     Modal.confirm({
-      title: 'Delete Matrix Team',
+      title: "Delete Matrix Team",
       content: `Are you sure you want to delete matrix team "${team.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
       onOk: async () => {
-        message.warning('Delete team functionality will be implemented with process API integration');
+        message.warning(
+          "Delete team functionality will be implemented with process API integration"
+        );
         await refetch();
       },
     });
-  };
-
-  const handleModalOk = async () => {
-    try {
-      const values = await form.validateFields();
-      
-      if (editingTeam) {
-        message.warning('Edit team functionality will be implemented with process API integration');
-      } else {
-        message.warning('Add team functionality will be implemented with process API integration');
-      }
-      
-      setIsModalVisible(false);
-      form.resetFields();
-      await refetch();
-    } catch (error) {
-      console.error('Validation failed:', error);
-    }
-  };
-
-  const handleModalCancel = () => {
-    setIsModalVisible(false);
-    form.resetFields();
   };
 
   const parseImageUrl = (pictureUrl: string): string | null => {
@@ -186,15 +181,17 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
   // Table columns for table view
   const columns = [
     {
-      title: 'Team',
-      dataIndex: 'name',
-      key: 'name',
+      title: "Team",
+      dataIndex: "name",
+      key: "name",
       render: (text: string, record: Team) => (
         <div>
           <Text strong>{text}</Text>
           {record.description && (
             <div>
-              <Text type="secondary" className="gba:text-sm">{record.description}</Text>
+              <Text type="secondary" className="gba:text-sm">
+                {record.description}
+              </Text>
             </div>
           )}
         </div>
@@ -202,26 +199,24 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
       sorter: (a: Team, b: Team) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Leader',
-      key: 'leader',
+      title: "Leader",
+      key: "leader",
       render: (record: Team) => {
         if (!record.hasLeader) {
           return <Text type="secondary">No leader assigned</Text>;
         }
 
-        const imageUrl = parseImageUrl(record.leaderPictureUrl || '');
-        
+        const imageUrl = parseImageUrl(record.leaderPictureUrl || "");
+
         return (
           <div className="gba:flex gba:items-center gba:space-x-2">
-            <Avatar 
-              size="small"
-              src={imageUrl}
-              icon={<UserOutlined />}
-            />
+            <Avatar size="small" src={imageUrl} icon={<UserOutlined />} />
             <div>
               <Text strong>{record.leaderName}</Text>
               <div>
-                <Text type="secondary" className="gba:text-xs">{record.leaderJobPosition}</Text>
+                <Text type="secondary" className="gba:text-xs">
+                  {record.leaderJobPosition}
+                </Text>
               </div>
             </div>
           </div>
@@ -229,30 +224,28 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
       },
     },
     {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
       render: (status: string) => (
-        <Tag color={status === 'Active' ? 'green' : 'red'}>
-          {status}
-        </Tag>
+        <Tag color={status === "Active" ? "green" : "red"}>{status}</Tag>
       ),
       filters: [
-        { text: 'Active', value: 'Active' },
-        { text: 'Inactive', value: 'Inactive' },
+        { text: "Active", value: "Active" },
+        { text: "Inactive", value: "Inactive" },
       ],
       onFilter: (value: any, record: Team) => record.status === value,
     },
     {
-      title: 'Rank',
-      dataIndex: 'rank',
-      key: 'rank',
+      title: "Rank",
+      dataIndex: "rank",
+      key: "rank",
       sorter: (a: Team, b: Team) => a.rank - b.rank,
     },
     {
-      title: 'Created',
-      dataIndex: 'age',
-      key: 'age',
+      title: "Created",
+      dataIndex: "age",
+      key: "age",
       render: (age: string, record: Team) => (
         <Tooltip title={new Date(record.createdAt).toLocaleDateString()}>
           <Text type="secondary">{age}</Text>
@@ -260,8 +253,8 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
       ),
     },
     {
-      title: 'Actions',
-      key: 'actions',
+      title: "Actions",
+      key: "actions",
       render: (record: Team) => (
         <Space size="small">
           <Tooltip title="Edit Team">
@@ -290,8 +283,8 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
 
   // Render team card for cards view
   const renderTeamCard = (team: Team) => {
-    const imageUrl = parseImageUrl(team.leaderPictureUrl || '');
-    
+    const imageUrl = parseImageUrl(team.leaderPictureUrl || "");
+
     return (
       <Card
         key={team.id}
@@ -302,7 +295,7 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
           </Tooltip>,
           <Tooltip title="Delete Team" key="delete">
             <DeleteOutlined onClick={() => handleDeleteTeam(team)} />
-          </Tooltip>
+          </Tooltip>,
         ]}
         data-testid={`${prefixDataTestId}-team-card-${team.id}`}
       >
@@ -310,8 +303,13 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
           avatar={<TeamOutlined className="gba:text-2xl gba:text-blue-500" />}
           title={
             <div className="gba:flex gba:items-center gba:justify-between">
-              <Text strong className="gba:text-base">{team.name}</Text>
-              <Tag color={team.status === 'Active' ? 'green' : 'red'} className="gba:text-xs">
+              <Text strong className="gba:text-base">
+                {team.name}
+              </Text>
+              <Tag
+                color={team.status === "Active" ? "green" : "red"}
+                className="gba:text-xs"
+              >
                 {team.status}
               </Tag>
             </div>
@@ -323,7 +321,7 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
                   {team.description}
                 </Text>
               )}
-              
+
               <div className="gba:flex gba:items-center gba:justify-between">
                 <Tag color="blue" className="gba:text-xs">
                   Rank {team.rank}
@@ -336,7 +334,7 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
 
               {team.hasLeader ? (
                 <div className="gba:flex gba:items-center gba:space-x-2 gba:pt-2 gba:border-t gba:border-gray-200">
-                  <Avatar 
+                  <Avatar
                     size="small"
                     src={imageUrl}
                     icon={imageUrl ? <FileImageOutlined /> : <UserOutlined />}
@@ -344,7 +342,9 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
                   <div className="gba:flex-1">
                     <div className="gba:flex gba:items-center gba:space-x-1">
                       <CrownOutlined className="gba:text-yellow-500 gba:text-xs" />
-                      <Text strong className="gba:text-sm">{team.leaderName}</Text>
+                      <Text strong className="gba:text-sm">
+                        {team.leaderName}
+                      </Text>
                     </div>
                     <Text type="secondary" className="gba:text-xs gba:block">
                       {team.leaderJobPosition}
@@ -399,23 +399,25 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
 
   return (
     <div
-      data-testid={`${prefixDataTestId || ''}-TeamsTab`}
-      style={{ 
-        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-        minHeight: '100%',
-        padding: '24px',
-        borderRadius: '8px'
+      data-testid={`${prefixDataTestId || ""}-TeamsTab`}
+      style={{
+        background: "linear-gradient(to bottom, #f9fafb, #f3f4f6)",
+        minHeight: "100%",
+        padding: "24px",
+        borderRadius: "8px",
       }}
     >
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '16px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Title level={4} style={{ margin: 0, color: '#1f2937' }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "16px",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <Title level={4} style={{ margin: 0, color: "#1f2937" }}>
             Matrix Teams
           </Title>
           <Tag color="blue">{totalTeams} total</Tag>
@@ -424,40 +426,42 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
           <Tag color="orange">{teamsWithLeaders} with leaders</Tag>
           <Tag color="gray">{teamsWithoutLeaders} without leaders</Tag>
         </div>
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />} 
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
           onClick={handleAddTeam}
-          data-testid={`${prefixDataTestId || ''}-TeamsTab-AddButton`}
+          data-testid={`${prefixDataTestId || ""}-TeamsTab-AddButton`}
         >
           Add Team
         </Button>
       </div>
 
       {/* Controls */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '16px',
-        gap: '16px'
-      }}>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "16px",
+          gap: "16px",
+        }}
+      >
+        <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
           <Input
-            placeholder={t('mdm.search_teams', 'Search teams...')}
+            placeholder={t("mdm.search_teams", "Search teams...")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             prefix={<SearchOutlined />}
             style={{ width: 300 }}
             allowClear
-            data-testid={`${prefixDataTestId || ''}-TeamsTab-SearchInput`}
+            data-testid={`${prefixDataTestId || ""}-TeamsTab-SearchInput`}
           />
-          
+
           <Select
             value={statusFilter}
             onChange={setStatusFilter}
             style={{ width: 120 }}
-            data-testid={`${prefixDataTestId || ''}-TeamsTab-StatusFilter`}
+            data-testid={`${prefixDataTestId || ""}-TeamsTab-StatusFilter`}
           >
             <Option value="All">All</Option>
             <Option value="Active">Active</Option>
@@ -468,7 +472,7 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
             value={sortBy}
             onChange={setSortBy}
             style={{ width: 150 }}
-            data-testid={`${prefixDataTestId || ''}-TeamsTab-SortBy`}
+            data-testid={`${prefixDataTestId || ""}-TeamsTab-SortBy`}
           >
             <Option value="rank">By Rank</Option>
             <Option value="name">By Name</Option>
@@ -476,22 +480,22 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
             <Option value="leader">By Leader</Option>
           </Select>
         </div>
-        
+
         <div>
           <Button.Group>
             <Button
               icon={<AppstoreOutlined />}
-              type={viewMode === 'cards' ? 'primary' : 'default'}
-              onClick={() => setViewMode('cards')}
-              data-testid={`${prefixDataTestId || ''}-TeamsTab-CardsView`}
+              type={viewMode === "cards" ? "primary" : "default"}
+              onClick={() => setViewMode("cards")}
+              data-testid={`${prefixDataTestId || ""}-TeamsTab-CardsView`}
             >
               Cards
             </Button>
             <Button
               icon={<BarsOutlined />}
-              type={viewMode === 'table' ? 'primary' : 'default'}
-              onClick={() => setViewMode('table')}
-              data-testid={`${prefixDataTestId || ''}-TeamsTab-TableView`}
+              type={viewMode === "table" ? "primary" : "default"}
+              onClick={() => setViewMode("table")}
+              data-testid={`${prefixDataTestId || ""}-TeamsTab-TableView`}
             >
               Table
             </Button>
@@ -501,15 +505,17 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
 
       {/* Content */}
       {displayTeams.length > 0 ? (
-        <div style={{
-          background: 'white',
-          borderRadius: '8px',
-          padding: viewMode === 'cards' ? '24px' : '0',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-        }}>
-          {viewMode === 'cards' ? (
+        <div
+          style={{
+            background: "white",
+            borderRadius: "8px",
+            padding: viewMode === "cards" ? "24px" : "0",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          }}
+        >
+          {viewMode === "cards" ? (
             <Row gutter={[16, 16]}>
-              {displayTeams.map(team => (
+              {displayTeams.map((team) => (
                 <Col xs={24} sm={12} md={8} lg={6} key={team.id}>
                   <div onClick={() => handleTeamSelect(team)}>
                     {renderTeamCard(team)}
@@ -523,16 +529,16 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
               dataSource={displayTeams}
               rowKey="id"
               onRow={(record) => ({
-                onClick: () => handleTeamSelect(record)
+                onClick: () => handleTeamSelect(record),
               })}
               pagination={{
                 pageSize: 20,
                 showSizeChanger: true,
                 showQuickJumper: true,
-                showTotal: (total, range) => 
+                showTotal: (total, range) =>
                   `${range[0]}-${range[1]} of ${total} teams`,
               }}
-              data-testid={`${prefixDataTestId || ''}-TeamsTab-Table`}
+              data-testid={`${prefixDataTestId || ""}-TeamsTab-Table`}
             />
           )}
         </div>
@@ -541,53 +547,15 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
           description="No teams found"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         >
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAddTeam}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleAddTeam}
+          >
             Add First Team
           </Button>
         </Empty>
       )}
-
-      {/* Modal for Add/Edit */}
-      <Modal
-        title={editingTeam ? 'Edit Matrix Team' : 'Add Matrix Team'}
-        open={isModalVisible}
-        onOk={handleModalOk}
-        onCancel={handleModalCancel}
-        width={600}
-        data-testid={`${prefixDataTestId || ''}-TeamsTab-Modal`}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          data-testid={`${prefixDataTestId || ''}-TeamsTab-Form`}
-        >
-          <Form.Item
-            label="Team Name"
-            name="name"
-            rules={[{ required: true, message: 'Please enter team name' }]}
-          >
-            <Input placeholder="Enter team name" />
-          </Form.Item>
-          
-          <Form.Item
-            label="Description"
-            name="description"
-          >
-            <Input.TextArea 
-              placeholder="Enter team description (optional)" 
-              rows={3}
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="Rank"
-            name="rank"
-            rules={[{ required: true, message: 'Please enter team rank' }]}
-          >
-            <Input type="number" placeholder="Enter team rank" />
-          </Form.Item>
-        </Form>
-      </Modal>
 
       {/* Team Details Drawer */}
       <DataDetailsDrawer
@@ -597,28 +565,30 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
         onClose={handleCloseDrawer}
         open={drawerVisible}
         width={450}
-        dataTestId={`${prefixDataTestId || ''}-TeamsTab-Drawer`}
+        dataTestId={`${prefixDataTestId || ""}-TeamsTab-Drawer`}
         className="gba:text-base"
         footer={
           <div className="gba:flex gba:gap-2">
-            <Button 
-              icon={<EditOutlined />} 
+            <Button
+              icon={<EditOutlined />}
               onClick={() => {
-                handleEditTeam(selectedTeam!);
                 handleCloseDrawer();
+                if (selectedTeam) {
+                  handleDrawerEdit(selectedTeam);
+                }
               }}
-              data-testid={`${prefixDataTestId || ''}-TeamsTab-EditButton`}
+              data-testid={`${prefixDataTestId || ""}-TeamsTab-EditButton`}
             >
               Edit
             </Button>
-            <Button 
-              icon={<DeleteOutlined />} 
-              danger 
+            <Button
+              icon={<DeleteOutlined />}
+              danger
               onClick={() => {
                 handleCloseDrawer();
                 handleDeleteTeam(selectedTeam!);
               }}
-              data-testid={`${prefixDataTestId || ''}-TeamsTab-DeleteButton`}
+              data-testid={`${prefixDataTestId || ""}-TeamsTab-DeleteButton`}
             >
               Delete
             </Button>
@@ -628,34 +598,47 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
         {selectedTeam && (
           <div className="gba:space-y-6">
             {/* Basic Information */}
-            <Card 
-              title={<span className="gba:flex gba:items-center gba:gap-2"><InfoCircleOutlined /> Basic Information</span>}
+            <Card
+              title={
+                <span className="gba:flex gba:items-center gba:gap-2">
+                  <InfoCircleOutlined /> Basic Information
+                </span>
+              }
               className="gba:shadow-sm"
             >
               <Descriptions column={1} size="small" layout="vertical">
                 <Descriptions.Item label="Name">
                   <div className="gba:flex gba:items-center gba:space-x-2">
-                    <Text strong className="gba:text-lg">{selectedTeam.name || '-'}</Text>
+                    <Text strong className="gba:text-lg">
+                      {selectedTeam.name || "-"}
+                    </Text>
                   </div>
                 </Descriptions.Item>
-                
+
                 <Descriptions.Item label="Status">
-                  <Tag color={selectedTeam.status === 'Active' ? 'green' : 'red'}>
+                  <Tag
+                    color={selectedTeam.status === "Active" ? "green" : "red"}
+                  >
                     {selectedTeam.status}
                   </Tag>
                 </Descriptions.Item>
-                
+
                 {selectedTeam.description && (
                   <Descriptions.Item label="Description">
                     {selectedTeam.description}
                   </Descriptions.Item>
                 )}
-                
+
                 <Descriptions.Item label="Created">
                   <div className="gba:flex gba:items-center gba:space-x-2">
                     <CalendarOutlined className="gba:text-gray-500" />
-                    <Tooltip title={new Date(selectedTeam.createdAt).toLocaleString()}>
-                      <span>{selectedTeam.age} ({new Date(selectedTeam.createdAt).toLocaleDateString()})</span>
+                    <Tooltip
+                      title={new Date(selectedTeam.createdAt).toLocaleString()}
+                    >
+                      <span>
+                        {selectedTeam.age} (
+                        {new Date(selectedTeam.createdAt).toLocaleDateString()})
+                      </span>
                     </Tooltip>
                   </div>
                 </Descriptions.Item>
@@ -663,20 +646,26 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
             </Card>
 
             {/* Team Leader */}
-            <Card 
-              title={<span className="gba:flex gba:items-center gba:gap-2"><CrownOutlined /> Team Leader</span>}
+            <Card
+              title={
+                <span className="gba:flex gba:items-center gba:gap-2">
+                  <CrownOutlined /> Team Leader
+                </span>
+              }
               className="gba:shadow-sm"
             >
               {selectedTeam.hasLeader ? (
                 <div className="gba:space-y-3">
                   <div className="gba:flex gba:items-center gba:gap-4">
-                    <Avatar 
+                    <Avatar
                       size="large"
-                      src={parseImageUrl(selectedTeam.leaderPictureUrl || '')}
+                      src={parseImageUrl(selectedTeam.leaderPictureUrl || "")}
                       icon={<UserOutlined />}
                     />
                     <div>
-                      <Text strong className="gba:text-lg">{selectedTeam.leaderName}</Text>
+                      <Text strong className="gba:text-lg">
+                        {selectedTeam.leaderName}
+                      </Text>
                       {selectedTeam.leaderRole && (
                         <div className="gba:text-sm gba:text-gray-500">
                           {selectedTeam.leaderRole}
@@ -684,45 +673,57 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
                       )}
                     </div>
                   </div>
-                  
+
                   {selectedTeam.leaderJobPosition && (
                     <div className="gba:mt-2">
-                      <div className="gba:text-sm gba:text-gray-500">Job Position</div>
+                      <div className="gba:text-sm gba:text-gray-500">
+                        Job Position
+                      </div>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <IdcardOutlined className="gba:text-blue-500" />
                         <Text>{selectedTeam.leaderJobPosition}</Text>
                       </div>
                     </div>
                   )}
-                  
+
                   {selectedTeam.leaderId && (
                     <div className="gba:mt-1">
-                      <div className="gba:text-sm gba:text-gray-500">Leader ID</div>
+                      <div className="gba:text-sm gba:text-gray-500">
+                        Leader ID
+                      </div>
                       <Text copyable>{selectedTeam.leaderId}</Text>
                     </div>
                   )}
-                  
+
                   {selectedTeam.leaderMatrixUnitName && (
                     <div className="gba:mt-2">
-                      <div className="gba:text-sm gba:text-gray-500">Matrix Unit</div>
+                      <div className="gba:text-sm gba:text-gray-500">
+                        Matrix Unit
+                      </div>
                       <div className="gba:flex gba:items-center gba:space-x-2">
                         <ProjectOutlined className="gba:text-purple-500" />
                         <Text>{selectedTeam.leaderMatrixUnitName}</Text>
                       </div>
-                      
+
                       {/* Show percentage if available */}
                       {selectedTeam.leaderPercentage !== undefined && (
                         <div className="gba:mt-1">
                           <div className="gba:flex gba:justify-between gba:items-center gba:mb-1">
-                            <div className="gba:text-xs gba:text-gray-500">Allocation</div>
+                            <div className="gba:text-xs gba:text-gray-500">
+                              Allocation
+                            </div>
                             <div className="gba:text-xs gba:font-medium">
                               {selectedTeam.leaderPercentage}%
                             </div>
                           </div>
-                          <Progress 
-                            percent={selectedTeam.leaderPercentage} 
+                          <Progress
+                            percent={selectedTeam.leaderPercentage}
                             size="small"
-                            status={selectedTeam.leaderPercentage < 100 ? "active" : "success"}
+                            status={
+                              selectedTeam.leaderPercentage < 100
+                                ? "active"
+                                : "success"
+                            }
                           />
                         </div>
                       )}
@@ -735,30 +736,38 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
             </Card>
 
             {/* Additional Information */}
-            <Card 
-              title={<span className="gba:flex gba:items-center gba:gap-2"><GlobalOutlined /> Additional Information</span>}
+            <Card
+              title={
+                <span className="gba:flex gba:items-center gba:gap-2">
+                  <GlobalOutlined /> Additional Information
+                </span>
+              }
               className="gba:shadow-sm"
             >
               <div className="gba:space-y-4">
                 <div>
-                  <div className="gba:text-sm gba:text-gray-500">Structure ID</div>
+                  <div className="gba:text-sm gba:text-gray-500">
+                    Structure ID
+                  </div>
                   <div className="gba:mt-1">
                     <Text copyable>{selectedTeam.structureId}</Text>
                   </div>
                 </div>
-                
+
                 <div>
                   <div className="gba:text-sm gba:text-gray-500">Team ID</div>
                   <div className="gba:mt-1">
                     <Text copyable>{selectedTeam.id}</Text>
                   </div>
                 </div>
-                
+
                 <div>
                   <div className="gba:text-sm gba:text-gray-500">Rank</div>
                   <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
                     <SortAscendingOutlined className="gba:text-blue-500" />
-                    <Text strong className="gba:text-lg">{selectedTeam.rank}</Text>
+                    <Text strong className="gba:text-lg">
+                      {selectedTeam.rank}
+                    </Text>
                   </div>
                 </div>
               </div>
@@ -766,24 +775,26 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
 
             {/* Action Buttons */}
             <div className="gba:flex gba:gap-2">
-              <Button 
-                icon={<EditOutlined />} 
+              <Button
+                icon={<EditOutlined />}
                 onClick={() => {
-                  handleEditTeam(selectedTeam!);
                   handleCloseDrawer();
+                  if (selectedTeam) {
+                    handleDrawerEdit(selectedTeam);
+                  }
                 }}
-                data-testid={`${prefixDataTestId || ''}-TeamsTab-EditButton`}
+                data-testid={`${prefixDataTestId || ""}-TeamsTab-EditButton`}
               >
                 Edit
               </Button>
-              <Button 
-                icon={<DeleteOutlined />} 
-                danger 
+              <Button
+                icon={<DeleteOutlined />}
+                danger
                 onClick={() => {
                   handleCloseDrawer();
                   handleDeleteTeam(selectedTeam!);
                 }}
-                data-testid={`${prefixDataTestId || ''}-TeamsTab-DeleteButton`}
+                data-testid={`${prefixDataTestId || ""}-TeamsTab-DeleteButton`}
               >
                 Delete
               </Button>

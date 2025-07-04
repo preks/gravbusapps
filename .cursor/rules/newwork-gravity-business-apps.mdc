@@ -104,4 +104,4 @@ src/business-apps/
 - **Apps**: `npm run publish:screen -- /<module>/<sub-module>/apps/<app-folder> [options]`
 - **Forms**: `npm run publish:screen -- /<module>/<sub-module>/forms/<form-folder> [options]`
 - **Options**:
-  - `--fast` or `-f`: Fast publish mode - skips all prompts and defaults to No for resource URL options
+  - `--resource` or `-r`: Resource URL mode - enables prompts for creating resource URLs (by default, direct publishing without prompts)

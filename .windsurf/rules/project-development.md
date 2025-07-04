@@ -13,3 +13,11 @@ trigger: always_on
 - Keep usage of code comments minimal and only describe React components, utility functions and complex code blocks
 - Remove unused imports or imports that are not used
 - Use the Conventional Commits specification for git commit messages
+
+## Publishing
+
+- Apps and forms must be published **daily**
+- Use:
+  - `npm run publish:screen -- /<module>/<sub-module>/apps/<app-folder>` for apps
+  - `npm run publish:screen -- /<module>/<sub-module>/forms/<form-folder>` for forms
+- Optional Resource URL mode: `--resource` or `-r` - enables prompts for creating resource URLs (by default, direct publishing without prompts)

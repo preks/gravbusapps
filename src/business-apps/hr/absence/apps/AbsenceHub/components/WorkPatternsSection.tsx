@@ -1,17 +1,15 @@
-import React from "react";
 import dayjs from "dayjs";
 import { ExclamationCircleOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { filterAbsencesForEntitlements } from '../utils/absenceFilters';
 
 interface WorkPatternsSectionProps {
-  absences: Array<{
-    startDate: string;
-    endDate: string;
-  }>;
+  absences: any[];
 }
 
 const WorkPatternsSection: React.FC<WorkPatternsSectionProps> = ({ absences }) => {
-  const sortedAbsences = [...absences].sort((a, b) => dayjs(a.startDate).diff(dayjs(b.startDate)));
+  const filteredAbsences = filterAbsencesForEntitlements(absences || []);
+  const sortedAbsences = [...filteredAbsences].sort((a, b) => dayjs(a.startDate).diff(dayjs(b.startDate)));
 
   const workPeriods: { start: dayjs.Dayjs; end: dayjs.Dayjs; days: number }[] = [];
   let prevEnd = sortedAbsences.length > 0 ? dayjs(sortedAbsences[0].startDate).subtract(1, 'day') : null;
@@ -44,7 +42,7 @@ const WorkPatternsSection: React.FC<WorkPatternsSectionProps> = ({ absences }) =
 
   const avgStreak = workPeriods.length > 0 ? Math.round(workPeriods.reduce((sum, wp) => sum + wp.days, 0) / workPeriods.length) : 0;
 
-  const breakDurations = absences.map(a => dayjs(a.endDate).diff(dayjs(a.startDate), 'day') + 1).filter(d => d > 0);
+  const breakDurations = sortedAbsences.map(a => dayjs(a.endDate).diff(dayjs(a.startDate), 'day') + 1).filter(d => d > 0);
   const shortestBreak = breakDurations.length > 0 ? Math.min(...breakDurations) : 0;
   let recommendation = "You're maintaining a healthy work pattern.";
   let recommendationIcon = <CheckCircleOutlined style={{ color: "#52c41a", fontSize: 22 }} />;

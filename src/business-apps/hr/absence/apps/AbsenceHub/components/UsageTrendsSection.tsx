@@ -1,6 +1,7 @@
 import React from "react";
 import dayjs from "dayjs";
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { filterAbsencesForEntitlements } from '../utils/absenceFilters';
 
 interface UsageTrendsSectionProps {
   absences: any[];
@@ -52,12 +53,11 @@ function getDayOfWeekUsage(absences: any[]) {
   return usage;
 }
 
-const UsageTrendsSection: React.FC<UsageTrendsSectionProps> = ({
-  absences,
-}) => {
+const UsageTrendsSection: React.FC<UsageTrendsSectionProps> = ({ absences }) => {
+  const approvedAbsences = filterAbsencesForEntitlements(absences || []);
   const currentYear = dayjs().year();
-  const monthlyUsage = getMonthlyUsage(absences, currentYear);
-  const dayOfWeekUsage = getDayOfWeekUsage(absences);
+  const monthlyUsage = getMonthlyUsage(approvedAbsences, currentYear);
+  const dayOfWeekUsage = getDayOfWeekUsage(approvedAbsences);
   const maxDay = Math.max(...dayOfWeekUsage);
   const mostCommonIdx = dayOfWeekUsage.findIndex((v) => v === maxDay);
   const total = dayOfWeekUsage.reduce((a, b) => a + b, 0);
@@ -77,7 +77,7 @@ const UsageTrendsSection: React.FC<UsageTrendsSectionProps> = ({
       </div>
       <div className="gba:statisticsSubSection" data-testid="usage-trends-section-subsection">
         <div className="gba:statisticsSubSectionTitle" data-testid="usage-trends-section-subsection-title">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.monthly_usage', 'Monthly Usage')} ({currentYear})
+          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.monthly_usage', 'Monthly Usage', { currentYear })}
         </div>
         <div className="gba:statisticsMonthlyBarChart" data-testid="usage-trends-section-subsection-bar-chart">
           {monthlyUsage.map((val, i) => (

@@ -16,7 +16,8 @@ import {
 } from "../../types";
 import { getCatalogValue } from "../../../../../../../common/utils/windowUtils";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
-import { ICONS } from "../../constants/icons";
+import { ICONS } from "@/business-apps/fin/expenses/utils/icons";
+
 
 interface MultiPositionComponentProps {
   positions: ExpensePosition[];
