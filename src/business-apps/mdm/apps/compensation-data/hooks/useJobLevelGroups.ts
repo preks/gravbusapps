@@ -1,5 +1,5 @@
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { CatalogEntry, GetCatalogEntriesResponse } from '@/common/types/CatalogTypes';
+import { CatalogEntry } from '@/common/types/CatalogTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { JobLevelGroupData } from '../types';
 

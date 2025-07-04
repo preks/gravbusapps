@@ -1,12 +1,31 @@
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Table, Button, Input, Space, Typography, message, Modal, Form, Spin, InputNumber, Select, Alert, Descriptions, Tag } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, DollarCircleOutlined } from '@ant-design/icons';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useUserLocale } from '@/common/locale/useUserLocale';
-import { useCompensationDataIntegration } from '../../hooks/useCompensationDataIntegration';
-import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
-import { PayGrade } from './PayGradesTab';
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Table,
+  Button,
+  Input,
+  Space,
+  Typography,
+  message,
+  Modal,
+  Spin,
+  Alert,
+  Descriptions,
+  Tag,
+} from "antd";
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  SearchOutlined,
+  DollarCircleOutlined,
+} from "@ant-design/icons";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useUserLocale } from "@/common/locale/useUserLocale";
+import { useCompensationDataIntegration } from "../../hooks/useCompensationDataIntegration";
+import { DataDetailsDrawer } from "@/components/data-details/DataDetailsDrawer";
+import { PayGrade } from "./PayGradesTab";
+import { startProcess } from "@/common/utils/start-process";
 
 const { Title } = Typography;
 
@@ -15,51 +34,60 @@ export interface CompensationBandsTabProps extends BusinessAppContextProps {
 }
 
 const currencies = [
-  { value: 'EUR', label: 'Euro (EUR)' },
-  { value: 'USD', label: 'US Dollar (USD)' },
-  { value: 'GBP', label: 'British Pound (GBP)' },
-  { value: 'CHF', label: 'Swiss Franc (CHF)' }
+  { value: "EUR", label: "Euro (EUR)" },
+  { value: "USD", label: "US Dollar (USD)" },
+  { value: "GBP", label: "British Pound (GBP)" },
+  { value: "CHF", label: "Swiss Franc (CHF)" },
 ];
 
 const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
   const { t } = useTranslation();
-  const { prefixDataTestId } = context;
-  const userLocale = useUserLocale() ?? 'en-US';
-  
+  const { prefixDataTestId, userInfo } = context;
+  const userLocale = useUserLocale() ?? "en-US";
+
   // Use real data integration
-  const { payGrades, isLoading, error, refetch } = useCompensationDataIntegration(context);
+  const { payGrades, isLoading, error, refetch } =
+    useCompensationDataIntegration(context);
   const [selectedBand, setSelectedBand] = useState<PayGrade | null>(null);
   const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [editingBand, setEditingBand] = useState<PayGrade | null>(null);
-  const [form] = Form.useForm();
 
-  const filteredBands = payGrades.filter(band => 
-    band.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    band.code?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredBands = payGrades.filter(
+    (band) =>
+      band.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      band.code?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const formatCurrency = (amount: number, currency?: { id: string; value: string } | string) => {
-    let currencyCode = typeof currency === 'string' ? currency : currency?.id || 'EUR';
-    
+  const formatCurrency = (
+    amount: number,
+    currency?: { id: string; value: string } | string
+  ) => {
+    let currencyCode =
+      typeof currency === "string" ? currency : currency?.id || "EUR";
+
     // Extract currency code from format like "Currency:v1:EUR" -> "EUR"
-    if (currencyCode.includes(':')) {
-      const parts = currencyCode.split(':');
+    if (currencyCode.includes(":")) {
+      const parts = currencyCode.split(":");
       currencyCode = parts[parts.length - 1]; // Get the last part
     }
-    
+
     return new Intl.NumberFormat(userLocale, {
-      style: 'currency',
+      style: "currency",
       currency: currencyCode,
       minimumFractionDigits: 2,
     }).format(amount);
   };
 
   const handleAdd = () => {
-    setEditingBand(null);
-    form.resetFields();
-    setIsModalVisible(true);
+    startProcess({
+      domain: "dummy-domain",
+      processName: "changeCompensationBand",
+      payload: {
+        employeeId: userInfo?.employeeDetails.employeeId,
+      },
+      builderType: "NATIVE_SCREEN",
+    });
   };
 
   const handleRowClick = (record: PayGrade) => {
@@ -74,68 +102,46 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
 
   const handleEdit = (record: PayGrade) => {
     setEditingBand(record);
-    form.setFieldsValue({
-      name: record.name,
-      code: record.code,
-      minSalary: record.minSalary,
-      maxSalary: record.maxSalary,
-      standardSalary: record.standardSalary,
-      currency: typeof record.currency === 'string' ? record.currency : record.currency?.id,
+    // Just set the state for the drawer, no process needed
+  };
+  
+  const handleDrawerEdit = (record: PayGrade) => {
+    // When editing from drawer button, start the process
+    startProcess({
+      domain: "dummy-domain",
+      processName: "changeCompensationBand",
+      payload: {
+        employeeId: userInfo?.employeeDetails.employeeId,
+        compensationBand: record,
+      },
+      builderType: "NATIVE_SCREEN",
     });
-    setIsModalVisible(true);
   };
 
   const handleDelete = async (record: PayGrade) => {
     Modal.confirm({
-      title: 'Delete Compensation Band',
+      title: "Delete Compensation Band",
       content: `Are you sure you want to delete "${record.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
       onOk: async () => {
         // TODO: Implement API call to delete compensation band
-        message.warning('Delete functionality will be implemented with process API integration');
+        message.warning(
+          "Delete functionality will be implemented with process API integration"
+        );
         // Optionally refetch data
         await refetch();
       },
     });
   };
 
-  const handleModalOk = async () => {
-    try {
-      const values = await form.validateFields();
-      
-      // Validate salary range
-      if (values.minSalary >= values.maxSalary) {
-        message.error('Minimum salary must be less than maximum salary');
-        return;
-      }
-      
-      if (values.standardSalary < values.minSalary || values.standardSalary > values.maxSalary) {
-        message.error('Standard salary must be between minimum and maximum salary');
-        return;
-      }
-      
-      // TODO: Implement API calls for saving compensation bands
-      message.warning('Save functionality will be implemented with process API integration');
-      
-      setIsModalVisible(false);
-      // Optionally refetch data
-      await refetch();
-    } catch (error) {
-      console.error('Error saving compensation band:', error);
-      message.error('Failed to save compensation band');
-    }
-  };
-
-  const handleModalCancel = () => {
-    setIsModalVisible(false);
-    form.resetFields();
-  };
-
   if (isLoading) {
     return (
-      <div data-testid={`${prefixDataTestId}-CompensationBandsTab`} className="gba:flex gba:justify-center gba:items-center gba:h-64">
+      <div
+        data-testid={`${prefixDataTestId}-CompensationBandsTab`}
+        className="gba:flex gba:justify-center gba:items-center gba:h-64"
+      >
         <Spin size="large" />
       </div>
     );
@@ -143,7 +149,10 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
 
   if (error) {
     return (
-      <div data-testid={`${prefixDataTestId}-CompensationBandsTab`} className="gba:p-4">
+      <div
+        data-testid={`${prefixDataTestId}-CompensationBandsTab`}
+        className="gba:p-4"
+      >
         <Alert
           message="Error Loading Data"
           description={error}
@@ -161,28 +170,30 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
 
   const columns = [
     {
-      title: 'Code',
-      dataIndex: 'code',
-      key: 'code',
+      title: "Code",
+      dataIndex: "code",
+      key: "code",
       width: 100,
-      sorter: (a: PayGrade, b: PayGrade) => (a.code || '').localeCompare(b.code || ''),
+      sorter: (a: PayGrade, b: PayGrade) =>
+        (a.code || "").localeCompare(b.code || ""),
     },
     {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
+      title: "Name",
+      dataIndex: "name",
+      key: "name",
       sorter: (a: PayGrade, b: PayGrade) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Minimum Salary',
-      key: 'minSalary',
+      title: "Minimum Salary",
+      key: "minSalary",
       width: 150,
-      render: (_: any, record: PayGrade) => formatCurrency(record.minSalary, record.currency),
+      render: (_: any, record: PayGrade) =>
+        formatCurrency(record.minSalary, record.currency),
       sorter: (a: PayGrade, b: PayGrade) => a.minSalary - b.minSalary,
     },
     {
-      title: 'Standard Salary',
-      key: 'standardSalary',
+      title: "Standard Salary",
+      key: "standardSalary",
       width: 150,
       render: (_: any, record: PayGrade) => (
         <span className="gba:font-medium">
@@ -192,22 +203,25 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
       sorter: (a: PayGrade, b: PayGrade) => a.standardSalary - b.standardSalary,
     },
     {
-      title: 'Maximum Salary',
-      key: 'maxSalary',
+      title: "Maximum Salary",
+      key: "maxSalary",
       width: 150,
-      render: (_: any, record: PayGrade) => formatCurrency(record.maxSalary, record.currency),
+      render: (_: any, record: PayGrade) =>
+        formatCurrency(record.maxSalary, record.currency),
       sorter: (a: PayGrade, b: PayGrade) => a.maxSalary - b.maxSalary,
     },
     {
-      title: 'Range',
-      key: 'range',
+      title: "Range",
+      key: "range",
       width: 150,
-      render: (_: any, record: PayGrade) => formatCurrency(record.maxSalary - record.minSalary, record.currency),
-      sorter: (a: PayGrade, b: PayGrade) => (a.maxSalary - a.minSalary) - (b.maxSalary - b.minSalary),
+      render: (_: any, record: PayGrade) =>
+        formatCurrency(record.maxSalary - record.minSalary, record.currency),
+      sorter: (a: PayGrade, b: PayGrade) =>
+        a.maxSalary - a.minSalary - (b.maxSalary - b.minSalary),
     },
     {
-      title: 'Actions',
-      key: 'actions',
+      title: "Actions",
+      key: "actions",
       width: 120,
       render: (_: any, record: PayGrade) => (
         <Space size="small">
@@ -230,33 +244,43 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
   ];
 
   return (
-    <div data-testid={`${prefixDataTestId || ''}-CompensationBandsTab`} className="gba:p-6">
+    <div
+      data-testid={`${prefixDataTestId || ""}-CompensationBandsTab`}
+      className="gba:p-6"
+    >
       <div className="gba:mb-6">
         <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
           <div>
-            <Title level={2} className="gba:mb-2">Compensation Bands</Title>
+            <Title level={2} className="gba:mb-2">
+              Compensation Bands
+            </Title>
             <p className="gba:text-gray-600">
-              Manage compensation bands and salary ranges for different pay grades
+              Manage compensation bands and salary ranges for different pay
+              grades
             </p>
           </div>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={handleAdd}
-            data-testid={`${prefixDataTestId || ''}-CompensationBandsTab-AddButton`}
+            data-testid={`${
+              prefixDataTestId || ""
+            }-CompensationBandsTab-AddButton`}
           >
             Add Compensation Band
           </Button>
         </div>
-        
+
         <Input
           placeholder="Search compensation bands..."
           prefix={<SearchOutlined />}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ maxWidth: '300px' }}
+          style={{ maxWidth: "300px" }}
           allowClear
-          data-testid={`${prefixDataTestId || ''}-CompensationBandsTab-SearchInput`}
+          data-testid={`${
+            prefixDataTestId || ""
+          }-CompensationBandsTab-SearchInput`}
         />
       </div>
 
@@ -265,105 +289,18 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
         dataSource={filteredBands}
         rowKey="id"
         onRow={(record) => ({
-          onClick: () => handleRowClick(record)
+          onClick: () => handleRowClick(record),
         })}
         className="gba:cursor-pointer"
         pagination={{
           pageSize: 20,
           showSizeChanger: true,
           showQuickJumper: true,
-          showTotal: (total, range) => 
+          showTotal: (total, range) =>
             `${range[0]}-${range[1]} of ${total} compensation bands`,
         }}
-        data-testid={`${prefixDataTestId || ''}-CompensationBandsTab-Table`}
+        data-testid={`${prefixDataTestId || ""}-CompensationBandsTab-Table`}
       />
-
-      <Modal
-        title={editingBand ? 'Edit Compensation Band' : 'Add Compensation Band'}
-        open={isModalVisible}
-        onOk={handleModalOk}
-        onCancel={handleModalCancel}
-        width={600}
-        data-testid={`${prefixDataTestId || ''}-CompensationBandsTab-Modal`}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          data-testid={`${prefixDataTestId || ''}-CompensationBandsTab-Form`}
-        >
-          <Form.Item
-            label="Name"
-            name="name"
-            rules={[{ required: true, message: 'Please enter a name' }]}
-          >
-            <Input placeholder="Enter compensation band name" />
-          </Form.Item>
-          
-          <Form.Item
-            label="Code"
-            name="code"
-            rules={[{ required: true, message: 'Please enter a code' }]}
-          >
-            <Input placeholder="Enter pay grade code (e.g., K/T7, AT4)" />
-          </Form.Item>
-          
-          <div className="gba:grid gba:grid-cols-3 gba:gap-4">
-            <Form.Item
-              label="Minimum Salary"
-              name="minSalary"
-              rules={[{ required: true, message: 'Please enter minimum salary' }]}
-            >
-              <InputNumber 
-                placeholder="Min salary" 
-                min={0}
-                style={{ width: '100%' }}
-                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              />
-            </Form.Item>
-            
-            <Form.Item
-              label="Standard Salary"
-              name="standardSalary"
-              rules={[{ required: true, message: 'Please enter standard salary' }]}
-            >
-              <InputNumber 
-                placeholder="Standard salary" 
-                min={0}
-                style={{ width: '100%' }}
-                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              />
-            </Form.Item>
-            
-            <Form.Item
-              label="Maximum Salary"
-              name="maxSalary"
-              rules={[{ required: true, message: 'Please enter maximum salary' }]}
-            >
-              <InputNumber 
-                placeholder="Max salary" 
-                min={0}
-                style={{ width: '100%' }}
-                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              />
-            </Form.Item>
-          </div>
-          
-          <Form.Item
-            label="Currency"
-            name="currency"
-            rules={[{ required: true, message: 'Please select a currency' }]}
-            initialValue="EUR"
-          >
-            <Select placeholder="Select currency">
-              {currencies.map(currency => (
-                <Select.Option key={currency.value} value={currency.value}>
-                  {currency.label}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
 
       {/* Compensation Band Details Drawer */}
       <DataDetailsDrawer
@@ -373,7 +310,9 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
         onClose={handleDrawerClose}
         width={500}
         placement="right"
-        dataTestId={`${prefixDataTestId || ''}-CompensationBandsTab-DetailsDrawer`}
+        dataTestId={`${
+          prefixDataTestId || ""
+        }-CompensationBandsTab-DetailsDrawer`}
         footer={
           <div className="gba:flex gba:justify-end gba:gap-2">
             <Button
@@ -382,7 +321,7 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
               onClick={() => {
                 handleDrawerClose();
                 if (selectedBand) {
-                  handleEdit(selectedBand);
+                  handleDrawerEdit(selectedBand);
                 }
               }}
             >
@@ -394,71 +333,142 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
         {selectedBand && (
           <div className="gba:space-y-6">
             {/* Basic Information */}
-            <Descriptions title="Basic Information" bordered column={1} size="small">
-              <Descriptions.Item label="Name">{selectedBand.name || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Code">{selectedBand.code || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Pay Grade">{selectedBand.payGrade !== undefined ? selectedBand.payGrade : "-"}</Descriptions.Item>
+            <Descriptions
+              title="Basic Information"
+              bordered
+              column={1}
+              size="small"
+            >
+              <Descriptions.Item label="Name">
+                {selectedBand.name || "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Code">
+                {selectedBand.code || "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Pay Grade">
+                {selectedBand.payGrade !== undefined
+                  ? selectedBand.payGrade
+                  : "-"}
+              </Descriptions.Item>
             </Descriptions>
 
             {/* Salary Information */}
-            <Descriptions title="Salary Information" bordered column={1} size="small">
+            <Descriptions
+              title="Salary Information"
+              bordered
+              column={1}
+              size="small"
+            >
               <Descriptions.Item label="Currency">
-                {typeof selectedBand.currency === 'string' ? selectedBand.currency : 
-                  selectedBand.currency?.value || selectedBand.currency?.id || "-"}
+                {typeof selectedBand.currency === "string"
+                  ? selectedBand.currency
+                  : selectedBand.currency?.value ||
+                    selectedBand.currency?.id ||
+                    "-"}
               </Descriptions.Item>
               <Descriptions.Item label="Minimum Salary">
                 <span className="gba:text-green-600 gba:font-medium">
-                  {formatCurrency(selectedBand.minSalary, selectedBand.currency)}
+                  {formatCurrency(
+                    selectedBand.minSalary,
+                    selectedBand.currency
+                  )}
                 </span>
               </Descriptions.Item>
               <Descriptions.Item label="Standard Salary">
                 <span className="gba:text-blue-600 gba:font-semibold">
-                  {formatCurrency(selectedBand.standardSalary, selectedBand.currency)}
+                  {formatCurrency(
+                    selectedBand.standardSalary,
+                    selectedBand.currency
+                  )}
                 </span>
               </Descriptions.Item>
               <Descriptions.Item label="Maximum Salary">
                 <span className="gba:text-red-600 gba:font-medium">
-                  {formatCurrency(selectedBand.maxSalary, selectedBand.currency)}
+                  {formatCurrency(
+                    selectedBand.maxSalary,
+                    selectedBand.currency
+                  )}
                 </span>
               </Descriptions.Item>
               <Descriptions.Item label="Salary Range">
                 <span className="gba:text-purple-600 gba:font-medium">
-                  {formatCurrency(selectedBand.maxSalary - selectedBand.minSalary, selectedBand.currency)}
+                  {formatCurrency(
+                    selectedBand.maxSalary - selectedBand.minSalary,
+                    selectedBand.currency
+                  )}
                 </span>
               </Descriptions.Item>
             </Descriptions>
 
             {/* Translations Section - if available */}
-            {selectedBand.nameI18n && Object.keys(selectedBand.nameI18n || {}).length > 0 && (
-              <Descriptions title="Name Translations" bordered column={1} size="small">
-                {Object.entries(selectedBand.nameI18n || {}).map(([locale, translation]) => (
-                  <Descriptions.Item key={locale} label={locale}>{translation || "-"}</Descriptions.Item>
-                ))}
-              </Descriptions>
-            )}
+            {selectedBand.nameI18n &&
+              Object.keys(selectedBand.nameI18n || {}).length > 0 && (
+                <Descriptions
+                  title="Name Translations"
+                  bordered
+                  column={1}
+                  size="small"
+                >
+                  {Object.entries(selectedBand.nameI18n || {}).map(
+                    ([locale, translation]) => (
+                      <Descriptions.Item key={locale} label={locale}>
+                        {translation || "-"}
+                      </Descriptions.Item>
+                    )
+                  )}
+                </Descriptions>
+              )}
 
-            {selectedBand.descriptionI18n && Object.keys(selectedBand.descriptionI18n || {}).length > 0 && (
-              <Descriptions title="Description Translations" bordered column={1} size="small">
-                {Object.entries(selectedBand.descriptionI18n || {}).map(([locale, translation]) => (
-                  <Descriptions.Item key={locale} label={locale}>{translation || "-"}</Descriptions.Item>
-                ))}
-              </Descriptions>
-            )}
+            {selectedBand.descriptionI18n &&
+              Object.keys(selectedBand.descriptionI18n || {}).length > 0 && (
+                <Descriptions
+                  title="Description Translations"
+                  bordered
+                  column={1}
+                  size="small"
+                >
+                  {Object.entries(selectedBand.descriptionI18n || {}).map(
+                    ([locale, translation]) => (
+                      <Descriptions.Item key={locale} label={locale}>
+                        {translation || "-"}
+                      </Descriptions.Item>
+                    )
+                  )}
+                </Descriptions>
+              )}
 
             {/* Additional Details */}
             {selectedBand.description && (
-              <Descriptions title="Description" bordered column={1} size="small">
-                <Descriptions.Item label="Description">{selectedBand.description || "-"}</Descriptions.Item>
+              <Descriptions
+                title="Description"
+                bordered
+                column={1}
+                size="small"
+              >
+                <Descriptions.Item label="Description">
+                  {selectedBand.description || "-"}
+                </Descriptions.Item>
               </Descriptions>
             )}
 
             {/* Technical Information */}
-            <Descriptions title="System Information" bordered column={1} size="small">
-              <Descriptions.Item label="ID">{selectedBand.id}</Descriptions.Item>
-              <Descriptions.Item label="Version">
-                {selectedBand.version !== undefined ? selectedBand.version : "-"}
+            <Descriptions
+              title="System Information"
+              bordered
+              column={1}
+              size="small"
+            >
+              <Descriptions.Item label="ID">
+                {selectedBand.id}
               </Descriptions.Item>
-              <Descriptions.Item label="Currency Reference">{selectedBand.currencyRef || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Version">
+                {selectedBand.version !== undefined
+                  ? selectedBand.version
+                  : "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Currency Reference">
+                {selectedBand.currencyRef || "-"}
+              </Descriptions.Item>
             </Descriptions>
           </div>
         )}
@@ -467,5 +477,4 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
   );
 };
 
-export default CompensationBandsTab;
 export { CompensationBandsTab };

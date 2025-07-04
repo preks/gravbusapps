@@ -1,11 +1,38 @@
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Card, Table, Button, Collapse, Tag, Space, Typography, InputNumber, Select, Form, Modal, message, Input, Spin, Alert, Descriptions, Divider } from 'antd';
-import { EditOutlined, DeleteOutlined, PlusOutlined, DownOutlined, RightOutlined, CreditCardOutlined, LinkOutlined, TeamOutlined, DollarOutlined, BankOutlined, AppstoreOutlined } from '@ant-design/icons';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { PayGrade, JobLevelGroup, JobLevel } from './PayGradesTab';
-import { useCompensationDataIntegration } from '../../hooks/useCompensationDataIntegration';
-import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Card,
+  Table,
+  Button,
+  Collapse,
+  Tag,
+  Space,
+  Typography,
+  Modal,
+  message,
+  Spin,
+  Alert,
+  Descriptions,
+  Divider,
+} from "antd";
+import {
+  EditOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  RightOutlined,
+  CreditCardOutlined,
+  LinkOutlined,
+  TeamOutlined,
+  DollarOutlined,
+  BankOutlined,
+  AppstoreOutlined,
+} from "@ant-design/icons";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { PayGrade, JobLevelGroup, JobLevel } from "./PayGradesTab";
+import { useCompensationDataIntegration } from "../../hooks/useCompensationDataIntegration";
+import { DataDetailsDrawer } from "@/components/data-details/DataDetailsDrawer";
+import type { JobLevelGroupVisualization } from "../../types";
+import { startProcess } from "@/common/utils/start-process";
 
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
@@ -21,59 +48,63 @@ interface JobLevelDetail extends JobLevel {
   nameI18n?: Record<string, string>;
   descriptionI18n?: Record<string, string>;
   version?: number;
-  payGradeId?: string;
-  jobLevelGroupId?: string;
-  code?: string;
-  level?: number;
-  heirarchyOrder?: number;
+  payGradeId: string;
+  jobLevelGroupId: string;
+  code: string;
+  level: number;
+  heirarchyOrder: number;
 }
 
 const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
   const { t } = useTranslation();
-  const { prefixDataTestId } = context;
-  
+  const { prefixDataTestId, userInfo } = context;
+
   // State for drawer
-  const [selectedPayGrade, setSelectedPayGrade] = useState<JobLevelDetail | null>(null);
+  const [selectedJobLevelDetail, setSelectedJobLevelDetail] =
+    useState<JobLevelDetail | null>(null);
   const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
-  
+
   // Use real data integration
-  const { payGrades, jobLevelGroups, jobLevels, isLoading, error, refetch } = useCompensationDataIntegration(context);
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const { payGrades, jobLevelGroups, jobLevels, isLoading, error, refetch } =
+    useCompensationDataIntegration(context);
   const [editingJobLevel, setEditingJobLevel] = useState<JobLevel | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [form] = Form.useForm();
 
-  const formatCurrency = (amount: number, currency?: { id: string; value: string } | string) => {
-    let currencyCode = typeof currency === 'string' ? currency : currency?.id || 'EUR';
-    
+  const formatCurrency = (
+    amount: number,
+    currency?: { id: string; value: string } | string
+  ) => {
+    let currencyCode =
+      typeof currency === "string" ? currency : currency?.id || "EUR";
+
     // Extract currency code from format like "Currency:v1:EUR" -> "EUR"
-    if (currencyCode.includes(':')) {
-      const parts = currencyCode.split(':');
+    if (currencyCode.includes(":")) {
+      const parts = currencyCode.split(":");
       currencyCode = parts[parts.length - 1]; // Get the last part
     }
-    
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
+
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
       currency: currencyCode,
       minimumFractionDigits: 2,
     }).format(amount);
   };
 
   const getJobLevelDetails = (groupId: string): JobLevelDetail[] => {
-    const group = jobLevelGroups.find(g => g.id === groupId);
+    const group = jobLevelGroups.find((g) => g.id === groupId);
     if (!group) return [];
 
     return jobLevels
-      .filter(jl => jl.jobLevelGroupId === groupId)
-      .map(jobLevel => {
-        const payGrade = payGrades.find(pg => pg.id === jobLevel.payGradeId);
+      .filter((jl) => jl.jobLevelGroupId === groupId)
+      .map((jobLevel) => {
+        const payGrade = payGrades.find((pg) => pg.id === jobLevel.payGradeId);
         if (!payGrade) return null;
-        
+
         return {
           ...jobLevel,
           payGrade,
           jobLevelGroup: group,
-          range: payGrade.maxSalary - payGrade.minSalary
+          range: payGrade.maxSalary - payGrade.minSalary,
         };
       })
       .filter(Boolean) as JobLevelDetail[];
@@ -83,68 +114,69 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
     const details = getJobLevelDetails(groupId);
     if (details.length === 0) return null;
 
-    const minSalary = Math.min(...details.map(d => d.payGrade.minSalary));
-    const maxSalary = Math.max(...details.map(d => d.payGrade.maxSalary));
-    const currency = details[0]?.payGrade.currency || 'EUR';
+    const minSalary = Math.min(...details.map((d) => d.payGrade.minSalary));
+    const maxSalary = Math.max(...details.map((d) => d.payGrade.maxSalary));
+    const currency = details[0]?.payGrade.currency || "EUR";
 
     return {
       groupCount: details.length,
-      salaryRange: `${formatCurrency(minSalary, currency)} - ${formatCurrency(maxSalary, currency)}`
+      salaryRange: `${formatCurrency(minSalary, currency)} - ${formatCurrency(
+        maxSalary,
+        currency
+      )}`,
     };
   };
 
   const handleEditJobLevel = (jobLevel: JobLevelDetail) => {
     setEditingJobLevel(jobLevel);
-    form.setFieldsValue({
-      name: jobLevel.name,
-      code: jobLevel.code,
-      payGradeId: jobLevel.payGradeId,
-      level: jobLevel.level
+    startProcess({
+      domain: "dummy-domain",
+      processName: "changeCareerBand",
+      payload: {
+        employeeId: userInfo?.employeeDetails.employeeId,
+        jobLevel,
+      },
+      builderType: "NATIVE_SCREEN",
     });
-    setIsModalVisible(true);
   };
 
-  const handleAddJobLevel = (groupId: string) => {
+  const handleAddJobLevel = (group: JobLevelGroupVisualization) => {
     setEditingJobLevel(null);
-    setSelectedGroupId(groupId);
-    form.resetFields();
-    setIsModalVisible(true);
+    setSelectedGroupId(group.id);
+    startProcess({
+      domain: "dummy-domain",
+      processName: "changeCareerBand",
+      payload: {
+        employeeId: userInfo?.employeeDetails.employeeId,
+      },
+      builderType: "NATIVE_SCREEN",
+    });
   };
 
   const handleDeleteJobLevel = (jobLevel: JobLevelDetail) => {
     Modal.confirm({
-      title: 'Delete Job Level',
+      title: "Delete Job Level",
       content: `Are you sure you want to delete "${jobLevel.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
       onOk: async () => {
         // TODO: Implement API call to delete job level
-        message.warning('Delete functionality will be implemented with process API integration');
+        message.warning(
+          "Delete functionality will be implemented with process API integration"
+        );
         // Optionally refetch data
         await refetch();
       },
     });
   };
 
-  const handleSaveJobLevel = async () => {
-    try {
-      const values = await form.validateFields();
-      
-      // TODO: Implement API calls for saving job levels
-      message.warning('Save functionality will be implemented with process API integration');
-      
-      setIsModalVisible(false);
-      // Optionally refetch data
-      await refetch();
-    } catch (error) {
-      console.error('Error saving job level:', error);
-    }
-  };
-
   if (isLoading) {
     return (
-      <div data-testid={`${prefixDataTestId}-CareerBandsTab`} className="gba:flex gba:justify-center gba:items-center gba:h-64">
+      <div
+        data-testid={`${prefixDataTestId}-CareerBandsTab`}
+        className="gba:flex gba:justify-center gba:items-center gba:h-64"
+      >
         <Spin size="large" />
       </div>
     );
@@ -152,7 +184,10 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
 
   if (error) {
     return (
-      <div data-testid={`${prefixDataTestId}-CareerBandsTab`} className="gba:p-4">
+      <div
+        data-testid={`${prefixDataTestId}-CareerBandsTab`}
+        className="gba:p-4"
+      >
         <Alert
           message="Error Loading Data"
           description={error}
@@ -170,40 +205,41 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
 
   // Handle row click to show details drawer
   const handleRowClick = (record: JobLevelDetail) => {
-    setSelectedPayGrade(record);
+    setSelectedJobLevelDetail(record);
     setDrawerVisible(true);
   };
   // Handle drawer close
   const handleDrawerClose = () => {
     setDrawerVisible(false);
-    setSelectedPayGrade(null);
+    setSelectedJobLevelDetail(null);
   };
 
   const columns = [
     {
-      title: 'Levels',
-      dataIndex: 'name',
-      key: 'name',
+      title: "Levels",
+      dataIndex: "name",
+      key: "name",
       width: 200,
     },
     {
-      title: 'Pay Grade',
-      dataIndex: 'payGrade',
-      key: 'payGrade',
+      title: "Pay Grade",
+      dataIndex: "payGrade",
+      key: "payGrade",
       width: 120,
       render: (payGrade: PayGrade) => payGrade.code,
     },
     {
-      title: 'Minimum',
-      dataIndex: 'payGrade',
-      key: 'minimum',
+      title: "Minimum",
+      dataIndex: "payGrade",
+      key: "minimum",
       width: 150,
-      render: (payGrade: PayGrade) => formatCurrency(payGrade.minSalary, payGrade.currency),
+      render: (payGrade: PayGrade) =>
+        formatCurrency(payGrade.minSalary, payGrade.currency),
     },
     {
-      title: 'Standard',
-      dataIndex: 'payGrade',
-      key: 'standard',
+      title: "Standard",
+      dataIndex: "payGrade",
+      key: "standard",
       width: 150,
       render: (payGrade: PayGrade) => (
         <span className="gba:font-medium">
@@ -212,23 +248,24 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
       ),
     },
     {
-      title: 'Maximum',
-      dataIndex: 'payGrade',
-      key: 'maximum',
+      title: "Maximum",
+      dataIndex: "payGrade",
+      key: "maximum",
       width: 150,
-      render: (payGrade: PayGrade) => formatCurrency(payGrade.maxSalary, payGrade.currency),
+      render: (payGrade: PayGrade) =>
+        formatCurrency(payGrade.maxSalary, payGrade.currency),
     },
     {
-      title: 'Range',
-      dataIndex: 'range',
-      key: 'range',
+      title: "Range",
+      dataIndex: "range",
+      key: "range",
       width: 120,
-      render: (range: number, record: JobLevelDetail) => 
+      render: (range: number, record: JobLevelDetail) =>
         formatCurrency(range, record.payGrade.currency),
     },
     {
-      title: 'Actions',
-      key: 'actions',
+      title: "Actions",
+      key: "actions",
       width: 120,
       render: (_: any, record: JobLevelDetail) => (
         <Space size="small">
@@ -256,12 +293,13 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
         <div className="gba:mb-4">
           <Title level={2}>Career Band Details</Title>
           <Text className="gba:text-gray-600">
-            Detailed breakdown of compensation ranges for each career band and group
+            Detailed breakdown of compensation ranges for each career band and
+            group
           </Text>
         </div>
 
-        <Collapse 
-          defaultActiveKey={jobLevelGroups.map(g => g.id)}
+        <Collapse
+          defaultActiveKey={jobLevelGroups.map((g) => g.id)}
           expandIconPosition="start"
         >
           {jobLevelGroups.map((group) => {
@@ -274,9 +312,13 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
                 header={
                   <div className="gba:flex gba:justify-between gba:items-center gba:w-full gba:pr-4">
                     <div className="gba:flex gba:items-center gba:gap-3">
-                      <span className="gba:font-medium gba:text-lg">{group.name}</span>
+                      <span className="gba:font-medium gba:text-lg">
+                        {group.name}
+                      </span>
                       <span className="gba:text-gray-500">
-                        {summary ? `${summary.groupCount} groups • ${summary.salaryRange}` : 'No data'}
+                        {summary
+                          ? `${summary.groupCount} groups • ${summary.salaryRange}`
+                          : "No data"}
                       </span>
                     </div>
                     <div className="gba:flex gba:items-center gba:gap-2">
@@ -310,7 +352,7 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
                     icon={<PlusOutlined />}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleAddJobLevel(group.id);
+                      handleAddJobLevel(group);
                     }}
                   >
                     Add Level
@@ -324,7 +366,7 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
                   pagination={false}
                   size="small"
                   onRow={(record) => ({
-                    onClick: () => handleRowClick(record)
+                    onClick: () => handleRowClick(record),
                   })}
                   className="gba:cursor-pointer"
                 />
@@ -333,60 +375,6 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
           })}
         </Collapse>
       </Card>
-
-      {/* Add/Edit Job Level Modal */}
-      <Modal
-        title={editingJobLevel ? 'Edit Job Level' : 'Add New Job Level'}
-        open={isModalVisible}
-        onOk={handleSaveJobLevel}
-        onCancel={() => setIsModalVisible(false)}
-        width={500}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            label="Name"
-            name="name"
-            rules={[{ required: true, message: 'Please input the job level name!' }]}
-          >
-            <Input placeholder="e.g., Junior Developer, Senior Manager" />
-          </Form.Item>
-
-          <Form.Item
-            label="Code"
-            name="code"
-            rules={[{ required: true, message: 'Please input the job level code!' }]}
-          >
-            <Input placeholder="e.g., JD1, SM2" />
-          </Form.Item>
-
-          <Form.Item
-            label="Pay Grade"
-            name="payGradeId"
-            rules={[{ required: true, message: 'Please select a pay grade!' }]}
-          >
-            <Select placeholder="Select pay grade">
-              {payGrades.map(pg => (
-                <Select.Option key={pg.id} value={pg.id}>
-                  {pg.code} - {pg.name} ({formatCurrency(pg.minSalary, pg.currency)} - {formatCurrency(pg.maxSalary, pg.currency)})
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="Level"
-            name="level"
-            rules={[{ required: true, message: 'Please input the level number!' }]}
-          >
-            <InputNumber 
-              placeholder="1, 2, 3..."
-              min={1}
-              max={10}
-              style={{ width: '100%' }}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
 
       {/* Compensation Band Details Drawer */}
       <DataDetailsDrawer
@@ -404,8 +392,8 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
               icon={<EditOutlined />}
               onClick={() => {
                 handleDrawerClose();
-                if (selectedPayGrade) {
-                  handleEditJobLevel(selectedPayGrade);
+                if (selectedJobLevelDetail) {
+                  handleEditJobLevel(selectedJobLevelDetail);
                 }
               }}
             >
@@ -414,79 +402,148 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
           </div>
         }
       >
-        {selectedPayGrade && (
+        {selectedJobLevelDetail && (
           <div className="gba:space-y-6">
             {/* Basic Information */}
-            <Descriptions title="Basic Information" bordered column={1} size="small">
-              <Descriptions.Item label="Level Name">{selectedPayGrade.name || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Code">{selectedPayGrade.code || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Pay Grade">{selectedPayGrade.payGrade?.code || "-"}</Descriptions.Item>
+            <Descriptions
+              title="Basic Information"
+              bordered
+              column={1}
+              size="small"
+            >
+              <Descriptions.Item label="Level Name">
+                {selectedJobLevelDetail.name || "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Code">
+                {selectedJobLevelDetail.code || "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Pay Grade">
+                {selectedJobLevelDetail.payGrade?.code || "-"}
+              </Descriptions.Item>
               <Descriptions.Item label="Job Group">
-                <Tag color={selectedPayGrade.jobLevelGroup?.color?.replace('gba:', '') || 'blue'}>
-                  {selectedPayGrade.jobLevelGroup?.name || "-"}
+                <Tag
+                  color={
+                    selectedJobLevelDetail.jobLevelGroup?.color?.replace(
+                      "gba:",
+                      ""
+                    ) || "blue"
+                  }
+                >
+                  {selectedJobLevelDetail.jobLevelGroup?.name || "-"}
                 </Tag>
               </Descriptions.Item>
             </Descriptions>
 
             {/* Compensation Details */}
-            <Descriptions title="Compensation Details" bordered column={1} size="small">
+            <Descriptions
+              title="Compensation Details"
+              bordered
+              column={1}
+              size="small"
+            >
               <Descriptions.Item label="Currency">
-                {selectedPayGrade.payGrade?.currency?.value || selectedPayGrade.payGrade?.currency?.id || "-"}
+                {selectedJobLevelDetail.payGrade?.currency?.value ||
+                  selectedJobLevelDetail.payGrade?.currency?.id ||
+                  "-"}
               </Descriptions.Item>
               <Descriptions.Item label="Minimum Salary">
                 <span className="gba:text-green-600 gba:font-medium">
-                  {formatCurrency(selectedPayGrade.payGrade?.minSalary || 0, selectedPayGrade.payGrade?.currency)}
+                  {formatCurrency(
+                    selectedJobLevelDetail.payGrade?.minSalary || 0,
+                    selectedJobLevelDetail.payGrade?.currency
+                  )}
                 </span>
               </Descriptions.Item>
               <Descriptions.Item label="Standard Salary">
                 <span className="gba:text-blue-600 gba:font-semibold">
-                  {formatCurrency(selectedPayGrade.payGrade?.standardSalary || 0, selectedPayGrade.payGrade?.currency)}
+                  {formatCurrency(
+                    selectedJobLevelDetail.payGrade?.standardSalary || 0,
+                    selectedJobLevelDetail.payGrade?.currency
+                  )}
                 </span>
               </Descriptions.Item>
               <Descriptions.Item label="Maximum Salary">
                 <span className="gba:text-red-600 gba:font-medium">
-                  {formatCurrency(selectedPayGrade.payGrade?.maxSalary || 0, selectedPayGrade.payGrade?.currency)}
+                  {formatCurrency(
+                    selectedJobLevelDetail.payGrade?.maxSalary || 0,
+                    selectedJobLevelDetail.payGrade?.currency
+                  )}
                 </span>
               </Descriptions.Item>
               <Descriptions.Item label="Salary Range">
                 <span className="gba:text-purple-600 gba:font-medium">
-                  {formatCurrency(selectedPayGrade.range || 0, selectedPayGrade.payGrade?.currency)}
+                  {formatCurrency(
+                    selectedJobLevelDetail.range || 0,
+                    selectedJobLevelDetail.payGrade?.currency
+                  )}
                 </span>
               </Descriptions.Item>
             </Descriptions>
 
             {/* Additional Details */}
-            <Descriptions title="Additional Details" bordered column={1} size="small">
+            <Descriptions
+              title="Additional Details"
+              bordered
+              column={1}
+              size="small"
+            >
               <Descriptions.Item label="Category">
-                {selectedPayGrade.jobLevelGroup?.category || "-"}
+                {selectedJobLevelDetail.jobLevelGroup?.category || "-"}
               </Descriptions.Item>
               <Descriptions.Item label="Hierarchy Order">
-                {selectedPayGrade.heirarchyOrder !== undefined ? selectedPayGrade.heirarchyOrder : "-"}
+                {selectedJobLevelDetail.heirarchyOrder !== undefined
+                  ? selectedJobLevelDetail.heirarchyOrder
+                  : "-"}
               </Descriptions.Item>
               <Descriptions.Item label="Level">
-                {selectedPayGrade.level !== undefined ? selectedPayGrade.level : "-"}
+                {selectedJobLevelDetail.level !== undefined
+                  ? selectedJobLevelDetail.level
+                  : "-"}
               </Descriptions.Item>
             </Descriptions>
 
             {/* Translations Section - if available */}
-            {(selectedPayGrade.nameI18n && Object.keys(selectedPayGrade.nameI18n).length > 0) && (
-              <Descriptions title="Translations" bordered column={1} size="small">
-                {Object.entries(selectedPayGrade.nameI18n || {}).map(([locale, translation]) => (
-                  <Descriptions.Item key={locale} label={locale}>{translation}</Descriptions.Item>
-                ))}
-              </Descriptions>
-            )}
-            
+            {selectedJobLevelDetail.nameI18n &&
+              Object.keys(selectedJobLevelDetail.nameI18n).length > 0 && (
+                <Descriptions
+                  title="Translations"
+                  bordered
+                  column={1}
+                  size="small"
+                >
+                  {Object.entries(selectedJobLevelDetail.nameI18n || {}).map(
+                    ([locale, translation]) => (
+                      <Descriptions.Item key={locale} label={locale}>
+                        {translation}
+                      </Descriptions.Item>
+                    )
+                  )}
+                </Descriptions>
+              )}
+
             {/* Technical Information */}
-            <Descriptions title="System Information" bordered column={1} size="small">
-              <Descriptions.Item label="ID">{selectedPayGrade.id}</Descriptions.Item>
-              <Descriptions.Item label="Pay Grade ID">{selectedPayGrade.payGradeId || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Job Level Group ID">{selectedPayGrade.jobLevelGroupId || "-"}</Descriptions.Item>
+            <Descriptions
+              title="System Information"
+              bordered
+              column={1}
+              size="small"
+            >
+              <Descriptions.Item label="ID">
+                {selectedJobLevelDetail.id}
+              </Descriptions.Item>
+              <Descriptions.Item label="Pay Grade ID">
+                {selectedJobLevelDetail.payGradeId || "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Job Level Group ID">
+                {selectedJobLevelDetail.jobLevelGroupId || "-"}
+              </Descriptions.Item>
               <Descriptions.Item label="Version">
-                {selectedPayGrade.version !== undefined ? selectedPayGrade.version : "-"}
+                {selectedJobLevelDetail.version !== undefined
+                  ? selectedJobLevelDetail.version
+                  : "-"}
               </Descriptions.Item>
             </Descriptions>
-            
+
             {/* Related Navigation Links */}
             <div className="gba:mt-6">
               <Divider orientation="left">
@@ -495,17 +552,17 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
                   <span className="gba:text-base">Related Resources</span>
                 </span>
               </Divider>
-              
+
               <div className="gba:grid gba:grid-cols-1 gba:gap-4">
                 {/* Pay Grade Navigation */}
-                {selectedPayGrade.payGradeId && (
-                  <Card 
-                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                {selectedJobLevelDetail.payGradeId && (
+                  <Card
+                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow"
                     size="small"
-                    bodyStyle={{ padding: '12px' }}
+                    bodyStyle={{ padding: "12px" }}
                   >
-                    <a 
-                      href={`/mdm/compensation-data/pay-grades/${selectedPayGrade.payGradeId}`}
+                    <a
+                      href={`/mdm/compensation-data/pay-grades/${selectedJobLevelDetail.payGradeId}`}
                       className="gba:flex gba:items-center gba:gap-3 gba:text-blue-600 gba:hover:text-blue-800"
                       target="_blank"
                       rel="noopener noreferrer"
@@ -515,26 +572,28 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
                       </div>
                       <div className="gba:flex-grow">
                         <div className="gba:font-medium">
-                          {selectedPayGrade.payGrade?.name || 'Pay Grade Details'}
+                          {selectedJobLevelDetail.payGrade?.name ||
+                            "Pay Grade Details"}
                         </div>
                         <div className="gba:text-xs gba:text-gray-500">
-                          View complete pay grade information, salary structures, and related job positions
+                          View complete pay grade information, salary
+                          structures, and related job positions
                         </div>
                       </div>
                       <RightOutlined className="gba:text-gray-400" />
                     </a>
                   </Card>
                 )}
-                
+
                 {/* Compensation Band Navigation */}
-                {selectedPayGrade.compensationBandId && (
-                  <Card 
-                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                {selectedJobLevelDetail.compensationBandId && (
+                  <Card
+                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow"
                     size="small"
-                    bodyStyle={{ padding: '12px' }}
+                    bodyStyle={{ padding: "12px" }}
                   >
-                    <a 
-                      href={`/mdm/compensation-data/compensation-bands/${selectedPayGrade.compensationBandId}`}
+                    <a
+                      href={`/mdm/compensation-data/compensation-bands/${selectedJobLevelDetail.compensationBandId}`}
                       className="gba:flex gba:items-center gba:gap-3 gba:text-green-600 gba:hover:text-green-800"
                       target="_blank"
                       rel="noopener noreferrer"
@@ -543,25 +602,28 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
                         <BankOutlined className="gba:text-lg gba:text-green-600" />
                       </div>
                       <div className="gba:flex-grow">
-                        <div className="gba:font-medium">Compensation Band Details</div>
+                        <div className="gba:font-medium">
+                          Compensation Band Details
+                        </div>
                         <div className="gba:text-xs gba:text-gray-500">
-                          View complete compensation band structure, range analysis, and market comparisons
+                          View complete compensation band structure, range
+                          analysis, and market comparisons
                         </div>
                       </div>
                       <RightOutlined className="gba:text-gray-400" />
                     </a>
                   </Card>
                 )}
-                
+
                 {/* Job Level Group Navigation */}
-                {selectedPayGrade.jobLevelGroupId && (
-                  <Card 
-                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                {selectedJobLevelDetail.jobLevelGroupId && (
+                  <Card
+                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow"
                     size="small"
-                    bodyStyle={{ padding: '12px' }}
+                    bodyStyle={{ padding: "12px" }}
                   >
-                    <a 
-                      href={`/mdm/compensation-data/job-level-groups/${selectedPayGrade.jobLevelGroupId}`}
+                    <a
+                      href={`/mdm/compensation-data/job-level-groups/${selectedJobLevelDetail.jobLevelGroupId}`}
                       className="gba:flex gba:items-center gba:gap-3 gba:text-purple-600 gba:hover:text-purple-800"
                       target="_blank"
                       rel="noopener noreferrer"
@@ -571,25 +633,29 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
                       </div>
                       <div className="gba:flex-grow">
                         <div className="gba:font-medium">
-                          {selectedPayGrade.jobLevelGroup?.name || 'Job Level Group'}
+                          {selectedJobLevelDetail.jobLevelGroup?.name ||
+                            "Job Level Group"}
                         </div>
                         <div className="gba:text-xs gba:text-gray-500">
-                          View all positions within {selectedPayGrade.jobLevelGroup?.name || 'this group'}, career progression paths, and requirements
+                          View all positions within{" "}
+                          {selectedJobLevelDetail.jobLevelGroup?.name ||
+                            "this group"}
+                          , career progression paths, and requirements
                         </div>
                       </div>
                       <RightOutlined className="gba:text-gray-400" />
                     </a>
                   </Card>
                 )}
-                
+
                 {/* Organizational Structure */}
-                <Card 
-                  className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow" 
+                <Card
+                  className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow"
                   size="small"
-                  bodyStyle={{ padding: '12px' }}
+                  bodyStyle={{ padding: "12px" }}
                 >
-                  <a 
-                    href={`/mdm/organizational-data?structure=${selectedPayGrade.id}`}
+                  <a
+                    href={`/mdm/organizational-data?structure=${selectedJobLevelDetail.id}`}
                     className="gba:flex gba:items-center gba:gap-3 gba:text-orange-600 gba:hover:text-orange-800"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -598,9 +664,12 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
                       <AppstoreOutlined className="gba:text-lg gba:text-orange-600" />
                     </div>
                     <div className="gba:flex-grow">
-                      <div className="gba:font-medium">Organizational Positions</div>
+                      <div className="gba:font-medium">
+                        Organizational Positions
+                      </div>
                       <div className="gba:text-xs gba:text-gray-500">
-                        View organizational units and positions with {selectedPayGrade.name} level
+                        View organizational units and positions with{" "}
+                        {selectedJobLevelDetail.name} level
                       </div>
                     </div>
                     <RightOutlined className="gba:text-gray-400" />
