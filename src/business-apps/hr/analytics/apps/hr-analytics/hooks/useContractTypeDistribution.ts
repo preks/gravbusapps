@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useEmployeeCount } from './useEmployeeCount';
-import { useGetContractTypes } from '@/business-apps/hr/core/hooks/useGetContractTypes';
+import { useGetContractTypes } from './useGetContractTypes';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { GET_CONTRACT_TYPE_DISTRIBUTION } from '../queries/getContractTypeDistribution';
 

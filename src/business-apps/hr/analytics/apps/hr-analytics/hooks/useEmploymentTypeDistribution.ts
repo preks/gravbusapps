@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useEmployeeCount } from './useEmployeeCount';
-import { useGetEmploymentTypes } from '@/business-apps/hr/core/hooks/useGetEmploymentTypes';
+import { useGetEmploymentTypes } from './useGetEmploymentTypes';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { GET_EMPLOYMENT_TYPE_DISTRIBUTION } from '../queries/getEmploymentTypeDistribution';
 
