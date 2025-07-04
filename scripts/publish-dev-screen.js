@@ -388,15 +388,15 @@ async function main() {
     process.exit(1);
   }
 
+  // Check if this is the first time publishing the screen
+  const isFirstTimePublish = await checkIfFirstTimePublish(azureDestinationPath);
+
   await uploadDirectory(buildOutputDir, azureDestinationPath);
   console.log("✅ Screen JS published successfully to Azure!");
 
   const cssOutputDir = path.join(projectRootDir, "dist", "assets");
   await uploadDirectory(cssOutputDir, azureDestinationPath);
   console.log("✅ Screen CSS published successfully to Azure!");
-
-  // Check if this is the first time publishing the screen
-  const isFirstTimePublish = await checkIfFirstTimePublish(azureDestinationPath);
   
   // Handle resource URL addition based on flags and first-time publish
   let shouldAddResourceUrl = false;
