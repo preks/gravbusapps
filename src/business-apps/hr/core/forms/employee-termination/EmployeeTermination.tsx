@@ -7,10 +7,10 @@ import weekday from 'dayjs/plugin/weekday'
 import weekOfYear from 'dayjs/plugin/weekOfYear'
 import weekYear from 'dayjs/plugin/weekYear'
 import { Button, Checkbox, Avatar, DatePicker, Form } from "antd";
-import flowSmall from "../../../../assets/icons/flowSmall.svg";
-import { useGetEmployeeData } from "../../core/hooks/useGetEmployeeData";
+import flowSmall from "@/assets/icons/flowSmall.svg";
+import { useGetEmployeeData } from "../../hooks/useGetEmployeeData";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { dispatchProcessContinueEvent } from "../../../../common/utils/processEventUtils";
+import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 
@@ -79,7 +79,16 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
     <>
       <div className="gba:max-w-[500px] gba:mx-auto gba:bg-white gba:rounded-2xl gba:shadow-lg gba:flex gba:flex-col gba:min-h-[600px] gba:p-0">
         <div className="gba:flex gba:items-center gba:gap-3 gba:pt-8 gba:pb-6 gba:border-b gba:border-[#F0F0F0] gba:font-roboto gba:font-bold gba:text-[20px] gba:leading-6 gba:text-black">
-          <img src={flowSmall} alt="Flow Small" className="gba:flowIcon" />
+          <img 
+            src={flowSmall} 
+            alt="Flow Small" 
+            style={{
+              filter: 'brightness(0)',
+              fill: '#000',
+              width: '24px',
+              height: '24px'
+            }}
+          />
           <span className="gba:font-roboto gba:font-medium gba:text-[24px] gba:leading-6 gba:text-black gba:flex gba:items-center gba:h-6">
             {getTranslationFromI18nKeyAndLabel(
               "lowcoder:employee_termination.title",
@@ -131,7 +140,7 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
                 </>
               )}
             </div>
-            <div className="gba:mb-6 gba:form gba:bg-[#F5F5F5]">
+            <div className="gba:mb-6 gba:bg-[#F5F5F5]">
               <Form.Item
                 name="terminationDate"
                 label={
@@ -142,12 +151,19 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
                     )}
                   </span>
                 }
-                className="gba:ant-form-item-row"
+                style={{ display: 'flex', flexDirection: 'column' }}
                 initialValue={dayjs()}
+                labelCol={{ style: { display: 'flex', padding: '7px 0px 0px 15px' } }}
               >
-                <div className="gba:bg-[#F5F5F5] gba:px-[15px] gba:py-[7px] gba:border-none gba:date-picker-custom">
+                <div className="gba:bg-[#F5F5F5] gba:px-[15px] gba:py-[7px] gba:border-none">
                   <DatePicker
                     className="gba:w-full gba:bg-transparent gba:border-none gba:outline-none gba:shadow-none gba:font-bold gba:text-black"
+                    style={{
+                      backgroundColor: '#F7F7F7',
+                      border: 'none',
+                      padding: '0',
+                      boxShadow: 'none'
+                    }}
                     format="DD.MM.YYYY"
                     data-testid="exit-date-picker"
                     allowClear={true}
@@ -181,7 +197,19 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
             <Button
               type="primary"
               htmlType="submit"
-              className="gba:btn-primary"
+              style={{
+                background: '#000',
+                color: '#fff',
+                borderRadius: '9999px',
+                fontWeight: 700,
+                fontSize: '15px',
+                lineHeight: '20px',
+                minWidth: '120px',
+                height: '40px',
+                padding: '0 32px',
+                border: 'none',
+                boxShadow: 'none'
+              }}
               data-testid="submit-termination-btn"
               disabled={
                 !formValues.terminateJobPosition ||
@@ -189,6 +217,14 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
                 (dayjs.isDayjs(formValues.terminationDate) &&
                   !formValues.terminationDate.isValid())
               }
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'lightGray';
+                e.currentTarget.style.color = '#fff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#000';
+                e.currentTarget.style.color = '#fff';
+              }}
             >
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:hr_absences.create_absence.submit",
@@ -197,9 +233,31 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (
             </Button>
             <Button
               type="default"
-              className="gba:btn-secondary"
+              style={{
+                background: '#fff',
+                color: '#000',
+                borderRadius: '9999px',
+                fontWeight: 700,
+                fontSize: '15px',
+                lineHeight: '20px',
+                minWidth: '120px',
+                height: '40px',
+                padding: '0 32px',
+                border: '2px solid #000',
+                boxShadow: 'none'
+              }}
               data-testid="cancel-termination-btn"
               onClick={handleCancel}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'lightGray';
+                e.currentTarget.style.borderColor = '#000';
+                e.currentTarget.style.color = '#000';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#fff';
+                e.currentTarget.style.borderColor = '#000';
+                e.currentTarget.style.color = '#000';
+              }}
             >
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:hr_absences.create_absence.cancel",
