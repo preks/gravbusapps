@@ -12,22 +12,27 @@ interface UseFlowItemsProps {
   mainContextsData: any;
   externalContextData: ExternalContextData;
   isFlowButtonOrigin?: boolean;
-  accessToken?: string; // Add accessToken parameter
+  accessToken?: string;
+  manualFetch?: boolean; // When true, data will not be fetched automatically
 }
 
 /**
  * Hook to fetch and process flow items from the flow registry
  */
-export const useFlowItems = ({ mainContextsData, externalContextData, accessToken = '' }: UseFlowItemsProps) => {
+export const useFlowItems = ({ mainContextsData, externalContextData, accessToken = '', manualFetch = false }: UseFlowItemsProps) => {
   const [flowData, setFlowData] = useState<ActionOption[]>([]);
+  const [isLoading, setIsLoading] = useState(!manualFetch);
   const flowRegistry = useFlowRegistryClient(accessToken);
 
-  useEffect(() => {
-    const fetchFlowItems = async () => {
-      if (!mainContextsData) return;
-
+  // Function that can be called manually to fetch flow items
+  // Optional directContextData parameter allows passing context data directly without relying on state
+  const fetchFlowItems = async (directContextData?: Record<string, string>) => {
+      const contextData = directContextData || mainContextsData;
+      if (!contextData) return;
+      
+      setIsLoading(true);
       try {
-        const contexts = Object.entries(mainContextsData).map(([contextName, mainContextDataId]) => ({
+        const contexts = Object.entries(contextData).map(([contextName, mainContextDataId]) => ({
           contextName: contextName as any,
           mainContextDataId: externalContextData?.[mainContextDataId as string] as string
         }));
@@ -45,13 +50,19 @@ export const useFlowItems = ({ mainContextsData, externalContextData, accessToke
       } catch (error) {
         console.error('Error fetching flow items:', error);
         setFlowData([]);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchFlowItems();
-  }, [mainContextsData, externalContextData]);
+  // Only automatically fetch flow items if not in manual mode
+  useEffect(() => {
+    if (!manualFetch) {
+      fetchFlowItems();
+    }
+  }, [mainContextsData, externalContextData, manualFetch]);
 
-  return { flowData };
+  return { flowData, fetchFlowItems, isLoading };
 };
 
 /**

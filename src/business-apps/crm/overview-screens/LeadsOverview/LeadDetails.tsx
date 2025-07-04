@@ -9,7 +9,6 @@ import {
   ArrowLeftOutlined,
   EnvironmentOutlined,
   GlobalOutlined,
-  UserAddOutlined,
   BulbOutlined,
   TeamOutlined,
   CalendarOutlined,
@@ -20,7 +19,8 @@ import {
   StarOutlined,
   TagsOutlined,
   FunnelPlotOutlined,
-  EditOutlined
+  EditOutlined,
+  MessageOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from "../../../../common/BusinessAppContext";
 import { Button } from "./common/ui/button";
@@ -73,6 +73,7 @@ interface Lead {
   name: string;
   logo?: string;
   status: string;
+  leadName:string;
   version: string;
   statusRef?: string;
   source: {
@@ -110,6 +111,9 @@ interface Lead {
   ownerEmployee: {
     firstName: string;
     lastName: string;
+  }
+  ownerOrganization: {
+    name: string;
   }
   annualRevenueRef?: string;
   annualRevenue?: {
@@ -301,7 +305,6 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
             id: leadId
           }
         );
-
         const activityResult = await graphQLClient.request(
           getActivityByLeadId,
             {
@@ -337,12 +340,12 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
             }
           }))
         : [];
-          console.log("Activities:", activityResult);
         if (result && result.Lead && result.Lead[0]) {
           const apiData = result.Lead[0];
           const transformedData: Lead = {
             id: apiData.id,
             name: apiData.companyName || `${apiData.firstName} ${apiData.lastName}`,
+            leadName: apiData.name,
             version: apiData.version,
             source: {
               id: apiData.source?.id || "",
@@ -399,24 +402,10 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
             regionRef: apiData.regionRef,
             legalForm: apiData.legalForm?.value || "",
             legalFormRef: apiData.legalFormRef,
-            
-            contact: apiData.contact ? 
+            ownerOrganization: apiData?.ownerOrganization ? 
               {
-                id: apiData.contact.id || "",
-                version: apiData?.contact?.version,
-                name: `${apiData.contact.firstName || ''} ${apiData.contact.lastName || ''}`.trim(),
-                email: apiData.contact.email || "",
-                phone: apiData.contact.phone || "",
-                jobTitle: apiData.contact.jobTitle || "",
-                pictureUrl: apiData.contact.pictureUrl || ""
-              } : 
-              {
-                name: "",
-                email: "",
-                phone: "",
-                jobTitle: "",
-                pictureUrl: ""
-              },
+                name: apiData?.ownerOrganization?.name || ""
+              } : undefined,
             accountId: apiData.accountId || "",
             account: apiData.account ? {
               id: apiData.account.id || "",
@@ -457,6 +446,23 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
               firstName: apiData.ownerEmployee?.firstName || '',
               lastName: apiData.ownerEmployee?.lastName || ''
             },
+            contact: apiData.contact ? 
+              {
+                id: apiData.contact.id || "",
+                version: apiData?.contact?.version,
+                name: `${apiData.contact.firstName || ''} ${apiData.contact.lastName || ''}`.trim(),
+                email: apiData.contact.email || "",
+                phone: apiData.contact.phone || "",
+                jobTitle: apiData.contact.jobTitle || "",
+                pictureUrl: apiData.contact.pictureUrl || ""
+              } : 
+              {
+                name: "",
+                email: "",
+                phone: "",
+                jobTitle: "",
+                pictureUrl: ""
+              },
             activities: activities,
             opportunities: hardcodedOpportunities,
             aiSummary: hardcodedAiSummary
@@ -474,6 +480,7 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
           id: leadData?.id || "",
           version: leadData?.version || "",
           name: leadData?.name || "",
+          leadName: leadData?.leadName || "",
           status: leadData?.status || "",
           statusRef: leadData?.statusRef || "",
           source: {
@@ -527,6 +534,10 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
             code: leadData?.country?.code || ""
           },
           accountId:leadData?.accountId || "",
+          ownerOrganization: leadData?.ownerOrganization ? 
+            {
+              name: leadData?.ownerOrganization?.name || ""
+            } : undefined,
           account: leadData?.account ? {
             id: leadData.account.id || "",
             version: leadData.account.version || "",
@@ -2236,8 +2247,8 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
         <UserOutlined style={{ color: '#8c8c8c', fontSize: '18px', marginRight: '12px', marginTop: '2px' }} />
         <div>
-          <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}>Company Name</div>
-          <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.name || '---'}</div>
+          <div style={{ fontSize: '15px', fontWeight: 'normal', color: '#8c8c8c', marginBottom: '4px' }}> Name</div>
+          <div style={{ fontSize: '16px', color: '#000000' }}>{lead?.leadName || '---'}</div>
         </div>
       </div>
 
@@ -2382,6 +2393,89 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
 
         {/* Right Column: AI Summary, Activity Timeline */}
         <Col span={12}>
+          {/* Owner Employee Information */}
+          <CollapsibleCard
+            title="Owner Employee"
+            defaultOpen={true}
+            id="owner-employee-card"
+            style={{ marginBottom: '24px' }}
+            showArrow={true}
+          >
+            {lead?.ownerEmployeeId ? (
+              <div data-testid="owner-employee-info" className="gba:owner-employee-section">
+                <div className="gba:owner-employee-container" style={{ display: 'flex', padding: '0 0 16px' }}>
+                  <div 
+                    className="gba:owner-employee-avatar"
+                    data-testid="owner-employee-avatar"
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      backgroundColor: '#1677ff',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: '500',
+                      fontSize: '16px',
+                      marginRight: '16px'
+                    }}
+                  >
+                    {lead.ownerEmployee && lead.ownerEmployee.firstName && lead.ownerEmployee.lastName ? 
+                      `${lead.ownerEmployee.firstName.charAt(0)}${lead.ownerEmployee.lastName.charAt(0)}` : 'OE'}
+                  </div>
+                  <div className="gba:owner-employee-details" style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                      <div 
+                        className="gba:owner-employee-name" 
+                        data-testid="owner-employee-name" 
+                        style={{ fontSize: '16px', fontWeight: '500', marginRight: '8px' }}
+                      >
+                        {lead.ownerEmployee ? 
+                          `${lead.ownerEmployee.firstName} ${lead.ownerEmployee.lastName}` : 
+                          'Unknown Owner'}
+                      </div>
+                      <span
+                        className="gba:owner-employee-badge"
+                        data-testid="owner-employee-badge"
+                        style={{
+                          fontSize: '12px',
+                          padding: '2px 8px',
+                          backgroundColor: '#52c41a',
+                          color: 'white',
+                          borderRadius: '10px',
+                          fontWeight: 'normal',
+                        }}
+                      >
+                        Owner
+                      </span>
+                    </div>
+                    
+                    {lead.ownerOrganization && lead.ownerOrganization.name && (
+                      <div 
+                        className="gba:owner-organization" 
+                        data-testid="owner-organization"
+                        style={{ color: '#8c8c8c', fontSize: '14px', marginBottom: '8px' }}
+                      >
+                        <TeamOutlined style={{ marginRight: '8px', fontSize: '14px', color: '#8c8c8c' }} />
+                        {lead.ownerOrganization.name}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div data-testid="no-owner-employee-info" style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: '16px', color: '#8c8c8c', marginBottom: '12px' }}>
+                  Owner employee information does not exist
+                </div>
+                <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
+                  No owner has been assigned to this lead
+                </div>
+              </div>
+            )}
+          </CollapsibleCard>
+          
           {/* AI Summary */}
           <CollapsibleCard
             title="AI Summary"

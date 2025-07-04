@@ -18,9 +18,10 @@ import UploadComponent from "../UploadComponent";
 import SinglePositionComponent from "./SinglePositionComponent";
 import MultiPositionComponent from "./MultiPositionComponent";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
-import { ICONS } from "../../constants/icons";
+
 import { Alert } from "antd";
 import { getDateFormat } from "../../../../../../../common/utils/windowUtils";
+import { ICONS } from "@/business-apps/fin/expenses/utils/icons";
 
 interface FormScreenComponentProps {
   form: any;
@@ -38,6 +39,7 @@ interface FormScreenComponentProps {
   setCurrentSelectedDate: (date:Date|null)=>void;
   setMultiPosition: (isMulti: boolean) => void;
   handleSubmit: () => Promise<void>;
+  handleCancel: () => void;
   handleExpenseGroupChange: (value: string, positionIndex: number) => Promise<void>;
   handleExpenseTypeChange: (value: string, positionIndex: number) => Promise<void>;
   handleAddPosition: () => void;
@@ -62,6 +64,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   setCurrentSelectedDate,
   setMultiPosition,
   handleSubmit,
+  handleCancel,
   handleExpenseGroupChange,
   handleExpenseTypeChange,
   handleAddPosition,
@@ -84,6 +87,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       form={form}
       layout="vertical"
       data-testid="expense-form"
+      className="gba:flex gba:flex-col gba:flex-grow"
       onFieldsChange={()=>{
         const isFormValidValue = form.getFieldsError().every((fieldErr:  any ) => fieldErr.errors.length === 0);
     setFormIsValid(isFormValidValue)
@@ -358,24 +362,36 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           disabled={isProcessingFiles}
         />
       </Form.Item>
-          <Divider 
-            color="#EFEFEF"
-            horizontal
-            size={1}
-            className="gba:mt-[30px] gba:mb-[30px]"
-            data-testid="form-divider"
-          />
-      <Form.Item data-testid="submit-button-container">
+      
+      {/* Spacer to push content to the bottom */}
+      <div className="gba:flex-grow" data-testid="expense-item-spacer" />
+      
+      <Divider 
+        color="#EFEFEF"
+        horizontal
+        size={1}
+        className="gba:mt-[30px] gba:mb-[30px]"
+        data-testid="form-divider"
+      />
+      <div className="gba:actionButtonsContainer" data-testid="expense-item-actions">
+        <Button
+          variant="outline" 
+          onClick={handleCancel}
+          className="gba:cancelButton"
+          data-testid="cancel-button"
+        >
+          {t("lowcoder:create_expense_request.initiate_cancel_button", "Cancel")}
+        </Button>
         <Button
           variant="primary"
           onClick={handleSubmit}
           disabled={isProcessingFiles || !formIsValid || !!expenseRuleError}
-          className={`gba:submitButton`}
+          className="gba:submitButton"
           data-testid="submit-button"
         >
           {isEditMode ? t("lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_update", "Update") : t("lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_save", "Create")}
         </Button>
-      </Form.Item>
+      </div>
     </Form>
   );
 };

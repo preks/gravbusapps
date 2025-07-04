@@ -1,0 +1,106 @@
+.gba\:date-picker-custom .ant-picker input::placeholder {
+  color: #707070 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+.gba\:date-picker-custom .ant-picker {
+  background-color: #F7F7F7 !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+
+.gba\:date-picker-custom .ant-picker .ant-picker-outlined:hover {
+  border: none !important;
+  background-color: #F7F7F7 !important;
+  box-shadow: none !important;
+}
+
+
+.gba\:date-picker-custom .ant-picker .ant-picker-outlined:hover {
+  border: none !important;
+  background-color: #F7F7F7 !important;
+  box-shadow: none !important;
+}
+
+.gba\:date-picker-custom  .ant-picker .ant-picker-outlined:focus-within {
+  border: none !important;
+  background-color: #F7F7F7 !important;
+  box-shadow: none !important;
+}
+
+.gba\:date-picker-custom .ant-picker .ant-picker-outlined {
+  border: none !important;
+  background-color: #F7F7F7 !important;
+  box-shadow: none !important;
+}
+
+.gba\:btn-primary {
+  background: #000;
+  color: #fff;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 20px;
+  min-width: 120px;
+  height: 40px;
+  padding: 0 32px;
+  border: none;
+  box-shadow: none;
+}
+.gba\:btn-primary:hover {
+  background-color: lightGray !important;
+  color: #fff !important;
+}
+.gba\:btn-secondary {
+  background: #fff;
+  color: #000;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 20px;
+  min-width: 120px;
+  height: 40px;
+  padding: 0 32px;
+  border: 2px solid #000;
+  box-shadow: none;
+}
+.gba\:btn-secondary:hover {
+  background-color: lightGray !important;
+  border-color: #000 !important;
+  color: #000 !important;
+}
+.gba\:flowIcon{
+  filter: brightness(0);
+  fill: #000;
+  width: 24px;
+  height: 24px;
+}
+
+.gba\:ant-form-item-row > div{
+  display: flex;
+  flex-direction: column;
+}
+
+.gba\:form .ant-form-item-label{
+  display: flex;
+  padding: 7px 0px 0px 15px;
+  span{
+    font-weight: 600;
+  }
+  label{
+    height: fit-content !important
+  }
+}
+
+.gba\:form .ant-form-item-label > label::before{
+  content: none !important;
+  display: none !important;
+}
+
+.gba\:form .ant-form-item-label > label::after{
+  content: none !important;
+  display: none !important;
+}

@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useGraphqlClient } from '../graphql/useGraphQLClient';
+import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
-// Combined query for employee expense data
 export const employeeExpenseDataQuery = `
   query fetchEmployee($employeeId: uuid, $activeUserLocale: String) {
     expenseRequestType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseRequestType"}}}, limit: 20) {
@@ -104,7 +105,10 @@ export const useEmployeeExpenseData = (accessToken: string, employeeId: string, 
       
       return data;
     } catch (error) {
-      console.error('Error fetching employee expense data:', error);
+            showToast(
+                  getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
+                  "error"
+                );
       throw error;
     }
   }, [graphQLClient, employeeId, activeUserLocale, accessToken]);

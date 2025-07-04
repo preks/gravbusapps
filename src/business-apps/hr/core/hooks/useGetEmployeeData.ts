@@ -17,24 +17,24 @@ export interface EmployeeData {
 }
 
 interface UseGetEmployeeDataProps {
-  userId?: string;
+  employeeId?: string;
   accessToken: string;
 }
 
-export function useGetEmployeeData({ userId, accessToken }: UseGetEmployeeDataProps) {
+export function useGetEmployeeData({ employeeId, accessToken }: UseGetEmployeeDataProps) {
   const client = useGraphqlClient(accessToken);
   const [employee, setEmployee] = useState<EmployeeData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!userId || !client) return;
+    if (!employeeId || !client) return;
     setLoading(true);
     setError(null);
 
     const EMPLOYEE_QUERY = `
-      query GetEmployee($userId: String!) {
-        Employee(where: { userId: { _eq: $userId } }) {
+      query GetEmployee($employeeId: uuid!) {
+        Employee(where: { id: { _eq: $employeeId } }) {
           id
           firstName
           lastName
@@ -51,7 +51,7 @@ export function useGetEmployeeData({ userId, accessToken }: UseGetEmployeeDataPr
       }
     `;
 
-    client.request(EMPLOYEE_QUERY, { userId })
+    client.request(EMPLOYEE_QUERY, { employeeId })
       .then((data: any) => {
         if (data && data.Employee && data.Employee.length > 0) {
           setEmployee(data.Employee[0]);
@@ -64,7 +64,7 @@ export function useGetEmployeeData({ userId, accessToken }: UseGetEmployeeDataPr
         setEmployee(null);
       })
       .finally(() => setLoading(false));
-  }, [client, userId]);
+  }, [client, employeeId]);
 
   return { employee, loading, error };
 }

@@ -55,6 +55,12 @@ declare global {
         formatDate?: (dateValue: Date | string | undefined, format?: string, customSpecificFormat?: string | null) => string | undefined;
         selectedLocale?: string;
         t: (key: string, label?: string | {}) => string;
+        formatNumber?:(number:string,format:string)=>string;
+        l10nResources?: {
+          dateTime:{
+            'fullDateTime.ISO':string
+          }
+        }
       };
       [key: string]: any;
     };

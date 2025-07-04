@@ -4,6 +4,7 @@ export interface LeadData {
   id: string;
   code: string;
   city: string;
+  name: string;
   version: string;
   companyName: string;
   companyPhone: string;
@@ -108,6 +109,9 @@ export interface LeadData {
       firstName: string;
       lastName: string;
     };
+    ownerOrganization: {
+      name: string;
+    }
   };
   regionRef: string;
   leadRating: {
@@ -143,11 +147,15 @@ export const GET_LEAD_BY_ID = `
     ) {
       id
       code
+      name
       city
       version
       companyName
       rating
       statusRef
+      ownerOrganization{
+        name
+      }
       status {
         id
         code

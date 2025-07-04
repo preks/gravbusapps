@@ -1,6 +1,6 @@
-import { showToast } from "../../utils/notificationUtils";
+import { FILES_ENGINE_ENDPOINT } from "@/business-apps/fin/expenses/utils/constants";
+import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils";
 import { TFunction } from "i18next";
-import { FILES_ENGINE_ENDPOINT } from "../constants";
 
 /**
  * Parse uploaded files and send them to the invoice extraction API

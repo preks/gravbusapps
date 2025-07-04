@@ -8,6 +8,7 @@ export const getOpportunityByIdQuery = `
       estimatedAmount
       winningChance
       currencyRef
+      stage
       currency {
         id
         value
@@ -66,7 +67,14 @@ export const getOpportunityByIdQuery = `
         value
         code
       }
+
       salesPipelineStage {
+        id
+        value
+        code
+      }
+      opportunityStatusRef
+      opportunityStatus {
         id
         value
         code

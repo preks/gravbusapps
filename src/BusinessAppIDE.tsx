@@ -1,13 +1,35 @@
-import { UiCatalogProvider } from '@newwork/gravity-ui-catalog';
+import { UiCatalogProvider } from "@newwork/gravity-ui-catalog";
 import { useState, useEffect, createElement, useCallback } from "react";
-import { Layout, Menu, Modal, Form, Input, Typography, Button, Tooltip, notification } from "antd";
-import { SettingOutlined, MenuFoldOutlined, MenuUnfoldOutlined, HomeOutlined } from "@ant-design/icons";
-import { BusinessAppContextProps, UserInfoProps } from "./common/BusinessAppContext";
-import ProcessEventListener, { ProcessLocalDevEvent } from './common/components/ProcessEventListener';
-import { IDEStartScreen } from './components/ide-start-screen';
-import HeaderLogo from './assets/icons/header_logo.svg';
+import {
+  Layout,
+  Menu,
+  Modal,
+  Form,
+  Input,
+  Typography,
+  Button,
+  Tooltip,
+  notification,
+} from "antd";
+import {
+  SettingOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  HomeOutlined,
+} from "@ant-design/icons";
+import {
+  BusinessAppContextProps,
+  UserInfoProps,
+} from "./common/BusinessAppContext";
+import ProcessEventListener, {
+  ProcessLocalDevEvent,
+} from "./common/components/ProcessEventListener";
+import { IDEStartScreen } from "./components/ide-start-screen";
+import HeaderLogo from "./assets/icons/header_logo.svg";
 
-const modules = import.meta.glob('./business-apps/**/[A-Z]*.tsx', { eager: true });
+const modules = import.meta.glob("./business-apps/**/[A-Z]*.tsx", {
+  eager: true,
+});
 
 interface BusinessAppInfo {
   name: string;
@@ -20,25 +42,33 @@ interface BusinessAppInfo {
 const businessApps: BusinessAppInfo[] = [];
 
 for (const path in modules) {
-  if (path.includes('/opportunity-tabs/') ||
-    path.includes('/oportunity-tabs/') ||
-    path.includes('/opportunity-components/')) {
+  if (
+    path.includes("/opportunity-tabs/") ||
+    path.includes("/oportunity-tabs/") ||
+    path.includes("/opportunity-components/")
+  ) {
     continue;
   }
 
-  const excludedDirs = ['/components/', '/modules/', '/hooks/', '/lib/', '/utils/'];
-  if (excludedDirs.some(dir => path.includes(dir))) {
+  const excludedDirs = [
+    "/components/",
+    "/modules/",
+    "/hooks/",
+    "/lib/",
+    "/utils/",
+  ];
+  if (excludedDirs.some((dir) => path.includes(dir))) {
     continue;
   }
 
   const match = path.match(/\/([A-Z][A-Za-z0-9]*)\.tsx$/);
   if (match) {
-    const pathParts = path.split('/');
+    const pathParts = path.split("/");
     const moduleName = pathParts[2];
-    let subModule = '';
+    let subModule = "";
 
     if (pathParts.length > 4) {
-      subModule = pathParts.slice(3, -1).join('/');
+      subModule = pathParts.slice(3, -1).join("/");
     }
 
     businessApps.push({
@@ -46,7 +76,12 @@ for (const path in modules) {
       path,
       module: moduleName,
       subModule: subModule || undefined,
-      component: (props) => createElement(UiCatalogProvider, undefined, createElement((modules[path] as any).default, props))
+      component: (props) =>
+        createElement(
+          UiCatalogProvider,
+          undefined,
+          createElement((modules[path] as any).default, props)
+        ),
     });
   }
 }
@@ -54,10 +89,10 @@ for (const path in modules) {
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
-const STORAGE_KEY_USER_INFO = 'business-app-ide-user-info';
-const STORAGE_KEY_ACCESS_TOKEN = 'business-app-ide-access-token';
-const STORAGE_KEY_SIDEBAR_COLLAPSED = 'business-app-ide-sidebar-collapsed';
-const STORAGE_KEY_RECENT_APPS = 'business-app-ide-recent-apps';
+const STORAGE_KEY_USER_INFO = "business-app-ide-user-info";
+const STORAGE_KEY_ACCESS_TOKEN = "business-app-ide-access-token";
+const STORAGE_KEY_SIDEBAR_COLLAPSED = "business-app-ide-sidebar-collapsed";
+const STORAGE_KEY_RECENT_APPS = "business-app-ide-recent-apps";
 
 interface RecentlyUsedApp {
   name: string;
@@ -77,10 +112,14 @@ const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
   const { domain, processName, processInstanceId, startProcessBody } = event;
 
   notification.info({
-    message: 'Process Start Event Detected',
-    description: `Domain: ${domain}, \nProcess: ${processName}${processInstanceId ? `, ID: ${processInstanceId}` : ''}\nProcess body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`,
+    message: "Process Start Event Detected",
+    description: `Domain: ${domain}, \nProcess: ${processName}${
+      processInstanceId ? `, ID: ${processInstanceId}` : ""
+    }\nProcess body: ${
+      startProcessBody ? JSON.stringify(startProcessBody) : "No process body"
+    }`,
     duration: 5,
-    placement: 'topRight'
+    placement: "topRight",
   });
 };
 
@@ -93,19 +132,29 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   const { packageName, packageVersion } = props;
 
   const getAppByName = (name: string): BusinessAppInfo | null => {
-    return businessApps.find(app => app.name === name) || null;
+    return businessApps.find((app) => app.name === name) || null;
   };
 
-  const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-  const appFromUrl = urlParams.get('app');
+  const urlParams = new URLSearchParams(
+    typeof window !== "undefined" ? window.location.search : ""
+  );
+  const appFromUrl = urlParams.get("app");
 
-  const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(getAppByName(appFromUrl || '') || null);
+  const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(
+    getAppByName(appFromUrl || "") || null
+  );
   const [userInfo, setUserInfo] = useState<string>("");
   const [userInfoError, setUserInfoError] = useState<string>("");
   const [accessToken, setAccessToken] = useState<string>("");
-  const [settingsModalVisible, setSettingsModalVisible] = useState<boolean>(false);
-  const [collapsed, setCollapsed] = useState<boolean>(localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === 'true');
-  const [recentlyUsedApps, setRecentlyUsedApps] = useState<RecentlyUsedApp[]>([]);
+  const [settingsModalVisible, setSettingsModalVisible] =
+    useState<boolean>(false);
+  const [collapsed, setCollapsed] = useState<boolean>(
+    localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === "true"
+  );
+  const [recentlyUsedApps, setRecentlyUsedApps] = useState<RecentlyUsedApp[]>(
+    []
+  );
+  const [lastPublishedDate, setLastPublishedDate] = useState<string>("");
 
   useEffect(() => {
     const savedUserInfo = localStorage.getItem(STORAGE_KEY_USER_INFO);
@@ -126,7 +175,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
         const parsed = JSON.parse(savedRecentApps);
         setRecentlyUsedApps(parsed);
       } catch (error) {
-        console.error('Failed to parse recent apps:', error);
+        console.error("Failed to parse recent apps:", error);
       }
     }
   }, []);
@@ -138,23 +187,77 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   useEffect(() => {
     const url = new URL(window.location.href);
     if (selectedApp) {
-      url.searchParams.set('app', selectedApp.name);
+      url.searchParams.set("app", selectedApp.name);
+      fetchLastPublishedDate(selectedApp);
     } else {
-      url.searchParams.delete('app');
+      url.searchParams.delete("app");
+      setLastPublishedDate("");
     }
-    window.history.pushState({}, '', url.toString());
+    window.history.pushState({}, "", url.toString());
   }, [selectedApp]);
+
+  /**
+   * Fetches the last published date for a business app from Azure Storage
+   * Note: Requires CORS configuration on Azure Storage to allow requests from the development origin
+   * @param app The selected business app
+   */
+  const fetchLastPublishedDate = async (app: BusinessAppInfo) => {
+    if (!app.module) {
+      setLastPublishedDate("");
+      return;
+    }
+
+    const businessAppPath = `/${app.module}/${app.subModule || ""}`;
+    const timestamp = Date.now();
+    const url = `https://${process.env.AZURE_STORAGE_ACCOUNT}.blob.core.windows.net/screens${businessAppPath}/index.js?t=${timestamp}`;
+
+    try {
+      // Note: CORS must be enabled on Azure Storage to allow these requests
+      const response = await fetch(url, {
+        method: "GET",
+        mode: "cors", // This requires proper CORS configuration on Azure Storage
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const lastModified = response.headers.get("Last-Modified");
+      if (lastModified) {
+        setLastPublishedDate(lastModified);
+      } else {
+        setLastPublishedDate("");
+      }
+    } catch (error) {
+      console.error("Failed to fetch last published date:", error);
+      setLastPublishedDate("");
+
+      // Only show notification in development environment to avoid user confusion in production
+      if (process.env.NODE_ENV === "development") {
+        notification.warning({
+          message: "Cannot fetch last published date",
+          description:
+            "CORS error: Azure Storage doesn't allow requests from this origin. " +
+            "Configure CORS settings in Azure Storage to enable this feature.",
+          duration: 5,
+          placement: "topRight",
+        });
+      }
+    }
+  };
 
   const updateRecentlyUsedApps = (app: BusinessAppInfo): void => {
     const newRecentApp: RecentlyUsedApp = {
       name: app.name,
       module: app.module,
       subModule: app.subModule,
-      lastUsed: Date.now()
+      lastUsed: Date.now(),
     };
 
-    setRecentlyUsedApps(currentRecent => {
-      const filtered = currentRecent.filter(recent => recent.name !== app.name);
+    setRecentlyUsedApps((currentRecent) => {
+      const filtered = currentRecent.filter(
+        (recent) => recent.name !== app.name
+      );
       const updated = [newRecentApp, ...filtered];
       const final = updated.slice(0, MAX_RECENT_APPS);
 
@@ -196,21 +299,21 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   const createAppMenuItem = (app: BusinessAppInfo) => ({
     key: app.name,
     label: app.name,
-    onClick: () => handleAppSelect(app)
+    onClick: () => handleAppSelect(app),
   });
 
   const getMenuItems = (): any => {
     const moduleGroups: Record<string, Record<string, BusinessAppInfo[]>> = {};
 
-    businessApps.forEach(app => {
+    businessApps.forEach((app) => {
       if (!moduleGroups[app.module]) {
         moduleGroups[app.module] = {};
       }
 
       // Extract the first level of subModule as the actual sub-module
-      let subModuleName = 'default';
+      let subModuleName = "default";
       if (app.subModule) {
-        const subModuleParts = app.subModule.split('/');
+        const subModuleParts = app.subModule.split("/");
         subModuleName = subModuleParts[0]; // Take the first part as the sub-module
       }
 
@@ -221,41 +324,48 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       moduleGroups[app.module][subModuleName].push(app);
     });
 
-    const moduleMenuItems = Object.entries(moduleGroups).map(([module, subModules]) => {
-      const subModuleEntries = Object.entries(subModules);
+    const moduleMenuItems = Object.entries(moduleGroups).map(
+      ([module, subModules]) => {
+        const subModuleEntries = Object.entries(subModules);
 
-      if (subModuleEntries.length === 1 && subModuleEntries[0][0] === 'default') {
+        if (
+          subModuleEntries.length === 1 &&
+          subModuleEntries[0][0] === "default"
+        ) {
+          return {
+            key: module,
+            label: module.charAt(0).toUpperCase() + module.slice(1),
+            children: subModuleEntries[0][1].map(createAppMenuItem),
+          };
+        }
+
+        const children = subModuleEntries
+          .map(([subModule, apps]) => {
+            if (subModule === "default") {
+              return apps.map(createAppMenuItem);
+            }
+
+            return {
+              key: `${module}/${subModule}`,
+              label: subModule.charAt(0).toUpperCase() + subModule.slice(1),
+              children: apps.map(createAppMenuItem),
+            };
+          })
+          .flat();
+
         return {
           key: module,
           label: module.charAt(0).toUpperCase() + module.slice(1),
-          children: subModuleEntries[0][1].map(createAppMenuItem)
+          children,
         };
       }
-
-      const children = subModuleEntries.map(([subModule, apps]) => {
-        if (subModule === 'default') {
-          return apps.map(createAppMenuItem);
-        }
-
-        return {
-          key: `${module}/${subModule}`,
-          label: subModule.charAt(0).toUpperCase() + subModule.slice(1),
-          children: apps.map(createAppMenuItem)
-        };
-      }).flat();
-
-      return {
-        key: module,
-        label: module.charAt(0).toUpperCase() + module.slice(1),
-        children
-      };
-    });
+    );
 
     const homeMenuItem = {
-      key: 'home',
-      label: 'Home',
+      key: "home",
+      label: "Home",
       icon: <HomeOutlined />,
-      onClick: goToStartScreen
+      onClick: goToStartScreen,
     };
 
     return [homeMenuItem, ...moduleMenuItems];
@@ -266,39 +376,48 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       try {
         return JSON.parse(userInfo);
       } catch (e) {
-        console.error('Failed to parse user info:', e);
+        console.error("Failed to parse user info:", e);
         return undefined;
       }
     }
     return undefined;
   }, [userInfo]);
+  console.log("businessApps", businessApps);
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: "100vh" }}>
       <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />
 
       {/* Full-width Header */}
-      <Header style={{
-        background: '#fff',
-        padding: '0 16px',
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr 1fr',
-        alignItems: 'center',
-        height: 48,
-        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-        borderBottom: '1px solid #e8e8e8',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 1000
-      }}>
+      <Header
+        style={{
+          background: "#fff",
+          padding: "0 16px",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          alignItems: "center",
+          height: 48,
+          boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+          borderBottom: "1px solid #e8e8e8",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1000,
+        }}
+      >
         {/* Left section: Package Info */}
         <div className="gba:flex gba:items-center gba:flex-nowrap gba:justify-start">
           <div className="gba:flex gba:items-center gba:gap-3">
             <div className="gba:flex gba:items-center">
               <div className="gba:py-[12px]">
-                <a href="#" onClick={(e) => { e.preventDefault(); goToStartScreen(); }}>
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    goToStartScreen();
+                  }}
+                >
                   <img
                     src={HeaderLogo}
                     alt="Business Apps IDE"
@@ -309,7 +428,9 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                 </a>
               </div>
             </div>
-            <span className="gba:text-xs gba:text-[#666]">v{packageVersion}</span>
+            <span className="gba:text-xs gba:text-[#666]">
+              v{packageVersion}
+            </span>
           </div>
         </div>
 
@@ -320,21 +441,32 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             data-testid="GlobalSearchButton-Button"
           >
             <div className="gba:w-[418px] gba:h-[26px] gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF]">
-              <div className="gba:text-sm gba:text-[#999999]" data-testid="GlobalSearchButton-Text">
+              <div
+                className="gba:text-sm gba:text-[#999999]"
+                data-testid="GlobalSearchButton-Text"
+              >
                 Search in NEWWORK
               </div>
             </div>
           </button>
         </div>
 
-        {/* Right section: Settings Button */}
-        <div className="gba:flex gba:items-center gba:justify-end">
+        {/* Right section: Last Published Date and Settings Button */}
+        <div className="gba:flex gba:items-center gba:justify-end gba:gap-4">
+          {lastPublishedDate && (
+            <div
+              className="gba:flex gba:items-center gba:text-sm gba:text-[#666666]"
+              data-testid="LastPublishedDate"
+            >
+              <Text type="secondary">Last Published: {lastPublishedDate}</Text>
+            </div>
+          )}
           <Tooltip title="Settings">
             <Button
               type="text"
               icon={<SettingOutlined />}
               onClick={() => setSettingsModalVisible(true)}
-              style={{ fontSize: '16px' }}
+              style={{ fontSize: "16px" }}
             />
           </Tooltip>
         </div>
@@ -351,23 +483,25 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
           trigger={null}
           theme="light"
           style={{
-            height: 'calc(100vh - 48px)',
-            position: 'fixed',
+            height: "calc(100vh - 48px)",
+            position: "fixed",
             left: 0,
             top: 48,
             bottom: 0,
-            boxShadow: '2px 0 8px rgba(0,0,0,0.05)',
-            overflow: 'hidden'
+            boxShadow: "2px 0 8px rgba(0,0,0,0.05)",
+            overflow: "hidden",
           }}
         >
-          <div style={{
-            height: 'calc(100% - 56px)', // Total height minus button height
-            overflow: 'auto',
-            position: 'relative'
-          }}>
+          <div
+            style={{
+              height: "calc(100% - 56px)", // Total height minus button height
+              overflow: "auto",
+              position: "relative",
+            }}
+          >
             <Menu
               mode="inline"
-              selectedKeys={selectedApp ? [selectedApp.name] : ['home']}
+              selectedKeys={selectedApp ? [selectedApp.name] : ["home"]}
               style={{ borderRight: 0 }}
               items={getMenuItems()}
             />
@@ -376,11 +510,11 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
           <div
             className="gba:border-t gba:border-[#e1e3eb] gba:p-2 gba:flex gba:justify-center gba:bg-white"
             style={{
-              position: 'sticky',
+              position: "sticky",
               bottom: 0,
-              height: '56px',
+              height: "56px",
               zIndex: 10,
-              boxShadow: '0 -2px 8px rgba(0,0,0,0.1)'
+              boxShadow: "0 -2px 8px rgba(0,0,0,0.1)",
             }}
           >
             <Tooltip title={collapsed ? "Expand Menu" : "Collapse Menu"}>
@@ -389,26 +523,39 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                 icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                 onClick={() => setCollapsed(!collapsed)}
                 style={{
-                  fontSize: '16px',
-                  width: '100%',
-                  height: '40px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
+                  fontSize: "16px",
+                  width: "100%",
+                  height: "40px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               />
             </Tooltip>
           </div>
         </Sider>
 
-        <Layout style={{ marginLeft: collapsed ? 68 : 264, transition: 'margin-left 0.2s' }}>
-          <Content style={{ overflow: 'initial', background: '#fff', minHeight: 'calc(100vh - 48px)' }}>
+        <Layout
+          style={{
+            marginLeft: collapsed ? 68 : 264,
+            transition: "margin-left 0.2s",
+          }}
+        >
+          <Content
+            style={{
+              overflow: "initial",
+              background: "#fff",
+              minHeight: "calc(100vh - 48px)",
+            }}
+          >
             {selectedApp ? (
               <div className="gba:w-full gba:h-full gba:overflow-auto">
                 {createElement(selectedApp.component, {
                   userInfo: parsedUserInfo(),
                   accessToken: accessToken ?? undefined,
-                  key: `${selectedApp.name}-${JSON.stringify(parsedUserInfo())}-${accessToken}`
+                  key: `${selectedApp.name}-${JSON.stringify(
+                    parsedUserInfo()
+                  )}-${accessToken}`,
                 })}
               </div>
             ) : (
@@ -439,7 +586,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             <Input.TextArea
               placeholder="Enter user info in JSON format"
               rows={6}
-              onChange={e => {
+              onChange={(e) => {
                 setUserInfo(e.target.value);
                 validateUserInfo(e.target.value);
               }}
@@ -450,12 +597,13 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             <Input.TextArea
               placeholder="Enter your access token"
               rows={3}
-              onChange={e => setAccessToken(e.target.value)}
+              onChange={(e) => setAccessToken(e.target.value)}
               value={accessToken}
             />
           </Form.Item>
           <Text type="secondary">
-            These settings will be saved in your browser's local storage and persisted between sessions.
+            These settings will be saved in your browser's local storage and
+            persisted between sessions.
           </Text>
         </Form>
       </Modal>

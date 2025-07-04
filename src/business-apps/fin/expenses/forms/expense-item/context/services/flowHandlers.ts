@@ -1,5 +1,5 @@
+import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils";
 import { flowClient } from "@/common/network/flows/FlowClient";
-import { showToast } from "../../utils/notificationUtils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 // Constants for flow domain and process name
@@ -19,8 +19,8 @@ export const initiateFlow = async (
   if (!employeeId) {
     showToast(
       getTranslationFromI18nKeyAndLabel(
-        "lowcoder:create_expense_type_item.document_upload_error_missing_employee_data", 
-        "Cannot upload files: missing employee data"
+        "lowcoder:create_expense_request.employee_id_not_found", 
+        "Employee ID not found"
       ),
       "error"
     );
