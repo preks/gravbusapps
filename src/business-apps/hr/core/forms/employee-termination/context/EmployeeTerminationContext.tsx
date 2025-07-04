@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { useEmployeeTerminationData, EmployeeTerminationData } from '../hooks/useEmployeeTerminationData';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import dayjs, { Dayjs } from 'dayjs';
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 
 export interface EmployeeTerminationFormValues {
   employeeId: string;
@@ -79,8 +80,6 @@ export const EmployeeTerminationProvider: React.FC<{
       terminateJobPosition: formValuesState.terminateJobPosition,
     };
     
-    // Import and use the process event dispatch
-    const { dispatchProcessContinueEvent } = require('@/common/utils/processEventUtils');
     dispatchProcessContinueEvent("pse_submit", payload);
     
     console.log("Employee termination payload:", payload);
@@ -97,7 +96,6 @@ export const EmployeeTerminationProvider: React.FC<{
     });
     
     // Dispatch cancel event
-    const { dispatchProcessContinueEvent } = require('@/common/utils/processEventUtils');
     dispatchProcessContinueEvent("pse_cancel", {});
   }, [employeeId]);
 
