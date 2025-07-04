@@ -10,30 +10,30 @@ export interface ContractTypeOption {
 }
 
 /**
- * Custom hook to fetch contract types with a search filter and pagination.
+ * Custom hook to fetch contract types with a search filter and pagination (limit 5).
  * Uses the catalog-management API utilities for consistency and CORS compliance.
- * @param accessToken Access token for authentication
- * @param searchRegex Search regex string for filtering contract types
+ * @param searchRegex Search regex string for filtering contract types.
  * @param offset Pagination offset
- * @param limit Number of items to fetch (default: 100 to fetch all contract types)
  */
-export function useGetContractTypes(accessToken: string, searchRegex: string, offset: number = 0, limit: number = 100) {
+export function useGetContractTypes(accessToken: string, searchRegex: string, offset: number = 0) {
   const userLocale = useUserLocale() ?? 'en-US';
   const [types, setTypes] = useState<ContractTypeOption[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const client = useCatalogManagerClient(accessToken);
 
   useEffect(() => {
     setError(null);
+    setLoading(true);
     
     client.getCatalogEntriesList({
       catalogIdentifier: 'ContractType',
       version: 'v1',
     },
     {
-      limit: limit,
+      limit: 5,
       offset,
       returnTotalRecords: true,
       localeCode: userLocale,
@@ -58,15 +58,17 @@ export function useGetContractTypes(accessToken: string, searchRegex: string, of
         }));
       
       setTypes(typesArr);
-      setHasMore(entries.length === limit);
+      setHasMore(entries.length === 5);
+      setLoading(false);
     })
     .catch((err: any) => {
       console.error('Error fetching contract types:', err);
       setError(err);
       setTypes([]);
       setHasMore(false);
+      setLoading(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchRegex, offset, userLocale, client]);
-  return { types, loading: false, error, hasMore };
+  return { types, loading, error, hasMore };
 }
