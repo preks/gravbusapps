@@ -63,10 +63,14 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    console.log('useGetExpenseDashboard: useEffect triggered.');
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
     const accessToken = context?.accessToken;
+    console.log('useGetExpenseDashboard: employeeId:', employeeId);
+    console.log('useGetExpenseDashboard: accessToken:', !!accessToken);
 
     if (!employeeId) {
+      console.error('useGetExpenseDashboard: Employee ID not found.');
       setError(new Error('Employee ID not found. Cannot fetch dashboard statistics.'));
       setStats(null);
       setIsLoading(false);
@@ -74,6 +78,7 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
     }
 
     if (!accessToken) {
+      console.error('useGetExpenseDashboard: Access token not found.');
       setError(new Error('Access token not found. Cannot fetch dashboard statistics.'));
       setStats(null);
       setIsLoading(false);
@@ -81,23 +86,20 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
     }
 
     const fetchStats = async () => {
+      console.log('useGetExpenseDashboard: fetchStats called.');
       setIsLoading(true);
       setError(null);
       try {
-        const currentMonthStart = dayjs().startOf('month').toISOString();
-        const currentMonthEnd = dayjs().endOf('month').toISOString();
-        const previousMonthStart = dayjs().subtract(1, 'month').startOf('month').toISOString();
-        const previousMonthEnd = dayjs().subtract(1, 'month').endOf('month').toISOString();
+        console.log('useGetExpenseDashboard: Starting fetch...');
+        const now = dayjs();
 
-        const currentQuarterStart = dayjs().startOf('quarter').toISOString();
-        const currentQuarterEnd = dayjs().endOf('quarter').toISOString();
-        const previousQuarterStart = dayjs().subtract(1, 'quarter').startOf('quarter').toISOString();
-        const previousQuarterEnd = dayjs().subtract(1, 'quarter').endOf('quarter').toISOString();
-
-        const currentYearStart = dayjs().startOf('year').toISOString();
-        const currentYearEnd = dayjs().endOf('year').toISOString();
-        const previousYearStart = dayjs().subtract(1, 'year').startOf('year').toISOString();
-        const previousYearEnd = dayjs().subtract(1, 'year').endOf('year').toISOString();
+        // Define date range objects
+        const currentMonth = { start: now.startOf('month'), end: now.endOf('month') };
+        const previousMonth = { start: now.subtract(1, 'month').startOf('month'), end: now.subtract(1, 'month').endOf('month') };
+        const currentQuarter = { start: now.startOf('quarter'), end: now.endOf('quarter') };
+        const previousQuarter = { start: now.subtract(1, 'quarter').startOf('quarter'), end: now.subtract(1, 'quarter').endOf('quarter') };
+        const currentYear = { start: now.startOf('year'), end: now.endOf('year') };
+        const previousYear = { start: now.subtract(1, 'year').startOf('year'), end: now.subtract(1, 'year').endOf('year') };
 
         const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
           method: 'POST',
@@ -109,20 +111,30 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
             query: GET_EXPENSE_DASHBOARD_BY_EMPLOYEE,
             variables: {
               employeeId,
-              currentDate: dayjs().toISOString(),
-              currentMonthStart,
-              currentMonthEnd,
-              previousMonthStart,
-              previousMonthEnd,
-              currentQuarterStart,
-              currentQuarterEnd,
-              previousQuarterStart,
-              previousQuarterEnd,
-              currentYearStart,
-              currentYearEnd,
-              previousYearStart,
-              previousYearEnd,
               currency: 'Currency:v1:EUR',
+
+              // timestamp variables
+              currentDate: now.toISOString(),
+              currentMonthStart: currentMonth.start.toISOString(),
+              currentMonthEnd: currentMonth.end.toISOString(),
+              previousMonthStart: previousMonth.start.toISOString(),
+              previousMonthEnd: previousMonth.end.toISOString(),
+              currentQuarterStart: currentQuarter.start.toISOString(),
+              currentQuarterEnd: currentQuarter.end.toISOString(),
+              previousQuarterStart: previousQuarter.start.toISOString(),
+              previousQuarterEnd: previousQuarter.end.toISOString(),
+              currentYearStart: currentYear.start.toISOString(),
+              currentYearEnd: currentYear.end.toISOString(),
+              previousYearStart: previousYear.start.toISOString(),
+              previousYearEnd: previousYear.end.toISOString(),
+
+              // timestamptz variables
+              currentMonthStartTz: currentMonth.start.toISOString(),
+              currentMonthEndTz: currentMonth.end.toISOString(),
+              currentQuarterStartTz: currentQuarter.start.toISOString(),
+              currentQuarterEndTz: currentQuarter.end.toISOString(),
+              currentYearStartTz: currentYear.start.toISOString(),
+              currentYearEndTz: currentYear.end.toISOString(),
             },
           }),
         });
@@ -202,17 +214,20 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
           expenseItemsWithoutReceipts: data?.itemsWithoutReceipts?.aggregate?.count ?? 0,
         };
         
+        console.log('useGetExpenseDashboard: Fetch successful, data processed.');
         setStats(expenseDashboard);
       } catch (err) {
+        console.error('useGetExpenseDashboard: Fetch error:', err);
         setError(err instanceof Error ? err : new Error(String(err)));
         setStats(null);
       } finally {
+        console.log('useGetExpenseDashboard: Fetch finished.');
         setIsLoading(false);
       }
     };
 
     fetchStats();
-  }, [context]); // Re-run effect if context changes
+  }, [context?.accessToken, context?.userInfo?.employeeDetails?.employeeId]);
 
   return { stats, isLoading, error: error?.message ?? null };
 };

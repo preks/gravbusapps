@@ -116,7 +116,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
           </div>
         </div>
         {pageController && (
-          <div className="gba:flex gba:justify-start gba:py-2">
+          <div className="gba:w-full gba:py-2">
             {pageController}
           </div>
         )}

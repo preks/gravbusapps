@@ -3,18 +3,24 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
   query GetExpenseDashboardByEmployee(
     $employeeId: uuid!,
     $currentDate: timestamp!,
-    $currentMonthStart: timestamptz!,
-    $currentMonthEnd: timestamptz!,
-    $previousMonthStart: timestamptz!,
-    $previousMonthEnd: timestamptz!,
-    $currentQuarterStart: timestamptz!,
-    $currentQuarterEnd: timestamptz!,
-    $previousQuarterStart: timestamptz!,
-    $previousQuarterEnd: timestamptz!,
-    $currentYearStart: timestamptz!,
-    $currentYearEnd: timestamptz!,
-    $previousYearStart: timestamptz!,
-    $previousYearEnd: timestamptz!,
+    $currentMonthStart: timestamp!,
+    $currentMonthEnd: timestamp!,
+    $previousMonthStart: timestamp!,
+    $previousMonthEnd: timestamp!,
+    $currentQuarterStart: timestamp!,
+    $currentQuarterEnd: timestamp!,
+    $previousQuarterStart: timestamp!,
+    $previousQuarterEnd: timestamp!,
+    $currentYearStart: timestamp!,
+    $currentYearEnd: timestamp!,
+    $previousYearStart: timestamp!,
+    $previousYearEnd: timestamp!,
+    $currentMonthStartTz: timestamptz!,
+    $currentMonthEndTz: timestamptz!,
+    $currentQuarterStartTz: timestamptz!,
+    $currentQuarterEndTz: timestamptz!,
+    $currentYearStartTz: timestamptz!,
+    $currentYearEndTz: timestamptz!,
     $currency: String!
   ) {
 
@@ -57,7 +63,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
         status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-        createdAt: {_gte: $currentMonthStart, _lt: $currentMonthEnd},
+        decisionDate: {_gte: $currentMonthStart, _lt: $currentMonthEnd},
         currencyRef: {_eq: $currency}
       }
     ) {
@@ -75,7 +81,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
         status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-        createdAt: {_gte: $previousMonthStart, _lt: $previousMonthEnd},
+        decisionDate: {_gte: $previousMonthStart, _lt: $previousMonthEnd},
         currencyRef: {_eq: $currency}
       }
     ) {
@@ -93,7 +99,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
         status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-        createdAt: {_gte: $currentQuarterStart, _lt: $currentQuarterEnd},
+        decisionDate: {_gte: $currentQuarterStart, _lt: $currentQuarterEnd},
         currencyRef: {_eq: $currency}
       }
     ) {
@@ -111,7 +117,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
         status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-        createdAt: {_gte: $previousQuarterStart, _lt: $previousQuarterEnd},
+        decisionDate: {_gte: $previousQuarterStart, _lt: $previousQuarterEnd},
         currencyRef: {_eq: $currency}
       }
     ) {
@@ -129,7 +135,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-        createdAt: {_gte: $currentYearStart, _lt: $currentYearEnd},
+        decisionDate: {_gte: $currentYearStart, _lt: $currentYearEnd},
         currencyRef: {_eq: $currency}
       }
     ) {
@@ -147,7 +153,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-        createdAt: {_gte: $previousYearStart, _lt: $previousYearEnd},
+        decisionDate: {_gte: $previousYearStart, _lt: $previousYearEnd},
         currencyRef: {_eq: $currency}
       }
     ) {
@@ -192,7 +198,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
         currencyRef: {_eq: $currency},
-        createdAt: {_gte: $currentMonthStart, _lt: $currentMonthEnd}
+        expenseDate: {_gte: $currentMonthStart, _lt: $currentMonthEnd}
       },
       orderBy: {updatedAt: DESC}
     ) {
@@ -217,7 +223,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
           employeeId: {_eq: $employeeId},
           isDeleted: {_eq: false},
           status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-          createdAt: {_gte: $currentMonthStart, _lt: $currentMonthEnd},
+          updatedAt: {_gte: $currentMonthStartTz, _lt: $currentMonthEndTz},
           currencyRef: {_eq: $currency}
         }
       }
@@ -235,7 +241,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
           employeeId: {_eq: $employeeId},
           isDeleted: {_eq: false},
           status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-          createdAt: {_gte: $currentQuarterStart, _lt: $currentQuarterEnd},
+          updatedAt: {_gte: $currentQuarterStartTz, _lt: $currentQuarterEndTz},
           currencyRef: {_eq: $currency}
         }
       }
@@ -253,7 +259,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
           employeeId: {_eq: $employeeId},
           isDeleted: {_eq: false},
           status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-          createdAt: {_gte: $currentYearStart, _lt: $currentYearEnd},
+          updatedAt: {_gte: $currentYearStartTz, _lt: $currentYearEndTz},
           currencyRef: {_eq: $currency}
         }
       }
