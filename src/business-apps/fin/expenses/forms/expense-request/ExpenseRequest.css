@@ -23,7 +23,7 @@
 }
 
 .gba\:headerDivider {
-  margin: 0 0 46px 0 !important;
+  margin: 0 0 30px 0 !important;
 }
 
 
@@ -148,7 +148,7 @@ textarea {
 .gba\:searchBarContainer {
   display: flex;
   justify-content: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: 30px;
 }
 
 .gba\:searchBarWithLabelContainer {
@@ -277,7 +277,7 @@ textarea {
 }
 
 .gba\:selectedPlanDivider {
-  margin: 24px 0;
+  margin: 30px 0 24px 0px;
 }
 
 .gba\:contentDivider {
