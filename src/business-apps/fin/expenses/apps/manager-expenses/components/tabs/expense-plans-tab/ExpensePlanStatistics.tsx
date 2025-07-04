@@ -1,8 +1,9 @@
 import React, { useCallback, useMemo } from 'react';
-import { CalendarOutlined, FileOutlined, DollarOutlined } from '@ant-design/icons';
+import { CalendarOutlined, FileOutlined, EuroOutlined } from '@ant-design/icons';
 import { ExpensePlanStatistics } from '../../../hooks/useGetExpensePlans'; // Assuming this type is exported from your hook
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { formatAmount } from '../../../utils/currencyUtils';
+import { formatNumberFunction } from '@/common/utils/windowUtils';
 // Local definition of ExpenseStatus
 enum ExpenseStatus {
   PREPARED = "PREPARED",
@@ -64,8 +65,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'pending-amount',
         title: 'Pending Amount',
-        value: planStats.pendingAmount ? formatAmount(planStats.pendingAmount) : '0,00',
-        prefix: <DollarOutlined />,
+        value: planStats.pendingAmount ? formatNumberFunction(planStats.pendingAmount.toString(), "0.00[,]00") : '0,00',
+        prefix: <EuroOutlined />,
         suffix: '€',
         color: '#faad14',
         valueIsString: true,
@@ -84,8 +85,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'total-amount',
         title: 'Total Amount (Submitted)',
-        value: planStats.sumTotalAmount ? formatAmount(planStats.sumTotalAmount) : '0,00',
-        prefix: <DollarOutlined />,
+        value: planStats.sumTotalAmount ? formatNumberFunction(planStats.sumTotalAmount.toString(), "0.00[,]00") : '0,00',
+        prefix: <EuroOutlined />,
         suffix: '€',
         color: '#3f8600',
         valueIsString: true,

@@ -5,8 +5,7 @@ import { SearchOutlined } from '@ant-design/icons';
 import { ApprovalRequest, useGetApprovals } from '../../hooks/useGetApprovals';
 import Pill from '@/components/pill/Pill';
 import dayjs from 'dayjs';
-import { formatAmount } from '../../utils/currencyUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const { Text } = Typography;
 
@@ -90,7 +89,7 @@ const ApprovalsModal: React.FC<ApprovalsModalProps> = ({
       render: (amount: number) => {
         // Handle undefined or null amount values
         const safeAmount = amount !== undefined && amount !== null ? amount : 0;
-        return <Text>{formatAmount(safeAmount)}€</Text>;
+        return <Text>{formatNumberFunction(safeAmount.toString(), "0.00[,]00")}€</Text>;
       },
       sorter: (a: any, b: any) => {
         const amountA = a.totalAmount !== undefined && a.totalAmount !== null ? a.totalAmount : 0;

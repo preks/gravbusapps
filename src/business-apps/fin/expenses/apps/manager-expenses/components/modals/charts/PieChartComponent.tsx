@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Empty } from 'antd';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { formatNumberFunction } from '@/common/utils/windowUtils';
 
 interface PieChartProps {
   data: {
@@ -57,7 +58,7 @@ const PieChartComponent: React.FC<PieChartProps> = ({
               formatter={(value: number, name: string) => {
                 const total = data.reduce((sum, item) => sum + item.value, 0);
                 const percent = ((Number(value) / total) * 100).toFixed(0);
-                return [`${value} (${percent}%)`, name];
+                return [`${formatNumberFunction(value.toString(), "0.00[,]00")} (${percent}%)`, name];
               }}
             />
             <Legend />

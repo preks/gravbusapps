@@ -7,7 +7,7 @@ import { LineChartComponent, PieChartComponent, BarChartComponent } from './char
 import dayjs from 'dayjs';
 import { SearchOutlined } from '@ant-design/icons';
 import { formatAmount } from '../../utils/currencyUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -117,28 +117,28 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
           <div className="gba:flex gba:flex-col">
             <Text className="gba:text-gray-500 gba:text-sm">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_items', 'Total Expense Items')}</Text>
             <div className="gba:mt-1">
-              <Title level={4} className="gba:m-0">€{data?.totalExpenseAmount ? formatAmount(data.totalExpenseAmount) : '0,00'}</Title>
+              <Title level={4} className="gba:m-0">€{data?.totalExpenseAmount ? formatNumberFunction(data.totalExpenseAmount.toString(), "0.00[,]00") : '0,00'}</Title>
             </div>
           </div>
           
           <div className="gba:flex gba:flex-col">
             <Text className="gba:text-gray-500 gba:text-sm">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_requests', 'Total Expense Requests')}</Text>
             <div className="gba:mt-1">
-              <Title level={4} className="gba:m-0">€{data?.totalRequestAmount ? formatAmount(data.totalRequestAmount) : '0,00'}</Title>
+              <Title level={4} className="gba:m-0">€{data?.totalRequestAmount ? formatNumberFunction(data.totalRequestAmount.toString(), "0.00[,]00") : '0,00'}</Title>
             </div>
           </div>
           
           <div className="gba:flex gba:flex-col">
             <Text className="gba:text-gray-500 gba:text-sm">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_plans', 'Total Expense Plans')}</Text>
             <div className="gba:mt-1">
-              <Title level={4} className="gba:m-0">€{data?.totalPlanAmount ? formatAmount(data.totalPlanAmount) : '0,00'}</Title>
+              <Title level={4} className="gba:m-0">€{data?.totalPlanAmount ? formatNumberFunction(data.totalPlanAmount.toString(), "0.00[,]00") : '0,00'}</Title>
             </div>
           </div>
           
           <div className="gba:flex gba:flex-col">
             <Text className="gba:text-gray-500 gba:text-sm">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments', 'Total Advance Payments')}</Text>
             <div className="gba:mt-1">
-              <Title level={4} className="gba:m-0">€{data?.totalAdvanceAmount ? formatAmount(data.totalAdvanceAmount) : '0,00'}</Title>
+              <Title level={4} className="gba:m-0">€{data?.totalAdvanceAmount ? formatNumberFunction(data.totalAdvanceAmount.toString(), "0.00[,]00") : '0,00'}</Title>
             </div>
           </div>
         </div>
@@ -309,7 +309,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
                           />
                           <Statistic 
                             title={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount')} 
-                            value={data?.totalExpenseAmount || 0} 
+                            value={formatNumberFunction((data?.totalExpenseAmount || 0).toString(), "0.00[,]00")} 
                             precision={2} 
                             prefix="€" 
                             valueStyle={{ color: '#1890ff', fontSize: '28px' }}
@@ -375,7 +375,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
                           />
                           <Statistic 
                             title={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount')} 
-                            value={data?.totalRequestAmount || 0} 
+                            value={formatNumberFunction((data?.totalRequestAmount || 0).toString(), "0.00[,]00")} 
                             precision={2} 
                             prefix="€" 
                             valueStyle={{ color: '#fa8c16', fontSize: '28px' }}

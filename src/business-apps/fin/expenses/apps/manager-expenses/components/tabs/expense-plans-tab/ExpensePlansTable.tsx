@@ -9,7 +9,7 @@ import ExpensePlanDetails from './ExpensePlanDetails';
 import { useMainViewExpensePlans, ExpensePlan } from '../../../hooks/useMainViewExpensePlans';
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters';
 import { getExpensePlanStatusDisplay, ExpenseStatus } from '../../../utils';
-import { formatDate } from '@/common/utils/windowUtils';
+import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatAmount } from '../../../utils/currencyUtils';
 
 const { Text } = Typography;
@@ -237,7 +237,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   // Table columns definition
   const columns = [
     {
-      title: 'Plan',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.plan', 'Plan'),
       dataIndex: 'title',
       key: 'title',
       render: (value: any, record: any) => {
@@ -261,7 +261,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       },
     },
     {
-      title: 'Employee',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
       dataIndex: 'employee',
       key: 'employee',
       render: (_text: any, record: any) => {
@@ -275,7 +275,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       },
     },
     {
-      title: 'Amount',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount'),
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       align: 'right' as const,
@@ -288,7 +288,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       },
     },
     {
-      title: 'Status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => {

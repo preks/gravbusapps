@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, Empty } from 'antd';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpenseTrendsChartProps {
   data: {
@@ -40,7 +40,7 @@ const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({ data, title = g
             <XAxis dataKey="month" />
             <YAxis />
             <Tooltip 
-              formatter={(value) => [`${value}€`, 'Amount']}
+              formatter={(value) => [`${formatNumberFunction(value.toString(), "0.00[,]00")}€`, 'Amount']}
               labelFormatter={(label) => `Month: ${label}`}
             />
             <Bar dataKey="amount" fill="#1890ff" name="Amount" />

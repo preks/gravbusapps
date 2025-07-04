@@ -9,7 +9,7 @@ import Pill from '@/components/pill/Pill';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
 import { useMainViewAdvancePayments, type AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../../utils';
-import { formatDate } from '@/common/utils/windowUtils';
+import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatAmount } from '../../../utils/currencyUtils';
 import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters';
 
@@ -99,7 +99,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
 
   const columns = [
     {
-      title: 'Related Expense Plan',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.advance_payments_tab.related_expense_plan', 'Related Expense Plan'),
       dataIndex: 'title',
       key: 'title',
       render: (_: string, record: AdvancePaymentItem) => (
@@ -114,7 +114,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       )
     },
     {
-      title: 'Employee',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list.expense_table.employee', 'Employee'),
       dataIndex: 'employeeDisplayName',
       key: 'employeeDisplayName',
       render: (_text: any, record: AdvancePaymentItem) => (
@@ -125,7 +125,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       ),
     },
     {
-      title: 'Amount',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:travel_region_rule.travel_region_rule_details_list.amount', 'Amount'),
       dataIndex: 'amount',
       key: 'amount',
       align: 'right',
@@ -136,7 +136,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       ),
     },
     {
-      title: 'Status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.status', 'Status'),
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => {

@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { Row, Col, Card, Statistic, Spin, Alert, Typography } from 'antd';
-import { PiChartBar, PiCurrencyDollar, PiUsers, PiClipboardText, PiListChecks, PiChartLineUp, PiFileText, PiShieldCheck } from 'react-icons/pi';
+import { PiChartBar, PiCurrencyEur, PiUsers, PiClipboardText, PiListChecks, PiChartLineUp, PiFileText, PiShieldCheck } from 'react-icons/pi';
 import { useGetExpenseDashboard } from '../../../hooks/useGetExpenseDashboard';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import ExpenseTrendsChart from './components/ExpenseTrendsChart';
 import { ApprovalsModal, ExpenseReportsModal, TeamSpendingAnalyticsModal } from '../../modals';
-import { formatAmount } from '../../../utils/currencyUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const { Title, Text } = Typography;
 
@@ -95,8 +94,8 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
             <Statistic
               title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expenses', 'Monthly Expenses')}
               value={dashboardData?.monthlyExpensesAmount ?? 0}
-              formatter={(value) => formatAmount(Number(value))}
-              prefix={<PiCurrencyDollar className="gba:mr-2" />}
+              formatter={(value) => formatNumberFunction(value.toString(), "0.00[,]00")}
+              prefix={<PiCurrencyEur className="gba:mr-2" />}
               suffix="€"
               data-testid="monthly-expenses-statistic"
             />
@@ -191,7 +190,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
                         </div>
                       </div>
                       <div className="gba:text-right">
-                        <Text className="gba:font-medium">€{typeof request.totalAmount === 'number' ? formatAmount(request.totalAmount) : request.totalAmount}</Text>
+                        <Text className="gba:font-medium">€{typeof request.totalAmount === 'number' ? formatNumberFunction(request.totalAmount.toString(), "0.00[,]00") : request.totalAmount}</Text>
                         <div><Text type="secondary">{request.requestDate}</Text></div>
                       </div>
                     </div>
@@ -221,8 +220,8 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
                 />
                 <div className="gba:mt-4">
                   <div className="gba:flex gba:justify-between gba:mb-1">
-                    <Text>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} €{formatAmount(dashboardData.teamBudget?.used ?? 0)}</Text>
-                    <Text>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} €{formatAmount(dashboardData.teamBudget?.total ?? 0)}</Text>
+                    <Text>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} €{formatNumberFunction(dashboardData.teamBudget?.used.toString() ?? 0, "0.00[,]00")}</Text>
+                    <Text>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} €{formatNumberFunction(dashboardData.teamBudget?.total.toString() ?? 0, "0.00[,]00")}</Text>
                   </div>
                   <div className="gba:bg-gray-200 gba:rounded-full gba:h-2">
                     <div 
