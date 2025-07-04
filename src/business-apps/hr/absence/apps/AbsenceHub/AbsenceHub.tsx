@@ -194,6 +194,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
               color: ent.type?.objectValue?.color,
               textColor: ent.type?.objectValue?.color,
               daysLeft: ent.available,
+              checkEntitlement: ent.type?.objectValue?.checkEntitlement,
             })
           )
         );
