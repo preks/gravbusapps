@@ -1,85 +1,122 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Output more information for debugging
-echo "Current branch: ${BITBUCKET_BRANCH}"
-echo "PR destination: ${BITBUCKET_PR_DESTINATION_BRANCH:-none}"
-echo "Pipeline type: ${BITBUCKET_PIPELINE_TYPE:-unknown}"
-
-# Setup for Bitbucket Pipelines
-git config --global --add safe.directory /opt/atlassian/pipelines/agent/build 2>/dev/null || true
-
-# Make sure we have the develop branch
-git fetch origin develop
-
-# Check if this is a custom pipeline run (could be CUSTOM or unknown)
-if [[ "${BITBUCKET_PIPELINE_TYPE}" == "CUSTOM" || -z "$BITBUCKET_PR_ID" && -n "$BITBUCKET_PIPELINE_UUID" ]]; then
-  echo "Running as custom pipeline - checking with multiple methods"
+# Function to extract app directory paths from .tsx files
+extract_app_paths() {
+  local input_file="$1"
+  local output_file="$2"
   
-  # Method 1: Direct diff against develop
-  echo "Trying direct diff against develop..."
-  export CHANGED_FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  # Clear the output file
+  > "$output_file"
   
-  # Method 2: Range diff - all commits not in develop
-  if [ -z "$CHANGED_FILES" ]; then
-    echo "Trying range diff against develop..."
-    export CHANGED_FILES=$(git diff --name-only origin/develop..HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  # Check if input file exists and has content
+  if [[ ! -f "$input_file" ]] || [[ ! -s "$input_file" ]]; then
+    echo "No .tsx files to process"
+    return 0
   fi
   
-  # Method 3: Check the last 10 commits
-  if [ -z "$CHANGED_FILES" ]; then
-    echo "Trying last 10 commits..."
-    export CHANGED_FILES=$(git log -10 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
-  fi
+  # Process each .tsx file path and extract the app directory path
+  while IFS= read -r file_path || [[ -n "$file_path" ]]; do
+    # Skip empty lines
+    [[ -z "$file_path" ]] && continue
+    
+    # Extract app directory path using sed
+    # Pattern: src/business-apps/.../apps/[app-name]
+    app_path=$(echo "$file_path" | sed -n 's|\(src/business-apps/.*/apps/[^/]*\).*|\1|p')
+    
+    if [[ -n "$app_path" ]]; then
+      echo "$app_path"
+    fi
+  done < "$input_file" | sort -u > "$output_file"
+}
 
-  # For manual dry run, always show at least one component
-  if [ -z "$CHANGED_FILES" ]; then
-    echo "No changes detected with any method. Showing most recently modified component:"
-    export CHANGED_FILES=$(find src/business-apps -name "*.tsx" | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" | sort -r | head -n 1)
-  fi
+# Determine target branch (for PRs this is auto-set, otherwise use develop)
+TARGET_BRANCH="${BITBUCKET_PR_DESTINATION_BRANCH:-develop}"
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-# For pull requests to develop
-elif [[ "$BITBUCKET_PR_DESTINATION_BRANCH" == "develop" || -n "$BITBUCKET_PR_ID" ]]; then
-  echo "Checking files changed in PR to develop..."
-  export CHANGED_FILES=$(git diff --name-only origin/develop HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+# Create temporary file for raw tsx files
+temp_tsx_file=$(mktemp)
+trap 'rm -f "$temp_tsx_file"' EXIT
+
+# If we're not on a PR and we're running on the target branch itself
+if [[ "$CURRENT_BRANCH" == "$TARGET_BRANCH" && -z "${BITBUCKET_PR_DESTINATION_BRANCH:-}" ]]; then
+  echo "Running on $TARGET_BRANCH branch - detecting changes from recent commits"
+  echo "Current HEAD commit: $(git rev-parse HEAD)"
+  echo "Last commit message: $(git log -1 --pretty=format:'%s')"
   
-  # If no changes found, try fallback method
-  if [ -z "$CHANGED_FILES" ]; then
-    echo "No changes found with direct diff, trying range diff..."
-    export CHANGED_FILES=$(git diff --name-only origin/develop..HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  # Check if HEAD is a merge commit (has more than one parent)
+  parent_count=$(git rev-list --parents -n 1 HEAD | awk '{print NF-1}')
+  echo "Number of parents: $parent_count"
+  
+  if [[ "$parent_count" -gt 1 ]]; then
+    echo "Detected merge commit - using merge-specific commands"
+    
+    # For merge commits, use git show with -m flag to show files from merge
+    echo "Trying git show -m to get files from merge commit..."
+    git show -m --pretty="format:" --name-only HEAD | grep -E '^src/business-apps/.*\.tsx$' > "$temp_tsx_file" || true
+    echo "Files found with git show -m: $(wc -l < "$temp_tsx_file")"
+    
+    # If that doesn't work, try git diff against first parent
+    if [[ ! -s "$temp_tsx_file" ]]; then
+      echo "Trying git diff against first parent..."
+      git diff --name-only HEAD~1 HEAD | grep -E '^src/business-apps/.*\.tsx$' > "$temp_tsx_file" || true
+      echo "Files found with git diff: $(wc -l < "$temp_tsx_file")"
+    fi
+    
+    # If still nothing, try getting files from the merged branch
+    if [[ ! -s "$temp_tsx_file" ]]; then
+      echo "Trying to get files from merged branch..."
+      # Get the merge base and compare with second parent
+      FIRST_PARENT=$(git rev-parse HEAD~1)
+      SECOND_PARENT=$(git rev-list --parents -n 1 HEAD | awk '{print $3}')
+      if [[ -n "$SECOND_PARENT" ]]; then
+        echo "Comparing merge base with second parent: $SECOND_PARENT"
+        git diff --name-only "$FIRST_PARENT".."$SECOND_PARENT" | grep -E '^src/business-apps/.*\.tsx$' > "$temp_tsx_file" || true
+        echo "Files found from merged branch: $(wc -l < "$temp_tsx_file")"
+      fi
+    fi
+  else
+    echo "Regular commit - using standard commands"
+    
+    # Try git show first
+    echo "Trying git show to get changed files..."
+    git show --pretty="format:" --name-only HEAD | grep -E '^src/business-apps/.*\.tsx$' > "$temp_tsx_file" || true
+    echo "Files found with git show: $(wc -l < "$temp_tsx_file")"
+    
+    # If git show doesn't work, try git log
+    if [[ ! -s "$temp_tsx_file" ]]; then
+      echo "Trying git log to get changed files..."
+      git log -1 --name-only --pretty="format:" HEAD | grep -E '^src/business-apps/.*\.tsx$' > "$temp_tsx_file" || true
+      echo "Files found with git log: $(wc -l < "$temp_tsx_file")"
+    fi
   fi
-
-# For regular branch builds, try multiple methods
+  
+  # If still nothing found, look at the last 5 commits
+  if [[ ! -s "$temp_tsx_file" ]]; then
+    echo "No changes in last commit, checking last 5 commits..."
+    git log -5 --name-only --pretty="format:" | grep -E '^src/business-apps/.*\.tsx$' > "$temp_tsx_file" || true
+    echo "Files found in last 5 commits: $(wc -l < "$temp_tsx_file")"
+  fi
 else
-  echo "Checking files changed in this branch..."
-  export CHANGED_FILES=$(git diff --name-only origin/develop..HEAD 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
+  echo "Running against target branch: $TARGET_BRANCH"
   
-  # Fallback to most recent commit if nothing found
-  if [ -z "$CHANGED_FILES" ]; then
-    echo "No changes found with diff, checking latest commit..."
-    export CHANGED_FILES=$(git log -1 --name-only --pretty="format:" 2>/dev/null | grep -E "^src/business-apps/.+/.+/(apps|forms)/.+/.+\.tsx$" || echo "")
-  fi
+  # Fetch the base branch so we can diff against it
+  git fetch origin "${TARGET_BRANCH}:${TARGET_BRANCH}" || echo "Warning: Failed to fetch $TARGET_BRANCH branch"
+  
+  # List only the .tsx files changed between TARGET_BRANCH and HEAD
+  git diff --name-only "${TARGET_BRANCH}...HEAD" | grep -E '^src/business-apps/.*\.tsx$' > "$temp_tsx_file" || true
 fi
 
-# Show what we found
-echo "Files found:"
-echo "$CHANGED_FILES"
+# Extract app directory paths from the changed .tsx files
+echo "Raw .tsx files found:"
+cat "$temp_tsx_file" || echo "No files in temp file"
 
-# Extract the unique app/form directories that were modified
-if [ ! -z "$CHANGED_FILES" ]; then
-  echo "Changed screens detected (DRY RUN - not publishing):"
+extract_app_paths "$temp_tsx_file" "changed-tsx.txt"
 
-  # For each changed file, extract components based on the project folder structure
-  for FILE in $CHANGED_FILES; do
-    # Extract path components based on project rules
-    # Example: src/business-apps/hr/hr-core/apps/employee-directory/EmployeeDirectory.tsx
-    MODULE=$(echo "$FILE" | awk -F'/' '{print $3}')
-    SUB_MODULE=$(echo "$FILE" | awk -F'/' '{print $4}')
-    TYPE=$(echo "$FILE" | awk -F'/' '{print $5}')
-    APP_NAME=$(echo "$FILE" | awk -F'/' '{print $6}')
-                
-    echo "Would publish: /$MODULE/$SUB_MODULE/$TYPE/$APP_NAME"
-  done
+# Handle the results
+if [[ ! -s changed-tsx.txt ]]; then
+  echo "No changed .tsx files found."
 else
-  echo "No screen changes detected."
+  echo "Changed app directories detected:"
+  cat changed-tsx.txt
 fi

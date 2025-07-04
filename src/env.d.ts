@@ -60,7 +60,7 @@ declare global {
           dateTime:{
             'fullDateTime.ISO':string
           }
-        };
+        }
       };
       [key: string]: any;
     };

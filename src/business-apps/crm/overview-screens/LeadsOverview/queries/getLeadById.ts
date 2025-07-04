@@ -109,6 +109,9 @@ export interface LeadData {
       firstName: string;
       lastName: string;
     };
+    ownerOrganization: {
+      name: string;
+    }
   };
   regionRef: string;
   leadRating: {
@@ -150,6 +153,9 @@ export const GET_LEAD_BY_ID = `
       companyName
       rating
       statusRef
+      ownerOrganization{
+        name
+      }
       status {
         id
         code

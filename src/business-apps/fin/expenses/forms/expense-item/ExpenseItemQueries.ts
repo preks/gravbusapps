@@ -1,7 +1,8 @@
-import { showToast } from "./utils/notificationUtils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { useFlowClient } from "@/common/network/flows/useFlowClient";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { showToast } from "../../utils/notificationUtils";
+import { formatDateWithTimezone } from "./utils/dateUtils";
 
 /**
  * Hook for fetching employee rule data
@@ -19,7 +20,7 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
    */
   const fetchEmployeeRule = async (employeeId: string, date: string) => {
     try {
-      const formattedDate = date.substring(0, 23) + date.substring(23).replace('Z', '+0300');
+      const formattedDate = formatDateWithTimezone(date);
       const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`;
       
       return await flowClient.getResource(path);
@@ -48,7 +49,7 @@ export const fetchEmployeeRule = async (employeeId: string, date: string, access
     flowClient.setAccessToken(accessToken);
     
     // Format date as required by the API
-    const formattedDate = date.substring(0, 23) + date.substring(23).replace('Z', '+0300');
+    const formattedDate = formatDateWithTimezone(date);
     const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`;
     
     // Use the getResource method

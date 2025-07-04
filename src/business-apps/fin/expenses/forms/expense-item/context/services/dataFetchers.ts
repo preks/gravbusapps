@@ -2,8 +2,8 @@ import { ExpenseType, CustomField } from "../../types";
 import { getNewTypes, getCustomFields, fetchExpenseData } from "../../ExpenseItemQueries";
 import { prepareExpenseRequestsList } from "../../utils/expenseRequestUtils";
 import { getCurrentActiveUserLocale } from "../../../../../../../common/utils/windowUtils";
-import { showToast } from "../../utils/notificationUtils";
 import dayjs from 'dayjs'
+import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils";
 
 export const fetchExpenseTypes = async (
   groupId: string,

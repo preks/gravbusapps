@@ -21,7 +21,11 @@ export const showToast = (
   });
 };
 
-
+/**
+ * Get default title for notification based on type
+ * @param type Notification type
+ * @returns Translated title
+ */
 const getDefaultTitle = (type: string): string => {
   switch (type) {
     case "success":

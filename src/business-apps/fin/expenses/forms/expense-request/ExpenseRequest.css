@@ -1,0 +1,365 @@
+/* ExpenseRequest component styles */
+.gba\:mainContainer {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  /* padding: 16px; */
+}
+.gba\:formContainer{
+  margin: 0;
+}
+.gba\:headerContainer {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.gba\:titleContainer {
+  flex: 1;
+}
+
+.gba\:headerTitle {
+  margin: 0 !important;
+}
+
+.gba\:headerDivider {
+  margin: 0 0 30px 0 !important;
+}
+
+
+.gba\:sectionTitle {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  line-height: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.gba\:requestTypeButton {
+  height: 96px !important;
+  width: 100% !important;
+  margin-bottom: 16px !important;
+  background-color: #F7F7F7 !important;
+  padding: 0 24px !important;
+  border-radius: 4px !important;
+}
+
+.gba\:requestTypeButtonContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+/* Form styles */
+.gba\:formContent {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.ant-form-item-explain-error {
+  padding-left: 16px;
+  padding-top: 5px;
+}
+
+.gba\:marginBottom16 {
+  margin-bottom: 16px;
+}
+
+.gba\:relativePosition {
+  position: relative;
+}
+
+/* Footer styles */
+.gba\:footerContainer {
+  margin-top: auto;
+  width: 100%;
+}
+
+/* Action buttons container */
+.gba\:actionButtonsContainer {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 0;
+}
+
+
+.gba\:divider {
+  margin: 16px 0;
+}
+
+.gba\:dividerMid{
+  margin:40px 0px 52px 0px;
+}
+
+/* Flex utilities */
+.gba\:flex {
+  display: flex;
+}
+
+.gba\:flex-col {
+  flex-direction: column;
+}
+
+.gba\:flex-grow {
+  flex-grow: 1;
+}
+
+/* Transportation means checkbox styles */
+.gba\:transportationCheckboxGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  background-color: #ffffff;
+}
+.gba\:relativePositionCheckbox {
+  position: relative;
+  border-radius: 4px;
+  padding: 10px 16px;
+}
+
+/* Transportation means form item label padding */
+.gba\:relativePositionCheckbox .ant-form-item-label {
+  padding-bottom: 15px !important;
+  font-weight: 500;
+  font-style: normal;
+  font-size: 14px;
+}
+
+/* Disable textarea resizing for all textareas in the form */
+textarea {
+  resize: none !important;
+}
+
+/* Plan cards container */
+.gba\:planCardsContainer {
+  border-top:2px solid #F7F7F7;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  background-color: #F7F7F7;
+  border-radius: 4px;
+}
+
+/* Search bar container */
+.gba\:searchBarContainer {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 30px;
+}
+
+.gba\:searchBarWithLabelContainer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gba\:planCountText {
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+  white-space: nowrap;
+}
+
+/* Search bar */
+.gba\:searchBar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  border-radius: 40px;
+  padding: 4px 8px;
+  transition: width 0.3s, padding 0.3s, background-color 0.3s;
+  cursor: pointer;
+  width: 44px;
+  border: 2px solid #EBEBEB;
+  background: #EBEBEB;
+  position: relative;
+  overflow: hidden;
+  height: 32px;
+}
+
+.gba\:searchBar.gba\:expanded {
+  width: 300px;
+  cursor: text;
+  border: 2px solid #EBEBEB;
+  background: #F7F7F7;
+  justify-content: flex-start;
+}
+
+.gba\:searchInput {
+  border: none;
+  outline: none;
+  width: 0;
+  opacity: 0;
+  transition: opacity 0.3s, width 0.3s;
+  background-color: transparent;
+  padding-left: 30px;
+  color: #333;
+}
+
+.gba\:searchInput::placeholder {
+  color: rgba(153, 153, 153, 0.7);
+}
+
+.gba\:expanded .gba\:searchInput {
+  width: 100%;
+  opacity: 1;
+}
+
+.gba\:searchIconContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  right: 12px;
+  transition: right 0.3s, left 0.3s;
+}
+
+.gba\:expanded .gba\:searchIconContainer {
+  right: auto;
+  left: 10px;
+}
+
+.gba\:clearIcon {
+  position: absolute;
+  right: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+}
+
+/* No results message */
+.gba\:noResultsMessage {
+  text-align: center;
+  padding: 24px;
+  color: #666;
+  font-size: 14px;
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Selectable plan card styles */
+.gba\:planCardSelectable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gba\:planCardSelectable:hover {
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.gba\:planCardSelectable:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Selected plan section styles */
+.gba\:selectedPlanSection {
+  margin-bottom: 0px;
+}
+
+.gba\:selectedPlanLabel {
+  padding:0 16px;
+  display: block;
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 0;
+  color: #333;
+}
+
+.gba\:selectedPlanDivider {
+  margin: 30px 0 24px 0px;
+}
+
+.gba\:contentDivider {
+  margin: 24px 0;
+}
+
+/* Pagination container */
+.gba\:paginationContainer {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0px;
+  /* border-top: 1px solid #e8e8e8; */
+}
+
+/* Back button styles */
+.gba\:backButton {
+  padding: 0;
+  margin-right: 16px;
+  border: none;
+  background: transparent;
+}
+
+.gba\:backIcon {
+  width: 24px;
+  height: 24px;
+}
+
+.gba\:requestTypeButtonLeft {
+  display: flex;
+  align-items: center;
+}
+
+.gba\:requestTypeIcon {
+  margin-right: 16px;
+}
+
+.gba\:requestTypeText {
+  font-family: 'Roboto', sans-serif;
+  font-size: 18px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.gba\:requestTypeArrow {
+  width: 24px;
+  height: 24px;
+}
+
+.gba\:divider {
+  margin: 16px 0 !important;
+}
+
+.gba\:mainContainer {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 220px); /* Account for header, navigation, and padding */
+}
+
+.gba\:actionContainer {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.gba\:cancelButton {
+  min-width: 100px;
+  border-width: 2px;
+  font-size: 16px;
+  font-weight: 600;
+  height: 40px;
+  padding: 0px 16px;
+  border-radius: 22px !important;
+}
+
+.gba\:submitButton {
+  min-width: 100px;
+  border-width: 2px;
+  font-size: 16px;
+  font-weight: 600;
+  height: 40px;
+  padding: 0px 16px;
+  border-radius: 22px !important;
+  width:auto
+}
