@@ -6,7 +6,13 @@ import dotenv from "@dotenvx/dotenvx";
 import { BlobServiceClient } from "@azure/storage-blob";
 import { glob } from "glob";
 import inquirer from "inquirer";
-import { addAppResourceUrl, addCustomResourceUrl, addScreenConfigToScreenManagement } from "./api-client.js";
+import {
+  addAppResourceUrl,
+  addCustomResourceUrl,
+  addFormAsLandingScreen,
+  addFormAsUserTaskScreen,
+  addScreenConfigToScreenManagement,
+} from "./api-client.js";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
@@ -18,6 +24,66 @@ dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 const AZURE_STORAGE_ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT;
 const AZURE_STORAGE_SAS_TOKEN = process.env.AZURE_STORAGE_SAS_TOKEN;
 const AZURE_CONTAINER_NAME = process.env.AZURE_BLOB_CONTAINER_NAME || "screens";
+
+// Helper function to detect if the screen is a form
+function isFormScreen(screenPath) {
+  return screenPath.includes("/forms/");
+}
+
+// Helper function to handle form screen publishing
+async function handleFormScreenPublishing(azureDestinationPath) {
+  console.log("📋 Form detected - using form-specific publishing flow");
+
+  // Ask if it's a landing screen or user task screen
+  const formTypeAnswer = await inquirer.prompt([
+    {
+      type: "list",
+      name: "formType",
+      message: "Is this a landing screen or a user task screen?",
+      choices: ["Landing Screen", "User Task Screen"],
+    },
+  ]);
+
+  if (formTypeAnswer.formType === "Landing Screen") {
+    // Handle landing screen
+    const processNameAnswer = await inquirer.prompt([
+      {
+        type: "input",
+        name: "processName",
+        message: "Please enter the name of the process in camelCase:",
+        validate: (input) => !!input.trim() || "Process name cannot be empty",
+      },
+    ]);
+
+    const processName = processNameAnswer.processName.trim();
+    // Use api-client.js function instead of local logic
+    await addFormAsLandingScreen(processName, azureDestinationPath);
+  } else {
+    // Handle user task screen
+    const processNameAnswer = await inquirer.prompt([
+      {
+        type: "input",
+        name: "processName",
+        message: "Please enter the name of the process in camelCase:",
+        validate: (input) => !!input.trim() || "Process name cannot be empty",
+      },
+    ]);
+
+    const taskNameAnswer = await inquirer.prompt([
+      {
+        type: "input",
+        name: "taskName",
+        message: "Please enter the name of the user task in camelCase:",
+        validate: (input) => !!input.trim() || "Task name cannot be empty",
+      },
+    ]);
+
+    const processName = processNameAnswer.processName.trim();
+    const taskName = taskNameAnswer.taskName.trim();
+    // Use api-client.js function instead of local logic
+    await addFormAsUserTaskScreen(processName, taskName, azureDestinationPath);
+  }
+}
 
 function getContentType(fileName) {
   const ext = path.extname(fileName).toLowerCase();
@@ -54,17 +120,20 @@ async function checkIfFirstTimePublish(azureDestinationPath) {
 
   const blobServiceUrl = `https://${AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/?${AZURE_STORAGE_SAS_TOKEN}`;
   const blobServiceClient = new BlobServiceClient(blobServiceUrl);
-  const containerClient = blobServiceClient.getContainerClient(AZURE_CONTAINER_NAME);
+  const containerClient =
+    blobServiceClient.getContainerClient(AZURE_CONTAINER_NAME);
 
   try {
     // Check if index.js exists at the target path
     const blobName = `${azureDestinationPath}/index.js`.replace(/\\/g, "/");
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-    
+
     const exists = await blockBlobClient.exists();
     return !exists; // Return true if the file doesn't exist (first time publish)
   } catch (error) {
-    console.log("🔍 Checking if first time publish: error occurred, assuming first time");
+    console.log(
+      "🔍 Checking if first time publish: error occurred, assuming first time"
+    );
     return true; // If error occurs, assume it's first time publish
   }
 }
@@ -169,14 +238,14 @@ async function publishMainCss() {
 
 // Parse command line arguments
 const argv = yargs(hideBin(process.argv))
-  .option('resource', {
-    alias: 'r',
-    description: 'Resource URL mode - enable prompts for creating resource URLs',
-    type: 'boolean',
-    default: false
+  .option("resource", {
+    alias: "r",
+    description:
+      "Resource URL mode - enable prompts for creating resource URLs",
+    type: "boolean",
+    default: false,
   })
-  .help()
-  .argv;
+  .help().argv;
 
 async function main() {
   let screenPathArg = process.argv[2];
@@ -203,7 +272,7 @@ async function main() {
   if (screenPathArg.startsWith("/")) {
     screenPathArg = screenPathArg.substring(1);
   }
-  
+
   // Fix Git Bash path issue: detect and handle C:/Program Files/Git prefix
   if (screenPathArg.startsWith("C:/Program Files/Git/")) {
     screenPathArg = screenPathArg.substring("C:/Program Files/Git/".length);
@@ -359,14 +428,16 @@ async function main() {
   const buildEnv = {
     ...process.env,
     PROJECT_ROOT_DIR: projectRootDir,
-    VITE_GIT_USER: process.env.VITE_GIT_USER || execSync("git config user.name").toString().trim(),
+    VITE_GIT_USER:
+      process.env.VITE_GIT_USER ||
+      execSync("git config user.name").toString().trim(),
     VITE_PUBLISH_TIME: new Date().toISOString(),
     TARGET_ENTRY_FILE: sourceEntryFile,
     TARGET_ENTRY_KEY: viteEntryKey,
     TEMP_INDEX_CSS: tempIndexCssPath.replace(/\\/g, "/"),
-    SINGLE_SCREEN_CSS: "true"
+    SINGLE_SCREEN_CSS: "true",
   };
-  
+
   const viteBuildCommand = `vite build`;
 
   console.log(`   Executing: ${viteBuildCommand} with environment variables`);
@@ -389,7 +460,9 @@ async function main() {
   }
 
   // Check if this is the first time publishing the screen
-  const isFirstTimePublish = await checkIfFirstTimePublish(azureDestinationPath);
+  const isFirstTimePublish = await checkIfFirstTimePublish(
+    azureDestinationPath
+  );
 
   await uploadDirectory(buildOutputDir, azureDestinationPath);
   console.log("✅ Screen JS published successfully to Azure!");
@@ -397,86 +470,123 @@ async function main() {
   const cssOutputDir = path.join(projectRootDir, "dist", "assets");
   await uploadDirectory(cssOutputDir, azureDestinationPath);
   console.log("✅ Screen CSS published successfully to Azure!");
-  
-  // Handle resource URL addition based on flags and first-time publish
-  let shouldAddResourceUrl = false;
-  
-  if (argv.resource || isFirstTimePublish) {
-    if (isFirstTimePublish) {
-      console.log("🆕 First time publishing this screen - resource URL prompt enabled");
+
+  // Handle different publishing flows for forms vs regular screens
+  if (isFormScreen(screenPathArg)) {
+    // For forms, use form-specific publishing flow only on first-time publish or with --resource flag
+    if (isFirstTimePublish || argv.resource) {
+      console.log(isFirstTimePublish 
+        ? "🆕 First time publishing this form - prompting for screen type" 
+        : "🔄 Resource flag enabled - prompting for screen type");
+      await handleFormScreenPublishing(azureDestinationPath);
+    } else {
+      console.log("⏩ Skipping form screen configuration (not first-time publish and no --resource flag)");
     }
-    
-    // Ask user if they want to add resource URL
-    const addResourceUrlAnswer = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'shouldAdd',
-        message: 'You can add this screen as a resource URL of the format "/apps/hr/employee-directory". Would you like to add it?',
-        default: true
-      }
-    ]);
-    shouldAddResourceUrl = addResourceUrlAnswer.shouldAdd;
   } else {
-    console.log("⏩ Skipping resource URL addition (direct publish mode)");
-  }
+    // For regular screens, use standard resource URL flow
+    // Handle resource URL addition based on flags and first-time publish
+    let shouldAddResourceUrl = false;
 
-  if (shouldAddResourceUrl) {
-    try {
-      await addAppResourceUrl(azureDestinationPath);
-    } catch (error) {
-      console.error("Failed to add resource URL:", error.message);
+    if (argv.resource || isFirstTimePublish) {
+      if (isFirstTimePublish) {
+        console.log(
+          "🆕 First time publishing this screen - resource URL prompt enabled"
+        );
+      }
+
+      // Ask user if they want to add resource URL
+      const addResourceUrlAnswer = await inquirer.prompt([
+        {
+          type: "confirm",
+          name: "shouldAdd",
+          message:
+            'You can add this screen as a resource URL of the format "/apps/hr/employee-directory". Would you like to add it?',
+          default: true,
+        },
+      ]);
+      shouldAddResourceUrl = addResourceUrlAnswer.shouldAdd;
+    } else {
+      console.log("⏩ Skipping resource URL addition (direct publish mode)");
     }
-  }
 
-  // Handle custom URL addition on first-time publish or if resource flag is provided
-  let shouldAddCustomUrl = false;
-  
-  if (isFirstTimePublish || argv.resource) {
-    // Ask user if they want to add a custom URL
-    const addCustomUrlAnswer = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'shouldAdd',
-        message: 'You can add this screen as a resource URL with any URL path you want. Would you like to add it?',
-        default: false
+    if (shouldAddResourceUrl) {
+      try {
+        await addAppResourceUrl(azureDestinationPath);
+      } catch (error) {
+        console.error("Failed to add resource URL:", error.message);
       }
-    ]);
-    shouldAddCustomUrl = addCustomUrlAnswer.shouldAdd;
-  } else {
-    console.log("⏩ Skipping custom URL addition (not first-time publish and no --resource flag)");
-  }
+    }
 
-  if (shouldAddCustomUrl) {
-    const customUrlInput = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'customUrl',
-        message: 'Please enter the custom URL path (e.g., "/hr/employee-directory"):',
-        validate: (input) => {
-          if (input.trim() === '') {
-            return 'Path cannot be empty';
-          }
-          return true;
+    // Handle custom URL addition on first-time publish or if resource flag is provided
+    let shouldAddCustomUrl = false;
+
+    if (isFirstTimePublish || argv.resource) {
+      // Ask user if they want to add a custom URL
+      const addCustomUrlAnswer = await inquirer.prompt([
+        {
+          type: "confirm",
+          name: "shouldAdd",
+          message:
+            "You can add this screen as a resource URL with any URL path you want. Would you like to add it?",
+          default: false,
+        },
+      ]);
+      shouldAddCustomUrl = addCustomUrlAnswer.shouldAdd;
+    } else {
+      console.log(
+        "⏩ Skipping custom URL addition (not first-time publish and no --resource flag)"
+      );
+    }
+
+    if (shouldAddCustomUrl) {
+      const customUrlInput = await inquirer.prompt([
+        {
+          type: "input",
+          name: "customUrl",
+          message:
+            'Please enter the custom URL path (e.g., "/hr/employee-directory"):',
+          validate: (input) => {
+            if (input.trim() === "") {
+              return "Path cannot be empty";
+            }
+            return true;
+          },
+          name: "customUrl",
+          message:
+            'Please enter the custom URL path (e.g., "/hr/employee-directory"):',
+          validate: (input) => {
+            if (input.trim() === "") {
+              return "Path cannot be empty";
+            }
+            return true;
+          },
+        },
+      ]);
+
+      const customUrlPath = customUrlInput.customUrl.trim();
+
+      try {
+        // Add custom URL to navigation
+        const resourceAdded = await addCustomResourceUrl(
+          customUrlPath.startsWith("/")
+            ? customUrlPath.substring(1)
+            : customUrlPath
+        );
+
+        // If resource was added or already exists, add screen config
+        if (resourceAdded) {
+          await addScreenConfigToScreenManagement(
+            azureDestinationPath,
+            customUrlPath.startsWith("/")
+              ? customUrlPath.substring(1)
+              : customUrlPath
+          );
         }
+      } catch (error) {
+        console.error("Failed to set up custom URL:", error.message);
       }
-    ]);
-
-    const customUrlPath = customUrlInput.customUrl.trim();
-    
-    try {
-      // Add custom URL to navigation
-      const resourceAdded = await addCustomResourceUrl(customUrlPath.startsWith('/') ? customUrlPath.substring(1) : customUrlPath);
-      
-      // If resource was added or already exists, add screen config
-      if (resourceAdded) {
-        await addScreenConfigToScreenManagement(azureDestinationPath, customUrlPath.startsWith('/') ? customUrlPath.substring(1) : customUrlPath);
-      }
-    } catch (error) {
-      console.error("Failed to set up custom URL:", error.message);
     }
   }
-
-  // All API functionality has been moved to api-client.js and implemented above
 }
 
 main().catch((error) => {
