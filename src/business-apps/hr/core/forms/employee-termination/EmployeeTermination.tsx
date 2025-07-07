@@ -11,9 +11,6 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = (props) =>
   const employeeId = additionalData?.employeeId || 
     (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get("id") : null);
 
-  console.log('🔍 EmployeeTermination - Employee ID:', employeeId);
-  console.log('📊 EmployeeTermination - Additional Data:', additionalData);
-
   if (!accessToken) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
