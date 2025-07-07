@@ -44,8 +44,8 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
     const handler = async (event: any) => {
       try {
         const response = event.detail?.response;
-        const salesActivity = response?.salesActivity;
-        if (!salesActivity) return;
+        const salesTask = response?.salesTask;
+        if (!salesTask) return;
         // File upload
         const uploadFile = fileList && fileList[0];
         if (!uploadFile || !uploadFile.originFileObj) {
@@ -56,24 +56,24 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
         const pathParams = { accessScope: 'public' };
         const queryParams = {
           appName: 'crm',
-          folderPath: `/sales-activities/${salesActivity.id}/documents`,
+          folderPath: `/sales-activities/${salesTask.id}/documents`,
         };
         const uploadResponse = await fileClient.uploadFile(
           file,
           pathParams,
           queryParams
         );
-        // POST to saveSalesActivity
+        // POST to savesalesTask
         const crmDocumentPayload = {
           crmDocument: {
             name: file.name,
-            description: `File for ${salesActivity.title}`,
+            description: `File for ${salesTask.title}`,
             file: uploadResponse.fileInfo.fileId,
             fileSize: file.size,
             mimeType: file.type,
             verified: true,
             verificationDate: Date.now(),
-            lead: additionalData?.leadId,
+            salesTask: salesTask.id,
             version: 0,
           },
           changeMode: 'INSERT',

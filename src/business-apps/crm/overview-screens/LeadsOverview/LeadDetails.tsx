@@ -216,7 +216,7 @@ interface ReferenceData {
 }
 
 const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
-  const { leadId } = props;
+  const { leadId, additionalData } = props;
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isEditingCompanyInfo, setIsEditingCompanyInfo] = useState<boolean>(false);
   const [isEditingContactInfo, setIsEditingContactInfo] = useState<boolean>(false);
@@ -2678,9 +2678,9 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
                   onClick={() => {
                     startProcess({
                       domain: 'customer-relations',
-                      processName: 'saveSalesTask',
+                      processName: 'saveSalesActivity',
                       payload: {
-                        leadId
+                        leadId,
                       },
                       builderType: 'NATIVE_SCREEN',
                     })
