@@ -209,30 +209,43 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
    * Fetches the last published date for a business app from Azure Storage
    */
   const fetchLastPublishedDate = async (app: BusinessAppInfo) => {
+    if (!app.module) {
+      setLastPublishedDate("");
+      return;
+    }
+
+    const businessAppPath = `/${app.module}/${app.subModule || ""}`;
+    const timestamp = Date.now();
+    const url = `https://${process.env.AZURE_STORAGE_ACCOUNT}.blob.core.windows.net/screens${businessAppPath}/index.js?t=${timestamp}`;
+
     try {
-      const encodedPath = encodeURIComponent(
-        app.path.replace("./business-apps/", "")
-      );
-      const url = `https://businessappstorage.blob.core.windows.net/business-apps-published/${encodedPath}`;
+      // Note: CORS must be enabled on Azure Storage to allow these requests
+      const response = await fetch(url, {
+        method: "GET",
+        mode: "cors", // This requires proper CORS configuration on Azure Storage
+      });
 
-      const response = await fetch(url, { method: "HEAD" });
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
 
-      if (response.ok) {
-        const lastModified = response.headers.get("Last-Modified");
-        if (lastModified) {
-          const date = new Date(lastModified);
-          const formattedDate = date.toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-          setLastPublishedDate(formattedDate);
-        }
+      const lastModified = response.headers.get("Last-Modified");
+      if (lastModified) {
+        const date = new Date(lastModified);
+        const formattedDate = date.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        setLastPublishedDate(formattedDate);
+      } else {
+        setLastPublishedDate("");
       }
     } catch (error) {
       console.warn(`Failed to fetch last published date for ${app.name}:`, error);
+      setLastPublishedDate("");
     }
   };
 
