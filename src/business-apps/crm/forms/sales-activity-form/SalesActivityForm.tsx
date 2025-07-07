@@ -151,7 +151,7 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
   };
 
   const handleCancel = () => {
-    dispatchProcessContinueEvent('pse_cancel', {});
+    dispatchProcessContinueEvent('pse_pause', {});
   };
 
   const handleFileChange = ({ fileList: newFileList }: any) => {

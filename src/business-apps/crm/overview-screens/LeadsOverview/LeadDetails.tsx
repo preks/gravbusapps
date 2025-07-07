@@ -1568,6 +1568,32 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
             >
               Schedule Meeting
             </Button>
+            <Button 
+              type="primary"
+              style={{
+                backgroundColor: '#000000',
+                borderColor: '#000000',
+                height: '36px',
+                padding: '0 16px',
+                fontWeight: 'normal',
+                fontSize: '14px',
+                borderRadius: '4px'
+              }}
+              data-testid="convert-to-opportunity-button"
+              onClick={() => {
+                startProcess({
+                  domain: 'customer-relations',
+                  processName: 'convertLeadToOpportunity',
+                  payload: {
+                    leadId,
+                    employeeId: additionalData?.employeeId
+                  },
+                  builderType: 'NATIVE_SCREEN',
+                });
+              }}
+            >
+              Convert to Opportunity
+            </Button>
           </div>
         </div>
       </div>
