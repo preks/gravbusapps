@@ -160,7 +160,9 @@ const CompanyOverview: React.FC<BusinessAppContextProps> = ({ userInfo, accessTo
     setLoading(true);
     setError(null);
     try {
-      const whereCondition: any = {}; 
+      const whereCondition: any = {
+        isDeleted: { _eq: false } 
+      }; 
       if (currentSearchText.trim()) {
         const searchTextPattern = { _iregex: currentSearchText.trim() };
         whereCondition._or = [

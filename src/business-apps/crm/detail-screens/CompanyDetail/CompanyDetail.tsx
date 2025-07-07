@@ -19,8 +19,10 @@ import {
   Modal,
   Upload,
   List,
+  Checkbox,
   Pagination
 } from 'antd';
+import type { CheckboxChangeEvent } from 'antd/es/checkbox';
 import {
   ArrowLeftOutlined,
   EditOutlined,
@@ -50,11 +52,11 @@ import {
 } from "../../overview-screens/CompanyOverview/graphql/company-queries";
 import { GET_SALES_ACTIVITIES, SalesActivityResponse } from './queries/salesActivityQueries';
 import { GET_DOCUMENTS_BY_ACCOUNT, GetDocumentsResponse, DocumentData } from './queries/documentQueries';
+import { useSalesActivityTypes } from './hooks/useSalesActivityTypes';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { useFileClient } from '@/common/network/files/useFileClient';
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { env } from '@/common/env/EnvUtils';
-import { fileClient } from '@/common/network/files/FileClient';
-
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -91,6 +93,11 @@ interface Activity {
   outcome?: string;
   agent?: string;
   cc?: string;
+  completedAt?: string | null;
+  activityType?: {
+    id: string;
+    value: string;
+  };
 }
 
 interface Contact {
@@ -194,62 +201,33 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
   const [addingActivity, setAddingActivity] = useState<boolean>(false);
   const [activities, setActivities] = useState<Activity[]>([]);
   
+  // Document upload states
   const [documentModalVisible, setDocumentModalVisible] = useState<boolean>(false);
-  const [analysisInProgress, setAnalysisInProgress] = useState<boolean>(false);
-  const [analysisModalVisible, setAnalysisModalVisible] = useState<boolean>(false);
-  const [currentMessageIndex, setCurrentMessageIndex] = useState<number>(0);
-  
-  const analysisMessages = [
-    'Uploading document to analysis engine...',
-    'Processing document structure...',
-    'Extracting financial data from document...',
-    'Identifying key financial metrics and figures...',
-    'Analyzing financial statements...',
-    'Detecting currency and accounting standards...',
-    'Comparing with historical data...',
-    'Extracting balance sheet information...',
-    'Analyzing income statement data...',
-    'Calculating financial ratios...',
-    'Identifying fiscal periods...',
-    'Finalizing financial document analysis...',
-  ];
-  
-  // State for message fade animation
-  const [messageVisible, setMessageVisible] = useState<boolean>(true);
-  
-  
-  useEffect(() => {
-    let intervalId: number | null = null;
-    
-    if (analysisInProgress && analysisModalVisible) {
-      intervalId = window.setInterval(() => {
-        // First fade out the current message
-        setMessageVisible(false);
-        
-        // After fade out is complete, change the message and fade in
-        setTimeout(() => {
-          setCurrentMessageIndex((prevIndex) => 
-            (prevIndex + 1) % analysisMessages.length
-          );
-          setMessageVisible(true);
-        }, 500); // Wait for fade out animation to complete
-      }, 4000); // Increased from 3000 to allow time for animations
-    }
-    
-    return () => {
-      if (intervalId !== null) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [analysisInProgress, analysisModalVisible, analysisMessages.length]);
-  
   const [documentForm] = Form.useForm();
   const [uploadingDocument, setUploadingDocument] = useState<boolean>(false);
   const [documents, setDocuments] = useState<Document[]>([]);
+  
+  // Document analysis states
+  const [analysisModalVisible, setAnalysisModalVisible] = useState<boolean>(false);
+  const [analysisInProgress, setAnalysisInProgress] = useState<boolean>(false);
+  const [messageVisible, setMessageVisible] = useState<boolean>(true);
+  const [currentMessageIndex, setCurrentMessageIndex] = useState<number>(0);
+  
+  // Pagination states
   const [currentDocumentPage, setCurrentDocumentPage] = useState<number>(1);
-  const documentsPerPage = 3;
+  const documentsPerPage = 5;
+  
+  // Analysis messages for the loading modal
+  const analysisMessages = [
+    getTranslationFromI18nKeyAndLabel('AnalyzingDocument', 'Analyzing document structure and content...'),
+    getTranslationFromI18nKeyAndLabel('ExtractingFinancialData', 'Extracting financial data and metrics...'),
+    getTranslationFromI18nKeyAndLabel('GeneratingInsights', 'Generating insights and summaries...'),
+    getTranslationFromI18nKeyAndLabel('FinalizingResults', 'Finalizing results and updating records...')
+  ];
 
   const graphQLClient = useGraphqlClient(accessToken);
+  const fileClient = useFileClient({ accessToken } as any);
+  const { activityTypes, loading: activityTypesLoading } = useSalesActivityTypes(accessToken);
 
   const handleAddDocument = () => {
     documentForm.resetFields();
@@ -366,20 +344,27 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
       );
 
       if (result && result.SalesActivity) {
-        const formattedActivities = result.SalesActivity.map(activity => ({
-          id: activity.id,
-          version: activity.version,
-          title: activity.title,
-          date: new Date(activity.createdAt).toLocaleString(getCurrentActiveUserLocale(), {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          }),
-          description: activity.description
-        }));
+        const formattedActivities = result.SalesActivity.map(activity => {
+          return {
+            id: activity.id,
+            version: activity.version,
+            title: activity.title,
+            date: new Date(activity.createdAt).toLocaleString(getCurrentActiveUserLocale(), {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            description: activity.description,
+            completedAt: activity.completedAt,
+            activityType: activity.activityType
+          };
+        });
+        
         setActivities(formattedActivities);
+        
+        setActivities([...formattedActivities]);
       }
     } catch (error) {
       console.error('Failed to fetch sales activities:', error);
@@ -545,6 +530,20 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
     }
   }, [companyData?.id]);
 
+  useEffect(() => {
+    if (analysisInProgress) {
+      const interval = setInterval(() => {
+        setMessageVisible(false);
+        setTimeout(() => {
+          setCurrentMessageIndex((prev) => (prev + 1) % analysisMessages.length);
+          setMessageVisible(true);
+        }, 200);
+      }, 3000);
+
+      return () => clearInterval(interval);
+    }
+  }, [analysisInProgress, analysisMessages.length]);
+
   React.useEffect(() => {
     if (isEditing && companyData) {
       setEditedData({ ...companyData });
@@ -687,6 +686,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
           title: values.title,
           description: values.description,
           account: companyData.id,
+          activityTypeRef: values.type
         }
       };
 
@@ -714,7 +714,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
       if (response.ok) {
         message.success('Activity added successfully');
         setActivityModalVisible(false);
-        // Refresh activities list
         if (companyData.id) {
           fetchActivities(companyData.id);
         }
@@ -734,7 +733,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
     activityForm.resetFields();
   };
 
-  // Handle deletion of an activity
   const handleDeleteActivity = async (activity: Activity) => {
     try {
       const response = await fetch(`${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveSalesActivity`, {
@@ -748,6 +746,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
           salesActivity: {
             id: activity.id,
             version: activity.version,
+            account: companyData.id
           }
         })
       });
@@ -757,12 +756,53 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
         throw new Error(`Failed to delete activity: ${errorData}`);
       }
       
-      // On success, remove the activity from our local state
       setActivities(prevActivities => {
         return prevActivities.filter(a => a.id !== activity.id);
       });
     } catch (error) {
       console.error('Error deleting activity:', error);
+    }
+  };
+
+  const handleMarkActivityComplete = async (activity: Activity, completed: boolean) => {
+    try {
+      const now = new Date().toISOString();
+      const completedAt = completed ? now : null;
+      
+      let salesActivity: any = {
+        id: activity.id,
+        version: activity.version,
+        account: companyData.id
+      };
+      
+      if (completed) {
+        salesActivity.completedAt = now;
+      } else {
+        salesActivity.completedAt = "";
+      }
+      
+      const payload = {
+        changeMode: "UPDATE",
+        salesActivity
+      };
+      
+      const response = await fetch(`${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveSalesActivity`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to update activity: ${errorData}`);
+      }
+      
+      await fetchActivities(companyData.id);
+    } catch (error) {
+      console.error('Error updating activity:', error);
     }
   };
 
@@ -1329,11 +1369,27 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
                   <Timeline>
                     {activities.length > 0 ? (
                       activities.map((activity, index) => (
-                        <Timeline.Item key={activity.id || index} color="blue">
+                        <Timeline.Item key={activity.id || index} color={activity.completedAt ? "green" : "blue"}>
                           <div style={{ position: 'relative' }}>
-                            <Text strong>{activity.title}</Text>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Text strong style={activity.completedAt ? { opacity: 0.6 } : {}}>{activity.title}</Text>
+                            </div>
                             <div><Text type="secondary">{activity.date}</Text></div>
-                            <div>{activity.description}</div>
+                            {activity.activityType && (
+                              <div><Text type="secondary" style={{ color: '#1890ff' }}>{activity.activityType.value}</Text></div>
+                            )}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                              <div style={{ flex: 1 }}>{activity.description}</div>
+                              <Checkbox 
+                                checked={!!activity.completedAt}
+                                disabled={!!activity.completedAt}
+                                onChange={(e: CheckboxChangeEvent) => handleMarkActivityComplete(activity, e.target.checked)}
+                                data-testid={`complete-activity-${activity.id}`}
+                                style={{ marginLeft: '16px' }}
+                              >
+                                Done
+                              </Checkbox>
+                            </div>
                             {activity.duration && (
                               <div>Duration: {activity.duration}</div>
                             )}
@@ -1692,6 +1748,24 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
                   rules={[{ required: true, message: 'Please enter a title' }]}
                 >
                   <Input placeholder="Activity title" />
+                </Form.Item>
+                <Form.Item
+                  name="type"
+                  label="Type"
+                  rules={[{ required: true, message: 'Please select an activity type' }]}
+                >
+                  <Select
+                    placeholder="Select activity type"
+                    loading={activityTypesLoading}
+                    data-testid="activity-type-select"
+                    dropdownStyle={{ zIndex: 10000 }}
+                  >
+                    {activityTypes.map(type => (
+                      <Option key={type.id} value={type.id} data-testid={`activity-type-option-${type.id}`}>
+                        {type.value}
+                      </Option>
+                    ))}
+                  </Select>
                 </Form.Item>
 
                 <Form.Item

@@ -56,8 +56,6 @@ export function useAccountsData(accessToken: string): UseAccountsDataResult {
         };
       }
 
-      console.log("Fetching accounts with search:", currentSearchText, "Where condition:", whereCondition);
-
       const response = await graphQLClient.request(
         getAccountsQuery,
         {
