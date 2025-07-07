@@ -424,20 +424,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             }
           },
           filterLabelMap: filterLabelMap,
-          listTitle: 'Expense Plans',
+          listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans'),
           listAmount: totalCount ? `${totalCount}` : undefined,
-          actions: hasActiveFilters ? [
-            <Button 
-              key="clear-filters"
-              type="text" 
-              icon={<ClearOutlined />} 
-              onClick={handleClearFilters}
-              className="gba:ml-2"
-              data-testid="clear-filters-button"
-            >
-              Clear filters
-            </Button>
-          ] : [],
+          actions: [],
         }}
         dataFilterProps={{
           filterGroups: filterGroups,
