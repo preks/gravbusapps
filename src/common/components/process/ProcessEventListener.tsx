@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useProcessListener } from '../hooks/useProcessListener';
+import { useProcessListener } from '../../hooks/useProcessListener';
 
 export interface ProcessLocalDevEvent {
   domain: string;
