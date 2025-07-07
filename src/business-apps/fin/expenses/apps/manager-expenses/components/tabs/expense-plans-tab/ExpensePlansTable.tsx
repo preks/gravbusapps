@@ -237,7 +237,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   // Table columns definition
   const columns = [
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.plan', 'Plan'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.plan_info_pl', 'Plans'),
       dataIndex: 'title',
       key: 'title',
       render: (value: any, record: any) => {

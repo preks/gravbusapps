@@ -10,8 +10,7 @@ import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilter
 import { getExpenseRequestStatusDisplay } from '../../../utils';
 import ExpenseRequestDetails from './ExpenseRequestDetails';
 import { ensureShortDateFormat } from '../../../utils/dateUtils';
-import { formatAmount } from '../../../utils/currencyUtils';
-import { formatNumberFunction } from '@/common/utils/windowUtils';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const { Text } = Typography;
 
@@ -153,7 +152,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   // Define table columns
   const columns = [
     {
-      title: 'Request',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.request', 'Request'),
       dataIndex: 'title',
       key: 'title',
       render: (text: string, record: ExpenseRequest) => (
@@ -165,13 +164,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
             </div>
           )}
           <div className="gba:text-xs gba:text-gray-500">
-            Ref: {record.code ?? 'N/A'} | Submitted: {ensureShortDateFormat(record.requestDate)}
+            Ref: {record.code ?? 'N/A'} | {getTranslationFromI18nKeyAndLabel('lowcoder:expense_report_list.submitted', 'Submitted')}: {ensureShortDateFormat(record.requestDate)}
           </div>
         </div>
       )
     },
     {
-      title: 'Employee',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
       dataIndex: 'employee',
       key: 'employee',
       render: (employee: ExpenseRequest['employee']) => (
@@ -189,7 +188,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       )
     },
     {
-      title: 'Amount',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       align: 'right' as const,
@@ -200,7 +199,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       )
     },
     {
-      title: 'Status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => {
@@ -352,7 +351,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         },
         placeholder: 'Search by request title, code, employee...', 
         filterLabelMap,
-        listTitle: 'Expense Requests',
+        listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests'),
         listAmount: totalCount,
         debounceDelay: 300,
       }}

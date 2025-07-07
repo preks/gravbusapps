@@ -10,7 +10,6 @@ import AdvancePaymentDetails from './AdvancePaymentDetails';
 import { useMainViewAdvancePayments, type AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../../utils';
 import { formatDate, formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatAmount } from '../../../utils/currencyUtils';
 import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters';
 
 const { Text } = Typography;
@@ -246,7 +245,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             setStatusFilter(newFilters.length > 0 ? newFilters[0] : null);
           },
           filterLabelMap: filterLabelMap,
-          listTitle: 'Advance Payments',
+          listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments'),
           listAmount: totalCount ? `${totalCount}` : undefined,
         }}
         dataFilterProps={{

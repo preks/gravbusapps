@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Row, Col, Card, Statistic, Spin, Alert, Typography } from 'antd';
-import { PiChartBar, PiCurrencyEur, PiUsers, PiClipboardText, PiListChecks, PiChartLineUp, PiFileText, PiShieldCheck } from 'react-icons/pi';
+import { PiChartBar, PiCurrencyEur, PiUsers, PiClipboardText, PiListChecks, PiChartLineUp, PiFileText } from 'react-icons/pi';
 import { useGetExpenseDashboard } from '../../../hooks/useGetExpenseDashboard';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import ExpenseTrendsChart from './components/ExpenseTrendsChart';
@@ -120,14 +120,14 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
       </Row>
       
       {/* Quick Actions Section */}
-      <Title level={5} className="gba:mt-8 gba:mb-4">Quick Actions</Title>
+      <Title level={5} className="gba:mt-8 gba:mb-4">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.quick_actions', 'Quick Actions')}</Title>
       <Row gutter={[16, 16]}>
         {
           [
             {
               key: 'approvals',
               title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.review_approvals', 'Review Approvals'),
-              description: 'Process pending expense requests.',
+              description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.process_pending_expense_requests', 'Process pending expense requests.'),
               icon: <PiListChecks className="gba:text-2xl gba:text-blue-500" />,
               onClick: () => setApprovalsModalVisible(true),
               'data-testid': 'review-approvals-action',
@@ -135,7 +135,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
             {
               key: 'analysis',
               title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_spending_analysis', 'Team Spending Analysis'),
-              description: 'View spending trends and reports.',
+              description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.view_spending_trends_and_reports', 'View spending trends and reports.'),
               icon: <PiChartLineUp className="gba:text-2xl gba:text-green-500" />,
               onClick: () => setAnalyticsModalVisible(true),
               'data-testid': 'team-spending-analysis-action',
@@ -143,7 +143,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
             {
               key: 'reports',
               title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.absence_same_location_btn', 'Expense Reports'),
-              description: 'Generate or view team expense reports.',
+              description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.generate_or_view_team_expense_reports', 'Generate or view team expense reports.'),
               icon: <PiFileText className="gba:text-2xl gba:text-purple-500" />,
               onClick: () => setReportsModalVisible(true),
               'data-testid': 'expense-reports-action'
@@ -199,7 +199,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
               </ul>
             ) : (
               <div className="gba:py-8 gba:text-center">
-                <Text type="secondary">No recent expense requests</Text>
+                <Text type="secondary">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_recent_expense_requests', 'No recent expense requests')}</Text>
               </div>
             )}
           </Card>
@@ -213,7 +213,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
             {dashboardData?.teamBudget ? (
               <div>
                 <Statistic
-                  title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_budget_used', 'Budget Used')}
+                  title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.budget_used', 'Budget Used')}
                   value={dashboardData.teamBudget.total > 0 ? ((dashboardData.teamBudget.used / dashboardData.teamBudget.total) * 100) : 0}
                   precision={1}
                   suffix="%"
@@ -232,7 +232,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
                 </div>
               </div>
             ) : (
-              <Text type="secondary">No budget data available</Text>
+              <Text type="secondary">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_budget_data_available', 'No budget data available')}</Text>
             )}
           </Card>
         </Col>

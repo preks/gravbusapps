@@ -77,7 +77,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <PiCalendarBlank style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Expense Calendar</span>
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_calendar', 'Expense Calendar')}</span>
         </div>
       ),
       children: <ExpenseCalendarTab {...props} />,
@@ -134,7 +134,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
   return (
     <PageLayout
       headerIcon={<PiWalletDuotone color="#a3519aff"/>}
-      headerLabel="Team Expenses"
+      headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.team_expenses_title', 'Team Expenses')}
       pageHeaderRight={
         <ActionButton
           variant="primary"

@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 // Define expense request status types
 export enum ExpenseRequestStatus {
@@ -52,16 +53,16 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
     {
       id: 'timePeriod',
-      title: 'Time Period',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.period_title', 'Time Period'),
       filters: [
-        { id: 'last30days', label: 'Last 30 days', selected: selectedFilters.includes('last30days') },
-        { id: 'last90days', label: 'Last 90 days', selected: selectedFilters.includes('last90days') },
-        { id: 'last180days', label: 'Last 180 days', selected: selectedFilters.includes('last180days') }
+        { id: 'last30days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_30_days', 'Last 30 days'), selected: selectedFilters.includes('last30days') },
+        { id: 'last90days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_90_days', 'Last 90 days'), selected: selectedFilters.includes('last90days') },
+        { id: 'last180days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_180_days', 'Last 180 days'), selected: selectedFilters.includes('last180days') }
       ]
     },
     {
       id: 'requestType',
-      title: 'Request Type',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type', 'Request Type'),
       filters: [
         { id: 'general', label: 'General Expense', selected: selectedFilters.includes('general') },
         { id: 'trip', label: 'Trip', selected: selectedFilters.includes('trip') }
@@ -69,7 +70,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     },
     {
       id: 'status',
-      title: 'Status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.status', 'Status'),
       filters: Object.values(ExpenseRequestStatus).map(status => {
         const id = status.toLowerCase();
         return { 
@@ -84,9 +85,9 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   // Build the filter label map dynamically
   const filterLabelMap = useMemo(() => {
     const labelMap: Record<string, string> = {
-      'last30days': 'Last 30 days',
-      'last90days': 'Last 90 days',
-      'last180days': 'Last 180 days',
+      'last30days': getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_30_days', 'Last 30 days'),
+      'last90days': getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_90_days', 'Last 90 days'),
+      'last180days': getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_180_days', 'Last 180 days'),
       'general': 'General Expense',
       'trip': 'Trip',
     };

@@ -2,8 +2,8 @@ import React, { useCallback, useMemo } from 'react';
 import { CalendarOutlined, FileOutlined, EuroOutlined } from '@ant-design/icons';
 import { ExpensePlanStatistics } from '../../../hooks/useGetExpensePlans'; // Assuming this type is exported from your hook
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { formatAmount } from '../../../utils/currencyUtils';
 import { formatNumberFunction } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 // Local definition of ExpenseStatus
 enum ExpenseStatus {
   PREPARED = "PREPARED",
@@ -54,44 +54,44 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
     return [
       {
         key: 'pending-approval',
-        title: 'Pending Approval',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_approval', 'Pending Approval'),
         value: planStats.pendingCount,
         prefix: <CalendarOutlined />,
         color: activeFilter === ExpenseStatus.PENDING ? '#1890ff' : '#faad14',
         span: { xs: 24, sm: 6 },
-        description: 'Requires action',
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.requires_action', 'Requires action'),
         onClick: () => handleCardClick(ExpenseStatus.PENDING)
       },
       {
         key: 'pending-amount',
-        title: 'Pending Amount',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_amount', 'Pending Amount'),
         value: planStats.pendingAmount ? formatNumberFunction(planStats.pendingAmount.toString(), "0.00[,]00") : '0,00',
         prefix: <EuroOutlined />,
         suffix: '€',
         color: '#faad14',
         valueIsString: true,
         span: { xs: 24, sm: 6 },
-        description: 'Awaiting approval'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.awaiting_approval', 'Awaiting approval')
       },
       {
         key: 'total-plans',
-        title: 'Total Plans (Submitted)',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.total_plans_submitted', 'Total Plans (Submitted)'),
         value: planStats.totalCount,
         prefix: <FileOutlined />,
         color: '#1890ff',
         span: { xs: 24, sm: 6 },
-        description: 'All submitted plans'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.all_submitted_plans', 'All submitted plans')
       },
       {
         key: 'total-amount',
-        title: 'Total Amount (Submitted)',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.total_amount_submitted', 'Total Amount (Submitted)'),
         value: planStats.sumTotalAmount ? formatNumberFunction(planStats.sumTotalAmount.toString(), "0.00[,]00") : '0,00',
         prefix: <EuroOutlined />,
         suffix: '€',
         color: '#3f8600',
         valueIsString: true,
         span: { xs: 24, sm: 6 },
-        description: 'Across all plans'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.across_all_plans', 'Across all plans')
       }
     ];
   }, [planStats, activeFilter, handleCardClick]);
@@ -107,7 +107,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         error={statsError ? 'Failed to load statistics' : undefined}
         onRetry={fetchPlanStatistics}
         skeletonCount={4}
-        emptyText="No expense plan statistics available."
+        emptyText= {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.no_expense_plan_statistics_available', 'No expense plan statistics available.')}
         cardBackground="transparent"
       />
   );

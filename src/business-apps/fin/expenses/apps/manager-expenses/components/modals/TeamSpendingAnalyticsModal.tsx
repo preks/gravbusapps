@@ -160,13 +160,13 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
                   data-testid="date-range-selector"
                   style={{ display: 'flex', flexDirection: 'column' }}
                 >
-                  <Radio className="gba:mb-3" value={DateRangeOption.LAST_30_DAYS} data-testid="date-range-30-days">Last 30 Days</Radio>
-                  <Radio className="gba:mb-3" value={DateRangeOption.LAST_90_DAYS} data-testid="date-range-90-days">Last 90 Days</Radio>
-                  <Radio className="gba:mb-3" value={DateRangeOption.LAST_6_MONTHS} data-testid="date-range-6-months">Last 6 Months</Radio>
-                  <Radio className="gba:mb-3" value={DateRangeOption.LAST_YEAR} data-testid="date-range-last-year">Last Year</Radio>
-                  <Radio className="gba:mb-3" value={DateRangeOption.YEAR_TO_DATE} data-testid="date-range-year-to-date">Year to Date</Radio>
-                  <Radio className="gba:mb-3" value={DateRangeOption.ALL_TIME} data-testid="date-range-all-time">All Time</Radio>
-                  <Radio className="gba:mb-3" value={DateRangeOption.CUSTOM} data-testid="date-range-custom">Custom Range</Radio>
+                  <Radio className="gba:mb-3" value={DateRangeOption.LAST_30_DAYS} data-testid="date-range-30-days">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_30_days', 'Last 30 Days')}</Radio>
+                  <Radio className="gba:mb-3" value={DateRangeOption.LAST_90_DAYS} data-testid="date-range-90-days">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_90_days', 'Last 90 Days')}</Radio>
+                  <Radio className="gba:mb-3" value={DateRangeOption.LAST_6_MONTHS} data-testid="date-range-6-months">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_6_months', 'Last 6 Months')}</Radio>
+                  <Radio className="gba:mb-3" value={DateRangeOption.LAST_YEAR} data-testid="date-range-last-year">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_year', 'Last Year')}</Radio>
+                  <Radio className="gba:mb-3" value={DateRangeOption.YEAR_TO_DATE} data-testid="date-range-year-to-date">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.year_to_date', 'Year to Date')}</Radio>
+                  <Radio className="gba:mb-3" value={DateRangeOption.ALL_TIME} data-testid="date-range-all-time">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.all_time', 'All Time')}</Radio>
+                  <Radio className="gba:mb-3" value={DateRangeOption.CUSTOM} data-testid="date-range-custom">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.custom_range', 'Custom Range')}</Radio>
                 </Radio.Group>
                 
                 {dateRange === DateRangeOption.CUSTOM && (
@@ -212,7 +212,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
                       </div>
                     ))
                   ) : (
-                    <Text className="gba:text-gray-500">No locations available</Text>
+                    <Text className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_locations_available', 'No locations available')}</Text>
                   )}
                 </div>
               </Collapse.Panel>
@@ -243,7 +243,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
                       </div>
                     ))
                   ) : (
-                    <Text className="gba:text-gray-500">No departments available</Text>
+                    <Text className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_departments_available', 'No departments available')}</Text>
                   )}
                 </div>
               </Collapse.Panel>
@@ -321,7 +321,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
               )}
             </TabPane>
             
-              <TabPane tab="Expense Requests" key="expense-requests">
+              <TabPane tab={getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')} key="expense-requests">
                 {isLoading ? (
                   <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
                     <Spin size="large" data-testid="loading-spinner" />
@@ -349,7 +349,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
                           name: item.status,
                           value: item.count
                         })) || []}
-                        title="Expense Requests by Status"
+                        title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_requests_by_status', 'Expense Requests by Status')}
                         barColor="#fa8c16"
                       />
                     </Col>
@@ -361,7 +361,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
                             name: item.status, 
                             value: item.count 
                           })) || []} 
-                          title="Expense Requests by Status" 
+                          title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_requests_by_status', 'Expense Requests by Status')} 
                           colors={['#fa8c16', '#52c41a', '#1890ff', '#f5222d', '#722ed1']} 
                         />
                       </Col>
@@ -387,7 +387,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
               )}
             </TabPane>
             
-              <TabPane tab="Expense Plans" key="expense-plans">
+              <TabPane tab={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')} key="expense-plans">
                 {isLoading ? (
                   <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
                     <Spin size="large" data-testid="loading-spinner" />
@@ -405,7 +405,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
                       <Col span={12}>
                         <LineChartComponent 
                           data={data?.expensePlansByMonth || []} 
-                          title="Monthly Expense Plans" 
+                          title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_plans', 'Monthly Expense Plans')} 
                           lineColor="#722ed1" 
                         />
                       </Col>
@@ -415,7 +415,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
                             name: item.status,
                             value: item.count
                           })) || []}
-                          title="Expense Plans by Status"
+                          title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans_by_status', 'Expense Plans by Status')}
                           barColor="#722ed1"
                         />
                       </Col>
@@ -427,7 +427,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
                             name: item.status, 
                             value: item.count 
                           })) || []} 
-                          title="Expense Plans by Status" 
+                          title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans_by_status', 'Expense Plans by Status')} 
                           colors={['#722ed1', '#52c41a', '#1890ff', '#f5222d', '#fa8c16']} 
                         />
                       </Col>
@@ -453,7 +453,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
               )}
             </TabPane>
             
-              <TabPane tab="Advance Payments" key="advance-payments">
+              <TabPane tab={getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.advance_payments', 'Advance Payments')} key="advance-payments">
                 {isLoading ? (
                   <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
                     <Spin size="large" data-testid="loading-spinner" />
@@ -471,7 +471,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
                       <Col span={12}>
                         <LineChartComponent 
                           data={data?.advancePaymentsByMonth || []} 
-                          title="Monthly Advance Payments" 
+                          title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_advance_payments', 'Monthly Advance Payments')} 
                           lineColor="#13c2c2" 
                         />
                       </Col>
@@ -481,7 +481,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
                             name: item.status,
                             value: item.count
                           })) || []}
-                          title="Advance Payments by Status"
+                          title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.advance_payments_by_status', 'Advance Payments by Status')}
                           barColor="#13c2c2"
                         />
                       </Col>
@@ -493,7 +493,7 @@ const TeamSpendingAnalyticsModal: React.FC<TeamSpendingAnalyticsModalProps> = ({
                             name: item.status, 
                             value: item.count 
                           })) || []} 
-                          title="Advance Payments by Status" 
+                          title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.advance_payments_by_status', 'Advance Payments by Status')} 
                           colors={['#13c2c2', '#52c41a', '#1890ff', '#f5222d', '#fa8c16']} 
                         />
                       </Col>
