@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { Form, Pagination } from 'antd';
 import PlanCard from './PlanCard';
 import SearchBarWithLabel from './SearchBarWithLabel';
-import './PlanCard.css';
 import { useTranslation } from 'react-i18next';
 
 interface PlanFormContentProps {

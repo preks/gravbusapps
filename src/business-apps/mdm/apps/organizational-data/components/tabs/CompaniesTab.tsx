@@ -1,39 +1,39 @@
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { 
-  Tree, 
-  Button, 
-  Input, 
-  Space, 
-  Typography, 
-  message, 
-  Modal, 
-  Form, 
-  Tag, 
-  Spin, 
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Tree,
+  Button,
+  Input,
+  Space,
+  Typography,
+  message,
+  Modal,
+  Tag,
+  Spin,
   Alert,
   Tooltip,
   Empty,
-  Descriptions
-} from 'antd';
-import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
-import { 
-  PlusOutlined, 
-  EditOutlined, 
-  DeleteOutlined, 
-  SearchOutlined, 
+  Descriptions,
+} from "antd";
+import { DataDetailsDrawer } from "@/components/data-details/DataDetailsDrawer";
+import { startProcess } from "@/common/utils/start-process";
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  SearchOutlined,
   BankOutlined,
   ExpandAltOutlined,
   CompressOutlined,
   FolderOutlined,
   FolderOpenOutlined,
   TeamOutlined,
-  UserOutlined
-} from '@ant-design/icons';
-import type { DataNode } from 'antd/es/tree';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCompanies } from '../../hooks';
-import { Company } from '../../types';
+  UserOutlined,
+} from "@ant-design/icons";
+import type { DataNode } from "antd/es/tree";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useCompanies } from "../../hooks";
+import { Company } from "../../types";
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -44,8 +44,8 @@ export interface CompaniesTabProps extends BusinessAppContextProps {
 
 const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
   const { t } = useTranslation();
-  const { prefixDataTestId } = context;
-  
+  const { prefixDataTestId, userInfo } = context;
+
   const {
     rootCompanies,
     allCompanies,
@@ -57,26 +57,26 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
     expandToLevel,
     collapseAll,
     getCompanyByNodeId,
-    searchCompanies
+    searchCompanies,
   } = useCompanies(context);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [form] = Form.useForm();
 
   // Convert Company to Ant Design Tree DataNode
   const convertToTreeData = (companies: Company[]): DataNode[] => {
-    return companies.map(company => ({
+    return companies.map((company) => ({
       key: company.nodeId,
       title: (
         <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
           <div className="gba:flex gba:items-center gba:space-x-3">
             <BankOutlined className="gba:text-blue-500" />
             <div>
-              <Text strong className="gba:text-base">{company.name}</Text>
+              <Text strong className="gba:text-base">
+                {company.name}
+              </Text>
               <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
                 <Tag color="blue" className="gba:text-xs">
                   {company.code}
@@ -90,18 +90,29 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
                   Level {company.level}
                 </Tag>
                 {company.numberOfAssignedEmployees > 0 && (
-                  <Tag color="purple" className="gba:text-xs" icon={<UserOutlined />}>
+                  <Tag
+                    color="purple"
+                    className="gba:text-xs"
+                    icon={<UserOutlined />}
+                  >
                     {company.numberOfAssignedEmployees} employees
                   </Tag>
                 )}
                 {company.numberOfChildUnits > 0 && (
-                  <Tag color="cyan" className="gba:text-xs" icon={<TeamOutlined />}>
+                  <Tag
+                    color="cyan"
+                    className="gba:text-xs"
+                    icon={<TeamOutlined />}
+                  >
                     {company.numberOfChildUnits} units
                   </Tag>
                 )}
               </div>
               {company.description && (
-                <Text type="secondary" className="gba:text-sm gba:block gba:mt-1">
+                <Text
+                  type="secondary"
+                  className="gba:text-sm gba:block gba:mt-1"
+                >
                   {company.description}
                 </Text>
               )}
@@ -144,41 +155,65 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
           </Space>
         </div>
       ),
-      icon: company.children.length > 0 
-        ? (expandedIds.has(company.nodeId) ? <FolderOpenOutlined /> : <FolderOutlined />)
-        : <BankOutlined />,
-      children: company.children.length > 0 ? convertToTreeData(company.children) : undefined,
-      isLeaf: company.children.length === 0
+      icon:
+        company.children.length > 0 ? (
+          expandedIds.has(company.nodeId) ? (
+            <FolderOpenOutlined />
+          ) : (
+            <FolderOutlined />
+          )
+        ) : (
+          <BankOutlined />
+        ),
+      children:
+        company.children.length > 0
+          ? convertToTreeData(company.children)
+          : undefined,
+      isLeaf: company.children.length === 0,
     }));
   };
 
   const handleAddRoot = () => {
     setEditingCompany(null);
-    form.resetFields();
-    setIsModalVisible(true);
+    startProcess({
+      domain: "dummy-domain",
+      processName: "changeCompany",
+      payload: {
+        employeeId: userInfo?.employeeDetails.employeeId,
+      },
+      builderType: "NATIVE_SCREEN",
+    });
   };
 
   const handleAddSubsidiary = (parentNodeId: string) => {
     setEditingCompany(null);
-    form.resetFields();
-    form.setFieldsValue({ parentNodeId });
-    setIsModalVisible(true);
+    startProcess({
+      domain: "dummy-domain",
+      processName: "changeCompany",
+      payload: {
+        employeeId: userInfo?.employeeDetails.employeeId,
+        parentNodeId: parentNodeId,
+      },
+      builderType: "NATIVE_SCREEN",
+    });
   };
 
   const handleEditCompany = (company: Company) => {
     setEditingCompany(company);
-    form.setFieldsValue({
-      name: company.name,
-      code: company.code,
-      description: company.description,
-      parentNodeId: company.parentNodeId
+    startProcess({
+      domain: "dummy-domain",
+      processName: "changeCompany",
+      payload: {
+        employeeId: userInfo?.employeeDetails.employeeId,
+        company: company,
+      },
+      builderType: "NATIVE_SCREEN",
     });
-    setIsModalVisible(true);
   };
 
   const handleDeleteCompany = (company: Company) => {
     const hasChildren = company.children.length > 0;
-    const title = 'Delete Company';
+    const title = "Delete Company";
     const content = hasChildren
       ? `Are you sure you want to delete "${company.name}"? This will also delete all subsidiary companies.`
       : `Are you sure you want to delete company "${company.name}"?`;
@@ -186,37 +221,16 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
     Modal.confirm({
       title,
       content,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
       onOk: async () => {
-        message.warning('Delete functionality will be implemented with process API integration');
+        message.warning(
+          "Delete functionality will be implemented with process API integration"
+        );
         await refetch();
       },
     });
-  };
-
-  const handleModalOk = async () => {
-    try {
-      const values = await form.validateFields();
-      
-      if (editingCompany) {
-        message.warning('Edit company functionality will be implemented with process API integration');
-      } else {
-        message.warning('Add company functionality will be implemented with process API integration');
-      }
-      
-      setIsModalVisible(false);
-      await refetch();
-    } catch (error) {
-      console.error('Error saving:', error);
-      message.error('Failed to save company');
-    }
-  };
-
-  const handleModalCancel = () => {
-    setIsModalVisible(false);
-    form.resetFields();
   };
 
   const handleSearch = (value: string) => {
@@ -225,7 +239,7 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
 
   const handleExpand = (expandedKeys: React.Key[]) => {
     // Directly set the expanded IDs to match the tree component
-    const newExpandedIds = new Set(expandedKeys.map(key => key.toString()));
+    const newExpandedIds = new Set(expandedKeys.map((key) => key.toString()));
     setExpandedIds(newExpandedIds);
   };
 
@@ -236,9 +250,10 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
     }
 
     const matchingCompanies = searchCompanies(searchQuery);
-    const filteredRoots = rootCompanies.filter(root => 
-      matchingCompanies.some(match => 
-        match.nodeId === root.nodeId || match.nodeId.startsWith(root.nodeId)
+    const filteredRoots = rootCompanies.filter((root) =>
+      matchingCompanies.some(
+        (match) =>
+          match.nodeId === root.nodeId || match.nodeId.startsWith(root.nodeId)
       )
     );
 
@@ -267,9 +282,12 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
     <div className="gba:p-6">
       <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
         <div>
-          <Title level={3} className="gba:mb-2">Companies</Title>
+          <Title level={3} className="gba:mb-2">
+            Companies
+          </Title>
           <Text type="secondary">
-            Manage companies in a hierarchical structure. Companies represent the organizational structure of your business.
+            Manage companies in a hierarchical structure. Companies represent
+            the organizational structure of your business.
           </Text>
         </div>
         <Button
@@ -325,7 +343,11 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
               <div>
                 <Text type="secondary">No companies found</Text>
                 <div className="gba:mt-2">
-                  <Button type="primary" icon={<PlusOutlined />} onClick={handleAddRoot}>
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={handleAddRoot}
+                  >
                     Create First Company
                   </Button>
                 </div>
@@ -364,52 +386,6 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
         )}
       </div>
 
-      <Modal
-        title={editingCompany ? 'Edit Company' : 'Add Company'}
-        open={isModalVisible}
-        onOk={handleModalOk}
-        onCancel={handleModalCancel}
-        width={600}
-        okText="Save"
-        cancelText="Cancel"
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          className="gba:mt-4"
-        >
-          <Form.Item
-            name="name"
-            label="Company Name"
-            rules={[{ required: true, message: 'Please enter company name' }]}
-          >
-            <Input placeholder="e.g., NEWWORK SE, XING GmbH" />
-          </Form.Item>
-          
-          <Form.Item
-            name="code"
-            label="Company Code"
-            rules={[{ required: true, message: 'Please enter company code' }]}
-          >
-            <Input placeholder="e.g., NWSE, XING" />
-          </Form.Item>
-          
-          <Form.Item
-            name="description"
-            label="Description"
-          >
-            <Input.TextArea 
-              placeholder="Describe this company and its business activities"
-              rows={3}
-            />
-          </Form.Item>
-
-          <Form.Item name="parentNodeId" label="Parent Company" hidden>
-            <Input disabled />
-          </Form.Item>
-        </Form>
-      </Modal>
-
       <DataDetailsDrawer
         title="Company Details"
         icon={<BankOutlined className="gba:text-blue-500" />}
@@ -421,105 +397,143 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
         open={drawerVisible}
         width={400}
         dataTestId={`${prefixDataTestId}-company-details-drawer`}
-        navigationLinks={selectedCompany ? [
-          {
-            label: 'View Departments',
-            url: `/organizational-data/departments?companyId=${selectedCompany.id}`,
-            dataTestId: `${prefixDataTestId}-company-departments-link`
-          },
-          {
-            label: 'View Employees',
-            url: `/employee-directory?companyId=${selectedCompany.id}`,
-            dataTestId: `${prefixDataTestId}-company-employees-link`
-          },
-          {
-            label: 'View Job Positions',
-            url: `/job-positions?companyId=${selectedCompany.id}`,
-            dataTestId: `${prefixDataTestId}-company-jobs-link`
-          },
-          {
-            label: 'View Cost Centers',
-            url: `/organizational-data/cost-centers?companyId=${selectedCompany.id}`,
-            dataTestId: `${prefixDataTestId}-company-cost-centers-link`
-          }
-        ] : undefined}
+        navigationLinks={
+          selectedCompany
+            ? [
+                {
+                  label: "View Departments",
+                  url: `/organizational-data/departments?companyId=${selectedCompany.id}`,
+                  dataTestId: `${prefixDataTestId}-company-departments-link`,
+                },
+                {
+                  label: "View Employees",
+                  url: `/employee-directory?companyId=${selectedCompany.id}`,
+                  dataTestId: `${prefixDataTestId}-company-employees-link`,
+                },
+                {
+                  label: "View Job Positions",
+                  url: `/job-positions?companyId=${selectedCompany.id}`,
+                  dataTestId: `${prefixDataTestId}-company-jobs-link`,
+                },
+                {
+                  label: "View Cost Centers",
+                  url: `/organizational-data/cost-centers?companyId=${selectedCompany.id}`,
+                  dataTestId: `${prefixDataTestId}-company-cost-centers-link`,
+                },
+              ]
+            : undefined
+        }
       >
         <div className="gba:py-2">
           <Descriptions layout="vertical" column={1} bordered>
-            <Descriptions.Item 
-              label={<span className="gba:text-sm gba:font-medium">Company Name</span>}
+            <Descriptions.Item
+              label={
+                <span className="gba:text-sm gba:font-medium">
+                  Company Name
+                </span>
+              }
               className="gba:py-2 gba:px-4 gba:border-b"
             >
               <span className="gba:text-sm">
                 {selectedCompany?.name || "-"}
               </span>
             </Descriptions.Item>
-            
-            <Descriptions.Item 
-              label={<span className="gba:text-sm gba:font-medium">Company Code</span>}
+
+            <Descriptions.Item
+              label={
+                <span className="gba:text-sm gba:font-medium">
+                  Company Code
+                </span>
+              }
               className="gba:py-2 gba:px-4 gba:border-b"
             >
               <span className="gba:text-sm">
                 {selectedCompany?.code || "-"}
               </span>
             </Descriptions.Item>
-            
-            <Descriptions.Item 
-              label={<span className="gba:text-sm gba:font-medium">Structure ID</span>}
+
+            <Descriptions.Item
+              label={
+                <span className="gba:text-sm gba:font-medium">
+                  Structure ID
+                </span>
+              }
               className="gba:py-2 gba:px-4 gba:border-b"
             >
               <span className="gba:text-sm">
                 {selectedCompany?.structureId || "-"}
               </span>
             </Descriptions.Item>
-            
-            <Descriptions.Item 
-              label={<span className="gba:text-sm gba:font-medium">Assigned Employees</span>}
+
+            <Descriptions.Item
+              label={
+                <span className="gba:text-sm gba:font-medium">
+                  Assigned Employees
+                </span>
+              }
               className="gba:py-2 gba:px-4 gba:border-b"
             >
               <span className="gba:text-sm">
                 {selectedCompany?.numberOfAssignedEmployees ?? "-"}
               </span>
             </Descriptions.Item>
-            
-            <Descriptions.Item 
-              label={<span className="gba:text-sm gba:font-medium">Assigned Job Positions</span>}
+
+            <Descriptions.Item
+              label={
+                <span className="gba:text-sm gba:font-medium">
+                  Assigned Job Positions
+                </span>
+              }
               className="gba:py-2 gba:px-4 gba:border-b"
             >
               <span className="gba:text-sm">
                 {selectedCompany?.numberOfAssignedJobPositions ?? "-"}
               </span>
             </Descriptions.Item>
-            
-            <Descriptions.Item 
-              label={<span className="gba:text-sm gba:font-medium">Open Job Positions</span>}
+
+            <Descriptions.Item
+              label={
+                <span className="gba:text-sm gba:font-medium">
+                  Open Job Positions
+                </span>
+              }
               className="gba:py-2 gba:px-4 gba:border-b"
             >
               <span className="gba:text-sm">
                 {selectedCompany?.numberOfOpenJobPositions ?? "-"}
               </span>
             </Descriptions.Item>
-            
-            <Descriptions.Item 
-              label={<span className="gba:text-sm gba:font-medium">Total Job Positions</span>}
+
+            <Descriptions.Item
+              label={
+                <span className="gba:text-sm gba:font-medium">
+                  Total Job Positions
+                </span>
+              }
               className="gba:py-2 gba:px-4 gba:border-b"
             >
               <span className="gba:text-sm">
                 {selectedCompany?.numberOfTotalJobPositions ?? "-"}
               </span>
             </Descriptions.Item>
-            
-            <Descriptions.Item 
-              label={<span className="gba:text-sm gba:font-medium">Child Units</span>}
+
+            <Descriptions.Item
+              label={
+                <span className="gba:text-sm gba:font-medium">Child Units</span>
+              }
               className="gba:py-2 gba:px-4 gba:border-b"
             >
               <span className="gba:text-sm">
                 {selectedCompany?.numberOfChildUnits ?? "-"}
               </span>
             </Descriptions.Item>
-            
-            <Descriptions.Item 
-              label={<span className="gba:text-sm gba:font-medium">Company Assigned Units</span>}
+
+            <Descriptions.Item
+              label={
+                <span className="gba:text-sm gba:font-medium">
+                  Company Assigned Units
+                </span>
+              }
               className="gba:py-2 gba:px-4"
             >
               <span className="gba:text-sm">
@@ -533,4 +547,4 @@ const CompaniesTab: React.FC<CompaniesTabProps> = (context) => {
   );
 };
 
-export default CompaniesTab; 
+export default CompaniesTab;

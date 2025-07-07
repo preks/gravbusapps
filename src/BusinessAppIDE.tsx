@@ -91,6 +91,7 @@ const { Text } = Typography;
 
 const STORAGE_KEY_USER_INFO = "business-app-ide-user-info";
 const STORAGE_KEY_ACCESS_TOKEN = "business-app-ide-access-token";
+const STORAGE_KEY_ADDITIONAL_DATA = "business-app-ide-additional-data";
 const STORAGE_KEY_SIDEBAR_COLLAPSED = "business-app-ide-sidebar-collapsed";
 const STORAGE_KEY_RECENT_APPS = "business-app-ide-recent-apps";
 
@@ -146,6 +147,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   const [userInfo, setUserInfo] = useState<string>("");
   const [userInfoError, setUserInfoError] = useState<string>("");
   const [accessToken, setAccessToken] = useState<string>("");
+  const [additionalData, setAdditionalData] = useState<string>("");
+  const [additionalDataError, setAdditionalDataError] = useState<string>("");
   const [settingsModalVisible, setSettingsModalVisible] =
     useState<boolean>(false);
   const [collapsed, setCollapsed] = useState<boolean>(
@@ -159,6 +162,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   useEffect(() => {
     const savedUserInfo = localStorage.getItem(STORAGE_KEY_USER_INFO);
     const savedAccessToken = localStorage.getItem(STORAGE_KEY_ACCESS_TOKEN);
+    const savedAdditionalData = localStorage.getItem(STORAGE_KEY_ADDITIONAL_DATA);
     const savedRecentApps = localStorage.getItem(STORAGE_KEY_RECENT_APPS);
 
     if (savedUserInfo) {
@@ -168,6 +172,11 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
     if (savedAccessToken) {
       setAccessToken(savedAccessToken);
+    }
+
+    if (savedAdditionalData) {
+      setAdditionalData(savedAdditionalData);
+      validateAdditionalData(savedAdditionalData);
     }
 
     if (savedRecentApps) {
@@ -198,8 +207,6 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
   /**
    * Fetches the last published date for a business app from Azure Storage
-   * Note: Requires CORS configuration on Azure Storage to allow requests from the development origin
-   * @param app The selected business app
    */
   const fetchLastPublishedDate = async (app: BusinessAppInfo) => {
     if (!app.module) {
@@ -224,47 +231,52 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
       const lastModified = response.headers.get("Last-Modified");
       if (lastModified) {
-        setLastPublishedDate(lastModified);
+        const date = new Date(lastModified);
+        const formattedDate = date.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        setLastPublishedDate(formattedDate);
       } else {
         setLastPublishedDate("");
       }
     } catch (error) {
-      console.error("Failed to fetch last published date:", error);
+      console.warn(`Failed to fetch last published date for ${app.name}:`, error);
       setLastPublishedDate("");
-
-      // Only show notification in development environment to avoid user confusion in production
-      if (process.env.NODE_ENV === "development") {
-        notification.warning({
-          message: "Cannot fetch last published date",
-          description:
-            "CORS error: Azure Storage doesn't allow requests from this origin. " +
-            "Configure CORS settings in Azure Storage to enable this feature.",
-          duration: 5,
-          placement: "topRight",
-        });
-      }
     }
   };
 
+  /**
+   * Updates the recently used apps list and saves to localStorage
+   */
   const updateRecentlyUsedApps = (app: BusinessAppInfo): void => {
-    const newRecentApp: RecentlyUsedApp = {
-      name: app.name,
-      module: app.module,
-      subModule: app.subModule,
-      lastUsed: Date.now(),
-    };
+    const now = Date.now();
+    const existingIndex = recentlyUsedApps.findIndex(
+      (recentApp) => recentApp.name === app.name
+    );
 
-    setRecentlyUsedApps((currentRecent) => {
-      const filtered = currentRecent.filter(
-        (recent) => recent.name !== app.name
-      );
-      const updated = [newRecentApp, ...filtered];
-      const final = updated.slice(0, MAX_RECENT_APPS);
+    let updatedApps = [...recentlyUsedApps];
 
-      localStorage.setItem(STORAGE_KEY_RECENT_APPS, JSON.stringify(final));
+    if (existingIndex !== -1) {
+      updatedApps[existingIndex].lastUsed = now;
+    } else {
+      updatedApps.push({
+        name: app.name,
+        module: app.module,
+        subModule: app.subModule,
+        lastUsed: now,
+      });
+    }
 
-      return final;
-    });
+    updatedApps = updatedApps
+      .sort((a, b) => b.lastUsed - a.lastUsed)
+      .slice(0, MAX_RECENT_APPS);
+
+    setRecentlyUsedApps(updatedApps);
+    localStorage.setItem(STORAGE_KEY_RECENT_APPS, JSON.stringify(updatedApps));
   };
 
   const handleAppSelect = (app: BusinessAppInfo) => {
@@ -290,9 +302,24 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     }
   };
 
+  const validateAdditionalData = (value: string): void => {
+    if (!value) {
+      setAdditionalDataError("");
+      return;
+    }
+
+    try {
+      JSON.parse(value);
+      setAdditionalDataError("");
+    } catch (e: any) {
+      setAdditionalDataError("Invalid JSON format");
+    }
+  };
+
   const saveSettings = () => {
     localStorage.setItem(STORAGE_KEY_USER_INFO, userInfo);
     localStorage.setItem(STORAGE_KEY_ACCESS_TOKEN, accessToken);
+    localStorage.setItem(STORAGE_KEY_ADDITIONAL_DATA, additionalData);
     setSettingsModalVisible(false);
   };
 
@@ -382,6 +409,19 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     }
     return undefined;
   }, [userInfo]);
+
+  const parsedAdditionalData = useCallback((): { [k: string]: any } | undefined => {
+    if (additionalData?.length > 2) {
+      try {
+        return JSON.parse(additionalData);
+      } catch (e) {
+        console.error("Failed to parse additional data:", e);
+        return undefined;
+      }
+    }
+    return undefined;
+  }, [additionalData]);
+
   console.log("businessApps", businessApps);
 
   return (
@@ -553,9 +593,10 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                 {createElement(selectedApp.component, {
                   userInfo: parsedUserInfo(),
                   accessToken: accessToken ?? undefined,
+                  additionalData: parsedAdditionalData(),
                   key: `${selectedApp.name}-${JSON.stringify(
                     parsedUserInfo()
-                  )}-${accessToken}`,
+                  )}-${accessToken}-${JSON.stringify(parsedAdditionalData())}`,
                 })}
               </div>
             ) : (
@@ -601,9 +642,24 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
               value={accessToken}
             />
           </Form.Item>
+          <Form.Item
+            label="Additional Data (JSON format)"
+            validateStatus={additionalDataError ? "error" : ""}
+            help={additionalDataError}
+          >
+            <Input.TextArea
+              placeholder='Enter additional data in JSON format (e.g., {"employeeId": "123", "jobPositionId": "456"})'
+              rows={4}
+              onChange={(e) => {
+                setAdditionalData(e.target.value);
+                validateAdditionalData(e.target.value);
+              }}
+              value={additionalData}
+            />
+          </Form.Item>
           <Text type="secondary">
             These settings will be saved in your browser's local storage and
-            persisted between sessions.
+            persisted between sessions. Additional Data is used to pass context information like employeeId, jobPositionId, etc.
           </Text>
         </Form>
       </Modal>

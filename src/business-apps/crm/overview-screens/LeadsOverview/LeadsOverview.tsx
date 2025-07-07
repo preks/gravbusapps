@@ -528,6 +528,7 @@ function LeadsOverviewComponent({ accessToken, userInfo }: BusinessAppContextPro
     const sortField = sorter.field;
     
     const orderByObject = {};
+    // @ts-ignore
     orderByObject[sortField] = sortOrder;
     
     handleOrderByChange(JSON.stringify(orderByObject));
