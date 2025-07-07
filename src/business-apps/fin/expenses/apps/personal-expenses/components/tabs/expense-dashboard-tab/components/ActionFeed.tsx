@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, Button, List, Space, Typography, Tag, Empty, Spin, Alert } from 'antd';
 import { EyeOutlined, EyeInvisibleOutlined, DollarCircleOutlined } from '@ant-design/icons';
 import { DashboardStats, RecentActivity } from '../types';
-import { formatCurrency, getStatusColor } from '../utils/formatters';
+import { formatNumber, getStatusColor } from '../utils/formatters';
 
 const { Text } = Typography;
 
@@ -104,7 +104,7 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
                       </Tag>
                     )}
                     <Text type="secondary" style={{ fontSize: '12px' }}>
-                      <DollarCircleOutlined /> {formatCurrency(Number(item.totalAmount))}
+                      <DollarCircleOutlined /> {formatNumber(Number(item.totalAmount))}
                     </Text>
                   </Space>
                 </Space>

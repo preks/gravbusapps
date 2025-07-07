@@ -45,6 +45,7 @@ export interface ExpenseFilter {
   totalAmountMin?: number;
   totalAmountMax?: number;
   noReceipt?: boolean;
+  currencyRef?: string;
 }
 
 export interface ExpenseItemsResult {
@@ -86,6 +87,7 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
       searchTerm: formattedSearchTerm,
       limit: pageSize,
       offset: offset,
+      currencyRef: filter?.currencyRef ?? null,
     };
     
     // Only include filter variables if they are provided

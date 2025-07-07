@@ -409,7 +409,6 @@ const OpportunityDetail: React.FC<OpportunityDetailProps> = ({ opportunityId, on
   if (error && !opportunityData) {
     return (
       <div className="gba:error-container" data-testid="lead-error-container" style={{ 
-        padding: '20px',
         textAlign: 'center',
         backgroundColor: 'white',
         padding: '16px 16px 16px 24px'

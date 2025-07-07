@@ -1,3 +1,4 @@
+import { formatNumberFunction } from '@/common/utils/windowUtils';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Typography, Spin, Alert } from 'antd';
 import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
@@ -294,59 +295,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
         data-testid="expense-items-data-table"
         columns={[
           {
-            title: 'Item',
-            dataIndex: 'title',
-            key: 'title',
-            render: (text: string, record: any) => (
-              <div>
-                <div style={{ fontWeight: 'bold' }}>{text}</div>
-                <div style={{ fontSize: '12px', color: '#666' }}>{record.invoiceDate}</div>
-              </div>
-            )
-          },
-          {
-            title: 'Attachment',
-            dataIndex: 'expenseItemFile',
-            key: 'attachment',
-            width: 80,
-            align: 'center',
-            render: (expenseItemFile: any[]) => (
-              expenseItemFile && expenseItemFile.length > 0 ? (
-                <div className="gba:flex gba:items-center gba:justify-center">
-                  <FileImageOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
-                </div>
-              ) : (
-                <div className="gba:flex gba:items-center gba:justify-center">
-                  <FileImageOutlined style={{ fontSize: '24px', color: '#d9d9d9' }} />
-                </div>
-              )
-            )
-          },
-          {
-            title: 'Amount',
-            dataIndex: 'reimbursableAmount',
-            key: 'amount',
-            align: 'right',
-            render: (amount: number) => (
-              <span style={{ fontWeight: 'bold' }}>€{amount?.toFixed(2) ?? '0.00'}</span>
-            )
-          },
-          {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            render: (status: string) => {
-              const { label, type } = getExpenseItemStatusDisplay(status);
-              return (
-                <Pill 
-                  label={label} 
-                  type={type} 
-                  className="gba:text-center"
-                />
-              );
-            }
-          },
-          {
             title: '',
             key: 'actions',
             align: 'center',
@@ -387,6 +335,64 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
                 data-testid={`actions-${record.id}`}
                 size="md"
               />
+            )
+          },
+          {
+            title: 'Title',
+            dataIndex: 'title',
+            key: 'title',
+            render: (text: string) => <div style={{ fontWeight: 'bold' }}>{text}</div>
+          },
+          {
+            title: 'Invoice Date',
+            dataIndex: 'invoiceDate',
+            key: 'invoiceDate',
+            render: (text: string) => <div style={{ fontSize: '12px', color: '#666' }}>{text}</div>
+          },
+          {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            render: (status: string) => {
+              const { label, type } = getExpenseItemStatusDisplay(status);
+              return (
+                <Pill 
+                  label={label} 
+                  type={type} 
+                  className="gba:text-center"
+                />
+              );
+            }
+          },
+          {
+            title: 'Attachment',
+            dataIndex: 'expenseItemFile',
+            key: 'attachment',
+            width: 80,
+            align: 'center',
+            render: (expenseItemFile: any[]) => (
+              expenseItemFile && expenseItemFile.length > 0 ? (
+                <div className="gba:flex gba:items-center gba:justify-center">
+                  <FileImageOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+                </div>
+              ) : (
+                <div className="gba:flex gba:items-center gba:justify-center">
+                  <FileImageOutlined style={{ fontSize: '24px', color: '#d9d9d9' }} />
+                </div>
+              )
+            )
+          },
+          {
+            title: 'Reimbursable Amount',
+            dataIndex: 'reimbursableAmount',
+            key: 'amount',
+            onCell: () => ({
+              className: 'gba:text-right gba:font-bold',
+            }),
+            render: (amount: number) => (
+              <span>
+                {formatNumberFunction(String(amount ?? '0'))}
+              </span>
             )
           }
         ] as any}

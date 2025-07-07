@@ -10,12 +10,15 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
     $expenseDateEnd: timestamp, 
     $totalAmountMin: numeric, 
     $totalAmountMax: numeric,
-    $expenseClassValue: String
+    $expenseClassValue: String,
+    $currencyRef: String,
   ) {
     ExpenseItemAggregate(
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
+        currencyRef: {_eq: $currencyRef},
+
         expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
         _or: [
           {title: {_ilike: $searchTerm}},
@@ -26,7 +29,7 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
           {expenseClass: {translations: {value: {_ilike: $searchTerm}}}},
           {costCenter: {name: {_ilike: $searchTerm}}}
         ],
-        status: {_in: $status},
+        status: {_in: $status, _nin: ["DISCARDED"]},
         expenseDate: {
           _gte: $expenseDateStart,
           _lte: $expenseDateEnd
@@ -48,6 +51,7 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
+        currencyRef: {_eq: $currencyRef},
         expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
         _or: [
           {title: {_ilike: $searchTerm}},
@@ -58,7 +62,7 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
           {expenseClass: {translations: {value: {_ilike: $searchTerm}}}},
           {costCenter: {name: {_ilike: $searchTerm}}}
         ],
-        status: {_in: $status},
+        status: {_in: $status, _nin: ["DISCARDED"]},
         expenseDate: {
           _gte: $expenseDateStart,
           _lte: $expenseDateEnd
@@ -141,8 +145,26 @@ export const GET_EXPENSE_ITEM_BY_ID = `
 `;
 
 export const GET_EXPENSE_ITEM_STATISTICS = `
-  query GetExpenseItemStatistics($employeeId: uuid!) {
-    ExpenseItemAggregate(
+  query GetExpenseItemStatistics($employeeId: uuid!, $startDate: timestamptz, $endDate: timestamptz, $currencyRef: String!) {
+    totalExpenses: ExpenseItemAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_in: ["PAID", "CLOSED"]},
+        currencyRef: {_eq: $currencyRef},
+        updatedAt: {
+          _gte: $startDate,
+          _lte: $endDate
+        }
+      }
+    ) {
+      aggregate {
+        sum {
+          totalAmount
+        }
+      }
+    }
+    expenseItemsCount: ExpenseItemAggregate(
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false}

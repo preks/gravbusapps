@@ -1,9 +1,13 @@
+import { formatNumberFunction } from '@/common/utils/windowUtils';
 import React, { useMemo } from 'react';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { EuroOutlined, FileExclamationOutlined, AppstoreOutlined, WalletOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 
 interface ExpenseItemStatisticsProps {
   items: any[];
+  totalExpenses?: number | null;
+  previousMonthTotalExpenses?: number | null;
   onMissingReceiptsClick?: () => void;
   isNoReceiptFilterActive?: boolean;
   statsLoading?: boolean;
@@ -13,14 +17,15 @@ interface ExpenseItemStatisticsProps {
 
 const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({ 
   items, 
+  totalExpenses,
+  previousMonthTotalExpenses,
   onMissingReceiptsClick,
   isNoReceiptFilterActive = false,
   statsLoading = false,
   statsError = null,
   fetchItemStatistics = () => Promise.resolve()
 }) => {
-  // Calculate summary statistics
-  const totalExpenses = useMemo(() => items?.reduce((sum: number, item) => sum + (item.reimbursableAmount ?? 0), 0) ?? 0, [items]);
+  const currentMonthName = dayjs().format('MMMM');
   
   const pendingReimbursement = useMemo(() => items?.filter(item => 
     item.status.toLowerCase() === 'pending' || 
@@ -43,47 +48,70 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     i.status.toLowerCase() === 'in progress'
   ).length ?? 0, [items]);
 
+  const comparisonDescription = useMemo(() => {
+    const previousMonthName = dayjs().subtract(1, 'month').format('MMMM');
+    const current = totalExpenses ?? 0;
+    const previous = previousMonthTotalExpenses ?? 0;
+
+
+    if (previous === 0) {
+      if (current > 0) {
+        return `+100.0% from ${previousMonthName}`;
+      }
+      return 'No expenses recorded';
+    }
+
+    const percentageChange = ((current - previous) / previous) * 100;
+
+    if (Math.abs(percentageChange) < 0.01) {
+      return `No change vs ${previousMonthName}`;
+    }
+
+    const sign = percentageChange > 0 ? '+' : '';
+    return `${sign}${percentageChange.toFixed(1)}% from ${previousMonthName}`;
+  }, [totalExpenses, previousMonthTotalExpenses]);
+
   // Transform the stats data into widgets format
   const widgets: WidgetItem[] = [
     {
       key: 'total-expenses',
-      title: 'Total Expenses',
-      value: totalExpenses,
+      title: `Total Expenses for ${currentMonthName}`,
+      value: formatNumberFunction(String(totalExpenses ?? 0)),
+      valueIsString: true,
       prefix: <EuroOutlined />,
       color: '#3f8600',
-      precision: 2,
-      span: { xs: 24, sm: 12, md: 6 },
-      description: '+12.5% from last month'
+      span: { xs: 24, sm: 12, md: 8, lg: 8 },
+      description: comparisonDescription
     },
     {
       key: 'pending-reimbursement',
       title: 'Pending Reimbursement',
-      value: pendingReimbursement,
+      value: formatNumberFunction(String(pendingReimbursement)),
+      valueIsString: true,
       prefix: <WalletOutlined />,
       color: '#1677ff',
-      precision: 2,
-      span: { xs: 24, sm: 12, md: 6 },
+      span: { xs: 24, sm: 12, md: 8, lg: 8 },
       description: `${pendingItemCount} items pending`
     },
-    {
-      key: 'missing-receipts',
-      title: 'Missing Receipts',
-      value: missingReceipts,
-      prefix: <FileExclamationOutlined />,
-      color: isNoReceiptFilterActive ? '#1890ff' : '#faad14',
-      span: { xs: 24, sm: 12, md: 6 },
-      description: isNoReceiptFilterActive ? 'Filter active' : 'Action required',
-      onClick: onMissingReceiptsClick
-    },
-    {
-      key: 'categories-used',
-      title: 'Categories Used',
-      value: categoriesCount,
-      prefix: <AppstoreOutlined />,
-      color: '#722ed1',
-      span: { xs: 24, sm: 12, md: 6 },
-      description: 'Across all expenses'
-    }
+    // {
+    //   key: 'missing-receipts',
+    //   title: 'Missing Receipts',
+    //   value: missingReceipts,
+    //   prefix: <FileExclamationOutlined />,
+    //   color: isNoReceiptFilterActive ? '#1890ff' : '#faad14',
+    //   span: { xs: 24, sm: 12, md: 8, lg: 8 },
+    //   description: isNoReceiptFilterActive ? 'Filter active' : 'Action required',
+    //   onClick: onMissingReceiptsClick
+    // },
+    // {
+    //   key: 'categories-used',
+    //   title: 'Categories Used',
+    //   value: categoriesCount,
+    //   prefix: <AppstoreOutlined />,
+    //   color: '#722ed1',
+    //   span: { xs: 24, sm: 12, md: 8, lg: 8 },
+    //   description: 'Across all expenses'
+    // }
   ];
 
   const handleWidgetClick = (widgetKey: string) => {
@@ -93,7 +121,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   };
 
   return (
-    <div data-testid="expense-item-statistics-container">
+    <div data-testid="expense-item-statistics-container" className="gba:w-full">
       <WidgetGroup
         widgets={widgets}
         isLoading={statsLoading}

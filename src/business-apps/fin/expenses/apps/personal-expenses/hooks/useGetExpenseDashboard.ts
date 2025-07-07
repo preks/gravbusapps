@@ -4,7 +4,7 @@ dayjs.extend(quarterOfYear);
 import { useState, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_DASHBOARD_BY_EMPLOYEE } from '../queries/expenseDashboard';
-import { env } from '@/common/env/EnvUtils';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 
 export interface ExpenseDashboard {
   pendingPayouts: number;
@@ -61,95 +61,48 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
   const [stats, setStats] = useState<ExpenseDashboard | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
+  const graphqlClient = useGraphqlClient(context?.accessToken ?? '');
 
   useEffect(() => {
-    console.log('useGetExpenseDashboard: useEffect triggered.');
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
-    const accessToken = context?.accessToken;
-    console.log('useGetExpenseDashboard: employeeId:', employeeId);
-    console.log('useGetExpenseDashboard: accessToken:', !!accessToken);
 
-    if (!employeeId) {
-      console.error('useGetExpenseDashboard: Employee ID not found.');
-      setError(new Error('Employee ID not found. Cannot fetch dashboard statistics.'));
-      setStats(null);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!accessToken) {
-      console.error('useGetExpenseDashboard: Access token not found.');
-      setError(new Error('Access token not found. Cannot fetch dashboard statistics.'));
-      setStats(null);
+    if (!employeeId || !context?.accessToken) {
+      setError(new Error('Employee ID or Access Token not found.'));
       setIsLoading(false);
       return;
     }
 
     const fetchStats = async () => {
-      console.log('useGetExpenseDashboard: fetchStats called.');
       setIsLoading(true);
       setError(null);
       try {
-        console.log('useGetExpenseDashboard: Starting fetch...');
         const now = dayjs();
+        const variables = {
+          employeeId,
+          currency: 'Currency:v1:EUR',
+          currentDate: now.toISOString(),
+          currentMonthStart: now.startOf('month').toISOString(),
+          currentMonthEnd: now.endOf('month').toISOString(),
+          previousMonthStart: now.subtract(1, 'month').startOf('month').toISOString(),
+          previousMonthEnd: now.subtract(1, 'month').endOf('month').toISOString(),
+          currentQuarterStart: now.startOf('quarter').toISOString(),
+          currentQuarterEnd: now.endOf('quarter').toISOString(),
+          previousQuarterStart: now.subtract(1, 'quarter').startOf('quarter').toISOString(),
+          previousQuarterEnd: now.subtract(1, 'quarter').endOf('quarter').toISOString(),
+          currentYearStart: now.startOf('year').toISOString(),
+          currentYearEnd: now.endOf('year').toISOString(),
+          previousYearStart: now.subtract(1, 'year').startOf('year').toISOString(),
+          previousYearEnd: now.subtract(1, 'year').endOf('year').toISOString(),
+          currentMonthStartTz: now.startOf('month').toISOString(),
+          currentMonthEndTz: now.endOf('month').toISOString(),
+          currentQuarterStartTz: now.startOf('quarter').toISOString(),
+          currentQuarterEndTz: now.endOf('quarter').toISOString(),
+          currentYearStartTz: now.startOf('year').toISOString(),
+          currentYearEndTz: now.endOf('year').toISOString(),
+        };
 
-        // Define date range objects
-        const currentMonth = { start: now.startOf('month'), end: now.endOf('month') };
-        const previousMonth = { start: now.subtract(1, 'month').startOf('month'), end: now.subtract(1, 'month').endOf('month') };
-        const currentQuarter = { start: now.startOf('quarter'), end: now.endOf('quarter') };
-        const previousQuarter = { start: now.subtract(1, 'quarter').startOf('quarter'), end: now.subtract(1, 'quarter').endOf('quarter') };
-        const currentYear = { start: now.startOf('year'), end: now.endOf('year') };
-        const previousYear = { start: now.subtract(1, 'year').startOf('year'), end: now.subtract(1, 'year').endOf('year') };
+        const data = await graphqlClient.request(GET_EXPENSE_DASHBOARD_BY_EMPLOYEE, variables);
 
-        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            query: GET_EXPENSE_DASHBOARD_BY_EMPLOYEE,
-            variables: {
-              employeeId,
-              currency: 'Currency:v1:EUR',
-
-              // timestamp variables
-              currentDate: now.toISOString(),
-              currentMonthStart: currentMonth.start.toISOString(),
-              currentMonthEnd: currentMonth.end.toISOString(),
-              previousMonthStart: previousMonth.start.toISOString(),
-              previousMonthEnd: previousMonth.end.toISOString(),
-              currentQuarterStart: currentQuarter.start.toISOString(),
-              currentQuarterEnd: currentQuarter.end.toISOString(),
-              previousQuarterStart: previousQuarter.start.toISOString(),
-              previousQuarterEnd: previousQuarter.end.toISOString(),
-              currentYearStart: currentYear.start.toISOString(),
-              currentYearEnd: currentYear.end.toISOString(),
-              previousYearStart: previousYear.start.toISOString(),
-              previousYearEnd: previousYear.end.toISOString(),
-
-              // timestamptz variables
-              currentMonthStartTz: currentMonth.start.toISOString(),
-              currentMonthEndTz: currentMonth.end.toISOString(),
-              currentQuarterStartTz: currentQuarter.start.toISOString(),
-              currentQuarterEndTz: currentQuarter.end.toISOString(),
-              currentYearStartTz: currentYear.start.toISOString(),
-              currentYearEndTz: currentYear.end.toISOString(),
-            },
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-        }
-
-        const result = await response.json();
-
-        if (result.errors && result.errors.length > 0) {
-          throw new Error(result.errors.map((e: any) => e.message).join(', '));
-        }
-        
-        const data = result.data;
         const processExpensesByType = (expenseData: any[]): Record<string, number> => {
           const expenseTypes: Record<string, number> = {};
           expenseData?.forEach((item: any) => {
@@ -214,20 +167,17 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
           expenseItemsWithoutReceipts: data?.itemsWithoutReceipts?.aggregate?.count ?? 0,
         };
         
-        console.log('useGetExpenseDashboard: Fetch successful, data processed.');
         setStats(expenseDashboard);
       } catch (err) {
-        console.error('useGetExpenseDashboard: Fetch error:', err);
         setError(err instanceof Error ? err : new Error(String(err)));
         setStats(null);
       } finally {
-        console.log('useGetExpenseDashboard: Fetch finished.');
         setIsLoading(false);
       }
     };
 
     fetchStats();
-  }, [context?.accessToken, context?.userInfo?.employeeDetails?.employeeId]);
+  }, [graphqlClient, context?.accessToken, context?.userInfo?.employeeDetails?.employeeId]);
 
   return { stats, isLoading, error: error?.message ?? null };
 };
