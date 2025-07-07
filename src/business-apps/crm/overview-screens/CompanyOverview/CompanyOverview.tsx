@@ -103,8 +103,6 @@ interface EmployeeDetails {
   };
 }
 
-const STORAGE_KEY_USER_INFO = 'business-app-ide-user-info';
-
 const CompanyOverview: React.FC<BusinessAppContextProps> = ({ userInfo, accessToken }) => {
   const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<DisplayCompanyData | null>(null);
