@@ -30,6 +30,7 @@ import EditLead from "./EditLead";
 import { useCatalogManagerClient } from "../../../../common/network/catalogs/useCatalogManagerClient";
 import dayjs from 'dayjs';
 import {getActivityByLeadId} from "./queries/getActivityByLeadId";
+import { startProcess } from "@/common/utils/start-process";
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -2673,6 +2674,16 @@ const LeadDetails: React.FC<LeadDetailsProps> = (props) => {
                     fontWeight: '500',
                     height: '36px',
                     borderRadius: '4px'
+                  }}
+                  onClick={() => {
+                    startProcess({
+                      domain: 'customer-relations',
+                      processName: 'saveSalesTask',
+                      payload: {
+                        leadId
+                      },
+                      builderType: 'NATIVE_SCREEN',
+                    })
                   }}
                 >
                   Add Activity
