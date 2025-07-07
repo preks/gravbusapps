@@ -21,10 +21,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import AppActionButton from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
-// TO-DO: ADD TRANSLATION for new availability status labels
-
-// ProfileHeader props interface
-
 // Team item type
 interface MatrixUnitEmployee {
   matrixUnit: {
