@@ -11,6 +11,7 @@ import { getExpenseRequestStatusDisplay } from '../../../utils';
 import ExpenseRequestDetails from './ExpenseRequestDetails';
 import { ensureShortDateFormat } from '../../../utils/dateUtils';
 import { formatAmount } from '../../../utils/currencyUtils';
+import { formatNumberFunction } from '@/common/utils/windowUtils';
 
 const { Text } = Typography;
 
@@ -194,7 +195,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       align: 'right' as const,
       render: (amount: number) => (
         <Text strong>
-          {typeof amount === 'number' ? `€${formatAmount(amount)}` : 'N/A'}
+          {typeof amount === 'number' ? `€${formatNumberFunction(amount.toString())}` : 'N/A'}
         </Text>
       )
     },

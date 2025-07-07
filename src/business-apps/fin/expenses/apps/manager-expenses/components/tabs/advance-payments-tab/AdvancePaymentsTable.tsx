@@ -9,7 +9,7 @@ import Pill from '@/components/pill/Pill';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
 import { useMainViewAdvancePayments, type AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../../utils';
-import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatDate, formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatAmount } from '../../../utils/currencyUtils';
 import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters';
 
@@ -131,7 +131,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       align: 'right',
       render: (amount: number | undefined) => (
         <Text strong>
-          {typeof amount === 'number' ? `€${formatAmount(amount)}` : 'N/A'}
+          {typeof amount === 'number' ? `€${formatNumberFunction(amount.toString())}` : 'N/A'}
         </Text>
       ),
     },
