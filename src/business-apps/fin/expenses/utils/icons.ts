@@ -7,6 +7,8 @@ export const ICONS = {
   // Navigation icons
   BACK_ARROW: `${ICONS_ENDPOINT}/remixicons/arrow-left-s-line.svg`,
   RIGHT_ARROW: `${ICONS_ENDPOINT}/remixicons/ArrowRightSLine.svg`,
+  UP_ARROW: `${ICONS_ENDPOINT}/remixicons/arrow-up-s-line.svg`,
+  DOWN_ARROW: `${ICONS_ENDPOINT}/remixicons/arrow-down-s-line.svg`,
   
   // Expense type icons
   RECEIPT_ICON: `${ICONS_ENDPOINT}/remixicons/receipt-line.svg`,
@@ -24,5 +26,9 @@ export const ICONS = {
   X_ICON:`${ICONS_ENDPOINT}/remixicons/close-line.svg`,
   
   // Status icons
-  SPINNER_ICON: `${ICONS_ENDPOINT}/newwork/spinner.svg`
+  SPINNER_ICON: `${ICONS_ENDPOINT}/newwork/spinner.svg`,
+
+  //Expense trip icons
+  PIN_ICON: `${ICONS_ENDPOINT}/remixicons/map-pin-line.svg`, 
+  DELETE_CIRCLE_ICON: `${ICONS_ENDPOINT}/remixicons/close-circle-line.svg`, 
 };

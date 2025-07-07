@@ -49,6 +49,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-top: 16px;
   width: 100%;
   pointer-events: none; /* Allow clicks to pass through */
 }
@@ -169,14 +170,29 @@
   margin-top: 4px;
 }
 
-.gba\:headerDivider {
-  margin: 0 0 46px 0 !important;
+/* Progress indicator styles */
+.gba\:progressIndicator {
+  display: flex;
+  justify-content: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 30px 0;
 }
 
-.gba\:contentContainer {
-  padding: 16px 24px;
-  margin-bottom: 32px;
+.gba\:progressLine {
+  height: 3px;
+  width: 25%;
+  border-radius: 1.5px;
 }
+
+.gba\:progressLineFilled {
+  background-color: #000000;
+}
+
+.gba\:progressLineEmpty {
+  background-color: #C2C2C2;
+}
+
 
 .gba\:screenContainer {
   display: flex;

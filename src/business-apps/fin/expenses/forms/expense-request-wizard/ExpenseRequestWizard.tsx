@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Divider, Input } from 'antd';
+import { Typography, Input } from 'antd';
 import { Button } from '@newwork/gravity-ui-catalog';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -20,6 +20,9 @@ import TripScreen from './screens/TripScreen';
 import LoadScreen from './screens/LoadScreen';
 import AllowanceScreen from './screens/AllowanceScreen';
 import SummaryScreen from './screens/SummaryScreen';
+
+// Import custom components
+import ProgressIndicator from './components/ProgressIndicator';
 
 const { Title } = Typography;
 
@@ -311,7 +314,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
               {currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && 
                 getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.items_subtitle', 'Expense Items')}
               {currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && 
-                getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.trips_subtitle', 'Trip Details')}
+                getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.title', 'Trip Details')}
               {currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB && 
                 getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.allowances_subtitle', 'Allowances')}
               {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && 
@@ -320,9 +323,9 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
           </div>
         </div>
       </div>
-      <Divider className="gba:headerDivider" data-testid="expense-request-wizard-divider" />
+      <ProgressIndicator currentScreen={currentScreen} />
       
-      <div className="gba:contentContainer" data-testid="expense-request-wizard-content-container">
+      <div data-testid="expense-request-wizard-content-container">
         {loading ? (
           <div className="gba:loadingContainer" data-testid="expense-request-wizard-loading">
             {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.loading', 'Loading...')}
@@ -344,7 +347,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
       </div>
       
       <div className="gba:footerContainer" data-testid="expense-request-wizard-footer">
-        <Divider className="gba:divider" data-testid="expense-request-wizard-bottom-divider" />
+        <hr className="gba:divider" data-testid="expense-request-wizard-bottom-divider" />
         <div className="gba:actionButtonsContainer" data-testid="expense-request-wizard-actions">
           <Button 
             variant="outline" 
