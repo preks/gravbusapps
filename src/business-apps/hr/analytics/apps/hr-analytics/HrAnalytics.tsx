@@ -5,6 +5,7 @@ import Overview from './components/tabs/Overview';
 import EmployeeDemographics from './components/tabs/Employee.Demographics';
 import CompensationTab from './components/tabs/Compensation';
 import Workforce from './components/tabs/Workforce';
+import ForecastingTab from './components/tabs/Forecasting';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useEmployeeCount } from './hooks/useEmployeeCount';
 import { useNewHiresCount } from './hooks/useNewHiresCount';
@@ -97,6 +98,11 @@ const HrAnalytics: React.FC<HrAnalyticsProps> = ({ accessToken }) => {
       key: 'compensation',
       label: getTranslationFromI18nKeyAndLabel('hr_analytics_tab_compensation', 'Compensation'),
       children: <CompensationTab accessToken={accessToken} />
+    },
+    {
+      key: 'forecasting',
+      label: getTranslationFromI18nKeyAndLabel('hr_analytics_tab_forecasting', 'Forecasting'),
+      children: <ForecastingTab accessToken={accessToken} />
     }
   ];
 
