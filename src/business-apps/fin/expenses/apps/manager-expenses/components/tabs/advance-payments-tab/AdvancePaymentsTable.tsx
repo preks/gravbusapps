@@ -16,6 +16,7 @@ const { Text } = Typography;
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string;
+  onSearchChange?: (search: string) => void;
 }
 
 const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
@@ -31,7 +32,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   const {
     searchTerm,
     setSearchTerm,
-    debouncedSearchTerm,
     statusFilter,
     setStatusFilter,
     filterGroups,
@@ -45,12 +45,19 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Sync with parent search prop if provided
+  // Handle search changes from parent
   useEffect(() => {
     if (search !== undefined && search !== searchTerm) {
       setSearchTerm(search);
     }
-  }, [search, searchTerm, setSearchTerm]);
+  }, [search]);
+  
+  // Notify parent of search changes
+  useEffect(() => {
+    if (props.onSearchChange && searchTerm !== search) {
+      props.onSearchChange(searchTerm);
+    }
+  }, [searchTerm, props.onSearchChange]);
 
   // Use the new main view hook for advance payments
   const {
@@ -65,7 +72,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   } = useMainViewAdvancePayments({
     ...contextProps,
     pageSize,
-    searchTerm: debouncedSearchTerm || '',
+    searchTerm: props.search || '',
     currentStatusFilter: statusFilter || undefined,
   });
   
