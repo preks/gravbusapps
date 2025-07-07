@@ -1,0 +1,411 @@
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { useFlowClient } from "@/common/network/flows/useFlowClient";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { showToast } from "../../utils/notificationUtils";
+import { formatDateWithTimezone } from "../expense-item/utils/dateUtils";
+
+/**
+ * Hook for fetching employee rule data
+ * @param contextProps - Business app context props
+ * @returns Function to fetch employee rule data
+ */
+export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps, 'accessToken'>) => {
+  const flowClient = useFlowClient(contextProps);
+  
+  /**
+   * Fetch employee rule data
+   * @param employeeId Employee ID
+   * @param date Date in ISO format
+   * @returns Promise with employee rule data or null if error
+   */
+  const fetchEmployeeRule = async (employeeId: string, date: string) => {
+    try {
+      const formattedDate = formatDateWithTimezone(date);
+      const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`;
+      
+      return await flowClient.getResource(path);
+    } catch (error) {
+      showToast(
+        getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_request.process_error_data_fetch", "Error fetching data"),
+        "error"
+      );
+      return null;
+    }
+  };
+  
+  return { fetchEmployeeRule };
+};
+
+/**
+ * Function for fetching employee rule data
+ */
+export const fetchEmployeeRule = async (employeeId: string, date: string, accessToken: string) => {
+  try {
+    // Import flowClient directly for non-hook usage
+    const { flowClient } = await import("@/common/network/flows/FlowClient");
+    
+    // Set access token
+    flowClient.setAccessToken(accessToken);
+    
+    // Format date as required by the API
+    const formattedDate = formatDateWithTimezone(date);
+    const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`;
+    
+    // Use the getResource method
+    return await flowClient.getResource(path);
+  } catch (error) {
+    showToast(
+      getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_request.process_error_data_fetch", "Error fetching data"),
+      "error"
+    );
+    return null;
+  }
+};
+
+
+export const fetchExpenseAllowanceAndDeduction = `
+query MyQuery($expenseId: uuid!, $expenseRuleId: uuid) {
+ExpenseAllowance(where: {expenseRequestId: {_eq: $expenseId}, isDeleted: {_eq: false}}) {
+    id
+    version
+    breakfast
+    lunch
+    dinner
+    overnight
+    allowanceDate
+    travelRegionRef
+    projectId
+    expensePlanId
+    costCenterId
+    expenseRequestId
+    allowanceRegionRuleDetailId
+  }
+  ExpenseRuleDeduction(where: {expenseRuleId: {_eq: $expenseRuleId}, isDeleted: {_eq: false}}) {
+    id
+    version
+    deductionDay
+    deductBreakfast
+    deductLunch
+    deductDinner
+    overnightAllowance
+    expenseRuleId
+  }
+    }
+`
+export const fetchExpenseRequestAndItems = `
+query MyQuery($expenseId: uuid!, $activeUserLocale: String) {
+  ExpenseRequestByPk(id: $expenseId) {
+    id
+    version
+    createdAt
+    expenseRuleId
+    code
+    processInstanceId
+    additionalProperties
+    project{
+      id
+      validTo
+      validFrom
+      name
+    }
+    costCenterId
+    costCenter{
+      name
+      code
+      id
+    }
+      expenseRequestComment (where: {isDeleted: {_eq: false}}){
+      id
+      authorEmployeeId
+      authorEmployee {
+        firstName
+      lastName
+      picture
+      pictureThumbnail
+      }
+      commentDate
+      commentType
+      comment
+      expenseRequestId
+    }
+    costCenter{
+      name
+    }
+    employeeId
+    expensePlanId
+    expensePlan {
+       id
+     createdAt
+     startDate
+    endDate
+    title
+    requestTypeRef
+    title
+      expenseRuleId
+      code
+    status
+      currency{
+        code
+        id
+       value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+
+      }
+    costCenter{
+      id
+      name
+    }
+      advancePaymentTotalAmount
+    employeeId
+    totalAmount
+    deductibleAmount
+    nonDeductibleAmount
+    reimbursableAmount
+    nonReimbursableAmount
+    totalAmountAllowance
+    totalAmountExpense
+    totalAmountMileage
+    totalRemainingAmount
+    description
+    planDate
+     
+     advancePayment(where: {isDeleted: {_eq: false}}) {
+      amount
+      code
+      currency {
+        alternativeCode
+       value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+        code
+        id
+      }
+      costCenter {
+        code
+        name
+      }
+      paymentMethod
+    }
+      expenseRequestTrip(where: {isDeleted: {_eq: false}}) {
+        id
+        version
+        tripDirection
+        tripDateTime
+        tripOrder
+        pointType
+        point
+        expenseRequestId
+        description
+        address
+        costCenterId
+        travelRegionRef
+        countryRef
+        allowanceRegionRuleDetailId
+      }
+    }
+    title
+    totalAmount
+    deductibleAmount
+    nonDeductibleAmount
+    reimbursableAmount
+    nonReimbursableAmount
+    totalAmountAllowance
+    totalAmountExpense
+    totalAmountMileage
+    totalRemainingAmount
+    status
+    requestDate
+    startDate
+    endDate
+    requestTypeRef
+    currency {
+      id
+      code
+      value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    }
+    expenseRequestTrip(where: {isDeleted: {_eq: false}}) {
+      id
+      version
+      tripDirection
+      tripDateTime
+      tripOrder
+      pointType
+      point
+      expenseRequestId
+      description
+      address
+      costCenterId
+      travelRegionRef
+      countryRef
+      allowanceRegionRuleDetailId
+    }
+  }
+  ExpenseItem(where: {expenseRequestId: {_eq: $expenseId},isDeleted: {_eq: false}}) {
+    id
+    version
+    code
+    source
+    expenseClassRef
+    expenseGroupRef
+    title
+    expenseDate
+    currencyRef
+    totalAmount
+    expenseRuleId
+    status
+    reimbursable
+    itemOrder
+    employeeId
+    autoCalculated
+    multiplePositions
+    costCenterId
+    projectId
+    expenseRequest {
+      id
+    }
+    employee {
+      id
+    }
+    expenseGroup {
+      id
+      code
+      value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+
+    }
+    currency {
+      value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+      code
+      id
+    }
+    expensePosition(where: {isDeleted: {_eq: false}}) {
+      expenseGroup {
+        id
+        value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+
+        code
+      }
+      expenseRuleGeneralExpenseId
+      expenseRuleGeneralExpense {
+        name
+      }
+      expenseRuleMileageId
+      id
+      positionOrder
+      totalAmount
+      version
+      reimbursable
+      costCenter {
+        id
+        name
+      }
+      additionalProperties
+    }
+    expenseItemFile(where: {isDeleted: {_eq: false}}) {
+      createdAt
+    }
+}}`
+
+export const fetchEmployeeExpenseItems = `query MyQuery($employeeId: uuid!, $status: String,$activeUserLocale: String){
+ ExpenseItemEmployee: ExpenseItem(where: {employeeId: {_eq: $employeeId}, status: {_eq: $status},isDeleted: {_eq: false}}) {
+    id
+    version
+    code
+    expenseClassRef
+    expenseGroupRef
+    expenseRuleId
+    source
+    title
+    expenseDate
+    currencyRef
+    totalAmount
+    status
+    reimbursable
+    itemOrder
+    employeeId
+    autoCalculated
+    multiplePositions
+    costCenterId
+    projectId
+    expenseRequest {
+      id
+    }
+    employee {
+      id
+    }
+    expenseGroup {
+      id
+      code
+      value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+
+    }
+    currency {
+      value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+
+      code
+      id
+    }
+    expensePosition(where: {isDeleted: {_eq: false}}) {
+      expenseGroup {
+        id
+        value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+
+        code
+      }
+      expenseRuleGeneralExpenseId
+      expenseRuleGeneralExpense {
+        name
+      }
+      expenseRuleMileageId
+      id
+      positionOrder
+      totalAmount
+      version
+      reimbursable
+      costCenter {
+        id
+        name
+      }
+      additionalProperties
+    }
+    expenseItemFile (where: {isDeleted: {_eq: false}}){
+      createdAt
+    }
+  }
+    ExpenseItemAggregate(where: {employeeId: {_eq: $employeeId}, status: {_eq: $status},isDeleted: {_eq: false}}){
+    aggregate{
+      count
+    }
+  }}`

@@ -1,0 +1,248 @@
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Form } from 'antd';
+import { useTranslation } from 'react-i18next';
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { showToast } from '../../../utils/notificationUtils';
+import { fetchEmployeeRule, fetchExpenseRequestAndItems } from '../ExpenseRequestWizardQueries';
+
+/**
+ * ExpenseRequestWizardContext props interface
+ */
+interface ExpenseRequestWizardContextProps {
+  loading: boolean;
+  employeeRuleId: string | null;
+  expenseRuleError: string | null;
+  expenseRequestData: any | null;
+  form: any;
+}
+
+/**
+ * ExpenseRequestWizardProvider props interface
+ */
+interface ExpenseRequestWizardProviderProps {
+  children: ReactNode;
+  accessToken: string;
+  userInfo?: any;
+  additionalData?: { [k: string]: any };
+}
+
+/**
+ * ExpenseRequestWizardContext
+ */
+export const ExpenseRequestWizardContext = createContext<ExpenseRequestWizardContextProps | undefined>(undefined);
+
+/**
+ * ExpenseRequestWizardProvider component
+ * @param props - Provider props
+ * @returns Provider component
+ */
+export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProviderProps> = ({
+  children,
+  accessToken,
+  userInfo,
+  additionalData,
+}) => {
+  const { t } = useTranslation();
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState<boolean>(true);
+  const [employeeRuleId, setEmployeeRuleId] = useState<string | null>(null);
+  const [expenseRuleError, setExpenseRuleError] = useState<string | null>(null);
+  const [expenseRequestData, setExpenseRequestData] = useState<any | null>(null);
+  const graphqlClient = useGraphqlClient(accessToken);
+
+  // Mock additionalData for testing
+  const mockAdditionalData = {
+    psi_taskPayload: {
+      stepKey: "Tab3_pse_save",
+      expenseRequest: {
+        id: "90c7cdc0-ccef-4c0a-b5ba-a57af67bd38d",
+        version: 4,
+        businessKey: "0a844413-9c9b-45b7-8fda-106ae1808f61",
+        additionalProperties: {
+          transportationMeans: []
+        },
+      }
+    },
+    nvi_navigationPayload: {},
+    psi_processMetadata: {
+      processMetadata: {
+        domain: "employee-expense",
+        name: "changeExpenseRequest"
+      },
+      processInstanceId: "eab911a1-1336-40b1-bde8-f4742166f6c9",
+      lastOpenedTask: {
+        id: "697018fc-c027-493f-a815-69fb061828dc",
+        name: "addItemsToRequest",
+        parameters: {
+          stepKey: "ItemsScreen_pse_next",
+          expenseRequest: {
+            id: "3c5b82b3-1487-4b57-8930-1d0d873a2226",
+            version: 3
+          }
+        },
+        screenKey: "frm_changeExpenseRequestAddItemsToRequest",
+        screen: {
+          id: "1e3d736b-29f8-4a7b-b461-a1e229a5afd4",
+          namespaceId: "31bb6427-8f98-11ef-b686-1e4781e89729",
+          namespaceCode: "nw_employee_expense",
+          screenKey: "frm_changeExpenseRequestAddItemsToRequest",
+          name: "Add Expense Items To Request",
+          namespaceDescription: "Employee Expense",
+          createdAt: "2024-11-01T14:41:47.644",
+          updatedAt: "2024-11-01T14:41:47.644",
+          isDeleted: false,
+          type: "FORM",
+          screenComponents: {
+            key: "frm_changeExpenseRequestAddItemsToRequest",
+            name: "Add Expense Items To Request",
+            builderType: "LOWCODER",
+            appId: "66cf3a923227892ac4685ffd",
+            appName: "flw_modifyExpenseRequest",
+            formDefinition: {},
+            release: "true"
+          }
+        }
+      }
+    }
+  };
+
+  const actualAdditionalData = additionalData || mockAdditionalData;
+
+  // Fetch expense data when employeeRuleId is available
+  const fetchExpenseData = async () => {
+    try {
+      if (!accessToken || !employeeRuleId || !userInfo) return;
+
+      setLoading(true);
+
+      // Extract expenseId from additionalData
+      const expenseId = actualAdditionalData?.psi_taskPayload?.expenseRequest?.id;
+      if (!expenseId) {
+        showToast(
+          t("lowcoder:create_expense_request_wizard.missing_expense_id", "Missing expense ID"),
+          "error"
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Get employee ID
+      const employeeId = userInfo?.employeeDetails?.employeeId;
+      if (!employeeId) {
+        showToast(
+          t("lowcoder:create_expense_request_wizard.missing_employee_id", "Missing employee ID"),
+          "error"
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Get active user locale
+      const activeUserLocale = getCurrentActiveUserLocale();
+
+      // Prepare query variables
+      const variables = {
+        expenseId,
+        activeUserLocale
+      };
+
+      // Execute query
+      const response = await graphqlClient.request(fetchExpenseRequestAndItems, variables);
+      setExpenseRequestData(response);
+    } catch (error) {
+      console.error('Error fetching expense data:', error);
+      showToast(
+        t("lowcoder:create_expense_request_wizard.error_fetching_expense_data", "Error fetching expense data"),
+        "error"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initialize data
+  useEffect(() => {
+    const initializeData = async () => {
+      try {
+        if (!accessToken || !userInfo) return;
+
+        const employeeId = userInfo?.employeeDetails?.employeeId;
+        if (!employeeId) {
+          showToast(
+            t("lowcoder:create_expense_request_wizard.missing_employee_id", "Missing employee ID"),
+            "error"
+          );
+          setLoading(false);
+          return;
+        }
+
+        // Get current date
+        const currentDate = new Date().toISOString();
+        
+        // Fetch employee rule using the imported function
+        const employeeRuleData = await fetchEmployeeRule(employeeId, currentDate, accessToken);
+
+        if (employeeRuleData && employeeRuleData.expenseRuleId) {
+          setEmployeeRuleId(employeeRuleData.expenseRuleId);
+          setExpenseRuleError(null);
+        } else {
+          setExpenseRuleError(
+            t("lowcoder:create_expense_request.missing_expense_rule_message", "No expense rule found for this employee")
+          );
+          showToast(
+            t("lowcoder:create_expense_request.missing_expense_rule_message", "No expense rule found for this employee"),
+            "error"
+          );
+        }
+      } catch (error) {
+        console.error('Error fetching employee rule:', error);
+        setExpenseRuleError(
+          t("lowcoder:create_expense_request.error_fetching_rule", "Error fetching employee rule")
+        );
+        showToast(
+          t("lowcoder:create_expense_request.error_fetching_rule", "Error fetching employee rule"),
+          "error"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeData();
+  }, [accessToken, userInfo, t]);
+
+  // Fetch expense data when employeeRuleId is available
+  useEffect(() => {
+    if (employeeRuleId) {
+      fetchExpenseData();
+    }
+  }, [employeeRuleId]);
+
+  // Context value
+  const contextValue: ExpenseRequestWizardContextProps = {
+    loading,
+    employeeRuleId,
+    expenseRuleError,
+    expenseRequestData,
+    form
+  };
+
+  return (
+    <ExpenseRequestWizardContext.Provider value={contextValue}>
+      {children}
+    </ExpenseRequestWizardContext.Provider>
+  );
+};
+
+/**
+ * Hook to use the expense request wizard context
+ * @returns Expense request wizard context
+ */
+export const useExpenseRequestWizardContext = () => {
+  const context = useContext(ExpenseRequestWizardContext);
+  if (context === undefined) {
+    throw new Error("useExpenseRequestWizardContext must be used within an ExpenseRequestWizardProvider");
+  }
+  return context;
+};
