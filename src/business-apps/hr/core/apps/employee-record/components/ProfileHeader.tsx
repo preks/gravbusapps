@@ -12,18 +12,16 @@ import {
   PiPencilSimple,
   PiVideoCamera,
   PiChat,
-  PiCurrencyDollar,
-} from "react-icons/pi";
-import { Avatar } from "@newwork/gravity-ui-catalog";
-import { Employee } from "../hooks/useEmployeeData";
-import { formatPhoneNumber, getEmployeeFullName } from "../utils/formatters";
-import { BusinessAppContextProps } from "../../../../../../common/BusinessAppContext";
-import AppActionButton from "@/components/app-action-button/AppActionButton";
-import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-
-// TO-DO: ADD TRANSLATION for new availability status labels
-
-// ProfileHeader props interface
+  PiCurrencyDollar
+} from 'react-icons/pi';
+import { Avatar } from '@newwork/gravity-ui-catalog';
+import { Employee } from '../hooks/useEmployeeData';
+import { formatPhoneNumber, getEmployeeFullName } from '../utils/formatters';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import AppActionButton from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { useFeature } from "@/common/hooks/useFeature";
+import { Feature } from "@/common/types/constants/FeatureHub";
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -201,6 +199,10 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
     return phone ? formatPhoneNumber(phone) : "";
   };
 
+  const coreCollaborationMode = useFeature(Feature.Core.Collaboration.Key);
+  const isAudioCallEnabled = coreCollaborationMode === Feature.Core.Collaboration.Values.Full;
+  const isVideoCallEnabled = coreCollaborationMode === Feature.Core.Collaboration.Values.Full;
+
   return (
     <div className="gba:w-full gba:relative gba:overflow-hidden">
       <div className="gba:relative gba:px-4 gba:pb-4 gba:mt-4 gba:flex gba:flex-col gba:md:flex-row gba:md:items-end">
@@ -239,9 +241,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                     />
 
                     {/* Edit button overlay */}
-                    <button
-                      type="button"
-                      className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-transparent gba:hover:bg-black/50 gba:rounded-full gba:cursor-pointer gba:transition-colors gba:duration-200"
+                    <div
+                      className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center"
                       onMouseEnter={() => setIsHovering(true)}
                       onMouseLeave={() => setIsHovering(false)}
                       aria-label={"Edit profile picture"}
@@ -249,7 +250,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                       {isHovering && (
                         <AppActionButton
                           data-testid="employee-action-button"
-                          variant="primary"
+                          variant="secondary"
                           contextsArray={[
                             FlowContextName.employeeProfilePicture,
                           ]}
@@ -263,7 +264,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                           emptyStateBehavior="hide"
                         />
                       )}
-                    </button>
+                    </div>
                   </div>
                 </div>
 
@@ -283,7 +284,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                     className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
                     title="Audio Call"
                     aria-label="Audio Call"
-                    disabled={!userInfo?.id}
+                    disabled={!isAudioCallEnabled}
                   >
                     <PiPhone className="gba:h-5 gba:w-5" />
                   </button>
@@ -292,7 +293,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                     className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
                     title="Video Call"
                     aria-label="Video Call"
-                    disabled={!userInfo?.id}
+                    disabled={!isVideoCallEnabled}
                   >
                     <PiVideoCamera className="gba:h-5 gba:w-5" />
                   </button>

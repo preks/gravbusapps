@@ -15,8 +15,14 @@ import {
   Alert,
   Select,
   Space,
-  Avatar
+  Avatar,
+  Modal,
+  Upload,
+  List,
+  Checkbox,
+  Pagination
 } from 'antd';
+import type { CheckboxChangeEvent } from 'antd/es/checkbox';
 import {
   ArrowLeftOutlined,
   EditOutlined,
@@ -35,13 +41,20 @@ import {
   FundOutlined,
   StockOutlined,
   UserOutlined,
-  PaperClipOutlined
-} from '@ant-design/icons';
+  PaperClipOutlined,
+  InboxOutlined,
+  UploadOutlined,
+  FileOutlined
+} from "@ant-design/icons";
+import { CompanyDocument } from "../../overview-screens/CompanyDocument/CompanyDocument";
 import {
   GET_COMPANY_BY_ID, GetCompanyByIdResponse
 } from "../../overview-screens/CompanyOverview/graphql/company-queries";
 import { GET_SALES_ACTIVITIES, SalesActivityResponse } from './queries/salesActivityQueries';
+import { GET_DOCUMENTS_BY_ACCOUNT, GetDocumentsResponse, DocumentData } from './queries/documentQueries';
+import { useSalesActivityTypes } from './hooks/useSalesActivityTypes';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { useFileClient } from '@/common/network/files/useFileClient';
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { env } from '@/common/env/EnvUtils';
 
@@ -80,6 +93,11 @@ interface Activity {
   outcome?: string;
   agent?: string;
   cc?: string;
+  completedAt?: string | null;
+  activityType?: {
+    id: string;
+    value: string;
+  };
 }
 
 interface Contact {
@@ -102,6 +120,13 @@ interface CompanyDetailProps {
   accessToken: string;
 }
 
+interface Document extends Partial<DocumentData> {
+  type?: string;
+  date?: string;
+  size?: string;
+  accountId?: string;
+}
+
 const emptyCompanyData = {
   id: '',
   name: '',
@@ -116,6 +141,7 @@ const emptyCompanyData = {
   website: '',
   linkedin: '',
   mainContacts: [] as MainContact[],
+  documents: [] as Document[],
   accountOwner: {
     id: '',
     name: '',
@@ -162,6 +188,8 @@ const emptyCompanyData = {
 };
 
 const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, onBack, accessToken }) => {
+  // Define all hooks at the top level, before any conditionals
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(!_companyId);
   const [editedData, setEditedData] = useState<any>(!_companyId ? emptyCompanyData : null);
   const [hasChanges, setHasChanges] = useState<boolean>(false);
@@ -172,8 +200,141 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
   const [activityForm] = Form.useForm();
   const [addingActivity, setAddingActivity] = useState<boolean>(false);
   const [activities, setActivities] = useState<Activity[]>([]);
+  
+  // Document upload states
+  const [documentModalVisible, setDocumentModalVisible] = useState<boolean>(false);
+  const [documentForm] = Form.useForm();
+  const [uploadingDocument, setUploadingDocument] = useState<boolean>(false);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  
+  // Document analysis states
+  const [analysisModalVisible, setAnalysisModalVisible] = useState<boolean>(false);
+  const [analysisInProgress, setAnalysisInProgress] = useState<boolean>(false);
+  const [messageVisible, setMessageVisible] = useState<boolean>(true);
+  const [currentMessageIndex, setCurrentMessageIndex] = useState<number>(0);
+  
+  // Pagination states
+  const [currentDocumentPage, setCurrentDocumentPage] = useState<number>(1);
+  const documentsPerPage = 5;
+  
+  // Analysis messages for the loading modal
+  const analysisMessages = [
+    getTranslationFromI18nKeyAndLabel('AnalyzingDocument', 'Analyzing document structure and content...'),
+    getTranslationFromI18nKeyAndLabel('ExtractingFinancialData', 'Extracting financial data and metrics...'),
+    getTranslationFromI18nKeyAndLabel('GeneratingInsights', 'Generating insights and summaries...'),
+    getTranslationFromI18nKeyAndLabel('FinalizingResults', 'Finalizing results and updating records...')
+  ];
 
   const graphQLClient = useGraphqlClient(accessToken);
+  const fileClient = useFileClient({ accessToken } as any);
+  const { activityTypes, loading: activityTypesLoading } = useSalesActivityTypes(accessToken);
+
+  const handleAddDocument = () => {
+    documentForm.resetFields();
+    setDocumentModalVisible(true);
+  };
+
+  const handleDocumentCancel = () => {
+    setDocumentModalVisible(false);
+    documentForm.resetFields();
+  };
+
+  const handleDocumentSubmit = async () => {
+    try {
+      const values = await documentForm.validateFields();
+      setUploadingDocument(true);
+      
+      fileClient.setAccessToken(accessToken);
+      const fileInfo = values.file;
+      const uploadFile = fileInfo.fileList && fileInfo.fileList[0];
+      
+      if (!uploadFile || !uploadFile.originFileObj) {
+        throw new Error('No file selected for upload');
+      }
+      
+      const file = uploadFile.originFileObj;
+      
+      const pathParams = {
+        accessScope: 'public' 
+      };
+      
+      const queryParams = {
+        appName: 'crm',
+        folderPath: `/accounts/${companyData.id}/documents`
+      };
+      
+      const response = await fileClient.uploadFile(
+        file,
+        pathParams,
+        queryParams
+      );
+      
+      if (response && response.fileInfo) {
+        const fileUrlParams = { 
+          accessScope: response.fileInfo.accessScope,
+          appName: response.fileInfo.appName,
+          folderPath: response.fileInfo.folderPath,
+          fileId: response.fileInfo.fileId
+        }
+        const fileUrl = `${env("NEXT_PUBLIC_FILE_SERVICE_ENDPOINT")}/${fileUrlParams.accessScope}/downloads/${fileUrlParams.appName}${fileUrlParams.folderPath}/${fileUrlParams.fileId}`
+
+        setDocumentModalVisible(false);
+        documentForm.resetFields();
+        
+        setAnalysisInProgress(true);
+        setAnalysisModalVisible(true);
+        
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          
+          const apiUrl = new URL('https://newwork-dev.newwork.com/flowbot/financial-report/summarize-pdf/');
+          apiUrl.searchParams.append('account_id', companyData.id);
+          apiUrl.searchParams.append('file_url', fileUrl);
+          apiUrl.searchParams.append('document_group_ref', values.documentGroup || 'DocumentGroup:v1:FINANCIALS');
+          
+          const flowbotResponse = await fetch(apiUrl.toString(), {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`
+            },
+            body: formData
+          });
+          
+          // Hide analysis modal regardless of result
+          setAnalysisInProgress(false);
+          setAnalysisModalVisible(false);
+          
+          if (!flowbotResponse.ok) {
+            console.warn('Failed to send document for financial analysis:', await flowbotResponse.text());
+            message.error('Document analysis failed');
+          } else {
+            message.success('Document analyzed successfully');
+          }
+          
+          // Refetch documents from GraphQL to get the proper document ID
+          if (companyData.id) {
+            await fetchDocuments(companyData.id);
+          }
+        } catch (error) {
+          console.error('Error sending document for analysis:', error);
+          setAnalysisInProgress(false);
+          setAnalysisModalVisible(false);
+          message.error('Document analysis failed');
+        }
+
+        
+        // Document modal is already closed and documents will be refetched from GraphQL
+      } else {
+        throw new Error('Failed to upload document');
+      }
+    } catch (error) {
+      console.error('Failed to upload document:', error);
+      message.error('Failed to upload document');
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
 
   const fetchActivities = async (accountId: string) => {
     try {
@@ -183,24 +344,70 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
       );
 
       if (result && result.SalesActivity) {
-        const formattedActivities = result.SalesActivity.map(activity => ({
-          id: activity.id,
-          version: activity.version,
-          title: activity.title,
-          date: new Date(activity.createdAt).toLocaleString(getCurrentActiveUserLocale(), {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          }),
-          description: activity.description
-        }));
+        const formattedActivities = result.SalesActivity.map(activity => {
+          return {
+            id: activity.id,
+            version: activity.version,
+            title: activity.title,
+            date: new Date(activity.createdAt).toLocaleString(getCurrentActiveUserLocale(), {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            description: activity.description,
+            completedAt: activity.completedAt,
+            activityType: activity.activityType
+          };
+        });
+        
         setActivities(formattedActivities);
+        
+        setActivities([...formattedActivities]);
       }
     } catch (error) {
       console.error('Failed to fetch sales activities:', error);
       message.error('Failed to fetch sales activities');
+    }
+  };
+
+  const fetchDocuments = async (accountId: string) => {
+    try {
+      const result = await graphQLClient.request<GetDocumentsResponse>(
+        GET_DOCUMENTS_BY_ACCOUNT,
+        { accountId, limit: 20, offset: 0 }
+      );
+
+      if (result && result.CrmDocument) {
+        const formattedDocuments = result.CrmDocument.map(doc => ({
+          id: doc.id,
+          name: doc.name,
+          type: doc.mimeType,
+          date: new Date(doc.createdAt).toLocaleString(getCurrentActiveUserLocale(), {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          }),
+          size: doc.fileSize ? `${Math.floor(doc.fileSize / 1024)} KB` : 'Unknown',
+          accountId,
+          fileId: doc.fileId,
+          fileUrl: doc.fileUrl,
+          mimeType: doc.mimeType,
+          additionalProperties: doc.additionalProperties
+        }));
+        
+        setDocuments(formattedDocuments);
+        
+        // Update company data with the latest documents
+        setCompanyData(prevData => ({
+          ...prevData,
+          documents: formattedDocuments
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch documents:', error);
+      message.error('Failed to fetch documents');
     }
   };
 
@@ -233,6 +440,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
             tags: [], 
             website: apiData.website || '',
             linkedin: '',
+            documents: [],
             mainContacts: Array.isArray(apiData.contact) 
               ? (apiData.contact as Contact[]).map((contact: Contact) => ({
                   name: contact?.firstName && contact?.lastName ? 
@@ -318,8 +526,23 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
   useEffect(() => {
     if (companyData?.id) {
       fetchActivities(companyData.id);
+      fetchDocuments(companyData.id);
     }
   }, [companyData?.id]);
+
+  useEffect(() => {
+    if (analysisInProgress) {
+      const interval = setInterval(() => {
+        setMessageVisible(false);
+        setTimeout(() => {
+          setCurrentMessageIndex((prev) => (prev + 1) % analysisMessages.length);
+          setMessageVisible(true);
+        }, 200);
+      }, 3000);
+
+      return () => clearInterval(interval);
+    }
+  }, [analysisInProgress, analysisMessages.length]);
 
   React.useEffect(() => {
     if (isEditing && companyData) {
@@ -463,6 +686,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
           title: values.title,
           description: values.description,
           account: companyData.id,
+          activityTypeRef: values.type
         }
       };
 
@@ -490,7 +714,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
       if (response.ok) {
         message.success('Activity added successfully');
         setActivityModalVisible(false);
-        // Refresh activities list
         if (companyData.id) {
           fetchActivities(companyData.id);
         }
@@ -510,7 +733,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
     activityForm.resetFields();
   };
 
-  // Handle deletion of an activity
   const handleDeleteActivity = async (activity: Activity) => {
     try {
       const response = await fetch(`${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveSalesActivity`, {
@@ -524,6 +746,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
           salesActivity: {
             id: activity.id,
             version: activity.version,
+            account: companyData.id
           }
         })
       });
@@ -533,7 +756,6 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
         throw new Error(`Failed to delete activity: ${errorData}`);
       }
       
-      // On success, remove the activity from our local state
       setActivities(prevActivities => {
         return prevActivities.filter(a => a.id !== activity.id);
       });
@@ -542,49 +764,90 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
     }
   };
 
-  return (
-    <div className="gba:company-detail-container" style={{ 
-      padding: '24px', 
-      backgroundColor: '#ffffff', 
-      width: '100%',
-      maxWidth: '100%',
-      boxSizing: 'border-box'
-    }}
-    data-testid="company-detail-container">
-      {loading ? (
-        <div className="gba:full-page-loading" style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-          width: '100%',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          backgroundColor: 'rgba(255, 255, 255, 0.8)',
-          zIndex: 1000
-        }}>
-          <Spin size="large" tip="Loading company data..." />
-        </div>
-      ) : null}
+  const handleMarkActivityComplete = async (activity: Activity, completed: boolean) => {
+    try {
+      const now = new Date().toISOString();
+      const completedAt = completed ? now : null;
       
-      <div 
-        className="gba:back-link" 
-        style={{ 
-          marginBottom: '20px'
-        }}
-      >
+      let salesActivity: any = {
+        id: activity.id,
+        version: activity.version,
+        account: companyData.id
+      };
+      
+      if (completed) {
+        salesActivity.completedAt = now;
+      } else {
+        salesActivity.completedAt = "";
+      }
+      
+      const payload = {
+        changeMode: "UPDATE",
+        salesActivity
+      };
+      
+      const response = await fetch(`${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveSalesActivity`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to update activity: ${errorData}`);
+      }
+      
+      await fetchActivities(companyData.id);
+    } catch (error) {
+      console.error('Error updating activity:', error);
+    }
+  };
+
+  const handleDocumentClick = (documentId: string) => {
+    setSelectedDocumentId(documentId);
+  };
+
+  const renderDocumentSection = () => (
+    <>
+      <div style={{ marginBottom: '16px' }}>
         <Button 
-          type="text" 
-          icon={<ArrowLeftOutlined />} 
-          onClick={handleBack}
-          className="gba:company-detail-back-button"
-          data-testid="back-to-companies-btn"
+          onClick={() => setSelectedDocumentId(null)}
+          icon={<ArrowLeftOutlined />}
+          data-testid="back-to-company-button"
         >
-          Back to Companies
+          {getTranslationFromI18nKeyAndLabel('backToCompany', 'Back to Company')}
         </Button>
       </div>
-
+      <CompanyDocument 
+        accountId={_companyId || ''} 
+        documentId={selectedDocumentId as string}
+        accessToken={accessToken}
+      />
+    </>
+  );
+  
+  const renderLoadingSpinner = () => (
+    <div className="gba:full-page-loading" style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh',
+      width: '100%',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+      zIndex: 1000
+    }}>
+      <Spin size="large" />
+    </div>
+  );
+  
+  const renderCompanyDetails = () => (
+    <>
       {isEditing && (
         <Alert
           message="Edit Mode Active"
@@ -1106,11 +1369,27 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
                   <Timeline>
                     {activities.length > 0 ? (
                       activities.map((activity, index) => (
-                        <Timeline.Item key={activity.id || index} color="blue">
+                        <Timeline.Item key={activity.id || index} color={activity.completedAt ? "green" : "blue"}>
                           <div style={{ position: 'relative' }}>
-                            <Text strong>{activity.title}</Text>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Text strong style={activity.completedAt ? { opacity: 0.6 } : {}}>{activity.title}</Text>
+                            </div>
                             <div><Text type="secondary">{activity.date}</Text></div>
-                            <div>{activity.description}</div>
+                            {activity.activityType && (
+                              <div><Text type="secondary" style={{ color: '#1890ff' }}>{activity.activityType.value}</Text></div>
+                            )}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                              <div style={{ flex: 1 }}>{activity.description}</div>
+                              <Checkbox 
+                                checked={!!activity.completedAt}
+                                disabled={!!activity.completedAt}
+                                onChange={(e: CheckboxChangeEvent) => handleMarkActivityComplete(activity, e.target.checked)}
+                                data-testid={`complete-activity-${activity.id}`}
+                                style={{ marginLeft: '16px' }}
+                              >
+                                Done
+                              </Checkbox>
+                            </div>
                             {activity.duration && (
                               <div>Duration: {activity.duration}</div>
                             )}
@@ -1202,8 +1481,209 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
             
             <div className="gba:account-info-value">{companyData.geographicPresence || 'N/A'}</div>
           </Card>
+          
+          {/* Documents Section */}
+          <Card className="gba:card-container" style={{ marginTop: '24px' }} data-testid="company-documents-section">
+            <div className="gba:section-header" style={{ 
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}>
+              <div className="gba:section-title" style={{ 
+                fontSize: '18px', 
+                fontWeight: 600, 
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <FileOutlined className="gba:section-title-icon" /> 
+                {getTranslationFromI18nKeyAndLabel('documents', 'Documents')}
+              </div>
+              
+              <Button 
+                type="primary" 
+                icon={<UploadOutlined />}
+                onClick={handleAddDocument}
+                data-testid="import-document-button"
+              >
+                {getTranslationFromI18nKeyAndLabel('importDocument', 'Import Document')}
+              </Button>
+            </div>
+            
+            {/* Document List with Pagination */}
+            <div className="gba:document-list-container">
+              <List
+                className="gba:document-list"
+                size="small"
+                bordered
+                dataSource={
+                  (companyData?.documents || [])
+                    // Sort documents by date in descending order (newest first)
+                    .sort((a, b) => {
+                      const dateA = new Date(a.date || '').getTime();
+                      const dateB = new Date(b.date || '').getTime();
+                      return dateB - dateA; // Descending order
+                    })
+                    .slice(
+                      (currentDocumentPage - 1) * documentsPerPage,
+                      currentDocumentPage * documentsPerPage
+                    )
+                }
+                renderItem={(document) => (
+                  <List.Item
+                    key={document.id}
+                    className="gba:document-list-item"
+                    actions={[
+                      document.id && (
+                        <Button 
+                          type="link" 
+                          size="small" 
+                          onClick={() => handleDocumentClick(document.id as string)}
+                          data-testid={`view-document-${document.id}`}
+                        >
+                          View
+                        </Button>
+                      )
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={document.name}
+                      description={`${document.type || 'application/pdf'}`}
+                    />
+                  </List.Item>
+                )}
+              />
+              
+              {/* Pagination Controls */}
+              {(companyData?.documents?.length || 0) > documentsPerPage && (
+                <div className="gba:pagination-container" style={{ marginTop: '16px', textAlign: 'right' }}>
+                  <Pagination
+                    current={currentDocumentPage}
+                    pageSize={documentsPerPage}
+                    total={companyData?.documents?.length || 0}
+                    onChange={(page) => setCurrentDocumentPage(page)}
+                    size="small"
+                    showSizeChanger={false}
+                    data-testid="document-pagination"
+                  />
+                </div>
+              )}  
+            </div>
+          </Card>
         </Col>
       </Row>
+      
+      {/* Document Upload Modal */}
+      <Modal
+        title={getTranslationFromI18nKeyAndLabel('importDocument', 'Import Document')}
+        visible={documentModalVisible}
+        onOk={handleDocumentSubmit}
+        onCancel={handleDocumentCancel}
+        confirmLoading={uploadingDocument}
+        data-testid="document-upload-modal"
+      >
+        <Form
+          form={documentForm}
+          layout="vertical"
+          name="documentForm"
+          data-testid="document-upload-form"
+        >
+          <Form.Item
+            name="accountName"
+            label={getTranslationFromI18nKeyAndLabel('accountName', 'Account Name')}
+            initialValue={companyData.name}
+          >
+            <Input disabled={true} />
+          </Form.Item>
+          
+          <Form.Item
+            name="documentGroup"
+            label={getTranslationFromI18nKeyAndLabel('documentGroup', 'Document Group')}
+            initialValue="DocumentGroup:v1:FINANCIALS"
+          >
+            <Select data-testid="document-group-select">
+              <Option value="DocumentGroup:v1:FINANCIALS">{getTranslationFromI18nKeyAndLabel('financials', 'Financial')}</Option>
+            </Select>
+          </Form.Item>
+          
+          <Form.Item
+            name="file"
+            label={getTranslationFromI18nKeyAndLabel('document', 'Document')}
+            rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('pleaseUploadFile', 'Please upload a file') }]}
+          >
+            <Upload.Dragger
+              name="file"
+              beforeUpload={() => false}
+              maxCount={1}
+              data-testid="document-upload-dragger"
+            >
+              <p className="ant-upload-drag-icon">
+                <InboxOutlined />
+              </p>
+              <p className="ant-upload-text">
+                {getTranslationFromI18nKeyAndLabel('clickOrDragFile', 'Click or drag file to this area to upload')}
+              </p>
+            </Upload.Dragger>
+          </Form.Item>
+        </Form>
+      </Modal>
+      
+      {/* Document Analysis Modal */}
+      <Modal
+        title={getTranslationFromI18nKeyAndLabel('AnalyzingDocument', 'Analyzing Document')}
+        visible={analysisModalVisible}
+        closable={false}
+        footer={null}
+        maskClosable={false}
+        centered
+        width={500}
+        data-testid="document-analysis-modal"
+      >
+        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
+          <Spin size="large" data-testid="document-analysis-spinner" />
+          <div className="gba:mt-6 gba:text-center">
+            <Typography.Title level={4} data-testid="document-analysis-title">
+              {getTranslationFromI18nKeyAndLabel('AnalyzingFinancialDocument', 'Analyzing Financial Document')}
+            </Typography.Title>
+            
+            {/* Message with fade transition */}
+            <div 
+              className="gba:min-h-[60px] gba:flex gba:items-center gba:justify-center"
+              style={{
+                transition: 'opacity 0.5s ease-in-out',
+                opacity: messageVisible ? 1 : 0,
+              }}
+              data-testid="document-analysis-message-container"
+            >
+              <Typography.Paragraph 
+                className="gba:mt-2 gba:text-gray-600" 
+                data-testid="document-analysis-message"
+              >
+                {analysisMessages[currentMessageIndex]}
+              </Typography.Paragraph>
+            </div>
+            
+            {/* Progress indicator dots */}
+            <div className="gba:flex gba:justify-center gba:gap-2 gba:mt-4" data-testid="document-analysis-progress">
+              {analysisMessages.map((_, index) => (
+                <div 
+                  key={index}
+                  className={`gba:w-2 gba:h-2 gba:rounded-full ${index === currentMessageIndex ? 'gba:bg-blue-500' : 'gba:bg-gray-300'}`}
+                  data-testid={`progress-dot-${index}`}
+                />
+              ))}
+            </div>
+            
+            <Typography.Paragraph className="gba:mt-4 gba:text-sm gba:text-gray-500" data-testid="document-analysis-info">
+              {getTranslationFromI18nKeyAndLabel(
+                'DocumentAnalysisTime', 
+                'This process may take up to three minutes to complete'
+              )}
+            </Typography.Paragraph>
+          </div>
+        </div>
+      </Modal>
       
       {/* Custom modal implementation that doesn't rely on Ant Design Modal */}
       {activityModalVisible && (
@@ -1269,6 +1749,24 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
                 >
                   <Input placeholder="Activity title" />
                 </Form.Item>
+                <Form.Item
+                  name="type"
+                  label="Type"
+                  rules={[{ required: true, message: 'Please select an activity type' }]}
+                >
+                  <Select
+                    placeholder="Select activity type"
+                    loading={activityTypesLoading}
+                    data-testid="activity-type-select"
+                    dropdownStyle={{ zIndex: 10000 }}
+                  >
+                    {activityTypes.map(type => (
+                      <Option key={type.id} value={type.id} data-testid={`activity-type-option-${type.id}`}>
+                        {type.value}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
 
                 <Form.Item
                   name="description"
@@ -1300,6 +1798,20 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId: _companyId, on
           </div>
         </div>
       )}
+    </>
+  );
+  
+  // Single return statement with conditional rendering
+  return (
+    <div className="gba:company-detail-container" style={{ 
+      padding: '24px', 
+      backgroundColor: '#ffffff', 
+      width: '100%',
+      maxWidth: '100%',
+      boxSizing: 'border-box'
+    }}
+    data-testid="company-detail-container">
+      {selectedDocumentId ? renderDocumentSection() : loading ? renderLoadingSpinner() : renderCompanyDetails()}
     </div>
   );
 };

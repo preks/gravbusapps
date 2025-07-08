@@ -35,7 +35,8 @@ import {
 import { useContactsData, Contact } from './hooks/useContactsData';
 import { BusinessAppContextProps } from "@/business-apps/types";
 import { env } from '@/common/env/EnvUtils';
-import { ContactProfile } from '../ContactProfile/ContactProfile';
+import { ContactProfile } from '../../overview-screens/ContactProfile/ContactProfile';
+import { AddEditContactModal } from './components';
 
 const { Title, Text, Paragraph } = Typography;
 const { useBreakpoint } = Grid;
@@ -71,12 +72,15 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
   const [searchText, setSearchText] = useState('');
   const [selectedContactId, setSelectedContactId] = useState<string | undefined>();
   const [isContactProfileVisible, setIsContactProfileVisible] = useState(false);
+  const [isAddContactModalVisible, setIsAddContactModalVisible] = useState(false);
+  const [isEditContactModalVisible, setIsEditContactModalVisible] = useState(false);
   const [isNewContact, setIsNewContact] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isDeletingContact, setIsDeletingContact] = useState(false);
   const screens = useBreakpoint();
   const [isMobile, setIsMobile] = useState(false);
   const [contacts, setContacts] = useState<ExtendedContact[]>([]);
+  const [selectedContact, setSelectedContact] = useState<ExtendedContact | undefined>();
   
   useEffect(() => {
     setIsMobile(!screens.md);
@@ -215,12 +219,17 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
   };
   
   const handleAddContact = () => {
-    setIsNewContact(true);
-    setIsEditMode(true);
-    setIsContactProfileVisible(true);
-    setSelectedContactId(undefined);
+    setSelectedContact(undefined);
+    setIsAddContactModalVisible(true);
   };
   
+  // Function to edit a contact using modal
+  const handleEditContact = (contact: ExtendedContact) => {
+    setSelectedContact(contact);
+    setIsEditContactModalVisible(true);
+  };
+  
+  // Function to delete a contact
   const handleDeleteContact = async (contact: ExtendedContact) => {
     if (!contact || !contact.id) {
       message.error('Cannot delete: Contact information is missing');
@@ -372,40 +381,39 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
             <Menu
               items={[
                 {
-                  key: '1',
-                  icon: <EditOutlined />,
+                  key: 'edit',
                   label: 'Edit',
-                  onClick: (info: MenuInfo) => {
-                    info.domEvent.stopPropagation();
-                    
-                    setTimeout(() => {
-                      setSelectedContactId(record.id);
-                      setIsContactProfileVisible(true);
-                      setIsNewContact(false);
-                      setIsEditMode(true);
-                    }, 0);
-                  }
+                  icon: <EditOutlined />,
+                  onClick: () => {
+                    handleEditContact(record);
+                  },
                 },
                 {
                   key: '2',
                   icon: <DeleteOutlined />,
-                  onClick: (info: MenuInfo) => {
-                    info.domEvent.stopPropagation();
-                    
-                    Modal.confirm({
-                      title: 'Delete Contact',
-                      content: 'Are you sure you want to delete this contact? This action cannot be undone.',
-                      okText: 'Delete',
-                      okType: 'danger',
-                      cancelText: 'Cancel',
-                      okButtonProps: { loading: isDeletingContact },
-                      onOk: () => {
-                        setTimeout(() => handleDeleteContact(record), 0);
-                      },
-                      maskClosable: true,
-                    });
-                  },
-                  label: 'Delete',
+                  label: (
+                    <span
+                      onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
+                        e.stopPropagation();
+                        // Show confirmation modal
+                        Modal.confirm({
+                          title: 'Delete Contact',
+                          content: 'Are you sure you want to delete this contact? This action cannot be undone.',
+                          okText: 'Delete',
+                          okType: 'danger',
+                          cancelText: 'Cancel',
+                          okButtonProps: { loading: isDeletingContact },
+                          onOk: () => {
+                            // Add a small delay to ensure the event doesn't propagate
+                            setTimeout(() => handleDeleteContact(record), 0);
+                          },
+                          maskClosable: true,
+                        });
+                      }}
+                    >
+                      Delete
+                    </span>
+                  ),
                   danger: true
                 }
               ]}
@@ -544,14 +552,12 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
               <Menu
                 items={[
                   {
-                    key: '1',
-                    icon: <EditOutlined />,
+                    key: 'edit',
                     label: 'Edit',
-                    onClick: (e) => {
-                      e.domEvent.stopPropagation();
-                      handleRowClick(contact);
-                      setIsEditMode(true);
-                    }
+                    icon: <EditOutlined />,
+                    onClick: () => {
+                      handleEditContact(contact);
+                    },
                   },
                   {
                     key: '2',
@@ -618,6 +624,7 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
               type='primary' 
               icon={<PlusOutlined />} 
               onClick={handleAddContact}
+              data-testid="add-contact-button"
             >
               Add Contact
             </Button>
@@ -689,6 +696,28 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
       </Card>
         </>
       )}
+      
+      {/* Add Contact Modal */}
+      <AddEditContactModal
+        accessToken={accessToken}
+        employeeId={employeeId}
+        visible={isAddContactModalVisible}
+        onCancel={() => setIsAddContactModalVisible(false)}
+        onSuccess={refetchContacts}
+        isEdit={false}
+      />
+      
+      {/* Edit Contact Modal */}
+      <AddEditContactModal
+        accessToken={accessToken}
+        employeeId={employeeId}
+        visible={isEditContactModalVisible}
+        onCancel={() => setIsEditContactModalVisible(false)}
+        onSuccess={refetchContacts}
+        contactId={selectedContact?.id}
+        contactData={selectedContact}
+        isEdit={true}
+      />
     </div>
   );
 }

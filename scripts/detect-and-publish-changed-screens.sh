@@ -10,7 +10,7 @@ if [[ ! -s changed-tsx.txt ]]; then
   exit 0
 fi
 
-# Loop through each changed app directory and publish it
+# Loop through each changed app/form directory and publish it
 while IFS= read -r app_dir; do
   echo "Processing $app_dir …"
   
