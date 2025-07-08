@@ -6,6 +6,11 @@ export interface SalesActivityResponse {
     version: number;
     description: string;
     createdAt: string;
+    completedAt?: string;
+    activityType?: {
+      id: string;
+      value: string;
+    };
   }[];
 }
 
@@ -24,6 +29,11 @@ export const GET_SALES_ACTIVITIES = `
       version
       description
       createdAt
+      completedAt
+      activityType {
+        id
+        value
+      }
     }
   }
 `;

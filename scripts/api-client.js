@@ -240,9 +240,188 @@ async function addScreenConfigToScreenManagement(
   }
 }
 
+/**
+ * Convert camelCase to natural language with spaces
+ * @param {string} camelCase - The camelCase string to convert
+ * @returns {string} Natural language with spaces
+ */
+function camelCaseToNaturalLanguageWithWhiteSpaces(camelCase) {
+  if (!camelCase) return "";
+
+  // Replace camelCase with spaces and capitalize first letter
+  const withSpaces = camelCase.replace(/([A-Z])/g, " $1").trim();
+  return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1);
+}
+
+/**
+ * Add form as a landing screen to Screen Management
+ * @param {string} processName - Process name in camelCase
+ * @param {string} azureDestinationPath - The path where the form is deployed
+ * @returns {Promise<boolean>} - Whether the operation was successful
+ */
+async function addFormAsLandingScreen(processName, azureDestinationPath) {
+  try {
+    const oauthClient = new OAuthClient();
+    const accessToken = await oauthClient.getAccessToken();
+    const apiEndpoint = process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API;
+
+    const name = camelCaseToNaturalLanguageWithWhiteSpaces(processName);
+    const screenKey = `frm_${processName}`;
+
+    const payload = {
+      id: uuidv4(),
+      name: name,
+      screenKey: screenKey,
+      namespaceCode: "nw_dev",
+      namespaceId: "1e6e2926-33f1-4dfb-a3b8-d535602d06b0",
+      namespaceDescription: "nw_dev",
+      type: "SCREEN",
+      screenComponents: {
+        appName: name,
+        builderType: "NATIVE_SCREEN",
+        key: screenKey,
+        name: name,
+        flowIcon: "",
+        formDefinition: {
+          componentPath: `/${azureDestinationPath}`,
+          version: "",
+        },
+        release: false,
+      },
+    };
+
+    console.log(
+      "📤 Posting form as landing screen to screen management API..."
+    );
+
+    try {
+      // Similar pattern to existing API calls
+      const response = await axios.post(`${apiEndpoint}/screen`, payload, {
+        headers: {
+          accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      console.log(
+        `✅ Successfully added landing screen with ID: ${
+          response.data.id || "unknown"
+        }`
+      );
+      return true;
+    } catch (apiError) {
+      if (apiError.response && apiError.response.status === 409) {
+        console.log("⚠️ Screen config already exists. Continuing...");
+        return true;
+      }
+      throw apiError; // Re-throw to be caught by outer try-catch
+    }
+  } catch (error) {
+    console.error(
+      "❌ Failed to add landing screen to screen management:",
+      error.message
+    );
+    if (error.response) {
+      console.error("Response status:", error.response.status);
+      console.error("Response data:", error.response.data);
+    }
+    return false;
+  }
+}
+
+/**
+ * Add form as a user task screen to Screen Management
+ * @param {string} processName - Process name in camelCase
+ * @param {string} taskName - Task name in camelCase
+ * @param {string} azureDestinationPath - The path where the form is deployed
+ * @returns {Promise<boolean>} - Whether the operation was successful
+ */
+async function addFormAsUserTaskScreen(
+  processName,
+  taskName,
+  azureDestinationPath
+) {
+  try {
+    const oauthClient = new OAuthClient();
+    const accessToken = await oauthClient.getAccessToken();
+    const apiEndpoint = process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API;
+
+    const name1 = camelCaseToNaturalLanguageWithWhiteSpaces(processName);
+    const name2 = camelCaseToNaturalLanguageWithWhiteSpaces(taskName);
+    const name = `${name1} - ${name2}`;
+
+    const screenKey = `frm_${processName}${
+      taskName.charAt(0).toUpperCase() + taskName.slice(1)
+    }`;
+
+    const payload = {
+      id: uuidv4(),
+      name: name,
+      screenKey: screenKey,
+      namespaceCode: "nw_dev",
+      namespaceId: "1e6e2926-33f1-4dfb-a3b8-d535602d06b0",
+      namespaceDescription: "nw_dev",
+      type: "SCREEN",
+      screenComponents: {
+        appName: name,
+        builderType: "NATIVE_SCREEN",
+        key: screenKey,
+        name: name,
+        flowIcon: "",
+        formDefinition: {
+          componentPath: `/${azureDestinationPath}`,
+          version: "",
+        },
+        release: false,
+      },
+    };
+
+    console.log(
+      "📤 Posting form as user task screen to screen management API..."
+    );
+
+    try {
+      // Similar pattern to existing API calls
+      const response = await axios.post(`${apiEndpoint}/screen`, payload, {
+        headers: {
+          accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      console.log(
+        `✅ Successfully added user task screen with ID: ${
+          response.data.id || "unknown"
+        }`
+      );
+      return true;
+    } catch (apiError) {
+      if (apiError.response && apiError.response.status === 409) {
+        console.log("⚠️ Screen config already exists. Continuing...");
+        return true;
+      }
+      throw apiError; // Re-throw to be caught by outer try-catch
+    }
+  } catch (error) {
+    console.error(
+      "❌ Failed to add user task screen to screen management:",
+      error.message
+    );
+    if (error.response) {
+      console.error("Response status:", error.response.status);
+      console.error("Response data:", error.response.data);
+    }
+    return false;
+  }
+}
+
 export {
   OAuthClient,
   addAppResourceUrl,
   addCustomResourceUrl,
   addScreenConfigToScreenManagement,
+  addFormAsLandingScreen,
+  addFormAsUserTaskScreen,
 };

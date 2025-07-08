@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Function to extract app directory paths from .tsx files
+# Function to extract app and form directory paths from .tsx files
 extract_app_paths() {
   local input_file="$1"
   local output_file="$2"
@@ -15,7 +15,7 @@ extract_app_paths() {
     return 0
   fi
   
-  # Process each .tsx file path and extract the app directory path
+  # Process each .tsx file path and extract the app or form directory path
   while IFS= read -r file_path || [[ -n "$file_path" ]]; do
     # Skip empty lines
     [[ -z "$file_path" ]] && continue
@@ -24,8 +24,16 @@ extract_app_paths() {
     # Pattern: src/business-apps/.../apps/[app-name]
     app_path=$(echo "$file_path" | sed -n 's|\(src/business-apps/.*/apps/[^/]*\).*|\1|p')
     
+    # Extract form directory path using sed
+    # Pattern: src/business-apps/.../forms/[form-name]
+    form_path=$(echo "$file_path" | sed -n 's|\(src/business-apps/.*/forms/[^/]*\).*|\1|p')
+    
     if [[ -n "$app_path" ]]; then
       echo "$app_path"
+    fi
+
+    if [[ -n "$form_path" ]]; then
+      echo "$form_path"
     fi
   done < "$input_file" | sort -u > "$output_file"
 }
@@ -107,7 +115,7 @@ else
   git diff --name-only "${TARGET_BRANCH}...HEAD" | grep -E '^src/business-apps/.*\.tsx$' > "$temp_tsx_file" || true
 fi
 
-# Extract app directory paths from the changed .tsx files
+# Extract app and form directory paths from the changed .tsx files
 echo "Raw .tsx files found:"
 cat "$temp_tsx_file" || echo "No files in temp file"
 
@@ -117,6 +125,6 @@ extract_app_paths "$temp_tsx_file" "changed-tsx.txt"
 if [[ ! -s changed-tsx.txt ]]; then
   echo "No changed .tsx files found."
 else
-  echo "Changed app directories detected:"
+  echo "Changed app/form directories detected:"
   cat changed-tsx.txt
 fi

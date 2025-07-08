@@ -1,6 +1,7 @@
 import React from "react";
 import dayjs from "dayjs";
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { filterAbsencesForEntitlements } from '../utils/absenceFilters';
 
 interface YearComparisonSectionProps {
   absences: any[];
@@ -16,10 +17,11 @@ function getYearLabel(year: number, currentYear: number) {
 }
 
 const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ absences }) => {
+  const approvedAbsences = filterAbsencesForEntitlements(absences || []);
   const years = getLastNYears(3);
   const currentYear = years[0];
   const yearData = years.map((year, idx) => {
-    const value = absences.filter(a => dayjs(a.startDate).year() === year).length;
+    const value = approvedAbsences.filter(a => dayjs(a.startDate).year() === year).length;
     return {
       year,
       label: getYearLabel(year, currentYear),
@@ -29,7 +31,7 @@ const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ absences 
   });
 
   const leaveTypeData = years.map(year => {
-    const yearAbsences = absences.filter(a => dayjs(a.startDate).year() === year);
+    const yearAbsences = approvedAbsences.filter(a => dayjs(a.startDate).year() === year);
     const total = yearAbsences.length;
     const typeMap: Record<string, { label: string; value: number; color: string }> = {};
     yearAbsences.forEach(a => {

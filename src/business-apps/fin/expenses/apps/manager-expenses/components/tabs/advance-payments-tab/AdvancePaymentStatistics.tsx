@@ -1,8 +1,9 @@
 import React from 'react';
-import { DollarCircleOutlined } from '@ant-design/icons';
+import { EuroCircleOutlined } from '@ant-design/icons';
 import { AdvancePaymentStatistics as AdvancePaymentStatisticsData } from '../../../hooks/useMainViewAdvancePayments';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { formatAmount } from '../../../utils/currencyUtils';
+import { formatNumberFunction } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface AdvancePaymentStatisticsProps {
   advancePaymentStats: AdvancePaymentStatisticsData | null;
@@ -21,13 +22,13 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   const widgets: WidgetItem[] = advancePaymentStats ? [
     {
       key: 'total-count',
-      title: 'Total Advance Payments',
-      value: formatAmount(advancePaymentStats.totalCount || 0),
-      prefix: <DollarCircleOutlined />,
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments', 'Total Advance Payments'),
+      value: formatNumberFunction(advancePaymentStats.totalCount.toString(), "0.00[,]00"),
+      prefix: <EuroCircleOutlined />,
       color: '#3f8600',
       valueIsString: true, // Mark as pre-formatted string
       span: { xs: 24, sm: 12, md: 8, lg: 6 },
-      description: 'All advance payments'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments', 'All advance payments')
     }
   ] : [];
 

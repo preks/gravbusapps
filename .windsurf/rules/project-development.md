@@ -20,4 +20,4 @@ trigger: always_on
 - Use:
   - `npm run publish:screen -- /<module>/<sub-module>/apps/<app-folder>` for apps
   - `npm run publish:screen -- /<module>/<sub-module>/forms/<form-folder>` for forms
-- Optional fast mode: `--fast` or `-f` to skip prompts and default to "No" for resource URL options
+- Optional Resource URL mode: `--resource` or `-r` - enables prompts for creating resource URLs (by default, direct publishing without prompts)

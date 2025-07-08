@@ -1,45 +1,49 @@
-import { useState, useEffect } from 'react';
-import { useGetCompensationBandData, CompensationBand } from '../queries/CompensationBandQueries';
-import { useGetJobLevelData, JobLevelByJobLevelGroupIdData } from '../../job-structure-data/queries/JobLevelQueries';
-import { useJobLevelGroups } from './useJobLevelGroups';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { CatalogEntry } from '@/common/types/CatalogTypes';
-import { 
-  PayGradeVisualization, 
-  JobLevelGroupVisualization, 
-  JobLevelVisualization, 
+import { useState, useEffect } from "react";
+import {
+  useGetCompensationBandData,
+  CompensationBand,
+} from "../queries/CompensationBandQueries";
+import {
+  useGetJobLevelData,
+} from "../../job-structure-data/queries/JobLevelQueries";
+import { useJobLevelGroups } from "./useJobLevelGroups";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { CatalogEntry } from "@/common/types/CatalogTypes";
+import {
+  PayGradeVisualization,
+  JobLevelGroupVisualization,
+  JobLevelVisualization,
   PayGradeVisualizationData,
-  JobLevelGroupData 
-} from '../types';
+} from "../types";
 
 // Types are now imported from ../types folder
 
 // Default colors for job level groups
 const GROUP_COLORS = [
-  'gba:bg-blue-400',
-  'gba:bg-green-400', 
-  'gba:bg-purple-400',
-  'gba:bg-orange-400',
-  'gba:bg-red-400',
-  'gba:bg-cyan-400',
-  'gba:bg-pink-400',
-  'gba:bg-indigo-400'
+  "gba:bg-blue-400",
+  "gba:bg-green-400",
+  "gba:bg-purple-400",
+  "gba:bg-orange-400",
+  "gba:bg-red-400",
+  "gba:bg-cyan-400",
+  "gba:bg-pink-400",
+  "gba:bg-indigo-400",
 ];
 
 // Category mappings based on common job level group patterns
 const CATEGORY_MAPPINGS: Record<string, string> = {
-  'JUNIOR': 'Entry',
-  'APPRENTICE': 'Entry',
-  'TRAINEE': 'Entry',
-  'SENIOR': 'Experienced',
-  'LEAD': 'Leadership',
-  'MANAGER': 'Leadership',
-  'MANAGEMENT': 'Leadership',
-  'EXECUTIVE': 'Leadership',
-  'SPECIALIST': 'Technical',
-  'EXPERT': 'Technical',
-  'DEVELOPER': 'Technical',
-  'ENGINEER': 'Technical'
+  JUNIOR: "Entry",
+  APPRENTICE: "Entry",
+  TRAINEE: "Entry",
+  SENIOR: "Experienced",
+  LEAD: "Leadership",
+  MANAGER: "Leadership",
+  MANAGEMENT: "Leadership",
+  EXECUTIVE: "Leadership",
+  SPECIALIST: "Technical",
+  EXPERT: "Technical",
+  DEVELOPER: "Technical",
+  ENGINEER: "Technical",
 };
 
 export const useCompensationDataIntegration = (
@@ -56,53 +60,63 @@ export const useCompensationDataIntegration = (
     jobLevelGroups: [],
     jobLevels: [],
     isLoading: false,
-    error: null
+    error: null,
   });
 
   const { fetchCompensationBandData } = useGetCompensationBandData(context);
   const { fetchJobLevelData } = useGetJobLevelData(context);
   const { fetchJobLevelGroups } = useJobLevelGroups(context);
 
-  const transformCompensationBands = (bands: CompensationBand[]): PayGradeVisualization[] => {
+  const transformCompensationBands = (
+    bands: CompensationBand[]
+  ): PayGradeVisualization[] => {
     return bands
-      .filter(band => band.id && band.name)
+      .filter((band) => band.id && band.name)
       .map((band, index) => {
         // Handle currency format - extract actual currency code if needed
-        let currency = band.currency || { id: 'EUR', value: 'Euro' };
-        if (currency.id && currency.id.includes(':')) {
-          const parts = currency.id.split(':');
+        let currency = band.currency || { id: "EUR", value: "Euro" };
+        if (currency.id && currency.id.includes(":")) {
+          const parts = currency.id.split(":");
           currency = {
             ...currency,
-            id: parts[parts.length - 1] // Extract "EUR" from "Currency:v1:EUR"
+            id: parts[parts.length - 1], // Extract "EUR" from "Currency:v1:EUR"
           };
         }
 
         return {
           id: band.id,
           code: band.name || `PG${index + 1}`, // Use name as code if no separate code exists
-          name: band.name || 'Unnamed Grade',
+          name: band.name || "Unnamed Grade",
           payGrade: band.payGrade || index + 1,
           minSalary: band.minSalary || 0,
           maxSalary: band.maxSalary || 0,
-          standardSalary: band.minSalary && band.maxSalary 
-            ? (band.minSalary + band.maxSalary) / 2 
-            : band.minSalary || band.maxSalary || 0,
+          standardSalary:
+            band.minSalary && band.maxSalary
+              ? (band.minSalary + band.maxSalary) / 2
+              : band.minSalary || band.maxSalary || 0,
           currency,
-          order: band.payGrade || index + 1
+          order: band.payGrade || index + 1,
         };
       })
       .sort((a, b) => a.order - b.order);
   };
 
-  const transformJobLevelGroups = (groups: CatalogEntry[]): JobLevelGroupVisualization[] => {
+  const transformJobLevelGroups = (
+    groups: CatalogEntry[]
+  ): JobLevelGroupVisualization[] => {
     return groups
-      .filter(group => group.id && group.value)
+      .filter((group) => group.id && group.value)
       .map((group, index) => {
         const codeUpper = group.code.toUpperCase();
-        const category = CATEGORY_MAPPINGS[codeUpper] || 
-                        Object.keys(CATEGORY_MAPPINGS).find(key => codeUpper.includes(key)) 
-                        ? CATEGORY_MAPPINGS[Object.keys(CATEGORY_MAPPINGS).find(key => codeUpper.includes(key))!]
-                        : 'General';
+        const category =
+          CATEGORY_MAPPINGS[codeUpper] ||
+          Object.keys(CATEGORY_MAPPINGS).find((key) => codeUpper.includes(key))
+            ? CATEGORY_MAPPINGS[
+                Object.keys(CATEGORY_MAPPINGS).find((key) =>
+                  codeUpper.includes(key)
+                )!
+              ]
+            : "General";
 
         return {
           id: group.id,
@@ -114,7 +128,7 @@ export const useCompensationDataIntegration = (
           order: index + 1,
           additionalValue1: group.additionalValue1,
           additionalValue2: group.additionalValue2,
-          additionalValue3: group.additionalValue3
+          additionalValue3: group.additionalValue3,
         };
       })
       .sort((a, b) => a.value.localeCompare(b.value));
@@ -122,54 +136,60 @@ export const useCompensationDataIntegration = (
 
   const transformJobLevels = (levels: any[]): JobLevelVisualization[] => {
     return levels
-      .filter(level => level.id && level.name)
-      .map(level => ({
+      .filter((level) => level.id && level.name)
+      .map((level) => ({
         id: level.id,
         name: level.name,
         code: level.code || level.name,
         jobLevelGroupId: level.jobLevelGroupRef || level.jobLevelGroup?.id,
         payGradeId: level.compensationBandId || level.compensationBand?.id,
-        compensationBandId: level.compensationBandId || level.compensationBand?.id,
+        compensationBandId:
+          level.compensationBandId || level.compensationBand?.id,
         level: level.level || 1,
-        heirarchyOrder: level.heirarchyOrder || 0
+        heirarchyOrder: level.heirarchyOrder || 0,
       }))
-      .filter(level => level.jobLevelGroupId && level.compensationBandId);
+      .filter((level) => level.jobLevelGroupId && level.compensationBandId);
   };
 
   const fetchData = async () => {
     if (!context.accessToken) {
-      setData(prev => ({ 
-        ...prev, 
-        isLoading: false, 
-        error: 'No access token available. Please ensure you are authenticated.' 
+      setData((prev) => ({
+        ...prev,
+        isLoading: false,
+        error:
+          "No access token available. Please ensure you are authenticated.",
       }));
       return;
     }
 
-    setData(prev => ({ ...prev, isLoading: true, error: null }));
+    setData((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      console.log('Fetching compensation data with token:', context.accessToken.substring(0, 20) + '...');
-      
-      // Fetch all data in parallel
-      const [compensationBandsResult, jobLevelsResult, jobLevelGroupsResult] = await Promise.all([
-        fetchCompensationBandData({
-          limit: options?.limit || 100,
-          offset: 0
-        }),
-        fetchJobLevelData({
-          limit: options?.limit || 100,
-          offset: 0
-        }),
-        fetchJobLevelGroups({
-          limit: options?.limit || 100,
-          offset: 0
-        })
-      ]);
+      console.log(
+        "Fetching compensation data with token:",
+        context.accessToken.substring(0, 20) + "..."
+      );
 
-      console.log('Raw compensation bands result:', compensationBandsResult);
-      console.log('Raw job levels result:', jobLevelsResult);
-      console.log('Raw job level groups result:', jobLevelGroupsResult);
+      // Fetch all data in parallel
+      const [compensationBandsResult, jobLevelsResult, jobLevelGroupsResult] =
+        await Promise.all([
+          fetchCompensationBandData({
+            limit: options?.limit || 100,
+            offset: 0,
+          }),
+          fetchJobLevelData({
+            limit: options?.limit || 100,
+            offset: 0,
+          }),
+          fetchJobLevelGroups({
+            limit: options?.limit || 100,
+            offset: 0,
+          }),
+        ]);
+
+      console.log("Raw compensation bands result:", compensationBandsResult);
+      console.log("Raw job levels result:", jobLevelsResult);
+      console.log("Raw job level groups result:", jobLevelGroupsResult);
 
       // Transform the data
       const transformedPayGrades = transformCompensationBands(
@@ -182,26 +202,26 @@ export const useCompensationDataIntegration = (
         jobLevelsResult.jobLevels || []
       );
 
-      console.log('Transformed pay grades:', transformedPayGrades);
-      console.log('Transformed job level groups:', transformedJobLevelGroups);
-      console.log('Transformed job levels:', transformedJobLevels);
+      console.log("Transformed pay grades:", transformedPayGrades);
+      console.log("Transformed job level groups:", transformedJobLevelGroups);
+      console.log("Transformed job levels:", transformedJobLevels);
 
-      setData(prev => ({
+      setData((prev) => ({
         ...prev,
         payGrades: transformedPayGrades,
         jobLevelGroups: transformedJobLevelGroups,
         jobLevels: transformedJobLevels,
         isLoading: false,
-        error: null
+        error: null,
       }));
-
     } catch (error) {
-      console.error('Error fetching compensation data:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setData(prev => ({ 
-        ...prev, 
-        isLoading: false, 
-        error: `Failed to load compensation data: ${errorMessage}` 
+      console.error("Error fetching compensation data:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      setData((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: `Failed to load compensation data: ${errorMessage}`,
       }));
     }
   };
@@ -212,13 +232,13 @@ export const useCompensationDataIntegration = (
 
   // Auto-fetch on mount if enabled (default: true)
   useEffect(() => {
-    if (context.accessToken && (options?.autoFetch !== false)) {
+    if (context.accessToken && options?.autoFetch !== false) {
       fetchData();
     }
   }, [context.accessToken, options?.autoFetch]);
 
   return {
     ...data,
-    refetch
+    refetch,
   };
-}; 
+};

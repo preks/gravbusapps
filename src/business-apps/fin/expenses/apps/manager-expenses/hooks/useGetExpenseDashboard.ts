@@ -29,10 +29,11 @@ const processMonthlyTrends = (data: any[]): { month: string; amount: number }[] 
     }
   });
   
-  // Get current month and previous 5 months
+  // Get all months of the current year
+  const currentYear = dayjs().year();
   const months = [];
-  for (let i = 5; i >= 0; i--) {
-    const month = dayjs().subtract(i, 'month').format('MMM');
+  for (let i = 0; i < 12; i++) {
+    const month = dayjs().year(currentYear).month(i).format('MMM');
     months.push(month);
   }
   

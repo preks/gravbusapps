@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Empty } from 'antd';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { formatNumberFunction } from '@/common/utils/windowUtils';
 
 interface LineChartProps {
   data: {
@@ -50,7 +51,7 @@ const LineChartComponent: React.FC<LineChartProps> = ({
             <XAxis dataKey={xAxisDataKey} />
             <YAxis />
             <Tooltip 
-              formatter={(value) => [`${value}`, 'Amount']}
+              formatter={(value) => [`${formatNumberFunction(value.toString(), "0.00[,]00")}`, 'Amount']}
               labelFormatter={(label) => `${label}`}
             />
             <Line 
