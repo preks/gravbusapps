@@ -17,6 +17,9 @@ export interface ExpenseItem {
   nonReimbursableAmount?: number;
   deductibleAmount?: number;
   currencyRef?: string;
+  currency?: {
+    code: string;
+  };
   costCenter?: {
     name: string;
   };
@@ -29,7 +32,9 @@ export interface ExpenseItem {
   };
   additionalProperties?: Record<string, any>;
   expenseItemFile?: {
+    id: string;
     fileUrl: string;
+    fileName: string;
   }[];
   employee?: {
     fullName: string;
@@ -131,9 +136,10 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
       expenseDate: item.expenseDate,
       status: item.status ?? 'PENDING',
       totalAmount: item.totalAmount ?? 0,
-      reimbursableAmount: item.deductibleAmount ?? 0,
+      reimbursableAmount: item.reimbursableAmount,
       nonReimbursableAmount: (item.totalAmount ?? 0) - (item.deductibleAmount ?? 0),
       deductibleAmount: item.deductibleAmount,
+      currency: item.currency,
       currencyRef: item.currencyRef,
       costCenter: item.costCenter,
       expenseClass: item.expenseClass,

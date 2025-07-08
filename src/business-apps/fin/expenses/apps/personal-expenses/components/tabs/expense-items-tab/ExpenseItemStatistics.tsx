@@ -9,6 +9,8 @@ interface ExpenseItemStatisticsProps {
   totalExpenses?: number | null;
   previousMonthTotalExpenses?: number | null;
   onMissingReceiptsClick?: () => void;
+  onWidgetClick?: (widgetKey: string) => void;
+  activeWidgetKey?: string;
   isNoReceiptFilterActive?: boolean;
   statsLoading?: boolean;
   statsError?: string | null;
@@ -21,6 +23,8 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   previousMonthTotalExpenses,
   onMissingReceiptsClick,
   isNoReceiptFilterActive = false,
+  onWidgetClick,
+  activeWidgetKey,
   statsLoading = false,
   statsError = null,
   fetchItemStatistics = () => Promise.resolve()
@@ -72,7 +76,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   }, [totalExpenses, previousMonthTotalExpenses]);
 
   // Transform the stats data into widgets format
-  const widgets: WidgetItem[] = [
+  const widgets: WidgetItem[] = useMemo(() => [
     {
       key: 'total-expenses',
       title: `Total Expenses for ${currentMonthName}`,
@@ -81,7 +85,8 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
       prefix: <EuroOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 8, lg: 8 },
-      description: comparisonDescription
+      description: comparisonDescription,
+      active: activeWidgetKey === 'total-expenses'
     },
     {
       key: 'pending-reimbursement',
@@ -91,7 +96,8 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
       prefix: <WalletOutlined />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 8, lg: 8 },
-      description: `${pendingItemCount} items pending`
+      description: `${pendingItemCount} items pending`,
+      active: activeWidgetKey === 'pending-reimbursement'
     },
     // {
     //   key: 'missing-receipts',
@@ -112,9 +118,12 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     //   span: { xs: 24, sm: 12, md: 8, lg: 8 },
     //   description: 'Across all expenses'
     // }
-  ];
+  ], [totalExpenses, previousMonthTotalExpenses, pendingReimbursement, pendingItemCount, activeWidgetKey, comparisonDescription]);
 
   const handleWidgetClick = (widgetKey: string) => {
+    if (onWidgetClick) {
+      onWidgetClick(widgetKey);
+    }
     if (widgetKey === 'missing-receipts' && onMissingReceiptsClick) {
       onMissingReceiptsClick();
     }

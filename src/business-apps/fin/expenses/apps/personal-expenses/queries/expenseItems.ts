@@ -85,6 +85,9 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
       deductibleAmount
       nonDeductibleAmount
       currencyRef
+      currency {
+        code
+      }
       costCenter {
         name
       }
@@ -98,7 +101,9 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
       additionalProperties
       status
       expenseItemFile {
+        id
         fileUrl
+        fileName
       }
       employee {
         fullName
@@ -121,6 +126,9 @@ export const GET_EXPENSE_ITEM_BY_ID = `
       deductibleAmount
       nonDeductibleAmount
       currencyRef
+      currency {
+        code
+      }
       costCenter {
         name
       }
@@ -134,7 +142,9 @@ export const GET_EXPENSE_ITEM_BY_ID = `
       additionalProperties
       status
       expenseItemFile {
+        id
         fileUrl
+        fileName
       }
       employee {
         fullName

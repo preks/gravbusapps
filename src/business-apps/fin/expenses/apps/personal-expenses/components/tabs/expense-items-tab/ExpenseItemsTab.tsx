@@ -25,8 +25,15 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   const {
     addFilter,
     removeFilter,
-    selectedFilters
+    clearFilters,
+    selectedFilters,
+    filterGroups,
+    filterLabelMap,
+    getFilters,
+    setFilters
   } = useExpenseFilters();
+
+  const [activeCard, setActiveCard] = useState<string | null>(null);
   
   // State for storing all items for statistics
   const [allItems, setAllItems] = useState<any[]>([]);
@@ -55,7 +62,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       console.log('Found filter in sessionStorage:', storedFilter);
       
       // Clear existing filters first
-      selectedFilters.forEach(f => removeFilter(f));
+      clearFilters();
       
       // Add the filter from sessionStorage
       addFilter(storedFilter);
@@ -64,8 +71,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       sessionStorage.removeItem('expenseItemsFilter');
     }
   // Only run this effect once when the component mounts
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [addFilter, clearFilters]);
   
   // Listen for the global API filter changes
   useEffect(() => {
@@ -76,7 +82,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
         console.log('Applying filter from global API:', apiFilter);
         
         // Clear existing filters first
-        selectedFilters.forEach(f => removeFilter(f));
+        clearFilters();
         
         // Add the filter from global API
         addFilter(apiFilter);
@@ -108,7 +114,11 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     return () => {
       observer.disconnect();
     };
-  }, [addFilter, removeFilter, selectedFilters]);
+  }, [addFilter, clearFilters, selectedFilters]);
+
+  const handleWidgetClick = useCallback((widgetKey: string) => {
+    setActiveCard(prev => (prev === widgetKey ? null : widgetKey));
+  }, []);
 
   // Handle clicking on missing receipts card
   const handleMissingReceiptsClick = useCallback(() => {
@@ -120,13 +130,13 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       console.log('Removing Missing Receipts filter');
     } else {
       // Clear existing filters first to avoid multiple filters
-      selectedFilters.forEach(f => removeFilter(f));
+      clearFilters();
       
       // Add the no receipt filter
       addFilter('noreceiptfilter');
       console.log('Applying Missing Receipts filter');
     }
-  }, [addFilter, removeFilter, selectedFilters]);
+  }, [addFilter, removeFilter, selectedFilters, clearFilters]);
 
   // Function to fetch statistics data specifically
       const fetchItemStatistics = useCallback(async () => {
@@ -205,6 +215,17 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     fetchItemStatistics();
   }, [fetchItemStatistics]);
 
+  const finalFilters = useMemo(() => {
+    const cardFilters: string[] = [];
+    if (activeCard === 'total-expenses') {
+      cardFilters.push(ExpenseStatus.PAID.toLowerCase(), ExpenseStatus.CLOSED.toLowerCase());
+    } else if (activeCard === 'pending-reimbursement') {
+      cardFilters.push(ExpenseStatus.PENDING.toLowerCase());
+    }
+    // Combine and remove duplicates
+    return [...new Set([...selectedFilters, ...cardFilters])];
+  }, [selectedFilters, activeCard]);
+
   // Memoize the content header to prevent unnecessary re-renders
   // Use allItems for statistics instead of filtered items
       const contentHeader = useMemo(() => {
@@ -219,9 +240,11 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
         statsLoading={statsLoading ?? !hasLoadedAllItems}
         statsError={statsError}
         fetchItemStatistics={fetchItemStatistics}
+        onWidgetClick={handleWidgetClick}
+        activeWidgetKey={activeCard ?? undefined}
       />
     );
-  }, [allItems, totalExpenses, previousMonthTotalExpenses, selectedFilters, handleMissingReceiptsClick, statsLoading, statsError, fetchItemStatistics, hasLoadedAllItems]);
+  }, [allItems, totalExpenses, previousMonthTotalExpenses, selectedFilters, handleMissingReceiptsClick, statsLoading, statsError, fetchItemStatistics, hasLoadedAllItems, handleWidgetClick, activeCard]);
 
   // Update the content header only when it changes and when allItems is loaded
   const onContentHeaderChange = props.onContentHeaderChange;
@@ -338,9 +361,17 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       {...contextProps}
       onAddExpenseItem={handleAddExpenseItem}
       // Pass the shared filter state to ensure toggle works
-      selectedFilters={selectedFilters}
+      selectedFilters={finalFilters}
       addFilter={addFilter}
       removeFilter={removeFilter}
+      clearFilters={clearFilters}
+      filterGroups={filterGroups}
+      filterLabelMap={filterLabelMap}
+      getFilters={getFilters}
+      setFilters={(filters: string[]) => {
+        setFilters(filters);
+        setActiveCard(null);
+      }}
     />
   );
 };

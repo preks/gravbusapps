@@ -1,254 +1,105 @@
-import { formatNumberFunction } from '@/common/utils/windowUtils';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Typography, Spin, Alert } from 'antd';
 import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
 import { FileTextOutlined, FileImageOutlined } from '@ant-design/icons';
 import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
+import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getExpenseItemStatusDisplay, ExpenseStatus } from '../../../utils';
-import { startProcess } from '@/common/utils/start-process';
+import { getExpenseItemStatusDisplay } from '../../../utils';
 import ExpenseItemDetails from './ExpenseItemDetails';
-import { useExpenseFilters } from '../../../hooks/useExpenseFilters';
 
 const { Text } = Typography;
 
 export interface ExpenseItemsTableProps extends BusinessAppContextProps {
-  search?: string;
-  onSearchChange?: (value: string) => void;
-  filters?: string[];
-  onFilterChange?: (filterId: string, selected: boolean) => void;
-  onAddExpenseItem?: () => void;
-  selectedFilters?: string[];
-  addFilter?: (filterId: string) => void;
-  removeFilter?: (filterId: string) => void;
+  onAddExpenseItem: () => void;
+  selectedFilters: string[];
+  addFilter: (filterId: string) => void;
+  removeFilter: (filterId: string) => void;
+  clearFilters: () => void;
+  filterGroups: DataFilterGroup[];
+  filterLabelMap: Record<string, string>;
+  getFilters: (filtersToApply?: string[]) => ExpenseFilter;
+  setFilters: (filters: string[]) => void;
 }
 
-const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
-  // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = useMemo(() => ({
-    accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
-  
-  // Use our simplified expense filters hook
+const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) => {
   const {
-    search,
-    setSearch,
-    selectedFilters: localSelectedFilters,
+    onAddExpenseItem,
+    selectedFilters,
+    addFilter,
+    removeFilter,
+    clearFilters,
     filterGroups,
     filterLabelMap,
-    addFilter: localAddFilter,
-    removeFilter: localRemoveFilter,
-  } = useExpenseFilters();
+    getFilters,
+    setFilters,
+    ...contextProps
+  } = props;
 
-  // Use shared filter state or fallback to local state
-  const currentSelectedFilters = props.selectedFilters ?? localSelectedFilters;
+  const [search, setSearch] = useState('');
 
-  // Create filter groups with the current selected filters
-  const currentFilterGroups = useMemo(() => {
-    return filterGroups.map(group => ({
-      ...group,
-      filters: group.filters?.map(filter => ({
-        ...filter,
-        selected: currentSelectedFilters.includes(filter.id)
-      })) || []
-    }));
-  }, [filterGroups, currentSelectedFilters]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  // Get expense items with the filters
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps);
-  
-  // Create a custom getFilters function that uses shared state when available
-  const getCurrentFilters = useCallback((): ExpenseFilter => {
-    const activeFilters = currentSelectedFilters;
-    const filter: ExpenseFilter = {};
-    
-    // Define filter options
-    const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
-    const EXPENSE_TYPE_OPTIONS = ['expense', 'trip'];
-    const OTHER_OPTIONS = ['noreceiptfilter'];
-    
-    // Extract filters by types
-    const timePeriod = activeFilters.find(f => TIME_PERIOD_OPTIONS.includes(f)) ?? null;
-    const statusFilters = activeFilters.filter(f => 
-      Object.values(ExpenseStatus).map(s => s.toLowerCase()).includes(f));
-    const expenseTypes = activeFilters.filter(f => EXPENSE_TYPE_OPTIONS.includes(f));
-    const otherFilters = activeFilters.filter(f => OTHER_OPTIONS.includes(f));
-    
-    // Process status filters
-    if (statusFilters.length > 0) {
-      const statuses = statusFilters.map(f => f.toUpperCase());
-      filter.status = statuses;
-    }
-    
-    // Process Other filters (No receipt)
-    if (otherFilters.includes('noreceiptfilter')) {
-      filter.noReceipt = true;
-    }
-    
-    // Process time period filters
-    if (timePeriod) {
-      const today = new Date();
-      const endDate = new Date(today).toISOString().split('T')[0]; 
-      
-      let startDate = new Date(today);
-      if (timePeriod === 'last30days') {
-        startDate.setDate(today.getDate() - 30);
-      } else if (timePeriod === 'last90days') {
-        startDate.setDate(today.getDate() - 90);
-      } else if (timePeriod === 'last180days') {
-        startDate.setDate(today.getDate() - 180);
-      }
-      
-      filter.expenseDateStart = startDate.toISOString().split('T')[0];
-      filter.expenseDateEnd = endDate;
-    }
-    
-    // Process expense type filters
-    if (expenseTypes.length > 0) {
-      const selectedType = expenseTypes[0];
-      filter.expenseClass = { value: selectedType === 'expense' ? 'Expense' : 'Trip' };
-    }
-    
-    return filter;
-  }, [currentSelectedFilters]);
-  
-  // State declarations
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+
+  useEffect(() => {
+    const apiFilters = getFilters(selectedFilters);
+    fetchItems(search, currentPage, pageSize, apiFilters);
+  }, [fetchItems, currentPage, pageSize, search, selectedFilters, getFilters]);
+
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  
-  // Initialize search from props
-  useEffect(() => {
-    if (props.search !== undefined && props.search !== search) {
-      setSearch(props.search);
-    }
-  }, [props.search, search, setSearch]);
 
-  // Initialize filters from props
-  useEffect(() => {
-    if (props.filters) {
-      // Clear existing filters first
-      localSelectedFilters.forEach(f => localRemoveFilter(f));
-      
-      // Add new filters
-      props.filters.forEach(filter => localAddFilter(filter));
-    }
-  }, [props.filters, localAddFilter, localRemoveFilter, localSelectedFilters]);
-
-  // Watch for changes in shared filter state and refetch data
-  useEffect(() => {
-    if (props.selectedFilters) {
-      console.log('Shared filter state changed, refetching data:', props.selectedFilters);
-      const filters = getCurrentFilters();
-      fetchItems(search, currentPage, pageSize, filters);
-    }
-  }, [props.selectedFilters, getCurrentFilters, fetchItems, search, currentPage, pageSize]);
-
-  // Initial data loading
-  useEffect(() => {
-    if (contextProps.accessToken && (!items || items.length === 0)) {
-      const filters = getCurrentFilters();
-      fetchItems(search, currentPage, pageSize, filters);
-    }
-  }, [contextProps.accessToken, items]);
-
-  // Create a memoized search change handler
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
-    setCurrentPage(1); // Reset to first page on new search
-    // Apply filters when search changes
-    const filters = getCurrentFilters();
-    fetchItems(value, 1, pageSize, filters);
-    
-    // Notify parent component
-    if (props.onSearchChange) {
-      props.onSearchChange(value);
-    }
-  }, [fetchItems, pageSize, getCurrentFilters, props, setSearch]);
+    setCurrentPage(1);
+  }, [setSearch]);
 
-  // Handle filter changes
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    // Apply the filter change based on selection
     if (selected) {
-      // Add the filter using shared or local state
-      (props.addFilter || localAddFilter)(filterId);
+      addFilter(filterId);
     } else {
-      // Remove the filter using shared or local state
-      (props.removeFilter || localRemoveFilter)(filterId);
+      removeFilter(filterId);
     }
-    
-    setCurrentPage(1); // Reset to first page when filters change
-    
-    // Calculate the immediate ExpenseFilter object
-    const filter = getCurrentFilters(); // Use current filters from hook
-    
-    // Fetch with new filters
-    fetchItems(search, 1, pageSize, filter);
-    
-    // Call parent change handler if provided
-    if (props.onFilterChange) {
-      props.onFilterChange(filterId, selected);
-    }
-  }, [currentSelectedFilters, localAddFilter, localRemoveFilter, search, pageSize, fetchItems, props, getCurrentFilters]);
+    setCurrentPage(1);
+  }, [addFilter, removeFilter]);
 
-  // Handle adding a new expense item
   const handleAddExpenseItem = useCallback(() => {
-    if (props.onAddExpenseItem) {
-      props.onAddExpenseItem();
-    } else if (contextProps.userInfo?.employeeDetails?.employeeId) {
-      startProcess({
-        domain: 'employee-expense',
-        processName: 'changeExpenseItem',
-        payload: {
-          employeeId: contextProps.userInfo.employeeDetails.employeeId
-        }
-      });
-    }
-  }, [contextProps.userInfo?.employeeDetails?.employeeId, props]);
+    onAddExpenseItem();
+  }, [onAddExpenseItem]);
 
-  // Handle table change for pagination, filters, and sorting
-  const handleTableChange = useCallback((pagination: any, _filters: any, _sorter: any) => {
+  const handleTableChange = useCallback((pagination: any) => {
     setCurrentPage(pagination.current);
     setPageSize(pagination.pageSize);
-    const filters = getCurrentFilters();
-    fetchItems(search, pagination.current, pagination.pageSize, filters);
-  }, [search, fetchItems, getCurrentFilters]);
+  }, []);
 
-  // Handle item selection
   const handleSelectItem = useCallback((item: any) => {
     setSelectedItem(item);
     setSelectedRowKeys([item.id]);
   }, []);
-  
-  // Handle row selection change
+
   const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
     setSelectedRowKeys(newSelectedRowKeys);
-    
-    // If a single row is selected, find and set the selected item
     if (newSelectedRowKeys.length === 1) {
       const selectedItemId = newSelectedRowKeys[0];
-      const item = items?.find(item => item.id === selectedItemId);
-      if (item) {
-        setSelectedItem(item);
-      }
+      const item = items?.find(i => i.id === selectedItemId);
+      setSelectedItem(item);
     } else {
-      // If multiple or no rows selected, clear the selected item
       setSelectedItem(null);
     }
   }, [items]);
-  
-  // Handle closing the details panel
+
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null);
     setSelectedRowKeys([]);
   }, []);
 
   const renderDataBody = useCallback(() => {
-    if (isLoading) {
+    if (isLoading && !items?.length) {
       return <div style={{ padding: 24, textAlign: 'center' }}><Spin size="large" /></div>;
     }
 
@@ -265,8 +116,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
     }
 
     return (
-      <DataTable 
-        dataSource={items} 
+      <DataTable
+        dataSource={items}
         rowKey="id"
         rowSelection={{
           type: 'checkbox',
@@ -276,7 +127,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
         }}
         onRow={(record: any) => ({
           onClick: (event) => {
-            // Prevent row click from triggering when clicking on checkbox
             if ((event.target as HTMLElement).tagName !== 'INPUT') {
               handleSelectItem(record);
             }
@@ -292,6 +142,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
           showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
         }}
         onChange={handleTableChange}
+        loading={isLoading}
         data-testid="expense-items-data-table"
         columns={[
           {
@@ -347,7 +198,12 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
             title: 'Invoice Date',
             dataIndex: 'invoiceDate',
             key: 'invoiceDate',
-            render: (text: string) => <div style={{ fontSize: '12px', color: '#666' }}>{text}</div>
+            render: (date: string) => {
+              const formattedDate = date
+                ? formatDate(date, 'date.long')
+                : getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_creation_date', 'No creation date');
+              return <div style={{ fontSize: '12px', color: '#666' }}>{formattedDate}</div>;
+            }
           },
           {
             title: 'Status',
@@ -355,13 +211,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
             key: 'status',
             render: (status: string) => {
               const { label, type } = getExpenseItemStatusDisplay(status);
-              return (
-                <Pill 
-                  label={label} 
-                  type={type} 
-                  className="gba:text-center"
-                />
-              );
+              return <Pill label={label} type={type} className="gba:text-center" />;
             }
           },
           {
@@ -373,7 +223,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
             render: (expenseItemFile: any[]) => (
               expenseItemFile && expenseItemFile.length > 0 ? (
                 <div className="gba:flex gba:items-center gba:justify-center">
-                  <FileImageOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+                  <FileTextOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
                 </div>
               ) : (
                 <div className="gba:flex gba:items-center gba:justify-center">
@@ -386,78 +236,66 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
             title: 'Reimbursable Amount',
             dataIndex: 'reimbursableAmount',
             key: 'amount',
-            onCell: () => ({
-              className: 'gba:text-right gba:font-bold',
-            }),
-            render: (amount: number) => (
+            onCell: () => ({ className: 'gba:text-right gba:font-bold' }),
+            render: (amount: number, record: any) => (
               <span>
-                {formatNumberFunction(String(amount ?? '0'))}
+                {formatNumberFunction(String(amount ?? '0'))} {record.currencyCode}
               </span>
             )
           }
         ] as any}
       />
     );
-  }, [items, currentPage, pageSize, handleTableChange, isLoading, error, selectedRowKeys, handleRowSelectionChange, handleSelectItem, totalCount]);
+  }, [items, isLoading, error, totalCount, currentPage, pageSize, handleTableChange, selectedRowKeys, handleRowSelectionChange, handleSelectItem]);
 
-  // Render expense details panel using the ExpenseItemDetails component
   const renderExpenseDetails = useMemo(() => {
     if (!selectedItem) return null;
 
     return (
-      <ExpenseItemDetails 
-        selectedItem={selectedItem} 
+      <ExpenseItemDetails
+        selectedItem={selectedItem}
         onClose={handleCloseDetails}
         {...contextProps}
       />
     );
   }, [selectedItem, handleCloseDetails, contextProps]);
 
+  const currentFilterGroups = useMemo(() => {
+    return filterGroups.map(group => ({
+      ...group,
+      filters: (group.filters || []).map(filter => ({ ...filter, selected: selectedFilters.includes(filter.id) }))
+    }));
+  }, [filterGroups, selectedFilters]);
+
   return (
-      <DataContainer
-        dataControllerProps={{
-          search: search,
-          filter: currentSelectedFilters,
-          setSearch: handleSearchChange,
-          setFilter: (newFilters) => {
-            // Handle filter removal when X is clicked or filters are cleared
-            const filtersToRemove = currentSelectedFilters.filter(f => !newFilters.includes(f));
-            filtersToRemove.forEach(filterId => (props.removeFilter || localRemoveFilter)(filterId));
-            console.log('Filters removed:', filtersToRemove);
-            
-            // Always fetch new data with the remaining filters
-            setCurrentPage(1); // Reset to first page
-            
-            // Build filters based on newFilters (remaining filters)
-            const filter = getCurrentFilters();
-            
-            console.log('Fetching with remaining filters:', filter);
-            fetchItems(search, 1, pageSize, filter);
-          },
-          addButton: {
-            onClick: handleAddExpenseItem,
-            label: 'Add',
-            'data-testid': 'add-expense-item-button'
-          },
-          listTitle: "My Expense Items",
-          listAmount: totalCount ? `${totalCount}` : undefined,
-          filterLabelMap: filterLabelMap,
-        }}
-        dataFilterProps={{
-          filterGroups: currentFilterGroups,
-          onFilterChange: handleFilterChange,
-        }}
-        hideFilter={false}
-        dataBody={renderDataBody()}
-        contentBackground="white"
-        dataDetails={selectedItem ? {
-          title: selectedItem.title,
-          icon: <FileTextOutlined />,
-          content: renderExpenseDetails,
-          onClose: handleCloseDetails
-        } : undefined}
-      />
+    <DataContainer
+      dataControllerProps={{
+        listTitle: 'Expense Items',
+        listAmount: totalCount ? `${totalCount}` : undefined,
+        search: search,
+        setSearch: handleSearchChange,
+        placeholder: 'Search by description, amount, or status...',
+        filter: selectedFilters,
+        setFilter: setFilters,
+        filterLabelMap: filterLabelMap,
+        addButton: {
+          onClick: handleAddExpenseItem,
+          label: 'Add Expense Item',
+        },
+      }}
+      dataFilterProps={{
+        filterGroups: currentFilterGroups,
+        onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void,
+      }}
+      dataBody={renderDataBody()}
+      dataDetails={selectedItem ? {
+        title: selectedItem.title,
+        icon: <FileTextOutlined />,
+        content: renderExpenseDetails,
+        onClose: handleCloseDetails
+      } : undefined}
+    />
   );
-};
+});
 
 export default ExpenseItemsTable;
