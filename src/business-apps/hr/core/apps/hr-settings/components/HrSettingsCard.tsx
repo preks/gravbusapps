@@ -1,6 +1,7 @@
 import { cloneElement, isValidElement, ReactElement } from 'react'
 import { RiArrowRightSLine } from '@remixicon/react'
 import { Card, Typography } from 'antd'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 export interface HrSettingsCardEntry {
   label: string
@@ -126,7 +127,7 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
                         e.currentTarget.style.borderColor = 'transparent';
                       }}
                       onClick={() => {
-                        window.location.href = entry.url
+                        navigateTo(entry.url)
                       }}
                     >
                       <span 

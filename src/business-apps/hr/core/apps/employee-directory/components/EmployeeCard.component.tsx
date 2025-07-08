@@ -9,6 +9,7 @@ import {
   PiOfficeChairBold
 } from 'react-icons/pi';
 import { Avatar, Button } from '@newwork/gravity-ui-catalog';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 /**
  * Employee type definition for the card.
@@ -46,7 +47,7 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
     : undefined;
 
   const avatarContentTypeValue = employee.profilePicture ? 'image' : 'initials';
-  const profileUrl = `/platform/employee-record?employeeId=${employee.id}`;
+  const profileUrl = buildPlatformUrl('/platform/employee-record', { employeeId: employee.id });
   const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat();
   
   // No longer calculating time spent
@@ -71,7 +72,7 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
   }, [employee.userId, openVideoConferenceWithUser]);
 
   const handleProfile = useCallback(() => {
-    window.location.href = profileUrl;
+    navigateTo(profileUrl);
   }, [profileUrl]);
   return (
     <div className={`gba:relative gba:group employee-card-wrapper gba:bg-white gba:rounded-lg gba:shadow-md gba:!border gba:h-auto gba:w-full gba:transition gba:overflow-hidden ${isSelected ? 'gba:!border-blue-500 gba:!border-2 gba:!shadow-lg' : 'gba:!border-gray-100'}`}>
