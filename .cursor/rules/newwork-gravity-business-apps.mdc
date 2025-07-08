@@ -105,3 +105,7 @@ src/business-apps/
 - **Forms**: `npm run publish:screen -- /<module>/<sub-module>/forms/<form-folder> [options]`
 - **Options**:
   - `--resource` or `-r`: Resource URL mode - enables prompts for creating resource URLs (by default, direct publishing without prompts)
+
+### Processes with native screens
+- When wanting to continue a Kogito process by completing the current task, use `dispatchProcessContinueEvent(event, payload)` from src\common\utils\processEventUtils.ts
+- `dispatchProcessContinueEvent` assumes that there is a native screen rendered in the platform in a running Kogito process.
