@@ -1,21 +1,151 @@
-import React from 'react';
-import { Input } from 'antd';
-import { PlusCircleOutlined, CheckCircleOutlined, ClockCircleOutlined, DeleteOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Spin, Alert, Button, Timeline, Typography } from 'antd';
+import { PlusCircleOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
+import { startProcess } from '@/common/utils/start-process';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGetSalesTasks, SalesTaskData } from '../queries/SalesTaskQueries';
+import { useRestClient } from '@/common/network/rest/useRestClient';
+import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
-import { useTasks } from '../hooks/useTasks';
 
-export const TasksSection: React.FC = () => {
-  const {
-    tasks,
-    newTaskTitle,
-    isAddingTask,
-    setNewTaskTitle,
-    setIsAddingTask,
-    handleAddTask,
-    handleToggleTask,
-    handleDeleteTask,
-    getPriorityColor
-  } = useTasks();
+const { Text } = Typography;
+
+interface TasksSectionProps {
+  leadId?: string;
+  context: BusinessAppContextProps;
+}
+
+export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) => {
+  const [tasks, setTasks] = useState<SalesTaskData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { fetchSalesTasks } = useGetSalesTasks(context);
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+
+  const loadTasks = async () => {
+    if (!leadId) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await fetchSalesTasks({ leadId });
+      // Sort tasks by createdAt in descending order (newest first)
+      const sortedTasks = (result.SalesTask || []).sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      
+      setTasks(sortedTasks);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load tasks');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTasks();
+  }, [leadId]);
+
+  // Listen for process completion events to refresh tasks
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        const response = event.detail?.response;
+        
+        if (response?.salesTask) {
+          loadTasks();
+        }
+      } catch (err) {
+        console.error('Error handling process completion:', err);
+      }
+    };
+
+    // Listen to multiple possible event names
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
+
+    return () => {
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
+    };
+  }, [leadId]);
+
+  const handleAddTaskClick = () => {
+    if (leadId) {
+      startProcess({
+        domain: 'customer-relations',
+        processName: 'saveSalesTask',
+        payload: {
+          leadId,
+        },
+        builderType: 'NATIVE_SCREEN',
+      });
+    }
+  };
+
+  const handleDeleteTask = async (task: SalesTaskData) => {
+    try {
+      await restClient.post('/customer-relations/saveSalesTask', {
+        changeMode: "DELETE",
+        salesTask: {
+          id: task.id,
+          version: task.version,
+          lead: leadId
+        }
+      }, {
+        headers: { Authorization: `Bearer ${context.accessToken}` }
+      });
+      
+      // Remove the task from the local state
+      setTasks(prevTasks => 
+        prevTasks.filter(t => t.id !== task.id)
+      );
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority?.toLowerCase()) {
+      case 'high': return 'red';
+      case 'medium': return 'orange';
+      case 'low': return 'green';
+      default: return 'blue';
+    }
+  };
+
+  const getPriorityValue = (priority: any): string => {
+    if (!priority) return 'Unknown';
+    if (typeof priority === 'string') return priority;
+    if (priority.value) return priority.value;
+    return 'Unknown';
+  };
+
+  const getTypeValue = (type: any): string => {
+    if (!type) return 'Unknown';
+    if (typeof type === 'string') return type;
+    if (type.value) return type.value;
+    return 'Unknown';
+  };
+
+  const handleRefresh = () => {
+    loadTasks();
+  };
 
   return (
     <div 
@@ -32,158 +162,102 @@ export const TasksSection: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '16px 24px',
-          borderBottom: '1px solid #f0f0f0'
+          padding: '16px 24px'
         }}
       >
-        <div style={{ fontSize: '18px', fontWeight: '500' }}>
+        <div 
+          className="gba:tasks-title" 
+          style={{ fontSize: '18px', fontWeight: '500' }}
+        >
           Tasks
         </div>
-        <button 
-          onClick={() => setIsAddingTask(true)}
-          style={{
-            backgroundColor: '#1890ff',
-            color: 'white',
-            border: 'none',
-            padding: '6px 12px',
-            borderRadius: '4px',
-            fontSize: '14px',
-            cursor: 'pointer'
-          }}
-          data-testid="add-task-button"
-        >
-          <PlusCircleOutlined style={{ marginRight: '4px' }} />
-          Add Task
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Button 
+            icon={<ReloadOutlined />}
+            onClick={handleRefresh}
+            data-testid="refresh-tasks-button"
+            title="Refresh Tasks"
+          />
+          <Button 
+            type="primary"
+            icon={<PlusCircleOutlined />}
+            onClick={handleAddTaskClick}
+            data-testid="add-task-button"
+          >
+            Add Task
+          </Button>
+        </div>
       </div>
 
-      <div style={{ padding: '16px 24px' }}>
-        {/* Add Task Form */}
-        {isAddingTask && (
-          <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
-            <div style={{ marginBottom: '8px' }}>
-              <Input
-                placeholder="Enter task title..."
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                onPressEnter={handleAddTask}
-                style={{ marginBottom: '8px' }}
-                data-testid="new-task-input"
-              />
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={handleAddTask}
-                style={{
-                  backgroundColor: '#1890ff',
-                  color: 'white',
-                  border: 'none',
-                  padding: '4px 12px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
-                data-testid="save-task-button"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => {
-                  setIsAddingTask(false);
-                  setNewTaskTitle('');
-                }}
-                style={{
-                  backgroundColor: 'white',
-                  color: '#666',
-                  border: '1px solid #d9d9d9',
-                  padding: '4px 12px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
-                data-testid="cancel-task-button"
-              >
-                Cancel
-              </button>
-            </div>
+      <div style={{ padding: '0 24px 24px' }}>
+        {loading && (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Spin size="large" />
           </div>
         )}
 
-        {/* Tasks List */}
-        {tasks.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {tasks.map((task) => (
-              <div 
-                key={task.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px',
-                  border: '1px solid #f0f0f0',
-                  borderRadius: '4px',
-                  backgroundColor: task.completed ? '#f6ffed' : 'white'
-                }}
-                data-testid={`task-item-${task.id}`}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-                  <button
-                    onClick={() => handleToggleTask(task.id)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: task.completed ? '#52c41a' : '#d9d9d9',
-                      fontSize: '16px'
-                    }}
-                    data-testid={`task-toggle-${task.id}`}
-                  >
-                    {task.completed ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
-                  </button>
-                  
-                  <div style={{ flex: 1 }}>
-                    <div 
-                      style={{
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        textDecoration: task.completed ? 'line-through' : 'none',
-                        color: task.completed ? '#8c8c8c' : '#000'
-                      }}
-                    >
-                      {task.title}
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#8c8c8c', marginTop: '4px' }}>
-                      <span style={{ 
-                        display: 'inline-block', 
-                        width: '8px', 
-                        height: '8px', 
-                        borderRadius: '50%', 
-                        backgroundColor: getPriorityColor(task.priority),
-                        marginRight: '6px'
-                      }} />
-                      {task.priority} priority • {task.assignedTo} • {dayjs(task.createdAt).format('MMM D, YYYY')}
+        {error && (
+          <Alert
+            message="Error Loading Tasks"
+            description={error}
+            type="error"
+            showIcon
+            style={{ marginBottom: '16px' }}
+            action={
+              <Button size="small" onClick={handleRefresh}>
+                Retry
+              </Button>
+            }
+          />
+        )}
+
+        {!loading && !error && tasks.length > 0 && (
+          <Timeline>
+            {tasks.map((task, index) => (
+              <Timeline.Item key={task.id || index} color={getPriorityColor(getPriorityValue(task.priority))}>
+                <div style={{ position: 'relative' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text strong>{task.name}</Text>
+                  </div>
+                  <div>
+                    <Text type="secondary">
+                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')}
+                    </Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                    <div style={{ flex: 1 }}>
+                      {task.description && (
+                        <div style={{ marginBottom: '4px' }}>{task.description}</div>
+                      )}
+                      <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                        {getPriorityValue(task.priority)} priority • {getTypeValue(task.type)}
+                        {task.dueDate && (
+                          <span> • Due: {dayjs(task.dueDate).format('MMM D, YYYY')}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
+                  <Button 
+                    type="text" 
+                    icon={<CloseOutlined />} 
+                    size="small"
+                    style={{ 
+                      position: 'absolute', 
+                      right: 0, 
+                      top: 0,
+                      padding: '4px',
+                      lineHeight: 1
+                    }}
+                    onClick={() => handleDeleteTask(task)}
+                    data-testid={`delete-task-${task.id}`}
+                  />
                 </div>
-                
-                <button
-                  onClick={() => handleDeleteTask(task.id)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: '#ff4d4f',
-                    fontSize: '14px',
-                    padding: '4px'
-                  }}
-                  data-testid={`task-delete-${task.id}`}
-                >
-                  <DeleteOutlined />
-                </button>
-              </div>
+              </Timeline.Item>
             ))}
-          </div>
-        ) : (
+          </Timeline>
+        )}
+
+        {!loading && !error && tasks.length === 0 && (
           <div style={{ textAlign: 'center', padding: '40px 0', color: '#8c8c8c' }}>
             <div style={{ fontSize: '16px', marginBottom: '8px' }}>No tasks yet</div>
             <div style={{ fontSize: '14px' }}>Add tasks to track your progress with this lead</div>
