@@ -15,26 +15,6 @@ import { BusinessAppContextProps } from '../../../../../../../common/BusinessApp
 
 interface HeadcountChangesChartProps extends BusinessAppContextProps {}
 
-// Helper: Calculate monthly headcount for the last 12 months
-// function getMonthlyHeadcount(data: any[]): { month: string; headcount: number }[] {
-//   const now = new Date();
-//   const months = Array.from({ length: 12 }, (_, i) => {
-//     const date = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
-//     const label = date.toLocaleString(undefined, { month: 'short', year: '2-digit' });
-//     // Count employees hired on or before this month and not exited before this month
-//     const headcount = data.filter(wc => {
-//       const hire = wc.hireDate ? new Date(wc.hireDate) : null;
-//       const exit = wc.exitDate ? new Date(wc.exitDate) : null;
-//       return (
-//         (!hire || hire <= date) &&
-//         (!exit || exit >= date)
-//       );
-//     }).length;
-//     return { month: label, headcount };
-//   });
-//   return months;
-// }
-
 const HeadcountChangesChart: React.FC<HeadcountChangesChartProps> = (props) => {
   const year = new Date().getFullYear();
   const { data, loading } = useMonthlyHeadcountChanges(props, year);

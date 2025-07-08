@@ -17,7 +17,7 @@ export const useMonthlySalaryForecast = (
 ) => {
   const [data, setData] = useState<MonthlySalaryForecast[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<any>(null);
+  const [error, setError] = useState<Error | string | null>(null);
   const client = useGraphqlClient(props.accessToken);
 
   useEffect(() => {

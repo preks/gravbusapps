@@ -15,20 +15,15 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
   const { loading, data } = kpiData;
   const employees: WorkingConditionKpi[] = data as WorkingConditionKpi[];
 
-  // Use only active employees (no exitDate or exitDate in future)
   const today = new Date();
   const activeEmployees = employees.filter(wc => !wc.exitDate || new Date(wc.exitDate) > today);
 
-  // KPIs
   const totalMonthlySalary = activeEmployees.reduce((sum, wc) => sum + (wc.monthlyGrossSalary || 0), 0);
   const totalAnnualSalary = activeEmployees.reduce((sum, wc) => sum + (wc.annualGrossSalary || 0), 0);
-//   const avgAnnualSalary = activeEmployees.length ? totalAnnualSalary / activeEmployees.length : 0;
   const headcount = activeEmployees.length;
 
-  // Get currency code from first active employee
   const currencyCode = activeEmployees.length && activeEmployees[0].currency && (activeEmployees[0].currency as any).code ? (activeEmployees[0].currency as any).code : '';
 
-  // Format salary value with 'M' only if >= 1,000,000
   const formatSalary = (value: number) => {
     if (value >= 1_000_000) {
       return `${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}M`;
@@ -36,12 +31,9 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
     return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
   };
 
-  // Year-to-date calculations
   const currentYear = today.getFullYear();
   const ytdHires = employees.filter(wc => wc.hireDate && new Date(wc.hireDate).getFullYear() === currentYear).length;
   const ytdDepartures = employees.filter(wc => wc.exitDate && new Date(wc.exitDate).getFullYear() === currentYear).length;
-
-  // Forecasts (dummy logic, replace with real if needed)
   const nextMonthForecast = totalMonthlySalary * 1.05;
   const sixMonthForecast = totalMonthlySalary * 1.17;
 
