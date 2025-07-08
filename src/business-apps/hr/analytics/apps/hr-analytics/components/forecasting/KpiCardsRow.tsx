@@ -104,6 +104,20 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
             ) : (
               <>
                 {formatSalary(nextMonthForecast)} {currencyCode}
+                {/* Difference from current month */}
+                {(() => {
+                  const diff = nextMonthForecast - totalMonthlySalary;
+                  if (diff === 0) return null;
+                  const diffClass = diff > 0 ? 'gba:text-green-600' : 'gba:text-red-600';
+                  return (
+                    <div
+                      className={`gba:text-xs ${diffClass} gba:mt-1`}
+                      data-testid="kpi-next-month-diff"
+                    >
+                      {diff > 0 ? '+' : ''}{formatSalary(diff)} {currencyCode}
+                    </div>
+                  );
+                })()}
               </>
             )}
           </div>

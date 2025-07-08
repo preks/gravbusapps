@@ -5,6 +5,7 @@ import KpiCardsRow from '../forecasting/KpiCardsRow';
 import { useMonthlySalaryForecast } from '../../hooks/useMonthlySalaryForecast';
 import SalaryForecastChart from '../forecasting/SalaryForecastChart';
 import HeadcountChangesChart from '../forecasting/HeadcountChangesChart';
+import SalaryChangesChart from '../forecasting/SalaryChangesChart';
 import DepartmentSalaryStackedBarChart from '../forecasting/DepartmentSalaryStackedBarChart';
 import DepartmentContributionAnalysis from '../forecasting/DepartmentContributionAnalysis';
 
@@ -21,6 +22,7 @@ const ForecastingTab: React.FC<BusinessAppContextProps> = (props) => {
       <KpiCardsRow {...props} kpiData={kpiData} />
       <SalaryForecastChart data={monthlyData} />
       <HeadcountChangesChart {...props} />
+      <SalaryChangesChart {...props} />
       <DepartmentSalaryStackedBarChart {...props} />
       <DepartmentContributionAnalysis {...props} />
     </div>
