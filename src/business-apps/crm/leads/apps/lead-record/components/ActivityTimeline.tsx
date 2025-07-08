@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CalendarOutlined, CheckOutlined, CloudUploadOutlined, EyeOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CalendarOutlined, CheckOutlined, CloudUploadOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Button, List, Avatar, Spin, Alert, Empty, Tag, message, Timeline, Typography, Checkbox } from 'antd';
 import type { CheckboxChangeEvent } from 'antd/es/checkbox';
 import { startProcess } from '@/common/utils/start-process';
@@ -8,6 +8,7 @@ import { NotesSection } from './NotesSection';
 import { useGetSalesActivities, SalesActivityData } from '../queries/SalesActivityQueries';
 import { useGetCrmDocuments, CrmDocumentData } from '../queries/CrmDocumentQueries';
 import { useRestClient } from '@/common/network/rest/useRestClient';
+import { useFileClient } from '@/common/network/files/useFileClient';
 import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
@@ -35,13 +36,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
   const [notesKey, setNotesKey] = useState(0);
-  const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const [selectedLanguage, setSelectedLanguage] = useState('Original');
   const [translating, setTranslating] = useState(false);
   const originalActivitiesRef = useRef<SalesActivityData[]>([]);
 
   const { fetchSalesActivities } = useGetSalesActivities(context);
   const { fetchCrmDocuments } = useGetCrmDocuments(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  const fileClient = useFileClient(context);
 
   const loadActivities = async () => {
     if (!leadId) return;
@@ -71,8 +73,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     const translateActivities = async () => {
       const originalActivities = originalActivitiesRef.current;
       
-      if (selectedLanguage === 'English' || originalActivities.length === 0) {
-        // Reset to original text for English or no activities
+      if (selectedLanguage === 'Original' || originalActivities.length === 0) {
+        // Reset to original text for Original language or no activities
         setActivities(originalActivities);
         return;
       }
@@ -153,16 +155,50 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     }
   }, [leadId, activeTab]);
 
+  // Add focus event listener to refresh data when user returns to the tab
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('Window gained focus, refreshing data...');
+      if (activeTab === 'activities') {
+        loadActivities();
+      } else if (activeTab === 'documents') {
+        loadDocuments();
+      }
+      refreshNotes();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        handleFocus();
+      }
+    });
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [activeTab, leadId]);
+
   // Listen for process completion events and postMessage events
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
+        console.log('Process completion event received:', event.type, event);
         const response = event.detail?.response;
+        console.log('Event response:', response);
+        
         if (response?.salesActivity) {
+          console.log('Refreshing activities...');
           loadActivities();
         }
         if (response?.crmNote) {
+          console.log('Refreshing notes...');
           refreshNotes();
+        }
+        if (response?.crmDocument) {
+          console.log('Refreshing documents...');
+          loadDocuments();
         }
       } catch (err) {
         console.error('Error handling process completion:', err);
@@ -172,8 +208,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     // Listen for postMessage events from document upload form
     const handlePostMessage = (event: MessageEvent) => {
       try {
+        console.log('PostMessage event received:', event.data);
         if (event.data?.type === 'CRM_DOCUMENT_UPLOADED' && event.data?.leadId === leadId) {
           // Refresh documents when a document is uploaded
+          console.log('Refreshing documents from postMessage...');
           loadDocuments();
         }
       } catch (err) {
@@ -181,12 +219,51 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
       }
     };
 
-    window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion as EventListener);
+    // Universal event listener to capture all events
+    const handleAllEvents = (event: any) => {
+      if (event.type && event.type.includes('process') || event.type && event.type.includes('task')) {
+        console.log('Detected process/task event:', event.type, event);
+        handleProcessCompletion(event);
+      }
+    };
+
+    // Listen to multiple possible event names
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
+    
     window.addEventListener('message', handlePostMessage);
 
+    // Add a universal listener for debugging
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event: Event) {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        console.log('Custom Event dispatched:', event.type, event);
+        handleAllEvents(event);
+      }
+      return originalDispatchEvent.call(this, event);
+    };
+
     return () => {
-      window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion as EventListener);
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
       window.removeEventListener('message', handlePostMessage);
+      
+      // Restore original dispatchEvent
+      window.dispatchEvent = originalDispatchEvent;
     };
   }, [leadId]);
 
@@ -281,6 +358,31 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
 
   const handleLanguageChange = (languageCode: string) => {
     setSelectedLanguage(languageCode);
+  };
+
+  const handleDeleteDocument = async (document: CrmDocumentData) => {
+    try {
+      await restClient.post('/customer-relations/saveCrmDocument', {
+        changeMode: "DELETE",
+        crmDocument: {
+          id: document.id,
+          version: document.version,
+          leadId: leadId
+        }
+      }, {
+        headers: { Authorization: `Bearer ${context.accessToken}` }
+      });
+      
+      // Remove the document from the local state
+      setDocuments(prevDocuments => 
+        prevDocuments.filter(d => d.id !== document.id)
+      );
+      
+      message.success('Document deleted successfully');
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      message.error('Failed to delete document');
+    }
   };
 
   return (
@@ -382,14 +484,22 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 />
               )}
             </div>
-            <Button 
-              type="primary"
-              icon={<PlusCircleOutlined />}
-              onClick={handleAddActivity}
-              data-testid="add-activity-button"
-            >
-              Add Activity
-            </Button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button 
+                icon={<ReloadOutlined />}
+                onClick={handleRefreshActivities}
+                data-testid="refresh-activities-button"
+                title="Refresh Activities"
+              />
+              <Button 
+                type="primary"
+                icon={<PlusCircleOutlined />}
+                onClick={handleAddActivity}
+                data-testid="add-activity-button"
+              >
+                Add Activity
+              </Button>
+            </div>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -494,14 +604,22 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             >
               Documents
             </div>
-            <Button 
-              type="primary"
-              icon={<CloudUploadOutlined />}
-              onClick={handleAddDocument}
-              data-testid="add-document-button"
-            >
-              Upload Document
-            </Button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button 
+                icon={<ReloadOutlined />}
+                onClick={handleRefreshDocuments}
+                data-testid="refresh-documents-button"
+                title="Refresh Documents"
+              />
+              <Button 
+                type="primary"
+                icon={<CloudUploadOutlined />}
+                onClick={handleAddDocument}
+                data-testid="add-document-button"
+              >
+                Upload Document
+              </Button>
+            </div>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -542,29 +660,34 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               <Timeline>
                 {documents.map((document, index) => (
                   <Timeline.Item key={document.id || index} color="green">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <FileTextOutlined />
-                          <Text strong>{document.name}</Text>
-                        </div>
-                        <div><Text type="secondary">{dayjs(document.createdAt).format('MMM D, YYYY [at] h:mm A')}</Text></div>
-                        <div style={{ marginTop: '4px' }}>
-                          <Text type="secondary">Type: {document.documentType?.value || 'Unknown'}</Text>
-                        </div>
+                    <div style={{ position: 'relative' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FileTextOutlined />
+                        <Text strong>{document.name}</Text>
+                      </div>
+                      <div><Text type="secondary">{dayjs(document.createdAt).format('MMM D, YYYY [at] h:mm A')}</Text></div>
+                      <div style={{ marginTop: '4px' }}>
+                        <Text type="secondary">Type: {document.documentType?.value || 'Unknown'}</Text>
+                        {document.fileSize && (
+                          <Text type="secondary" style={{ marginLeft: '16px' }}>
+                            Size: {Math.floor(document.fileSize / 1024)} KB
+                          </Text>
+                        )}
                       </div>
                       <Button 
-                        type="primary" 
-                        icon={<EyeOutlined />} 
+                        type="text" 
+                        icon={<CloseOutlined />} 
                         size="small"
-                        onClick={() => {
-                          // TODO: Implement document viewing functionality
-                          message.info('Document viewing not implemented yet');
+                        style={{ 
+                          position: 'absolute', 
+                          right: 0, 
+                          top: 0,
+                          padding: '4px',
+                          lineHeight: 1
                         }}
-                        data-testid={`view-document-${document.id}`}
-                      >
-                        View
-                      </Button>
+                        onClick={() => handleDeleteDocument(document)}
+                        data-testid={`delete-document-${document.id}`}
+                      />
                     </div>
                   </Timeline.Item>
                 ))}

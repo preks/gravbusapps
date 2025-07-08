@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, UserOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, UserOutlined, CloseOutlined, LoadingOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Button, Spin, Alert, Empty, Timeline, Typography, message } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -27,7 +27,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
   const [notes, setNotes] = useState<TranslatedNote[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const [selectedLanguage, setSelectedLanguage] = useState('Original');
   const [translating, setTranslating] = useState(false);
   const originalNotesRef = useRef<CrmNoteData[]>([]);
   const { fetchCrmNotes } = useGetCrmNotes(context);
@@ -65,8 +65,8 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
     const translateNotes = async () => {
       const originalNotes = originalNotesRef.current;
       
-      if (selectedLanguage === 'English' || originalNotes.length === 0) {
-        // Reset to original text for English or no notes
+      if (selectedLanguage === 'Original' || originalNotes.length === 0) {
+        // Reset to original text for Original language or no notes
         setNotes(originalNotes);
         return;
       }
@@ -120,8 +120,12 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
+        console.log('Notes: Process completion event received:', event);
         const response = event.detail?.response;
+        console.log('Notes: Event response:', response);
+        
         if (response?.crmNote) {
+          console.log('Notes: Refreshing notes...');
           // Refresh notes when a new note is added
           loadNotes();
         }
@@ -130,10 +134,22 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
       }
     };
 
-    window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion as EventListener);
+    // Listen to multiple possible event names
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'processCompletion',
+      'taskCompletion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
 
     return () => {
-      window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion as EventListener);
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
     };
   }, [leadId]);
 
@@ -214,14 +230,22 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
             />
           )}
         </div>
-        <Button 
-          type="primary"
-          icon={<PlusCircleOutlined />}
-          onClick={handleAddNote}
-          data-testid="add-note-button"
-        >
-          Add Note
-        </Button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Button 
+            icon={<ReloadOutlined />}
+            onClick={handleRefresh}
+            data-testid="refresh-notes-button"
+            title="Refresh Notes"
+          />
+          <Button 
+            type="primary"
+            icon={<PlusCircleOutlined />}
+            onClick={handleAddNote}
+            data-testid="add-note-button"
+          >
+            Add Note
+          </Button>
+        </div>
       </div>
 
       <div style={{ padding: '0 24px 24px' }}>

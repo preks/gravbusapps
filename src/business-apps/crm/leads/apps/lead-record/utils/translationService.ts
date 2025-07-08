@@ -7,6 +7,7 @@ export interface Language {
 }
 
 export const LANGUAGES: Language[] = [
+  { code: 'Original', label: 'Original', flag: '📄' },
   { code: 'English', label: 'English', flag: '🇺🇸' },
   { code: 'German', label: 'German', flag: '🇩🇪' },
   { code: 'Spanish', label: 'Spanish', flag: '🇪🇸' },
@@ -16,6 +17,7 @@ export const LANGUAGES: Language[] = [
 
 // Mapping from full language names to API language names
 const LANGUAGE_API_CODES: Record<string, string> = {
+  'Original': 'original', // This won't be used for API calls
   'English': 'english',
   'German': 'german',
   'Spanish': 'spanish',
@@ -77,11 +79,11 @@ export const translateText = async (
   request: TranslationRequest, 
   accessToken: string
 ): Promise<TranslationResponse> => {
-  // Return original text for English
-  if (request.targetLanguage === 'English' || request.targetLanguage === request.sourceLanguage) {
+  // Return original text for Original or if target equals source
+  if (request.targetLanguage === 'Original' || request.targetLanguage === request.sourceLanguage) {
     return {
       translatedText: request.text,
-      sourceLanguage: request.sourceLanguage || 'English',
+      sourceLanguage: request.sourceLanguage || 'Original',
       targetLanguage: request.targetLanguage
     };
   }
@@ -115,7 +117,7 @@ export const translateText = async (
       console.warn('Invalid translation API response:', response);
       return {
         translatedText: request.text,
-        sourceLanguage: request.sourceLanguage || 'English',
+        sourceLanguage: request.sourceLanguage || 'Original',
         targetLanguage: request.targetLanguage
       };
     }
@@ -124,7 +126,7 @@ export const translateText = async (
 
     return {
       translatedText,
-      sourceLanguage: request.sourceLanguage || 'English',
+      sourceLanguage: request.sourceLanguage || 'Original',
       targetLanguage: request.targetLanguage
     };
   } catch (error) {
@@ -132,7 +134,7 @@ export const translateText = async (
     // Fallback to original text if translation fails
     return {
       translatedText: request.text,
-      sourceLanguage: request.sourceLanguage || 'English',
+      sourceLanguage: request.sourceLanguage || 'Original',
       targetLanguage: request.targetLanguage
     };
   }
@@ -144,8 +146,8 @@ export const translateMultipleTexts = async (
   accessToken: string,
   sourceLanguage?: string
 ): Promise<string[]> => {
-  // Return original texts for English
-  if (targetLanguage === 'English' || targetLanguage === sourceLanguage) {
+  // Return original texts for Original language
+  if (targetLanguage === 'Original' || targetLanguage === sourceLanguage) {
     return texts;
   }
 
