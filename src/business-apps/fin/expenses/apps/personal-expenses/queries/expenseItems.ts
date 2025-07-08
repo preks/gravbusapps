@@ -12,6 +12,7 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
     $totalAmountMax: numeric,
     $expenseClassValue: String,
     $currencyRef: String,
+    $orderBy: [ExpenseItemOrderBy!]
   ) {
     ExpenseItemAggregate(
       where: {
@@ -47,7 +48,7 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
     ExpenseItem(
       limit: $limit,
       offset: $offset,
-      orderBy: {expenseDate: DESC},
+      orderBy: $orderBy,
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},

@@ -58,7 +58,7 @@ export interface ExpenseItemsResult {
   isLoading: boolean;
   error: string | null;
   totalCount: number;
-  fetchItems: (searchTerm?: string, page?: number, pageSize?: number, filter?: ExpenseFilter) => Promise<void>;
+  fetchItems: (searchTerm?: string, page?: number, pageSize?: number, filter?: ExpenseFilter, sortField?: string | null, sortOrder?: 'ascend' | 'descend' | null) => Promise<void>;
 }
 
 export interface ExpenseItemResult {
@@ -82,7 +82,7 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
   /**
    * Helper function to build GraphQL variables for the query
    */
-  const buildQueryVariables = useCallback((employeeId: string, searchTerm: string, page: number, pageSize: number, filter?: ExpenseFilter) => {
+  const buildQueryVariables = useCallback((employeeId: string, searchTerm: string, page: number, pageSize: number, filter?: ExpenseFilter, sortField?: string | null, sortOrder?: 'ascend' | 'descend' | null) => {
     const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`;
     const offset = (page - 1) * pageSize;
     
@@ -94,6 +94,20 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
       offset: offset,
       currencyRef: filter?.currencyRef ?? null,
     };
+    
+    // Add orderBy for server-side sorting
+    if (sortField && sortOrder) {
+      // Map UI sort field to GraphQL field names
+      const fieldMap: Record<string, string> = {
+        title: 'title',
+        invoiceDate: 'expenseDate',
+        status: 'status',
+        amount: 'reimbursableAmount', // or 'totalAmount' if preferred
+      };
+      const gqlField = fieldMap[sortField] || sortField;
+      const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC';
+      variables.orderBy = [{ [gqlField]: direction }];
+    }
     
     // Only include filter variables if they are provided
     if (filter?.status) {
@@ -156,7 +170,9 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
     searchTerm = '%', 
     page = 1, 
     pageSize = 10,
-    filter?: ExpenseFilter
+    filter?: ExpenseFilter,
+    sortField?: string | null,
+    sortOrder?: 'ascend' | 'descend' | null
   ): Promise<void> => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
     const accessToken = context?.accessToken;
@@ -182,7 +198,7 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
 
     try {
       // Build query variables with helper function
-      const variables = buildQueryVariables(employeeId, searchTerm, page, pageSize, filter);
+      const variables = buildQueryVariables(employeeId, searchTerm, page, pageSize, filter, sortField, sortOrder);
       
       // Debug the filter for no receipt items
       if (filter?.noReceipt) {

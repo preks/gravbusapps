@@ -41,6 +41,10 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
 
   const [search, setSearch] = useState('');
 
+  // Sorting state
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | null>(null);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -48,8 +52,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
 
   useEffect(() => {
     const apiFilters = getFilters(selectedFilters);
-    fetchItems(search, currentPage, pageSize, apiFilters);
-  }, [fetchItems, currentPage, pageSize, search, selectedFilters, getFilters]);
+    fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
+  }, [fetchItems, currentPage, pageSize, search, selectedFilters, getFilters, sortField, sortOrder]);
 
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -141,7 +145,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
           pageSizeOptions: ['10', '20', '50', '100'],
           showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
         }}
-        onChange={handleTableChange}
+        onChange={handleEnhancedTableChange}
         loading={isLoading}
         data-testid="expense-items-data-table"
         columns={[
@@ -192,26 +196,32 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
             title: 'Title',
             dataIndex: 'title',
             key: 'title',
-            render: (text: string) => <div style={{ fontWeight: 'bold' }}>{text}</div>
+            sorter: (a: any, b: any) => a.title.localeCompare(b.title),
+            sortOrder: sortField === 'title' ? sortOrder : null,
+            render: (text: string) => <div style={{ fontWeight: 'bold' }} data-testid="expense-title-cell">{text}</div>
           },
           {
             title: 'Invoice Date',
             dataIndex: 'invoiceDate',
             key: 'invoiceDate',
+            sorter: (a: any, b: any) => new Date(a.invoiceDate).getTime() - new Date(b.invoiceDate).getTime(),
+            sortOrder: sortField === 'invoiceDate' ? sortOrder : null,
             render: (date: string) => {
               const formattedDate = date
                 ? formatDate(date, 'date.long')
                 : getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_creation_date', 'No creation date');
-              return <div style={{ fontSize: '12px', color: '#666' }}>{formattedDate}</div>;
+              return <div style={{ fontSize: '12px', color: '#666' }} data-testid="expense-invoice-date-cell">{formattedDate}</div>;
             }
           },
           {
             title: 'Status',
             dataIndex: 'status',
             key: 'status',
+            sorter: (a: any, b: any) => a.status.localeCompare(b.status),
+            sortOrder: sortField === 'status' ? sortOrder : null,
             render: (status: string) => {
               const { label, type } = getExpenseItemStatusDisplay(status);
-              return <Pill label={label} type={type} className="gba:text-center" />;
+              return <Pill label={label} type={type} className="gba:text-center" data-testid="expense-status-cell" />;
             }
           },
           {
@@ -235,10 +245,12 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
           {
             title: 'Reimbursable Amount',
             dataIndex: 'reimbursableAmount',
-            key: 'amount',
+            key: 'reimbursableAmount',
+            sorter: (a: any, b: any) => (a.reimbursableAmount ?? 0) - (b.reimbursableAmount ?? 0),
+            sortOrder: sortField === 'reimbursableAmount' ? sortOrder : null,
             onCell: () => ({ className: 'gba:text-right gba:font-bold' }),
             render: (amount: number, record: any) => (
-              <span>
+              <span data-testid="expense-amount-cell">
                 {formatNumberFunction(String(amount ?? '0'))} {record.currencyCode}
               </span>
             )
@@ -267,6 +279,19 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     }));
   }, [filterGroups, selectedFilters]);
 
+  // Enhanced table change handler for sorting
+  const handleEnhancedTableChange = (pagination: any, _filters: any, sorter: any) => {
+    setCurrentPage(pagination.current);
+    setPageSize(pagination.pageSize);
+    if (sorter && sorter.field) {
+      setSortField(sorter.field);
+      setSortOrder(sorter.order);
+    } else {
+      setSortField(null);
+      setSortOrder(null);
+    }
+  };
+
   return (
     <DataContainer
       dataControllerProps={{
@@ -277,10 +302,11 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
         placeholder: 'Search by description, amount, or status...',
         filter: selectedFilters,
         setFilter: setFilters,
+
         filterLabelMap: filterLabelMap,
         addButton: {
           onClick: handleAddExpenseItem,
-          label: 'Add Expense Item',
+          label: '',
         },
       }}
       dataFilterProps={{
