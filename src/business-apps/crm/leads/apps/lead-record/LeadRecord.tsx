@@ -117,7 +117,7 @@ const LeadRecord: React.FC<LeadRecordProps> = (props) => {
     } else {
       // Navigate back to leads overview
       if (typeof window !== 'undefined') {
-        window.location.href = '/platform/leads-overview';
+        window.location.href = '/platform/crm/leads-overview';
       }
     }
   };
