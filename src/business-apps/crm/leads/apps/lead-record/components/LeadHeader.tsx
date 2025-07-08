@@ -25,20 +25,6 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
         justifyContent: 'space-between'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ 
-            width: '48px', 
-            height: '48px', 
-            borderRadius: '50%', 
-            backgroundColor: '#f5f5f5', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            fontSize: '20px', 
-            color: '#1890ff', 
-            fontWeight: 'bold' 
-          }}>
-            {lead.name ? lead.name[0] : 'A'}
-          </div>
           <div>
             <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '4px' }}>
               {lead.name}

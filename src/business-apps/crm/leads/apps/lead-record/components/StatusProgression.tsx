@@ -22,78 +22,89 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({ currentSta
   }
 
   return (
-    <div style={{ marginBottom: '16px' }}>
+    <div style={{ marginBottom: '24px' }}>
       <div style={{
         display: 'flex',
-        gap: '4px',
-        padding: '4px',
-        backgroundColor: '#f1f3f4',
-        borderRadius: '8px',
-        border: '1px solid #e8eaed'
+        alignItems: 'center',
+        height: '48px',
+        backgroundColor: '#f5f5f5',
+        borderRadius: '24px',
+        overflow: 'visible',
+        border: '1px solid #e0e0e0',
+        padding: '0 4px'
       }}>
         {statuses.map((status, index) => {
           const isCompleted = index < currentIndex;
           const isCurrent = index === currentIndex;
-          const isPending = index > currentIndex;
+          const isLast = index === statuses.length - 1;
+          const isFirst = index === 0;
+
+          // Calculate colors
+          const backgroundColor = isCompleted ? '#4CAF50' : isCurrent ? '#2196F3' : 'transparent';
+          const textColor = (isCompleted || isCurrent) ? 'white' : '#666666';
+
+          // Create clip-path for arrow shape (except last item)
+          const clipPath = isLast 
+            ? 'none' 
+            : 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)';
+
+          // Border radius: first item gets left rounded, last item gets right rounded, middle items are square
+          const borderRadius = isFirst && isLast 
+            ? '20px' 
+            : isFirst 
+              ? '20px 0 0 20px' 
+              : isLast 
+                ? '0 20px 20px 0' 
+                : '0';
 
           return (
             <div
               key={status.id}
               style={{
-                flex: 1,
-                padding: '8px 12px',
-                borderRadius: '6px',
-                textAlign: 'center',
-                fontSize: '12px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                backgroundColor: isCurrent 
-                  ? '#1a73e8' 
-                  : isCompleted 
-                  ? '#34a853' 
-                  : 'transparent',
-                color: isCurrent || isCompleted ? 'white' : '#5f6368',
-                border: isPending ? '1px dashed #dadce0' : 'none',
                 position: 'relative',
-                minHeight: '32px',
+                height: '40px',
+                flex: 1,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: textColor,
+                backgroundColor: backgroundColor,
+                borderRadius: borderRadius,
+                marginRight: isLast ? '0' : '8px',
+                transition: 'all 0.3s ease',
+                zIndex: isCompleted || isCurrent ? 2 : 1,
+                clipPath: clipPath,
+                WebkitClipPath: clipPath
               }}
               data-testid={`status-${status.code}`}
             >
-              {/* Status icon */}
+              {/* Content */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px'
+                gap: '8px',
+                padding: '0 16px',
+                paddingRight: isLast ? '16px' : '24px'
               }}>
-                {isCompleted && <span style={{ fontSize: '10px' }}>✓</span>}
-                {isCurrent && <span style={{ fontSize: '10px' }}>●</span>}
-                {isPending && <span style={{ fontSize: '10px', color: '#9aa0a6' }}>○</span>}
-                <span style={{ 
-                  fontSize: '11px',
-                  lineHeight: '1.2',
-                  fontWeight: isCurrent ? '600' : '500'
-                }}>
-                  {status.value}
-                </span>
+                {isCompleted && (
+                  <span style={{ 
+                    fontSize: '14px', 
+                    fontWeight: 'bold',
+                    backgroundColor: 'rgba(255,255,255,0.3)',
+                    borderRadius: '50%',
+                    width: '20px',
+                    height: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    ✓
+                  </span>
+                )}
+                <span style={{ whiteSpace: 'nowrap' }}>{status.value}</span>
               </div>
-
-              {/* Progress indicator */}
-              {isCurrent && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: '-2px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: '4px',
-                  height: '4px',
-                  backgroundColor: '#1a73e8',
-                  borderRadius: '2px'
-                }} />
-              )}
             </div>
           );
         })}

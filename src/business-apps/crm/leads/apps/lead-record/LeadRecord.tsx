@@ -88,7 +88,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
         <Row gutter={24}>
           {/* Activity Timeline - 1/2 width */}
           <Col span={12}>
-            <ActivityTimeline leadId={leadId} />
+            <ActivityTimeline leadId={leadId} context={props} />
           </Col>
 
           {/* Tasks - 1/2 width */}
@@ -100,8 +100,6 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
     </div>
   );
 };
-
-export default LeadRecordContent;
 
 interface LeadRecordProps extends BusinessAppContextProps {
   leadId?: string;
@@ -139,4 +137,5 @@ const LeadRecord: React.FC<LeadRecordProps> = (props) => {
   );
 };
 
-export { LeadRecord, LeadRecordContent }; 
+export { LeadRecord, LeadRecordContent };
+export default LeadRecord; 

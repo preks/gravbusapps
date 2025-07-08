@@ -10,6 +10,15 @@ export interface Task {
   completedAt?: string;
 }
 
+export interface Note {
+  id: string;
+  content: string;
+  author: string;
+  createdAt: string;
+  important: boolean;
+  leadId: string;
+}
+
 export interface Opportunity {
   id: string;
   name: string;
