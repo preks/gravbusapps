@@ -2,6 +2,8 @@ import React from "react";
 import { Row, Col, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { AppActionButton } from "@/components/app-action-button/AppActionButton";
+import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { useLeadData } from "./hooks/useLeadData";
 import { LeadHeader } from "./components/LeadHeader";
 import { StatusProgression } from "./components/StatusProgression";
@@ -58,7 +60,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
       </div>
 
       {/* Lead header */}
-      <LeadHeader lead={lead} leadData={leadData} leadId={leadId} additionalData={props} />
+      <LeadHeader lead={lead} leadData={leadData} leadId={leadId} additionalData={props} accessToken={props.accessToken} />
 
       {/* Status Progression */}
       {!loadingStatuses && leadStatuses.length > 0 && (
@@ -93,7 +95,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
 
           {/* Tasks - 1/2 width */}
           <Col span={12}>
-            <TasksSection />
+            <TasksSection leadId={leadId} context={props} />
           </Col>
         </Row>
       </div>

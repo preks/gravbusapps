@@ -1,15 +1,3 @@
-export interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  completed: boolean;
-  dueDate?: string;
-  priority: 'low' | 'medium' | 'high';
-  assignedTo?: string;
-  createdAt: string;
-  completedAt?: string;
-}
-
 export interface Note {
   id: string;
   content: string;

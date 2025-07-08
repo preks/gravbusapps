@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { PlusCircleOutlined, UserOutlined, CloseOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useRef } from 'react';
+import { PlusCircleOutlined, UserOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
 import { Button, Spin, Alert, Empty, Timeline, Typography, message } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -7,6 +7,8 @@ import { useGetCrmNotes, CrmNoteData } from '../queries/CrmNoteQueries';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
+import { LanguageDropdown } from './LanguageDropdown';
+import { translateMultipleTexts } from '../utils/translationService';
 
 const { Text } = Typography;
 
@@ -15,10 +17,19 @@ interface NotesSectionProps {
   context: BusinessAppContextProps;
 }
 
+interface TranslatedNote extends CrmNoteData {
+  translatedTitle?: string;
+  translatedText?: string;
+  isTranslating?: boolean;
+}
+
 export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) => {
-  const [notes, setNotes] = useState<CrmNoteData[]>([]);
+  const [notes, setNotes] = useState<TranslatedNote[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const [translating, setTranslating] = useState(false);
+  const originalNotesRef = useRef<CrmNoteData[]>([]);
   const { fetchCrmNotes } = useGetCrmNotes(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
 
@@ -34,6 +45,9 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
       const sortedNotes = (result.CrmNote || []).sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
+      
+      // Store original notes for translation reference
+      originalNotesRef.current = sortedNotes;
       setNotes(sortedNotes);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load notes');
@@ -45,6 +59,62 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
   useEffect(() => {
     loadNotes();
   }, [leadId]);
+
+  // Handle language change and translate notes
+  useEffect(() => {
+    const translateNotes = async () => {
+      const originalNotes = originalNotesRef.current;
+      
+      if (selectedLanguage === 'English' || originalNotes.length === 0) {
+        // Reset to original text for English or no notes
+        setNotes(originalNotes);
+        return;
+      }
+
+      setTranslating(true);
+      
+      try {
+        // Collect all text to translate from original notes
+        const textsToTranslate: string[] = [];
+        const noteMapping: Array<{ noteIndex: number, titleIndex: number, textIndex: number }> = [];
+        
+        originalNotes.forEach((note, noteIndex) => {
+          const titleIndex = textsToTranslate.length;
+          textsToTranslate.push(note.noteTitle);
+          
+          const textIndex = textsToTranslate.length;
+          textsToTranslate.push(note.noteText);
+          
+          noteMapping.push({ noteIndex, titleIndex, textIndex });
+        });
+
+        // Translate all texts at once
+        const translatedTexts = await translateMultipleTexts(textsToTranslate, selectedLanguage, context.accessToken);
+        
+        // Create translated notes based on original notes
+        const translatedNotes: TranslatedNote[] = originalNotes.map((originalNote, noteIndex) => {
+          const mapping = noteMapping[noteIndex];
+          return {
+            ...originalNote,
+            translatedTitle: translatedTexts[mapping.titleIndex],
+            translatedText: translatedTexts[mapping.textIndex],
+            isTranslating: false
+          };
+        });
+        
+        setNotes(translatedNotes);
+      } catch (err) {
+        console.error('Translation error:', err);
+        message.error('Failed to translate notes');
+        // Fallback to original notes
+        setNotes(originalNotes);
+      } finally {
+        setTranslating(false);
+      }
+    };
+
+    translateNotes();
+  }, [selectedLanguage, context.accessToken]);
 
   // Listen for process completion events to refresh notes
   useEffect(() => {
@@ -80,10 +150,13 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
         headers: { Authorization: `Bearer ${context.accessToken}` }
       });
       
-      // Remove the note from the local state
+      // Remove the note from both states
       setNotes(prevNotes => 
         prevNotes.filter(n => n.id !== note.id)
       );
+      
+      // Also remove from original notes ref
+      originalNotesRef.current = originalNotesRef.current.filter(n => n.id !== note.id);
       
       message.success('Note deleted successfully');
     } catch (error) {
@@ -109,6 +182,10 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
     loadNotes();
   };
 
+  const handleLanguageChange = (languageCode: string) => {
+    setSelectedLanguage(languageCode);
+  };
+
   return (
     <div className="gba:notes-content" data-testid="notes-content">
       <div 
@@ -119,11 +196,23 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
           padding: '16px 24px'
         }}
       >
-        <div 
-          className="gba:notes-title" 
-          style={{ fontSize: '18px', fontWeight: '500' }}
-        >
-          Notes
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div 
+            className="gba:notes-title" 
+            style={{ fontSize: '18px', fontWeight: '500' }}
+          >
+            Notes
+          </div>
+          <LanguageDropdown
+            selectedLanguage={selectedLanguage}
+            onChange={handleLanguageChange}
+          />
+          {translating && (
+            <Spin 
+              indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} 
+              size="small" 
+            />
+          )}
         </div>
         <Button 
           type="primary"
@@ -175,11 +264,13 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
               <Timeline.Item key={note.id || index} color="blue">
                 <div style={{ position: 'relative' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text strong>{note.noteTitle}</Text>
+                    <Text strong>
+                      {note.translatedTitle || note.noteTitle}
+                    </Text>
                   </div>
                   <div><Text type="secondary">{dayjs(note.createdAt).format('MMM D, YYYY [at] h:mm A')}</Text></div>
                   <div style={{ marginTop: '4px' }}>
-                    <div>{note.noteText}</div>
+                    <div>{note.translatedText || note.noteText}</div>
                   </div>
                   <Button 
                     type="text" 
