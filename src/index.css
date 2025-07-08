@@ -166,3 +166,9 @@
     font-family: var(--font-secondary, 'Dela Gothic One', sans-serif) !important;
   }
 }
+
+/* Spinner animation for status progression loading */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
