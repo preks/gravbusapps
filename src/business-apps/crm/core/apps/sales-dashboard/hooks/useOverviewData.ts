@@ -73,7 +73,7 @@ export const useOverviewData = (
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { fetchPipelineOpportunities, fetchRecentLeads, fetchSalesActivities, fetchPipelineStages, fetchTodaysActivities, fetchTodaysTasks } = useDashboardQueries(context);
+  const { fetchPipelineOpportunities, fetchRecentLeads, fetchSalesActivities, fetchPipelineStages, fetchTodaysActivities, fetchTodaysTasks, fetchOpenLeadsForRevenueSource } = useDashboardQueries(context);
 
   const loadOverviewData = useCallback(async () => {
     if (!context.accessToken) {
@@ -95,7 +95,7 @@ export const useOverviewData = (
         })
       );
 
-      const [opportunityArrays, recentLeads, salesActivities, todaysActivities, todaysTasks] = await Promise.all([
+      const [opportunityArrays, recentLeads, salesActivities, todaysActivities, todaysTasks, openLeads] = await Promise.all([
         Promise.all(allOpportunitiesPromises),
         fetchRecentLeads(
           new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // Last 30 days
@@ -106,7 +106,12 @@ export const useOverviewData = (
           endDate: dateRange.endDate.toISOString()
         }),
         fetchTodaysActivities(),
-        fetchTodaysTasks()
+        fetchTodaysTasks(),
+        fetchOpenLeadsForRevenueSource({
+          startDate: dateRange.startDate.toISOString(),
+          endDate: dateRange.endDate.toISOString(),
+          limit: 1000
+        })
       ]);
 
       // Flatten all opportunities from all pipelines
@@ -205,21 +210,35 @@ export const useOverviewData = (
         totalRevenue
       });
 
-      // Calculate revenue by source from opportunities
+      // Calculate lead counts by source from open leads
       const sourceGroups = new Map<string, number>();
-      allOpportunities.forEach((opp: any) => {
-        // Try to get source from the opportunity's lead source, or default to 'Unknown'
-        const source = opp.lead?.leadSource?.value || opp.leadSource?.value || 'Unknown';
-        const amount = opp.estimatedAmount || 0;
-        sourceGroups.set(source, (sourceGroups.get(source) || 0) + amount);
+
+      openLeads.forEach((lead: any) => {
+        const source = lead.leadSource?.value || 'Unknown Source';
+        sourceGroups.set(source, (sourceGroups.get(source) || 0) + 1);
       });
 
-      const totalSourceRevenue = Array.from(sourceGroups.values()).reduce((sum, value) => sum + value, 0);
-      const revenueBySource = Array.from(sourceGroups.entries()).map(([source, value], index) => ({
+      console.log('Lead Source Count Debug:', {
+        openLeadsCount: openLeads.length,
+        sourceGroups: Array.from(sourceGroups.entries()),
+        sampleLead: openLeads[0] || 'No open leads found',
+        dateRange: {
+          start: dateRange.startDate.toISOString(),
+          end: dateRange.endDate.toISOString()
+        }
+      });
+
+      const totalLeadCount = Array.from(sourceGroups.values()).reduce((sum, count) => sum + count, 0);
+      
+      // Define colors for different sources
+      const sourceColors = ['#1890ff', '#52c41a', '#fa8c16', '#722ed1', '#f5222d', '#13c2c2', '#eb2f96'];
+      
+      const revenueBySource = Array.from(sourceGroups.entries()).map(([source, count], index) => ({
         source,
-        value,
-        percentage: totalSourceRevenue > 0 ? Math.round((value / totalSourceRevenue) * 100) : 0,
-        color: stageColors[index % stageColors.length]
+        value: count, // Now value represents lead count, not revenue
+        count: count, // Keep count for backwards compatibility
+        percentage: totalLeadCount > 0 ? Math.round((count / totalLeadCount) * 100) : 0,
+        color: sourceColors[index % sourceColors.length]
       })).sort((a, b) => b.value - a.value);
 
       // Create recent records from opportunities and leads
@@ -293,7 +312,7 @@ export const useOverviewData = (
         aggregatedFunnel,
         revenueBySource,
         totalPipelineValue,
-        totalRevenue,
+        totalRevenue: totalLeadCount, // Use total lead count instead of revenue
         recentRecords,
         keyDeals,
         todaysActivities: processedTodaysActivities,
@@ -308,7 +327,7 @@ export const useOverviewData = (
     } finally {
       setIsLoading(false);
     }
-  }, [context.accessToken, pipelines, dateRange, fetchPipelineOpportunities, fetchRecentLeads, fetchSalesActivities, fetchPipelineStages, fetchTodaysActivities, fetchTodaysTasks]);
+  }, [context.accessToken, pipelines, dateRange, fetchPipelineOpportunities, fetchRecentLeads, fetchSalesActivities, fetchPipelineStages, fetchTodaysActivities, fetchTodaysTasks, fetchOpenLeadsForRevenueSource]);
 
   const refetch = useCallback(() => {
     loadOverviewData();

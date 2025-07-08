@@ -17,7 +17,7 @@ export interface SalesDashboardProps extends BusinessAppContextProps {}
 export const SalesDashboard: React.FC<SalesDashboardProps> = (context) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [dateRange, setDateRange] = useState<DateRange>({
-    startDate: new Date(new Date().getFullYear(), 0, 1), // Start of current year
+    startDate: new Date(new Date().getFullYear() - 2, 0, 1), // Start of 2 years ago to include more data
     endDate: new Date() // Today
   });
 

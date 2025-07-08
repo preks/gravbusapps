@@ -105,6 +105,14 @@ export const GET_PIPELINE_OPPORTUNITIES = `
         value
         alternativeCode
       }
+      lead {
+        id
+        leadSource {
+          code
+          value
+        }
+        leadSourceRef
+      }
     }
   }
 `;
@@ -145,6 +153,46 @@ export const GET_RECENT_LEADS = `
         code
         value
       }
+    }
+  }
+`;
+
+// Get open leads for potential revenue source calculation
+export const GET_OPEN_LEADS_FOR_REVENUE_SOURCE = `
+  query GetOpenLeadsForRevenueSource(
+    $startDate: timestamptz!
+    $endDate: timestamptz!
+    $limit: Int
+  ) {
+    leads: Lead(
+      where: {
+        createdAt: { _gte: $startDate, _lte: $endDate }
+        isDeleted: { _eq: false }
+        leadStatus: { code: { _eq: "OPEN" } }
+      }
+      orderBy: { createdAt: DESC }
+      limit: $limit
+    ) {
+      id
+      name
+      firstName
+      lastName
+      companyName
+      createdAt
+      leadSourceRef
+      leadSource {
+        code
+        value
+      }
+      leadStatus {
+        code
+        value
+      }
+      annualRevenue {
+        code
+        value
+      }
+      annualRevenueRef
     }
   }
 `;
@@ -543,6 +591,22 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
     }
   }, [graphqlClient, context.accessToken]);
 
+  const fetchOpenLeadsForRevenueSource = useCallback(async (variables: {
+    startDate: string;
+    endDate: string;
+    limit?: number;
+  }) => {
+    try {
+      const result = await graphqlClient.request<{
+        leads: any[];
+      }>(GET_OPEN_LEADS_FOR_REVENUE_SOURCE, variables);
+      return result.leads;
+    } catch (error) {
+      console.error('Error fetching open leads for revenue source:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
   return {
     fetchPipelines,
     fetchPipelineStages,
@@ -552,6 +616,7 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
     fetchWinRateData,
     fetchSalesRepPerformance,
     fetchTodaysActivities,
-    fetchTodaysTasks
+    fetchTodaysTasks,
+    fetchOpenLeadsForRevenueSource
   };
 }; 

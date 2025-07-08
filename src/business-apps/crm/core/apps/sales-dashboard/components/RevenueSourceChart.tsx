@@ -1,7 +1,7 @@
 import React from 'react';
 import { Typography } from 'antd';
 import { PieChartOutlined } from '@ant-design/icons';
-import { formatCurrency, formatLargeNumber } from '../utils/dashboardUtils';
+import { formatLargeNumber } from '../utils/dashboardUtils';
 
 const { Title, Text } = Typography;
 
@@ -13,7 +13,7 @@ export interface RevenueSourceChartProps {
     color: string;
   }>;
   title: string;
-  totalRevenue: number;
+  totalRevenue: number; // Now represents total lead count
 }
 
 export const RevenueSourceChart: React.FC<RevenueSourceChartProps> = ({
@@ -72,21 +72,56 @@ export const RevenueSourceChart: React.FC<RevenueSourceChartProps> = ({
               {revenueData.map((item, index) => {
                 const strokeDasharray = `${(item.percentage / 100) * circumference} ${circumference}`;
                 const strokeDashoffset = -cumulativePercentage * circumference / 100;
+                
+                // Calculate position for text label (middle of the arc)
+                const midAngle = (cumulativePercentage + item.percentage / 2) * 2 * Math.PI / 100 - Math.PI / 2;
+                const labelRadius = radius - strokeWidth / 4; // Position closer to outer edge
+                const labelX = size / 2 + labelRadius * Math.cos(midAngle);
+                const labelY = size / 2 + labelRadius * Math.sin(midAngle);
+                
                 cumulativePercentage += item.percentage;
 
                 return (
-                  <circle
-                    key={item.source}
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    fill="transparent"
-                    stroke={item.color}
-                    strokeWidth={strokeWidth}
-                    strokeDasharray={strokeDasharray}
-                    strokeDashoffset={strokeDashoffset}
-                    className="gba:transition-all gba:duration-300 hover:gba:opacity-80"
-                  />
+                  <g key={item.source}>
+                    <circle
+                      cx={size / 2}
+                      cy={size / 2}
+                      r={radius}
+                      fill="transparent"
+                      stroke={item.color}
+                      strokeWidth={strokeWidth}
+                      strokeDasharray={strokeDasharray}
+                      strokeDashoffset={strokeDashoffset}
+                      className="gba:transition-all gba:duration-300 hover:gba:opacity-80"
+                    />
+                    {/* Show count in each segment if percentage is large enough */}
+                    {item.percentage > 15 && (
+                      <g>
+                        {/* Background circle for better text readability */}
+                        <circle
+                          cx={labelX}
+                          cy={labelY}
+                          r="16"
+                          fill="rgba(0,0,0,0.6)"
+                          stroke="white"
+                          strokeWidth="1"
+                        />
+                        <text
+                          x={labelX}
+                          y={labelY}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          className="gba:fill-white gba:font-bold"
+                          style={{ 
+                            fontSize: '11px',
+                            pointerEvents: 'none'
+                          }}
+                        >
+                          {formatLargeNumber(item.value)}
+                        </text>
+                      </g>
+                    )}
+                  </g>
                 );
               })}
             </svg>
@@ -94,10 +129,10 @@ export const RevenueSourceChart: React.FC<RevenueSourceChartProps> = ({
             {/* Center Content */}
             <div className="gba:absolute gba:inset-0 gba:flex gba:flex-col gba:items-center gba:justify-center">
               <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                {formatCurrency(totalRevenue)}
+                {formatLargeNumber(totalRevenue)}
               </div>
               <div className="gba:text-sm gba:text-gray-600">
-                Total Revenue
+                Total Leads
               </div>
             </div>
           </div>
@@ -118,7 +153,7 @@ export const RevenueSourceChart: React.FC<RevenueSourceChartProps> = ({
                     {item.percentage}%
                   </div>
                   <div className="gba:text-xs gba:text-gray-500">
-                    {formatCurrency(item.value)}
+                    {formatLargeNumber(item.value)} leads
                   </div>
                 </div>
               </div>

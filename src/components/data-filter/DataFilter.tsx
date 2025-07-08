@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { PiMagnifyingGlass, PiCaretUp, PiCaretDown } from "react-icons/pi";
 import { Checkbox } from "@newwork/gravity-ui-catalog";
+import { Tooltip } from "antd";
 import { cn } from "../../common/utils/cn";
 import { DebouncedInput } from "./DebouncedInput";
 
@@ -273,18 +274,23 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                         name={filter.id}
                       />
                     </div>
-                    <span
-                      className={`gba:text-sm ${
-                        filter.selected
-                          ? "gba:font-medium gba:text-primary-500"
-                          : "gba:text-gray-700"
-                      }`}
+                    <Tooltip 
+                      title={filter.label + (typeof filter.count === "number" ? ` (${filter.count})` : "")}
+                      placement="right"
                     >
-                      {filter.label}
-                      {typeof filter.count === "number"
-                        ? ` (${filter.count})`
-                        : ""}
-                    </span>
+                      <span
+                        className={`gba:text-sm gba:text-left gba:truncate gba:block gba:max-w-[280px] ${
+                          filter.selected
+                            ? "gba:font-medium gba:text-primary-500"
+                            : "gba:text-gray-700"
+                        }`}
+                      >
+                        {filter.label}
+                        {typeof filter.count === "number"
+                          ? ` (${filter.count})`
+                          : ""}
+                      </span>
+                    </Tooltip>
                   </button>
                 ));
               } else {

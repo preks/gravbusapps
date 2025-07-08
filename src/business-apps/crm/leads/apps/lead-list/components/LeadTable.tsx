@@ -18,7 +18,13 @@ interface LeadTableProps {
   loadPage: (page: number, pageSize?: number) => Promise<void>;
   retry: () => void;
   total: number;
+  currentPage: number;
+  pageSize: number;
+  sortField: string;
+  sortOrder: 'ASC' | 'DESC';
   onSelectLead?: (lead: Lead) => void;
+  onPaginationChange: (page: number, pageSize?: number) => void;
+  onSortingChange: (field: string, order: 'ASC' | 'DESC') => void;
   selectedLeadId?: string;
   accessToken: string;
 }
@@ -37,15 +43,17 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   loadPage,
   retry,
   total,
+  currentPage,
+  pageSize,
+  sortField,
+  sortOrder,
   onSelectLead,
+  onPaginationChange,
+  onSortingChange,
   selectedLeadId,
   accessToken
 }) => {
   const { t } = useTranslation();
-
-  // State to track current pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
 
   // Get contact display name
   const getContactName = (lead: Lead) => {
@@ -123,20 +131,28 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   };
 
   // Handle pagination change
-  const handleTableChange = (pagination: any) => {
-    console.log('Pagination changed:', { 
-      current: pagination.current, 
-      pageSize: pagination.pageSize,
-      total: pagination.total 
+  const handleTableChange = (pagination: any, filters: any, sorter: any) => {
+    console.log('Table changed:', { 
+      pagination,
+      filters,
+      sorter
     });
     
     const targetPage = pagination.current ?? 1;
     const targetPageSize = pagination.pageSize ?? 20;
     
-    setCurrentPage(targetPage);
-    setPageSize(targetPageSize);
+    // Handle pagination change
+    if (pagination.current !== currentPage || pagination.pageSize !== pageSize) {
+      onPaginationChange(targetPage, targetPageSize);
+    }
     
-    loadPage(targetPage, targetPageSize);
+    // Handle sorting change
+    if (sorter && sorter.field && sorter.order) {
+      const order = sorter.order === 'ascend' ? 'ASC' : 'DESC';
+      if (sorter.field !== sortField || order !== sortOrder) {
+        onSortingChange(sorter.field, order);
+      }
+    }
   };
 
   // Handle row click
@@ -148,91 +164,74 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   const columns: any[] = [
     {
       title: t('lead.contact', 'Contact'),
-      dataIndex: 'contact',
-      key: 'contact',
+      dataIndex: 'firstName',
+      key: 'firstName',
+      sorter: true,
+      sortOrder: sortField === 'firstName' ? (sortOrder === 'ASC' ? 'ascend' : 'descend') : undefined,
       render: (_: any, record: Lead) => {
         const contactName = getContactName(record);
+        const contactEmail = getContactEmail(record);
+        const contactPhone = getContactPhone(record);
         
         return (
-          <span className="gba:font-medium">{contactName}</span>
+          <div className="gba:flex gba:flex-col gba:gap-1">
+            <span className="gba:font-medium gba:text-sm">{contactName}</span>
+            {contactEmail !== '-' && (
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <PiEnvelope size={12} className="gba:text-gray-400" />
+                <span className="gba:text-xs gba:text-gray-600">{contactEmail}</span>
+              </div>
+            )}
+            {contactPhone !== '-' && (
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <PiPhone size={12} className="gba:text-gray-400" />
+                <span className="gba:text-xs gba:text-gray-600">{contactPhone}</span>
+              </div>
+            )}
+          </div>
         );
       },
-      width: '15%',
+      width: '20%',
     },
     {
       title: t('lead.company', 'Company'),
       dataIndex: 'companyName',
       key: 'companyName',
+      sorter: true,
+      sortOrder: sortField === 'companyName' ? (sortOrder === 'ASC' ? 'ascend' : 'descend') : undefined,
       render: (_: any, record: Lead) => {
         const companyName = record.companyName || record.account?.name || '-';
-        
-        return (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiBuilding size={16} className="gba:text-gray-400" />
-            <span className="gba:font-medium">{companyName}</span>
-          </div>
-        );
-      },
-      width: '15%',
-    },
-    {
-      title: t('lead.country', 'Country'),
-      dataIndex: 'country',
-      key: 'country',
-      render: (_: any, record: Lead) => {
-        const country = record.country?.value || '-';
-        
-        return (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiMapPin size={16} className="gba:text-gray-400" />
-            <span>{country}</span>
-          </div>
-        );
-      },
-      width: '10%',
-    },
-    {
-      title: t('lead.phone', 'Phone'),
-      dataIndex: 'phone',
-      key: 'phone',
-      render: (_: any, record: Lead) => {
-        const phone = getContactPhone(record);
-        
-        return (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiPhone size={16} className="gba:text-gray-400" />
-            <span>{phone}</span>
-          </div>
-        );
-      },
-      width: '12%',
-    },
-    {
-      title: t('lead.email', 'E-Mail'),
-      dataIndex: 'email',
-      key: 'email',
-      render: (_: any, record: Lead) => {
-        const contactEmail = getContactEmail(record);
         const companyEmail = record.companyEmail;
+        const companyWebsite = record.companyWebsite;
         
         return (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiEnvelope size={16} className="gba:text-gray-400" />
-            <div className="gba:flex gba:flex-col">
-              <span className="gba:text-sm">{contactEmail}</span>
-              {companyEmail && companyEmail !== contactEmail && (
-                <span className="gba:text-xs gba:text-gray-500">{companyEmail}</span>
-              )}
+          <div className="gba:flex gba:flex-col gba:gap-1">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <PiBuilding size={14} className="gba:text-gray-400" />
+              <span className="gba:font-medium gba:text-sm">{companyName}</span>
             </div>
+            {companyEmail && (
+              <div className="gba:flex gba:items-center gba:gap-1 gba:ml-4">
+                <PiEnvelope size={12} className="gba:text-gray-400" />
+                <span className="gba:text-xs gba:text-gray-600">{companyEmail}</span>
+              </div>
+            )}
+            {companyWebsite && (
+              <div className="gba:flex gba:items-center gba:gap-1 gba:ml-4">
+                <span className="gba:text-xs gba:text-gray-600">{companyWebsite}</span>
+              </div>
+            )}
           </div>
         );
       },
-      width: '15%',
+      width: '20%',
     },
     {
       title: t('lead.created', 'Creation Date'),
       dataIndex: 'createdAt',
       key: 'createdAt',
+      sorter: true,
+      sortOrder: sortField === 'createdAt' ? (sortOrder === 'ASC' ? 'ascend' : 'descend') : undefined,
       render: (_: any, record: Lead) => {
         if (!record.createdAt) return '-';
         return (
@@ -244,7 +243,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
           </div>
         );
       },
-      width: '12%',
+      width: '15%',
     },
     {
       title: t('lead.owner', 'Owner'),
@@ -285,7 +284,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
           </div>
         );
       },
-      width: '18%',
+      width: '20%',
     },
     {
       title: t('lead.status', 'Status'),
@@ -300,7 +299,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
           </Tag>
         );
       },
-      width: '10%',
+      width: '12%',
     },
     {
       title: t('lead.rating', 'Rating'),
@@ -315,13 +314,24 @@ export const LeadTable: React.FC<LeadTableProps> = ({
           </Tag>
         );
       },
-      width: '8%',
+      width: '13%',
     },
     {
       title: '',
       key: 'actions',
       render: (_: any, record: Lead) => (
-        <div className="gba:flex gba:justify-end">
+        <div className="gba:flex gba:justify-end gba:gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(`/platform/crm/lead-record?leadId=${record.id}`, '_blank');
+            }}
+            data-testid={`${DATA_TEST_ID_PREFIX}-view-lead-button-${record.id}`}
+          >
+            View
+          </Button>
           <AppActionButton
             data-testid={`${DATA_TEST_ID_PREFIX}-update-lead-button-${record.id}`}
             variant="primary"
@@ -336,7 +346,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
           />
         </div>
       ),
-      width: '5%',
+      width: '10%',
     },
   ];
 
@@ -379,9 +389,8 @@ export const LeadTable: React.FC<LeadTableProps> = ({
           showTotal: (total, range) => 
             `${range[0]}-${range[1]} of ${total} leads`,
           pageSizeOptions: ['10', '20', '50', '100'],
-          onChange: handleTableChange,
-          onShowSizeChange: handleTableChange,
         }}
+        onChange={handleTableChange}
         rowKey="id"
         onRow={(record) => ({
           onClick: () => handleRowClick(record as Lead),

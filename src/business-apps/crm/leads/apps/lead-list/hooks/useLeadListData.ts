@@ -2,9 +2,11 @@ import { useState, useCallback } from 'react';
 import { Lead, LeadQueryVariables } from '../types';
 import { useGetLeadsData } from '../queries/LeadQueries';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { LeadFilters } from './useLeadFilters';
 
-interface UseLeadListDataProps {
-  search?: string;
+interface UseLeadListDataProps extends LeadFilters {
+  sortField?: string;
+  sortOrder?: 'ASC' | 'DESC';
   accessToken: string;
 }
 
@@ -21,6 +23,15 @@ interface UseLeadListDataReturn {
 
 export const useLeadListData = ({ 
   search = '', 
+  leadStatuses = [],
+  leadRatings = [],
+  leadSources = [],
+  industries = [],
+  companySizes = [],
+  createdAfter,
+  createdBefore,
+  sortField = 'createdAt',
+  sortOrder = 'DESC',
   accessToken 
 }: UseLeadListDataProps): UseLeadListDataReturn => {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -33,47 +44,10 @@ export const useLeadListData = ({
   
   const { fetchLeadsData } = useGetLeadsData({ accessToken } as BusinessAppContextProps);
 
-  const buildWhereClause = useCallback((searchTerm: string = '', additionalFilters: any = {}) => {
-    const baseWhere = { isDeleted: { _eq: false } };
-    
-    if (!searchTerm && Object.keys(additionalFilters).length === 0) {
-      return baseWhere;
-    }
 
-    const conditions: any[] = [];
-
-    // Add search conditions
-    if (searchTerm) {
-      const searchConditions = [
-        { firstName: { _ilike: `%${searchTerm}%` } },
-        { lastName: { _ilike: `%${searchTerm}%` } },
-        { email: { _ilike: `%${searchTerm}%` } },
-        { companyName: { _ilike: `%${searchTerm}%` } },
-        { position: { _ilike: `%${searchTerm}%` } },
-        { ownerEmployee: { firstName: { _ilike: `%${searchTerm}%` } } },
-        { ownerEmployee: { lastName: { _ilike: `%${searchTerm}%` } } },
-        { ownerEmployee: { fullName: { _ilike: `%${searchTerm}%` } } },
-        { account: { name: { _ilike: `%${searchTerm}%` } } },
-        { contact: { firstName: { _ilike: `%${searchTerm}%` } } },
-        { contact: { lastName: { _ilike: `%${searchTerm}%` } } },
-        { contact: { email: { _ilike: `%${searchTerm}%` } } }
-      ];
-      conditions.push({ _or: searchConditions });
-    }
-
-    // Add additional filters
-    if (Object.keys(additionalFilters).length > 0) {
-      conditions.push(additionalFilters);
-    }
-
-    return {
-      ...baseWhere,
-      _and: conditions
-    };
-  }, []);
 
   const loadPage = useCallback(async (
-    page: number, 
+    targetPage: number, 
     newPageSize: number = pageSize, 
     additionalFilters: any = {}
   ) => {
@@ -81,13 +55,139 @@ export const useLeadListData = ({
     setError(null);
     
     try {
-      const offset = (page - 1) * newPageSize;
-      const where = buildWhereClause(search, additionalFilters);
+      const offset = (targetPage - 1) * newPageSize;
       
+      // Build where clause directly (similar to employee hook pattern)
+      const baseWhere = { isDeleted: { _eq: false } };
+      const conditions: any[] = [];
+
+      // Add search conditions
+      if (search) {
+        const searchConditions = [
+          { firstName: { _ilike: `%${search}%` } },
+          { lastName: { _ilike: `%${search}%` } },
+          { email: { _ilike: `%${search}%` } },
+          { companyName: { _ilike: `%${search}%` } },
+          { position: { _ilike: `%${search}%` } },
+          { ownerEmployee: { firstName: { _ilike: `%${search}%` } } },
+          { ownerEmployee: { lastName: { _ilike: `%${search}%` } } },
+          { ownerEmployee: { fullName: { _ilike: `%${search}%` } } },
+          { account: { name: { _ilike: `%${search}%` } } },
+          { contact: { firstName: { _ilike: `%${search}%` } } },
+          { contact: { lastName: { _ilike: `%${search}%` } } },
+          { contact: { email: { _ilike: `%${search}%` } } }
+        ];
+        conditions.push({ _or: searchConditions });
+      }
+
+      // Add filter conditions
+      if (leadStatuses.length > 0) {
+        conditions.push({ leadStatus: { id: { _in: leadStatuses } } });
+      }
+
+      if (leadRatings.length > 0) {
+        conditions.push({ leadRating: { id: { _in: leadRatings } } });
+      }
+
+      if (leadSources.length > 0) {
+        conditions.push({ leadSource: { id: { _in: leadSources } } });
+      }
+
+      if (industries.length > 0) {
+        conditions.push({ industry: { id: { _in: industries } } });
+      }
+
+      // Company size filters - filter through account relationship using employee count ranges
+      if (companySizes.length > 0) {
+        const sizeConditions: any[] = [];
+        
+        companySizes.forEach(sizeId => {
+          switch (sizeId) {
+            case 'startup':
+              // 1-10 employees - this could map to specific catalog values or use text matching
+              sizeConditions.push({ 
+                account: { 
+                  numberOfEmployees: { 
+                    value: { _iregex: "1-10|startup|micro" } 
+                  } 
+                } 
+              });
+              break;
+            case 'small':
+              // 11-50 employees
+              sizeConditions.push({ 
+                account: { 
+                  numberOfEmployees: { 
+                    value: { _iregex: "11-50|small|1[1-9]|[2-4][0-9]|50" } 
+                  } 
+                } 
+              });
+              break;
+            case 'medium':
+              // 51-200 employees
+              sizeConditions.push({ 
+                account: { 
+                  numberOfEmployees: { 
+                    value: { _iregex: "51-200|medium|[5-9][0-9]|1[0-9][0-9]|200" } 
+                  } 
+                } 
+              });
+              break;
+            case 'large':
+              // 201-1000 employees
+              sizeConditions.push({ 
+                account: { 
+                  numberOfEmployees: { 
+                    value: { _iregex: "201-1000|large|[2-9][0-9][0-9]|1000" } 
+                  } 
+                } 
+              });
+              break;
+            case 'enterprise':
+              // 1000+ employees
+              sizeConditions.push({ 
+                account: { 
+                  numberOfEmployees: { 
+                    value: { _iregex: "1000\\+|enterprise|[1-9][0-9]{3,}" } 
+                  } 
+                } 
+              });
+              break;
+          }
+        });
+        
+        if (sizeConditions.length > 0) {
+          conditions.push({ _or: sizeConditions });
+        }
+      }
+
+      // Date range filters
+      if (createdAfter) {
+        conditions.push({ createdAt: { _gte: createdAfter } });
+      }
+
+      if (createdBefore) {
+        conditions.push({ createdAt: { _lte: createdBefore } });
+      }
+
+      // Add additional filters
+      if (Object.keys(additionalFilters).length > 0) {
+        conditions.push(additionalFilters);
+      }
+
+      const where = conditions.length === 0 ? baseWhere : {
+        ...baseWhere,
+        _and: conditions
+      };
+      
+      // Build orderBy based on sortField and sortOrder
+      const orderBy: any = {};
+      orderBy[sortField] = sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST';
+
       const variables: LeadQueryVariables = {
         offset,
         limit: newPageSize,
-        orderBy: [{ createdAt: "DESC_NULLS_LAST" }],
+        orderBy: [orderBy],
         where
       };
 
@@ -95,7 +195,7 @@ export const useLeadListData = ({
       
       setLeads(result.Lead || []);
       setTotal(result.LeadAggregate?.aggregate?.count || 0);
-      setCurrentPage(page);
+      setCurrentPage(targetPage);
       setPageSize(newPageSize);
       setHasMore((result.Lead || []).length === newPageSize);
     } catch (err) {
@@ -105,7 +205,20 @@ export const useLeadListData = ({
     } finally {
       setLoading(false);
     }
-  }, [fetchLeadsData, search, pageSize, buildWhereClause]);
+  }, [
+    fetchLeadsData, 
+    search, 
+    pageSize, 
+    sortField, 
+    sortOrder, 
+    JSON.stringify(leadStatuses),
+    JSON.stringify(leadRatings),
+    JSON.stringify(leadSources),
+    JSON.stringify(industries),
+    JSON.stringify(companySizes),
+    createdAfter,
+    createdBefore
+  ]);
 
   const loadMore = useCallback(() => {
     if (!hasMore || loading) return;

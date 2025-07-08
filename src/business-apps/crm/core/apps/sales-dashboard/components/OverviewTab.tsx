@@ -89,11 +89,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           />
         </Col>
 
-        {/* Middle Column - Revenue Sources */}
+        {/* Middle Column - Lead Sources */}
         <Col xs={24} lg={12} xl={8}>
           <RevenueSourceChart
             revenueData={overviewData.revenueBySource}
-            title="Potential Revenue Source - Current Year"
+            title="Lead Sources - Open Leads"
             totalRevenue={overviewData.totalRevenue}
           />
         </Col>
