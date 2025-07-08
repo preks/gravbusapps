@@ -1,22 +1,27 @@
 import React from 'react';
-import { InputField, Switch, DateInputField } from '@newwork/gravity-ui-catalog';
+import { InputField, Switch, DateInputField, TimeInputField } from '@newwork/gravity-ui-catalog';
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { DateTimeLimits } from '../../utils/types';
+import dayjs from 'dayjs';
+import { checkIfSameDay } from '../../utils/locationTimeUtils';
 
 /**
  * LocationForm component props
  */
 interface LocationFormProps {
-  location: {
+  locationData: {
     id: string;
     name: string;
     isAbroad: boolean;
     location: string;
-    departureDate: Date | null;
-    departureTime: string;
+    departureDate: Date | undefined;
+    departureTime: Date | undefined;
     isCollapsed: boolean;
   };
   onUpdate: (field: string, value: any) => void;
   showDateTimeFields?: boolean;
   index?: number;
+  dateTimeLimits: DateTimeLimits;
 }
 
 /**
@@ -25,13 +30,21 @@ interface LocationFormProps {
  * @returns LocationForm component
  */
 const LocationForm: React.FC<LocationFormProps> = ({
-  location,
+  locationData,
   onUpdate,
   showDateTimeFields = true,
-  index
+  index,
+  dateTimeLimits
 }) => {
-  const idPrefix = index !== undefined ? `${location.id}-${index}` : location.id;
-  
+  const { minDate, minTime, maxDate, maxTime } = dateTimeLimits;
+  const { id,
+    name,
+    isAbroad,
+    location,
+    departureDate,
+    departureTime} = locationData
+    const idPrefix = index !== undefined ? `${id}-${index}` : id;
+
   return (
     <div className="gba:locationFormContent" data-testid={`${idPrefix}-form-content`}>
       <div className="gba:switchContainer" data-testid={`${idPrefix}-abroad-switch-container`}>
@@ -39,18 +52,18 @@ const LocationForm: React.FC<LocationFormProps> = ({
           label="Abroad"
           name={`${idPrefix}Abroad`}
           data-testid={`${idPrefix}-abroad-switch`}
-          value={location.isAbroad}
+          value={isAbroad}
           onChange={(checked) => onUpdate('isAbroad', checked.value)}
         />
       </div>
       
       <div className="gba:inputContainer" data-testid={`${idPrefix}-input-container`}>
         <InputField
-          label={`${location.name}`}
+          label={`${name}`}
           name={`${idPrefix}Location`}
           placeholder="Type in City"
           data-testid={`${idPrefix}-input`}
-          value={location.location}
+          value={location}
           onChange={(field) => onUpdate('location', field.value)}
           required
         />
@@ -64,20 +77,30 @@ const LocationForm: React.FC<LocationFormProps> = ({
               name={`${idPrefix}DepartureDate`}
               placeholder="Select Date"
               data-testid={`${idPrefix}-date-input`}
+              value={departureDate ? new Date(departureDate) : null}
+              language={getCurrentActiveUserLocale().split("-")[0] as "en" | "de" | "ro" | undefined}
               onChange={(field) => onUpdate('departureDate', field.value)}
               required
+              {...(minDate ? { minDate } : {})}
+              {...(maxDate ? { maxDate } : {})}
             />
           </div>
           
           <div className="gba:timeInputContainer" data-testid={`${idPrefix}-time-container`}>
-            <InputField
+            <TimeInputField
               label="Departure Time"
               name={`${idPrefix}DepartureTime`}
               placeholder="HH:MM"
               data-testid={`${idPrefix}-time-input`}
-              value={location.departureTime}
+              value={departureTime ? dayjs(departureTime) : null}
+              language={getCurrentActiveUserLocale().split("-")[0] as "en" | "de" | "ro" | undefined}
+              format="HH:mm"
+              minuteStep={15}
               onChange={(field) => onUpdate('departureTime', field.value)}
+              disabled={!departureDate}
               required
+              {...(minTime && checkIfSameDay(minDate, departureDate) ? { minDate: dayjs(minTime) } : {})}
+              {...(maxTime && checkIfSameDay(maxDate, departureDate) ? { maxDate: dayjs(maxTime) } : {})}
             />
           </div>
         </div>

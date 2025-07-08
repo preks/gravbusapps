@@ -20,7 +20,7 @@ import MultiPositionComponent from "./MultiPositionComponent";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
 
 import { Alert } from "antd";
-import { getDateFormat } from "../../../../../../../common/utils/windowUtils";
+import { getCurrentActiveUserLocale, getDateFormat } from "../../../../../../../common/utils/windowUtils";
 import { ICONS } from "@/business-apps/fin/expenses/utils/icons";
 
 interface FormScreenComponentProps {
@@ -158,6 +158,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                 form.setFieldsValue({ date: field.value }
                 )
               }}
+              language={getCurrentActiveUserLocale().split("-")[0] as "en" | "de" | "ro" | undefined}
               required={true}
               format={getDateFormat('date.long')}
               value={form.getFieldValue('date')}

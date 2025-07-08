@@ -42,6 +42,22 @@ const LocationContainer: React.FC<LocationContainerProps> = ({
           <span className="gba:locationTitle" data-testid={`location-title-${title.toLowerCase().replace(/\s+/g, '-')}`}>{title}</span>
         </div>
         <div className="gba:locationActions" data-testid={`location-actions-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+          {showRemoveButton && (
+            <Button
+              variant="ghost"
+              onClick={onRemove}
+              className="gba:removeButton"
+              data-testid={`remove-button-${title.toLowerCase().replace(/\s+/g, '-')}`}
+            >
+              <img 
+                src={ICONS.DELETE_CIRCLE_ICON} 
+                alt="RemoveDestinationIcon" 
+                style={{ width: "24px", height: "24px" }}
+                data-testid={`remove-icon-${title.toLowerCase().replace(/\s+/g, '-')}`}
+              />
+              Remove
+            </Button>
+          )}
           <Button
             variant="text"
             className="gba:collapseButton"
@@ -61,23 +77,6 @@ const LocationContainer: React.FC<LocationContainerProps> = ({
       {/* Only show content when not collapsed */}
       {!isCollapsed && (
         <div className="gba:verticalLine" data-testid={`vertical-line-${title.toLowerCase().replace(/\s+/g, '-')}`}>
-          {showRemoveButton && (
-            <div className="gba:removeButtonContainer" data-testid={`remove-button-container-${title.toLowerCase().replace(/\s+/g, '-')}`}>
-              <Button
-                variant="ghost"
-                onClick={onRemove}
-                data-testid={`remove-button-${title.toLowerCase().replace(/\s+/g, '-')}`}
-              >
-                <img 
-                  src={ICONS.DELETE_CIRCLE_ICON} 
-                  alt="RemoveDestinationIcon" 
-                  style={{ width: "24px", height: "24px" }}
-                  data-testid={`remove-icon-${title.toLowerCase().replace(/\s+/g, '-')}`}
-                />
-                Remove Destination
-              </Button>
-            </div>
-          )}
           <div className="gba:locationContent" data-testid={`location-content-${title.toLowerCase().replace(/\s+/g, '-')}`}>
             {children}
           </div>
