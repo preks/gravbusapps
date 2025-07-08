@@ -32,8 +32,17 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
   };
 
   const currentYear = today.getFullYear();
-  const ytdHires = employees.filter(wc => wc.hireDate && new Date(wc.hireDate).getFullYear() === currentYear).length;
-  const ytdDepartures = employees.filter(wc => wc.exitDate && new Date(wc.exitDate).getFullYear() === currentYear).length;
+  const startOfYear = new Date(currentYear, 0, 1);
+  const ytdHires = employees.filter(wc =>
+    wc.hireDate &&
+    new Date(wc.hireDate) >= startOfYear &&
+    new Date(wc.hireDate) <= today
+  ).length;
+  const ytdDepartures = employees.filter(wc =>
+    wc.exitDate &&
+    new Date(wc.exitDate) >= startOfYear &&
+    new Date(wc.exitDate) <= today
+  ).length;
   const nextMonthForecast = totalMonthlySalary * 1.05;
   const sixMonthForecast = totalMonthlySalary * 1.17;
 
