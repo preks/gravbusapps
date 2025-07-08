@@ -113,6 +113,54 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
   }
 `;
 
+export const GET_ITEMS_WITHOUT_RECEIPTS = `
+  query GetItemsWithoutReceipts($employeeId: uuid!) {
+    itemsWithoutReceipts: ExpenseItemAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
+        _not: { expenseItemFile: {} }
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+  }
+`;
+
+export const GET_PENDING_ITEMS = `
+  query GetPendingItems($employeeId: uuid!) {
+    allPending: ExpenseItemAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_eq: "PENDING"}
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    pendingExcludingAllowance: ExpenseItemAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_eq: "PENDING"},
+        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}}
+      }
+    ) {
+      aggregate {
+        sum {
+          reimbursableAmount
+        }
+        count
+      }
+    }
+  }
+`;
+
 export const GET_EXPENSE_ITEM_BY_ID = `
   query GetExpenseItemById($id: uuid!) {
     ExpenseItem(where: {id: {_eq: $id}}) {

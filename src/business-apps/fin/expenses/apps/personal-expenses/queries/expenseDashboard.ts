@@ -270,18 +270,6 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       }
     }
     
-    # Items without receipts
-    itemsWithoutReceipts: ExpenseItemAggregate(
-      where: {
-        employeeId: {_eq: $employeeId},
-        isDeleted: {_eq: false},
-        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
-        _not: { expenseItemFile: {} }
-      }
-    ) {
-      aggregate {
-        count
-      }
-    }
+
   }
 `;

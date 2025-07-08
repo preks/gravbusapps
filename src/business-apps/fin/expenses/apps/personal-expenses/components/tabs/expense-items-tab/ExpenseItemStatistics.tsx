@@ -1,13 +1,15 @@
 import { formatNumberFunction } from '@/common/utils/windowUtils';
 import React, { useMemo } from 'react';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { EuroOutlined, FileExclamationOutlined, AppstoreOutlined, WalletOutlined } from '@ant-design/icons';
+import { EuroOutlined, WalletOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
 interface ExpenseItemStatisticsProps {
   items: any[];
   totalExpenses?: number | null;
   previousMonthTotalExpenses?: number | null;
+  pendingReimbursementTotal?: number;
+  pendingItemCountFromApi?: number;
   onMissingReceiptsClick?: () => void;
   onWidgetClick?: (widgetKey: string) => void;
   activeWidgetKey?: string;
@@ -21,6 +23,8 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   items, 
   totalExpenses,
   previousMonthTotalExpenses,
+  pendingReimbursementTotal,
+  pendingItemCountFromApi,
   onMissingReceiptsClick,
   isNoReceiptFilterActive = false,
   onWidgetClick,
@@ -31,11 +35,8 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
 }) => {
   const currentMonthName = dayjs().format('MMMM');
   
-  const pendingReimbursement = useMemo(() => items?.filter(item => 
-    item.status.toLowerCase() === 'pending' || 
-    item.status.toLowerCase() === 'submitted' || 
-    item.status.toLowerCase() === 'in progress'
-  ).reduce((sum: number, item) => sum + (item.reimbursableAmount ?? 0), 0) ?? 0, [items]);
+  // Use backend aggregate for pending reimbursement total
+  const pendingReimbursement = pendingReimbursementTotal ?? 0;
   
   const missingReceipts = useMemo(() => items?.filter(item => !item.expenseItemFile || item.expenseItemFile.length === 0).length ?? 0, [items]);
 
@@ -45,12 +46,8 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     return uniqueCategories.size;
   }, [items]);
 
-  // Pending item count
-  const pendingItemCount = useMemo(() => items?.filter(i => 
-    i.status.toLowerCase() === 'pending' || 
-    i.status.toLowerCase() === 'submitted' || 
-    i.status.toLowerCase() === 'in progress'
-  ).length ?? 0, [items]);
+  // Pending item count from API
+  const pendingItemCount = pendingItemCountFromApi ?? 0;
 
   const comparisonDescription = useMemo(() => {
     const previousMonthName = dayjs().subtract(1, 'month').format('MMMM');
