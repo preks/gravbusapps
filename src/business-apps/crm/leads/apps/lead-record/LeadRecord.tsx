@@ -19,7 +19,7 @@ interface LeadRecordContentProps extends BusinessAppContextProps {
 }
 
 const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, ...props }) => {
-  const { lead, leadData, loading, error, leadStatuses, loadingStatuses } = useLeadData(leadId, props.accessToken);
+  const { lead, leadData, loading, error, leadStatuses, loadingStatuses, refetchLeadData } = useLeadData(leadId, props.accessToken);
 
   if (loading) {
     return (
@@ -63,10 +63,14 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
       <LeadHeader lead={lead} leadData={leadData} leadId={leadId} additionalData={props} accessToken={props.accessToken} />
 
       {/* Status Progression */}
-      {!loadingStatuses && leadStatuses.length > 0 && (
+      {!loadingStatuses && leadStatuses.length > 0 && lead && (
         <StatusProgression 
           currentStatus={leadData?.leadStatus?.value || lead?.status || 'New'} 
-          statuses={leadStatuses} 
+          statuses={leadStatuses}
+          leadId={leadId}
+          leadVersion={parseInt(lead.version) || 0}
+          accessToken={props.accessToken}
+          onStatusUpdate={refetchLeadData}
         />
       )}
 
@@ -129,7 +133,6 @@ const LeadRecord: React.FC<LeadRecordProps> = (props) => {
       </div>
     );
   }
-
   return (
     <LeadRecordContent
       {...props}
@@ -139,5 +142,6 @@ const LeadRecord: React.FC<LeadRecordProps> = (props) => {
   );
 };
 
-export { LeadRecord, LeadRecordContent };
-export default LeadRecord; 
+export { LeadRecord, LeadRecordContent }; 
+
+export default LeadRecord;

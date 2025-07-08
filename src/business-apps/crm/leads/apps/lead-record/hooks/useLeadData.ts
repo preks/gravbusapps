@@ -129,7 +129,7 @@ export const useLeadData = (leadId: string, accessToken: string) => {
     try {
       setLoadingStatuses(true);
       const response = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: 'LeadStatus', version: 'v1' },
+        { catalogIdentifier: 'SalesLeadStatus', version: 'v1' },
         { limit: 100, offset: 0, returnTotalRecords: true }
       );
       
@@ -137,7 +137,7 @@ export const useLeadData = (leadId: string, accessToken: string) => {
         const statusData = response.data.map((entry: any) => ({
           id: entry.id,
           code: entry.code,
-          value: entry.value
+          value: entry.value,
         }));
         setLeadStatuses(statusData);
       }
