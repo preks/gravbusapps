@@ -18,7 +18,7 @@ const ForecastingTab: React.FC<BusinessAppContextProps> = (props) => {
   const { data: monthlyData } = useMonthlySalaryForecast(props, year);
 
   return (
-    <div data-testid="forecasting-tab-root" className="gba:p-6 gba:flex gba:flex-col gba:gap-6">
+    <div data-testid="forecasting-tab-root" className="gba:flex gba:flex-col gba:gap-6">
       <KpiCardsRow {...props} kpiData={kpiData} />
       <SalaryForecastChart data={monthlyData} />
       <HeadcountChangesChart {...props} />
