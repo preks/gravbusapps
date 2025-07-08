@@ -5,7 +5,7 @@ import { SearchOutlined } from '@ant-design/icons';
 import { ApprovalRequest, useGetApprovals } from '../../hooks/useGetApprovals';
 import Pill from '@/components/pill/Pill';
 import dayjs from 'dayjs';
-import { formatAmount } from '../../utils/currencyUtils';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const { Text } = Typography;
 
@@ -47,7 +47,7 @@ const ApprovalsModal: React.FC<ApprovalsModalProps> = ({
   // Define table columns - read-only version
   const columns: any = [
     {
-      title: 'Date',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date'),
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 120, // Set a fixed width for the date column
@@ -67,7 +67,7 @@ const ApprovalsModal: React.FC<ApprovalsModalProps> = ({
       }
     },
     {
-      title: 'Request',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.request', 'Request'),
       dataIndex: 'title',
       key: 'title',
       render: (text: string, record: ApprovalRequest) => (
@@ -83,13 +83,13 @@ const ApprovalsModal: React.FC<ApprovalsModalProps> = ({
       }
     },
     {
-      title: 'Amount',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       render: (amount: number) => {
         // Handle undefined or null amount values
         const safeAmount = amount !== undefined && amount !== null ? amount : 0;
-        return <Text>{formatAmount(safeAmount)}€</Text>;
+        return <Text>{formatNumberFunction(safeAmount.toString(), "0.00[,]00")}€</Text>;
       },
       sorter: (a: any, b: any) => {
         const amountA = a.totalAmount !== undefined && a.totalAmount !== null ? a.totalAmount : 0;
@@ -98,7 +98,7 @@ const ApprovalsModal: React.FC<ApprovalsModalProps> = ({
       }
     },
     {
-      title: 'Status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
@@ -114,10 +114,10 @@ const ApprovalsModal: React.FC<ApprovalsModalProps> = ({
     <Modal
       title={
         <div className="gba:flex gba:justify-between gba:items-center gba:w-full">
-          <span>Pending Approvals</span>
+          <span>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.pending_approvals', 'Pending Approvals')}</span>
           <div className="gba:flex gba:items-center gba:gap-2">
             <Input
-              placeholder="Search approvals..."
+              placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.pending_approvals', 'Search approvals...')}
               prefix={<SearchOutlined />}
               onChange={(e) => setSearchTerm(e.target.value)}
               value={searchTerm}
