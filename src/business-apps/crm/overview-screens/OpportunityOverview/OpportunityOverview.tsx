@@ -273,6 +273,7 @@ export function OpportunityOverview({ accessToken, userInfo }: BusinessAppContex
       const response = await fetch(
        'https://newwork-dev.newwork.com/processes/customer-relations/saveOpportunity',
         {
+          method: 'POST',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
@@ -327,7 +328,7 @@ export function OpportunityOverview({ accessToken, userInfo }: BusinessAppContex
       
       // Update the sort state
       setSortField(field);
-      setSortOrder(order);
+      setSortOrder(order || null);
       
       // Log the detected sorting information
       let orderByCondition = '';
