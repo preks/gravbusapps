@@ -35,19 +35,22 @@ export const useGetLeadStatuses = (context: BusinessAppContextProps, searchRegex
     setError(null);
     
     try {
-      console.log('Fetching SalesLeadStatus catalog...');
-      const response = await catalogClient.getCatalogEntriesList({
-        catalogIdentifier: 'SalesLeadStatus',
-        version: 'v1'
-      }, {
+      const requestParams = {
         limit: 5,
         offset,
         returnTotalRecords: true,
         localeCode: userLocale,
         ...(searchRegex ? { searchCriteria: searchRegex } : {})
-      });
+      };
+      
+      console.log('Fetching SalesLeadStatus catalog with params:', requestParams);
+      const response = await catalogClient.getCatalogEntriesList({
+        catalogIdentifier: 'SalesLeadStatus',
+        version: 'v1'
+      }, requestParams);
       
       console.log('SalesLeadStatus response:', response);
+      console.log('SalesLeadStatus response data length:', response?.data?.length);
       
       if (response?.data) {
         console.log('SalesLeadStatus entries:', response.data);
@@ -57,8 +60,13 @@ export const useGetLeadStatuses = (context: BusinessAppContextProps, searchRegex
           name: entry.value || entry.code || entry.id
         }));
         
-        console.log('SalesLeadStatus processed:', processedOptions);
-        setLeadStatusOptions(processedOptions);
+        // Enforce frontend limit of 5 items since API doesn't respect limit with search criteria
+        const limitedOptions = processedOptions.slice(0, 5);
+        
+        console.log('SalesLeadStatus processed count:', processedOptions.length);
+        console.log('SalesLeadStatus limited count:', limitedOptions.length);
+        console.log('SalesLeadStatus processed:', limitedOptions);
+        setLeadStatusOptions(limitedOptions);
       } else {
         console.log('No SalesLeadStatus data received');
         setLeadStatusOptions([]);

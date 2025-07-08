@@ -6,7 +6,8 @@ export const useLeadStatistics = (context: BusinessAppContextProps) => {
   const [statistics, setStatistics] = useState<LeadStatisticsData>({
     recentLeads: 0,
     hotLeads: 0,
-    thisMonthLeads: 0,
+    mostCommonLeadSource: 'N/A',
+    mostCommonIndustry: 'N/A',
     convertedLeadsThisYear: 0,
     conversionRateThisYear: 0,
     totalLeadsThisYear: 0
@@ -17,7 +18,8 @@ export const useLeadStatistics = (context: BusinessAppContextProps) => {
   const {
     fetchRecentLeads,
     fetchHotLeads,
-    fetchThisMonthLeads,
+    fetchMostCommonLeadSource,
+    fetchMostCommonIndustry,
     fetchConvertedLeadsThisYear,
     fetchTotalLeadsThisYear
   } = useLeadStatisticsQueries(context);
@@ -34,10 +36,11 @@ export const useLeadStatistics = (context: BusinessAppContextProps) => {
 
     try {
       // Fetch all statistics in parallel
-      const [recentLeads, hotLeads, thisMonthLeads, convertedLeadsThisYear, totalLeadsThisYear] = await Promise.all([
+      const [recentLeads, hotLeads, mostCommonLeadSource, mostCommonIndustry, convertedLeadsThisYear, totalLeadsThisYear] = await Promise.all([
         fetchRecentLeads(),
         fetchHotLeads(),
-        fetchThisMonthLeads(),
+        fetchMostCommonLeadSource(),
+        fetchMostCommonIndustry(),
         fetchConvertedLeadsThisYear(),
         fetchTotalLeadsThisYear()
       ]);
@@ -48,7 +51,8 @@ export const useLeadStatistics = (context: BusinessAppContextProps) => {
       setStatistics({
         recentLeads,
         hotLeads,
-        thisMonthLeads,
+        mostCommonLeadSource,
+        mostCommonIndustry,
         convertedLeadsThisYear,
         conversionRateThisYear,
         totalLeadsThisYear
@@ -63,7 +67,8 @@ export const useLeadStatistics = (context: BusinessAppContextProps) => {
     context.accessToken,
     fetchRecentLeads,
     fetchHotLeads,
-    fetchThisMonthLeads,
+    fetchMostCommonLeadSource,
+    fetchMostCommonIndustry,
     fetchConvertedLeadsThisYear,
     fetchTotalLeadsThisYear
   ]);

@@ -57,8 +57,13 @@ export const useGetLeadSources = (context: BusinessAppContextProps, searchRegex:
           name: entry.value || entry.code || entry.id
         }));
         
-        console.log('SalesLeadSource processed:', processedOptions);
-        setLeadSourceOptions(processedOptions);
+        // Enforce frontend limit of 5 items since API doesn't respect limit with search criteria
+        const limitedOptions = processedOptions.slice(0, 5);
+        
+        console.log('SalesLeadSource processed count:', processedOptions.length);
+        console.log('SalesLeadSource limited count:', limitedOptions.length);
+        console.log('SalesLeadSource processed:', limitedOptions);
+        setLeadSourceOptions(limitedOptions);
       } else {
         console.log('No SalesLeadSource data received');
         setLeadSourceOptions([]);

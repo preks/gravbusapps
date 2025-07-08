@@ -9,6 +9,7 @@ import { useLeadFilters } from './hooks/useLeadFilters';
 import { LeadTable } from './components/LeadTable';
 import LeadStatistics from './components/LeadStatistics';
 import { useLeadStatistics } from './hooks/useLeadStatistics';
+
 import { PiStar, PiUsersFour, PiFunnelSimple } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { startProcess } from '@/common/utils/start-process';
@@ -31,11 +32,14 @@ export const LeadList: React.FC<BusinessAppContextProps> = (props: BusinessAppCo
     filterLabelMap,
     addFilter,
     removeFilter,
-    getFilters
+    getFilters,
+    createdAfter: filterCreatedAfter,
+    createdBefore: filterCreatedBefore,
+    handleDateRangeChange: filterHandleDateRangeChange
   } = useLeadFilters(props);
 
-  // Get initial values from URL parameters using standard web APIs
-  const getURLParams = () => {
+  // Get initial values from URL parameters using standard web APIs - ONLY ONCE
+  const [initialParams] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
     return {
       search: urlParams.get('search') || '',
@@ -44,9 +48,8 @@ export const LeadList: React.FC<BusinessAppContextProps> = (props: BusinessAppCo
       sortField: urlParams.get('sortField') || 'createdAt',
       sortOrder: urlParams.get('sortOrder') || 'DESC'
     };
-  };
+  });
 
-  const initialParams = getURLParams();
   const [currentPage, setCurrentPage] = useState(initialParams.page);
   const [pageSize, setPageSize] = useState(initialParams.pageSize);
   const [sortField, setSortField] = useState(initialParams.sortField);
@@ -54,12 +57,12 @@ export const LeadList: React.FC<BusinessAppContextProps> = (props: BusinessAppCo
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const initialLoadDone = useRef(false);
 
-  // Initialize search from URL if not already set
+  // Initialize search from URL if not already set - ONLY ONCE
   useEffect(() => {
     if (initialParams.search && !search) {
       setSearch(initialParams.search);
     }
-  }, [initialParams.search, search, setSearch]);
+  }, []); // Remove dependencies to prevent re-running
 
   // Update URL parameters using standard web APIs
   const updateURLParams = useCallback((params: {
@@ -178,6 +181,14 @@ export const LeadList: React.FC<BusinessAppContextProps> = (props: BusinessAppCo
     }
   }, [search, loadPage, pageSize, updateURLParams]);
 
+  // Trigger reload when filters change
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      setCurrentPage(1);
+      loadPage(1, pageSize);
+    }
+  }, [selectedFilters, filterCreatedAfter, filterCreatedBefore, loadPage, pageSize]);
+
   // Handle lead selection
   const handleSelectLead = useCallback((lead: Lead) => {
     setSelectedLead(lead);
@@ -211,6 +222,8 @@ export const LeadList: React.FC<BusinessAppContextProps> = (props: BusinessAppCo
     loadPage(1, pageSize);
   }, [pageSize, updateURLParams, loadPage]);
 
+
+
   return (
     <div className="gba:w-full gba:h-screen gba:flex gba:flex-row gba:relative gba:bg-white">
       <PageLayout
@@ -227,7 +240,8 @@ export const LeadList: React.FC<BusinessAppContextProps> = (props: BusinessAppCo
                 onRetry={refetchStats}
               />
             </div>
-            <DataContainer
+
+          <DataContainer
             dataControllerProps={{
               search,
               setSearch: handleSearchChange,
@@ -235,6 +249,11 @@ export const LeadList: React.FC<BusinessAppContextProps> = (props: BusinessAppCo
               filter: selectedFilters,
               setFilter: handleSetFilter,
               filterLabelMap: filterLabelMap,
+              dateRange: {
+                createdAfter: filterCreatedAfter,
+                createdBefore: filterCreatedBefore,
+                onClear: () => filterHandleDateRangeChange(undefined, undefined)
+              },
               listTitle: (
                 <div className="gba:flex gba:items-center gba:gap-4">
                   <div className="gba:flex gba:items-center gba:gap-2">

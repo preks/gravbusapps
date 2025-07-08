@@ -57,8 +57,13 @@ export const useGetIndustries = (context: BusinessAppContextProps, searchRegex: 
           name: entry.value || entry.code || entry.id
         }));
         
-        console.log('IndustryClass processed:', processedOptions);
-        setIndustryOptions(processedOptions);
+        // Enforce frontend limit of 5 items since API doesn't respect limit with search criteria
+        const limitedOptions = processedOptions.slice(0, 5);
+        
+        console.log('IndustryClass processed count:', processedOptions.length);
+        console.log('IndustryClass limited count:', limitedOptions.length);
+        console.log('IndustryClass processed:', limitedOptions);
+        setIndustryOptions(limitedOptions);
       } else {
         console.log('No IndustryClass data received');
         setIndustryOptions([]);

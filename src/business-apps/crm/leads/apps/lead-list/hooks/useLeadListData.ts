@@ -28,6 +28,7 @@ export const useLeadListData = ({
   leadSources = [],
   industries = [],
   companySizes = [],
+  owners = [],
   createdAfter,
   createdBefore,
   sortField = 'createdAt',
@@ -95,6 +96,10 @@ export const useLeadListData = ({
 
       if (industries.length > 0) {
         conditions.push({ industry: { id: { _in: industries } } });
+      }
+
+      if (owners.length > 0) {
+        conditions.push({ ownerEmployeeId: { _in: owners } });
       }
 
       // Company size filters - filter through account relationship using employee count ranges
@@ -183,7 +188,7 @@ export const useLeadListData = ({
       // Build orderBy based on sortField and sortOrder
       const orderBy: any = {};
       orderBy[sortField] = sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST';
-
+      
       const variables: LeadQueryVariables = {
         offset,
         limit: newPageSize,
@@ -216,6 +221,7 @@ export const useLeadListData = ({
     JSON.stringify(leadSources),
     JSON.stringify(industries),
     JSON.stringify(companySizes),
+    JSON.stringify(owners),
     createdAfter,
     createdBefore
   ]);

@@ -35,19 +35,22 @@ export const useGetLeadRatings = (context: BusinessAppContextProps, searchRegex:
     setError(null);
     
     try {
-      console.log('Fetching SalesLeadRating catalog...');
-      const response = await catalogClient.getCatalogEntriesList({
-        catalogIdentifier: 'SalesLeadRating',
-        version: 'v1'
-      }, {
+      const requestParams = {
         limit: 5,
         offset,
         returnTotalRecords: true,
         localeCode: userLocale,
         ...(searchRegex ? { searchCriteria: searchRegex } : {})
-      });
+      };
+      
+      console.log('Fetching SalesLeadRating catalog with params:', requestParams);
+      const response = await catalogClient.getCatalogEntriesList({
+        catalogIdentifier: 'SalesLeadRating',
+        version: 'v1'
+      }, requestParams);
       
       console.log('SalesLeadRating response:', response);
+      console.log('SalesLeadRating response data length:', response?.data?.length);
       
       if (response?.data) {
         console.log('SalesLeadRating entries:', response.data);
@@ -57,8 +60,13 @@ export const useGetLeadRatings = (context: BusinessAppContextProps, searchRegex:
           name: entry.value || entry.code || entry.id
         }));
         
-        console.log('SalesLeadRating processed:', processedOptions);
-        setLeadRatingOptions(processedOptions);
+        // Enforce frontend limit of 5 items since API doesn't respect limit with search criteria
+        const limitedOptions = processedOptions.slice(0, 5);
+        
+        console.log('SalesLeadRating processed count:', processedOptions.length);
+        console.log('SalesLeadRating limited count:', limitedOptions.length);
+        console.log('SalesLeadRating processed:', limitedOptions);
+        setLeadRatingOptions(limitedOptions);
       } else {
         console.log('No SalesLeadRating data received');
         setLeadRatingOptions([]);

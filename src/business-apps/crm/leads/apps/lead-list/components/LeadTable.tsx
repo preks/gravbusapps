@@ -145,14 +145,43 @@ export const LeadTable: React.FC<LeadTableProps> = ({
     if (pagination.current !== currentPage || pagination.pageSize !== pageSize) {
       onPaginationChange(targetPage, targetPageSize);
     }
+  };
+
+  // Handle sorting change (using DataTable's specific onSorterChange prop)
+  const handleSorterChange = (sorter: any) => {
+    console.log('Sorter changed:', sorter);
     
-    // Handle sorting change
-    if (sorter && sorter.field && sorter.order) {
+    if (sorter.field && sorter.order) {
+      // Sort order is set (ASC or DESC)
+      const field = Array.isArray(sorter.field) ? sorter.field[0] : sorter.field;
       const order = sorter.order === 'ascend' ? 'ASC' : 'DESC';
-      if (sorter.field !== sortField || order !== sortOrder) {
-        onSortingChange(sorter.field, order);
+      
+      if (field !== sortField || order !== sortOrder) {
+        onSortingChange(field, order);
+      }
+    } else  {
+      // Sort order is null - this means cancel sorting
+      // Reset to default sorting (createdAt DESC)
+      if (sortField !== 'createdAt' || sortOrder !== 'DESC') {
+        onSortingChange('createdAt', 'DESC');
       }
     }
+  };
+
+  // Helper function to determine if a column should show sorting indicator
+  // Only show indicator if user has explicitly sorted (not default createdAt DESC)
+  const getSortOrder = (columnField: string) => {
+    // If this is the default state (createdAt DESC), don't show any indicators
+    if (sortField === 'createdAt' && sortOrder === 'DESC' && columnField === 'createdAt') {
+      return false;
+    }
+    
+    // Show indicator only if this column is currently being sorted
+    if (sortField === columnField) {
+      return sortOrder === 'ASC' ? 'ascend' : 'descend';
+    }
+    
+    return false;
   };
 
   // Handle row click
@@ -167,7 +196,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
       dataIndex: 'firstName',
       key: 'firstName',
       sorter: true,
-      sortOrder: sortField === 'firstName' ? (sortOrder === 'ASC' ? 'ascend' : 'descend') : undefined,
+      sortOrder: getSortOrder('firstName'),
       render: (_: any, record: Lead) => {
         const contactName = getContactName(record);
         const contactEmail = getContactEmail(record);
@@ -198,7 +227,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
       dataIndex: 'companyName',
       key: 'companyName',
       sorter: true,
-      sortOrder: sortField === 'companyName' ? (sortOrder === 'ASC' ? 'ascend' : 'descend') : undefined,
+      sortOrder: getSortOrder('companyName'),
       render: (_: any, record: Lead) => {
         const companyName = record.companyName || record.account?.name || '-';
         const companyEmail = record.companyEmail;
@@ -211,13 +240,13 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               <span className="gba:font-medium gba:text-sm">{companyName}</span>
             </div>
             {companyEmail && (
-              <div className="gba:flex gba:items-center gba:gap-1 gba:ml-4">
+              <div className="gba:flex gba:items-center gba:gap-1">
                 <PiEnvelope size={12} className="gba:text-gray-400" />
                 <span className="gba:text-xs gba:text-gray-600">{companyEmail}</span>
               </div>
             )}
             {companyWebsite && (
-              <div className="gba:flex gba:items-center gba:gap-1 gba:ml-4">
+              <div className="gba:flex gba:items-center gba:gap-1">
                 <span className="gba:text-xs gba:text-gray-600">{companyWebsite}</span>
               </div>
             )}
@@ -231,7 +260,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
       dataIndex: 'createdAt',
       key: 'createdAt',
       sorter: true,
-      sortOrder: sortField === 'createdAt' ? (sortOrder === 'ASC' ? 'ascend' : 'descend') : undefined,
+      sortOrder: getSortOrder('createdAt'),
       render: (_: any, record: Lead) => {
         if (!record.createdAt) return '-';
         return (
@@ -247,8 +276,10 @@ export const LeadTable: React.FC<LeadTableProps> = ({
     },
     {
       title: t('lead.owner', 'Owner'),
-      dataIndex: 'owner',
-      key: 'owner',
+      dataIndex: 'ownerEmployeeId',
+      key: 'ownerEmployeeId',
+      sorter: true,
+      sortOrder: getSortOrder('ownerEmployeeId'),
       render: (_: any, record: Lead) => {
         const ownerName = getOwnerName(record);
         const pictureThumbnail = record.ownerEmployee?.pictureThumbnail;
@@ -288,8 +319,10 @@ export const LeadTable: React.FC<LeadTableProps> = ({
     },
     {
       title: t('lead.status', 'Status'),
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'leadStatusRef',
+      key: 'leadStatusRef',
+      sorter: true,
+      sortOrder: getSortOrder('leadStatusRef'),
       render: (_: any, record: Lead) => {
         const status = record.leadStatus?.value || '-';
         
@@ -303,8 +336,10 @@ export const LeadTable: React.FC<LeadTableProps> = ({
     },
     {
       title: t('lead.rating', 'Rating'),
-      dataIndex: 'rating',
-      key: 'rating',
+      dataIndex: 'leadRatingRef',
+      key: 'leadRatingRef',
+      sorter: true,
+      sortOrder: getSortOrder('leadRatingRef'),
       render: (_: any, record: Lead) => {
         const rating = record.leadRating?.value || '-';
         
@@ -390,7 +425,17 @@ export const LeadTable: React.FC<LeadTableProps> = ({
             `${range[0]}-${range[1]} of ${total} leads`,
           pageSizeOptions: ['10', '20', '50', '100'],
         }}
+        sorter={
+          // Only set sorter if it's not the default createdAt DESC sorting
+          sortField === 'createdAt' && sortOrder === 'DESC' 
+            ? undefined 
+            : {
+                field: sortField,
+                order: sortOrder === 'ASC' ? 'ascend' : 'descend'
+              }
+        }
         onChange={handleTableChange}
+        onSorterChange={handleSorterChange}
         rowKey="id"
         onRow={(record) => ({
           onClick: () => handleRowClick(record as Lead),

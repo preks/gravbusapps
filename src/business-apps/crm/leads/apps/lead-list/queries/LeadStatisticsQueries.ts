@@ -5,7 +5,8 @@ import { useCallback } from 'react';
 export interface LeadStatisticsData {
   recentLeads: number;
   hotLeads: number;
-  thisMonthLeads: number;
+  mostCommonLeadSource: string;
+  mostCommonIndustry: string;
   convertedLeadsThisYear: number;
   conversionRateThisYear: number;
   totalLeadsThisYear: number;
@@ -33,13 +34,38 @@ export const GET_HOT_LEADS_COUNT = `
   }
 `;
 
-// Query to get this month's leads
-export const GET_THIS_MONTH_LEADS_COUNT = `
-  query GetThisMonthLeadsCount($startOfMonth: timestamptz!) {
-    LeadAggregate(where: {createdAt: {_gte: $startOfMonth}}) {
-      aggregate {
-        count
+// Query to get most common lead source in recent leads
+export const GET_MOST_COMMON_LEAD_SOURCE = `
+  query GetMostCommonLeadSource($twoWeeksAgo: timestamptz!) {
+    Lead(
+      where: {
+        createdAt: {_gte: $twoWeeksAgo}, 
+        leadSourceRef: {_isNull: false}
       }
+    ) {
+      leadSource {
+        value
+        code
+      }
+      leadSourceRef
+    }
+  }
+`;
+
+// Query to get most common industry in recent leads
+export const GET_MOST_COMMON_INDUSTRY = `
+  query GetMostCommonIndustry($twoWeeksAgo: timestamptz!) {
+    Lead(
+      where: {
+        createdAt: {_gte: $twoWeeksAgo}, 
+        industryRef: {_isNull: false}
+      }
+    ) {
+      industry {
+        value
+        code
+      }
+      industryRef
     }
   }
 `;
@@ -99,18 +125,79 @@ export const useLeadStatisticsQueries = (context: BusinessAppContextProps) => {
     }
   }, [graphqlClient]);
 
-  const fetchThisMonthLeads = useCallback(async (): Promise<number> => {
+  const fetchMostCommonLeadSource = useCallback(async (): Promise<string> => {
     try {
       const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const twoWeeksAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)).toISOString();
       
       const result = await graphqlClient.request<{
-        LeadAggregate: { aggregate: { count: number } }
-      }>(GET_THIS_MONTH_LEADS_COUNT, { startOfMonth });
-      return result.LeadAggregate.aggregate.count;
+        Lead: Array<{ 
+          leadSource: { value: string; code: string } | null;
+          leadSourceRef: string | null;
+        }>
+      }>(GET_MOST_COMMON_LEAD_SOURCE, { twoWeeksAgo });
+
+      // Count occurrences of each lead source
+      const sourceCounts: Record<string, number> = {};
+      result.Lead.forEach(lead => {
+        const source = lead.leadSource?.value;
+        if (source) {
+          sourceCounts[source] = (sourceCounts[source] || 0) + 1;
+        }
+      });
+
+      // Find the most common source
+      let mostCommon = 'N/A';
+      let maxCount = 0;
+      Object.entries(sourceCounts).forEach(([source, count]) => {
+        if (count > maxCount) {
+          maxCount = count;
+          mostCommon = source;
+        }
+      });
+
+      return mostCommon;
     } catch (error) {
-      console.error('Error fetching this month leads count:', error);
-      throw error;
+      console.error('Error fetching most common lead source:', error);
+      return 'N/A';
+    }
+  }, [graphqlClient]);
+
+  const fetchMostCommonIndustry = useCallback(async (): Promise<string> => {
+    try {
+      const now = new Date();
+      const twoWeeksAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)).toISOString();
+      
+      const result = await graphqlClient.request<{
+        Lead: Array<{ 
+          industry: { value: string; code: string } | null;
+          industryRef: string | null;
+        }>
+      }>(GET_MOST_COMMON_INDUSTRY, { twoWeeksAgo });
+
+      // Count occurrences of each industry
+      const industryCounts: Record<string, number> = {};
+      result.Lead.forEach(lead => {
+        const industry = lead.industry?.value;
+        if (industry) {
+          industryCounts[industry] = (industryCounts[industry] || 0) + 1;
+        }
+      });
+
+      // Find the most common industry
+      let mostCommon = 'N/A';
+      let maxCount = 0;
+      Object.entries(industryCounts).forEach(([industry, count]) => {
+        if (count > maxCount) {
+          maxCount = count;
+          mostCommon = industry;
+        }
+      });
+
+      return mostCommon;
+    } catch (error) {
+      console.error('Error fetching most common industry:', error);
+      return 'N/A';
     }
   }, [graphqlClient]);
 
@@ -147,7 +234,8 @@ export const useLeadStatisticsQueries = (context: BusinessAppContextProps) => {
   return {
     fetchRecentLeads,
     fetchHotLeads,
-    fetchThisMonthLeads,
+    fetchMostCommonLeadSource,
+    fetchMostCommonIndustry,
     fetchConvertedLeadsThisYear,
     fetchTotalLeadsThisYear
   };
