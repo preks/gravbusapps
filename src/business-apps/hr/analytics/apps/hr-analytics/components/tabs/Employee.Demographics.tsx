@@ -161,7 +161,7 @@ const EmployeeDemographics: React.FC<EmployeeDemographicsProps> = ({ accessToken
   }
 
   return (
-    <div className="gba:employee-demographics-container gba:p-6" data-testid="hr-analytics-demographics-tab">
+    <div className="gba:employee-demographics-container" data-testid="hr-analytics-demographics-tab">
       {/* KPI Header Cards */}
       <Row gutter={[16, 16]} className="gba:mb-6">
         <Col xs={24} sm={12} md={6}>

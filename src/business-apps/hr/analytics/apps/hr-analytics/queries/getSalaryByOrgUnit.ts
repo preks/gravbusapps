@@ -8,17 +8,18 @@ export const getSalaryByOrgUnitQuery = `
     # Get all employees with their salary information
     EmployeeWorkingCondition(
       where: {
-        # Only include non-deleted employees
         employee: {
           isDeleted: { _eq: false, _isNull: false }
         },
         # Ensure salary is available (greater than 0)
-        annualGrossSalary: { _gt: 0 }
+        monthlyGrossSalary: { _gt: 0 }
       }
     ) {
       id
       employeeId
-      annualGrossSalary
+      monthlyGrossSalary
+      hireDate
+      exitDate
     }
     
     # Get all organizational unit assignments with employee data
