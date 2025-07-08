@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Spin, Alert, Button, Timeline, Typography } from 'antd';
-import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetSalesTasks, SalesTaskData } from '../queries/SalesTaskQueries';
@@ -52,8 +52,8 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
     const handleProcessCompletion = (event: any) => {
       try {
         const response = event.detail?.response;
+        
         if (response?.salesTask) {
-          // Refresh tasks when a new task is added
           loadTasks();
         }
       } catch (err) {
@@ -61,10 +61,27 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
       }
     };
 
-    window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion as EventListener);
+    // Listen to multiple possible event names
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
 
     return () => {
-      window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion as EventListener);
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
     };
   }, [leadId]);
 
@@ -154,14 +171,22 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
         >
           Tasks
         </div>
-        <Button 
-          type="primary"
-          icon={<PlusCircleOutlined />}
-          onClick={handleAddTaskClick}
-          data-testid="add-task-button"
-        >
-          Add Task
-        </Button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Button 
+            icon={<ReloadOutlined />}
+            onClick={handleRefresh}
+            data-testid="refresh-tasks-button"
+            title="Refresh Tasks"
+          />
+          <Button 
+            type="primary"
+            icon={<PlusCircleOutlined />}
+            onClick={handleAddTaskClick}
+            data-testid="add-task-button"
+          >
+            Add Task
+          </Button>
+        </div>
       </div>
 
       <div style={{ padding: '0 24px 24px' }}>
