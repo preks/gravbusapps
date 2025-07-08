@@ -1,6 +1,6 @@
 import React from 'react';
-import { InputField, Switch, DateInputField, TimeInputField } from '@newwork/gravity-ui-catalog';
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { InputField, Switch, DateInputField, TimeInputField, SelectField } from '@newwork/gravity-ui-catalog';
+import { getCatalogValue, getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { DateTimeLimits } from '../../utils/types';
 import dayjs from 'dayjs';
 import { checkIfSameDay } from '../../utils/locationTimeUtils';
@@ -17,11 +17,13 @@ interface LocationFormProps {
     departureDate: Date | undefined;
     departureTime: Date | undefined;
     isCollapsed: boolean;
+    travelRegionRef?: string;
   };
   onUpdate: (field: string, value: any) => void;
   showDateTimeFields?: boolean;
   index?: number;
   dateTimeLimits: DateTimeLimits;
+  travelRegions?: any[];
 }
 
 /**
@@ -34,7 +36,8 @@ const LocationForm: React.FC<LocationFormProps> = ({
   onUpdate,
   showDateTimeFields = true,
   index,
-  dateTimeLimits
+  dateTimeLimits,
+  travelRegions = []
 }) => {
   const { minDate, minTime, maxDate, maxTime } = dateTimeLimits;
   const { id,
@@ -42,8 +45,9 @@ const LocationForm: React.FC<LocationFormProps> = ({
     isAbroad,
     location,
     departureDate,
-    departureTime} = locationData
-    const idPrefix = index !== undefined ? `${id}-${index}` : id;
+    departureTime,
+    travelRegionRef} = locationData
+  const idPrefix = index !== undefined ? `${id}-${index}` : id;
 
   return (
     <div className="gba:locationFormContent" data-testid={`${idPrefix}-form-content`}>
@@ -68,6 +72,33 @@ const LocationForm: React.FC<LocationFormProps> = ({
           required
         />
       </div>
+      
+      {isAbroad && travelRegions && travelRegions.length > 0 && (
+        <div className="gba:inputContainer" data-testid={`${idPrefix}-travel-region-container`}>
+          <SelectField
+            allowClear
+            label={getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_request_wizard.trip_screen.travel_region_label",
+              "Travel Region"
+            )}
+            name={`${idPrefix}TravelRegion`}
+            data-testid={`${idPrefix}-travel-region-select`}
+            data={travelRegions.map((region) => ({
+              id: region.travelRegionRef,
+              name: getCatalogValue(region.travelRegion)
+            }))}
+            onChange={(value: any) => {
+              onUpdate('travelRegionRef', value?.value);
+            }}
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_request_wizard.trip_screen.travel_region_placeholder",
+              "Select Travel Region"
+            )}
+            value={travelRegionRef || undefined}
+            required={isAbroad}
+          />
+        </div>
+      )}
       
       {showDateTimeFields && (
         <div className="gba:dateTimeContainer" data-testid={`${idPrefix}-date-time-container`}>

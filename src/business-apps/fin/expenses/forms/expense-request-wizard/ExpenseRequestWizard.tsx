@@ -76,7 +76,6 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   };
 
   const startEditingTitle = () => {
-    console.log('Edit button clicked');
     setIsEditingTitle(true);
   };
 
@@ -101,7 +100,6 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   const saveTitle = () => {
     // Here you would implement the API call to save the title
     // For now, we'll just update the local state
-    console.log('Saving title:', titleValue);
     setCurrentTitle(titleValue);
     setIsEditingTitle(false);
   };
@@ -362,7 +360,17 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
               variant="outline" 
               className="gba:submitButton" 
               data-testid="expense-request-wizard-save-button"
-              onClick={() => console.log('Save clicked')}
+              onClick={() => {
+                // If we're on the trip screen, the TripScreen component will handle the save
+                // through its own handleSave method which is connected to the context
+                if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
+                  // Dispatch a custom event that TripScreen will listen for
+                  const saveEvent = new CustomEvent('expense-request-save-trip');
+                  document.dispatchEvent(saveEvent);
+                } else {
+                  console.log('Save clicked for screen:', currentScreen);
+                }
+              }}
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.save_button', 'Save')}
             </Button>

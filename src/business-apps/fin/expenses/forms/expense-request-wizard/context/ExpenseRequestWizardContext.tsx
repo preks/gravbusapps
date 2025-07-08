@@ -5,6 +5,8 @@ import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { showToast } from '../../../utils/notificationUtils';
 import { fetchEmployeeRule, fetchExpenseRequestAndItems } from '../ExpenseRequestWizardQueries';
+import { handleTripSave } from '../utils/saveUtils';
+import { LocationData } from '../utils/types';
 
 /**
  * ExpenseRequestWizardContext props interface
@@ -12,9 +14,14 @@ import { fetchEmployeeRule, fetchExpenseRequestAndItems } from '../ExpenseReques
 interface ExpenseRequestWizardContextProps {
   loading: boolean;
   employeeRuleId: string | null;
+  setEmployeeRuleId: (id: string | null) => void;
   expenseRuleError: string | null;
+  setExpenseRuleError: (error: string | null) => void;
   expenseRequestData: any | null;
+  setExpenseRequestData: (data: any | null) => void;
   form: any;
+  userInfo?: any;
+  saveTripData: (startLocation: LocationData, destinations: LocationData[], endLocation: LocationData, expenseRulesData: any) => boolean;
 }
 
 /**
@@ -144,7 +151,8 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       // Prepare query variables
       const variables = {
         expenseId,
-        activeUserLocale
+        activeUserLocale,
+        employeeId
       };
 
       // Execute query
@@ -219,13 +227,42 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     }
   }, [employeeRuleId]);
 
+  /**
+   * Save trip data function
+   * @param startLocation - Start location data
+   * @param destinations - Destinations data
+   * @param endLocation - End location data
+   * @param expenseRulesData - Expense rules data
+   * @returns True if save was successful, false otherwise
+   */
+  const saveTripData = (
+    startLocation: LocationData,
+    destinations: LocationData[],
+    endLocation: LocationData,
+    expenseRulesData: any
+  ): boolean => {
+    return handleTripSave(
+      startLocation,
+      destinations,
+      endLocation,
+      expenseRulesData,
+      expenseRequestData,
+      employeeRuleId || ''
+    );
+  };
+
   // Context value
   const contextValue: ExpenseRequestWizardContextProps = {
     loading,
     employeeRuleId,
+    setEmployeeRuleId,
     expenseRuleError,
+    setExpenseRuleError,
     expenseRequestData,
-    form
+    setExpenseRequestData,
+    form,
+    userInfo,
+    saveTripData,
   };
 
   return (

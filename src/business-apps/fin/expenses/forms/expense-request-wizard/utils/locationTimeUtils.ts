@@ -1,4 +1,5 @@
 import { DateTimeLimits, LocationData, MaxDateTimeLimits, MinDateTimeLimits } from "./types";
+import dayjs from "dayjs";
 
 export const getMaxLimits = (destinations: LocationData[], endLocation: LocationData): MaxDateTimeLimits => {
     const destinationLimit = destinations.find((dest) => dest.departureDate);
@@ -44,15 +45,15 @@ export const getMaxLimits = (destinations: LocationData[], endLocation: Location
   };
   
   export const isLocationValid = (locationValues: LocationData, isDateAndTimeOptional: boolean = false) => {
-    const { location, departureDate, departureTime, isAbroad } = locationValues;
-  
-    if (!location) return false;
-    if (!departureDate && !isDateAndTimeOptional) return false;
-    if (!departureTime && !isDateAndTimeOptional) return false;
-    // if (isAbroad && !regionValue) return false;
-  
-    return true;
-  };
+  const { location, departureDate, departureTime } = locationValues;
+
+  if (!location) return false;
+  if (!departureDate && !isDateAndTimeOptional) return false;
+  if (!departureTime && !isDateAndTimeOptional) return false;
+  // Note: Travel region validation is handled elsewhere
+
+  return true;
+};
 
 /**
  * Validates and sanitizes location data against date/time constraints
@@ -105,15 +106,39 @@ export const validateAndSanitizeLocation = (location: LocationData, limits: Date
   return location;
 };
 
-  export const checkIfSameDay = (date1?: Date, date2?: Date) => {
-    if (!date1 || !date2) return false;
+  export const checkIfSameDay = (date1: Date | undefined, date2: Date | undefined): boolean => {
+  if (!date1 || !date2) return false;
+
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  );
+};
+
+/**
+ * Combines date and time into an ISO string
+ * @param date - Date object or string
+ * @param time - Time as Date object or string
+ * @returns ISO string representation of the combined date and time, or empty string if both are missing
+ */
+export const combineDateTimeToISOString = (date: Date | undefined, time: Date | undefined): string => {
+  if (!date && !time) return "";
   
-    const formattedDate1 = new Date(date1);
-    const formattedDate2 = new Date(date2);
+  // If we only have time, return time as string
+  if (!date && time) {
+    return dayjs(time).format("HH:mm:ss");
+  }
   
-    return (
-      formattedDate1.getDate() === formattedDate2.getDate() &&
-      formattedDate1.getMonth() === formattedDate2.getMonth() &&
-      formattedDate1.getFullYear() === formattedDate2.getFullYear()
-    );
-  };
+  // If we only have date, return date as ISO string
+  if (date && !time) {
+    return dayjs(date).format("YYYY-MM-DD") + "T00:00:00Z";
+  }
+  
+  // If we have both, combine them
+  const dateString = dayjs(date).format("YYYY-MM-DD");
+  const timeString = dayjs(time).format("HH:mm:ss");
+  
+  // Create ISO string from combined date and time
+  return `${dateString}T${timeString}Z`;
+};

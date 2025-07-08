@@ -93,7 +93,7 @@ ExpenseAllowance(where: {expenseRequestId: {_eq: $expenseId}, isDeleted: {_eq: f
     }
 `
 export const fetchExpenseRequestAndItems = `
-query MyQuery($expenseId: uuid!, $activeUserLocale: String) {
+query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) {
   ExpenseRequestByPk(id: $expenseId) {
     id
     version
@@ -324,7 +324,13 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String) {
     expenseItemFile(where: {isDeleted: {_eq: false}}) {
       createdAt
     }
-}}`
+}
+     EmployeeAddress(where: {employeeId: {_eq: $employeeId}, isDeleted: {_eq: false}}) {
+    type
+    locality
+    addressLine
+  }
+    }`
 
 export const fetchEmployeeExpenseItems = `query MyQuery($employeeId: uuid!, $status: String,$activeUserLocale: String){
  ExpenseItemEmployee: ExpenseItem(where: {employeeId: {_eq: $employeeId}, status: {_eq: $status},isDeleted: {_eq: false}}) {
@@ -409,3 +415,99 @@ export const fetchEmployeeExpenseItems = `query MyQuery($employeeId: uuid!, $sta
       count
     }
   }}`
+
+
+
+export const getExpenseRulesDataQuery =`query getTravelRegionRules($expenseRuleId: uuid!,$activeUserLocale: String) {
+    ExpenseRuleByPk(id: $expenseRuleId) {
+      useSingleCurrency
+    currency {
+      code
+      id
+       value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
+    }
+  }
+  AllowanceRegionRuleDetail(where: {isDeleted:{_eq:false},allowanceRegionRule: {expenseRuleAllowanceCode: {expenseRuleId: {_eq: $expenseRuleId}}}}, distinctOn: travelRegionRef) {
+    id
+    travelRegionRef
+    home
+    countryRef
+    
+     amount
+    currency {
+      id
+      code
+      value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
+    }
+    travelRegion {
+       value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
+      
+    }
+  }
+ homeRegionRule: AllowanceRegionRuleDetail(where: {allowanceRegionRule: {expenseRuleAllowanceCode: {expenseRuleId: {_eq: $expenseRuleId}}}, home: {_eq: true},isDeleted: {_eq: false}}, distinctOn: travelRegionRef) {
+    travelRegionRef
+    home
+    travelRegion {
+       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
+        value
+      }
+    }
+    amount
+    currency {
+      code
+       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
+        value
+      }
+    }
+  }
+}
+`
+
+export const getRequestsAbsences = `query MyQuery($employeeId: uuid, $requestId:uuid, $requestType: String, $absenceStatus: String, $startTimeValue: timestamp, $endTimeValue: timestamp, $statusArray: [String!] ,$activeUserLocale: String) {
+  ExpenseRequest(where: {requestTypeRef: {_eq: $requestType},id: {_neq: $requestId}, employeeId: {_eq: $employeeId}, isDeleted: {_eq: false}, _or: [{startDate: {_gte: $startTimeValue, _lte: $endTimeValue}}, {endDate: {_gte: $startTimeValue, _lte: $endTimeValue}}, {_and: [{startDate: {_lte: $startTimeValue}}, {endDate: {_gte: $endTimeValue}}]}], status: {_nin: $statusArray}}, orderBy: {startDate: ASC}, limit: 1) {
+    id
+    startDate
+    endDate
+    title
+  }
+  EmployeeAbsence(where: {employeeId: {_eq: $employeeId}, isDeleted: {_eq: false}, status: {_eq: $absenceStatus}, _or: [{startDate: {_gte: $startTimeValue, _lte: $endTimeValue}}, {endDate: {_gte: $startTimeValue, _lte: $endTimeValue}}, {_and: [{startDate: {_lte: $startTimeValue}}, {endDate: {_gte: $endTimeValue}}]}]}, orderBy: {startDate: ASC}, limit: 1) {
+    id
+    startDate
+    endDate
+    type {
+      id
+      translations(where: { localeCode: { _eq: $activeUserLocale } }) {
+        value
+      }
+      code
+    }
+  }
+  ExpensePlan(where: {requestTypeRef: {_eq: $requestType}, employeeId: {_eq: $employeeId}, isDeleted: {_eq: false}, _or: [{startDate: {_gte: $startTimeValue, _lte: $endTimeValue}}, {endDate: {_gte: $startTimeValue, _lte: $endTimeValue}}, {_and: [{startDate: {_lte: $startTimeValue}}, {endDate: {_gte: $endTimeValue}}]}], status: {_nin: $statusArray}}, orderBy: {startDate: ASC}, limit: 1) {
+    id
+    startDate
+    endDate
+    title
+  }
+}
+`
