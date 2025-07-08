@@ -36,7 +36,6 @@ import {
   FieldTimeOutlined, 
   StarOutlined
 } from '@ant-design/icons';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import weekday from 'dayjs/plugin/weekday';
@@ -45,10 +44,9 @@ import { useAccountsData } from './hooks/useAccountsData';
 import { useLeadsData } from './hooks/useLeadsData';
 import { useContactsData } from './hooks/useContactsData';
 import { useEmployeesData } from './hooks/useEmployeesData';
-import LeadDetails from './LeadDetails';
+
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { env } from '@/common/env/EnvUtils';
-import { useDebounce } from '@/common/hooks/useDebounce';
 
 dayjs.extend(relativeTime);
 dayjs.extend(weekday);
@@ -102,8 +100,6 @@ function LeadsOverviewComponent({ accessToken, userInfo }: BusinessAppContextPro
 
   // State for UI operations
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
-  const [selectedLeadId, setSelectedLeadId] = useState<string | undefined>();
-  const [isLeadDetailVisible, setIsLeadDetailVisible] = useState(false);
   const [isNewLead, setIsNewLead] = useState<boolean>(false); // Used for new lead creation
   const [editingLead, setEditingLead] = useState<LeadTableItem | undefined>(undefined); // Store the lead being edited
   const [leads, setLeads] = useState<LeadTableItem[]>([]);
@@ -251,10 +247,9 @@ function LeadsOverviewComponent({ accessToken, userInfo }: BusinessAppContextPro
           accountId: editingLead.accountId,
           contactId: editingLead.contactId,
           ownerId: editingLead.ownerId,
-          statusRef: editingLead.status?.id,
-          sourceRef: editingLead.source?.id,
+          statusRef: editingLead.leadStatus?.id,
+          sourceRef: editingLead.leadSource?.id,
           ratingRef: editingLead.leadRating?.id,
-          notes: editingLead.notes,
           leadName: editingLead.name
         };
         
@@ -365,12 +360,12 @@ function LeadsOverviewComponent({ accessToken, userInfo }: BusinessAppContextPro
       if (!isNewLead && editingLead) {
         const formValues: any = {};
         
-        if (editingLead.status?.id) {
-          formValues.statusRef = editingLead.status.id;
+        if (editingLead.leadStatus?.id) {
+          formValues.statusRef = editingLead.leadStatus.id;
         }
         
-        if (editingLead.source?.id) {
-          formValues.sourceRef = editingLead.source.id;
+        if (editingLead.leadSource?.id) {
+          formValues.sourceRef = editingLead.leadSource.id;
         }
         
         if (editingLead.leadRating?.id) {
@@ -594,17 +589,13 @@ function LeadsOverviewComponent({ accessToken, userInfo }: BusinessAppContextPro
   };
   
   const handleRowClick = (record: LeadTableItem) => {
-    setSelectedLeadId(record.id);
-    setIsLeadDetailVisible(true);
+    // Navigate to lead-record app
+    if (typeof window !== 'undefined') {
+      window.location.href = `/platform/crm/lead-record?leadId=${record.id}`;
+    }
   };
-  
-  const handleLeadDetailBack = () => {
-    setIsLeadDetailVisible(false);
-    setSelectedLeadId(undefined);
-    refetchLeads();
-  };
-  
-  const handleAddLead = () => {
+    
+    const handleAddLead = () => {
     setIsNewLead(true);
     setEditingLead(undefined); // Clear any previous editing state
     setIsAddEditModalOpen(true); // Open modal instead
@@ -1147,10 +1138,9 @@ const handleEditLead = () => {
         accountId: lead.accountId,
         contactId: lead.contactId,
         ownerId: lead.ownerId,
-        statusRef: lead.status?.id,
-        sourceRef: lead.source?.id,
+        statusRef: lead.leadStatus?.id,
+        sourceRef: lead.leadSource?.id,
         ratingRef: lead.leadRating?.id,
-        notes: lead.notes,
         leadName: lead.name
       };
       
@@ -1179,14 +1169,6 @@ const handleEditLead = () => {
 
   return (
     <div style={{ padding: 24 }} data-testid="leads-overview-container">
-      {isLeadDetailVisible && selectedLeadId ? (
-        <LeadDetails
-          accessToken={accessToken}
-          leadId={selectedLeadId}
-          onBack={handleLeadDetailBack}
-        />
-      ) : (
-        <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }} data-testid="leads-header">
             <div>
               <Title level={2} style={{ margin: 0 }}>Leads</Title>
@@ -2251,8 +2233,6 @@ const handleEditLead = () => {
               </Spin>
             </Modal>
           </Modal>
-        </>
-      )}
     </div>
   );
 }

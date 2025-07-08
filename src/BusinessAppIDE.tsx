@@ -23,9 +23,10 @@ import {
 } from "./common/BusinessAppContext";
 import ProcessEventListener, {
   ProcessLocalDevEvent,
-} from "./common/components/ProcessEventListener";
+} from "./common/components/process/ProcessEventListener";
 import { IDEStartScreen } from "./components/ide-start-screen";
 import HeaderLogo from "./assets/icons/header_logo.svg";
+import FeatureHubProvider from "./common/components/feature/FeatureHubProvider";
 
 const modules = import.meta.glob("./business-apps/**/[A-Z]*.tsx", {
   eager: true,
@@ -427,6 +428,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   return (
     <Layout style={{ minHeight: "100vh" }}>
       <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />
+      <FeatureHubProvider userId={parsedUserInfo()?.id ?? ""} />
 
       {/* Full-width Header */}
       <Header
