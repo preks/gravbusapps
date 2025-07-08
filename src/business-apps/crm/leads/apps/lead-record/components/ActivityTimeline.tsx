@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CalendarOutlined, CheckOutlined, CloudUploadOutlined, ReloadOutlined } from '@ant-design/icons';
-import { Button, List, Avatar, Spin, Alert, Empty, Tag, message, Timeline, Typography, Checkbox } from 'antd';
-import type { CheckboxChangeEvent } from 'antd/es/checkbox';
+import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CalendarOutlined, CloudUploadOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Button, List, Avatar, Spin, Alert, Empty, Tag, message, Timeline, Typography } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { NotesSection } from './NotesSection';
@@ -330,32 +329,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     }
   };
 
-  const handleMarkActivityComplete = async (activity: SalesActivityData, completed: boolean) => {
-    try {
-      const now = new Date().toISOString();
-      
-      await restClient.post('/customer-relations/saveSalesActivity', {
-        changeMode: "UPDATE",
-        salesActivity: {
-          id: activity.id,
-          version: activity.version,
-          lead: leadId,
-          completedAt: completed ? now : ""
-        }
-      }, {
-        headers: { Authorization: `Bearer ${context.accessToken}` }
-      });
-      
-      // Refresh activities to get updated data
-      await loadActivities();
-      
-      message.success(completed ? 'Activity marked as complete' : 'Activity marked as incomplete');
-    } catch (error) {
-      console.error('Error updating activity:', error);
-      message.error('Failed to update activity');
-    }
-  };
-
   const handleLanguageChange = (languageCode: string) => {
     setSelectedLanguage(languageCode);
   };
@@ -549,15 +522,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                       <div><Text type="secondary">{dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')}</Text></div>
                       <div style={{ marginTop: '4px' }}>
                         <div>{activity.translatedDescription || activity.description}</div>
-                      </div>
-                      <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Checkbox
-                          checked={!!activity.completedAt}
-                          onChange={(e) => handleMarkActivityComplete(activity, e.target.checked)}
-                        />
-                        <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {activity.completedAt ? 'Completed' : 'Mark as complete'}
-                        </Text>
                       </div>
                       <Button 
                         type="text" 

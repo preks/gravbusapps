@@ -36,43 +36,7 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
         // Only handle once
         window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener);
         
-        // File upload
-        const uploadFile = fileList && fileList[0];
-        if (!uploadFile || !uploadFile.originFileObj) {
-          message.error('No file selected for upload');
-          return;
-        }
-        
-        const file = uploadFile.originFileObj;
-        const pathParams = { accessScope: 'public' };
-        const queryParams = {
-          appName: 'crm',
-          folderPath: `/leads/${additionalData?.leadId}/documents`,
-        };
-        
-        const uploadResponse = await fileClient.uploadFile(
-          file,
-          pathParams,
-          queryParams
-        );
-        
-        // Update the document with the uploaded file
-        const updatePayload = {
-          crmDocument: {
-            ...crmDocument,
-            file: uploadResponse.fileInfo.fileId,
-            fileSize: file.size,
-            mimeType: file.type,
-            verified: true,
-            verificationDate: new Date().toISOString(),
-          },
-          changeMode: 'UPDATE',
-        };
-        
-        await restClient.post('/customer-relations/saveCrmDocument', updatePayload, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        
+        setLoading(false);
         message.success('Document uploaded and saved successfully');
         
         // Notify parent of successful upload
@@ -92,18 +56,20 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
         }, 1000);
         
       } catch (err: any) {
-        console.error('File upload error:', err);
-        message.error(err?.message || 'Failed to upload and save document');
+        console.error('Process completion error:', err);
+        message.error(err?.message || 'Failed to complete document upload process');
+        setLoading(false);
       }
     };
     
     window.addEventListener('com.newwork.process.taskCompletion', handler as EventListener);
     
     return () => {
-      // Remove only if event was handled, not on unmount
+      // Remove event listener on cleanup
+      window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, additionalData?.leadId, fileClient, fileList, restClient]);
+  }, [additionalData?.leadId]);
 
   const handleSubmit = async (values: any) => {
     if (!fileList.length || !fileList[0]?.originFileObj) {
@@ -113,24 +79,43 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
 
     setLoading(true);
     
-    const payload = {
-      changeMode: 'INSERT',
-      crmDocument: {
-        name: values.name || fileList[0].originFileObj.name,
-        description: values.description || '',
-        lead: additionalData?.leadId,
-        version: 0,
-        // File will be attached after process completion
-        file: null,
-        fileSize: 0,
-        mimeType: '',
-        verified: false,
-        verificationDate: null,
-      },
-    };
-    
-    dispatchProcessContinueEvent('pse_submit', payload);
-    setLoading(false);
+    try {
+      // First upload the file to file server
+      const file = fileList[0].originFileObj;
+      const pathParams = { accessScope: 'public' };
+      const queryParams = {
+        appName: 'crm',
+        folderPath: `/leads/${additionalData?.leadId}/documents`,
+      };
+      
+      const uploadResponse = await fileClient.uploadFile(
+        file,
+        pathParams,
+        queryParams
+      );
+      
+      // Create the document with the uploaded file information
+      const payload = {
+        changeMode: 'INSERT',
+        crmDocument: {
+          name: values.name || file.name,
+          description: values.description || '',
+          lead: additionalData?.leadId,
+          version: 0,
+          file: uploadResponse.fileInfo.fileId,
+          fileSize: file.size,
+          mimeType: file.type,
+          verified: true,
+          verificationDate: new Date().toISOString(),
+        },
+      };
+      
+      dispatchProcessContinueEvent('pse_submit', payload);
+    } catch (err: any) {
+      console.error('File upload error:', err);
+      message.error(err?.message || 'Failed to upload file');
+      setLoading(false);
+    }
   };
 
   const handleCancel = () => {
