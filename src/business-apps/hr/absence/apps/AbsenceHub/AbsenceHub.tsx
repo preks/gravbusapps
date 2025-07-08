@@ -33,6 +33,7 @@ import {
   getTranslationFromI18nKeyAndLabel,
   getCatalogValue,
 } from "@/common/utils/windowUtils";
+import { PiCalendarBlank } from "react-icons/pi";
 
 export const AbsenceHub = (props: BusinessAppContextProps) => {
   const [activeTab, setActiveTab] = useState("calendar");
@@ -236,29 +237,20 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
     <div className="gba:absence-container" data-testid="absencehub-container">
       <div className="gba:absence-header" data-testid="absencehub-header">
         <div
-          className="gba:font-bold gba:text-2xl"
+          className="gba:font-bold gba:text-2xl gba:flex gba:items-center gba:gap-x-2"
           data-testid="absencehub-title"
         >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_absences.absence_overview",
-            "Absence Overview"
-          )}
-        </div>
-        <div
-          className="gba:text-gray-500 gba:text-lg"
-          data-testid="absencehub-description"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:absence_hub.absence_description",
-            "View and manage your absences"
-          )}
+          <PiCalendarBlank color="#a3519aff" />
+          <span>
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:hr_absences.absence_overview",
+              "Absence Overview"
+            )}
+          </span>
         </div>
       </div>
 
-      <div
-        className="gba:tabsContainer"
-        data-testid="absencehub-tabs-container"
-      >
+      <div data-testid="absencehub-tabs-container">
         <Tabs
           activeKey={activeTab}
           data-testid="absencehub-tabs"
@@ -266,55 +258,53 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
             {
               key: "calendar",
               label: (
-                <span className="gba:tabLabel">
+                <div className="gba:flex gba:items-center gba:gap-2">
                   <CalendarOutlined className="gba:tabIcon" />
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:absence_hub.calendar",
                     "Calendar"
                   )}
-                </span>
+                </div>
               ),
             },
             {
               key: "absence-list",
               label: (
-                <span className="gba:tabLabel">
+                <div className="gba:flex gba:items-center gba:gap-2">
                   <UnorderedListOutlined className="gba:tabIcon" />
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:absence_hub.absence_list",
                     "Absence List"
                   )}
-                </span>
+                </div>
               ),
             },
             {
               key: "entitlements",
               label: (
-                <span className="gba:tabLabel">
+                <div className="gba:flex gba:items-center gba:gap-2">
                   <PaperClipOutlined className="gba:tabIcon" />
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:absence_hub.entitlements",
                     "Entitlements"
                   )}
-                </span>
+                </div>
               ),
             },
             {
               key: "statistics",
               label: (
-                <span className="gba:tabLabel">
+                <div className="gba:flex gba:items-center gba:gap-2">
                   <BarChartOutlined className="gba:tabIcon" />
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:absence_hub.statistics",
                     "Statistics"
                   )}
-                </span>
+                </div>
               ),
             },
           ]}
           onChange={onChange}
-          className="gba:tabs"
-          type="card"
         />
       </div>
 
