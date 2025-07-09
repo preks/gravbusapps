@@ -2,6 +2,7 @@ import React from "react";
 import { Row, Col, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { navigateTo } from "@/common/utils/navigationUtils";
 import { useLeadData } from "./hooks/useLeadData";
 import { LeadHeader } from "./components/LeadHeader";
 import { StatusProgression } from "./components/StatusProgression";
@@ -17,7 +18,7 @@ interface LeadRecordContentProps extends BusinessAppContextProps {
 }
 
 const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, ...props }) => {
-  const { lead, leadData, loading, error, leadStatuses, loadingStatuses } = useLeadData(leadId, props.accessToken);
+  const { lead, leadData, loading, error, leadStatuses, loadingStatuses, refetchLeadData } = useLeadData(leadId, props.accessToken);
 
   if (loading) {
     return (
@@ -58,13 +59,17 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
       </div>
 
       {/* Lead header */}
-      <LeadHeader lead={lead} leadData={leadData} leadId={leadId} additionalData={props} />
+      <LeadHeader lead={lead} leadData={leadData} leadId={leadId} additionalData={props} accessToken={props.accessToken} />
 
       {/* Status Progression */}
-      {!loadingStatuses && leadStatuses.length > 0 && (
+      {!loadingStatuses && leadStatuses.length > 0 && lead && (
         <StatusProgression 
           currentStatus={leadData?.leadStatus?.value || lead?.status || 'New'} 
-          statuses={leadStatuses} 
+          statuses={leadStatuses}
+          leadId={leadId}
+          leadVersion={parseInt(lead.version) || 0}
+          accessToken={props.accessToken}
+          onStatusUpdate={refetchLeadData}
         />
       )}
 
@@ -88,20 +93,18 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
         <Row gutter={24}>
           {/* Activity Timeline - 1/2 width */}
           <Col span={12}>
-            <ActivityTimeline leadId={leadId} />
+            <ActivityTimeline leadId={leadId} context={props} />
           </Col>
 
           {/* Tasks - 1/2 width */}
           <Col span={12}>
-            <TasksSection />
+            <TasksSection leadId={leadId} context={props} />
           </Col>
         </Row>
       </div>
     </div>
   );
 };
-
-export default LeadRecordContent;
 
 interface LeadRecordProps extends BusinessAppContextProps {
   leadId?: string;
@@ -116,9 +119,7 @@ const LeadRecord: React.FC<LeadRecordProps> = (props) => {
       props.onBack();
     } else {
       // Navigate back to leads overview
-      if (typeof window !== 'undefined') {
-        window.location.href = '/platform/crm/leads-overview';
-      }
+      navigateTo('/platform/crm/leads-overview');
     }
   };
 
@@ -129,7 +130,6 @@ const LeadRecord: React.FC<LeadRecordProps> = (props) => {
       </div>
     );
   }
-
   return (
     <LeadRecordContent
       {...props}
@@ -140,3 +140,5 @@ const LeadRecord: React.FC<LeadRecordProps> = (props) => {
 };
 
 export { LeadRecord, LeadRecordContent }; 
+
+export default LeadRecord;

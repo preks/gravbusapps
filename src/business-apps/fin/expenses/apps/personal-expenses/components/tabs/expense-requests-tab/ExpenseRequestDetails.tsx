@@ -6,6 +6,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from 'react-icons/pi';
 import dayjs from 'dayjs';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 export interface ExpenseRequestDetailsProps extends BusinessAppContextProps {
   selectedItem: any;
@@ -136,8 +137,8 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
           icon={<PiArrowRight />}
           onClick={() => {
             // Navigate to the expense request record page
-            const url = `/platform/fin/expenses/expense-request-record?expenseRequestId=${selectedItem.id}`;
-            window.location.href = url;
+            const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', { expenseRequestId: selectedItem.id });
+            navigateTo(url);
           }}
           data-testid="view-expense-request-details-button"
         >
