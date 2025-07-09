@@ -36,7 +36,7 @@ export const useLeadData = (leadId: string, accessToken: string) => {
           logo: '',
           status: rawLeadData.leadStatus?.value || 'Qualified',
           leadName: rawLeadData.companyName || `${rawLeadData.firstName || ''} ${rawLeadData.lastName || ''}`.trim() || 'Unknown Lead',
-          version: rawLeadData.version || '1',
+          version: rawLeadData.version ?? '1',
           statusRef: rawLeadData.leadStatus?.value || '',
           source: {
             id: rawLeadData.leadSource?.value || 'website',

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { message } from 'antd';
+import { message, Modal } from 'antd';
 import { env } from '@/common/env/EnvUtils';
 import { ReferenceData } from '../types';
 
@@ -30,7 +30,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
     return currentIndex >= 0 ? currentIndex : 0;
   };
 
-  const handleStatusClick = async (status: ReferenceData) => {
+  const handleStatusClick = (status: ReferenceData) => {
     // Don't allow clicking on the current status
     const currentIndex = getCurrentStatusIndex();
     const clickedIndex = statuses.findIndex(s => s.id === status.id);
@@ -39,6 +39,19 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
       return;
     }
 
+    // Show confirmation dialog
+    Modal.confirm({
+      title: 'Change Lead Status',
+      content: `Are you sure you want to change the lead status to "${status.value}"?`,
+      okText: 'Yes, Change Status',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        await updateLeadStatus(status);
+      },
+    });
+  };
+
+  const updateLeadStatus = async (status: ReferenceData) => {
     setIsUpdating(true);
     
     try {
@@ -121,6 +134,8 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
                 ? '0 20px 20px 0' 
                 : '0';
 
+          const isClickable = index !== currentIndex;
+
           return (
             <div
               key={status.id}
@@ -140,9 +155,31 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
                 transition: 'all 0.3s ease',
                 zIndex: isCompleted || isCurrent ? 2 : 1,
                 clipPath: clipPath,
-                WebkitClipPath: clipPath
+                WebkitClipPath: clipPath,
+                cursor: isClickable ? 'pointer' : 'default'
               }}
+              className={isClickable ? 'gba:hover:brightness-110 gba:hover:shadow-md' : ''}
               onClick={() => handleStatusClick(status)}
+              onMouseEnter={(e) => {
+                if (isClickable) {
+                  const target = e.currentTarget as HTMLElement;
+                  if (isCompleted) {
+                    target.style.backgroundColor = '#66BB6A'; // Lighter green
+                  } else if (isCurrent) {
+                    target.style.backgroundColor = '#42A5F5'; // Lighter blue
+                  } else {
+                    target.style.backgroundColor = '#E3F2FD'; // Light blue background
+                    target.style.color = '#1976D2'; // Blue text
+                  }
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (isClickable) {
+                  const target = e.currentTarget as HTMLElement;
+                  target.style.backgroundColor = backgroundColor;
+                  target.style.color = textColor;
+                }
+              }}
               data-testid={`status-${status.code}`}
             >
               {/* Content */}

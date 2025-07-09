@@ -2,8 +2,7 @@ import React from "react";
 import { Row, Col, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { AppActionButton } from "@/components/app-action-button/AppActionButton";
-import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+import { navigateTo } from "@/common/utils/navigationUtils";
 import { useLeadData } from "./hooks/useLeadData";
 import { LeadHeader } from "./components/LeadHeader";
 import { StatusProgression } from "./components/StatusProgression";
@@ -120,9 +119,7 @@ const LeadRecord: React.FC<LeadRecordProps> = (props) => {
       props.onBack();
     } else {
       // Navigate back to leads overview
-      if (typeof window !== 'undefined') {
-        window.location.href = '/platform/crm/leads-overview';
-      }
+      navigateTo('/platform/crm/leads-overview');
     }
   };
 
