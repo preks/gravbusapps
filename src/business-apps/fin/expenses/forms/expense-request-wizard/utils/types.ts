@@ -45,6 +45,17 @@ export interface LocationData {
   }
   
   /**
+   * Expense item interface for log object
+   */
+  export interface ExpenseItemData {
+    id: string;
+    code: string;
+    title: string;
+    ruleId: string;
+    expenseRequest: string;
+  }
+
+  /**
    * Log object interface
    */
   export interface LogObject {
@@ -60,14 +71,6 @@ export interface LocationData {
       employee: any;
       expensePlan: any;
       title: any;
-      deductibleAmount: any;
-      nonDeductibleAmount: any;
-      reimbursableAmount: any;
-      nonReimbursableAmount: any;
-      totalAmountAllowance: any;
-      totalAmountExpense: any;
-      totalAmountMileage: any;
-      totalRemainingAmount: any;
       status: any;
       requestDate: string;
       requestTypeRef: any;
@@ -76,5 +79,8 @@ export interface LocationData {
     };
     expenseRequestTrips?: {
       expenseTrips: TripData[] | any[];
+    };
+    expenseRequestItems?: {
+      expenseItems: ExpenseItemData[] | any[];
     };
   }

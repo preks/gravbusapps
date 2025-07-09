@@ -36,7 +36,7 @@ interface ExpenseRequestWizardContentProps extends BusinessAppContextProps {
  * @returns Expense Request Wizard Content component
  */
 const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = ({ onCancel, accessToken, userInfo }) => {
-  const { loading, expenseRuleError, expenseRequestData } = useExpenseRequestWizardContext();
+  const { loading, expenseRuleError, expenseRequestData, currentTitle, setCurrentTitle } = useExpenseRequestWizardContext();
   const [currentScreen, setCurrentScreen] = useState<string>(SCREEN_NAMES_ENUM.ITEMS_TAB);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [titleValue, setTitleValue] = useState<string>('');
@@ -85,9 +85,6 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
     setTitleError('');
   };
 
-  // State to store the current title
-  const [currentTitle, setCurrentTitle] = useState<string>('');
-
   // Initialize current title when data is loaded
   useEffect(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {
@@ -95,7 +92,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
       setCurrentTitle(initialTitle);
       setTitleValue(initialTitle);
     }
-  }, [expenseRequestData]);
+  }, [expenseRequestData, setCurrentTitle]);
 
   const saveTitle = () => {
     // Here you would implement the API call to save the title

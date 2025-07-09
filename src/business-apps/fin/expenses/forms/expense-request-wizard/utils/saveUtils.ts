@@ -50,16 +50,21 @@ export const prepareTripData = (
 
 /**
  * Creates a detailed log object for the trip save event
- * @param tripData - Prepared trip data
+ * @param startLocation - Start location data
+ * @param endLocation - End location data
  * @param initialRequest - Initial request data
  * @param employeeRuleId - Employee rule ID
+ * @param currentTitle - Current editable title value
+ * @param currentCurrency - Current determined currency value
  * @returns Detailed log object
  */
 export const createTripSaveLogObject = (
   startLocation: LocationData,
   endLocation: LocationData,
   initialRequest: any,
-  employeeRuleId: string
+  employeeRuleId: string,
+  currentTitle: string,
+  currentCurrency: string | null
 ): LogObject => {
   // Create start and end trip date/time ISO strings
   const startTripDateTime = combineDateTimeToISOString(startLocation.departureDate, startLocation.departureTime);
@@ -77,20 +82,12 @@ export const createTripSaveLogObject = (
       costCenter: initialRequest.costCenterId || "",
       employee: initialRequest.employeeId || "",
       expensePlan: initialRequest.expensePlanId || "",
-      title: initialRequest.title || "",
-      deductibleAmount: initialRequest.deductibleAmount,
-      nonDeductibleAmount: initialRequest.nonDeductibleAmount,
-      reimbursableAmount: initialRequest.reimbursableAmount,
-      nonReimbursableAmount: initialRequest.nonReimbursableAmount,
-      totalAmountAllowance: initialRequest.totalAmountAllowance,
-      totalAmountExpense: initialRequest.totalAmountExpense,
-      totalAmountMileage: initialRequest.totalAmountMileage,
-      totalRemainingAmount: initialRequest.totalRemainingAmount,
+      title: currentTitle || initialRequest.title || "",
       status: initialRequest.status,
       requestDate: initialRequest.requestDate ? dayjs(initialRequest.requestDate).format("YYYY-MM-DD") : "",
       requestTypeRef: initialRequest.requestTypeRef,
       additionalProperties: initialRequest.additionalProperties,
-      currencyRef: initialRequest.currency?.id
+      currencyRef: currentCurrency || initialRequest.currency?.id
     }
   };
 };
@@ -347,7 +344,9 @@ export const handleTripSave = (
   endLocation: LocationData,
   expenseRulesData: any,
   expenseRequestData: any,
-  employeeRuleId: string
+  employeeRuleId: string,
+  currentTitle: string,
+  currentCurrency: string | null
 ): boolean => {
   // Get initial request data
   const initialRequest = expenseRequestData?.ExpenseRequestByPk;
@@ -363,9 +362,54 @@ export const handleTripSave = (
   }
   
   // Create detailed log object
-  const logObject = createTripSaveLogObject(startLocation, endLocation, initialRequest, employeeRuleId);
+  // Use the current title and currency from context for the log object
+  const logObject = createTripSaveLogObject(startLocation, endLocation, initialRequest, employeeRuleId, currentTitle, currentCurrency);
   
+  // Combine expense items from both sources
+  const mergeUniqueById = <T extends { id: string }>(array1: T[], array2: T[]): T[] => {
+    const map = new Map<string, T>();
+    [...array1, ...array2].forEach(item => map.set(item.id, item));
+    return Array.from(map.values());
+  };
   
+  // Map items from expenseRequestData.ExpenseItem if available
+  const requestItems: Array<{id: string, code: string, title: string, ruleId: string, expenseRequest: string}> = [];
+  if (expenseRequestData.ExpenseItem && Array.isArray(expenseRequestData.ExpenseItem)) {
+    expenseRequestData.ExpenseItem.forEach((item: any) => {
+      if (item) {
+        requestItems.push({
+          id: item.id,
+          code: item.code || '',
+          title: item.title || '',
+          ruleId: item.expenseRuleId || '',
+          expenseRequest: initialRequest.id || ''
+        });
+      }
+    });
+  }
+  
+  // Map items from additionalData
+  const additionalItems: Array<{id: string, code: string, title: string, ruleId: string, expenseRequest: string}> = [];
+  if (expenseRequestData.additionalData?.psi_taskPayload?.initialParameters?.expenseItems && 
+      Array.isArray(expenseRequestData.additionalData.psi_taskPayload.initialParameters.expenseItems)) {
+    expenseRequestData.additionalData.psi_taskPayload.initialParameters.expenseItems.forEach((item: any) => {
+      additionalItems.push({
+        id: item.id,
+        code: item.code || '',
+        title: item.title || '',
+        ruleId: item.expenseRuleId || '',
+        expenseRequest: initialRequest.id || ''
+      });
+    });
+  }
+  
+  // Combine items using mergeUniqueById to avoid duplicates based on id
+  const combinedItems = mergeUniqueById(requestItems, additionalItems);
+  
+  // Add expenseRequestItems to logObject
+  (logObject as LogObject).expenseRequestItems = {
+    expenseItems: combinedItems
+  };
   
   // Transform trips data
   const tripsTransformer = transformTrips(startLocation, destinations, endLocation, initialRequest, expenseRulesData);

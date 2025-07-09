@@ -7,6 +7,7 @@ import { showToast } from '../../../utils/notificationUtils';
 import { fetchEmployeeRule, fetchExpenseRequestAndItems } from '../ExpenseRequestWizardQueries';
 import { handleTripSave } from '../utils/saveUtils';
 import { LocationData } from '../utils/types';
+import { getCurrencyWithFallback } from '../utils/currencyUtils';
 
 /**
  * ExpenseRequestWizardContext props interface
@@ -21,6 +22,10 @@ interface ExpenseRequestWizardContextProps {
   setExpenseRequestData: (data: any | null) => void;
   form: any;
   userInfo?: any;
+  currentTitle: string;
+  setCurrentTitle: (title: string) => void;
+  currentCurrency: string | null;
+  setCurrentCurrency: (currency: string | null) => void;
   saveTripData: (startLocation: LocationData, destinations: LocationData[], endLocation: LocationData, expenseRulesData: any) => boolean;
 }
 
@@ -56,6 +61,8 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   const [employeeRuleId, setEmployeeRuleId] = useState<string | null>(null);
   const [expenseRuleError, setExpenseRuleError] = useState<string | null>(null);
   const [expenseRequestData, setExpenseRequestData] = useState<any | null>(null);
+  const [currentTitle, setCurrentTitle] = useState<string>('');
+  const [currentCurrency, setCurrentCurrency] = useState<string | null>(null);
   const graphqlClient = useGraphqlClient(accessToken);
 
   // Mock additionalData for testing
@@ -241,13 +248,26 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     endLocation: LocationData,
     expenseRulesData: any
   ): boolean => {
+    // Determine currency based on trip data
+    const determinedCurrency = getCurrencyWithFallback(
+      startLocation,
+      destinations,
+      endLocation,
+      expenseRulesData
+    );
+    
+    // Update currency in context
+    setCurrentCurrency(determinedCurrency);
+    
     return handleTripSave(
       startLocation,
       destinations,
       endLocation,
       expenseRulesData,
       expenseRequestData,
-      employeeRuleId || ''
+      employeeRuleId || '',
+      currentTitle,
+      determinedCurrency
     );
   };
 
@@ -262,6 +282,10 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     setExpenseRequestData,
     form,
     userInfo,
+    currentTitle,
+    setCurrentTitle,
+    currentCurrency,
+    setCurrentCurrency,
     saveTripData,
   };
 
