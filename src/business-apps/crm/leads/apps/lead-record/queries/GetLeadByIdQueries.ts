@@ -53,6 +53,7 @@ export interface GetLeadByIdResponse {
       id: string;
       value: string;
     };
+    convertedOpportunityId: string;
   }>;
 }
 
@@ -109,6 +110,7 @@ export const GET_LEAD_BY_ID = `
         id
         value
       }
+      convertedOpportunityId
     }
   }
 `;

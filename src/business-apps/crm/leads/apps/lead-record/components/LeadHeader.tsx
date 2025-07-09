@@ -66,13 +66,13 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
             </AppActionButton>
           )}
           
-          <Button 
+          {!lead.convertedOpportunityId ? <Button 
             type="primary"
             data-testid="convert-to-opportunity-button"
             onClick={() => {
               startProcess({
                 domain: 'customer-relations',
-                processName: 'convertLeadToOpportunity',
+                processName: 'convertLead',
                 payload: {
                   leadId,
                   employeeId: additionalData?.employeeId
@@ -81,8 +81,8 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
               });
             }}
           >
-            Convert to Opportunity
-          </Button>
+            Convert Lead
+          </Button> : null}
         </div>
       </div>
     </div>
