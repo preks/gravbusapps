@@ -1,6 +1,7 @@
 // Main component
 export { default } from './LeadList';
 export { LeadList } from './LeadList';
+export type { LeadListProps } from './LeadList';
 
 // Table component
 export { LeadTable } from './components/LeadTable';
