@@ -143,6 +143,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
   }, []);
 
   // Get account data with search, sorting, and filters
+  const filters = getFilters();
   const { 
     accounts, 
     total, 
@@ -153,11 +154,15 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
     loadPage,
     retry 
   } = useAccountListData({
-    ...getFilters(),
-    sortField,
-    sortOrder,
-    accessToken,
-    sourceApp
+    search: search,
+    sortField: sortField,
+    sortOrder: sortOrder,
+    context: props,
+    sourceApp: sourceApp,
+    accountTypes: filters.accountTypes || [],
+    industries: filters.industries || [],
+    createdAfter: filterCreatedAfter,
+    createdBefore: filterCreatedBefore
   });
 
   // Get account statistics (independent from search/filters)
@@ -174,7 +179,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
       initialLoadDone.current = true;
       loadPage(currentPage, pageSize);
     }
-  }, [loadPage, accessToken, currentPage, pageSize]);
+  }, [accessToken, currentPage, pageSize]);
 
   // Trigger search when search term changes
   useEffect(() => {
@@ -183,7 +188,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
       updateURLParams({ search, page: 1 });
       loadPage(1, pageSize); // Reset to first page when search changes
     }
-  }, [search, loadPage, pageSize, updateURLParams]);
+  }, [search, pageSize, updateURLParams]);
 
   // Trigger reload when filters change
   useEffect(() => {
@@ -191,7 +196,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
       setCurrentPage(1);
       loadPage(1, pageSize);
     }
-  }, [selectedFilters, filterCreatedAfter, filterCreatedBefore, loadPage, pageSize]);
+  }, [selectedFilters, filterCreatedAfter, filterCreatedBefore, pageSize]);
 
   // Handle account selection
   const handleSelectAccount = useCallback((account: Account) => {

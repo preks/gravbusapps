@@ -17,7 +17,7 @@ export const useAccountStatistics = (context: UseAccountStatisticsProps) => {
     averageEmployees: 0
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
 
   const {
     fetchRecentAccounts,
@@ -30,7 +30,7 @@ export const useAccountStatistics = (context: UseAccountStatisticsProps) => {
 
   const fetchStatistics = useCallback(async () => {
     if (!context.accessToken) {
-      setError('No access token available');
+      setError(new Error('No access token available'));
       setIsLoading(false);
       return;
     }
@@ -60,7 +60,7 @@ export const useAccountStatistics = (context: UseAccountStatisticsProps) => {
       });
     } catch (err) {
       console.error('Error fetching account statistics:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error fetching statistics');
+      setError(err instanceof Error ? err : new Error('Unknown error fetching statistics'));
     } finally {
       setIsLoading(false);
     }

@@ -1,83 +1,127 @@
+import { useCallback } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCallback } from 'react';
-import { AccountQueryVariables, AccountListResponse } from '../types';
 
-export const GET_ACCOUNTS_QUERY = `
-  query GetAccounts($offset: Int, $limit: Int, $orderBy: [AccountOrderBy!], $where: AccountBoolExp) {
-    Account(offset: $offset, limit: $limit, orderBy: $orderBy, where: $where) {
+export interface AccountQueryVariables {
+  offset?: number;
+  limit?: number;
+  where?: any;
+  orderBy?: any;
+}
+
+export interface AccountData {
+  id: string;
+  name: string;
+  version: number;
+  website: string;
+  legalForm: {
+    value: string;
+    code: string;
+    id: string;
+  };
+  numberOfEmployees: {
+    value: string;
+  };
+  contact: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  }[];
+  addresses: {
+    city: string;
+    country: {
+      id: string;
+      value: string;
+      code: string;
+    };
+    region: {
+      id: string;
+      value: string;
+      code: string;
+    };
+  }[];
+  foundationDate: string;
+  industry: {
+    id: string;
+    code: string;
+    value: string;
+  };
+  ownerEmployee: {
+    id: string;
+    lastName: string;
+    firstName: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GetAccountsResponse {
+  Account: AccountData[];
+  AccountAggregate: {
+    aggregate: {
+      count: number;
+    };
+  };
+}
+
+export const GET_ACCOUNTS_DATA = `
+  query GetAccounts(
+    $where: AccountBoolExp
+    $limit: Int 
+    $offset: Int
+    $orderBy: [AccountOrderBy!]
+  ) { 
+    Account(
+      where: $where 
+      limit: $limit 
+      offset: $offset
+      orderBy: $orderBy
+    ) {
       id
-      name
-      email
-      phone
-      website
-      createdAt
-      updatedAt
       version
-      foundationDate
-      liquidationDate
-      mission
-      specialty
-      geographicPresence
-      notesSummary
-      pictureUrl
-      sourceApp
-      industry {
-        id
-        code
-        value
-      }
+      name
+      website
       legalForm {
-        id
-        code
         value
+        code
+        id
       }
       numberOfEmployees {
-        id
-        code
         value
       }
-      annualRevenue {
-        id
-        code
-        value
+      contact {
+        firstName
+        lastName
+        email
+        phone
       }
-      timeZone {
+      addresses {
+        city
+        country {
+          id
+          value
+          code
+        }
+        region {
+          id
+          value
+          code
+        }
+      }
+      foundationDate
+      industry {
         id
         code
         value
       }
       ownerEmployee {
         id
-        firstName
         lastName
-        displayName
-        picture
-        pictureThumbnail
-      }
-      addresses {
-        id
-        city
-        addressLine
-        postalCode
-        country {
-          id
-          code
-          value
-        }
-        region {
-          id
-          code
-          value
-        }
-      }
-      contact {
-        id
         firstName
-        lastName
-        email
-        phone
       }
+      createdAt
+      updatedAt
     }
     AccountAggregate(where: $where) {
       aggregate {
@@ -90,17 +134,10 @@ export const GET_ACCOUNTS_QUERY = `
 export const useGetAccountsData = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
   
-  const fetchAccountsData = useCallback(async (variables: AccountQueryVariables = {}): Promise<AccountListResponse> => {
-    const defaultVariables = {
-      offset: 0,
-      limit: 20,
-      orderBy: [{ createdAt: "DESC" }],
-      where: { isDeleted: { _eq: false } },
-      ...variables
-    };
-    
+  const fetchAccountsData = useCallback(async (variables: AccountQueryVariables = {}) => {
+    const query = GET_ACCOUNTS_DATA;
     try {
-      const result = await graphqlClient.request<AccountListResponse>(GET_ACCOUNTS_QUERY, defaultVariables);
+      const result = await graphqlClient.request<GetAccountsResponse>(query, variables);
       return result;
     } catch (error) {
       console.error('Error fetching accounts data:', error);

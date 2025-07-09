@@ -1,17 +1,62 @@
 import { useState, useCallback } from 'react';
 import { Account, UseAccountListDataReturn } from '../types';
+import { useGetAccountsData, AccountData } from '../queries/AccountQueries';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface UseAccountListDataParams {
   search?: string;
   sortField: string;
   sortOrder: 'ASC' | 'DESC';
-  accessToken: string;
+  context: BusinessAppContextProps;
   sourceApp?: string;
   accountTypes?: string[];
   industries?: string[];
   createdAfter?: string;
   createdBefore?: string;
 }
+
+const transformAccountData = (apiAccount: AccountData): Account => {
+  const city = apiAccount.addresses?.[0]?.city;
+  const country = apiAccount.addresses?.[0]?.country?.value;
+  let location = '';
+  if (city && country) {
+    location = `${city}, ${country}`;
+  } else if (city) {
+    location = city;
+  } else if (country) {
+    location = country;
+  }
+
+  return {
+    id: apiAccount.id,
+    name: apiAccount.name || '',
+    website: apiAccount.website || '',
+    phone: apiAccount.contact?.[0]?.phone || '',
+    email: apiAccount.contact?.[0]?.email || '',
+    industry: {
+      id: apiAccount.industry?.id || '',
+      value: apiAccount.industry?.value || ''
+    },
+    type: {
+      id: apiAccount.legalForm?.id || '',
+      value: apiAccount.legalForm?.value || ''
+    },
+    ownerEmployee: {
+      id: apiAccount.ownerEmployee?.id || '',
+      firstName: apiAccount.ownerEmployee?.firstName || '',
+      lastName: apiAccount.ownerEmployee?.lastName || '',
+      displayName: apiAccount.ownerEmployee 
+        ? `${apiAccount.ownerEmployee.firstName} ${apiAccount.ownerEmployee.lastName}` 
+        : '',
+      pictureThumbnail: undefined
+    },
+    annualRevenue: 0, // Not available in current schema
+    numberOfEmployees: parseInt(apiAccount.numberOfEmployees?.value || '0') || 0,
+    sourceApp: '',
+    createdAt: apiAccount.createdAt,
+    updatedAt: apiAccount.updatedAt
+  };
+};
 
 export const useAccountListData = (params: UseAccountListDataParams): UseAccountListDataReturn => {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -20,8 +65,10 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
 
+  const { fetchAccountsData } = useGetAccountsData(params.context);
+
   const loadPage = useCallback(async (page: number, pageSize = 20, additionalFilters?: any) => {
-    if (!params.accessToken) {
+    if (!params.context.accessToken) {
       console.warn('No access token provided for account data loading');
       return;
     }
@@ -30,48 +77,85 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
     setError(null);
 
     try {
-      // Mock data for now - will be replaced with actual GraphQL queries
-      const mockAccounts: Account[] = Array.from({ length: pageSize }, (_, index) => ({
-        id: `account-${page}-${index + 1}`,
-        name: `Account ${(page - 1) * pageSize + index + 1}`,
-        website: `www.account${(page - 1) * pageSize + index + 1}.com`,
-        phone: `+1-555-${String(100 + index).padStart(3, '0')}-0000`,
-        email: `contact@account${(page - 1) * pageSize + index + 1}.com`,
-        industry: {
-          id: `industry-${index % 5}`,
-          value: ['Technology', 'Finance', 'Healthcare', 'Manufacturing', 'Retail'][index % 5]
-        },
-        type: {
-          id: `type-${index % 4}`,
-          value: ['Customer', 'Prospect', 'Partner', 'Competitor'][index % 4]
-        },
-        ownerEmployee: {
-          id: `employee-${index}`,
-          firstName: `Owner${index}`,
-          lastName: 'Employee',
-          displayName: `Owner${index} Employee`,
-          pictureThumbnail: undefined
-        },
-        annualRevenue: (index + 1) * 100000,
-        numberOfEmployees: (index + 1) * 10,
-        sourceApp: params.sourceApp,
-        createdAt: new Date(Date.now() - index * 24 * 60 * 60 * 1000).toISOString(),
-        updatedAt: new Date().toISOString()
-      }));
+      const offset = (page - 1) * pageSize;
+      
+      // Build where conditions
+      const whereCondition: any = {
+        isDeleted: { _eq: false }
+      };
 
-      setAccounts(mockAccounts);
-      setTotal(params.sourceApp === 'CRM' ? 106 : 7); // Mock totals based on sourceApp
-      setHasMore(page * pageSize < (params.sourceApp === 'CRM' ? 106 : 7));
+      // Add search functionality
+      if (params.search?.trim()) {
+        const searchPattern = { _iregex: params.search.trim() };
+        whereCondition._or = [
+          { name: searchPattern },
+          { website: searchPattern },
+          { legalForm: { value: searchPattern } },
+          { industry: { value: searchPattern } },
+          { ownerEmployee: { firstName: searchPattern } },
+          { ownerEmployee: { lastName: searchPattern } },
+          { addresses: { city: searchPattern } },
+          { addresses: { country: { value: searchPattern } } }
+        ];
+      }
+
+      // Add industry filtering
+      if (params.industries && params.industries.length > 0) {
+        whereCondition.industry = { value: { _in: params.industries } };
+      }
+
+      // Add date filtering
+      if (params.createdAfter) {
+        whereCondition.createdAt = { _gte: params.createdAfter };
+      }
+      if (params.createdBefore) {
+        if (whereCondition.createdAt) {
+          whereCondition.createdAt._lte = params.createdBefore;
+        } else {
+          whereCondition.createdAt = { _lte: params.createdBefore };
+        }
+      }
+
+      // Build order by condition
+      const orderBy: any = {};
+      if (params.sortField && params.sortOrder) {
+        if (params.sortField === 'name') {
+          orderBy.name = params.sortOrder;
+        } else if (params.sortField === 'website') {
+          orderBy.website = params.sortOrder;
+        } else if (params.sortField === 'createdAt') {
+          orderBy.createdAt = params.sortOrder;
+        }
+      } else {
+        orderBy.createdAt = 'DESC';
+      }
+
+      const result = await fetchAccountsData({
+        offset,
+        limit: pageSize,
+        where: whereCondition,
+        orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ createdAt: 'DESC' }]
+      });
+
+      if (result?.Account) {
+        const transformedAccounts = result.Account.map(transformAccountData);
+        setAccounts(transformedAccounts);
+        
+        const totalCount = result.AccountAggregate?.aggregate?.count || 0;
+        setTotal(totalCount);
+        setHasMore(offset + pageSize < totalCount);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
+      setError(err instanceof Error ? err : new Error('Failed to load accounts'));
+      console.error('Error loading accounts:', err);
     } finally {
       setLoading(false);
     }
-  }, [params.accessToken, params.sourceApp, params.search, params.sortField, params.sortOrder, params.accountTypes, params.industries, params.createdAfter, params.createdBefore]);
+  }, [fetchAccountsData, params.search, params.sortField, params.sortOrder, params.industries, params.createdAfter, params.createdBefore, params.context.accessToken]);
 
   const loadMore = useCallback(() => {
-    // Load more functionality for infinite scroll
     console.log('Load more accounts requested');
+    // Implementation for infinite scroll if needed
   }, []);
 
   const retry = useCallback(() => {

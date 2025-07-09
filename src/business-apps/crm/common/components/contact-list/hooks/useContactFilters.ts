@@ -3,9 +3,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 export interface FilterGroup {
   id: string;
-  title: string;
-  label: string;
-  filters: Array<{ id: string; label: string; value: any }>;
+  title: string; // Changed from label to title to match DataFilterGroup
+  filters: Array<{ id: string; label: string; value: any; selected: boolean }>;
 }
 
 export interface ContactFilters {
@@ -31,27 +30,22 @@ export const useContactFilters = (context: BusinessAppContextProps): ContactFilt
   const filterGroups: FilterGroup[] = useMemo(() => [
     {
       id: 'contactType',
-      title: 'Contact Type',
-      label: 'Contact Type',
+      title: 'Contact Type', // Changed from label to title
       filters: [
-        { id: 'type-primary', label: 'Primary Contact', value: 'Primary' },
-        { id: 'type-secondary', label: 'Secondary Contact', value: 'Secondary' },
-        { id: 'type-technical', label: 'Technical Contact', value: 'Technical' },
-        { id: 'type-financial', label: 'Financial Contact', value: 'Financial' },
-        { id: 'type-executive', label: 'Executive Contact', value: 'Executive' }
+        { id: 'type-executive', label: 'Executive', value: 'Executive', selected: false },
+        { id: 'type-technical', label: 'Technical', value: 'Technical', selected: false },
+        { id: 'type-financial', label: 'Financial', value: 'Financial', selected: false }
       ]
     },
     {
       id: 'jobTitle',
-      title: 'Job Title',
-      label: 'Job Title',
+      title: 'Job Title', // Changed from label to title
       filters: [
-        { id: 'title-ceo', label: 'CEO', value: 'CEO' },
-        { id: 'title-cto', label: 'CTO', value: 'CTO' },
-        { id: 'title-manager', label: 'Manager', value: 'Manager' },
-        { id: 'title-director', label: 'Director', value: 'Director' },
-        { id: 'title-analyst', label: 'Analyst', value: 'Analyst' },
-        { id: 'title-consultant', label: 'Consultant', value: 'Consultant' }
+        { id: 'title-ceo', label: 'CEO', value: 'CEO', selected: false },
+        { id: 'title-cto', label: 'CTO', value: 'CTO', selected: false },
+        { id: 'title-manager', label: 'Manager', value: 'Manager', selected: false },
+        { id: 'title-director', label: 'Director', value: 'Director', selected: false },
+        { id: 'title-analyst', label: 'Analyst', value: 'Analyst', selected: false }
       ]
     }
   ], []);

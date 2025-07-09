@@ -1,19 +1,59 @@
+import { useCallback } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCallback } from 'react';
 
 export interface OpportunityQueryVariables {
-  id?: string;
   offset?: number;
   limit?: number;
-  search?: string;
-  sourceApp?: string;
-  orderBy?: any[];
   where?: any;
+  orderBy?: any;
 }
 
-export interface OpportunityDataResponse {
-  Opportunity: any[];
+export interface OpportunityData {
+  id: string;
+  name: string;
+  estimatedAmount: number;
+  winningChance: number;
+  stage: string;
+  status: string;
+  closeDate: string;
+  notesSummary: string; // Changed from description to notesSummary
+  salesPipeline: {
+    id: string;
+    value: string;
+    code: string;
+  };
+  salesPipelineStage: {
+    id: string;
+    value: string;
+    code: string;
+  };
+  opportunityStatus: {
+    id: string;
+    value: string;
+    code: string;
+  };
+  account: {
+    id: string;
+    name: string;
+  };
+  ownerEmployee: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+  currency: {
+    id: string;
+    value: string;
+    code: string;
+  };
+  lastInteraction: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GetOpportunitiesResponse {
+  Opportunity: OpportunityData[];
   OpportunityAggregate: {
     aggregate: {
       count: number;
@@ -21,140 +61,75 @@ export interface OpportunityDataResponse {
   };
 }
 
-export const GET_OPPORTUNITIES_DATA = (): string => {
-  return `
-    query GetOpportunities($offset: Int!, $limit: Int!, $orderBy: [OpportunityOrderBy!]!, $where: OpportunityBoolExp!) {
-      Opportunity(
-        offset: $offset, 
-        limit: $limit, 
-        orderBy: $orderBy,
-        where: $where
-      ) {
+export const GET_OPPORTUNITIES_DATA = `
+  query GetOpportunities(
+    $where: OpportunityBoolExp
+    $limit: Int 
+    $offset: Int
+    $orderBy: [OpportunityOrderBy!]
+  ) { 
+    Opportunity(
+      where: $where 
+      limit: $limit 
+      offset: $offset
+      orderBy: $orderBy
+    ) {
+      id
+      name
+      estimatedAmount
+      winningChance
+      stage
+      status
+      closeDate
+      notesSummary
+      salesPipeline {
+        id
+        value
+        code
+      }
+      salesPipelineStage {
+        id
+        value
+        code
+      }
+      opportunityStatus {
+        id
+        value
+        code
+      }
+      account {
         id
         name
-        description
-        estimatedAmount
-        winningChance
-        closeDate
-        stage
-        salesPipeline {
-          id
-          value
-          code
-        }
-        salesPipelineStage {
-          id
-          value
-          code
-        }
-        salesOpportunityStatus {
-          id
-          value
-          code
-        }
-        salesLeadSource {
-          id
-          value
-          code
-        }
-        currency {
-          id
-          value
-          code
-        }
-        account {
-          id
-          name
-        }
-        accountId
-        ownerEmployee {
-          id
-          firstName
-          lastName
-          displayName
-          pictureThumbnail
-        }
-        sourceApp
-        createdAt
-        updatedAt
       }
-      OpportunityAggregate(where: $where) {
-        aggregate {
-          count
-        }
-      }
-    }
-  `;
-};
-
-export const GET_OPPORTUNITY_BY_ID = (): string => {
-  return `
-    query GetOpportunityById($id: uuid!) {
-      Opportunity(where: { id: { _eq: $id } }) {
+      ownerEmployee {
         id
-        name
-        description
-        estimatedAmount
-        winningChance
-        closeDate
-        stage
-        salesPipeline {
-          id
-          value
-          code
-        }
-        salesPipelineStage {
-          id
-          value
-          code
-        }
-        salesOpportunityStatus {
-          id
-          value
-          code
-        }
-        salesLeadSource {
-          id
-          value
-          code
-        }
-        currency {
-          id
-          value
-          code
-        }
-        account {
-          id
-          name
-        }
-        accountId
-        ownerEmployee {
-          id
-          firstName
-          lastName
-          displayName
-          pictureThumbnail
-        }
-        sourceApp
-        createdAt
-        updatedAt
+        firstName
+        lastName
+      }
+      currency {
+        id
+        value
+        code
+      }
+      lastInteraction
+      createdAt
+      updatedAt
+    }
+    OpportunityAggregate(where: $where) {
+      aggregate {
+        count
       }
     }
-  `;
-};
+  }
+`;
 
 export const useGetOpportunitiesData = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchOpportunitiesData = useCallback(async (variables: OpportunityQueryVariables = {}) => {
-    const query = GET_OPPORTUNITIES_DATA();
+    const query = GET_OPPORTUNITIES_DATA;
     try {
-      const result = await graphqlClient.request<OpportunityDataResponse>(query, {
-        offset: variables.offset || 0,
-        limit: variables.limit || 20,
-        orderBy: variables.orderBy || [{ createdAt: 'DESC' }],
-        where: variables.where || { isDeleted: { _eq: false } }
-      });
+      const result = await graphqlClient.request<GetOpportunitiesResponse>(query, variables);
       return result;
     } catch (error) {
       console.error('Error fetching opportunities data:', error);
@@ -162,16 +137,5 @@ export const useGetOpportunitiesData = (context: BusinessAppContextProps) => {
     }
   }, [graphqlClient]);
 
-  const fetchOpportunityById = useCallback(async (id: string) => {
-    const query = GET_OPPORTUNITY_BY_ID();
-    try {
-      const result = await graphqlClient.request<{ Opportunity: any[] }>(query, { id });
-      return result.Opportunity[0] || null;
-    } catch (error) {
-      console.error('Error fetching opportunity by ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
-
-  return { fetchOpportunitiesData, fetchOpportunityById };
+  return { fetchOpportunitiesData };
 }; 

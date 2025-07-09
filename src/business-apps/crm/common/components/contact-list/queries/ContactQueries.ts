@@ -1,19 +1,53 @@
+import { useCallback } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCallback } from 'react';
 
 export interface ContactQueryVariables {
-  id?: string;
   offset?: number;
   limit?: number;
-  search?: string;
-  sourceApp?: string;
-  orderBy?: any[];
   where?: any;
+  orderBy?: any;
 }
 
-export interface ContactDataResponse {
-  Contact: any[];
+export interface ContactData {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  jobTitle: string;
+  linkedinUrl?: string;
+  xingUrl?: string;
+  bio?: string;
+  contactRole?: string;
+  contactType?: string;
+  academicTitle?: {
+    id: string;
+    value: string;
+  };
+  updatedAt?: string;
+  createdAt?: string;
+  accountId?: string;
+  account?: {
+    name?: string;
+    id?: string;
+  };
+  ownerEmployee?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    displayName?: string;
+    fullName?: string;
+    employeePosition?: {
+      company?: {
+        name?: string;
+      };
+    };
+  };
+}
+
+export interface GetContactsResponse {
+  Contact: ContactData[];
   ContactAggregate: {
     aggregate: {
       count: number;
@@ -21,110 +55,69 @@ export interface ContactDataResponse {
   };
 }
 
-export const GET_CONTACTS_DATA = (): string => {
-  return `
-    query GetContacts($offset: Int!, $limit: Int!, $orderBy: [ContactOrderBy!]!, $where: ContactBoolExp!) {
-      Contact(
-        offset: $offset, 
-        limit: $limit, 
-        orderBy: $orderBy,
-        where: $where
-      ) {
+export const GET_CONTACTS_DATA = `
+  query GetContacts(
+    $where: ContactBoolExp
+    $limit: Int 
+    $offset: Int
+    $orderBy: [ContactOrderBy!]
+  ) {
+    Contact(
+      where: $where 
+      limit: $limit 
+      offset: $offset
+      orderBy: $orderBy
+    ) {
+      id
+      firstName
+      lastName
+      email
+      phone
+      jobTitle
+      linkedinUrl
+      xingUrl
+      bio
+      contactRole
+      contactType
+      academicTitle {
+        id
+        value
+      }
+      updatedAt
+      createdAt
+      accountId
+      account {
+        name
+        id
+      }
+      ownerEmployee {
         id
         firstName
         lastName
-        email
-        phone
-        jobTitle
-        bio
-        linkedinUrl
-        xingUrl
-        birthDate
-        contactRole
-        contactType
-        academicTitle {
-          id
-          value
-          code
-        }
-        account {
-          id
-          name
-        }
-        accountId
-        ownerEmployee {
-          id
-          firstName
-          lastName
-          displayName
-          pictureThumbnail
-        }
-        sourceApp
-        createdAt
-        updatedAt
-      }
-      ContactAggregate(where: $where) {
-        aggregate {
-          count
+        displayName
+        fullName
+        employeePosition {
+          company {
+            name
+          }
         }
       }
     }
-  `;
-};
-
-export const GET_CONTACT_BY_ID = (variables: { id: string }): string => {
-  return `
-    query GetContactById($id: uuid!) {
-      Contact(where: { id: { _eq: $id } }) {
-        id
-        firstName
-        lastName
-        email
-        phone
-        jobTitle
-        bio
-        linkedinUrl
-        xingUrl
-        birthDate
-        contactRole
-        contactType
-        academicTitle {
-          id
-          value
-          code
-        }
-        account {
-          id
-          name
-        }
-        accountId
-        ownerEmployee {
-          id
-          firstName
-          lastName
-          displayName
-          pictureThumbnail
-        }
-        sourceApp
-        createdAt
-        updatedAt
+    ContactAggregate(where: $where) {
+      aggregate {
+        count
       }
     }
-  `;
-};
+  }
+`;
 
 export const useGetContactsData = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchContactsData = useCallback(async (variables: ContactQueryVariables = {}) => {
-    const query = GET_CONTACTS_DATA(variables);
+    const query = GET_CONTACTS_DATA;
     try {
-      const result = await graphqlClient.request<ContactDataResponse>(query, {
-        offset: variables.offset || 0,
-        limit: variables.limit || 20,
-        orderBy: variables.orderBy || [{ createdAt: 'DESC' }],
-        where: variables.where || { isDeleted: { _eq: false } }
-      });
+      const result = await graphqlClient.request<GetContactsResponse>(query, variables);
       return result;
     } catch (error) {
       console.error('Error fetching contacts data:', error);
@@ -132,16 +125,5 @@ export const useGetContactsData = (context: BusinessAppContextProps) => {
     }
   }, [graphqlClient]);
 
-  const fetchContactById = useCallback(async (id: string) => {
-    const query = GET_CONTACT_BY_ID({ id });
-    try {
-      const result = await graphqlClient.request<{ Contact: any[] }>(query, { id });
-      return result.Contact[0] || null;
-    } catch (error) {
-      console.error('Error fetching contact by ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
-
-  return { fetchContactsData, fetchContactById };
+  return { fetchContactsData };
 }; 

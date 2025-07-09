@@ -1,17 +1,55 @@
 import { useState, useCallback } from 'react';
 import { Contact, UseContactListDataReturn } from '../types';
+import { useGetContactsData, ContactData } from '../queries/ContactQueries';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface UseContactListDataParams {
   search?: string;
   sortField: string;
   sortOrder: 'ASC' | 'DESC';
-  accessToken: string;
+  context: BusinessAppContextProps;
   sourceApp?: string;
   contactTypes?: string[];
   jobTitles?: string[];
   createdAfter?: string;
   createdBefore?: string;
 }
+
+const transformContactData = (apiContact: ContactData): Contact => {
+  return {
+    id: apiContact.id,
+    firstName: apiContact.firstName || '',
+    lastName: apiContact.lastName || '',
+    email: apiContact.email || '',
+    phone: apiContact.phone || '',
+    jobTitle: apiContact.jobTitle || '',
+    bio: apiContact.bio || '',
+    linkedinUrl: apiContact.linkedinUrl || '',
+    contactRole: apiContact.contactRole || '',
+    contactType: apiContact.contactType || '',
+    academicTitle: apiContact.academicTitle ? {
+      id: apiContact.academicTitle.id,
+      value: apiContact.academicTitle.value
+    } : undefined,
+    account: apiContact.account ? {
+      id: apiContact.account.id || '',
+      name: apiContact.account.name || ''
+    } : undefined,
+    accountId: apiContact.accountId || '',
+    ownerEmployee: apiContact.ownerEmployee ? {
+      id: apiContact.ownerEmployee.id,
+      firstName: apiContact.ownerEmployee.firstName || '',
+      lastName: apiContact.ownerEmployee.lastName || '',
+      displayName: apiContact.ownerEmployee.displayName || 
+        apiContact.ownerEmployee.fullName ||
+        `${apiContact.ownerEmployee.firstName} ${apiContact.ownerEmployee.lastName}`,
+      pictureThumbnail: undefined
+    } : undefined,
+    sourceApp: '',
+    createdAt: apiContact.createdAt || '',
+    updatedAt: apiContact.updatedAt || ''
+  };
+};
 
 export const useContactListData = (params: UseContactListDataParams): UseContactListDataReturn => {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -20,8 +58,10 @@ export const useContactListData = (params: UseContactListDataParams): UseContact
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
 
+  const { fetchContactsData } = useGetContactsData(params.context);
+
   const loadPage = useCallback(async (page: number, pageSize = 20, additionalFilters?: any) => {
-    if (!params.accessToken) {
+    if (!params.context.accessToken) {
       console.warn('No access token provided for contact data loading');
       return;
     }
@@ -30,52 +70,94 @@ export const useContactListData = (params: UseContactListDataParams): UseContact
     setError(null);
 
     try {
-      // Mock data for now - will be replaced with actual GraphQL queries
-      const mockContacts: Contact[] = Array.from({ length: pageSize }, (_, index) => ({
-        id: `contact-${page}-${index + 1}`,
-        firstName: `Contact${(page - 1) * pageSize + index + 1}`,
-        lastName: 'Person',
-        email: `contact${(page - 1) * pageSize + index + 1}@example.com`,
-        phone: `+1-555-${String(100 + index).padStart(3, '0')}-0000`,
-        jobTitle: ['CEO', 'CTO', 'Manager', 'Director', 'Analyst', 'Consultant'][index % 6],
-        bio: `Professional with extensive experience in ${['Technology', 'Finance', 'Healthcare', 'Manufacturing', 'Retail'][index % 5]}.`,
-        linkedinUrl: `https://linkedin.com/in/contact${(page - 1) * pageSize + index + 1}`,
-        contactRole: ['Primary', 'Secondary', 'Technical'][index % 3],
-        contactType: ['Executive', 'Technical', 'Financial'][index % 3],
-        academicTitle: index % 3 === 0 ? {
-          id: `title-${index}`,
-          value: ['Dr.', 'Prof.', 'MBA'][index % 3]
-        } : undefined,
-        account: index % 2 === 0 ? {
-          id: `account-${index}`,
-          name: `Account ${index + 1}`
-        } : undefined,
-        accountId: index % 2 === 0 ? `account-${index}` : undefined,
-        ownerEmployee: {
-          id: `employee-${index}`,
-          firstName: `Owner${index}`,
-          lastName: 'Employee',
-          displayName: `Owner${index} Employee`,
-          pictureThumbnail: undefined
-        },
-        sourceApp: params.sourceApp,
-        createdAt: new Date(Date.now() - index * 24 * 60 * 60 * 1000).toISOString(),
-        updatedAt: new Date().toISOString()
-      }));
+      const offset = (page - 1) * pageSize;
+      
+      // Build where conditions
+      const whereCondition: any = {
+        isDeleted: { _eq: false }
+      };
 
-      setContacts(mockContacts);
-      setTotal(params.sourceApp === 'CRM' ? 89 : 12); // Mock totals based on sourceApp
-      setHasMore(page * pageSize < (params.sourceApp === 'CRM' ? 89 : 12));
+      // Add search functionality
+      if (params.search?.trim()) {
+        const searchPattern = { _iregex: params.search.trim() };
+        whereCondition._or = [
+          { firstName: searchPattern },
+          { lastName: searchPattern },
+          { email: searchPattern },
+          { phone: searchPattern },
+          { jobTitle: searchPattern },
+          { account: { name: searchPattern } },
+          { ownerEmployee: { firstName: searchPattern } },
+          { ownerEmployee: { lastName: searchPattern } }
+        ];
+      }
+
+      // Add contact type filtering
+      if (params.contactTypes && params.contactTypes.length > 0) {
+        whereCondition.contactType = { _in: params.contactTypes };
+      }
+
+      // Add job title filtering
+      if (params.jobTitles && params.jobTitles.length > 0) {
+        whereCondition.jobTitle = { _in: params.jobTitles };
+      }
+
+      // Add date filtering
+      if (params.createdAfter) {
+        whereCondition.createdAt = { _gte: params.createdAfter };
+      }
+      if (params.createdBefore) {
+        if (whereCondition.createdAt) {
+          whereCondition.createdAt._lte = params.createdBefore;
+        } else {
+          whereCondition.createdAt = { _lte: params.createdBefore };
+        }
+      }
+
+      // Build order by condition
+      const orderBy: any = {};
+      if (params.sortField && params.sortOrder) {
+        if (params.sortField === 'firstName') {
+          orderBy.firstName = params.sortOrder;
+        } else if (params.sortField === 'lastName') {
+          orderBy.lastName = params.sortOrder;
+        } else if (params.sortField === 'email') {
+          orderBy.email = params.sortOrder;
+        } else if (params.sortField === 'jobTitle') {
+          orderBy.jobTitle = params.sortOrder;
+        } else if (params.sortField === 'createdAt') {
+          orderBy.createdAt = params.sortOrder;
+        }
+      } else {
+        orderBy.createdAt = 'DESC';
+      }
+
+      const result = await fetchContactsData({
+        offset,
+        limit: pageSize,
+        where: whereCondition,
+        orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ createdAt: 'DESC' }]
+      });
+
+      if (result?.Contact) {
+        const transformedContacts = result.Contact.map(transformContactData);
+        setContacts(transformedContacts);
+        
+        const totalCount = result.ContactAggregate?.aggregate?.count || 0;
+        setTotal(totalCount);
+        setHasMore(offset + pageSize < totalCount);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
+      setError(err instanceof Error ? err : new Error('Failed to load contacts'));
+      console.error('Error loading contacts:', err);
     } finally {
       setLoading(false);
     }
-  }, [params.accessToken, params.sourceApp, params.search, params.sortField, params.sortOrder, params.contactTypes, params.jobTitles, params.createdAfter, params.createdBefore]);
+  }, [fetchContactsData, params.search, params.sortField, params.sortOrder, params.contactTypes, params.jobTitles, params.createdAfter, params.createdBefore, params.context.accessToken]);
 
   const loadMore = useCallback(() => {
-    // Load more functionality for infinite scroll
     console.log('Load more contacts requested');
+    // Implementation for infinite scroll if needed
   }, []);
 
   const retry = useCallback(() => {

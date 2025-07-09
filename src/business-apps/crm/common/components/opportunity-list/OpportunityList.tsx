@@ -21,7 +21,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   const locale = getCurrentActiveUserLocale();
   
   // State management
-  const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
+  const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [sortField, setSortField] = useState('createdAt');
@@ -37,7 +37,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
     search: appliedFilters.search,
     sortField,
     sortOrder,
-    accessToken: context.accessToken,
+    context: context,
     sourceApp,
     stages: appliedFilters.stages,
     createdAfter: appliedFilters.createdAfter,

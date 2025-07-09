@@ -101,6 +101,10 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
   };
 
   const handleTabChange = (key: string) => {
+    // Prevent deselection - if key is empty or same as current, ignore the change
+    if (!key || key === activeTab) {
+      return;
+    }
     setActiveTab(key);
     updateUrl(key);
   };

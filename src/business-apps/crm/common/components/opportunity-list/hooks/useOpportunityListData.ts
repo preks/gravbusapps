@@ -1,11 +1,13 @@
 import { useState, useCallback } from 'react';
 import { Opportunity, UseOpportunityListDataReturn } from '../types';
+import { useGetOpportunitiesData, OpportunityData } from '../queries/OpportunityQueries';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface UseOpportunityListDataParams {
   search?: string;
   sortField: string;
   sortOrder: 'ASC' | 'DESC';
-  accessToken: string;
+  context: BusinessAppContextProps;
   sourceApp?: string;
   stages?: string[];
   winningChanceRanges?: Array<{ min?: number; max?: number }>;
@@ -14,6 +16,59 @@ interface UseOpportunityListDataParams {
   createdBefore?: string;
 }
 
+const transformOpportunityData = (apiOpportunity: OpportunityData): Opportunity => {
+  return {
+    id: apiOpportunity.id,
+    name: apiOpportunity.name || '',
+    description: apiOpportunity.description || '',
+    estimatedAmount: apiOpportunity.estimatedAmount || 0,
+    winningChance: apiOpportunity.winningChance || 0,
+    closeDate: apiOpportunity.closeDate || '',
+    stage: apiOpportunity.stage || apiOpportunity.salesPipelineStage?.value || '',
+    salesPipeline: apiOpportunity.salesPipeline ? {
+      id: apiOpportunity.salesPipeline.id,
+      value: apiOpportunity.salesPipeline.value,
+      code: apiOpportunity.salesPipeline.code
+    } : { id: '', value: '', code: '' },
+    salesPipelineStage: apiOpportunity.salesPipelineStage ? {
+      id: apiOpportunity.salesPipelineStage.id,
+      value: apiOpportunity.salesPipelineStage.value,
+      code: apiOpportunity.salesPipelineStage.code
+    } : { id: '', value: '', code: '' },
+    salesOpportunityStatus: apiOpportunity.salesOpportunityStatus ? {
+      id: apiOpportunity.salesOpportunityStatus.id,
+      value: apiOpportunity.salesOpportunityStatus.value,
+      code: apiOpportunity.salesOpportunityStatus.code
+    } : { id: '', value: '', code: '' },
+    salesLeadSource: apiOpportunity.salesLeadSource ? {
+      id: apiOpportunity.salesLeadSource.id,
+      value: apiOpportunity.salesLeadSource.value,
+      code: apiOpportunity.salesLeadSource.code
+    } : { id: '', value: '', code: '' },
+    currency: apiOpportunity.currency ? {
+      id: apiOpportunity.currency.id,
+      value: apiOpportunity.currency.value,
+      code: apiOpportunity.currency.code
+    } : { id: '', value: 'USD', code: 'USD' },
+    account: apiOpportunity.account ? {
+      id: '', // Account ID not available in this structure
+      name: apiOpportunity.account.name
+    } : undefined,
+    accountId: '', // Not available in this structure
+    ownerEmployee: apiOpportunity.ownerEmployee ? {
+      id: apiOpportunity.ownerEmployee.id,
+      firstName: apiOpportunity.ownerEmployee.firstName || '',
+      lastName: apiOpportunity.ownerEmployee.lastName || '',
+      displayName: apiOpportunity.ownerEmployee.displayName || 
+        `${apiOpportunity.ownerEmployee.firstName} ${apiOpportunity.ownerEmployee.lastName}`,
+      pictureThumbnail: undefined
+    } : undefined,
+    sourceApp: '',
+    createdAt: apiOpportunity.createdAt,
+    updatedAt: apiOpportunity.updatedAt || ''
+  };
+};
+
 export const useOpportunityListData = (params: UseOpportunityListDataParams): UseOpportunityListDataReturn => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [total, setTotal] = useState(0);
@@ -21,8 +76,10 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
 
+  const { fetchOpportunitiesData } = useGetOpportunitiesData(params.context);
+
   const loadPage = useCallback(async (page: number, pageSize = 20, additionalFilters?: any) => {
-    if (!params.accessToken) {
+    if (!params.context.accessToken) {
       console.warn('No access token provided for opportunity data loading');
       return;
     }
@@ -31,70 +88,132 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
     setError(null);
 
     try {
-      // Mock data for now - will be replaced with actual GraphQL queries
-      const mockOpportunities: Opportunity[] = Array.from({ length: pageSize }, (_, index) => ({
-        id: `opportunity-${page}-${index + 1}`,
-        name: `Opportunity ${(page - 1) * pageSize + index + 1}`,
-        description: `Strategic opportunity for ${['Technology', 'Finance', 'Healthcare', 'Manufacturing', 'Retail'][index % 5]} sector`,
-        estimatedAmount: Math.round((Math.random() * 500000 + 50000) * 100) / 100,
-        winningChance: Math.round(Math.random() * 100),
-        closeDate: new Date(Date.now() + Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        stage: ['Qualification', 'Needs Analysis', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'][index % 6],
-        salesPipeline: {
-          id: `pipeline-${index}`,
-          value: ['Standard Sales', 'Enterprise Sales', 'Partner Sales'][index % 3],
-          code: ['STANDARD', 'ENTERPRISE', 'PARTNER'][index % 3]
-        },
-        salesPipelineStage: {
-          id: `stage-${index}`,
-          value: ['Initial Contact', 'Discovery', 'Demo', 'Proposal'][index % 4],
-          code: ['INITIAL', 'DISCOVERY', 'DEMO', 'PROPOSAL'][index % 4]
-        },
-        salesOpportunityStatus: {
-          id: `status-${index}`,
-          value: ['Open', 'In Progress', 'Closed'][index % 3],
-          code: ['OPEN', 'IN_PROGRESS', 'CLOSED'][index % 3]
-        },
-        salesLeadSource: {
-          id: `source-${index}`,
-          value: ['Website', 'Referral', 'Cold Call', 'Trade Show'][index % 4],
-          code: ['WEBSITE', 'REFERRAL', 'COLD_CALL', 'TRADE_SHOW'][index % 4]
-        },
-        currency: {
-          id: `currency-${index}`,
-          value: ['USD', 'EUR', 'GBP'][index % 3],
-          code: ['USD', 'EUR', 'GBP'][index % 3]
-        },
-        account: index % 2 === 0 ? {
-          id: `account-${index}`,
-          name: `Account ${index + 1}`
-        } : undefined,
-        accountId: index % 2 === 0 ? `account-${index}` : undefined,
-        ownerEmployee: {
-          id: `employee-${index}`,
-          firstName: `Owner${index}`,
-          lastName: 'Employee',
-          displayName: `Owner${index} Employee`,
-          pictureThumbnail: undefined
-        },
-        sourceApp: params.sourceApp,
-        createdAt: new Date(Date.now() - index * 24 * 60 * 60 * 1000).toISOString(),
-        updatedAt: new Date().toISOString()
-      }));
+      const offset = (page - 1) * pageSize;
+      
+      // Build where conditions
+      const whereCondition: any = {
+        isDeleted: { _eq: false }
+      };
 
-      setOpportunities(mockOpportunities);
-      setTotal(params.sourceApp === 'CRM' ? 157 : 23); // Mock totals based on sourceApp
-      setHasMore(page * pageSize < (params.sourceApp === 'CRM' ? 157 : 23));
+      // Add search functionality
+      if (params.search?.trim()) {
+        const searchPattern = { _iregex: params.search.trim() };
+        const isNumber = !isNaN(Number(params.search));
+        
+        const searchConditions: any[] = [
+          { name: searchPattern },
+          { description: searchPattern },
+          { account: { name: searchPattern } },
+          { ownerEmployee: { firstName: searchPattern } },
+          { ownerEmployee: { lastName: searchPattern } },
+          { ownerEmployee: { displayName: searchPattern } }
+        ];
+        
+        // Add number-specific conditions if the search term can be parsed as a number
+        if (isNumber) {
+          const numericValue = Number(params.search);
+          searchConditions.push({ estimatedAmount: { _eq: numericValue } });
+          searchConditions.push({ winningChance: { _eq: numericValue } });
+        }
+        
+        whereCondition._or = searchConditions;
+      }
+
+      // Add stage filtering
+      if (params.stages && params.stages.length > 0) {
+        whereCondition._or = whereCondition._or || [];
+        whereCondition._or.push({ stage: { _in: params.stages } });
+        whereCondition._or.push({ salesPipelineStage: { value: { _in: params.stages } } });
+      }
+
+      // Add winning chance filtering
+      if (params.winningChanceRanges && params.winningChanceRanges.length > 0) {
+        const winningChanceConditions = params.winningChanceRanges.map(range => {
+          const condition: any = {};
+          if (range.min !== undefined) {
+            condition._gte = range.min;
+          }
+          if (range.max !== undefined) {
+            condition._lte = range.max;
+          }
+          return { winningChance: condition };
+        });
+        whereCondition._and = whereCondition._and || [];
+        whereCondition._and.push({ _or: winningChanceConditions });
+      }
+
+      // Add amount filtering
+      if (params.amountRanges && params.amountRanges.length > 0) {
+        const amountConditions = params.amountRanges.map(range => {
+          const condition: any = {};
+          if (range.min !== undefined) {
+            condition._gte = range.min;
+          }
+          if (range.max !== undefined) {
+            condition._lte = range.max;
+          }
+          return { estimatedAmount: condition };
+        });
+        whereCondition._and = whereCondition._and || [];
+        whereCondition._and.push({ _or: amountConditions });
+      }
+
+      // Add date filtering
+      if (params.createdAfter) {
+        whereCondition.createdAt = { _gte: params.createdAfter };
+      }
+      if (params.createdBefore) {
+        if (whereCondition.createdAt) {
+          whereCondition.createdAt._lte = params.createdBefore;
+        } else {
+          whereCondition.createdAt = { _lte: params.createdBefore };
+        }
+      }
+
+      // Build order by condition
+      const orderBy: any = {};
+      if (params.sortField && params.sortOrder) {
+        if (params.sortField === 'name') {
+          orderBy.name = params.sortOrder;
+        } else if (params.sortField === 'estimatedAmount') {
+          orderBy.estimatedAmount = params.sortOrder;
+        } else if (params.sortField === 'winningChance') {
+          orderBy.winningChance = params.sortOrder;
+        } else if (params.sortField === 'closeDate') {
+          orderBy.closeDate = params.sortOrder;
+        } else if (params.sortField === 'createdAt') {
+          orderBy.createdAt = params.sortOrder;
+        }
+      } else {
+        orderBy.createdAt = 'DESC';
+      }
+
+      const result = await fetchOpportunitiesData({
+        offset,
+        limit: pageSize,
+        where: whereCondition,
+        orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ createdAt: 'DESC' }]
+      });
+
+      if (result?.Opportunity) {
+        const transformedOpportunities = result.Opportunity.map(transformOpportunityData);
+        setOpportunities(transformedOpportunities);
+        
+        const totalCount = result.OpportunityAggregate?.aggregate?.count || 0;
+        setTotal(totalCount);
+        setHasMore(offset + pageSize < totalCount);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
+      setError(err instanceof Error ? err : new Error('Failed to load opportunities'));
+      console.error('Error loading opportunities:', err);
     } finally {
       setLoading(false);
     }
-  }, [params.accessToken, params.sourceApp, params.search, params.sortField, params.sortOrder, params.stages, params.winningChanceRanges, params.amountRanges, params.createdAfter, params.createdBefore]);
+  }, [fetchOpportunitiesData, params.search, params.sortField, params.sortOrder, params.stages, params.winningChanceRanges, params.amountRanges, params.createdAfter, params.createdBefore, params.context.accessToken]);
 
   const loadMore = useCallback(() => {
-    // Load more functionality for infinite scroll
     console.log('Load more opportunities requested');
+    // Implementation for infinite scroll if needed
   }, []);
 
   const retry = useCallback(() => {

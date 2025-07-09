@@ -22,7 +22,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
   const locale = getCurrentActiveUserLocale();
   
   // State management
-  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [selectedContactId, setSelectedContactId] = useState<string | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [sortField, setSortField] = useState('createdAt');
@@ -39,7 +39,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     search: appliedFilters.search,
     sortField,
     sortOrder,
-    accessToken: context.accessToken,
+    context: context,
     sourceApp,
     contactTypes: appliedFilters.contactTypes,
     jobTitles: appliedFilters.jobTitles,
@@ -81,10 +81,11 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     contactListData.loadPage(1, pageSize);
   }, [contactListData, pageSize]);
 
-  const handlePageChange = useCallback((page: number, size: number) => {
+  const handlePageChange = useCallback((page: number, pageSize?: number) => {
+    const targetPageSize = pageSize || 20;
     setCurrentPage(page);
-    setPageSize(size);
-    contactListData.loadPage(page, size);
+    setPageSize(targetPageSize);
+    contactListData.loadPage(page, targetPageSize);
   }, [contactListData]);
 
   const handleSearch = useCallback((searchTerm: string) => {

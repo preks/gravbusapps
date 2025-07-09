@@ -3,9 +3,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 export interface FilterGroup {
   id: string;
-  title: string;
-  label: string;
-  filters: Array<{ id: string; label: string; value: any }>;
+  title: string; // Changed from label to title to match DataFilterGroup
+  filters: Array<{ id: string; label: string; value: any; selected: boolean }>;
 }
 
 export interface OpportunityFilters {
@@ -31,15 +30,14 @@ export const useOpportunityFilters = (context: BusinessAppContextProps): Opportu
   const filterGroups: FilterGroup[] = useMemo(() => [
     {
       id: 'stage',
-      title: 'Stage',
-      label: 'Stage',
+      title: 'Stage', // Changed from label to title
       filters: [
-        { id: 'stage-qualification', label: 'Qualification', value: 'Qualification' },
-        { id: 'stage-needs-analysis', label: 'Needs Analysis', value: 'Needs Analysis' },
-        { id: 'stage-proposal', label: 'Proposal', value: 'Proposal' },
-        { id: 'stage-negotiation', label: 'Negotiation', value: 'Negotiation' },
-        { id: 'stage-closed-won', label: 'Closed Won', value: 'Closed Won' },
-        { id: 'stage-closed-lost', label: 'Closed Lost', value: 'Closed Lost' }
+        { id: 'stage-qualification', label: 'Qualification', value: 'Qualification', selected: false },
+        { id: 'stage-needs-analysis', label: 'Needs Analysis', value: 'Needs Analysis', selected: false },
+        { id: 'stage-proposal', label: 'Proposal', value: 'Proposal', selected: false },
+        { id: 'stage-negotiation', label: 'Negotiation', value: 'Negotiation', selected: false },
+        { id: 'stage-closed-won', label: 'Closed Won', value: 'Closed Won', selected: false },
+        { id: 'stage-closed-lost', label: 'Closed Lost', value: 'Closed Lost', selected: false }
       ]
     },
     {
@@ -47,10 +45,10 @@ export const useOpportunityFilters = (context: BusinessAppContextProps): Opportu
       title: 'Winning Chance',
       label: 'Winning Chance',
       filters: [
-        { id: 'chance-high', label: 'High (75-100%)', value: { min: 75, max: 100 } },
-        { id: 'chance-medium', label: 'Medium (50-74%)', value: { min: 50, max: 74 } },
-        { id: 'chance-low', label: 'Low (25-49%)', value: { min: 25, max: 49 } },
-        { id: 'chance-very-low', label: 'Very Low (0-24%)', value: { min: 0, max: 24 } }
+        { id: 'chance-high', label: 'High (75-100%)', value: { min: 75, max: 100 }, selected: false },
+        { id: 'chance-medium', label: 'Medium (50-74%)', value: { min: 50, max: 74 }, selected: false },
+        { id: 'chance-low', label: 'Low (25-49%)', value: { min: 25, max: 49 }, selected: false },
+        { id: 'chance-very-low', label: 'Very Low (0-24%)', value: { min: 0, max: 24 }, selected: false }
       ]
     },
     {
@@ -58,10 +56,10 @@ export const useOpportunityFilters = (context: BusinessAppContextProps): Opportu
       title: 'Deal Size',
       label: 'Deal Size',
       filters: [
-        { id: 'amount-large', label: 'Large (>$100K)', value: { min: 100000 } },
-        { id: 'amount-medium', label: 'Medium ($50K-$100K)', value: { min: 50000, max: 100000 } },
-        { id: 'amount-small', label: 'Small ($10K-$50K)', value: { min: 10000, max: 50000 } },
-        { id: 'amount-micro', label: 'Micro (<$10K)', value: { max: 10000 } }
+        { id: 'amount-large', label: 'Large (>$100K)', value: { min: 100000 }, selected: false },
+        { id: 'amount-medium', label: 'Medium ($50K-$100K)', value: { min: 50000, max: 100000 }, selected: false },
+        { id: 'amount-small', label: 'Small ($10K-$50K)', value: { min: 10000, max: 50000 }, selected: false },
+        { id: 'amount-micro', label: 'Micro (<$10K)', value: { max: 10000 }, selected: false }
       ]
     }
   ], []);

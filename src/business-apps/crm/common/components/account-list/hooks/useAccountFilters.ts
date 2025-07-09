@@ -3,8 +3,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 export interface FilterGroup {
   id: string;
-  label: string;
-  filters: Array<{ id: string; label: string; value: any }>;
+  title: string; // Changed from label to title to match DataFilterGroup
+  filters: Array<{ id: string; label: string; value: any; selected: boolean }>;
 }
 
 export interface AccountFilters {
@@ -30,23 +30,23 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
   const filterGroups: FilterGroup[] = useMemo(() => [
     {
       id: 'accountType',
-      label: 'Account Type',
+      title: 'Account Type', // Changed from label to title
       filters: [
-        { id: 'type-customer', label: 'Customer', value: 'Customer' },
-        { id: 'type-prospect', label: 'Prospect', value: 'Prospect' },
-        { id: 'type-partner', label: 'Partner', value: 'Partner' },
-        { id: 'type-competitor', label: 'Competitor', value: 'Competitor' }
+        { id: 'type-customer', label: 'Customer', value: 'Customer', selected: false },
+        { id: 'type-prospect', label: 'Prospect', value: 'Prospect', selected: false },
+        { id: 'type-partner', label: 'Partner', value: 'Partner', selected: false },
+        { id: 'type-competitor', label: 'Competitor', value: 'Competitor', selected: false }
       ]
     },
     {
       id: 'industry',
-      label: 'Industry',
+      title: 'Industry', // Changed from label to title
       filters: [
-        { id: 'industry-technology', label: 'Technology', value: 'Technology' },
-        { id: 'industry-finance', label: 'Finance', value: 'Finance' },
-        { id: 'industry-healthcare', label: 'Healthcare', value: 'Healthcare' },
-        { id: 'industry-manufacturing', label: 'Manufacturing', value: 'Manufacturing' },
-        { id: 'industry-retail', label: 'Retail', value: 'Retail' }
+        { id: 'industry-technology', label: 'Technology', value: 'Technology', selected: false },
+        { id: 'industry-finance', label: 'Finance', value: 'Finance', selected: false },
+        { id: 'industry-healthcare', label: 'Healthcare', value: 'Healthcare', selected: false },
+        { id: 'industry-manufacturing', label: 'Manufacturing', value: 'Manufacturing', selected: false },
+        { id: 'industry-retail', label: 'Retail', value: 'Retail', selected: false }
       ]
     }
   ], []);
