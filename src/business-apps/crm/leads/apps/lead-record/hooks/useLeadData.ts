@@ -139,8 +139,17 @@ export const useLeadData = (leadId: string, accessToken: string) => {
           id: entry.id,
           code: entry.code,
           value: entry.value,
+          alternativeCode: entry.alternativeCode,
         }));
-        setLeadStatuses(statusData);
+        
+        // Sort by alternativeCode in ascending order (1, 2, 3, etc.)
+        const sortedStatuses = statusData.sort((a, b) => {
+          const aCode = parseInt(a.alternativeCode || '999');
+          const bCode = parseInt(b.alternativeCode || '999');
+          return aCode - bCode;
+        });
+        
+        setLeadStatuses(sortedStatuses);
       }
     } catch (err) {
       console.error('Error fetching lead statuses:', err);
