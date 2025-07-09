@@ -28,6 +28,7 @@ interface LeadTableProps {
   onSortingChange: (field: string, order: 'ASC' | 'DESC') => void;
   selectedLeadId?: string;
   accessToken: string;
+  sourceApp?: string;
 }
 
 const DATA_TEST_ID_PREFIX = 'LeadTable';
@@ -52,7 +53,8 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   onPaginationChange,
   onSortingChange,
   selectedLeadId,
-  accessToken
+  accessToken,
+  sourceApp
 }) => {
   const { t } = useTranslation();
 
@@ -373,7 +375,8 @@ export const LeadTable: React.FC<LeadTableProps> = ({
             variant="primary"
             contextsArray={[FlowContextName.leadEntity]}
             externalContextData={{
-              leadId: record.id
+              leadId: record.id,
+              ...(sourceApp && { sourceApp })
             }}
             prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-lead`}
             accessToken={accessToken}

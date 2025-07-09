@@ -1,4 +1,4 @@
-import OpportunityDetail from './OpportunityDetail';
+import OpportunityRecord from './OpportunityRecord';
 
-export { OpportunityDetail };
-export default OpportunityDetail;
+export { OpportunityRecord };
+export default OpportunityRecord;

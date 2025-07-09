@@ -9,10 +9,10 @@ import {
   AllInvestmentsTab,
   AnalyticsTab
 } from './components';
-import { EquityRecord } from '@/business-apps/irm/investments/apps/equity-record';
-import { RealEstateRecord } from '@/business-apps/irm/investments/apps/real-estate-record';
-import { PrivateEquityRecord } from '@/business-apps/irm/investments/apps/private-equity-record';
-import { LiquidFundRecord } from '@/business-apps/irm/investments/apps/liquid-funds-record';
+import { EquityRecord } from '@/business-apps/crm/investments/apps/equity-record';
+import { RealEstateRecord } from '@/business-apps/crm/investments/apps/real-estate-record';
+import { PrivateEquityRecord } from '@/business-apps/crm/investments/apps/private-equity-record';
+import { LiquidFundRecord } from '@/business-apps/crm/investments/apps/liquid-funds-record';
 
 /**
  * Main dashboard component for IRM Investments management
