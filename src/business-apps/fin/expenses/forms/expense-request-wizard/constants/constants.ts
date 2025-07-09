@@ -29,3 +29,11 @@ export const TripDirectionDefaultValue = {
     go: "GO",
     back: "BACK"
 };
+
+
+export const TRIP_REQUEST_TYPE = "ExpenseRequestType:v1:TRIP"
+
+export const ABSENCE_STATUS = "APPROVED"
+
+export const EXCLUDED_STATUSES= ["DISCARDED"]
+

@@ -1,0 +1,38 @@
+.gba\:dateTimeContainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.gba\:warningMessageRow {
+  width: 100%;
+  margin-top: 8px;
+  margin-bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  grid-column: 1 / -1;
+}
+
+/* Alert component styling */
+
+.gba\:alertMessage {
+  margin-bottom: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+/* Override ant design alert styles to match our design */
+.gba\:alertMessage.ant-alert {
+  border-radius: 4px;
+}
+
+.gba\:alertMessage.ant-alert-error {
+  background-color: rgba(255, 77, 79, 0.1);
+  border: none;
+}
+
+.gba\:alertMessage.ant-alert-warning,
+.gba\:alertMessage.ant-alert-info {
+  background-color: rgba(250, 219, 20, 0.1);
+  border: none;
+}

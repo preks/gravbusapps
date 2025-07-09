@@ -28,6 +28,18 @@
 .gba\:locationContainer {
   border-radius: 8px;
   overflow: hidden;
+}
+
+/* Warning message styles */
+.gba\:warningMessageRow {
+  width: 100%;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+
+.gba\:locationContainer {
   background-color: #ffffff;
 }
 
@@ -97,6 +109,15 @@
   bottom: 0;
   width: 1px;
   background-color: #000000;
+}
+
+/* Warning message styling */
+.gba\:warningMessage {
+  color: #000000;
+  font-size: 14px;
+  padding-top: 8px;
+  display: flex;
+  align-items: center;
 }
 
 /* Remove button styling */

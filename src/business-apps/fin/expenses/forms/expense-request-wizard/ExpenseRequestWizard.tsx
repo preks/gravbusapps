@@ -368,7 +368,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                   const saveEvent = new CustomEvent('expense-request-save-trip');
                   document.dispatchEvent(saveEvent);
                 } else {
-                  console.log('Save clicked for screen:', currentScreen);
+                  // Handle save click for current screen
                 }
               }}
             >

@@ -11,11 +11,13 @@ import LocationForm from "../components/LocationForm/LocationForm";
 import "./TripScreen.css";
 import { DestinationLimit, LocationData } from "../utils/types";
 import { getMaxLimits, getMinLimits, getMinMaxLimits, validateAndSanitizeLocation } from "../utils/locationTimeUtils";
-import { getExpenseRulesDataQuery } from "../ExpenseRequestWizardQueries";
+import { getExpenseRulesDataQuery, getRequestsAbsences } from "../ExpenseRequestWizardQueries";
 import { useExpenseRequestWizardContext } from "../context/ExpenseRequestWizardContext";
 import { showToast } from "../../../utils/notificationUtils";
 import LoadScreen from "./LoadScreen";
 import { fetchEmployeeRule } from "../ExpenseRequestWizardQueries";
+import { formatDateTimeToISO, getOverlapWarningMessage } from '../utils/dateOverlapUtils';
+import { ABSENCE_STATUS, EXCLUDED_STATUSES, TRIP_REQUEST_TYPE } from "../constants/constants";
 
 /**
  * Address types enum
@@ -54,11 +56,330 @@ const TripScreen: React.FC<TripScreenProps> = (props) => {
   // Get userInfo from props
   const { userInfo } = props;
   
+  // Initial location data
+  const initialStartLocation: LocationData = {
+    id: "start-location",
+    name: "Start Location",
+    isAbroad: false,
+    location: "",
+    departureDate: undefined,
+    departureTime: undefined,
+    isCollapsed: false,
+    travelRegionRef: undefined,
+  };
+
+  const initialEndLocation: LocationData = {
+    id: "end-location",
+    name: "End Location",
+    isAbroad: false,
+    location: "",
+    departureDate: undefined,
+    departureTime: undefined,
+    isCollapsed: false,
+    travelRegionRef: undefined,
+  };
+  
+  // State for locations
+  const [startLocation, setStartLocation] = useState<LocationData>(initialStartLocation);
+  const [endLocation, setEndLocation] = useState<LocationData>(initialEndLocation);
+  
   // State for query data
   const [expenseRulesData, setExpenseRulesData] = useState<any>(null);
   
   // Track if start and end locations are synced
   const [locationsAreSynced, setLocationsAreSynced] = useState<boolean>(false);
+  
+  // State for warnings and errors
+  const [startLocationOverlap, setStartLocationOverlap] = useState<{ message: string, isError: boolean } | null>(null);
+  const [endLocationOverlap, setEndLocationOverlap] = useState<{ message: string, isError: boolean } | null>(null);
+  const [employeeRuleError, setEmployeeRuleError] = useState<string | null>(null);
+  const [ruleConflictError, setRuleConflictError] = useState<string | null>(null);
+  
+  // GraphQL client is already declared at the top of the component
+  
+  /**
+   * Validate employee rule when start date/time changes
+   * @param startDate - Start date
+   * @param startTime - Start time
+   */
+  const validateEmployeeRule = async (startDate: Date | undefined, startTime: Date | undefined) => {
+    // Clear any previous errors
+    setEmployeeRuleError(null);
+    setRuleConflictError(null);
+    
+    // Only proceed if we have a start date
+    if (!startDate) {
+      return true;
+    }
+    
+    // Get employee ID from userInfo.employeeDetails
+    const employeeId = userInfo?.employeeDetails?.employeeId;
+    
+    if (!accessToken || !employeeId) {
+      console.error('Missing required data for employee rule validation:', { 
+        hasAccessToken: !!accessToken, 
+        hasEmployeeId: !!employeeId
+      });
+      return false;
+    }
+    
+    try {
+      // Create ISO date string from date and time
+      let dateString = startDate.toISOString();
+      
+      // If time is provided, incorporate it into the date
+      if (startTime) {
+        const timeObj = new Date(startTime);
+        const dateObj = new Date(startDate);
+        dateObj.setHours(timeObj.getHours(), timeObj.getMinutes(), timeObj.getSeconds());
+        dateString = dateObj.toISOString();
+      }
+      
+      // Fetch employee rule
+      const ruleData = await fetchEmployeeRule(employeeId, dateString, accessToken);
+      
+      // If no rule data returned, show error
+      if (!ruleData) {
+        const errorMessage = getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_item.missing_expense_rule_message', 
+          'There is no rule set for your user, please reach out to your administrator.'
+        );
+        setEmployeeRuleError(errorMessage);
+        return false;
+      }
+      
+      // If we have rule data, update the employee rule ID
+      if (ruleData.id) {
+        setEmployeeRuleId(ruleData.id);
+        
+        // Check for rule conflicts
+        const hasConflict = await checkRuleConflicts(ruleData.id);
+        if (hasConflict) {
+          return false;
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error validating employee rule:', error);
+      const errorMessage = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_item.missing_expense_rule_message', 
+        'There is no rule set for your user, please reach out to your administrator.'
+      );
+      setEmployeeRuleError(errorMessage);
+      return false;
+    }
+  };
+  
+  /**
+   * Check for conflicts between the new rule and existing expense plan/items
+   * @param newRuleId - The new rule ID to check against
+   * @returns True if there's a conflict, false otherwise
+   */
+  const checkRuleConflicts = async (newRuleId: string): Promise<boolean> => {
+    // Clear any previous conflict error
+    setRuleConflictError(null);
+    
+    if (!expenseRequestData) {
+      return false;
+    }
+    
+    // Get request data
+    const requestValue = expenseRequestData.ExpenseRequestByPk;
+    if (!requestValue) {
+      return false;
+    }
+    
+    // Step 1: Check for conflicts with expense plan
+    if (requestValue.expensePlan) {
+      const planValue = requestValue.expensePlan;
+      
+      if (planValue.expenseRuleId && planValue.expenseRuleId !== newRuleId) {
+        // Rule conflict between request and plan
+        const errorMessage = getTranslationFromI18nKeyAndLabel(
+          'lowcoder:modify_expense_request.request_and_plan_rule_conflict_message', 
+          `The expense request uses the rule ${requestValue.code} ${requestValue.title}, but the expense plan uses the rule ${planValue.code} ${planValue.title}. They don't fit. Please reach out to your supervisor or expense expert.`,
+          {
+            codeRequest: requestValue.code,
+            nameRequest: requestValue.title,
+            codePlan: planValue.code,
+            namePlan: planValue.title,
+            interpolation: {
+              escapeValue: false
+            }
+          }
+        );
+        
+        setRuleConflictError(errorMessage);
+        return true;
+      }
+    }
+    
+    /**
+     * Merge two arrays of objects by ID, keeping the last occurrence of each ID
+     * @param array1 - First array
+     * @param array2 - Second array
+     * @returns Merged array with unique IDs
+     */
+    function mergeUniqueById<T extends { id: string }>(array1: T[], array2: T[]): T[] {
+      const map = new Map<string, T>();
+      [...array1, ...array2].forEach(item => map.set(item.id, item));
+      return Array.from(map.values());
+    }
+    
+    // Step 2: Combine and check expense items from both sources
+    
+    // Map items from expenseRequestData.ExpenseItem if available
+    const requestItems: Array<{id: string, code: string, title: string, ruleId: string}> = [];
+    if (expenseRequestData.ExpenseItem && Array.isArray(expenseRequestData.ExpenseItem)) {
+      expenseRequestData.ExpenseItem.forEach((item: any) => {
+        if (item) {
+          requestItems.push({
+            id: item.id,
+            code: item.code || '',
+            title: item.title || '',
+            ruleId: item.expenseRuleId || ''
+          });
+        }
+      });
+    }
+    
+    // Map items from additionalData
+    const additionalItems: Array<{id: string, code: string, title: string, ruleId: string}> = [];
+    if (additionalData?.psi_taskPayload?.initialParameters?.expenseItems && 
+        Array.isArray(additionalData.psi_taskPayload.initialParameters.expenseItems)) {
+      additionalData.psi_taskPayload.initialParameters.expenseItems.forEach((item: any) => {
+        additionalItems.push({
+          id: item.id,
+          code: item.code || '',
+          title: item.title || '',
+          ruleId: item.expenseRuleId || ''
+        });
+      });
+    }
+    
+    // Combine items using mergeUniqueById to avoid duplicates based on id
+    const items = mergeUniqueById(requestItems, additionalItems);
+    
+    // Check for rule conflicts in items
+    const mismatchedItem = items.find((item: {id: string, code: string, title: string, ruleId: string}) => item.ruleId && item.ruleId !== newRuleId);
+    
+    if (mismatchedItem) {
+      // Rule conflict between request and item
+      const errorMessage = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:modify_expense_request.request_and_item_rule_conflict_message', 
+        `The expense request uses the rule ${requestValue.code} ${requestValue.title}, but the expense item uses the rule ${mismatchedItem.code} ${mismatchedItem.title}. They don't fit. Please reach out to your supervisor or expense expert.`,
+        {
+          codeRequest: requestValue.code,
+          nameRequest: requestValue.title,
+          codeItem: mismatchedItem.code,
+          nameItem: mismatchedItem.title,
+          interpolation: {
+            escapeValue: false
+          }
+        }
+      );
+      
+      setRuleConflictError(errorMessage);
+      return true;
+    }
+    
+    return false;
+  };
+  
+  /**
+   * Check for absences and overlapping requests
+   * @param startDate - Start date
+   * @param startTime - Start time
+   * @param endDate - End date
+   * @param endTime - End time
+   * @param isEndLocation - Whether this is for end location (true) or start location (false)
+   */
+  const checkAbsencesAndRequests = async (
+    startDate: Date | undefined,
+    startTime: Date | undefined,
+    endDate: Date | undefined,
+    endTime: Date | undefined,
+    isEndLocation: boolean = false
+  ) => {
+    // Only proceed if we have at least start date
+    if (!startDate) {
+      return;
+    }
+    
+    // First validate employee rule if this is for start location
+    if (!isEndLocation) {
+      const isRuleValid = await validateEmployeeRule(startDate, startTime);
+      if (!isRuleValid) {
+        // If rule validation failed, don't continue with overlap checks
+        return;
+      }
+    }
+    
+    // Check for overlaps between dates
+    
+    // Get employee ID from userInfo.employeeDetails
+    const employeeId = userInfo?.employeeDetails?.employeeId;
+    
+    if (!accessToken || !employeeId || !expenseRequestData) {
+      console.error('Missing required data:', { 
+        hasAccessToken: !!accessToken, 
+        hasEmployeeId: !!employeeId, 
+        hasExpenseRequestData: !!expenseRequestData 
+      });
+      return;
+    }
+    
+    try {
+      // Get active user locale
+      const activeUserLocale = getCurrentActiveUserLocale();
+      
+      // Get expense request ID and plan ID
+      const expenseId = expenseRequestData?.ExpenseRequestByPk?.id;
+      const expensePlanId = expenseRequestData?.ExpenseRequestByPk?.expensePlanId;
+      
+      if (!expenseId) {
+        console.error('Missing expense ID');
+        return;
+      }
+      
+      // Format start and end date/time to ISO strings
+      const startTimeValue = formatDateTimeToISO(startDate, startTime, formatDateTimeToISO(endDate, endTime));
+      const endTimeValue = formatDateTimeToISO(endDate, endTime, formatDateTimeToISO(startDate, startTime));
+      
+      const variables = {
+        employeeId: employeeId,
+        requestType:TRIP_REQUEST_TYPE,
+        absenceStatus: ABSENCE_STATUS,
+        statusArray: EXCLUDED_STATUSES,
+        requestId: expenseId,
+        activeUserLocale,
+        startTimeValue,
+        endTimeValue
+      };
+      
+      // Execute GraphQL query to check for overlaps
+      
+      // Execute getRequestsAbsences query
+      try {
+        const response = await graphqlClient.request(getRequestsAbsences, variables);
+        
+        // Process the response to get warning message
+        const overlapWarning = getOverlapWarningMessage(response, expensePlanId);
+        
+        // Set the appropriate warning based on which location is being checked
+        if (isEndLocation) {
+          setEndLocationOverlap(overlapWarning);
+        } else {
+          setStartLocationOverlap(overlapWarning);
+        }
+      } catch (error) {
+        console.error('GraphQL request failed:', error);
+      }
+    } catch (error) {
+      console.error('Error checking absences and requests:', error);
+    }
+  };
   
   /**
    * Gets a valid locality from employee addresses
@@ -145,6 +466,8 @@ const TripScreen: React.FC<TripScreenProps> = (props) => {
       // Check if the new start location is the same as the end location
       setLocationsAreSynced(sanitizedLocation.location === endLocation.location);
     }
+    
+    // We now handle overlap checks directly in the LocationForm onUpdate handler
   };
   
   /**
@@ -163,6 +486,8 @@ const TripScreen: React.FC<TripScreenProps> = (props) => {
     
     // Check if the new end location is the same as the start location
     setLocationsAreSynced(sanitizedLocation.location === startLocation.location);
+    
+    // We don't need to call checkAbsencesAndRequests here as it's already called in the onUpdate handler
   };
   
   /**
@@ -238,28 +563,7 @@ const TripScreen: React.FC<TripScreenProps> = (props) => {
     }
   };
 
-  // State for locations
-  const [startLocation, setStartLocation] = useState<LocationData>({
-    id: "start-location",
-    name: "Start Location",
-    isAbroad: false,
-    location: "",
-    departureDate: undefined,
-    departureTime: undefined,
-    isCollapsed: false,
-    travelRegionRef: undefined,
-  });
-
-  const [endLocation, setEndLocation] = useState<LocationData>({
-    id: "end-location",
-    name: "End Location",
-    isAbroad: false,
-    location: "",
-    departureDate: undefined,
-    departureTime: undefined,
-    isCollapsed: false,
-    travelRegionRef: undefined,
-  });
+  // State for destinations
 
   const [destinations, setDestinations] = useState<LocationData[]>([
     {
@@ -373,6 +677,33 @@ const TripScreen: React.FC<TripScreenProps> = (props) => {
   };
 
   // No longer need summary generation since we're not showing summaries when collapsed
+  
+  // Check for overlaps when component mounts
+  useEffect(() => {
+    if (accessToken && userInfo?.employeeId && expenseRequestData) {
+      // Check start location overlaps
+      if (startLocation.departureDate || startLocation.departureTime) {
+        checkAbsencesAndRequests(
+          startLocation.departureDate,
+          startLocation.departureTime,
+          endLocation.departureDate,
+          endLocation.departureTime,
+          false // This is for start location
+        );
+      }
+      
+      // Check end location overlaps
+      if (endLocation.departureDate || endLocation.departureTime) {
+        checkAbsencesAndRequests(
+          startLocation.departureDate,
+          startLocation.departureTime,
+          endLocation.departureDate,
+          endLocation.departureTime,
+          true // This is for end location
+        );
+      }
+    }
+  }, [accessToken, userInfo, expenseRequestData, startLocation.departureDate, startLocation.departureTime, endLocation.departureDate, endLocation.departureTime]);
 
   // Fetch expense rules data when component mounts
   useEffect(() => {
@@ -471,15 +802,28 @@ const TripScreen: React.FC<TripScreenProps> = (props) => {
               <LocationForm
                 locationData={startLocation}
                 onUpdate={(field, value) => {
+                  // Create updated location object
+                  const updatedLocation = { ...startLocation, [field]: value };
+                  
                   // Update the start location with the new value
-                  handleStartLocationChange({ ...startLocation, [field]: value });
+                  handleStartLocationChange(updatedLocation);
                   
                   // After updating start location, validate all destinations
                   if (field === 'departureDate' || field === 'departureTime') {
+                    // Check for overlaps directly here
+                    checkAbsencesAndRequests(
+                      field === 'departureDate' ? value : startLocation.departureDate,
+                      field === 'departureTime' ? value : startLocation.departureTime,
+                      endLocation.departureDate,
+                      endLocation.departureTime,
+                      false // This is for start location
+                    );
+                    
+                    // Update destinations with new limits
                     setDestinations(prev => 
                       prev.map(destination => {
                         const limits = getMinMaxLimits(
-                          { ...startLocation, [field]: value },
+                          updatedLocation,
                           endLocation,
                           prev,
                           destination
@@ -491,6 +835,9 @@ const TripScreen: React.FC<TripScreenProps> = (props) => {
                 }}
                 dateTimeLimits={startLimits}
                 travelRegions={expenseRulesData?.AllowanceRegionRuleDetail || []}
+                overlapWarning={startLocationOverlap}
+                showFutureWarning={true}
+                errorMessage={employeeRuleError || ruleConflictError}
               />
             </LocationContainer>
           </div>
@@ -560,16 +907,29 @@ const TripScreen: React.FC<TripScreenProps> = (props) => {
               <LocationForm
                 locationData={endLocation}
                 onUpdate={(field, value) => {
+                  // Create updated location object
+                  const updatedLocation = { ...endLocation, [field]: value };
+                  
                   // Update the end location with the new value
-                  handleEndLocationChange({ ...endLocation, [field]: value });
+                  handleEndLocationChange(updatedLocation);
                   
                   // After updating end location, validate all destinations
                   if (field === 'departureDate' || field === 'departureTime') {
+                    // Check for overlaps directly here
+                    checkAbsencesAndRequests(
+                      startLocation.departureDate,
+                      startLocation.departureTime,
+                      field === 'departureDate' ? value : endLocation.departureDate,
+                      field === 'departureTime' ? value : endLocation.departureTime,
+                      true // This is for end location
+                    );
+                    
+                    // Update destinations with new limits
                     setDestinations(prev => 
                       prev.map(destination => {
                         const limits = getMinMaxLimits(
                           startLocation,
-                          { ...endLocation, [field]: value },
+                          updatedLocation,
                           prev,
                           destination
                         );
@@ -581,6 +941,8 @@ const TripScreen: React.FC<TripScreenProps> = (props) => {
                 showDateTimeFields={true}
                 dateTimeLimits={endLimits}
                 travelRegions={expenseRulesData?.AllowanceRegionRuleDetail || []}
+                overlapWarning={startLocation.departureDate && endLocation.departureDate ? (endLocationOverlap || startLocationOverlap) : null}
+                showFutureWarning={true}
               />
             </LocationContainer>
           </div>

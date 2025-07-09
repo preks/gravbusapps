@@ -362,9 +362,6 @@ export const handleTripSave = (
     return false;
   }
   
-  // Prepare trip data for saving - will be used in the actual save implementation
-  // const tripData = prepareTripData(startLocation, destinations, endLocation, expenseRulesData);
-  
   // Create detailed log object
   const logObject = createTripSaveLogObject(startLocation, endLocation, initialRequest, employeeRuleId);
   
