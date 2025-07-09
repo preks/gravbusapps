@@ -1,4 +1,5 @@
 import React from 'react';
+import { SCREEN_NAMES_ENUM } from '../constants/constants';
 
 interface ProgressIndicatorProps {
   currentScreen: string;
@@ -14,13 +15,13 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ currentScreen }) 
   // Determine which lines should be filled based on current screen
   const getLineStates = () => {
     switch (currentScreen) {
-      case 'trips':
+      case SCREEN_NAMES_ENUM.TRIPS_TAB:
         return [true, false, false, false]; // Trip Details: 1st line filled
-      case 'items':
+      case SCREEN_NAMES_ENUM.ITEMS_TAB:
         return [true, true, false, false]; // Expense Items: 1st and 2nd lines filled
-      case 'allowance':
+      case SCREEN_NAMES_ENUM.ALLOWANCE_TAB:
         return [true, true, true, false]; // Allowances: 1st, 2nd, and 3rd lines filled
-      case 'summary':
+      case SCREEN_NAMES_ENUM.SUMMARY_TAB:
         return [true, true, true, true]; // Summary: All lines filled
       default:
         return [false, false, false, false];

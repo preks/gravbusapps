@@ -18,6 +18,7 @@ import LoadScreen from "./LoadScreen";
 import { fetchEmployeeRule } from "../ExpenseRequestWizardQueries";
 import { formatDateTimeToISO, getOverlapWarningMessage } from '../utils/dateOverlapUtils';
 import { ABSENCE_STATUS, EXCLUDED_STATUSES, TRIP_REQUEST_TYPE } from "../constants/constants";
+import RejectionComment from "../components/RejectionComment";
 
 /**
  * Address types enum
@@ -777,6 +778,27 @@ const TripScreen: React.FC<TripScreenProps> = (props) => {
   if (!expenseRequestData) {
     return <LoadScreen accessToken={accessToken} userInfo={userInfo} />;
   }
+  
+  /**
+   * Get the latest rejection comment if available
+   * @returns Latest rejection comment or null
+   */
+  const getLatestRejectComment = () => {
+    if (expenseRequestData && 
+        expenseRequestData.ExpenseRequestByPk && 
+        expenseRequestData.ExpenseRequestByPk.expenseRequestComment) {
+      const filteredArray = expenseRequestData.ExpenseRequestByPk.expenseRequestComment
+        .filter((comment: any) => comment.commentType && comment.commentType.toUpperCase().includes("REJECT"));
+      
+      return filteredArray && filteredArray.length > 0 ? 
+        [...filteredArray].sort((a: any, b: any) => new Date(b.commentDate).getTime() - new Date(a.commentDate).getTime())[0] : 
+        null;
+    }
+    return null;
+  };
+  
+  // Get the latest rejection comment
+  const latestRejectComment = getLatestRejectComment();
 
   return (
     <div
@@ -788,6 +810,10 @@ const TripScreen: React.FC<TripScreenProps> = (props) => {
           className="gba:tripContent"
           data-testid="expense-request-wizard-trip-screen-content"
         >
+          {/* Rejection Comment */}
+          {latestRejectComment && (
+            <RejectionComment comment={latestRejectComment} />
+          )}
           {/* Start Location */}
           <div className="gba:locationContainerWrapper gba:withDivider" data-testid="start-location-wrapper">
             <LocationContainer

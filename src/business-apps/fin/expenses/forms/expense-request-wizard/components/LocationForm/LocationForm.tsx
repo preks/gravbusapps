@@ -142,7 +142,32 @@ const LocationForm: React.FC<LocationFormProps> = ({
       </div>
       
      
-      
+      {isAbroad && travelRegions && travelRegions.length > 0 && (
+        <div className="gba:inputContainer" data-testid={`${idPrefix}-travel-region-container`}>
+          <SelectField
+            allowClear
+            label={getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_request_wizard.trip_screen.travel_region_label",
+              "Travel Region"
+            )}
+            name={`${idPrefix}TravelRegion`}
+            data-testid={`${idPrefix}-travel-region-select`}
+            data={travelRegions.map((region) => ({
+              id: region.travelRegionRef,
+              name: getCatalogValue(region.travelRegion)
+            }))}
+            onChange={(value: any) => {
+              onUpdate('travelRegionRef', value?.value);
+            }}
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_request_wizard.trip_screen.travel_region_placeholder",
+              "Select Travel Region"
+            )}
+            value={travelRegionRef || undefined}
+            required={isAbroad}
+          />
+        </div>
+      )}
       {showDateTimeFields && (
         <>
           <div className="gba:dateTimeContainer" data-testid={`${idPrefix}-date-time-container`}>
@@ -228,32 +253,6 @@ const LocationForm: React.FC<LocationFormProps> = ({
         </>
       )}
 
-{isAbroad && travelRegions && travelRegions.length > 0 && (
-        <div className="gba:inputContainer" data-testid={`${idPrefix}-travel-region-container`}>
-          <SelectField
-            allowClear
-            label={getTranslationFromI18nKeyAndLabel(
-              "lowcoder:expense_request_wizard.trip_screen.travel_region_label",
-              "Travel Region"
-            )}
-            name={`${idPrefix}TravelRegion`}
-            data-testid={`${idPrefix}-travel-region-select`}
-            data={travelRegions.map((region) => ({
-              id: region.travelRegionRef,
-              name: getCatalogValue(region.travelRegion)
-            }))}
-            onChange={(value: any) => {
-              onUpdate('travelRegionRef', value?.value);
-            }}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              "lowcoder:expense_request_wizard.trip_screen.travel_region_placeholder",
-              "Select Travel Region"
-            )}
-            value={travelRegionRef || undefined}
-            required={isAbroad}
-          />
-        </div>
-      )}
     </div>
   );
 };
