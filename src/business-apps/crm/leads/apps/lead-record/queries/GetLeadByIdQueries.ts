@@ -58,7 +58,7 @@ export interface GetLeadByIdResponse {
 
 export const GET_LEAD_BY_ID = `
   query GetLeadById($id: uuid!) {
-    Lead(where: { id: { _eq: $id } }) {
+    Lead(where: { id: { _eq: $id }, isDeleted: { _eq: false } }) {
       #Core Lead Data
       id
       version

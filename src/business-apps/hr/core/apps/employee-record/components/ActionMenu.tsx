@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Employee } from '../hooks/useEmployeeData';
+import { navigateTo } from '@/common/utils/navigationUtils';
 
 interface ActionMenuProps {
   employee: Employee;
@@ -212,10 +213,10 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
           break;
         case 'updateOrganizationalData':
           // Navigate to organization chart with employee highlighted
-          window.location.href = `/orgchart/active/organization?employeeId=${employee.id}`;
+          navigateTo(`/orgchart/active/organization?employeeId=${employee.id}`);
           break;
         case 'goToAbsences':
-          window.location.href = '/platform/landing_screen/srn_absenceLandingScreen';
+          navigateTo('/platform/landing_screen/srn_absenceLandingScreen');
           break;
         case 'goToManagerProfile':
           // Modify only the URL parameter instead of full navigation
@@ -226,10 +227,10 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
           }
           break;
         case 'goToTeamAvailability':
-          window.location.href = '/platform/landing_screen/srn_teamAvailability';
+          navigateTo('/platform/landing_screen/srn_teamAvailability');
           break;
         case 'goToOrgUnit':
-          window.location.href = `/orgchart/active/organization?organizationUnitId=${employee.employeePosition?.organizationalUnitId}`;
+          navigateTo(`/orgchart/active/organization?organizationUnitId=${employee.employeePosition?.organizationalUnitId}`);
           break;
         default:
           break;

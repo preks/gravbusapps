@@ -47,6 +47,7 @@ import { useEmployeesData } from './hooks/useEmployeesData';
 
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { env } from '@/common/env/EnvUtils';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 dayjs.extend(relativeTime);
 dayjs.extend(weekday);
@@ -590,9 +591,8 @@ function LeadsOverviewComponent({ accessToken, userInfo }: BusinessAppContextPro
   
   const handleRowClick = (record: LeadTableItem) => {
     // Navigate to lead-record app
-    if (typeof window !== 'undefined') {
-      window.location.href = `/platform/crm/lead-record?leadId=${record.id}`;
-    }
+    const url = buildPlatformUrl('/platform/crm/lead-record', { leadId: record.id });
+    navigateTo(url);
   };
     
     const handleAddLead = () => {

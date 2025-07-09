@@ -6,6 +6,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from 'react-icons/pi';
 import dayjs from 'dayjs';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 const { Text, Title } = Typography;
 
@@ -202,8 +203,8 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
           icon={<PiArrowRight />}
           onClick={() => {
             // Navigate to the expense plan record page
-            const url = `/platform/fin/expenses/expense-plan-record?expensePlanId=${plan.id}`;
-            window.location.href = url;
+            const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', { expensePlanId: plan.id });
+            navigateTo(url);
           }}
           data-testid="view-expense-plan-details-button"
         >
