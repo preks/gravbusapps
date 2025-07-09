@@ -1,69 +1,124 @@
-import React from 'react';
-import { Contact } from '../types';
+import React, { useCallback } from 'react';
+import { DataTable, Avatar, Button, Tag } from '@newwork/gravity-ui-catalog';
+import { PiUser, PiEnvelope, PiPhone, PiLinkedinLogo, PiBuilding } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Table, Tag, Avatar, Space, Button } from 'antd';
-import { 
-  UserOutlined, 
-  MailOutlined, 
-  PhoneOutlined,
-  LinkedinOutlined,
-  EditOutlined,
-  EyeOutlined
-} from '@ant-design/icons';
+import { Contact } from '../types';
 
 interface ContactTableProps extends BusinessAppContextProps {
   contacts: Contact[];
   loading: boolean;
+  error: Error | null;
+  hasMore: boolean;
+  loadMore: () => void;
+  loadPage: (page: number, pageSize?: number) => Promise<void>;
+  retry: () => void;
   total: number;
-  pageSize: number;
   currentPage: number;
+  pageSize: number;
   sortField: string;
   sortOrder: 'ASC' | 'DESC';
-  onRowClick: (contact: Contact) => void;
-  onEdit: (contact: Contact) => void;
-  onSort: (field: string, order: 'ASC' | 'DESC') => void;
-  onPageChange: (page: number, size: number) => void;
+  onSelectContact?: (contact: Contact) => void;
+  onPaginationChange: (page: number, pageSize?: number) => void;
+  onSortingChange: (field: string, order: 'ASC' | 'DESC') => void;
+  selectedContactId?: string;
+  onEdit?: (contact: Contact) => void;
 }
+
+const DATA_TEST_ID_PREFIX = 'ContactTable';
 
 const ContactTable: React.FC<ContactTableProps> = ({
   contacts,
   loading,
+  error,
+  hasMore,
+  loadMore,
+  loadPage,
+  retry,
   total,
-  pageSize,
   currentPage,
+  pageSize,
   sortField,
   sortOrder,
-  onRowClick,
+  onSelectContact,
+  onPaginationChange,
+  onSortingChange,
+  selectedContactId,
   onEdit,
-  onSort,
-  onPageChange
+  accessToken
 }) => {
+  // Get contact display name
+  const getContactName = (contact: Contact) => {
+    const title = contact.academicTitle?.value;
+    const firstName = contact.firstName || '';
+    const lastName = contact.lastName || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    return title ? `${title} ${fullName}` : fullName || '-';
+  };
+
+  // Get sort order for column
+  const getSortOrder = (columnField: string) => {
+    if (sortField === 'createdAt' && sortOrder === 'DESC' && columnField === 'createdAt') {
+      return false;
+    }
+    if (sortField === columnField) {
+      return sortOrder === 'ASC' ? 'ascend' : 'descend';
+    }
+    return false;
+  };
+
+  // Handle row click
+  const handleRowClick = useCallback((record: Contact) => {
+    onSelectContact?.(record);
+  }, [onSelectContact]);
+
+  // Handle table change
+  const handleTableChange = (pagination: any, filters: any, sorter: any) => {
+    const targetPage = pagination.current ?? 1;
+    const targetPageSize = pagination.pageSize ?? 20;
+    
+    if (pagination.current !== currentPage || pagination.pageSize !== pageSize) {
+      onPaginationChange(targetPage, targetPageSize);
+    }
+  };
+
+  // Handle sorting change
+  const handleSorterChange = (sorter: any) => {
+    if (sorter.field && sorter.order) {
+      const field = Array.isArray(sorter.field) ? sorter.field[0] : sorter.field;
+      const order = sorter.order === 'ascend' ? 'ASC' : 'DESC';
+      
+      if (field !== sortField || order !== sortOrder) {
+        onSortingChange(field, order);
+      }
+    } else {
+      if (sortField !== 'createdAt' || sortOrder !== 'DESC') {
+        onSortingChange('createdAt', 'DESC');
+      }
+    }
+  };
+
   const columns = [
     {
       title: 'Contact',
-      key: 'name',
-      sortable: true,
-      sorterField: 'firstName',
-      width: '25%',
-      render: (contact: Contact) => (
+      dataIndex: 'firstName',
+      key: 'firstName',
+      sorter: true,
+      sortOrder: getSortOrder('firstName'),
+      width: '30%',
+      render: (_: any, record: Contact) => (
         <div className="gba:flex gba:items-center gba:gap-3">
           <Avatar 
-            src={contact.ownerEmployee?.pictureThumbnail} 
-            icon={<UserOutlined />}
-            size="small"
+            src={record.ownerEmployee?.pictureThumbnail} 
+            fallback={<PiUser />}
+            size="sm"
           />
           <div>
-            <div className="gba:font-medium">
-              {contact.academicTitle?.value && (
-                <span className="gba:text-gray-500 gba:mr-1">
-                  {contact.academicTitle.value}
-                </span>
-              )}
-              {contact.firstName} {contact.lastName}
+            <div className="gba:font-medium gba:text-sm">
+              {getContactName(record)}
             </div>
-            {contact.jobTitle && (
-              <div className="gba:text-sm gba:text-gray-500">
-                {contact.jobTitle}
+            {record.jobTitle && (
+              <div className="gba:text-xs gba:text-gray-500">
+                {record.jobTitle}
               </div>
             )}
           </div>
@@ -71,26 +126,29 @@ const ContactTable: React.FC<ContactTableProps> = ({
       )
     },
     {
-      title: 'Contact Information',
-      key: 'contact_info',
+      title: 'Contact Info',
+      dataIndex: 'email',
+      key: 'email',
+      sorter: true,
+      sortOrder: getSortOrder('email'),
       width: '25%',
-      render: (contact: Contact) => (
+      render: (_: any, record: Contact) => (
         <div className="gba:space-y-1">
-          {contact.email && (
-            <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-              <MailOutlined className="gba:text-gray-400" />
-              <span className="gba:truncate">{contact.email}</span>
+          {record.email && (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
+              <PiEnvelope className="gba:text-gray-400" />
+              <span className="gba:truncate" title={record.email}>{record.email}</span>
             </div>
           )}
-          {contact.phone && (
-            <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-              <PhoneOutlined className="gba:text-gray-400" />
-              <span>{contact.phone}</span>
+          {record.phone && (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
+              <PiPhone className="gba:text-gray-400" />
+              <span>{record.phone}</span>
             </div>
           )}
-          {contact.linkedinUrl && (
-            <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-              <LinkedinOutlined className="gba:text-blue-500" />
+          {record.linkedinUrl && (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
+              <PiLinkedinLogo className="gba:text-blue-500" />
               <span className="gba:text-blue-500">LinkedIn</span>
             </div>
           )}
@@ -99,41 +157,45 @@ const ContactTable: React.FC<ContactTableProps> = ({
     },
     {
       title: 'Account',
+      dataIndex: 'account',
       key: 'account',
       width: '20%',
-      render: (contact: Contact) => 
-        contact.account ? (
-          <div>
-            <div className="gba:font-medium">{contact.account.name}</div>
+      render: (_: any, record: Contact) => 
+        record.account ? (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiBuilding className="gba:text-gray-400" />
+            <div className="gba:text-sm gba:font-medium">{record.account.name}</div>
           </div>
         ) : (
-          <span className="gba:text-gray-400">No account</span>
+          <span className="gba:text-gray-400 gba:text-sm">No account</span>
         )
     },
     {
       title: 'Type & Role',
-      key: 'type_role',
+      dataIndex: 'contactType',
+      key: 'contactType',
       width: '15%',
-      render: (contact: Contact) => (
+      render: (_: any, record: Contact) => (
         <div className="gba:space-y-1">
-          {contact.contactType && (
-            <Tag color="blue">{contact.contactType}</Tag>
+          {record.contactType && (
+            <Tag color="blue">{record.contactType}</Tag>
           )}
-          {contact.contactRole && (
-            <Tag color="green">{contact.contactRole}</Tag>
+          {record.contactRole && (
+            <Tag color="green">{record.contactRole}</Tag>
           )}
         </div>
       )
     },
     {
       title: 'Owner',
+      dataIndex: 'ownerEmployee',
       key: 'owner',
       width: '15%',
-      render: (contact: Contact) => 
-        contact.ownerEmployee ? (
+      render: (_: any, record: Contact) => 
+        record.ownerEmployee ? (
           <div className="gba:text-sm">
-            {contact.ownerEmployee.displayName || 
-             `${contact.ownerEmployee.firstName} ${contact.ownerEmployee.lastName}` ||
+            {record.ownerEmployee.displayName || 
+             `${record.ownerEmployee.firstName} ${record.ownerEmployee.lastName}` ||
              'Unknown'}
           </div>
         ) : (
@@ -142,80 +204,26 @@ const ContactTable: React.FC<ContactTableProps> = ({
     }
   ];
 
-  const handleSort = (column: any) => {
-    if (column.sortable && column.sorterField) {
-      const newOrder = sortField === column.sorterField && sortOrder === 'ASC' ? 'DESC' : 'ASC';
-      onSort(column.sorterField, newOrder);
-    }
-  };
-
-  const handleRowAction = (action: string, contact: Contact) => {
-    switch (action) {
-      case 'view':
-        onRowClick(contact);
-        break;
-      case 'edit':
-        onEdit(contact);
-        break;
-    }
-  };
-
-  const actionButtons = (contact: Contact) => (
-    <Space>
-      <Button
-        size="small"
-        icon={<EyeOutlined />}
-        onClick={(e) => {
-          e.stopPropagation();
-          handleRowAction('view', contact);
-        }}
-        data-testid={`contact-table-view-${contact.id}`}
-      >
-        View
-      </Button>
-      <Button
-        size="small"
-        icon={<EditOutlined />}
-        onClick={(e) => {
-          e.stopPropagation();
-          handleRowAction('edit', contact);
-        }}
-        data-testid={`contact-table-edit-${contact.id}`}
-      >
-        Edit
-      </Button>
-    </Space>
-  );
-
   return (
-    <Table<Contact>
+    <DataTable
       dataSource={contacts}
-      columns={columns.map(col => ({
-        ...col,
-        dataIndex: col.key,
-        onHeaderCell: () => ({
-          onClick: () => handleSort(col)
-        }),
-        render: (_, record: Contact) => col.render ? col.render(record) : (record as any)[col.key]
-      }))}
+      columns={columns}
       loading={loading}
-      rowKey="id"
+      onChange={handleTableChange}
+      onSorterChange={handleSorterChange}
+      onRowClick={handleRowClick}
       pagination={{
         current: currentPage,
         pageSize,
         total,
-        showSizeChanger: true,
         showQuickJumper: true,
-        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} contacts`,
-        onChange: onPageChange,
-        onShowSizeChange: onPageChange
+        showSizeChanger: true,
+        pageSizeOptions: [10, 20, 50, 100]
       }}
-      onRow={(record: Contact) => ({
-        onClick: () => onRowClick(record),
-        style: { cursor: 'pointer' }
-      })}
-      locale={{ emptyText: 'No contacts found' }}
-      data-testid="contact-table"
+      rowKey="id"
+      selectedRowKeys={selectedContactId ? [selectedContactId] : []}
+      scroll={{ x: 800 }}
+      data-testid={`${DATA_TEST_ID_PREFIX}-table`}
     />
   );
 };

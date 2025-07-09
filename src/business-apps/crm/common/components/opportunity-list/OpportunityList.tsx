@@ -1,234 +1,205 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Card, Typography, Row, Col, Alert, Button, Space, Tag } from 'antd';
-import { ReloadOutlined, FilterOutlined } from '@ant-design/icons';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { PageLayout } from '@/components/layout/pageLayout';
+import { DataContainer } from '@/components/layout/dataContainer';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { useOpportunityListData } from './hooks/useOpportunityListData';
 import { useOpportunityStatistics } from './hooks/useOpportunityStatistics';
 import { useOpportunityFilters } from './hooks/useOpportunityFilters';
 import OpportunityStatistics from './components/OpportunityStatistics';
 import OpportunityTable from './components/OpportunityTable';
 import { Opportunity } from './types';
+import { Alert, Button } from 'antd';
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { ReloadOutlined, PlusOutlined, DollarCircleOutlined } from '@ant-design/icons';
 
-const { Title } = Typography;
-
-export interface OpportunityListProps extends BusinessAppContextProps {
-  sourceApp: string;
-  title?: string;
-  showStatistics?: boolean;
-  onOpportunityClick?: (opportunity: Opportunity) => void;
-  className?: string;
+interface OpportunityListProps extends BusinessAppContextProps {
+  sourceApp?: string;
 }
 
-const OpportunityList: React.FC<OpportunityListProps> = ({
-  accessToken,
-  userInfo,
-  sourceApp,
-  title = 'Opportunities',
-  showStatistics = true,
-  onOpportunityClick,
-  className
-}) => {
-  const [sortField, setSortField] = useState<string>('createdAt');
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+const OpportunityList: React.FC<OpportunityListProps> = (context) => {
+  const { sourceApp } = context;
+  const locale = getCurrentActiveUserLocale();
+  
+  // State management
+  const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [filtersVisible, setFiltersVisible] = useState(false);
-
-  const filters = useOpportunityFilters({ accessToken, userInfo });
-  const appliedFilters = useMemo(() => filters.getFilters(), [filters]);
-
-  const listDataParams = useMemo(() => ({
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const initialLoadDone = useRef(false);
+  
+  // Filters
+  const opportunityFilters = useOpportunityFilters(context);
+  const appliedFilters = opportunityFilters.getFilters();
+  
+  // Data hooks
+  const opportunityListData = useOpportunityListData({
     search: appliedFilters.search,
     sortField,
     sortOrder,
-    accessToken,
+    accessToken: context.accessToken,
     sourceApp,
     stages: appliedFilters.stages,
-    winningChanceRanges: appliedFilters.winningChanceRanges,
-    amountRanges: appliedFilters.amountRanges,
     createdAfter: appliedFilters.createdAfter,
     createdBefore: appliedFilters.createdBefore
-  }), [appliedFilters, sortField, sortOrder, accessToken, sourceApp]);
+  });
+  
+  const opportunityStatistics = useOpportunityStatistics({
+    ...context,
+    sourceApp
+  });
 
-  const { 
-    opportunities, 
-    total, 
-    loading, 
-    error, 
-    loadPage, 
-    retry 
-  } = useOpportunityListData(listDataParams);
-
-  const { 
-    statistics, 
-    isLoading: statsLoading, 
-    error: statsError, 
-    refetch: refetchStats 
-  } = useOpportunityStatistics({ accessToken, userInfo, sourceApp });
-
-  // Load data when dependencies change
+  // Initial load effect
   useEffect(() => {
-    loadPage(currentPage, pageSize);
-  }, [loadPage, currentPage, pageSize]);
-
-  // Load statistics
-  useEffect(() => {
-    if (showStatistics) {
-      refetchStats();
+    if (!initialLoadDone.current && context.accessToken) {
+      initialLoadDone.current = true;
+      opportunityListData.loadPage(1, pageSize);
+      opportunityStatistics.refetch();
     }
-  }, [showStatistics, refetchStats]);
+  }, [context.accessToken, opportunityListData, opportunityStatistics, pageSize]);
+
+  // Handlers
+  const handleOpportunityClick = useCallback((opportunity: Opportunity) => {
+    setSelectedOpportunityId(opportunity.id);
+    // TODO: Open opportunity detail side panel
+    console.log('Opportunity clicked:', opportunity);
+  }, []);
+
+  const handleOpportunityEdit = useCallback((opportunity: Opportunity) => {
+    setSelectedOpportunityId(opportunity.id);
+    // TODO: Open opportunity edit modal
+    console.log('Edit opportunity:', opportunity);
+  }, []);
 
   const handleSort = useCallback((field: string, order: 'ASC' | 'DESC') => {
     setSortField(field);
     setSortOrder(order);
     setCurrentPage(1);
-  }, []);
+    opportunityListData.loadPage(1, pageSize);
+  }, [opportunityListData, pageSize]);
 
   const handlePageChange = useCallback((page: number, size?: number) => {
+    const newSize = size || pageSize;
     setCurrentPage(page);
-    if (size) {
-      setPageSize(size);
-    }
+    setPageSize(newSize);
+    opportunityListData.loadPage(page, newSize);
+  }, [opportunityListData, pageSize]);
+
+  const handleSearch = useCallback((searchTerm: string) => {
+    opportunityFilters.setSearch(searchTerm);
+    setCurrentPage(1);
+    opportunityListData.loadPage(1, pageSize);
+  }, [opportunityFilters, opportunityListData, pageSize]);
+
+  const handleAddOpportunity = useCallback(() => {
+    // TODO: Open add opportunity modal
+    console.log('Add opportunity clicked');
   }, []);
 
-  const handleRetry = useCallback(() => {
-    retry();
-    if (showStatistics) {
-      refetchStats();
-    }
-  }, [retry, refetchStats, showStatistics]);
+  const handleRetryStatistics = useCallback(() => {
+    opportunityStatistics.refetch();
+  }, [opportunityStatistics]);
 
-  const prefixDataTestId = useMemo(() => 
-    `opportunity-list-${sourceApp.toLowerCase()}`, 
-    [sourceApp]
-  );
+  const handleRetryData = useCallback(() => {
+    opportunityListData.loadPage(currentPage, pageSize);
+  }, [opportunityListData, currentPage, pageSize]);
 
-  if (error) {
+  if (opportunityListData.error && !opportunityListData.loading) {
     return (
-      <div className={className} data-testid={`${prefixDataTestId}-error`}>
+      <div data-testid="opportunity-list-content">
+        <div data-testid="opportunity-statistics-section" className="gba:mb-6">
+          <OpportunityStatistics
+            statistics={opportunityStatistics.statistics}
+            isLoading={opportunityStatistics.isLoading}
+            error={opportunityStatistics.error}
+            onRetry={handleRetryStatistics}
+          />
+        </div>
+        
         <Alert
           message="Error Loading Opportunities"
-          description={error.message}
+          description={opportunityListData.error instanceof Error ? opportunityListData.error.message : String(opportunityListData.error)}
           type="error"
           showIcon
           action={
-            <Button size="small" icon={<ReloadOutlined />} onClick={handleRetry}>
+            <Button icon={<ReloadOutlined />} onClick={handleRetryData}>
               Retry
             </Button>
           }
+          data-testid="opportunity-list-error"
         />
       </div>
     );
   }
 
   return (
-    <div className={className} data-testid={`${prefixDataTestId}-container`}>
-      {/* Header */}
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
-        <div className="gba:flex gba:items-center gba:gap-4">
-          <Title level={4} className="gba:m-0">
-            {title}
-          </Title>
-          <Tag color="blue" data-testid={`${prefixDataTestId}-count`}>
-            {total} opportunities
-          </Tag>
-        </div>
-        <Space>
-          <Button
-            icon={<FilterOutlined />}
-            onClick={() => setFiltersVisible(!filtersVisible)}
-            type={filters.selectedFilters.length > 0 ? 'primary' : 'default'}
-            data-testid={`${prefixDataTestId}-filter-button`}
-          >
-            Filter {filters.selectedFilters.length > 0 && `(${filters.selectedFilters.length})`}
-          </Button>
-          <Button 
-            icon={<ReloadOutlined />} 
-            onClick={handleRetry}
-            loading={loading}
-            data-testid={`${prefixDataTestId}-refresh-button`}
-          >
-            Refresh
-          </Button>
-        </Space>
+    <div data-testid="opportunity-list-content">
+      <div data-testid="opportunity-statistics-section" className="gba:mb-6">
+        <OpportunityStatistics
+          statistics={opportunityStatistics.statistics}
+          isLoading={opportunityStatistics.isLoading}
+          error={opportunityStatistics.error}
+          onRetry={handleRetryStatistics}
+        />
       </div>
 
-      {/* Statistics */}
-      {showStatistics && (
-        <OpportunityStatistics
-          statistics={statistics}
-          isLoading={statsLoading}
-          error={statsError}
-          onRetry={refetchStats}
-        />
-      )}
-
-      {/* Search */}
-      <Row gutter={[16, 16]} className="gba:mb-4">
-        <Col xs={24} sm={12} md={8}>
-          <DebouncedInput
-            placeholder="Search opportunities..."
-            value={filters.search}
-            onChange={filters.setSearch}
-            debounceDelay={300}
-            data-testid={`${prefixDataTestId}-search`}
-          />
-        </Col>
-      </Row>
-
-      {/* Filters */}
-      {filtersVisible && (
-        <Card size="small" className="gba:mb-4">
-          <div data-testid={`${prefixDataTestId}-filters`}>
-            {/* TODO: Implement proper filter component matching expected interface */}
-            <div className="gba:text-sm gba:text-gray-600">
-              Filters: {filters.selectedFilters.join(', ')}
+      <DataContainer
+        dataControllerProps={{
+          search: opportunityFilters.search,
+          setSearch: handleSearch,
+          debounceDelay: 500,
+          filter: opportunityFilters.selectedFilters,
+          setFilter: () => {}, // No-op for now
+          filterLabelMap: opportunityFilters.filterLabelMap,
+          dateRange: {
+            createdAfter: opportunityFilters.createdAfter,
+            createdBefore: opportunityFilters.createdBefore,
+            onClear: () => opportunityFilters.handleDateRangeChange(undefined, undefined)
+          },
+          listTitle: (
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <span>Opportunities</span>
+                <span className="gba:text-gray-500">({opportunityListData.total})</span>
+              </div>
             </div>
+          ),
+          addButton: {
+            onClick: handleAddOpportunity,
+            label: 'Add Opportunity',
+            'data-testid': 'add-opportunity-button'
+          },
+        }}
+        dataFilterProps={{
+          filterGroups: opportunityFilters.filterGroups,
+          onFilterChange: (filterId: string, selected: boolean) => {
+            selected ? opportunityFilters.addFilter(filterId) : opportunityFilters.removeFilter(filterId);
+          }
+        }}
+        dataBody={
+          <div data-testid="opportunity-table-container">
+            <OpportunityTable
+              {...context}
+              data={opportunityListData.opportunities}
+              loading={opportunityListData.loading}
+              error={opportunityListData.error}
+              hasMore={opportunityListData.hasMore}
+              loadMore={opportunityListData.loadMore}
+              loadPage={opportunityListData.loadPage}
+              retry={opportunityListData.retry}
+              total={opportunityListData.total}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              sortField={sortField}
+              sortOrder={sortOrder}
+              onSelectOpportunity={handleOpportunityClick}
+              onPaginationChange={handlePageChange}
+              onSortingChange={handleSort}
+              selectedOpportunityId={selectedOpportunityId}
+            />
           </div>
-        </Card>
-      )}
-
-      {/* Selected Filters Display */}
-      {filters.selectedFilters.length > 0 && (
-        <div className="gba:mb-4">
-          <Space wrap>
-            <span className="gba:text-sm gba:text-gray-600">Active filters:</span>
-            {filters.selectedFilters.map(filterId => (
-              <Tag
-                key={filterId}
-                closable
-                onClose={() => filters.removeFilter(filterId)}
-                data-testid={`${prefixDataTestId}-active-filter-${filterId}`}
-              >
-                {filters.filterLabelMap[filterId]}
-              </Tag>
-            ))}
-          </Space>
-        </div>
-      )}
-
-      {/* Table */}
-      <Card>
-        <OpportunityTable
-          data={opportunities}
-          loading={loading}
-          sortField={sortField}
-          sortOrder={sortOrder}
-          onSort={handleSort}
-          onRowClick={onOpportunityClick}
-          pagination={{
-            current: currentPage,
-            pageSize,
-            total,
-            onChange: handlePageChange,
-            showQuickJumper: true,
-            showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50', '100']
-          }}
-          scroll={{ x: 1200 }}
-        />
-      </Card>
+        }
+      />
     </div>
   );
 };

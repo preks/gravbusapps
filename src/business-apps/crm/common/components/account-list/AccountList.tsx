@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PageLayout } from '@/components/layout/pageLayout';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { useAccountListData } from './hooks/useAccountListData';
 import { useAccountFilters } from './hooks/useAccountFilters';
@@ -228,120 +227,68 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
   }, [pageSize, updateURLParams, loadPage]);
 
   return (
-    <div className="gba:w-full gba:h-screen gba:flex gba:flex-row gba:relative gba:bg-white">
-      <PageLayout
-        variant="default"
-        headerIcon={<PiBuilding size={24} className="gba:text-primary" />}
-        headerLabel={t('account.list_title', 'Account List')}
-        contentContainer={
-          <div data-testid="account-content-wrapper">
-            <div data-testid="account-statistics-section" className="gba:mb-6">
-              <AccountStatistics
-                statistics={statistics}
-                isLoading={statsLoading}
-                error={statsError}
-                onRetry={refetchStats}
-              />
-            </div>
+    <div data-testid="account-list-content">
+      <div data-testid="account-statistics-section" className="gba:mb-6">
+        <AccountStatistics
+          statistics={statistics}
+          isLoading={statsLoading}
+          error={statsError}
+          onRetry={refetchStats}
+        />
+      </div>
 
-          <DataContainer
-            dataControllerProps={{
-              search,
-              setSearch: handleSearchChange,
-              debounceDelay: 500,
-              filter: selectedFilters,
-              setFilter: handleSetFilter,
-              filterLabelMap: filterLabelMap,
-              dateRange: {
-                createdAfter: filterCreatedAfter,
-                createdBefore: filterCreatedBefore,
-                onClear: () => filterHandleDateRangeChange(undefined, undefined)
-              },
-              listTitle: (
-                <div className="gba:flex gba:items-center gba:gap-4">
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <PiBuildingOffice size={20} />
-                    <span>{t('account.list_title', 'Accounts')}</span>
-                    <span className="gba:text-gray-500">({total})</span>
-                  </div>
-                </div>
-              ),
-              addButton: {
-                onClick: handleAddAccount,
-                label: 'Add',
-                'data-testid': 'add-account-button'
-              },
-            }}
-            dataFilterProps={{
-              filterGroups: filterGroups,
-              onFilterChange: handleFilterChange,
-            }}
-            dataBody={
-              <div data-testid="account-table-container">
-                <AccountTable
-                  accounts={accounts}
-                  loading={loading}
-                  error={error}
-                  hasMore={hasMore}
-                  loadMore={loadMore}
-                  loadPage={loadPage}
-                  retry={retry}
-                  total={total}
-                  currentPage={currentPage}
-                  pageSize={pageSize}
-                  sortField={sortField}
-                  sortOrder={sortOrder}
-                  onSelectAccount={handleSelectAccount}
-                  onPaginationChange={handlePaginationChange}
-                  onSortingChange={handleSortingChange}
-                  selectedAccountId={selectedAccount?.id}
-                  accessToken={accessToken}
-                />
+      <DataContainer
+        dataControllerProps={{
+          search,
+          setSearch,
+          debounceDelay: 500,
+          filter: selectedFilters,
+          setFilter: handleSetFilter,
+          filterLabelMap,
+          dateRange: {
+            createdAfter: filterCreatedAfter,
+            createdBefore: filterCreatedBefore,
+            onClear: () => filterHandleDateRangeChange(undefined, undefined)
+          },
+          listTitle: (
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <span>Accounts</span>
+                <span className="gba:text-gray-500">({total})</span>
               </div>
-            }
-            dataDetails={selectedAccount ? {
-              title: selectedAccount.name || 'Account Details',
-              icon: <PiFunnelSimple size={20} />,
-              content: (
-                <div className="gba:p-4">
-                  <div className="gba:space-y-4">
-                    <div>
-                      <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Company Information</h3>
-                      <div className="gba:space-y-2">
-                        <div><strong>Name:</strong> {selectedAccount.name || '-'}</div>
-                        <div><strong>Website:</strong> {selectedAccount.website || '-'}</div>
-                        <div><strong>Phone:</strong> {selectedAccount.phone || '-'}</div>
-                        <div><strong>Industry:</strong> {selectedAccount.industry?.value || '-'}</div>
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Address Information</h3>
-                      <div className="gba:space-y-2">
-                        <div><strong>Billing Street:</strong> {selectedAccount.billingStreet || '-'}</div>
-                        <div><strong>Billing City:</strong> {selectedAccount.billingCity || '-'}</div>
-                        <div><strong>Billing State:</strong> {selectedAccount.billingState || '-'}</div>
-                        <div><strong>Billing Country:</strong> {selectedAccount.billingCountry || '-'}</div>
-                        <div><strong>Billing Postal Code:</strong> {selectedAccount.billingPostalCode || '-'}</div>
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Account Information</h3>
-                      <div className="gba:space-y-2">
-                        <div><strong>Type:</strong> {selectedAccount.type?.value || '-'}</div>
-                        <div><strong>Owner:</strong> {selectedAccount.ownerEmployee?.displayName || 
-                          `${selectedAccount.ownerEmployee?.firstName || ''} ${selectedAccount.ownerEmployee?.lastName || ''}`.trim() || '-'}</div>
-                        <div><strong>Annual Revenue:</strong> {selectedAccount.annualRevenue ? 
-                          new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(selectedAccount.annualRevenue) : '-'}</div>
-                        <div><strong>Number of Employees:</strong> {selectedAccount.numberOfEmployees || '-'}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ),
-              onClose: handleCloseDetails
-            } : undefined}
-            floatingDetails={true}
-          />
+            </div>
+          ),
+          addButton: {
+            onClick: handleAddAccount,
+            label: 'Add Account',
+            'data-testid': 'add-account-button'
+          },
+        }}
+        dataFilterProps={{
+          filterGroups,
+          onFilterChange: handleFilterChange
+        }}
+        dataBody={
+          <div data-testid="account-table-container">
+            <AccountTable
+              {...props}
+              accounts={accounts}
+              loading={loading}
+              error={error}
+              hasMore={hasMore}
+              loadMore={loadMore}
+              loadPage={loadPage}
+              retry={retry}
+              total={total}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              sortField={sortField}
+              sortOrder={sortOrder}
+              onSelectAccount={handleSelectAccount}
+              onPaginationChange={handlePaginationChange}
+              onSortingChange={handleSortingChange}
+              selectedAccountId={selectedAccount?.id}
+            />
           </div>
         }
       />

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, Button, Spin, Alert } from 'antd';
+import { ToggleGroup, ToggleGroupItem } from '@newwork/nw-design-system';
 import { 
   DashboardOutlined, 
   ReloadOutlined, 
@@ -29,7 +30,49 @@ import { Opportunity } from '@/business-apps/crm/common/components/opportunity-l
 export interface CustomerRelationsProps extends BusinessAppContextProps {}
 
 export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => {
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const tabOptions = [
+    {
+      key: 'dashboard',
+      icon: <DashboardOutlined />,
+      label: 'Dashboard'
+    },
+    {
+      key: 'leads',
+      icon: <TeamOutlined />,
+      label: 'Leads'
+    },
+    {
+      key: 'accounts',
+      icon: <BankOutlined />,
+      label: 'Accounts'
+    },
+    {
+      key: 'contacts',
+      icon: <ContactsOutlined />,
+      label: 'Contacts'
+    },
+    {
+      key: 'opportunities',
+      icon: <DollarCircleOutlined />,
+      label: 'Opportunities'
+    }
+  ];
+
+  // Get initial view from URL or default to first view
+  const getInitialView = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewFromUrl = urlParams.get('view');
+    
+    // Validate that the view exists in our options
+    if (viewFromUrl && tabOptions.some(option => option.key === viewFromUrl)) {
+      return viewFromUrl;
+    }
+    
+    // Default to first view
+    return tabOptions[0].key;
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(getInitialView());
   const [dateRange] = useState<DateRange>({
     startDate: new Date(new Date().getFullYear() - 2, 0, 1),
     endDate: new Date()
@@ -46,57 +89,40 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
     refetch();
   };
 
-  const handleTabChange = (key: string) => {
-    setActiveTab(key);
+  // Update URL when view changes
+  const updateUrl = (view: string) => {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Always set the view parameter (including for default)
+    urlParams.set('view', view);
+    
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    window.history.replaceState({}, '', newUrl);
   };
 
-  const tabItems = [
-    {
-      key: 'dashboard',
-      label: (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <DashboardOutlined />
-          <span>Dashboard</span>
-        </div>
-      ),
-    },
-    {
-      key: 'leads',
-      label: (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <TeamOutlined />
-          <span>Leads</span>
-        </div>
-      ),
-    },
-    {
-      key: 'accounts',
-      label: (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <BankOutlined />
-          <span>Accounts</span>
-        </div>
-      ),
-    },
-    {
-      key: 'contacts',
-      label: (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <ContactsOutlined />
-          <span>Contacts</span>
-        </div>
-      ),
-    },
-    {
-      key: 'opportunities',
-      label: (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <DollarCircleOutlined />
-          <span>Opportunities</span>
-        </div>
-      ),
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    updateUrl(key);
+  };
+
+  // Ensure URL always has view parameter on initial load
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (!urlParams.has('view')) {
+      updateUrl(activeTab);
     }
-  ];
+  }, []);
+
+  // Listen for browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const newView = getInitialView();
+      setActiveTab(newView);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const renderDashboardContent = () => {
     if (isLoading) {
@@ -217,14 +243,25 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
         headerIcon={<ShoppingCartOutlined />}
         headerLabel="Customer Relations"
         pageHeaderCenter={
-          <Tabs
-            activeKey={activeTab}
-            onChange={handleTabChange}
-            size="large"
-            items={tabItems}
-            className="gba:customer-relations-header-tabs"
+          <ToggleGroup
+            type="single"
+            value={activeTab}
+            onValueChange={handleTabChange}
+            variant="outline"
+            size="lg"
             data-testid="customer-relations-tabs"
-          />
+          >
+            {tabOptions.map((option) => (
+              <ToggleGroupItem
+                key={option.key}
+                value={option.key}
+                data-testid={`customer-relations-tab-${option.key}`}
+              >
+                {option.icon}
+                {option.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         }
         pageHeaderRight={
           <div className="gba:flex gba:items-center gba:gap-3">

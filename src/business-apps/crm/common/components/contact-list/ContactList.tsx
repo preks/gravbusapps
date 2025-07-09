@@ -120,127 +120,97 @@ const ContactList: React.FC<ContactListProps> = (context) => {
 
   if (contactListData.error && !contactListData.loading) {
     return (
-      <Alert
-        message="Error Loading Contacts"
-        description={contactListData.error.message}
-        type="error"
-        showIcon
-        action={
-          <Button icon={<ReloadOutlined />} onClick={handleRetryData}>
-            Retry
-          </Button>
-        }
-        data-testid="contact-list-error"
-      />
+      <div data-testid="contact-list-content">
+        <div data-testid="contact-statistics-section" className="gba:mb-6">
+          <ContactStatistics
+            statistics={contactStatistics.statistics}
+            isLoading={contactStatistics.isLoading}
+            error={contactStatistics.error}
+            onRetry={handleRetryStatistics}
+          />
+        </div>
+        
+        <Alert
+          message="Error Loading Contacts"
+          description={contactListData.error instanceof Error ? contactListData.error.message : String(contactListData.error)}
+          type="error"
+          showIcon
+          action={
+            <Button icon={<ReloadOutlined />} onClick={handleRetryData}>
+              Retry
+            </Button>
+          }
+          data-testid="contact-list-error"
+        />
+      </div>
     );
   }
 
   return (
-    <div className="gba:w-full gba:h-screen gba:flex gba:flex-row gba:relative gba:bg-white">
-      <PageLayout
-        variant="default"
-        headerIcon={<PlusOutlined size={24} className="gba:text-primary" />}
-        headerLabel="Contact List"
-        contentContainer={
-          <div data-testid="contact-content-wrapper">
-            <div data-testid="contact-statistics-section" className="gba:mb-6">
-              <ContactStatistics
-                statistics={contactStatistics.statistics}
-                isLoading={contactStatistics.isLoading}
-                error={contactStatistics.error}
-                onRetry={handleRetryStatistics}
-              />
+    <div data-testid="contact-list-content">
+      <div data-testid="contact-statistics-section" className="gba:mb-6">
+        <ContactStatistics
+          statistics={contactStatistics.statistics}
+          isLoading={contactStatistics.isLoading}
+          error={contactStatistics.error}
+          onRetry={handleRetryStatistics}
+        />
+      </div>
+
+      <DataContainer
+        dataControllerProps={{
+          search: contactFilters.search,
+          setSearch: handleSearch,
+          debounceDelay: 500,
+          filter: contactFilters.selectedFilters,
+          setFilter: () => {}, // No-op for now
+          filterLabelMap: contactFilters.filterLabelMap,
+          dateRange: {
+            createdAfter: contactFilters.createdAfter,
+            createdBefore: contactFilters.createdBefore,
+            onClear: () => contactFilters.handleDateRangeChange(undefined, undefined)
+          },
+          listTitle: (
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <span>Contacts</span>
+                <span className="gba:text-gray-500">({contactListData.total})</span>
+              </div>
             </div>
-
-            <DataContainer
-              dataControllerProps={{
-                search: contactFilters.search,
-                setSearch: handleSearch,
-                debounceDelay: 500,
-                filter: contactFilters.selectedFilters,
-                setFilter: () => {}, // No-op for now
-                filterLabelMap: contactFilters.filterLabelMap,
-                dateRange: {
-                  createdAfter: contactFilters.createdAfter,
-                  createdBefore: contactFilters.createdBefore,
-                  onClear: () => contactFilters.handleDateRangeChange(undefined, undefined)
-                },
-                listTitle: (
-                  <div className="gba:flex gba:items-center gba:gap-4">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <span>Contacts</span>
-                      <span className="gba:text-gray-500">({contactListData.total})</span>
-                    </div>
-                  </div>
-                ),
-                addButton: {
-                  onClick: handleAddContact,
-                  label: 'Add Contact',
-                  'data-testid': 'add-contact-button'
-                },
-              }}
-              dataFilterProps={{
-                filterGroups: contactFilters.filterGroups,
-                onFilterChange: (filterId: string, selected: boolean) => {
-                  selected ? contactFilters.addFilter(filterId) : contactFilters.removeFilter(filterId);
-                }
-              }}
-              dataBody={
-                <div data-testid="contact-table-container">
-                  <ContactTable
-                    {...context}
-                    contacts={contactListData.contacts}
-                    loading={contactListData.loading}
-                    total={contactListData.total}
-                    pageSize={pageSize}
-                    currentPage={currentPage}
-                    sortField={sortField}
-                    sortOrder={sortOrder}
-                    onRowClick={handleContactClick}
-                    onEdit={handleContactEdit}
-                    onSort={handleSort}
-                    onPageChange={handlePageChange}
-                  />
-                </div>
-              }
-              floatingDetails={false}
+          ),
+          addButton: {
+            onClick: handleAddContact,
+            label: 'Add Contact',
+            'data-testid': 'add-contact-button'
+          },
+        }}
+        dataFilterProps={{
+          filterGroups: contactFilters.filterGroups,
+          onFilterChange: (filterId: string, selected: boolean) => {
+            selected ? contactFilters.addFilter(filterId) : contactFilters.removeFilter(filterId);
+          }
+        }}
+        dataBody={
+          <div data-testid="contact-table-container">
+            <ContactTable
+              {...context}
+              contacts={contactListData.contacts}
+              loading={contactListData.loading}
+              error={contactListData.error}
+              hasMore={contactListData.hasMore}
+              loadMore={contactListData.loadMore}
+              loadPage={contactListData.loadPage}
+              retry={contactListData.retry}
+              total={contactListData.total}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              sortField={sortField}
+              sortOrder={sortOrder}
+              onSelectContact={handleContactClick}
+              onPaginationChange={handlePageChange}
+              onSortingChange={handleSort}
+              selectedContactId={selectedContactId}
             />
-
-            {/* Add Contact Modal */}
-            <Modal
-              title="Add New Contact"
-              open={isAddModalVisible}
-              onCancel={() => setIsAddModalVisible(false)}
-              footer={null}
-              data-testid="contact-add-modal"
-            >
-              <Form layout="vertical">
-                <Form.Item label="First Name" required>
-                  <Input placeholder="Enter first name" />
-                </Form.Item>
-                <Form.Item label="Last Name" required>
-                  <Input placeholder="Enter last name" />
-                </Form.Item>
-                <Form.Item label="Email">
-                  <Input type="email" placeholder="Enter email address" />
-                </Form.Item>
-                <Form.Item label="Phone">
-                  <Input placeholder="Enter phone number" />
-                </Form.Item>
-                <Form.Item label="Job Title">
-                  <Input placeholder="Enter job title" />
-                </Form.Item>
-                <Form.Item label="Contact Type">
-                  <Select placeholder="Select contact type">
-                    <Select.Option value="Primary">Primary</Select.Option>
-                    <Select.Option value="Secondary">Secondary</Select.Option>
-                    <Select.Option value="Technical">Technical</Select.Option>
-                    <Select.Option value="Financial">Financial</Select.Option>
-                    <Select.Option value="Executive">Executive</Select.Option>
-                  </Select>
-                </Form.Item>
-              </Form>
-            </Modal>
           </div>
         }
       />

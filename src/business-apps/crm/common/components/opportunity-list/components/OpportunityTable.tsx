@@ -1,39 +1,48 @@
-import React from 'react';
-import { Table, Tag, Avatar, Typography, Tooltip } from 'antd';
-import { UserOutlined } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+import React, { useCallback } from 'react';
+import { DataTable, Avatar, Tag } from '@newwork/gravity-ui-catalog';
+import { PiUser, PiCurrencyDollar, PiTarget, PiFunnel, PiCalendar, PiBuilding } from 'react-icons/pi';
 import { Opportunity } from '../types';
-
-const { Text } = Typography;
 
 export interface OpportunityTableProps {
   data: Opportunity[];
   loading: boolean;
-  pagination?: {
-    current: number;
-    pageSize: number;
-    total: number;
-    onChange: (page: number, size?: number) => void;
-    showQuickJumper?: boolean;
-    showSizeChanger?: boolean;
-    pageSizeOptions?: string[];
-  };
-  scroll?: { x?: number; y?: number };
-  onRowClick?: (opportunity: Opportunity) => void;
-  sortOrder?: 'ASC' | 'DESC';
-  sortField?: string;
-  onSort?: (field: string, order: 'ASC' | 'DESC') => void;
+  error: Error | null;
+  hasMore: boolean;
+  loadMore: () => void;
+  loadPage: (page: number, pageSize?: number) => Promise<void>;
+  retry: () => void;
+  total: number;
+  currentPage: number;
+  pageSize: number;
+  sortField: string;
+  sortOrder: 'ASC' | 'DESC';
+  onSelectOpportunity?: (opportunity: Opportunity) => void;
+  onPaginationChange: (page: number, pageSize?: number) => void;
+  onSortingChange: (field: string, order: 'ASC' | 'DESC') => void;
+  selectedOpportunityId?: string;
+  accessToken: string;
 }
+
+const DATA_TEST_ID_PREFIX = 'OpportunityTable';
 
 const OpportunityTable: React.FC<OpportunityTableProps> = ({
   data,
   loading,
-  pagination,
-  scroll,
-  onRowClick,
-  sortOrder,
+  error,
+  hasMore,
+  loadMore,
+  loadPage,
+  retry,
+  total,
+  currentPage,
+  pageSize,
   sortField,
-  onSort
+  sortOrder,
+  onSelectOpportunity,
+  onPaginationChange,
+  onSortingChange,
+  selectedOpportunityId,
+  accessToken
 }) => {
   const formatCurrency = (amount: number | undefined, currency?: string): string => {
     if (!amount) return '$0';
@@ -59,34 +68,79 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
       'Closed Won': 'green',
       'Closed Lost': 'red'
     };
-    return stageColors[stage || ''] || 'default';
+    return stageColors[stage || ''] || 'gray';
   };
 
   const getWinRateColor = (winningChance?: number): string => {
-    if (!winningChance) return '#d9d9d9';
-    if (winningChance >= 75) return '#52c41a';
-    if (winningChance >= 50) return '#fa8c16';
-    if (winningChance >= 25) return '#faad14';
-    return '#ff4d4f';
+    if (!winningChance) return 'gray';
+    if (winningChance >= 75) return 'green';
+    if (winningChance >= 50) return 'orange';
+    if (winningChance >= 25) return 'yellow';
+    return 'red';
   };
 
-  const columns: ColumnsType<Opportunity> = [
+  // Get sort order for column
+  const getSortOrder = (columnField: string): any => {
+    if (sortField === 'createdAt' && sortOrder === 'DESC' && columnField === 'createdAt') {
+      return false;
+    }
+    if (sortField === columnField) {
+      return sortOrder === 'ASC' ? 'ascend' : 'descend';
+    }
+    return false;
+  };
+
+  // Handle row click
+  const handleRowClick = useCallback((record: Opportunity) => {
+    onSelectOpportunity?.(record);
+  }, [onSelectOpportunity]);
+
+  // Handle table change
+  const handleTableChange = (pagination: any, filters: any, sorter: any) => {
+    const targetPage = pagination.current ?? 1;
+    const targetPageSize = pagination.pageSize ?? 20;
+    
+    if (pagination.current !== currentPage || pagination.pageSize !== pageSize) {
+      onPaginationChange(targetPage, targetPageSize);
+    }
+  };
+
+  // Handle sorting change
+  const handleSorterChange = (sorter: any) => {
+    if (sorter.field && sorter.order) {
+      const field = Array.isArray(sorter.field) ? sorter.field[0] : sorter.field;
+      const order = sorter.order === 'ascend' ? 'ASC' : 'DESC';
+      
+      if (field !== sortField || order !== sortOrder) {
+        onSortingChange(field, order);
+      }
+    } else {
+      if (sortField !== 'createdAt' || sortOrder !== 'DESC') {
+        onSortingChange('createdAt', 'DESC');
+      }
+    }
+  };
+
+  const columns = [
     {
       title: 'Opportunity',
       dataIndex: 'name',
       key: 'name',
-      width: 200,
       sorter: true,
-      sortOrder: sortField === 'name' ? (sortOrder === 'ASC' ? 'ascend' : 'descend') : null,
-      render: (text: string, record: Opportunity) => (
-        <div data-testid={`opportunity-name-${record.id}`}>
-          <Text strong className="gba:block gba:truncate" title={text}>
-            {text}
-          </Text>
+      sortOrder: getSortOrder('name'),
+      width: '25%',
+      render: (_: any, record: Opportunity) => (
+        <div>
+          <div className="gba:font-medium gba:text-sm gba:truncate" title={record.name}>
+            {record.name}
+          </div>
           {record.account && (
-            <Text type="secondary" className="gba:text-xs gba:truncate" title={record.account.name}>
-              {record.account.name}
-            </Text>
+            <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-gray-500">
+              <PiBuilding size={12} />
+              <span className="gba:truncate" title={record.account.name}>
+                {record.account.name}
+              </span>
+            </div>
           )}
         </div>
       )
@@ -95,30 +149,27 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
       title: 'Value',
       dataIndex: 'estimatedAmount',
       key: 'estimatedAmount',
-      width: 120,
-      align: 'right',
       sorter: true,
-      sortOrder: sortField === 'estimatedAmount' ? (sortOrder === 'ASC' ? 'ascend' : 'descend') : null,
-      render: (amount: number | undefined, record: Opportunity) => (
-        <Text strong data-testid={`opportunity-value-${record.id}`}>
-          {formatCurrency(amount, record.currency?.code)}
-        </Text>
+      sortOrder: getSortOrder('estimatedAmount'),
+      width: '15%',
+      align: 'right',
+      render: (_: any, record: Opportunity) => (
+        <div className="gba:text-sm gba:font-medium">
+          {formatCurrency(record.estimatedAmount, record.currency?.code)}
+        </div>
       )
     },
     {
       title: 'Win Rate',
       dataIndex: 'winningChance',
       key: 'winningChance',
-      width: 100,
-      align: 'center',
       sorter: true,
-      sortOrder: sortField === 'winningChance' ? (sortOrder === 'ASC' ? 'ascend' : 'descend') : null,
-      render: (winningChance: number | undefined, record: Opportunity) => (
-        <Tag 
-          color={getWinRateColor(winningChance)} 
-          data-testid={`opportunity-winrate-${record.id}`}
-        >
-          {winningChance ? `${winningChance}%` : '0%'}
+      sortOrder: getSortOrder('winningChance'),
+      width: '12%',
+      align: 'center',
+      render: (_: any, record: Opportunity) => (
+        <Tag color={getWinRateColor(record.winningChance)}>
+          {record.winningChance ? `${record.winningChance}%` : '0%'}
         </Tag>
       )
     },
@@ -126,15 +177,12 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
       title: 'Stage',
       dataIndex: 'stage',
       key: 'stage',
-      width: 130,
       sorter: true,
-      sortOrder: sortField === 'stage' ? (sortOrder === 'ASC' ? 'ascend' : 'descend') : null,
-      render: (stage: string | undefined, record: Opportunity) => (
-        <Tag 
-          color={getStageColor(stage)} 
-          data-testid={`opportunity-stage-${record.id}`}
-        >
-          {stage || 'Unknown'}
+      sortOrder: getSortOrder('stage'),
+      width: '15%',
+      render: (_: any, record: Opportunity) => (
+        <Tag color={getStageColor(record.stage)}>
+          {record.stage || 'Unknown'}
         </Tag>
       )
     },
@@ -142,89 +190,66 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
       title: 'Pipeline',
       dataIndex: 'salesPipeline',
       key: 'salesPipeline',
-      width: 140,
-      render: (pipeline: Opportunity['salesPipeline'], record: Opportunity) => (
-        <Text 
-          className="gba:truncate gba:block" 
-          title={pipeline?.value}
-          data-testid={`opportunity-pipeline-${record.id}`}
-        >
-          {pipeline?.value || '-'}
-        </Text>
+      width: '15%',
+      render: (_: any, record: Opportunity) => (
+        <div className="gba:text-sm gba:truncate" title={record.salesPipeline?.value}>
+          {record.salesPipeline?.value || '-'}
+        </div>
       )
     },
     {
       title: 'Close Date',
       dataIndex: 'closeDate',
       key: 'closeDate',
-      width: 110,
       sorter: true,
-      sortOrder: sortField === 'closeDate' ? (sortOrder === 'ASC' ? 'ascend' : 'descend') : null,
-      render: (closeDate: string | undefined, record: Opportunity) => (
-        <Text data-testid={`opportunity-closedate-${record.id}`}>
-          {formatDate(closeDate)}
-        </Text>
+      sortOrder: getSortOrder('closeDate'),
+      width: '12%',
+      render: (_: any, record: Opportunity) => (
+        <div className="gba:text-sm">
+          {formatDate(record.closeDate)}
+        </div>
       )
     },
     {
       title: 'Owner',
       dataIndex: 'ownerEmployee',
       key: 'ownerEmployee',
-      width: 150,
-      render: (owner: Opportunity['ownerEmployee'], record: Opportunity) => (
-        <div className="gba:flex gba:items-center gba:gap-2" data-testid={`opportunity-owner-${record.id}`}>
+      width: '15%',
+      render: (_: any, record: Opportunity) => (
+        <div className="gba:flex gba:items-center gba:gap-2">
           <Avatar 
             size="small" 
-            src={owner?.pictureThumbnail} 
-            icon={<UserOutlined />}
+            src={record.ownerEmployee?.pictureThumbnail} 
+            fallback={<PiUser />}
           />
-          <Tooltip title={owner?.displayName}>
-            <Text className="gba:truncate">
-              {owner?.displayName || 'Unassigned'}
-            </Text>
-          </Tooltip>
+          <div className="gba:text-sm gba:truncate" title={record.ownerEmployee?.displayName}>
+            {record.ownerEmployee?.displayName || 'Unassigned'}
+          </div>
         </div>
-      )
-    },
-    {
-      title: 'Source',
-      dataIndex: 'salesLeadSource',
-      key: 'salesLeadSource',
-      width: 120,
-      render: (source: Opportunity['salesLeadSource'], record: Opportunity) => (
-        <Text 
-          className="gba:truncate gba:block" 
-          title={source?.value}
-          data-testid={`opportunity-source-${record.id}`}
-        >
-          {source?.value || '-'}
-        </Text>
       )
     }
   ];
 
-  const handleTableChange = (pagination: any, filters: any, sorter: any) => {
-    if (sorter && onSort) {
-      const order = sorter.order === 'ascend' ? 'ASC' : 'DESC';
-      onSort(sorter.field, order);
-    }
-  };
-
   return (
-    <Table
-      columns={columns}
+    <DataTable
       dataSource={data}
+      columns={columns}
       loading={loading}
-      pagination={pagination}
-      scroll={scroll}
-      rowKey="id"
-      size="small"
       onChange={handleTableChange}
-      onRow={(record) => ({
-        onClick: () => onRowClick?.(record),
-        style: { cursor: onRowClick ? 'pointer' : 'default' }
-      })}
-      data-testid="opportunity-table"
+      onSorterChange={handleSorterChange}
+      onRowClick={handleRowClick}
+      pagination={{
+        current: currentPage,
+        pageSize,
+        total,
+        showQuickJumper: true,
+        showSizeChanger: true,
+        pageSizeOptions: [10, 20, 50, 100]
+      }}
+      rowKey="id"
+      selectedRowKeys={selectedOpportunityId ? [selectedOpportunityId] : []}
+      scroll={{ x: 1000 }}
+      data-testid={`${DATA_TEST_ID_PREFIX}-table`}
     />
   );
 };
