@@ -3,7 +3,7 @@ import { CatalogEntry, GetCatalogEntriesParams, GetCatalogEntriesResponse, GetCa
 import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils';
 import { RestClient, type RequestOptions } from '../rest/RestClient';
 
-const BASE_PATH = 'api/v1/catalogs';
+const BASE_PATH = 'api/v1';
 
 export class CatalogManagerClient extends RestClient {
   
@@ -40,7 +40,7 @@ export class CatalogManagerClient extends RestClient {
   ): Promise<GetCatalogEntriesResponse> {
 
     const { limit, offset, ...restParams } = params;
-    const path = this.replacePathParams('/{catalogIdentifier}/{version}/entries', {
+    const path = this.replacePathParams('/catalogs/{catalogIdentifier}/{version}/entries', {
       catalogIdentifier: pathParams.catalogIdentifier,
       version: pathParams.version || 'v1', // Default to 'v1' if not provided
     });
@@ -79,7 +79,7 @@ export class CatalogManagerClient extends RestClient {
     }
 
     return this.get<GetCatalogsResponse>(
-      '',
+      '/catalogs',
       {
         ...options,
         params: queryParams,
@@ -93,7 +93,7 @@ export class CatalogManagerClient extends RestClient {
     entry: Omit<CatalogEntry, 'id' | 'type'>,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<CatalogEntry> {
-    const path = this.replacePathParams('/{catalogIdentifier}/{version}/entries', {
+    const path = this.replacePathParams('/catalogs/{catalogIdentifier}/{version}/entries', {
       catalogIdentifier,
       version: version || 'v1', // Default to 'v1' if not provided
     });
@@ -112,18 +112,9 @@ export class CatalogManagerClient extends RestClient {
     entry: Partial<Omit<CatalogEntry, 'id' | 'type'>>,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<CatalogEntry> {
-    // Ensure we're using just the numeric part of the entryId
-    // The ID might be in format "DocumentType:v1:123" and we need just "123"
-    const numericId = entryId.split(':').pop() || entryId;
-    
-    // Include version in the path
-    const path = this.replacePathParams('/{catalogIdentifier}/{version}/entries/{entryId}', {
-      catalogIdentifier,
-      version: version || 'v1', // Default to 'v1' if not provided
-      entryId: numericId, // Use just the numeric part
+    const path = this.replacePathParams('/catalog-entries/{entryId}', {
+      entryId: entryId,
     });
-
-    console.log('Update catalog entry path:', path);
 
     return this.put<CatalogEntry>(
       path,
@@ -138,18 +129,9 @@ export class CatalogManagerClient extends RestClient {
     entryId: string,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<void> {
-    // Ensure we're using just the numeric part of the entryId
-    // The ID might be in format "DocumentType:v1:123" and we need just "123"
-    const numericId = entryId.split(':').pop() || entryId;
-    
-    // Include version in the path
-    const path = this.replacePathParams('/{catalogIdentifier}/{version}/entries/{entryId}', {
-      catalogIdentifier,
-      version: version || 'v1', // Default to 'v1' if not provided
-      entryId: numericId, // Use just the numeric part
+    const path = this.replacePathParams('/catalog-entries/{entryId}', {
+      entryId: entryId,
     });
-
-    console.log('Delete catalog entry path:', path);
 
     return this.delete(
       path,
