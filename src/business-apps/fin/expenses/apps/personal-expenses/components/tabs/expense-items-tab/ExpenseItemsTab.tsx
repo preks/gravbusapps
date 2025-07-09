@@ -372,13 +372,14 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   // Handle adding a new expense item
   const handleAddExpenseItem = useCallback(() => {
     if (contextProps.userInfo?.employeeDetails?.employeeId) {
-      startProcess({
-        domain: 'employee-expense',
-        processName: 'changeExpenseItem',
-        payload: {
-          employeeId: contextProps.userInfo.employeeDetails.employeeId
-        }
-      });
+       startProcess({
+            domain: 'employee-expense',
+            processName: 'changeExpenseItem',
+            payload: {
+              employeeId: contextProps.userInfo?.employeeDetails?.employeeId
+            },
+            builderType: 'NATIVE_SCREEN'
+          });
     }
   }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 

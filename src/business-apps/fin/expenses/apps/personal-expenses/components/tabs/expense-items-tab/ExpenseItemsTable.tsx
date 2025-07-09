@@ -10,6 +10,8 @@ import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getExpenseItemStatusDisplay } from '../../../utils';
 import ExpenseItemDetails from './ExpenseItemDetails';
+import { startProcess } from '@/common/utils/start-process';
+
 
 const { Text } = Typography;
 
@@ -42,8 +44,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
   const [search, setSearch] = useState('');
 
   // Sorting state
-  const [sortField, setSortField] = useState<string | null>(null);
-  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | null>(null);
+  const [sortField, setSortField] = useState<string>('expenseDate');
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -158,33 +160,53 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
               <ActionButton
                 onClick={(e) => e.stopPropagation()}
                 flowData={[
+                  ...(record.status === 'CREATED' || record.status === 'ASSIGNED') 
+                 ?  [
                   {
                     category: 'Actions',
                     key: 'edit',
                     label: 'Edit',
-                    onClick: (e?: React.MouseEvent) => {
-                      e?.stopPropagation();
-                      console.log('Edit expense item:', record.id);
+                    onClick: () => {
+                      startProcess({
+                        domain: 'employee-expense',
+                        processName: 'changeExpenseItem',
+                        payload: {
+                          employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                          expenseItemIds: [record.id]
+                        },
+                        builderType: 'NATIVE_SCREEN'
+                      });
                     }
-                  },
+                  }
+                 ] : [],
                   {
                     category: 'Navigations',
                     key: 'view',
                     label: 'View Details',
-                    onClick: (e?: React.MouseEvent) => {
-                      e?.stopPropagation();
+                    onClick: () => {
                       handleSelectItem(record);
                     }
                   },
-                  {
-                    category: 'Actions',
-                    key: 'delete',
-                    label: 'Delete',
-                    onClick: (e?: React.MouseEvent) => {
-                      e?.stopPropagation();
-                      console.log('Delete expense item:', record.id);
-                    }
-                  }
+                  ...(record.status === 'CREATED' || record.status === 'ASSIGNED'
+                    ? [
+                        {
+                          category: 'Actions',
+                          key: 'discard',
+                          label: 'Discard Expense Item',
+                          onClick: () => {
+                            startProcess({
+                              domain: 'employee-expense',
+                              processName: 'discardExpenseItems',
+                              payload: {
+                                employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                                expenseItemIds: [record.id]
+                              },
+                              builderType: 'NATIVE_SCREEN'
+                            });
+                          }
+                        }
+                      ]
+                    : [])
                 ]}
                 portalContainer={document.body}
                 data-testid={`actions-${record.id}`}
@@ -201,17 +223,18 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
             render: (text: string) => <div style={{ fontWeight: 'bold' }} data-testid="expense-title-cell">{text}</div>
           },
           {
-            title: 'Invoice Date',
-            dataIndex: 'invoiceDate',
-            key: 'invoiceDate',
-            sorter: (a: any, b: any) => new Date(a.invoiceDate).getTime() - new Date(b.invoiceDate).getTime(),
-            sortOrder: sortField === 'invoiceDate' ? sortOrder : null,
+            title: getTranslationFromI18nKeyAndLabel('gba.expenseItems.expenseDate', 'Expense Date'),
+            dataIndex: 'expenseDate',
+            key: 'expenseDate',
+            sorter: (a: any, b: any) => new Date(a.expenseDate).getTime() - new Date(b.expenseDate).getTime(),
+            sortOrder: sortField === 'expenseDate' ? sortOrder : null,
             render: (date: string) => {
               const formattedDate = date
                 ? formatDate(date, 'date.long')
                 : getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_creation_date', 'No creation date');
-              return <div style={{ fontSize: '12px', color: '#666' }} data-testid="expense-invoice-date-cell">{formattedDate}</div>;
-            }
+              return <div style={{ fontSize: '12px', color: '#666' }} data-testid="expense-expense-date-cell">{formattedDate}</div>;
+            },
+            width: 140,
           },
           {
             title: 'Status',
@@ -267,7 +290,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
       <ExpenseItemDetails
         selectedItem={selectedItem}
         onClose={handleCloseDetails}
-        {...contextProps}
+        accessToken={props.accessToken}
+        userInfo={props.userInfo}
       />
     );
   }, [selectedItem, handleCloseDetails, contextProps]);
@@ -287,8 +311,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
       setSortField(sorter.field);
       setSortOrder(sorter.order);
     } else {
-      setSortField(null);
-      setSortOrder(null);
+      setSortField('');
+      setSortOrder(undefined);
     }
   };
 
@@ -306,7 +330,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
         filterLabelMap: filterLabelMap,
         addButton: {
           onClick: handleAddExpenseItem,
-          label: '',
+          label: getTranslationFromI18nKeyAndLabel('gba.expenseItems.add', 'Add'),
         },
       }}
       dataFilterProps={{

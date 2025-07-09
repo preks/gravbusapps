@@ -6,6 +6,7 @@ import { FileClient } from '@/common/network/files/FileClient';
 import Pill from '@/components/pill/Pill';
 import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems';
 import { getExpenseItemStatusDisplay } from '../../../utils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { UploadFile } from 'antd/es/upload/interface';
 
 const { Text } = Typography;
@@ -275,47 +276,90 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
       </div>
     );
   }
-  
-  // Use the detailed item if available, otherwise fall back to the selectedItem
-  const displayItem = detailedItem || selectedItem;
-  if (!displayItem) return null;
 
-  return (
-    <div className="gba:p-4">
-      <div className="gba:mb-0">
-        {renderAttachmentPreview()}
+// Use the detailed item if available, otherwise fall back to the selectedItem
+const displayItem = detailedItem || selectedItem;
+if (!displayItem) return null;
+
+return (
+  <div className="gba:p-4 gba:relative gba:mb-6">
+    {/* Header: Title, Code, Status Pill */}
+    <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+      <div>
+        <Typography.Title level={4} className="gba:mb-1">
+          {typeof displayItem.title === 'string' ? displayItem.title : ''}
+        </Typography.Title>
+        <Typography.Text type="secondary">
+          {typeof displayItem.code === 'string' ? displayItem.code : ''}
+        </Typography.Text>
       </div>
-      
-      {/* Expense Details Section */}
-      <Descriptions bordered column={1}>
-        <Descriptions.Item label="Code">{displayItem.code}</Descriptions.Item>
-        <Descriptions.Item label="Title">{displayItem.title}</Descriptions.Item>
-        <Descriptions.Item label="Description">{displayItem.description ?? 'No description'}</Descriptions.Item>
-        <Descriptions.Item label="Date">{displayItem.invoiceDate}</Descriptions.Item>
-        <Descriptions.Item label="Amount">
-          <span style={{ fontWeight: 'bold' }}>€{displayItem.reimbursableAmount?.toFixed(2) ?? '0.00'}</span>
-        </Descriptions.Item>
-        <Descriptions.Item label="Status">
-          <Pill
-            label={getExpenseItemStatusDisplay(displayItem.status).label}
-            type={getExpenseItemStatusDisplay(displayItem.status).type}
-            className="gba:text-center"
-          />
-        </Descriptions.Item>
-        {displayItem.expenseClass && (
-          <Descriptions.Item label="Expense Class">
-            {displayItem.expenseClass.value}
-          </Descriptions.Item>
-        )}
-        {displayItem.costCenter && (
-          <Descriptions.Item label="Cost Center">
-            {displayItem.costCenter.name}
-          </Descriptions.Item>
-        )}
-      </Descriptions>
-      <Divider />
+      <Pill
+        type={getExpenseItemStatusDisplay(displayItem.status).type}
+        label={getExpenseItemStatusDisplay(displayItem.status).label}
+        className="gba:text-base"
+        data-testid="expense-item-status-pill"
+      />
     </div>
-  );
-};
+
+    {/* Dates Section */}
+    {displayItem.invoiceDate && (
+      <div className="gba:flex gba:items-center gba:mb-2">
+        <span className="gba:mr-2"><FileImageOutlined /></span>
+        <Typography.Text className="gba:text-sm">
+          {getTranslationFromI18nKeyAndLabel('expense.item.invoiceDate', 'Invoice Date')}: {typeof displayItem.invoiceDate === 'string' ? displayItem.invoiceDate : ''}
+        </Typography.Text>
+      </div>
+    )}
+    {'creationDate' in displayItem && displayItem.creationDate && (
+      <div className="gba:flex gba:items-center gba:mb-2">
+        <span className="gba:mr-2"><FileImageOutlined /></span>
+        <Typography.Text className="gba:text-sm">
+          {getTranslationFromI18nKeyAndLabel('expense.item.creationDate', 'Creation Date')}: {typeof displayItem.creationDate === 'string' ? displayItem.creationDate : ''}
+        </Typography.Text>
+      </div>
+    )}
+    {/* Add more date rows as needed, matching plan details style */}
+
+    {/* Description Section */}
+    {typeof displayItem.description === 'string' && displayItem.description && (
+      <Typography.Text className="gba:block gba:mb-4">
+        {displayItem.description}
+      </Typography.Text>
+    )}
+
+    {/* Details Section */}
+    <Descriptions size="small" column={1}>
+      {displayItem.employee && displayItem.employee.fullName && (
+        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.item.requester', 'Requester')}>
+          {String(displayItem.employee.fullName)}
+        </Descriptions.Item>
+      )}
+      {displayItem.expenseClass && displayItem.expenseClass.value && (
+        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.item.class', 'Expense Class')}>
+          {String(displayItem.expenseClass.value)}
+        </Descriptions.Item>
+      )}
+      {displayItem.costCenter && displayItem.costCenter.name && (
+        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.item.costCenter', 'Cost Center')}>
+          {String(displayItem.costCenter.name)}
+        </Descriptions.Item>
+      )}
+      <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.item.amount', 'Amount')}>
+        <span style={{ fontWeight: 'bold' }}>
+          €{typeof displayItem.reimbursableAmount === 'number' ? displayItem.reimbursableAmount.toFixed(2) : '0.00'}
+        </span>
+      </Descriptions.Item>
+    </Descriptions>
+
+    <Divider />
+
+    {/* File Viewer Section */}
+    <div className="gba:mt-2">
+      {renderAttachmentPreview()}
+    </div>
+  </div>
+);
+
+}
 
 export default ExpenseItemDetails;
