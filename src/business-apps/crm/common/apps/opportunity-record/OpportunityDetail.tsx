@@ -20,15 +20,15 @@ import {
   EditOutlined,
   ArrowLeftOutlined
 } from '@ant-design/icons';
-import { BusinessAppContextProps } from "../../../../common/BusinessAppContext";
-import { Avatar  } from "../../overview-screens/LeadsOverview/common/ui/avatar";
-import { Button } from "../../overview-screens/LeadsOverview/common/ui/button";
-import { useGraphqlClient } from "../../../../common/network/graphql/useGraphQLClient";
+import { BusinessAppContextProps } from "../../../../../common/BusinessAppContext";
+import { Avatar  } from "../../../overview-screens/LeadsOverview/common/ui/avatar";
+import { Button } from "../../../overview-screens/LeadsOverview/common/ui/button";
+import { useGraphqlClient } from "../../../../../common/network/graphql/useGraphQLClient";
 import { getOpportunityByIdQuery } from "./queries/getOpportunityByIdQuery";
 import {getActivityByOpportunityId} from "./queries/getActivityByOpportunityId";
 
 // import EditLead from "./EditLead";
-import { useCatalogManagerClient } from "../../../../common/network/catalogs/useCatalogManagerClient";
+import { useCatalogManagerClient } from "../../../../../common/network/catalogs/useCatalogManagerClient";
 import dayjs from 'dayjs';
 
 const { Text } = Typography;

@@ -5,7 +5,7 @@ import { useKanbanStore } from "./lib/kanban-store";
 import { KanbanColumn } from "./components/KanbanColumn";
 import { OpportunityCard } from "./components/OpportunityCard";
 import { OpportunityDialog } from "./components/OpportunityDialog";
-import OpportunityDetail from "../../../crm/detail-screens/OpportunityDetail/OpportunityDetail";
+import OpportunityDetail from "../../../crm/common/apps/opportunity-record/OpportunityDetail";
 import { getTranslationFromI18nKeyAndLabel } from "../../../../common/utils/windowUtils";
 import type { Opportunity } from "./lib/types";
 

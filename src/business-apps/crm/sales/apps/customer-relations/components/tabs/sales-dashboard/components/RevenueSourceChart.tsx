@@ -1,6 +1,7 @@
 import React from 'react';
-import { Typography } from 'antd';
+import { Typography, theme } from 'antd';
 import { PieChartOutlined } from '@ant-design/icons';
+import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts';
 import { formatLargeNumber } from '../utils/dashboardUtils';
 
 const { Title, Text } = Typography;
@@ -21,6 +22,73 @@ export const RevenueSourceChart: React.FC<RevenueSourceChartProps> = ({
   title,
   totalRevenue
 }) => {
+  const { token } = theme.useToken();
+  const [activeIndex, setActiveIndex] = React.useState<number>(-1);
+
+  // Transform data for Recharts
+  const chartData = React.useMemo(() => {
+    return revenueData.map(item => ({
+      name: item.source,
+      value: item.value,
+      percentage: item.percentage,
+      color: item.color
+    }));
+  }, [revenueData]);
+
+  // Standard colors from HR analytics pattern  
+  const COLORS = [
+    '#1890FF', '#2FC25B', '#FACC14', '#223273', '#8543E0', '#13C2C2', 
+    '#3436C7', '#F04864', '#D0021B', '#5B8FF9', '#5AD8A6', '#5D7092',
+    '#F6BD16', '#E8684A', '#6DC8EC', '#9270CA', '#FF9D4D', '#269A99'
+  ];
+
+  // Custom active shape for hover effect
+  const renderActiveShape = (props: any) => {
+    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, value } = props;
+
+    return (
+      <g>
+        <Sector
+          cx={cx}
+          cy={cy}
+          innerRadius={innerRadius}
+          outerRadius={outerRadius + 10}
+          startAngle={startAngle}
+          endAngle={endAngle}
+          fill={fill}
+          opacity={0.8}
+        />
+        <Sector
+          cx={cx}
+          cy={cy}
+          startAngle={startAngle}
+          endAngle={endAngle}
+          innerRadius={innerRadius - 6}
+          outerRadius={innerRadius - 2}
+          fill={fill}
+        />
+        <text x={cx} y={cy - 20} textAnchor="middle" fill={token.colorText} fontSize={18} fontWeight="600">
+          {payload.name}
+        </text>
+        <text x={cx} y={cy + 10} textAnchor="middle" fill={token.colorTextSecondary} fontSize={14}>
+          {formatLargeNumber(value)} leads
+        </text>
+        <text x={cx} y={cy + 30} textAnchor="middle" fill={token.colorPrimary} fontSize={14} fontWeight="600">
+          {payload.percentage}%
+        </text>
+      </g>
+    );
+  };
+
+  // Event handlers for pie slice hover
+  const onPieEnter = (_: any, index: number) => {
+    setActiveIndex(index);
+  };
+  
+  const onPieLeave = () => {
+    setActiveIndex(-1);
+  };
+
   if (!revenueData || revenueData.length === 0) {
     return (
       <div className="gba:bg-white gba:rounded-xl gba:shadow-lg gba:border gba:border-gray-200 gba:overflow-hidden gba:h-full">
@@ -41,14 +109,6 @@ export const RevenueSourceChart: React.FC<RevenueSourceChartProps> = ({
     );
   }
 
-  // Create SVG donut chart
-  const size = 200;
-  const strokeWidth = 30;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  
-  let cumulativePercentage = 0;
-
   return (
     <div className="gba:bg-white gba:rounded-xl gba:shadow-lg gba:border gba:border-gray-200 gba:overflow-hidden gba:h-full">
       {/* Header */}
@@ -66,98 +126,64 @@ export const RevenueSourceChart: React.FC<RevenueSourceChartProps> = ({
       {/* Chart Content */}
       <div className="gba:p-6">
         <div className="gba:flex gba:flex-col gba:items-center">
-          {/* SVG Donut Chart */}
-          <div className="gba:relative gba:mb-6">
-            <svg width={size} height={size} className="gba:transform gba:-rotate-90">
-              {revenueData.map((item, index) => {
-                const strokeDasharray = `${(item.percentage / 100) * circumference} ${circumference}`;
-                const strokeDashoffset = -cumulativePercentage * circumference / 100;
-                
-                // Calculate position for text label (middle of the arc)
-                const midAngle = (cumulativePercentage + item.percentage / 2) * 2 * Math.PI / 100 - Math.PI / 2;
-                const labelRadius = radius - strokeWidth / 4; // Position closer to outer edge
-                const labelX = size / 2 + labelRadius * Math.cos(midAngle);
-                const labelY = size / 2 + labelRadius * Math.sin(midAngle);
-                
-                cumulativePercentage += item.percentage;
-
-                return (
-                  <g key={item.source}>
-                    <circle
-                      cx={size / 2}
-                      cy={size / 2}
-                      r={radius}
-                      fill="transparent"
-                      stroke={item.color}
-                      strokeWidth={strokeWidth}
-                      strokeDasharray={strokeDasharray}
-                      strokeDashoffset={strokeDashoffset}
-                      className="gba:transition-all gba:duration-300 hover:gba:opacity-80"
+          {/* Recharts Donut Chart */}
+          <div className="gba:h-[300px] gba:w-full gba:mb-6">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  activeIndex={activeIndex}
+                  activeShape={renderActiveShape}
+                  innerRadius="60%"
+                  outerRadius="80%"
+                  dataKey="value"
+                  onMouseEnter={onPieEnter}
+                  onMouseLeave={onPieLeave}
+                  animationBegin={0}
+                  animationDuration={1200}
+                  animationEasing="ease-out"
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.color || COLORS[index % COLORS.length]} 
+                      stroke={token.colorBgContainer} 
+                      strokeWidth={2}
                     />
-                    {/* Show count in each segment if percentage is large enough */}
-                    {item.percentage > 15 && (
-                      <g>
-                        {/* Background circle for better text readability */}
-                        <circle
-                          cx={labelX}
-                          cy={labelY}
-                          r="16"
-                          fill="rgba(0,0,0,0.6)"
-                          stroke="white"
-                          strokeWidth="1"
-                        />
-                        <text
-                          x={labelX}
-                          y={labelY}
-                          textAnchor="middle"
-                          dominantBaseline="central"
-                          className="gba:fill-white gba:font-bold"
-                          style={{ 
-                            fontSize: '11px',
-                            pointerEvents: 'none'
-                          }}
-                        >
-                          {formatLargeNumber(item.value)}
-                        </text>
-                      </g>
-                    )}
-                  </g>
-                );
-              })}
-            </svg>
-            
-            {/* Center Content */}
-            <div className="gba:absolute gba:inset-0 gba:flex gba:flex-col gba:items-center gba:justify-center">
-              <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                {formatLargeNumber(totalRevenue)}
-              </div>
-              <div className="gba:text-sm gba:text-gray-600">
-                Total Leads
-              </div>
-            </div>
+                  ))}
+                  {/* Center content */}
+                  <text x="50%" y="47%" textAnchor="middle" dominantBaseline="middle" 
+                        style={{ fontSize: '16px', fill: token.colorText, fontWeight: 600 }}>
+                    Total Leads
+                  </text>
+                  <text x="50%" y="57%" textAnchor="middle" dominantBaseline="middle" 
+                        style={{ fontSize: '24px', fontWeight: 'bold', fill: token.colorTextHeading }}>
+                    {formatLargeNumber(totalRevenue)}
+                  </text>
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
           </div>
 
           {/* Legend */}
-          <div className="gba:w-full gba:space-y-3">
-            {revenueData.map((item) => (
-              <div key={item.source} className="gba:flex gba:items-center gba:justify-between">
-                <div className="gba:flex gba:items-center gba:gap-3">
+          <div className="gba:w-full gba:pt-4 gba:border-t gba:border-gray-200">
+            <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-4">
+              {chartData.map((item, index) => (
+                <div key={item.name} className="gba:flex gba:items-center gba:gap-2">
                   <div 
                     className="gba:w-3 gba:h-3 gba:rounded-full"
-                    style={{ backgroundColor: item.color }}
+                    style={{ backgroundColor: item.color || COLORS[index % COLORS.length] }}
                   />
-                  <span className="gba:text-sm gba:text-gray-700">{item.source}</span>
-                </div>
-                <div className="gba:text-right">
-                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">
+                  <span className="gba:text-sm gba:text-gray-700">{item.name}</span>
+                  <span className="gba:text-sm gba:font-medium gba:text-gray-900">
                     {item.percentage}%
-                  </div>
-                  <div className="gba:text-xs gba:text-gray-500">
-                    {formatLargeNumber(item.value)} leads
-                  </div>
+                  </span>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>

@@ -12,7 +12,7 @@ import {
 import type { ColumnsType, TableProps } from "antd/es/table";
 import { BusinessAppContextProps } from '@/business-apps/types';
 import { useOpportunitiesData, OpportunityData } from './hooks';
-import OpportunityDetail from '../../detail-screens/OpportunityDetail/OpportunityDetail';
+import OpportunityDetail from '../../common/apps/opportunity-record/OpportunityDetail';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { useDebounce } from '@/common/hooks/useDebounce';
 

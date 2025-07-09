@@ -46,10 +46,10 @@ import {
   UploadOutlined,
   FileOutlined
 } from "@ant-design/icons";
-import { CompanyDocument } from "../../overview-screens/CompanyDocument/CompanyDocument";
+import { CompanyDocument } from "@/business-apps/crm/overview-screens/CompanyDocument/CompanyDocument";
 import {
   GET_COMPANY_BY_ID, GetCompanyByIdResponse
-} from "../../overview-screens/CompanyOverview/graphql/company-queries";
+} from "@/business-apps/crm/overview-screens/CompanyOverview/graphql/company-queries";
 import { GET_SALES_ACTIVITIES, SalesActivityResponse } from './queries/salesActivityQueries';
 import { GET_DOCUMENTS_BY_ACCOUNT, GetDocumentsResponse, DocumentData } from './queries/documentQueries';
 import { useSalesActivityTypes } from './hooks/useSalesActivityTypes';

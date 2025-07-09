@@ -9,7 +9,8 @@ import {
   UserOutlined,
   FundOutlined,
   BankOutlined,
-  ContactsOutlined
+  ContactsOutlined,
+  DashboardOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PageLayout } from '@/components/layout/pageLayout';
@@ -17,6 +18,7 @@ import { LeadList } from '@/business-apps/crm/common/components/lead-list';
 import { AccountList } from '@/business-apps/crm/common/components/account-list';
 import { ContactList } from '@/business-apps/crm/common/components/contact-list';
 import { OpportunityList } from '@/business-apps/crm/common/components/opportunity-list';
+import InvestmentsDashboard from './components/views/investments-dashboard/InvestmentsDashboard';
 import { Account } from '@/business-apps/crm/common/components/account-list/types';
 import { Contact } from '@/business-apps/crm/common/components/contact-list/types';
 import { Opportunity } from '@/business-apps/crm/common/components/opportunity-list/types';
@@ -25,6 +27,11 @@ export interface InvestmentRelationsProps extends BusinessAppContextProps {}
 
 export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context) => {
   const tabOptions = [
+    {
+      key: 'dashboard',
+      icon: <DashboardOutlined />,
+      label: 'Dashboard'
+    },
     {
       key: 'leads',
       icon: <TeamOutlined />,
@@ -109,6 +116,15 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'dashboard':
+        return (
+          <div data-testid="dashboard-tab-content">
+            <InvestmentsDashboard 
+              accessToken={context.accessToken}
+              userInfo={context.userInfo}
+            />
+          </div>
+        );
       case 'leads':
         return (
           <div data-testid="leads-tab-content">

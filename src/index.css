@@ -19,8 +19,8 @@
 @import "./business-apps/crm/overview-screens/CompanyOverview/styles/CompanyOverview.css";
 @import "./business-apps/crm/overview-screens/CompanyOverview/AddNewCompany/styles/AddNewCompany.css";
 @import "./business-apps/crm/overview-screens/OpportunityOverview/styles/OpportunityOverview.css";
-@import "./business-apps/crm/detail-screens/CompanyDetail/styles/CompanyDetail.css";
-@import "./business-apps/crm/detail-screens/OpportunityDetail/styles/OpportunityDetail.css";
+@import "./business-apps/crm/common/apps/company-record/styles/CompanyDetail.css";
+@import "./business-apps/crm/common/apps/opportunity-record/styles/OpportunityDetail.css";
 @import "./business-apps/hr/absence/apps/AbsenceCalendar/styles/AbsenceCalendar.css";
 @import "./business-apps/fin/expenses/forms/expense-item/ExpenseItem.css";
 @import "./business-apps/fin/expenses/forms/expense-request/ExpenseRequest.css";

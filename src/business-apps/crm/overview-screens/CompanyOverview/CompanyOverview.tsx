@@ -10,7 +10,7 @@ import {
   Empty,
   Popover
 } from 'antd';
-import CompanyDetail from '../../detail-screens/CompanyDetail/CompanyDetail';
+import CompanyDetail from '@/business-apps/crm/common/apps/company-record/CompanyDetail';
 import AddNewCompany from './AddNewCompany';
 import { 
   PlusOutlined, 

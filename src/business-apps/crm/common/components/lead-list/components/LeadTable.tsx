@@ -2,7 +2,8 @@
 
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTable, Avatar, Button, Tag, Tooltip } from '@newwork/gravity-ui-catalog';
+import { DataTable, Avatar, Button, Tooltip } from '@newwork/gravity-ui-catalog';
+import { Badge } from '@newwork/nw-design-system';
 import { PiUser, PiEnvelope, PiPhone, PiBuilding, PiCalendar, PiMapPin } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -95,38 +96,38 @@ export const LeadTable: React.FC<LeadTableProps> = ({
     }
   };
 
-  // Get rating color based on value
-  const getRatingColor = (rating?: string) => {
-    if (!rating) return 'gray';
+  // Get rating badge styling based on value
+  const getRatingBadgeClass = (rating?: string) => {
+    if (!rating) return 'gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200';
     switch (rating.toLowerCase()) {
       case 'cold':
-        return 'blue';
+        return 'gba:!bg-blue-100 gba:!text-blue-700 gba:!border-blue-200';
       case 'warm':
-        return 'orange';
+        return 'gba:!bg-orange-100 gba:!text-orange-700 gba:!border-orange-200';
       case 'hot':
-        return 'red';
+        return 'gba:!bg-red-100 gba:!text-red-700 gba:!border-red-200';
       default:
-        return 'gray';
+        return 'gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200';
     }
   };
 
-  // Get lead status color
-  const getStatusColor = (status?: string) => {
-    if (!status) return 'gray';
+  // Get lead status badge styling
+  const getStatusBadgeClass = (status?: string) => {
+    if (!status) return 'gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200';
     switch (status.toLowerCase()) {
       case 'new':
       case 'open':
-        return 'blue';
+        return 'gba:!bg-blue-100 gba:!text-blue-700 gba:!border-blue-200';
       case 'qualified':
       case 'contacted':
-        return 'green';
+        return 'gba:!bg-green-100 gba:!text-green-700 gba:!border-green-200';
       case 'unqualified':
       case 'lost':
-        return 'red';
+        return 'gba:!bg-red-100 gba:!text-red-700 gba:!border-red-200';
       case 'converted':
-        return 'purple';
+        return 'gba:!bg-green-100 gba:!text-green-700 gba:!border-green-200';
       default:
-        return 'gray';
+        return 'gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200';
     }
   };
 
@@ -327,9 +328,9 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         const status = record.leadStatus?.value || '-';
         
         return (
-          <Tag color={getStatusColor(status)}>
+          <Badge className={getStatusBadgeClass(status)}>
             {status}
-          </Tag>
+          </Badge>
         );
       },
       width: '12%',
@@ -344,9 +345,9 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         const rating = record.leadRating?.value || '-';
         
         return (
-          <Tag color={getRatingColor(rating)}>
+          <Badge className={getRatingBadgeClass(rating)}>
             {rating}
-          </Tag>
+          </Badge>
         );
       },
       width: '13%',
