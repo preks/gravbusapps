@@ -140,6 +140,7 @@ export interface Lead {
     insights: string[];
     recommendations: string[];
   };
+  convertedOpportunityId: string;
 }
 
 export interface LeadActivity {

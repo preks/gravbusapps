@@ -13,6 +13,8 @@ export interface InvestmentSummary {
   acquisitionDate?: string;
   exitDate?: string;
   plannedExitDate?: string;
+  activeFrom?: string;
+  activeTo?: string;
   bookValue?: number;
   marketValue?: number;
   initialInvestmentAmount?: number;

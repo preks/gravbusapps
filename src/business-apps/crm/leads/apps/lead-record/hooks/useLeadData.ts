@@ -111,7 +111,8 @@ export const useLeadData = (leadId: string, accessToken: string) => {
             text: "",
             insights: [],
             recommendations: []
-          }
+          },
+          convertedOpportunityId: rawLeadData.convertedOpportunityId || ''
         };
         
         setLead(transformedLead);

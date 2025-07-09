@@ -31,6 +31,8 @@ const GET_PRIVATE_EQUITY_INVESTMENT_DATA = (variables: PrivateEquityInvestmentQu
         id
         investmentId
         investmentRoleRef
+        activeFrom
+        activeTo
         createdAt
         investmentRole {
           id
