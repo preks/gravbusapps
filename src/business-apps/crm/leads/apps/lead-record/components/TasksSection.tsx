@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Spin, Alert, Button, Timeline, Typography } from 'antd';
-import { PlusCircleOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetSalesTasks, SalesTaskData } from '../queries/SalesTaskQueries';
@@ -53,7 +53,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
       try {
         const response = event.detail?.response;
         
-        if (response?.salesTask) {
+        if (response?.detail.resolution === 'success') {
           loadTasks();
         }
       } catch (err) {
@@ -143,10 +143,6 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
     return 'Unknown';
   };
 
-  const handleRefresh = () => {
-    loadTasks();
-  };
-
   return (
     <div 
       style={{
@@ -171,22 +167,14 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
         >
           Tasks
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <Button 
-            icon={<ReloadOutlined />}
-            onClick={handleRefresh}
-            data-testid="refresh-tasks-button"
-            title="Refresh Tasks"
-          />
-          <Button 
-            type="primary"
-            icon={<PlusCircleOutlined />}
-            onClick={handleAddTaskClick}
-            data-testid="add-task-button"
-          >
-            Add Task
-          </Button>
-        </div>
+        <Button 
+          type="primary"
+          icon={<PlusCircleOutlined />}
+          onClick={handleAddTaskClick}
+          data-testid="add-task-button"
+        >
+          Add Task
+        </Button>
       </div>
 
       <div style={{ padding: '0 24px 24px' }}>
@@ -204,7 +192,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
             showIcon
             style={{ marginBottom: '16px' }}
             action={
-              <Button size="small" onClick={handleRefresh}>
+              <Button size="small" onClick={loadTasks}>
                 Retry
               </Button>
             }

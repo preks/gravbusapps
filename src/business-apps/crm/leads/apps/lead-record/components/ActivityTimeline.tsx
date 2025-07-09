@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CalendarOutlined, CloudUploadOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CalendarOutlined, CloudUploadOutlined } from '@ant-design/icons';
 import { Button, List, Avatar, Spin, Alert, Empty, Tag, message, Timeline, Typography } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -183,21 +183,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log('Process completion event received:', event.type, event);
-        const response = event.detail?.response;
-        console.log('Event response:', response);
-        
-        if (response?.salesActivity) {
-          console.log('Refreshing activities...');
+        if (event.detail?.resolution === 'success' && activeTab === 'activities') {
           loadActivities();
-        }
-        if (response?.crmNote) {
-          console.log('Refreshing notes...');
-          refreshNotes();
-        }
-        if (response?.crmDocument) {
-          console.log('Refreshing documents...');
           loadDocuments();
+          refreshNotes();
+          
+          return
         }
       } catch (err) {
         console.error('Error handling process completion:', err);
@@ -231,6 +222,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
       'com.newwork.process.taskCompletion',
       'com.newwork.process.completion',
       'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
       'processCompletion',
       'taskCompletion',
       'taskCompleted',
@@ -291,14 +283,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
         builderType: 'NATIVE_SCREEN',
       });
     }
-  };
-
-  const handleRefreshActivities = () => {
-    loadActivities();
-  };
-
-  const handleRefreshDocuments = () => {
-    loadDocuments();
   };
 
   const handleDeleteActivity = async (activity: SalesActivityData) => {
@@ -457,22 +441,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 />
               )}
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <Button 
-                icon={<ReloadOutlined />}
-                onClick={handleRefreshActivities}
-                data-testid="refresh-activities-button"
-                title="Refresh Activities"
-              />
-              <Button 
-                type="primary"
-                icon={<PlusCircleOutlined />}
-                onClick={handleAddActivity}
-                data-testid="add-activity-button"
-              >
-                Add Activity
-              </Button>
-            </div>
+            <Button 
+              type="primary"
+              icon={<PlusCircleOutlined />}
+              onClick={handleAddActivity}
+              data-testid="add-activity-button"
+            >
+              Add Activity
+            </Button>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -490,7 +466,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 showIcon
                 style={{ marginBottom: '16px' }}
                 action={
-                  <Button size="small" onClick={handleRefreshActivities}>
+                  <Button size="small" onClick={loadActivities}>
                     Retry
                   </Button>
                 }
@@ -568,22 +544,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             >
               Documents
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <Button 
-                icon={<ReloadOutlined />}
-                onClick={handleRefreshDocuments}
-                data-testid="refresh-documents-button"
-                title="Refresh Documents"
-              />
-              <Button 
-                type="primary"
-                icon={<CloudUploadOutlined />}
-                onClick={handleAddDocument}
-                data-testid="add-document-button"
-              >
-                Upload Document
-              </Button>
-            </div>
+            <Button 
+              type="primary"
+              icon={<CloudUploadOutlined />}
+              onClick={handleAddDocument}
+              data-testid="add-document-button"
+            >
+              Upload Document
+            </Button>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -601,7 +569,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 showIcon
                 style={{ marginBottom: '16px' }}
                 action={
-                  <Button size="small" onClick={handleRefreshDocuments}>
+                  <Button size="small" onClick={loadDocuments}>
                     Retry
                   </Button>
                 }

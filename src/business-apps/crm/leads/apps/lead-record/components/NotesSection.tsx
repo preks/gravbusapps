@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, UserOutlined, CloseOutlined, LoadingOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, UserOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
 import { Button, Spin, Alert, Empty, Timeline, Typography, message } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -194,10 +194,6 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
     }
   };
 
-  const handleRefresh = () => {
-    loadNotes();
-  };
-
   const handleLanguageChange = (languageCode: string) => {
     setSelectedLanguage(languageCode);
   };
@@ -230,22 +226,14 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
             />
           )}
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <Button 
-            icon={<ReloadOutlined />}
-            onClick={handleRefresh}
-            data-testid="refresh-notes-button"
-            title="Refresh Notes"
-          />
-          <Button 
-            type="primary"
-            icon={<PlusCircleOutlined />}
-            onClick={handleAddNote}
-            data-testid="add-note-button"
-          >
-            Add Note
-          </Button>
-        </div>
+        <Button 
+          type="primary"
+          icon={<PlusCircleOutlined />}
+          onClick={handleAddNote}
+          data-testid="add-note-button"
+        >
+          Add Note
+        </Button>
       </div>
 
       <div style={{ padding: '0 24px 24px' }}>
@@ -263,7 +251,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
             showIcon
             style={{ marginBottom: '16px' }}
             action={
-              <Button size="small" onClick={handleRefresh}>
+              <Button size="small" onClick={loadNotes}>
                 Retry
               </Button>
             }
