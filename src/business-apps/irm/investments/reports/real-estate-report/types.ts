@@ -28,6 +28,9 @@ export interface RealEstateInvestmentSummary {
   buildingYear?: string;
   occupancyPercent?: number;
   annualExpenses?: number;
+  size?: number;
+  activeFrom?: string;
+  activeTo?: string;
   createdAt?: string;
   
   // From Investment table

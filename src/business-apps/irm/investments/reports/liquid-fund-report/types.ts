@@ -5,6 +5,8 @@ export interface LiquidFundInvestment {
   interestRate: number;
   maturityDate: string;
   earlyTerminationAllowed: boolean;
+  activeFrom: string;
+  activeTo: string;
   createdAt: string;
   interestPaymentFrequency: {
     id: string;

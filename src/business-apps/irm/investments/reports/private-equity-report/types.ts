@@ -16,6 +16,8 @@ export interface PrivateEquityInvestmentSummary {
     id: string;
     value: string;
   };
+  activeFrom?: string;
+  activeTo?: string;
   createdAt?: string;
   
   // From Investment table

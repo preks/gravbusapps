@@ -34,6 +34,8 @@ const GET_LIQUID_FUND_INVESTMENT_DATA = (variables: LiquidFundInvestmentQueryVar
         interestRate
         maturityDate
         earlyTerminationAllowed
+        activeFrom
+        activeTo
         createdAt
         interestPaymentFrequency {
           id

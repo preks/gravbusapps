@@ -30,6 +30,8 @@ const GET_EQUITY_INVESTMENT_DATA = (variables: EquityInvestmentQueryVariables): 
         id
         investmentId
         investmentRoleRef
+        activeFrom
+        activeTo
         currentCompanyValuation
         lastReportedEbitda
         lastReportedTurnover
@@ -47,6 +49,8 @@ const GET_EQUITY_INVESTMENT_DATA = (variables: EquityInvestmentQueryVariables): 
           acquisitionDate
           exitDate
           plannedExitDate
+          activeFrom
+          activeTo
           bookValue
           marketValue
           initialInvestmentAmount
