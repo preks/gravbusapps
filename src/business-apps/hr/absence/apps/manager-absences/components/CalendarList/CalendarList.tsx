@@ -31,11 +31,18 @@ interface EmployeeAbsence {
 }
 
 const ABSENCE_QUERY = `
-  query GetEmployeeAbsences($page: Int!, $limit: Int!, $orgUnitId: uuid) {
+  query GetEmployeeAbsences($offset: Int!, $limit: Int!, $supervisorId: uuid) {
+    EmployeeAbsenceAggregate(
+      where: {employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}}}
+    ) {
+      aggregate {
+        count
+      }
+    }
     EmployeeAbsence(
-      offset: $page
+      offset: $offset
       limit: $limit
-      where: {employee: {employeePosition: {organizationalUnitId: {_eq: $orgUnitId}}}}
+      where: {employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}}}
     ) {
       id
       startDate
@@ -72,8 +79,8 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
   const [error, setError] = useState<Error | null>(null)
 
   const fetchData = useCallback(async () => {
-    if (!userInfo?.employeeDetails?.organizationalUnit?.id) {
-      console.error('User organization unit not found')
+    if (!userInfo?.employeeDetails?.employeeId) {
+      console.error('User employee ID not found')
       return
     }
 
@@ -81,12 +88,35 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
     setError(null)
 
     try {
-      const { EmployeeAbsence } = await graphQLClient.request<{ EmployeeAbsence: EmployeeAbsence[] }>(
+      // First, get the total count of absences
+      const result = await graphQLClient.request<{ 
+        EmployeeAbsenceAggregate: { aggregate: { count: number } },
+        EmployeeAbsence: EmployeeAbsence[]
+      }>(
         ABSENCE_QUERY,
         {
-          page: 0,
-          limit: 200,
-          orgUnitId: userInfo.employeeDetails.organizationalUnit.id
+          offset: 0,
+          limit: 0, // We'll update this in the next request
+          supervisorId: userInfo.employeeDetails.employeeId
+        }
+      )
+
+      const totalCount = result.EmployeeAbsenceAggregate.aggregate.count;
+      
+      if (totalCount === 0) {
+        setEmployeeAbsences([]);
+        return;
+      }
+
+      // Now fetch all absences in one go using the total count as limit
+      const { EmployeeAbsence } = await graphQLClient.request<{ 
+        EmployeeAbsence: EmployeeAbsence[]
+      }>(
+        ABSENCE_QUERY,
+        {
+          offset: 0,
+          limit: totalCount,
+          supervisorId: userInfo.employeeDetails.employeeId
         }
       )
 
