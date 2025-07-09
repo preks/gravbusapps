@@ -12,9 +12,9 @@ import {
 import type { ColumnsType, TableProps } from "antd/es/table";
 import { BusinessAppContextProps } from '@/business-apps/types';
 import { useOpportunitiesData, OpportunityData } from './hooks';
-import OpportunityDetail from '../../detail-screens/OpportunityDetail/OpportunityDetail';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { useDebounce } from '@/common/hooks/useDebounce';
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -39,8 +39,6 @@ export function OpportunityOverview({ accessToken, userInfo }: BusinessAppContex
   } = useOpportunitiesData(accessToken);
   
   const [isDeletingOpportunity, setIsDeletingOpportunity] = useState(false);
-  const [selectedOpportunity, setSelectedOpportunity] = useState<OpportunityData | null>(null);
-  const [isDetailVisible, setIsDetailVisible] = useState(false);
   const [searchText, setSearchText] = useState<string>('');
   const debouncedSearchTerm = useDebounce(searchText, 200); 
 
@@ -237,10 +235,7 @@ export function OpportunityOverview({ accessToken, userInfo }: BusinessAppContex
   const averageValue = totalValue / totalOpportunities;
   const winRate = 60; // 60% average
 
-  const handleOpportunityDetailBack = () => {
-    setIsDetailVisible(false);
-    setSelectedOpportunity(null);
-  };
+  // Remove the opportunity detail back handler as we're using navigation now
 
   async function handleCreateOpportunitySubmit(values: { 
     name: string; 
@@ -300,19 +295,7 @@ export function OpportunityOverview({ accessToken, userInfo }: BusinessAppContex
       setIsSubmitting(false);
     }
   }
-  // Conditional rendering based on whether detail view is active
-  if (isDetailVisible && selectedOpportunity) {
-    return (
-      <div className="gba:opportunity-detail-container" data-testid="opportunity-detail-container" style={{ backgroundColor: 'white', padding: '16px' }}>
-        <OpportunityDetail 
-          accessToken={accessToken}
-          opportunityId={selectedOpportunity.id}
-          userInfo={userInfo}
-          onBack={handleOpportunityDetailBack}
-        />
-      </div>
-    );
-  }
+  // Remove conditional rendering - now using navigation to opportunity-record
 
   // Handle table change for sorting
   const handleTableChange: TableProps<OpportunityData>['onChange'] = (pagination, filters, sorter) => {
@@ -727,9 +710,9 @@ export function OpportunityOverview({ accessToken, userInfo }: BusinessAppContex
   // Function to handle viewing opportunity details
   function handleViewOpportunity(opportunity: OpportunityData) {
     if (opportunity && opportunity.id) {
-      // Force a re-render by creating a new object
-      setSelectedOpportunity({...opportunity});
-      setIsDetailVisible(true);
+      // Navigate to opportunity-record app
+      const url = buildPlatformUrl('/platform/crm/opportunity-record', { id: opportunity.id });
+      navigateTo(url);
     } else {
       message.error('Cannot view opportunity: ID is missing');
     }

@@ -72,7 +72,7 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
             onClick={() => {
               startProcess({
                 domain: 'customer-relations',
-                processName: 'convertLeadToOpportunity',
+                processName: 'convertLead',
                 payload: {
                   leadId,
                   employeeId: additionalData?.employeeId

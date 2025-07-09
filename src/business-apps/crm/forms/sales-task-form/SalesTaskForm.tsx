@@ -107,7 +107,8 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
         priorityRef: values.priorityRef,
         deadline: values.deadline ? dayjs(values.deadline).toISOString() : null,
         description: values.description,
-        lead: additionalData?.leadId,
+        ...(additionalData?.leadId && { lead: additionalData.leadId }),
+        ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
       },
     };
     dispatchProcessContinueEvent('pse_submit', payload);
