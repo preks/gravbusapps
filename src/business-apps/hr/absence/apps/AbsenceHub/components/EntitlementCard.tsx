@@ -69,7 +69,7 @@ const EntitlementCard: React.FC<EntitlementCardProps> = ({ entitlement }) => {
         />
       </div>
       <div className="gba:entitlementCardDetails">
-        <span className="gba:entitlementUsedTotal">
+        <span className="gba:entitlementUsedTotal" style={used && used > 0 ? { color: "rgba(13, 188, 123)" } : { color: "rgba(0, 0, 0)" }}>
           {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used', 'used')}: {used} {getTranslationFromI18nKeyAndLabel(used === 1 ? 'lowcoder:absence_hub.day' : 'lowcoder:absence_hub.days', used === 1 ? 'day' : 'days')}
         </span>
         {pending !== undefined ? (
