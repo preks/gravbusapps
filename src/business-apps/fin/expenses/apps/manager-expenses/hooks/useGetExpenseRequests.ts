@@ -57,7 +57,8 @@ export interface ExpenseRequestsResult {
     page?: number, 
     pageSize?: number, 
     employeeId?: string,
-    status?: string
+    status?: string,
+    requestDateStart?: string
   ) => Promise<void>;
   approveRequest: (requestId: string) => Promise<boolean>;
   rejectRequest: (requestId: string, rejectionReason?: string) => Promise<boolean>;
@@ -93,7 +94,8 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     page: number, 
     pageSize: number,
     employeeId?: string,
-    status?: string
+    status?: string,
+    requestDateStart?: string
   ) => {
     const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`;
     const offset = (page - 1) * pageSize;
@@ -109,6 +111,10 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     // Only include filter variables if they are provided
     if (status && status !== 'all') {
       variables.status = status;
+    }
+
+    if (requestDateStart) {
+      variables.requestDateStart = requestDateStart;
     }
     
     if (employeeId && employeeId !== 'all') {
@@ -140,11 +146,12 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
   
   // Function to fetch requests with search, pagination, and filtering
   const fetchRequests = useCallback(async (
-    searchTerm: string = '',
-    page: number = 1,
-    pageSize: number = 10,
-    employeeId: string = 'all', // This is a filter parameter, distinct from supervisor's ID
-    status: string = 'all'
+    searchTerm: string = '', 
+    page: number = 1, 
+    pageSize: number = 10, 
+    employeeId: string = 'all', 
+    status: string = 'all',
+    requestDateStart?: string
   ) => {
     if (!accessToken) {
       setError('Access token not available.');
@@ -167,7 +174,7 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     
     try {
       // Build query variables with helper function
-      const variables = buildQueryVariables(supervisorEmployeeId, searchTerm, page, pageSize, employeeId, status);
+      const variables = buildQueryVariables(supervisorEmployeeId, searchTerm, page, pageSize, employeeId, status, requestDateStart);
       
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',

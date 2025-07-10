@@ -4,10 +4,14 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
     $managerId: uuid!,
     $limit: Int!,
     $offset: Int!,
-    $searchTerm: String
+    $searchTerm: String,
+    $requestDateStart: timestamp,
+    $status: String
   ) {
     ExpenseRequestAggregate(
       where: {
+        requestDate: {_gte: $requestDateStart},
+        status: {_eq: $status},
         employee: {
           employeePosition: {
             supervisorEmployeeId: {_eq: $managerId}
@@ -30,6 +34,8 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
       offset: $offset,
       orderBy: {requestDate: DESC},
       where: {
+        requestDate: {_gte: $requestDateStart},
+        status: {_eq: $status},
         employee: {
           employeePosition: {
             supervisorEmployeeId: {_eq: $managerId}

@@ -72,7 +72,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       currentPage,
       pageSize,
       undefined, // sortBy
-      filters.status ? filters.status[0] : undefined // status filter
+      filters.status ? filters.status[0] : undefined, // status filter
+      filters.requestDateStart
     );
   }, [searchText, currentPage, pageSize, getFilters, fetchRequests]);
 
@@ -319,7 +320,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       currentPage,
       pageSize,
       undefined, // sortBy
-      filters.status ? filters.status[0] : undefined // status filter
+      filters.status ? filters.status[0] : undefined, // status filter
+      filters.requestDateStart
     );
   }, [selectedFilters, searchText, currentPage, pageSize, getFilters, fetchRequests]);
 
