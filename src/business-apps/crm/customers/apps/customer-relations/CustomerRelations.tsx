@@ -11,7 +11,9 @@ import {
   TeamOutlined,
   BankOutlined,
   ContactsOutlined,
-  DollarCircleOutlined
+  DollarCircleOutlined,
+  AppstoreOutlined,
+  UnorderedListOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PageLayout } from '@/components/layout/pageLayout';
@@ -23,6 +25,7 @@ import { LeadList } from '@/business-apps/crm/common/components/lead-list';
 import { AccountList } from '@/business-apps/crm/common/components/account-list';
 import { ContactList } from '@/business-apps/crm/common/components/contact-list';
 import { OpportunityList } from '@/business-apps/crm/common/components/opportunity-list';
+import { OpportunityBoard } from '@/business-apps/crm/common/components/opportunity-board';
 import { Account } from '@/business-apps/crm/common/components/account-list/types';
 import { Contact } from '@/business-apps/crm/common/components/contact-list/types';
 import { Opportunity } from '@/business-apps/crm/common/components/opportunity-list/types';
@@ -208,6 +211,46 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
     );
   };
 
+  const renderOpportunitiesContent = () => {
+    const opportunitiesTabItems = [
+      {
+        key: 'list',
+        label: (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <UnorderedListOutlined />
+            <span>List View</span>
+          </div>
+        ),
+        children: (
+          <OpportunityList {...context} sourceApp="CRM" />
+        )
+      },
+      {
+        key: 'board',
+        label: (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <AppstoreOutlined />
+            <span>Board View</span>
+          </div>
+        ),
+        children: (
+          <OpportunityBoard {...context} sourceApp="CRM" />
+        )
+      }
+    ];
+
+    return (
+      <Tabs
+        defaultActiveKey="list"
+        size="large"
+        className="gba:h-full gba:opportunities-tabs"
+        items={opportunitiesTabItems}
+        tabBarStyle={{ marginBottom: 16 }}
+        data-testid="opportunities-sub-tabs"
+      />
+    );
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -231,11 +274,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
           </div>
         );
       case 'opportunities':
-        return (
-          <div data-testid="opportunities-tab-content">
-            <OpportunityList {...context} sourceApp="CRM" />
-          </div>
-        );
+        return renderOpportunitiesContent();
       default:
         return null;
     }
@@ -252,7 +291,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
             value={activeTab}
             onValueChange={handleTabChange}
             variant="outline"
-            size="lg"
+            size="xl"
             data-testid="customer-relations-tabs"
           >
             {tabOptions.map((option) => (

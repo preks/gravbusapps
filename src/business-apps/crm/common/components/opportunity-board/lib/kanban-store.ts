@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import { Stage, Opportunity } from './types';
 import { FIXED_STAGES } from './stages';
 import { GET_OPPORTUNITIES } from '../queries/kanbanQueries';
-import { graphQLClient } from '../../../../../common/network/graphql/GraphQLClient';
-import { opportunityClient } from '../../../../../common/network/opportunity/OpportunityClient';
+import { graphQLClient } from '@/common/network/graphql/GraphQLClient';
+import { opportunityClient } from '@/common/network/opportunity/OpportunityClient';
 
 interface KanbanStore {
   stages: Stage[];
@@ -15,7 +15,7 @@ interface KanbanStore {
   selectedOpportunity: Opportunity | null;
   isViewingOpportunity: boolean;
 
-  fetchOpportunities: (accessToken: string, employeeId?: string) => Promise<Opportunity[]>;
+  fetchOpportunities: (accessToken: string, employeeId?: string, sourceApp?: string, selectedEmployeeIds?: string[]) => Promise<Opportunity[]>;
   moveOpportunity: (opportunityId: string, targetStageId: string, accessToken: string) => Promise<void>;
   updateOpportunity: (opportunityId: string, updates: Partial<Opportunity>, accessToken: string) => Promise<void>;
   deleteOpportunity: (opportunityId: string, accessToken: string) => Promise<void>;
@@ -33,12 +33,39 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
   selectedOpportunity: null,
   isViewingOpportunity: false,
 
-  fetchOpportunities: async (accessToken: string, employeeId?: string) => {
+  fetchOpportunities: async (accessToken: string, employeeId?: string, sourceApp?: string, selectedEmployeeIds?: string[]) => {
     set({ loading: true, error: null });
     try {
 
       graphQLClient.setAccessToken(accessToken);
-      const response = await graphQLClient.request(GET_OPPORTUNITIES, { offset: 0 });
+      
+      // Build where conditions
+      const where: any = { isDeleted: { _eq: false } };
+      
+      // Add sourceApp filtering if provided
+      if (sourceApp) {
+        where.sourceApp = { _eq: sourceApp };
+      }
+      
+      // Handle employee filtering logic
+      if (selectedEmployeeIds !== undefined) {
+        if (selectedEmployeeIds.length > 0) {
+          // If specific employees are selected, filter by those
+          where.ownerEmployeeId = { _in: selectedEmployeeIds };
+        } else {
+          // If in "selected employees" mode but none selected, show no results
+          where.ownerEmployeeId = { _in: [] };
+        }
+      } else if (employeeId) {
+        // Fallback to single employee filter (for "My Opportunities")
+        where.ownerEmployeeId = { _eq: employeeId };
+      }
+      // If no employee filtering is specified, show all opportunities
+      
+      const response = await graphQLClient.request(GET_OPPORTUNITIES, { 
+        offset: 0, 
+        where 
+      });
       
       if (!response || !response.Opportunity) {
   
@@ -56,11 +83,6 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
         account: opp.account?.name || '',
         amount: opp.estimatedAmount || 0
       }));
-      
-      
-      if (employeeId) {
-        opportunities = opportunities.filter((opp: any) => opp.ownerEmployee?.id === employeeId);
-      }
       
       set({ opportunities, loading: false });
       return opportunities;
@@ -140,4 +162,4 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
       isViewingOpportunity: opportunity !== undefined
     });
   }
-}));
+})); 

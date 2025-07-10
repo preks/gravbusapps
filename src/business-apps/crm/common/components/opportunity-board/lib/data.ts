@@ -54,4 +54,4 @@ export function calculateColumnStats(opportunities: Opportunity[], probability: 
     weightedValue,
     count,
   };
-}
+} 

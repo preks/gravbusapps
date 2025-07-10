@@ -40,4 +40,4 @@ export const FIXED_STAGES: Stage[] = [
     rotting: false,
     rottingDays: 0
   }
-];
+]; 

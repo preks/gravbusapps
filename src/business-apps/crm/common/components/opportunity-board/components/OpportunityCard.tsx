@@ -144,4 +144,4 @@ export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardPro
   );
 }
 
-export default OpportunityCard;
+export default OpportunityCard; 
