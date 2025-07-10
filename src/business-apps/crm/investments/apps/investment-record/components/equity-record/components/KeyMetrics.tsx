@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '@newwork/nw-design-system';
 import { TrendingUp, Target, BarChart3, DollarSign } from 'lucide-react';
-import { formatCurrency, formatPercentage } from '../../shared/utils/formatters';
+import { formatCurrency, formatPercentage } from '../../../utils/formatters';
 import { EquityInvestmentRecord } from '../types';
 import { EquityInvestmentData } from '../hooks/useEquityRecordData';
 import { 

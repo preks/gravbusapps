@@ -1,34 +1,34 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
-import { BarChart3 } from 'lucide-react';
-import { EquityRecordProps } from './types';
-import { equityMockData } from './data/mockData';
-import { useEquityRecordData } from './hooks/useEquityRecordData';
+import { Home } from 'lucide-react';
+import { RealEstateRecordProps } from './types';
+import { realEstateMockData } from './data/mockData';
+import { useRealEstateRecordData } from './hooks/useRealEstateRecordData';
 import {
   InvestmentDetailsHeader,
   KeyMetrics,
-  EquityDetails
+  RealEstateDetails
 } from './components';
-import { CompanyInformation, ContactDetails } from '../shared/components';
+import { CompanyInformation, ContactDetails } from '../shared';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
-interface EquityRecordComponentProps extends BusinessAppContextProps {
+interface RealEstateRecordComponentProps extends BusinessAppContextProps {
   investmentId?: string;
 }
 
-const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
+const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const mockData = equityMockData;
+  const mockData = realEstateMockData;
 
   // Fetch real GraphQL data
-  const { equityData, isLoading, error } = useEquityRecordData(props, props.investmentId);
+  const { realEstateData, isLoading, error } = useRealEstateRecordData(props, props.investmentId);
 
   return (
     <div className="gba:bg-gray-50 gba:min-h-screen">
       {/* Investment Details Header Card - Now with real data */}
       <InvestmentDetailsHeader 
-        data={!equityData ? mockData : undefined} 
-        equityData={equityData}
+        data={!realEstateData ? mockData : undefined} 
+        realEstateData={realEstateData}
         isLoading={isLoading}
         error={error}
       />
@@ -38,7 +38,7 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="gba:bg-white gba:border">
             <TabsTrigger value="overview" data-testid="overview-tab">
-              <BarChart3 className="gba:h-4 gba:w-4 gba:mr-2" />
+              <Home className="gba:h-4 gba:w-4 gba:mr-2" />
               Overview
             </TabsTrigger>
           </TabsList>
@@ -46,29 +46,22 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
           <TabsContent value="overview" className="gba:space-y-6" data-testid="overview-content">
             {/* Key Metrics - Now with real data and calculated KPIs */}
             <KeyMetrics 
-              data={!equityData ? mockData : undefined}
-              equityData={equityData}
+              data={!realEstateData ? mockData : undefined}
+              realEstateData={realEstateData}
               isLoading={isLoading}
             />
 
-            {/* Equity Details - Now with real data */}
-            <EquityDetails 
-              data={!equityData ? mockData : undefined}
-              equityData={equityData}
+            {/* Real Estate Details */}
+            <RealEstateDetails 
+              data={!realEstateData ? mockData : undefined}
+              realEstateData={realEstateData}
               isLoading={isLoading}
             />
 
             {/* Company Information and Contact Details */}
             <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:lg:grid-cols-2">
-              <CompanyInformation 
-                data={!equityData ? mockData : undefined}
-                equityData={equityData}
-                isLoading={isLoading}
-              />
-              <ContactDetails 
-                data={mockData}
-                isLoading={isLoading}
-              />
+              <CompanyInformation data={mockData} />
+              <ContactDetails data={mockData} />
             </div>
           </TabsContent>
         </Tabs>
@@ -77,4 +70,4 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
   );
 };
 
-export default EquityRecord; 
+export default RealEstateRecord; 

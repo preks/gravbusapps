@@ -9,26 +9,31 @@ import {
   Award, 
   Calendar, 
   Settings,
-  Home,
   AlertCircle
 } from 'lucide-react';
-import { RealEstateInvestmentRecord } from '../types';
-import { RealEstateInvestmentData } from '../hooks/useRealEstateRecordData';
-import { formatCurrency, formatPercentage, getStatusColor } from '../../shared/utils/formatters';
+import { EquityInvestmentRecord } from '../types';
+import { EquityInvestmentData } from '../hooks/useEquityRecordData';
+import { formatCurrency, formatPercentage, getStatusColor } from '../../../utils/formatters';
 
 interface InvestmentDetailsHeaderProps {
-  data?: RealEstateInvestmentRecord; // Legacy mock data
-  realEstateData?: RealEstateInvestmentData | null; // Real GraphQL data
+  data?: EquityInvestmentRecord; // Legacy mock data
+  equityData?: EquityInvestmentData | null; // Real GraphQL data
   isLoading?: boolean;
   error?: string | null;
 }
 
 const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({ 
   data, 
-  realEstateData, 
+  equityData, 
   isLoading, 
   error 
 }) => {
+  // Helper function to extract currency code from GraphQL format
+  const extractCurrencyCode = (currencyId?: string): string => {
+    if (!currencyId) return 'EUR';
+    return currencyId.split(':').pop() || 'EUR';
+  };
+
   // Helper function to format currency with GraphQL data
   const formatCurrencyValue = (amount: number | null, currency?: { code: string } | null): string => {
     if (!amount && amount !== 0) return 'N/A';
@@ -59,7 +64,7 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({
   };
 
   // Use real data if available, otherwise fall back to mock data
-  const investment = realEstateData?.investment;
+  const investment = equityData?.investment;
   const companyName = investment?.account?.name || (data ? `*${data.company_details.name}` : '*Mock Company');
   const bookValue = investment ? formatCurrencyValue(investment.bookValue, investment.currency) : 
     (data ? `*${formatCurrency(data.investment.book_value, data.investment.currency_ref)}` : '*N/A');
@@ -80,7 +85,7 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({
   if (isLoading) {
     return (
       <div className="gba:px-6 gba:pt-6 gba:pb-4">
-        <Card className="gba:bg-gradient-to-r gba:from-green-50 gba:to-emerald-50 gba:border-green-200">
+        <Card className="gba:bg-gradient-to-r gba:from-blue-50 gba:to-indigo-50 gba:border-blue-200">
           <CardContent className="gba:p-6">
             <div className="gba:animate-pulse">
               <div className="gba:h-4 gba:bg-gray-200 gba:rounded gba:w-3/4 gba:mb-4"></div>
@@ -109,7 +114,7 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({
               <div className="gba:flex-1">
                 <p className="gba:font-semibold gba:text-orange-800 gba:mb-2">Development Mode - Using Sample Data</p>
                 <p className="gba:text-sm gba:text-orange-700 gba:mb-3">
-                  The specific real estate investment was not found, but sample data is being used for development purposes.
+                  The specific equity investment was not found, but sample data is being used for development purposes.
                 </p>
                 <details className="gba:text-xs gba:text-orange-600">
                   <summary className="gba:cursor-pointer gba:font-medium gba:mb-1">Technical Details</summary>
@@ -125,25 +130,25 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({
 
   return (
     <div className="gba:px-6 gba:pt-6 gba:pb-4">
-      <Card className="gba:bg-gradient-to-r gba:from-green-50 gba:to-emerald-50 gba:border-green-200">
+      <Card className="gba:bg-gradient-to-r gba:from-blue-50 gba:to-indigo-50 gba:border-blue-200">
         <CardHeader className="gba:pb-3">
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <div className="gba:p-2 gba:bg-green-100 gba:rounded-md">
-              <Home className="gba:h-4 gba:w-4 gba:text-green-600" />
+            <div className="gba:p-2 gba:bg-blue-100 gba:rounded-md">
+              <BarChart3 className="gba:h-4 gba:w-4 gba:text-blue-600" />
             </div>
             <div>
               <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">
                 {investment?.name || (data ? `*${data.investment.name}` : '*Investment Details')}
               </h2>
               <div className="gba:flex gba:items-center gba:gap-3 gba:mt-0.5">
-                <Badge className="gba:bg-green-100 gba:text-green-800 gba:text-xs gba:px-2 gba:py-0.5">
-                  {investment?.investmentGroup?.value || 'Real Estate'}
+                <Badge className="gba:bg-blue-100 gba:text-blue-800 gba:text-xs gba:px-2 gba:py-0.5">
+                  {investment?.investmentGroup?.value || 'Equity'}
                 </Badge>
                 <Badge className="gba:bg-indigo-100 gba:text-indigo-800 gba:text-xs gba:px-2 gba:py-0.5">
-                  {realEstateData?.realEstateType?.value || '*Property Investment'}
+                  {equityData?.investmentRole?.value || '*Stock Investment'}
                 </Badge>
                 <span className="gba:text-xs gba:text-gray-600">{companyName}</span>
-                {realEstateData && investment?.name && !investment.name.includes('*') && (
+                {equityData && !investment?.name.includes('*') && (
                   <Badge className="gba:bg-green-100 gba:text-green-800 gba:text-xs gba:px-2 gba:py-0.5">
                     Real Data
                   </Badge>
@@ -174,7 +179,7 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({
             </div>
             <div>
               <div className="gba:flex gba:items-center gba:gap-1 gba:mb-1">
-                <Target className="gba:h-3 gba:w-3 gba:text-green-600" />
+                <Target className="gba:h-3 gba:w-3 gba:text-blue-600" />
                 <span className="gba:text-xs gba:font-medium gba:text-gray-700">Initial Investment</span>
               </div>
               <p className="gba:text-sm gba:font-semibold gba:text-gray-900">
@@ -193,7 +198,7 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({
             <div>
               <div className="gba:flex gba:items-center gba:gap-1 gba:mb-1">
                 <Award className="gba:h-3 gba:w-3 gba:text-indigo-600" />
-                <span className="gba:text-xs gba:font-medium gba:text-gray-700">Ownership %</span>
+                <span className="gba:text-xs gba:font-medium gba:text-gray-700">Stake %</span>
               </div>
               <p className="gba:text-sm gba:font-semibold gba:text-gray-900">
                 {stakePercent}

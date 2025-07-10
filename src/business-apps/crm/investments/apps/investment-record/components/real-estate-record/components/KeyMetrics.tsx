@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-sys
 import { DollarSign, TrendingUp, Target, Home } from 'lucide-react';
 import { RealEstateInvestmentRecord } from '../types';
 import { RealEstateInvestmentData } from '../hooks/useRealEstateRecordData';
-import { formatCurrency } from '../../shared/utils/formatters';
+import { formatCurrency } from '../../../utils/formatters';
 import { 
   calculateRealEstateKPIs, 
   formatKPIPercentage, 

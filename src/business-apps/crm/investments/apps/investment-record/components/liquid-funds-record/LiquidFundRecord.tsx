@@ -10,7 +10,7 @@ import {
   KeyMetrics,
   LiquidFundDetails
 } from './components';
-import { CompanyInformation, ContactDetails } from '../shared/components';
+import { CompanyInformation, ContactDetails } from '../shared';
 
 const LiquidFundRecord: React.FC<LiquidFundRecordProps> = (props) => {
   const [activeTab, setActiveTab] = useState('overview');

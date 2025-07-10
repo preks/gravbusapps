@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
 import { Droplets } from 'lucide-react';
-import { formatPercentage } from '../../shared/utils/formatters';
+import { formatPercentage } from '../../../utils/formatters';
 import { LiquidFundInvestmentRecord } from '../types';
 
 interface LiquidFundDetailsProps {

@@ -24,14 +24,7 @@ const DashboardNavigation: React.FC<DashboardNavigationProps> = ({
               <Clock className="gba:h-4 gba:w-4 gba:mr-2" />
               Breakdown
             </TabsTrigger>
-            <TabsTrigger 
-              value="all-investments" 
-              className="gba:border-b-2 gba:border-transparent gba:rounded-none gba:px-4 gba:py-3 data-[state=active]:gba:border-blue-500 data-[state=active]:gba:bg-transparent"
-              data-testid="all-investments-tab"
-            >
-              <LineChart className="gba:h-4 gba:w-4 gba:mr-2" />
-              All Investments
-            </TabsTrigger>
+
             <TabsTrigger 
               value="analytics" 
               className="gba:border-b-2 gba:border-transparent gba:rounded-none gba:px-4 gba:py-3 data-[state=active]:gba:border-blue-500 data-[state=active]:gba:bg-transparent"

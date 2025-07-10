@@ -14,10 +14,10 @@ import { useInvestmentDataIntegration } from '../hooks';
 import { getStatusBadge } from '../utils/helpers';
 
 interface AllInvestmentsTabProps extends BusinessAppContextProps {
-  onEquityRowClick: (equityId: string) => void;
-  onRealEstateRowClick: (realEstateId: string) => void;
-  onPrivateEquityRowClick: (privateEquityId: string) => void;
-  onLiquidFundRowClick: (liquidFundId: string) => void;
+  onEquityRowClick: (investmentId: string) => void;
+  onRealEstateRowClick: (investmentId: string) => void;
+  onPrivateEquityRowClick: (investmentId: string) => void;
+  onLiquidFundRowClick: (investmentId: string) => void;
   initialSubTab?: string;
   onSubTabChange?: (subTab: string) => void;
 }
@@ -45,6 +45,12 @@ const AllInvestmentsTab: React.FC<AllInvestmentsTabProps> = (props) => {
     error, 
     refetch 
   } = useInvestmentDataIntegration(props);
+
+  // Unified navigation function that uses actual investmentId
+  const handleInvestmentClick = (investmentId: string) => {
+    // All click handlers now use the same function
+    onEquityRowClick(investmentId);
+  };
 
   // Filter investments based on search term
   const filteredInvestments = investments.filter(investment =>
@@ -152,14 +158,9 @@ const AllInvestmentsTab: React.FC<AllInvestmentsTabProps> = (props) => {
                 {filteredInvestments.map((investment, index) => (
                   <TableRow 
                     key={investment.id} 
-                    className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${['Equity', 'Real Estate', 'Private Equity', 'Liquid Funds'].includes(investment.type) ? 'gba:cursor-pointer' : ''}`} 
+                    className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer" 
                     data-testid={`overview-row-${index + 1}`}
-                    onClick={() => {
-                      if (investment.type === 'Equity') onEquityRowClick(investment.id);
-                      else if (investment.type === 'Real Estate') onRealEstateRowClick(investment.id);
-                      else if (investment.type === 'Private Equity') onPrivateEquityRowClick(investment.id);
-                      else if (investment.type === 'Liquid Funds') onLiquidFundRowClick(investment.id);
-                    }}
+                    onClick={() => handleInvestmentClick(investment.rawData.investment.id)}
                   >
                     <TableCell className="gba:py-4 gba:px-6">
                       <div>
@@ -225,7 +226,7 @@ const AllInvestmentsTab: React.FC<AllInvestmentsTabProps> = (props) => {
               </Button>
             </div>
 
-            <EquityTable investments={investments} onRowClick={onEquityRowClick} />
+            <EquityTable investments={investments} onRowClick={handleInvestmentClick} />
           </div>
         </TabsContent>
 
@@ -262,7 +263,7 @@ const AllInvestmentsTab: React.FC<AllInvestmentsTabProps> = (props) => {
               </Button>
             </div>
 
-            <RealEstateTable investments={investments} onRowClick={onRealEstateRowClick} />
+            <RealEstateTable investments={investments} onRowClick={handleInvestmentClick} />
           </div>
         </TabsContent>
 
@@ -299,7 +300,7 @@ const AllInvestmentsTab: React.FC<AllInvestmentsTabProps> = (props) => {
               </Button>
             </div>
 
-            <PrivateEquityTable investments={investments} onRowClick={onPrivateEquityRowClick} />
+            <PrivateEquityTable investments={investments} onRowClick={handleInvestmentClick} />
           </div>
         </TabsContent>
 
@@ -336,7 +337,7 @@ const AllInvestmentsTab: React.FC<AllInvestmentsTabProps> = (props) => {
               </Button>
             </div>
 
-            <LiquidFundsTable investments={investments} onRowClick={onLiquidFundRowClick} />
+            <LiquidFundsTable investments={investments} onRowClick={handleInvestmentClick} />
           </div>
         </TabsContent>
       </Tabs>

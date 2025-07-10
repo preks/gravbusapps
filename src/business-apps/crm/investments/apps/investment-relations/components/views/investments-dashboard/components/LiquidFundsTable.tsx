@@ -6,7 +6,7 @@ import { getStatusBadge } from '../utils/helpers';
 
 interface LiquidFundsTableProps {
   investments: EnhancedInvestment[];
-  onRowClick?: (liquidFundId: string) => void;
+  onRowClick?: (investmentId: string) => void;
 }
 
 const LiquidFundsTable: React.FC<LiquidFundsTableProps> = ({ investments, onRowClick }) => {
@@ -111,7 +111,7 @@ const LiquidFundsTable: React.FC<LiquidFundsTableProps> = ({ investments, onRowC
                     key={investment.id}
                     className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer" 
                     data-testid={`liquid-funds-row-${index + 1}`}
-                    onClick={() => onRowClick && onRowClick(investment.id)}
+                    onClick={() => onRowClick && onRowClick(investment.rawData.investment.id)}
                   >
                     {/* Basic Investment Info */}
                     <TableCell className="gba:py-4 gba:px-6">

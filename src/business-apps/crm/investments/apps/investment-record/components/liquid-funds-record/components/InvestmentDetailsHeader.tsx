@@ -11,7 +11,7 @@ import {
   Settings
 } from 'lucide-react';
 import { LiquidFundInvestmentRecord } from '../types';
-import { formatCurrency, formatPercentage, getStatusColor } from '../../shared/utils/formatters';
+import { formatCurrency, formatPercentage, getStatusColor } from '../../../utils/formatters';
 
 interface InvestmentDetailsHeaderProps {
   data: LiquidFundInvestmentRecord;

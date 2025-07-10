@@ -6,7 +6,7 @@ import { getStatusBadge } from '../utils/helpers';
 
 interface EquityTableProps {
   investments: EnhancedInvestment[];
-  onRowClick: (equityId: string) => void;
+  onRowClick: (investmentId: string) => void;
 }
 
 const EquityTable: React.FC<EquityTableProps> = ({ investments, onRowClick }) => {
@@ -110,7 +110,7 @@ const EquityTable: React.FC<EquityTableProps> = ({ investments, onRowClick }) =>
                     key={investment.id}
                     className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer" 
                     data-testid={`equity-row-${index + 1}`}
-                    onClick={() => onRowClick(investment.id)}
+                    onClick={() => onRowClick(investment.rawData.investment.id)}
                   >
                     {/* Basic Investment Info */}
                     <TableCell className="gba:py-4 gba:px-6">

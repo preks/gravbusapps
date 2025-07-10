@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
 import { BarChart3 } from 'lucide-react';
-import { formatCurrency, formatPercentage } from '../../shared/utils/formatters';
+import { formatCurrency, formatPercentage } from '../../../utils/formatters';
 import { EquityInvestmentRecord } from '../types';
 import { EquityInvestmentData } from '../hooks/useEquityRecordData';
 

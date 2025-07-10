@@ -19,6 +19,7 @@ import { AccountList } from '@/business-apps/crm/common/components/account-list'
 import { ContactList } from '@/business-apps/crm/common/components/contact-list';
 import { OpportunityList } from '@/business-apps/crm/common/components/opportunity-list';
 import InvestmentsDashboard from './components/views/investments-dashboard/InvestmentsDashboard';
+import { Investments } from './components/views/investment-list';
 import { Account } from '@/business-apps/crm/common/components/account-list/types';
 import { Contact } from '@/business-apps/crm/common/components/contact-list/types';
 import { Opportunity } from '@/business-apps/crm/common/components/opportunity-list/types';
@@ -30,7 +31,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
     {
       key: 'dashboard',
       icon: <DashboardOutlined />,
-      label: 'Dashboard'
+      label: 'Portfolio'
     },
     {
       key: 'leads',
@@ -51,6 +52,11 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
       key: 'opportunities',
       icon: <DollarCircleOutlined />,
       label: 'Opportunities'
+    },
+    {
+      key: 'investments',
+      icon: <FundOutlined />,
+      label: 'Investments'
     }
   ];
 
@@ -125,6 +131,15 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
             />
           </div>
         );
+      case 'investments':
+        return (
+          <div data-testid="investments-tab-content">
+            <Investments 
+              accessToken={context.accessToken}
+              userInfo={context.userInfo}
+            />
+          </div>
+        );
       case 'leads':
         return (
           <div data-testid="leads-tab-content">
@@ -165,7 +180,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
             value={activeTab}
             onValueChange={handleTabChange}
             variant="outline"
-            size="lg"
+            size="xl"
             data-testid="investment-relations-tabs"
           >
             {tabOptions.map((option) => (

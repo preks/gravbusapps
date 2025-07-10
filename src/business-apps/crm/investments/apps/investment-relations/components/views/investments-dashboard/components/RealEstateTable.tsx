@@ -6,7 +6,7 @@ import { getStatusBadge } from '../utils/helpers';
 
 interface RealEstateTableProps {
   investments: EnhancedInvestment[];
-  onRowClick?: (realEstateId: string) => void;
+  onRowClick?: (investmentId: string) => void;
 }
 
 const RealEstateTable: React.FC<RealEstateTableProps> = ({ investments, onRowClick }) => {
@@ -113,7 +113,7 @@ const RealEstateTable: React.FC<RealEstateTableProps> = ({ investments, onRowCli
                     key={investment.id}
                     className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer" 
                     data-testid={`real-estate-row-${index + 1}`}
-                    onClick={() => onRowClick && onRowClick(investment.id)}
+                    onClick={() => onRowClick && onRowClick(investment.rawData.investment.id)}
                   >
                     {/* Basic Investment Info */}
                     <TableCell className="gba:py-4 gba:px-6">
