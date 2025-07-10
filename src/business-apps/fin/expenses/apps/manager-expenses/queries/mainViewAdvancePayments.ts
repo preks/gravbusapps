@@ -10,19 +10,23 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
   ) {
     AdvancePaymentAggregate(
       where: {
-        expensePlan: {
-          employee: {
-            employeePosition: {
-              supervisorEmployeeId: {_eq: $managerId}
+        _and: [
+          {
+            expensePlan: {
+              _and: [
+                {
+                  employee: {
+                    employeePosition: {
+                      supervisorEmployeeId: {_eq: $managerId}
+                    }
+                  },
+                  isDeleted: {_eq: false}
+                },
+                {title: {_ilike: $searchTerm}}
+              ]
             }
           },
-          isDeleted: {_eq: false}
-        },
-        status: {_eq: $status},
-        _or: [
-          {expensePlan: {code: {_ilike: $searchTerm}}},
-          {expensePlan: {title: {_ilike: $searchTerm}}},
-          {expensePlan: {employee: {fullName: {_ilike: $searchTerm}}}}
+          {status: {_eq: $status}}
         ]
       }
     ) {
@@ -35,19 +39,23 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
       offset: $offset,
       orderBy: {createdAt: DESC},
       where: {
-        expensePlan: {
-          employee: {
-            employeePosition: {
-              supervisorEmployeeId: {_eq: $managerId}
+        _and: [
+          {
+            expensePlan: {
+              _and: [
+                {
+                  employee: {
+                    employeePosition: {
+                      supervisorEmployeeId: {_eq: $managerId}
+                    }
+                  },
+                  isDeleted: {_eq: false}
+                },
+                {title: {_ilike: $searchTerm}}
+              ]
             }
           },
-          isDeleted: {_eq: false}
-        },
-        status: {_eq: $status},
-        _or: [
-          {expensePlan: {code: {_ilike: $searchTerm}}},
-          {expensePlan: {title: {_ilike: $searchTerm}}},
-          {expensePlan: {employee: {fullName: {_ilike: $searchTerm}}}}
+          {status: {_eq: $status}}
         ]
       }
     ) {

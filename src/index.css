@@ -28,7 +28,7 @@
 @import "./business-apps/fin/expenses/forms/expense-request/ExpenseRequest.css";
 @import "./business-apps/fin/expenses/forms/expense-request-invalid/ExpenseRequestInvalid.css";
 @import "./business-apps/fin/expenses/forms/expense-request/components/PlanCard.css";
-@import "@newwork/gravity-ui-catalog/dist/assets/style.css";
+@import "@newwork/gravity-ui-catalog/dist/assets/style.no-base.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/absenceHub.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/absenceListCard.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/entitlementCard.css";
@@ -165,4 +165,10 @@
   .font-secondary {
     font-family: var(--font-secondary, 'Dela Gothic One', sans-serif) !important;
   }
+}
+
+/* Spinner animation for status progression loading */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

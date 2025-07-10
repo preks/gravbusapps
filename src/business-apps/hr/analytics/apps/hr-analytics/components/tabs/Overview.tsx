@@ -44,7 +44,7 @@ const Overview: React.FC<OverviewTabProps> = ({
   } = analyticsData;
 
   return (
-    <div className="gba:w-full gba:p-4" data-testid="hr-analytics-overview-tab">
+    <div className="gba:w-full" data-testid="hr-analytics-overview-tab">
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-4 gba:gap-4">
         {/* Total Employees KPI Card */}
         <Card 

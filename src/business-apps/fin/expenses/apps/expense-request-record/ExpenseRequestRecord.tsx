@@ -20,7 +20,8 @@ import ExpenseRequestComments from './components/ExpenseRequestComments.tsx';
 const { Title, Text } = Typography;
 
 const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData = {} }) => {
-  const { expenseRequestId = 'bfe6323f-236b-4245-9759-5215a6a97209' } = additionalData;
+  const expenseRequestId = additionalData.expenseRequestId  || new URLSearchParams(window.location.search).get('expenseRequestId') || 'bfe6323f-236b-4245-9759-5215a6a97209';
+
   // Helper function to get initial tab from URL or available tabs
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search);

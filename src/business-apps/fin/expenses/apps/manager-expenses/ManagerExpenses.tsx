@@ -11,6 +11,7 @@ import ExpensePlansTab from './components/tabs/expense-plans-tab';
 import ExpenseCalendarTab from './components/tabs/expense-calendar-tab';
 import AdvancePaymentsTab from './components/tabs/advance-payments-tab';
 import ExpenseRequestsTab from './components/tabs/expense-requests-tab';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface ManagerExpensesProps extends BusinessAppContextProps {}
 
@@ -23,7 +24,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <PiGauge style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Dashboard</span>
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.dashboard_btn', 'Dashboard')}</span>
         </div>
       ),
       children: <ExpenseDashboardTab {...props} />,
@@ -34,7 +35,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <PiPath style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Expense Plans</span>
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')}</span>
         </div>
       ),
       children: <ExpensePlansTab 
@@ -48,7 +49,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <PiHandCoins style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Advance Payments</span>
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>{getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments')}</span>
         </div>
       ),
       children: <AdvancePaymentsTab 
@@ -62,7 +63,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <PiMoney style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Expense Requests</span>
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Expense Requests')}</span>
         </div>
       ),
       children: <ExpenseRequestsTab 
@@ -76,7 +77,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <PiCalendarBlank style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Expense Calendar</span>
+          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_calendar', 'Expense Calendar')}</span>
         </div>
       ),
       children: <ExpenseCalendarTab {...props} />,
@@ -133,7 +134,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
   return (
     <PageLayout
       headerIcon={<PiWalletDuotone color="#a3519aff"/>}
-      headerLabel="Team Expenses"
+      headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.team_expenses_title', 'Team Expenses')}
       pageHeaderRight={
         <ActionButton
           variant="primary"

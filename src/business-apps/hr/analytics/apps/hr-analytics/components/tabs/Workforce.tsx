@@ -88,7 +88,7 @@ const Workforce: React.FC<WorkforceProps> = ({ accessToken = '' }) => {
   };
 
   return (
-    <div className="gba:p-6" data-testid="hr-analytics-workforce-tab">
+    <div data-testid="hr-analytics-workforce-tab">
       <Row gutter={[16, 16]} className="gba:mb-6">
         <Col xs={24} sm={12} md={6}>
           <Card className="gba:h-full" data-testid="hr-analytics-fte-card">

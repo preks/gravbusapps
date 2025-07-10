@@ -18,6 +18,7 @@ const initialValues = {
   activityTypeRef: '',
   title: '',
   date: null,
+  description: '',
   files: [],
 };
 
@@ -141,8 +142,7 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
         title: values.title,
         date: values.date ? dayjs(values.date).toISOString() : null,
         lead: additionalData?.leadId,
-        completedAt: Date.now(),
-        description: 'plsss',
+        description: values.description || '',
         ownerEmployee: additionalData?.employeeId
       },
     };
@@ -215,6 +215,19 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
           rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesActivity.dateRequired', 'Date is required') }]}
         >
           <DatePicker data-testid="date-input" className="gba:w-full" style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item
+          label={getTranslationFromI18nKeyAndLabel('crm:salesActivity.description', 'Description')}
+          name="description"
+          rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesActivity.descriptionRequired', 'Description is required') }]}
+        >
+          <Input.TextArea
+            data-testid="description-input"
+            className="gba:w-full"
+            rows={4}
+            maxLength={500}
+            placeholder={getTranslationFromI18nKeyAndLabel('crm:salesActivity.descriptionPlaceholder', 'Enter activity description...')}
+          />
         </Form.Item>
         <Form.Item
           label={getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFile', 'Upload File')}

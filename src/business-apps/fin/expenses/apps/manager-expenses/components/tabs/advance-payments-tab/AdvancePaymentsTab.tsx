@@ -13,6 +13,18 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
   
   // Search term state for synchronization with table
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>('');
+  
+  // Debounce search term updates
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
 
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(() => ({
@@ -63,7 +75,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
   return (
     <AdvancePaymentsTable
       {...contextProps}
-      search={searchTerm}
+      search={debouncedSearchTerm}
       onSearchChange={handleSearchChange}
     />
   );
