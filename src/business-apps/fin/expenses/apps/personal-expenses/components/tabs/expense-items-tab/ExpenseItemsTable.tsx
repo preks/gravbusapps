@@ -25,6 +25,7 @@ export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   filterLabelMap: Record<string, string>;
   getFilters: (filtersToApply?: string[]) => ExpenseFilter;
   setFilters: (filters: string[]) => void;
+  availableStatuses: string[];
 }
 
 const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) => {
@@ -38,6 +39,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     filterLabelMap,
     getFilters,
     setFilters,
+    availableStatuses,
     ...contextProps
   } = props;
 
@@ -58,6 +60,31 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
   }, [fetchItems, currentPage, pageSize, search, selectedFilters, getFilters, sortField, sortOrder]);
 
   const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  // Build status filter group dynamically from availableStatuses (from allItems, not filtered items)
+  const statusFilterGroup = useMemo(() => ({
+    id: 'status',
+    title: 'Status',
+    multiSelect: true,
+    filters: availableStatuses.map((status: string) => ({
+      id: status.toLowerCase(),
+      label: (() => {
+        const displayLabel = getExpenseItemStatusDisplay(status).label;
+        const statusLabel = status.charAt(0) + status.slice(1).toLowerCase();
+        return displayLabel.toLowerCase() !== statusLabel.toLowerCase()
+          ? `${displayLabel} (${statusLabel})`
+          : displayLabel;
+      })(),
+      selected: selectedFilters.includes(status.toLowerCase()),
+    })),
+  }), [availableStatuses, selectedFilters]);
+
+  // Override filterGroups to inject the dynamic status group
+  const dynamicFilterGroups = useMemo(() => {
+    return filterGroups.map(group =>
+      group.id === 'status' ? statusFilterGroup : group
+    );
+  }, [filterGroups, statusFilterGroup]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   const handleSearchChange = useCallback((value: string) => {
@@ -334,7 +361,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
         },
       }}
       dataFilterProps={{
-        filterGroups: currentFilterGroups,
+        filterGroups: dynamicFilterGroups, // Now uses only existing statuses with correct labels
         onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void,
       }}
       dataBody={renderDataBody()}

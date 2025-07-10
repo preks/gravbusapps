@@ -383,6 +383,15 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     }
   }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
+  // Compute availableStatuses from allItems (unfiltered, for current search/page)
+  const availableStatuses = useMemo(() => {
+    const statusSet = new Set<string>();
+    allItems.forEach(item => {
+      if (item.status) statusSet.add(item.status);
+    });
+    return Array.from(statusSet);
+  }, [allItems]);
+
   return (
     <ExpenseItemsTable 
       {...contextProps}
@@ -396,7 +405,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       filterLabelMap={filterLabelMap}
       getFilters={getFilters}
       setFilters={handleClearAllFilters}
-
+      availableStatuses={availableStatuses}
     />
   );
 };

@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { ExpenseFilter } from './useGetExpenseItems';
-import { ExpenseStatus } from '../utils';
+import { ExpenseStatus, getExpenseItemStatusDisplay } from '../utils';
 
 // Define these as constants for stable references outside the hook
 const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
@@ -57,6 +57,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     {
       id: 'status',
       title: 'Status',
+      multiSelect: true,
       filters: Object.values(ExpenseStatus).map(status => {
         const id = status.toLowerCase();
         return { 
@@ -89,7 +90,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     // Add all status options
     Object.values(ExpenseStatus).forEach(status => {
       const key = status.toLowerCase();
-      labelMap[key] = formatStatusName(status);
+      labelMap[key] = getExpenseItemStatusDisplay(status).label;
     });
 
     return labelMap;
