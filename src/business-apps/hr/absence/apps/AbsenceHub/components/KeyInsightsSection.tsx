@@ -39,7 +39,6 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({ absences }) => 
         data-testid="key-insights-section-planned-absences"
       >
         <div className="gba:flex gba:items-center">
-          <span className="gba:text-lg"><i className="anticon" data-testid="planned-absences-icon" /></span>
           <span className="gba:text-sm gba:text-gray-500 gba:font-medium" data-testid="planned-absences-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.planned_absences', 'Planned Absences')}
           </span>
@@ -55,7 +54,6 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({ absences }) => 
         data-testid="key-insights-section-avg-days-per-request"
       >
         <div className="gba:flex gba:items-center">
-          <span className="gba:text-lg"><i className="anticon" data-testid="avg-days-icon" /></span>
           <span className="gba:text-sm gba:text-gray-500 gba:font-medium" data-testid="avg-days-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.avg_days_per_request', 'Avg Days per Request')}
           </span>
@@ -71,7 +69,6 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({ absences }) => 
         data-testid="key-insights-section-approval-rate"
       >
         <div className="gba:flex gba:items-center">
-          <span className="gba:text-lg"><i className="anticon" data-testid="approval-rate-icon" /></span>
           <span className="gba:text-sm gba:text-gray-500 gba:font-medium" data-testid="approval-rate-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.approval_rate', 'Approval Rate')}
           </span>
@@ -80,7 +77,7 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({ absences }) => 
         <div className="gba:text-xs gba:text-gray-500" data-testid="approval-rate-sub">
           {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.excellent_planning_and_timing', 'Excellent planning & timing')}
         </div>
-      </Card >
+      </Card>
     </div>
   );
 };
