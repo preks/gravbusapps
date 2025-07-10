@@ -12,7 +12,6 @@ trigger: always_on
 - Every HTML element must include a unique `data-testid` attribute for test automation
 
 ## Reusable Components
-- Use the existing `DebouncedInput` for all search fields
 - Use tab components with unique `tabKey` values and sync them via URL query parameters
 
 ## File Size & Code Splitting
