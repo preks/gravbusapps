@@ -57,10 +57,6 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
     const employeeId = userInfo?.employeeDetails?.employeeId;
     
     if (!accessToken || !employeeId) {
-      console.error('Missing required data for employee rule validation:', { 
-        hasAccessToken: !!accessToken, 
-        hasEmployeeId: !!employeeId
-      });
       return false;
     }
     
@@ -95,7 +91,6 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
       
       return true;
     } catch (error) {
-      console.error('Error validating employee rule:', error);
       const errorMessage = getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_item.missing_expense_rule_message', 
         'There is no rule set for your user, please reach out to your administrator.'
@@ -213,11 +208,6 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
     const employeeId = userInfo?.employeeDetails?.employeeId;
     
     if (!accessToken || !employeeId || !expenseRequestData) {
-      console.error('Missing required data:', { 
-        hasAccessToken: !!accessToken, 
-        hasEmployeeId: !!employeeId, 
-        hasExpenseRequestData: !!expenseRequestData 
-      });
       return;
     }
     
@@ -227,7 +217,6 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
       const expensePlanId = expenseRequestData?.ExpenseRequestByPk?.expensePlanId;
       
       if (!expenseId) {
-        console.error('Missing expense ID');
         return;
       }
       
@@ -253,10 +242,16 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
           setStartLocationOverlap(overlapWarning);
         }
       } catch (error) {
-        console.error('GraphQL request failed:', error);
+        showToast(
+          getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetching_expense_data", "Error fetching expense data"),
+          "error"
+        );
       }
     } catch (error) {
-      console.error('Error checking absences and requests:', error);
+      showToast(
+        getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetching_expense_data", "Error fetching expense data"),
+        "error"
+      );
     }
   };
   
@@ -278,7 +273,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
         setLocationsAreSynced(true);
       }
     } catch (error) {
-      console.error('Error setting default localities:', error);
+      
     }
   };
   
@@ -361,9 +356,8 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
         setLocalitiesDefault();
       }
     } catch (error) {
-      console.error('Error loading initial trip data:', error);
       showToast(
-        getTranslationFromI18nKeyAndLabel("lowcoder:expense_request_wizard.error_loading_trip_data", "Error loading trip data"),
+        getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_load_trip_data", "Error loading initial trip data"),
         "error"
       );
     }
@@ -513,9 +507,8 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
           setLocalitiesDefault();
         }
       } catch (error) {
-        console.error('Error fetching trip data:', error);
         showToast(
-          getTranslationFromI18nKeyAndLabel("lowcoder:expense_request_wizard.error_fetching_data", "Error fetching trip data"),
+          getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetching_expense_data", "Error fetching expense data"),
           "error"
         );
       }

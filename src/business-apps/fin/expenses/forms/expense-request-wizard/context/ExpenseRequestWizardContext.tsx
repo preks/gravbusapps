@@ -168,9 +168,8 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       const response = await graphqlClient.request(fetchExpenseRequestAndItems, variables);
       setExpenseRequestData(response);
     } catch (error) {
-      console.error('Error fetching expense data:', error);
       showToast(
-        t("lowcoder:create_expense_request_wizard.error_fetching_expense_data", "Error fetching expense data"),
+        t("lowcoder:modify_expense_request.error_fetching_expense_data", "Error fetching expense data"),
         "error"
       );
     } finally {
@@ -213,12 +212,11 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
           );
         }
       } catch (error) {
-        console.error('Error fetching employee rule:', error);
         setExpenseRuleError(
-          t("lowcoder:create_expense_request.error_fetching_rule", "Error fetching employee rule")
+          t("lowcoder:create_expense_request.error_employee_rule", "Error fetching employee expense rule")
         );
         showToast(
-          t("lowcoder:create_expense_request.error_fetching_rule", "Error fetching employee rule"),
+          t("lowcoder:create_expense_request.error_employee_rule", "Error fetching employee expense rule"),
           "error"
         );
       } finally {

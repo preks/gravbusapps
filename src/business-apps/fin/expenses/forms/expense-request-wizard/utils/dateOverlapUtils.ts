@@ -36,7 +36,6 @@ export const formatDateTimeToISO = (
       return window.lowcoder.formatDateToISO(dateString);
     }
   } catch (error) {
-    console.error('Error formatting date to ISO:', error);
     return new Date().toISOString();
   }
 };
