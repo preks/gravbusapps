@@ -2,6 +2,8 @@ export interface EquityInvestmentSummary {
   id: string;
   investmentId: string;
   investmentRoleRef?: string;
+  activeFrom?: string;
+  activeTo?: string;
   investmentRole?: {
     id: string;
     value: string;
@@ -21,6 +23,8 @@ export interface EquityInvestmentSummary {
     acquisitionDate?: string;
     exitDate?: string;
     plannedExitDate?: string;
+    activeFrom?: string;
+    activeTo?: string;
     bookValue?: number;
     marketValue?: number;
     initialInvestmentAmount?: number;

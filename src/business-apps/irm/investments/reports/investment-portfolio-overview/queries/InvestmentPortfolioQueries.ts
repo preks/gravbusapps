@@ -4,7 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { InvestmentQueryVariables, InvestmentPortfolioResponse } from '../types';
 
 const GET_INVESTMENT_PORTFOLIO_DATA = (variables: InvestmentQueryVariables): string => {
-  const { limit = 50, offset = 0, search, orderBy } = variables;
+  const { limit = 100, offset = 0, search, orderBy } = variables;
   
   let whereClause = '';
   if (search) {
@@ -34,6 +34,8 @@ const GET_INVESTMENT_PORTFOLIO_DATA = (variables: InvestmentQueryVariables): str
         acquisitionDate
         exitDate
         plannedExitDate
+        activeFrom
+        activeTo
         bookValue
         marketValue
         initialInvestmentAmount

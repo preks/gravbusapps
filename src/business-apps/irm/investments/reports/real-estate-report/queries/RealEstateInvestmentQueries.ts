@@ -43,6 +43,9 @@ const GET_REAL_ESTATE_INVESTMENT_DATA = (variables: RealEstateInvestmentQueryVar
         buildingYear
         occupancyPercent
         annualExpenses
+        size
+        activeFrom
+        activeTo
         createdAt
         realEstateType {
           id
