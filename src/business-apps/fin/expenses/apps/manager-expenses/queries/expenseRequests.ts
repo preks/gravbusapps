@@ -1,30 +1,11 @@
 // GraphQL query for fetching expense requests for team members with pagination, search and filtering
 export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
   query GetExpenseRequestsByManager(
-    $managerId: uuid!,
+    $where: ExpenseRequestBoolExp,
     $limit: Int!,
-    $offset: Int!,
-    $searchTerm: String,
-    $requestDateStart: timestamp,
-    $status: String
+    $offset: Int!
   ) {
-    ExpenseRequestAggregate(
-      where: {
-        requestDate: {_gte: $requestDateStart},
-        status: {_eq: $status},
-        employee: {
-          employeePosition: {
-            supervisorEmployeeId: {_eq: $managerId}
-          }
-        },
-        isDeleted: {_eq: false},
-        _or: [
-          {code: {_ilike: $searchTerm}},
-          {title: {_ilike: $searchTerm}},
-          {employee: {fullName: {_ilike: $searchTerm}}}
-        ]
-      }
-    ) {
+    ExpenseRequestAggregate(where: $where) {
       aggregate {
         count
       }
@@ -33,21 +14,7 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
       limit: $limit,
       offset: $offset,
       orderBy: {requestDate: DESC},
-      where: {
-        requestDate: {_gte: $requestDateStart},
-        status: {_eq: $status},
-        employee: {
-          employeePosition: {
-            supervisorEmployeeId: {_eq: $managerId}
-          }
-        },
-        isDeleted: {_eq: false},
-        _or: [
-          {code: {_ilike: $searchTerm}},
-          {title: {_ilike: $searchTerm}},
-          {employee: {fullName: {_ilike: $searchTerm}}}
-        ]
-      }
+      where: $where
     ) {
       id
       code

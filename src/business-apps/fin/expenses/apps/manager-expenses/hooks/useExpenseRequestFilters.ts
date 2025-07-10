@@ -5,6 +5,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 // Define expense request status types
 export enum ExpenseRequestStatus {
   DRAFT = 'DRAFT',
+  PENDING = 'PENDING',
   SUBMITTED = 'SUBMITTED',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
@@ -44,9 +45,14 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
   const REQUEST_TYPE_OPTIONS = ['general', 'trip'];
   
-  // Helper function to format status display names
-  const formatStatusName = (status: string): string => {
-    return status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' ');
+  const statusLabelMap: Record<string, string> = {
+    [ExpenseRequestStatus.DRAFT]: 'Draft',
+    [ExpenseRequestStatus.PENDING]: 'Approval Required',
+    [ExpenseRequestStatus.SUBMITTED]: 'Submitted',
+    [ExpenseRequestStatus.APPROVED]: 'Approved',
+    [ExpenseRequestStatus.REJECTED]: 'Rejected',
+    [ExpenseRequestStatus.PAID]: 'Paid',
+    [ExpenseRequestStatus.CANCELLED]: 'Cancelled'
   };
 
   // Define filter groups - memoized so they don't cause re-renders
@@ -75,7 +81,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
         const id = status.toLowerCase();
         return { 
           id, 
-          label: status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' '),
+          label: statusLabelMap[status],
           selected: selectedFilters.includes(id) 
         };
       })
@@ -93,9 +99,8 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     };
     
     // Add all status options
-    Object.values(ExpenseRequestStatus).forEach(status => {
-      const key = status.toLowerCase();
-      labelMap[key] = formatStatusName(status);
+    Object.entries(statusLabelMap).forEach(([key, value]) => {
+      labelMap[key.toLowerCase()] = value;
     });
     
     return labelMap;
@@ -123,9 +128,14 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   const getFilters = useCallback((): ExpenseRequestFilter => {
     const filters: ExpenseRequestFilter = {};
     
-    // Handle status filters
-    const statusFilters = selectedFilters
+    // Handle status filters, mapping UI 'draft' to backend 'created'
+    let statusFilters = selectedFilters
       .filter(filter => Object.values(ExpenseRequestStatus).map(s => s.toLowerCase()).includes(filter));
+
+    if (statusFilters.includes('draft')) {
+      statusFilters = statusFilters.map(s => s === 'draft' ? 'CREATED' : s.toUpperCase());
+    }
+
     if (statusFilters.length > 0) {
       filters.status = statusFilters;
     }

@@ -92,13 +92,11 @@ export const getExpenseRequestStatusDisplay = (
   status: string
 ): StatusDisplayConfig => {
   switch (status) {
-    /**
     case ExpenseStatus.CREATED:
       return {
         label: 'Draft',
         type: "draft"
       };
-      */
     case ExpenseStatus.PENDING:
       return {
         label: "Approval Required",
@@ -127,13 +125,13 @@ export const getExpenseRequestStatusDisplay = (
         label: "Closed",
         type: "completed",
       };
-    /*
+
     case ExpenseStatus.REJECTED:
       return {
         label: 'Rejected',
         type: "error"
       };
-      */
+
     default:
       return {
         label: status,

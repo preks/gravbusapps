@@ -89,39 +89,52 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
    * Helper function to build GraphQL variables for the query
    */
   const buildQueryVariables = (
-    managerId: string, 
-    searchTerm: string, 
-    page: number, 
+    managerId: string,
+    searchTerm: string,
+    page: number,
     pageSize: number,
     employeeId?: string,
     status?: string,
     requestDateStart?: string
   ) => {
-    const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`;
     const offset = (page - 1) * pageSize;
-    
-    // Build variables object dynamically based on provided filters
-    const variables: Record<string, any> = {
-      managerId,
-      searchTerm: formattedSearchTerm,
-      limit: pageSize,
-      offset: offset,
+
+    const where: any = {
+      _and: [
+        { status: { _neq: 'DISCARDED' } },
+        { employee: { employeePosition: { supervisorEmployeeId: { _eq: managerId } } } },
+        { isDeleted: { _eq: false } },
+      ],
     };
-    
-    // Only include filter variables if they are provided
-    if (status && status !== 'all') {
-      variables.status = status;
+
+    if (status && status.toUpperCase() !== 'ALL') {
+      where._and.push({ status: { _eq: status.toUpperCase() } });
     }
 
     if (requestDateStart) {
-      variables.requestDateStart = requestDateStart;
+      where._and.push({ requestDate: { _gte: requestDateStart } });
+    }
+
+    if (searchTerm) {
+      const formattedSearchTerm = `%${searchTerm}%`;
+      where._and.push({
+        _or: [
+          { code: { _ilike: formattedSearchTerm } },
+          { title: { _ilike: formattedSearchTerm } },
+          { employee: { fullName: { _ilike: formattedSearchTerm } } },
+        ],
+      });
     }
     
     if (employeeId && employeeId !== 'all') {
-      variables.employeeId = employeeId;
+        where._and.push({ employee: { id: { _eq: employeeId } } });
     }
-    
-    return variables;
+
+    return {
+      where,
+      limit: pageSize,
+      offset: offset,
+    };
   };
 
   /**
