@@ -16,7 +16,7 @@ export const StatsCard = ({ stat }: StatsCardProps) => {
           <span className="gba:statsCardTitle" data-testid="stats-card-title">{title}</span>
         </div>
         <div className="gba:statsCardRow gba:statsCardRow--bottom" data-testid="stats-card-row-bottom">
-          <span className="gba:statsCardUsed" data-testid="stats-card-used">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {used}</span>
+          <span className="gba:statsCardUsed" style={used && used > 0 ? { color: "rgba(13, 188, 123)" } : { color: "rgba(0, 0, 0)" }} data-testid="stats-card-used">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {used}</span>
         </div>
       </div>
     );
@@ -42,8 +42,8 @@ export const StatsCard = ({ stat }: StatsCardProps) => {
         </div>
       </div>
       <div className="gba:statsCardRow gba:statsCardRow--bottom" data-testid="stats-card-row-bottom">
-        <span className="gba:statsCardUsed" data-testid="stats-card-used">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {used}</span>
-        <span className="gba:statsCardTotal" data-testid="stats-card-total">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} {total}</span>
+        <span className="gba:statsCardUsed" style={used && used > 0 ? { color: "rgba(13, 188, 123)" } : { color: "rgba(0, 0, 0)" }} data-testid="stats-card-used">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {used}</span>
+        <span className="gba:statsCardTotal"  data-testid="stats-card-total">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} {total}</span>
       </div>
     </div>
   );
