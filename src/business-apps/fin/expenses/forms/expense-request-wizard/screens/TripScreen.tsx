@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Form } from "antd";
 import { Button } from "@newwork/gravity-ui-catalog";
 import dayjs from "dayjs";
@@ -19,6 +19,7 @@ import { fetchEmployeeRule } from "../ExpenseRequestWizardQueries";
 import { formatDateTimeToISO, getOverlapWarningMessage } from '../utils/dateOverlapUtils';
 import { ABSENCE_STATUS, EXCLUDED_STATUSES, TRIP_REQUEST_TYPE } from "../constants/constants";
 import RejectionComment from "../components/RejectionComment";
+import { EVENTS } from "../../../utils/constants";
 
 /**
  * Address types enum
@@ -44,15 +45,15 @@ interface TripScreenProps extends BusinessAppContextProps {
 }
 
 /**
- * TripScreen component for expense request wizard
- * @param props - Component props
+ * TripScreen component
+ * @param props - Business app context props
  * @returns TripScreen component
  */
-const TripScreen: React.FC<TripScreenProps> = (props) => {
+export const TripScreen: React.FC<TripScreenProps> = (props) => {
   const { accessToken, additionalData } = props;
   const [form] = Form.useForm();
   const graphqlClient = useGraphqlClient(accessToken);
-  const { expenseRequestData, employeeRuleId, saveTripData, setEmployeeRuleId } = useExpenseRequestWizardContext();
+  const { expenseRequestData, employeeRuleId, submitActionTripData, setEmployeeRuleId, updateTripFormValidation } = useExpenseRequestWizardContext();
   
   // Get userInfo from props
   const { userInfo } = props;
@@ -752,11 +753,83 @@ const TripScreen: React.FC<TripScreenProps> = (props) => {
     
     fetchData();
   }, [accessToken, employeeRuleId, expenseRequestData, additionalData, setEmployeeRuleId]);
+  // Validate trip form data
+  const validateTripForm = useCallback(() => {
+    // Check for any error messages from rules
+    if (employeeRuleError || ruleConflictError) {
+      updateTripFormValidation(false);
+      return false;
+    }
+    
+    // Check for overlapping absences or requests (warning messages)
+    if (startLocationOverlap || endLocationOverlap) {
+      updateTripFormValidation(false);
+      return false;
+    }
+    
+    // Validate start location
+    if (
+      !startLocation.location || 
+      !startLocation.departureDate || 
+      !startLocation.departureTime ||
+      (startLocation.isAbroad && !startLocation.travelRegionRef)
+    ) {
+      updateTripFormValidation(false);
+      return false;
+    }
+    
+    // Validate destinations
+    for (let i = 0; i < destinations.length; i++) {
+      const destination = destinations[i];
+      
+      // Basic validation for all destinations
+      if (!destination.location || (destination.isAbroad && !destination.travelRegionRef)) {
+        updateTripFormValidation(false);
+        return false;
+      }
+      
+      // Check date and time for all destinations except the last one
+      if (i < destinations.length - 1) {
+        if (!destination.departureDate || !destination.departureTime) {
+          updateTripFormValidation(false);
+          return false;
+        }
+      }
+    }
+    
+    // Validate end location
+    if (
+      !endLocation.location || 
+      !endLocation.departureDate || 
+      !endLocation.departureTime ||
+      (endLocation.isAbroad && !endLocation.travelRegionRef)
+    ) {
+      updateTripFormValidation(false);
+      return false;
+    }
+    
+    // All validations passed
+    updateTripFormValidation(true);
+    return true;
+  }, [startLocation, destinations, endLocation, employeeRuleError, ruleConflictError, startLocationOverlap, endLocationOverlap, updateTripFormValidation]);
+  
+  // Run validation whenever relevant fields change
+  useEffect(() => {
+    validateTripForm();
+  }, [startLocation, destinations, endLocation, employeeRuleError, ruleConflictError, startLocationOverlap, endLocationOverlap, validateTripForm]);
 
   // Function to handle form submission using the context's saveTripData function
   const handleSave = () => {
     // Call the saveTripData function from context
-    saveTripData(startLocation, destinations, endLocation, expenseRulesData);
+    submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.SAVE);
+  };
+
+  const handleNext = () => {
+    // Validate form before proceeding
+    if (validateTripForm()) {
+      // Call the saveTripData function from context
+      submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.NEXT);
+    }
   };
   
   // Add event listener for the custom save event
@@ -772,8 +845,23 @@ const TripScreen: React.FC<TripScreenProps> = (props) => {
     return () => {
       document.removeEventListener('expense-request-save-trip', saveEventHandler);
     };
-  }, [startLocation, destinations, endLocation, expenseRulesData]);
-  
+  }, []);
+
+  // Add event listener for the custom next event
+  useEffect(() => {
+    const nextEventHandler = () => {
+      handleNext();
+    };
+    
+    // Add event listener
+    document.addEventListener('expense-request-next-trip', nextEventHandler);
+    
+    // Clean up event listener on unmount
+    return () => {
+      document.removeEventListener('expense-request-next-trip', nextEventHandler);
+    };
+  }, []);
+
   // Show loading screen if data is still loading
   if (!expenseRequestData) {
     return <LoadScreen accessToken={accessToken} userInfo={userInfo} />;
@@ -861,7 +949,7 @@ const TripScreen: React.FC<TripScreenProps> = (props) => {
                 }}
                 dateTimeLimits={startLimits}
                 travelRegions={expenseRulesData?.AllowanceRegionRuleDetail || []}
-                overlapWarning={startLocationOverlap}
+                overlapWarning={endLocation.departureDate ? null : startLocationOverlap }
                 showFutureWarning={true}
                 errorMessage={employeeRuleError || ruleConflictError}
               />

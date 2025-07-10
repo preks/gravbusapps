@@ -3,7 +3,7 @@ import { combineDateTimeToISOString } from './locationTimeUtils';
 import { LocationData, LogObject, TripData } from './types';
 import { showToast } from '../../../utils/notificationUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { PointTypeEnum, TripDirectionDefaultValue } from '../constants/constants';
+import { PointTypeEnum, SCREEN_NAMES_ENUM, TripDirectionDefaultValue } from '../constants/constants';
 
 
 
@@ -58,21 +58,22 @@ export const prepareTripData = (
  * @param currentCurrency - Current determined currency value
  * @returns Detailed log object
  */
-export const createTripSaveLogObject = (
+export const createTripLogObject = (
   startLocation: LocationData,
   endLocation: LocationData,
   initialRequest: any,
   employeeRuleId: string,
   currentTitle: string,
-  currentCurrency: string | null
+  currentCurrency: string | null,
+  event:string
 ): LogObject => {
   // Create start and end trip date/time ISO strings
   const startTripDateTime = combineDateTimeToISOString(startLocation.departureDate, startLocation.departureTime);
   const endTripDateTime = combineDateTimeToISOString(endLocation.departureDate, endLocation.departureTime);
   
   return {
-    stepKey: "TripScreen_pse_save",
-    event: "pse_save",
+    stepKey: SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + event,
+    event: event,
     expenseRequest: {
       id: initialRequest.id,
       startDate: startTripDateTime || initialRequest.startDate || "",
@@ -338,7 +339,7 @@ export const checkTripExists = (array: any[] | undefined, pointType: string, obj
   }) || null;
 };
 
-export const handleTripSave = (
+export const handleTripSubmitAction = (
   startLocation: LocationData,
   destinations: LocationData[],
   endLocation: LocationData,
@@ -346,7 +347,8 @@ export const handleTripSave = (
   expenseRequestData: any,
   employeeRuleId: string,
   currentTitle: string,
-  currentCurrency: string | null
+  currentCurrency: string | null,
+  event:string
 ): boolean => {
   // Get initial request data
   const initialRequest = expenseRequestData?.ExpenseRequestByPk;
@@ -363,7 +365,7 @@ export const handleTripSave = (
   
   // Create detailed log object
   // Use the current title and currency from context for the log object
-  const logObject = createTripSaveLogObject(startLocation, endLocation, initialRequest, employeeRuleId, currentTitle, currentCurrency);
+  const logObject = createTripLogObject(startLocation, endLocation, initialRequest, employeeRuleId, currentTitle, currentCurrency,event);
   
   // Combine expense items from both sources
   const mergeUniqueById = <T extends { id: string }>(array1: T[], array2: T[]): T[] => {

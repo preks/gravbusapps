@@ -5,17 +5,19 @@ import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { showToast } from '../../../utils/notificationUtils';
 import { fetchEmployeeRule, fetchExpenseRequestAndItems } from '../ExpenseRequestWizardQueries';
-import { handleTripSave } from '../utils/saveUtils';
+import { handleTripSubmitAction } from '../utils/tripScreenUtils';
 import { LocationData } from '../utils/types';
 import { getCurrencyWithFallback } from '../utils/currencyUtils';
 
 /**
  * ExpenseRequestWizardContext props interface
  */
-interface ExpenseRequestWizardContextProps {
+export interface ExpenseRequestWizardContextProps {
   loading: boolean;
   employeeRuleId: string | null;
-  setEmployeeRuleId: (id: string | null) => void;
+  setEmployeeRuleId: (id: string) => void;
+  isTripFormValid: boolean;
+  updateTripFormValidation: (isValid: boolean) => void;
   expenseRuleError: string | null;
   setExpenseRuleError: (error: string | null) => void;
   expenseRequestData: any | null;
@@ -26,7 +28,7 @@ interface ExpenseRequestWizardContextProps {
   setCurrentTitle: (title: string) => void;
   currentCurrency: string | null;
   setCurrentCurrency: (currency: string | null) => void;
-  saveTripData: (startLocation: LocationData, destinations: LocationData[], endLocation: LocationData, expenseRulesData: any) => boolean;
+  submitActionTripData: (startLocation: LocationData, destinations: LocationData[], endLocation: LocationData, expenseRulesData: any,event:string) => boolean;
 }
 
 /**
@@ -242,11 +244,12 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
    * @param expenseRulesData - Expense rules data
    * @returns True if save was successful, false otherwise
    */
-  const saveTripData = (
+  const submitActionTripData = (
     startLocation: LocationData,
     destinations: LocationData[],
     endLocation: LocationData,
-    expenseRulesData: any
+    expenseRulesData: any,
+    event:string
   ): boolean => {
     // Determine currency based on trip data
     const determinedCurrency = getCurrencyWithFallback(
@@ -259,7 +262,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     // Update currency in context
     setCurrentCurrency(determinedCurrency);
     
-    return handleTripSave(
+    return handleTripSubmitAction(
       startLocation,
       destinations,
       endLocation,
@@ -267,15 +270,26 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       expenseRequestData,
       employeeRuleId || '',
       currentTitle,
-      determinedCurrency
+      determinedCurrency,
+      event
     );
   };
 
+  // Trip form validation state
+  const [isTripFormValid, setIsTripFormValid] = useState<boolean>(false);
+  
+  // Function to update trip form validation state
+  const updateTripFormValidation = (isValid: boolean) => {
+    setIsTripFormValid(isValid);
+  };
+  
   // Context value
   const contextValue: ExpenseRequestWizardContextProps = {
     loading,
     employeeRuleId,
     setEmployeeRuleId,
+    isTripFormValid,
+    updateTripFormValidation,
     expenseRuleError,
     setExpenseRuleError,
     expenseRequestData,
@@ -286,7 +300,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     setCurrentTitle,
     currentCurrency,
     setCurrentCurrency,
-    saveTripData,
+    submitActionTripData,
   };
 
   return (

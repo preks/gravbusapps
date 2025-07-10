@@ -36,7 +36,7 @@ interface ExpenseRequestWizardContentProps extends BusinessAppContextProps {
  * @returns Expense Request Wizard Content component
  */
 const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = ({ onCancel, accessToken, userInfo }) => {
-  const { loading, expenseRuleError, expenseRequestData, currentTitle, setCurrentTitle } = useExpenseRequestWizardContext();
+  const { loading, expenseRuleError, expenseRequestData, currentTitle, setCurrentTitle, isTripFormValid } = useExpenseRequestWizardContext();
   const [currentScreen, setCurrentScreen] = useState<string>(SCREEN_NAMES_ENUM.ITEMS_TAB);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [titleValue, setTitleValue] = useState<string>('');
@@ -111,7 +111,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
       }
     }
   }, [expenseRequestData, isTrip]);
-
+  
   // Navigate to next screen
   const navigateToNextScreen = () => {
     switch (currentScreen) {
@@ -371,17 +371,30 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.save_button', 'Save')}
             </Button>
-            <Button 
-              variant="primary" 
-              className="gba:submitButton" 
-              data-testid="expense-request-wizard-next-button"
-              onClick={navigateToNextScreen}
-            >
-              {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
-                ? getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
-                : getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')
-              }
-            </Button>
+              <Button 
+                variant="primary" 
+                className="gba:submitButton" 
+                data-testid="expense-request-wizard-next-button"
+                disabled ={currentScreen !== SCREEN_NAMES_ENUM.TRIPS_TAB ? false : (!isTripFormValid)}
+                onClick={() => {
+                  // If we're on the trip screen, the TripScreen component will handle the save
+                  // through its own handleSave method which is connected to the context
+                  if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
+                    // Dispatch a custom event that TripScreen will listen for
+                    const nextEvent = new CustomEvent('expense-request-next-trip');
+                    document.dispatchEvent(nextEvent);
+                    navigateToNextScreen()
+                  } else {
+                    // Handle save click for current screen
+                    navigateToNextScreen()
+                  }
+                }}
+              >
+                {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
+                  ? getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
+                  : getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')
+                }
+              </Button>
           </div>
         </div>
       </div>
