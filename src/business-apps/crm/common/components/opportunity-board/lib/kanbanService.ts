@@ -5,7 +5,7 @@ import {
   UPDATE_OPPORTUNITY_STAGE 
 } from '../queries/kanbanQueries';
 import { type Pipeline, type Stage, type Opportunity } from './data';
-import { GraphQLClient } from '../../../../../common/network/graphql/GraphQLClient';
+import { GraphQLClient } from '@/common/network/graphql/GraphQLClient';
 
 /**
  * Service for kanban board data management
@@ -117,4 +117,4 @@ export class KanbanService {
  */
 export const useKanbanService = () => {
   return new KanbanService();
-};
+}; 

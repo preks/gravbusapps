@@ -1,5 +1,4 @@
 
-
 export interface Stage {
   id: string;
   name: string;
@@ -33,4 +32,5 @@ export interface Opportunity {
   lastActivityAt?: string;
   tags?: string[];
   version: number;
-}
+  sourceApp?: string;
+} 
