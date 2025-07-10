@@ -52,8 +52,10 @@ export const useTotalPayroll = (accessToken: string) => {
       
       console.log('[useTotalPayroll] Fetching total payroll data...');
       
-      // Execute the GraphQL query
-      const response = await graphQLClient.request<TotalPayrollResponse>(getTotalPayrollQuery);
+      // Execute the GraphQL query with variables
+      const response = await graphQLClient.request<TotalPayrollResponse>(
+        getTotalPayrollQuery,
+      );
       
       // Validate response structure
       if (

@@ -1,0 +1,72 @@
+export interface Lead {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phoneNumber?: string;
+  position?: string;
+  companyName?: string;
+  companyEmail?: string;
+  companyPhone?: string;
+  companyWebsite?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  version?: number;
+  countryRef?: string;
+  country?: {
+    id: string;
+    code: string;
+    value: string;
+  };
+  leadSource?: {
+    id: string;
+    code: string;
+    value: string;
+  };
+  leadStatus?: {
+    id: string;
+    code: string;
+    value: string;
+  };
+  leadRating?: {
+    id: string;
+    code: string;
+    value: string;
+  };
+  ownerEmployeeId?: string;
+  ownerEmployee?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    displayName: string;
+    picture?: string | null;
+    pictureThumbnail?: string | null;
+  };
+  account?: {
+    id: string;
+    name: string;
+  };
+  contact?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  };
+}
+
+export interface LeadQueryVariables {
+  offset?: number;
+  limit?: number;
+  orderBy?: Array<any>;
+  where?: any;
+}
+
+export interface LeadListResponse {
+  Lead: Lead[];
+  LeadAggregate: {
+    aggregate: {
+      count: number;
+    };
+  };
+} 

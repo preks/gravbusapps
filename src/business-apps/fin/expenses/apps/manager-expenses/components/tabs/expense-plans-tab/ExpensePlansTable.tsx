@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Typography, Spin, Alert, Space, Button, Tooltip, Modal, Input } from 'antd';
 import { DataTable, Avatar } from '@newwork/gravity-ui-catalog';
-import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, FileTextOutlined, ClearOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
@@ -9,7 +9,7 @@ import ExpensePlanDetails from './ExpensePlanDetails';
 import { useMainViewExpensePlans, ExpensePlan } from '../../../hooks/useMainViewExpensePlans';
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters';
 import { getExpensePlanStatusDisplay, ExpenseStatus } from '../../../utils';
-import { formatDate } from '@/common/utils/windowUtils';
+import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatAmount } from '../../../utils/currencyUtils';
 
 const { Text } = Typography;
@@ -18,6 +18,9 @@ interface ExpensePlansTableProps extends BusinessAppContextProps {
   search?: string;
   onSearchChange?: (search: string) => void;
   employeeId?: string;
+  activeFilter?: ExpenseStatus | null;
+  onFilterChange?: (filter: ExpenseStatus | null) => void;
+  onClearFilters?: () => void;
 }
 
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
@@ -37,9 +40,82 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     statusFilter,
     setStatusFilter,
     filterGroups,
-    handleDataFilterChange,
+    handleDataFilterChange: originalHandleDataFilterChange,
     filterLabelMap,
   } = useExpensePlanFilters();
+
+  // Sync activeFilter prop with statusFilter state on initial load
+  useEffect(() => {
+    if (props.activeFilter !== undefined && statusFilter === null) {
+      console.log('Initial sync of statusFilter from props:', props.activeFilter);
+      setStatusFilter(props.activeFilter);
+    }
+  }, [props.activeFilter]);
+
+  // Only update statusFilter when it's different from the prop and not a direct user action
+  const isFilterControlled = props.activeFilter !== undefined;
+  const currentStatusFilter = isFilterControlled ? props.activeFilter : statusFilter;
+  
+  // Handle clearing all filters
+  const handleClearFilters = useCallback(() => {
+    console.log('Clearing all filters from table');
+    
+    // Reset search term
+    setSearchTerm('');
+    if (props.onSearchChange) {
+      props.onSearchChange('');
+    }
+    
+    // Reset status filter based on control mode
+    if (isFilterControlled) {
+      if (props.onFilterChange) {
+        props.onFilterChange(null);
+      }
+    } else {
+      setStatusFilter(null);
+    }
+    
+    // Reset all filter states and ensure 'All Statuses' is checked
+    if (originalHandleDataFilterChange) {
+      // First clear all filters
+      originalHandleDataFilterChange('all_statuses', false);
+      // Then explicitly check 'All Statuses'
+      setTimeout(() => {
+        originalHandleDataFilterChange('all_statuses', true);
+      }, 0);
+    }
+    
+    // If parent provided a clear all function, use it
+    if (props.onClearFilters) {
+      props.onClearFilters();
+    }
+  }, [props.onSearchChange, props.onFilterChange, props.onClearFilters, originalHandleDataFilterChange, isFilterControlled]);
+
+  // Handle filter changes and notify parent
+  const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
+    const newFilter = isSelected ? filterId as ExpenseStatus : null;
+    console.log('Filter changed:', { filterId, isSelected, newFilter });
+    
+    // Update local state if not controlled
+    if (!isFilterControlled) {
+      setStatusFilter(newFilter);
+    }
+    
+    // Always notify parent
+    if (props.onFilterChange) {
+      props.onFilterChange(newFilter);
+    }
+    
+    // Call original handler if it exists
+    if (originalHandleDataFilterChange) {
+      originalHandleDataFilterChange(filterId, isSelected);
+    }
+  }, [originalHandleDataFilterChange, props.onFilterChange, isFilterControlled]);
+  
+  // Check if any filters are active
+  const hasActiveFilters = useMemo(() => {
+    return searchTerm || currentStatusFilter !== null;
+  }, [searchTerm, currentStatusFilter]);
 
   // Synchronize search from parent if provided
   useEffect(() => {
@@ -161,7 +237,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   // Table columns definition
   const columns = [
     {
-      title: 'Plan',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.plan_info_pl', 'Plans'),
       dataIndex: 'title',
       key: 'title',
       render: (value: any, record: any) => {
@@ -185,7 +261,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       },
     },
     {
-      title: 'Employee',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
       dataIndex: 'employee',
       key: 'employee',
       render: (_text: any, record: any) => {
@@ -199,7 +275,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       },
     },
     {
-      title: 'Amount',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount'),
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       align: 'right' as const,
@@ -212,7 +288,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       },
     },
     {
-      title: 'Status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => {
@@ -322,29 +398,46 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   }, [plans, isLoading, error, currentPage, pageSize, totalCount, columns, handleTableChange]);
 
   return (
-    <>
+    <div className="gba:h-full gba:flex gba:flex-col">
       <DataContainer
         contentBackground="white"
         dataControllerProps={{
           search: searchTerm,
           setSearch: onSearchChange,
           debounceDelay: 300,
-          filter: statusFilter ? [statusFilter] : [],
+          filter: currentStatusFilter ? [currentStatusFilter] : [],
           setFilter: (newFilters: string[]) => {
-            setStatusFilter(newFilters.length > 0 ? newFilters[0] as ExpenseStatus : null);
+            const newFilter = newFilters.length > 0 ? newFilters[0] as ExpenseStatus : null;
+            console.log('Setting status filter from DataTable:', newFilter);
+            
+            if (isFilterControlled) {
+              // If controlled, just notify parent
+              if (props.onFilterChange) {
+                props.onFilterChange(newFilter);
+              }
+            } else {
+              // If not controlled, update local state and notify parent
+              setStatusFilter(newFilter);
+              if (props.onFilterChange) {
+                props.onFilterChange(newFilter);
+              }
+            }
           },
           filterLabelMap: filterLabelMap,
-          listTitle: 'Expense Plans',
+          listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans'),
           listAmount: totalCount ? `${totalCount}` : undefined,
+          actions: [],
         }}
         dataFilterProps={{
           filterGroups: filterGroups,
           onFilterChange: handleDataFilterChange,
         }}
         hideFilter={false}
+        floatingDetails={true}
         dataBody={renderDataBody()}
         dataDetails={selectedPlan ? {
-          title: 'Expense Plan Details',
+          title: selectedPlan.title || 'Expense Plan Details',
+          icon: <FileTextOutlined />,
           content: (
             <ExpensePlanDetails
               {...props}
@@ -354,6 +447,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             />
           ),
           onClose: handleCloseDetails,
+          footer: null // Remove footer close button as it's now in the details component
         } : undefined}
       />
 
@@ -393,7 +487,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
           data-testid="rejection-reason-input"
         />
       </Modal>
-    </>
+    </div>
   );
 };
 

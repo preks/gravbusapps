@@ -1,19 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Spin, Alert, Select, Space, Button, Tooltip } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Typography, Alert, Space, Button, Tooltip } from 'antd';
+
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { DataTable, Avatar } from '@newwork/gravity-ui-catalog';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
-import { useMainViewAdvancePayments, AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments';
+import { useMainViewAdvancePayments, type AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../../utils';
-import { formatDate } from '@/common/utils/windowUtils';
-import { formatAmount } from '../../../utils/currencyUtils';
+import { formatDate, formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters';
 
 const { Text } = Typography;
-const { Option } = Select;
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string;
@@ -21,7 +20,7 @@ interface AdvancePaymentsTableProps extends BusinessAppContextProps {
 }
 
 const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
-  const { search, onSearchChange } = props;
+  const { search } = props;
   
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = React.useMemo(() => ({
@@ -29,19 +28,36 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
+  // Use the advance payment filters hook for filter management
+  const {
+    searchTerm,
+    setSearchTerm,
+    statusFilter,
+    setStatusFilter,
+    filterGroups,
+    handleDataFilterChange,
+    filterLabelMap,
+  } = useAdvancePaymentFilters();
+
   // Local state management
-  const [searchTerm, setSearchTerm] = useState<string>(search ?? '');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedPayment, setSelectedPayment] = useState<AdvancePaymentItem | null>(null);
   const [currentActionPlanId, setCurrentActionPlanId] = useState<string>('');
   const [pageSize, setPageSize] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Sync with parent search prop if provided
+  // Handle search changes from parent
   useEffect(() => {
     if (search !== undefined && search !== searchTerm) {
       setSearchTerm(search);
     }
-  }, [search, searchTerm]);
+  }, [search]);
+  
+  // Notify parent of search changes
+  useEffect(() => {
+    if (props.onSearchChange && searchTerm !== search) {
+      props.onSearchChange(searchTerm);
+    }
+  }, [searchTerm, props.onSearchChange]);
 
   // Use the new main view hook for advance payments
   const {
@@ -49,8 +65,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     loading: isLoading,
     error,
     totalCount,
-    currentPage,
-    setCurrentPage,
     approving,
     rejecting,
     approvePayment,
@@ -58,57 +72,40 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   } = useMainViewAdvancePayments({
     ...contextProps,
     pageSize,
-    searchTerm,
-    currentStatusFilter: selectedStatus,
+    searchTerm: props.search || '',
+    currentStatusFilter: statusFilter || undefined,
   });
   
-  // Handle status filter change
-  const handleStatusChange = useCallback((value: string) => {
-    setSelectedStatus(value);
-    setCurrentPage(1);
-  }, [setCurrentPage]);
+  // Filter payments based on search and status (already handled by the hook)
+  const filteredPayments = useMemo(() => payments, [payments]);
 
-  // Handle search changes
-  const handleSearchChange = useCallback((value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-    
-    // Notify parent if callback exists
-    if (onSearchChange) {
-      onSearchChange(value);
-    }
-  }, [onSearchChange, setCurrentPage]);
-
-  const handleViewDetails = useCallback((payment: AdvancePaymentItem) => {
-    setSelectedPayment(payment);
-  }, []);
-
-
-
-  const handleApprovePayment = useCallback((paymentId: string) => {
-    // Implementation of approval functionality using the new hook
-    console.log(`Approving payment ${paymentId}`);
-    setCurrentActionPlanId(paymentId);
-    approvePayment(paymentId, "");
-    setSelectedPayment(null);
-  }, [approvePayment, setCurrentActionPlanId]);
-
-  const handleRejectPayment = useCallback((paymentId: string) => {
-    // Implementation of rejection functionality using the new hook
-    console.log(`Rejecting payment ${paymentId}`);
-    setCurrentActionPlanId(paymentId);
-    rejectPayment(paymentId, "Rejected by manager");
-    setSelectedPayment(null);
-  }, [rejectPayment, setCurrentActionPlanId]);
-
-  const handleTableChange = useCallback((pagination: any, _filters: any, _sorter: any) => {
+  // Handle table pagination and sorting changes
+  const handleTableChange = useCallback((pagination: any) => {
     setCurrentPage(pagination.current);
     setPageSize(pagination.pageSize);
-  }, [setCurrentPage]);
+  }, []);
 
-  const columns: ColumnsType<AdvancePaymentItem> = [
+  const handleApprovePayment = useCallback(async (paymentId: string) => {
+    setCurrentActionPlanId(paymentId);
+    try {
+      await approvePayment(paymentId, 'Approved');
+    } finally {
+      setCurrentActionPlanId('');
+    }
+  }, [approvePayment]);
+
+  const handleRejectPayment = useCallback(async (paymentId: string) => {
+    setCurrentActionPlanId(paymentId);
+    try {
+      await rejectPayment(paymentId, 'Rejected');
+    } finally {
+      setCurrentActionPlanId('');
+    }
+  }, [rejectPayment]);
+
+  const columns = [
     {
-      title: 'Related Expense Plan',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.advance_payments_tab.related_expense_plan', 'Related Expense Plan'),
       dataIndex: 'title',
       key: 'title',
       render: (_: string, record: AdvancePaymentItem) => (
@@ -123,7 +120,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       )
     },
     {
-      title: 'Employee',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list.expense_table.employee', 'Employee'),
       dataIndex: 'employeeDisplayName',
       key: 'employeeDisplayName',
       render: (_text: any, record: AdvancePaymentItem) => (
@@ -134,18 +131,18 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       ),
     },
     {
-      title: 'Amount',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:travel_region_rule.travel_region_rule_details_list.amount', 'Amount'),
       dataIndex: 'amount',
       key: 'amount',
       align: 'right',
       render: (amount: number | undefined) => (
         <Text strong>
-          {typeof amount === 'number' ? `€${formatAmount(amount)}` : 'N/A'}
+          {typeof amount === 'number' ? `€${formatNumberFunction(amount.toString())}` : 'N/A'}
         </Text>
       ),
     },
     {
-      title: 'Status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.status', 'Status'),
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => {
@@ -167,7 +164,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   icon={<CheckOutlined />}
                   onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
-                    handleApprovePayment(record.id);
+                    // Implementation of approval functionality using the new hook
+                    console.log(`Approving payment ${record.id}`);
+                    setCurrentActionPlanId(record.id);
+                    approvePayment(record.id, "");
+                    setSelectedPayment(null);
                   }}
                   loading={approving && record.id === currentActionPlanId}
                   data-testid={`approve-payment-button-${record.id}`}
@@ -180,7 +181,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   icon={<CloseOutlined />}
                   onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
-                    handleRejectPayment(record.id);
+                    // Implementation of rejection functionality using the new hook
+                    console.log(`Rejecting payment ${record.id}`);
+                    setCurrentActionPlanId(record.id);
+                    rejectPayment(record.id, "Rejected by manager");
+                    setSelectedPayment(null);
                   }}
                   loading={rejecting && record.id === currentActionPlanId}
                   data-testid={`reject-payment-button-${record.id}`}
@@ -193,27 +198,33 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     },
   ];
 
-
-
-  const renderDataBody = () => {
-    if (isLoading && !payments.length) {
-      return <Spin tip="Loading advance payments..." className="gba:flex gba:justify-center gba:items-center gba:min-h-[200px]" data-testid="advance-payments-loading" />;
-    }
-    
+  // Render the table
+  const renderDataBody = useCallback(() => {
     if (error) {
-      return <Alert message={`Error fetching advance payments: ${error}`} type="error" showIcon data-testid="advance-payments-error" />;
+      return (
+        <Alert
+          message="Error loading advance payments"
+          description={error.message || 'An error occurred while loading advance payments.'}
+          type="error"
+          showIcon
+        />
+      );
     }
-    
-    if (!isLoading && payments.length === 0) {
-      return <div className="gba:text-center gba:p-5" data-testid="advance-payments-empty"><Text>No advance payments found.</Text></div>;
+
+    if (!isLoading && filteredPayments.length === 0) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
+          <Text type="secondary">No advance payments found</Text>
+        </div>
+      );
     }
 
     return (
       <DataTable
-        columns={columns as any[]}
-        dataSource={payments}
-        loading={isLoading}
+        columns={columns}
+        dataSource={filteredPayments}
         rowKey="id"
+        loading={isLoading}
         pagination={{
           current: currentPage,
           pageSize: pageSize,
@@ -221,62 +232,35 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
           showSizeChanger: true,
           pageSizeOptions: ['10', '20', '50', '100'],
           showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-          onChange: (page, newPageSize) => {
-            setCurrentPage(page);
-            setPageSize(newPageSize);
-          }
         }}
         onChange={handleTableChange}
-        onRow={(record: any) => {
-          return {
-            onClick: () => handleViewDetails(record),
-            className: 'gba:cursor-pointer',
-          };
-        }}
+        scroll={{ x: 'max-content' }}
         data-testid="advance-payments-table"
       />
     );
-  };
-
-  const filterControlsNode = (
-    <Select
-      value={selectedStatus}
-      onChange={handleStatusChange}
-      style={{ width: 200 }}
-      placeholder="Filter by status"
-      data-testid="status-filter-select"
-    >
-      <Option value="all">All Statuses</Option>
-      <Option value="PENDING">Pending</Option>
-      <Option value="APPROVED">Approved</Option>
-      <Option value="REJECTED">Rejected</Option>
-      <Option value="DRAFT">Draft</Option>
-    </Select>
-  );
+  }, [error, isLoading, filteredPayments, columns, currentPage, pageSize, totalCount, handleTableChange]);
 
   return (
-    <DataContainer
+    <div className="gba:h-full gba:flex gba:flex-col">
+      <DataContainer
         dataControllerProps={{
           search: searchTerm,
-          setSearch: handleSearchChange,
-          filter: selectedStatus === 'all' ? [] : [selectedStatus],
-          setFilter: (filters: string[]) => { 
-            setSelectedStatus(filters[0] || 'all');
-            setCurrentPage(1);
-          },
-          placeholder: 'Search by title, code, employee...', 
-          actions: [filterControlsNode],
-          listTitle: 'Advance Payments',
-          listAmount: totalCount,
+          setSearch: setSearchTerm,
           debounceDelay: 300,
+          filter: statusFilter ? [statusFilter] : [],
+          setFilter: (newFilters: string[]) => {
+            setStatusFilter(newFilters.length > 0 ? newFilters[0] : null);
+          },
+          filterLabelMap: filterLabelMap,
+          listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments'),
+          listAmount: totalCount ? `${totalCount}` : undefined,
         }}
-        dataFilterProps={{ 
-          filterGroups: [],
-          onFilterChange: () => {},
+        dataFilterProps={{
+          filterGroups: filterGroups,
+          onFilterChange: handleDataFilterChange,
         }}
-        hideFilter={true} 
+        hideFilter={false}
         dataBody={renderDataBody()}
-        contentBackground="white"
         dataDetails={selectedPayment ? {
           title: 'Advance Payment Details',
           content: (
@@ -291,6 +275,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         } : undefined}
         data-testid="advance-payments-container"
       />
+    </div>
   );
 };
 

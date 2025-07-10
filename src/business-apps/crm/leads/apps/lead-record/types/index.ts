@@ -1,13 +1,10 @@
-export interface Task {
+export interface Note {
   id: string;
-  title: string;
-  description?: string;
-  completed: boolean;
-  dueDate?: string;
-  priority: 'low' | 'medium' | 'high';
-  assignedTo?: string;
+  content: string;
+  author: string;
   createdAt: string;
-  completedAt?: string;
+  important: boolean;
+  leadId: string;
 }
 
 export interface Opportunity {
@@ -143,6 +140,7 @@ export interface Lead {
     insights: string[];
     recommendations: string[];
   };
+  convertedOpportunityId: string;
 }
 
 export interface LeadActivity {

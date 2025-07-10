@@ -54,7 +54,7 @@ src
 			├── utils/
 			└──	...
 
-- No single file should exceed 300 lines of code (excluding imports and blank lines).
+- You must never exceed 300 lines of code per file (excluding imports and blank lines).
 - When a file approaches this size, break out logic, UI, hooks, or utility functions into separate, logically named files.
 - Prefer splitting code by component, feature, or responsibility to support clarity and reuse.
 - If splitting is not obvious, prompt the user for suggestions on how to divide the code.
