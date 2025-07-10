@@ -59,7 +59,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
       </div>
 
       {/* Lead header */}
-      <LeadHeader lead={lead} leadData={leadData} leadId={leadId} additionalData={props} accessToken={props.accessToken} />
+      <LeadHeader lead={lead} leadData={leadData} leadId={leadId} additionalData={props} accessToken={props.accessToken} onStatusUpdate={refetchLeadData} />
 
       {/* Status Progression */}
       {!loadingStatuses && leadStatuses.length > 0 && lead && (
@@ -119,7 +119,7 @@ const LeadRecord: React.FC<LeadRecordProps> = (props) => {
       props.onBack();
     } else {
       // Navigate back to leads overview
-      navigateTo('/platform/crm/leads-overview');
+      navigateTo('/platform/crm/lead-list');
     }
   };
 

@@ -4,6 +4,8 @@ import { TagsOutlined, StarOutlined, UserOutlined } from '@ant-design/icons';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { startProcess } from '@/common/utils/start-process';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { useMarkLeadAsLost } from '../hooks/useMarkLeadAsLost';
 import { Lead } from '../types';
 
 interface LeadHeaderProps {
@@ -12,9 +14,28 @@ interface LeadHeaderProps {
   leadId: string;
   additionalData?: any;
   accessToken: string;
+  onStatusUpdate?: () => void;
 }
 
-export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, additionalData, accessToken }) => {
+export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, additionalData, accessToken, onStatusUpdate }) => {
+  const { markAsLost, isLoading } = useMarkLeadAsLost({ accessToken } as any);
+
+  const handleMarkAsLost = async () => {
+    await markAsLost(leadId, lead.version, onStatusUpdate);
+  };
+
+  const staticActions = [];
+  
+  if (lead.status?.toLowerCase() !== 'lost' && !lead.convertedOpportunityId) {
+    staticActions.push({
+      key: 'mark-as-lost',
+      label: getTranslationFromI18nKeyAndLabel('crm:lead.markAsLost', 'Mark as Lost'),
+      onClick: handleMarkAsLost,
+      icon: 'StopOutlined',
+      loading: isLoading,
+      category: 'ACTION'
+    });
+  }
   return (
     <div className="gba:lead-header" style={{ 
       marginBottom: '24px', 
@@ -57,6 +78,7 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
               externalContextData={{
                 leadId: leadId
               }}
+              staticFlowData={staticActions}
               prefixDataTestId="lead-record-action"
               accessToken={accessToken}
               emptyStateBehavior="enabled"

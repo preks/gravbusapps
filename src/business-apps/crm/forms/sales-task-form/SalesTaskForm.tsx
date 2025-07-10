@@ -40,6 +40,7 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
   const { data: typeOptions, loading: typeLoading } = useSalesTaskTypes(accessToken, { search: typeSearch });
   const { data: priorityOptions, loading: priorityLoading } = useSalesTaskPriorities(accessToken, { search: prioritySearch });
 
+  console.log('typeOptions', typeOptions);
   useEffect(() => {
     const handler = async (event: any) => {
       try {
@@ -97,13 +98,14 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
   }, [accessToken, additionalData?.leadId, fileClient, fileList, restClient]);
 
   const handleSubmit = async (values: any) => {
+    console.log('values', values);
     setLoading(true);
     const payload = {
       changeMode: 'INSERT',
       salesTask: {
         version: 0,
-        taskTypeRef: values.taskTypeRef,
-        title: values.title,
+        typeRef: values.taskTypeRef,
+        name: values.title,
         priorityRef: values.priorityRef,
         deadline: values.deadline ? dayjs(values.deadline).toISOString() : null,
         description: values.description,
@@ -111,6 +113,7 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
         ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
       },
     };
+    console.log('payload', payload);
     dispatchProcessContinueEvent('pse_submit', payload);
     setLoading(false);
   };
