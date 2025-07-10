@@ -1,5 +1,5 @@
 import React from "react";
-import { cn } from "../../../common/utils/cn";
+import { PageLayout as NWPageLayout, PageLayoutProps as NWPageLayoutProps } from "@newwork/nw-design-system";
 
 /**
  * PageLayout provides a consistent frame and layout for all screens, with a configurable header style.
@@ -16,16 +16,18 @@ import { cn } from "../../../common/utils/cn";
  *
  * @param headerIcon - Icon to render in the header (required)
  * @param headerLabel - Label/title to render in the header (required)
+ * @param headerLabelClassName - Optional CSS class for the header label
  * @param pageHeaderCenter - Optional center content (e.g. tabs)
  * @param pageHeaderRight - Optional right content (e.g. actions)
  * @param pageController - Optional controller content (e.g. tab bars)
  * @param contentHeader - Content to render in the content header (inside content)
- * @param contentContainer - Main content area (inside content)
+ * @param contentContainer - Main content area (inside content) - maps to children
  * @param className - Optional additional class names for custom styling
  * @param variant - Style variant ('default' or 'display')
+ * @param backgroundImage - Optional background image URL
  */
-export interface PageLayoutProps {
-  headerIcon: React.ReactNode;
+export interface PageLayoutProps extends Omit<NWPageLayoutProps, "headerTitle" | "children"> {
+  headerIcon?: React.ReactNode;
   headerLabel: string;
   headerLabelClassName?: string;
   pageHeaderCenter?: React.ReactNode;
@@ -38,97 +40,36 @@ export interface PageLayoutProps {
   backgroundImage?: string;
 }
 
-export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
+/**
+ * Wrapper around NWPageLayout that maps custom props to NWPageLayoutProps
+ * This provides a consistent frame and layout for all screens, with configurable header styles
+ * 
+ * @param headerIcon - Icon to render in the header (passed through as-is)
+ * @param headerLabel - Label/title to render in the header (required) - will be mapped to headerTitle
+ * @param headerLabelClassName - Optional CSS class for the header label (kept for interface consistency)
+ * @param pageHeaderCenter - Optional center content (passed through as-is)
+ * @param pageHeaderRight - Optional right content (passed through as-is)
+ * @param pageController - Optional controller content (passed through as-is)
+ * @param contentHeader - Content header (passed through as-is)
+ * @param contentContainer - Main content (mapped to children)
+ * @param className - CSS classes (passed through as-is)
+ * @param variant - Style variant (passed through as-is)
+ * @param backgroundImage - Background image (passed through as-is)
+ */
+export const PageLayout: React.FC<PageLayoutProps> = ({
   headerIcon,
   headerLabel,
-  headerLabelClassName = "",
-  pageHeaderCenter,
-  pageHeaderRight,
-  pageController,
-  contentHeader,
   contentContainer,
-  className = "",
-  variant = "default",
-  backgroundImage,
+  ...restProps
 }) => {
-  // Determine styles based on variant
-  const isDisplay = variant === "display";
-
-  const iconClasses = cn(
-    "gba:flex gba:items-center gba:justify-center gba:shrink-0",
-    isDisplay ? "gba:w-12 gba:h-12" : "gba:w-8 gba:h-8"
-  );
-
-  // Icon size will be controlled through the parent container size
-
-  const labelClasses = cn(
-    "gba:text-xl gba:font-semibold gba:tracking-tight gba:truncate",
-    headerLabelClassName,
-    isDisplay ? "gba:text-4xl gba:font-secondary gba:mb-2" : "gba:text-2xl font-secondary gba:mb-1"
-  );
-
-  const backgroundStyle = backgroundImage
-    ? {
-        backgroundImage: `url(${backgroundImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        minHeight: '100vh',
-        minWidth: "0"
-      }
-    : { minHeight: "0", minWidth: "0" };
-
-  const containerClasses = backgroundImage
-    ? `gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:overflow-visible ${className}`.trim()
-    : `gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:bg-white gba:rounded-xl gba:shadow-md gba:overflow-visible ${className}`.trim();
-
   return (
-    <div
-      className={containerClasses}
-      style={backgroundStyle}
+    <NWPageLayout 
+      headerIcon={headerIcon}
+      headerTitle={headerLabel}
+      {...restProps}
+      data-testid="page-layout"
     >
-      <header className="gba:flex gba:flex-col gba:box-border gba:border-b gba:border-gray-200 gba:relative">
-        <div className="gba:h-24 gba:grid gba:grid-cols-3 gba:items-center gba:w-full">
-          {/* Left section: Icon + Label */}
-          <div className="gba:flex gba:items-center gba:h-full gba:gap-4 gba:justify-start">
-            <div className="gba:flex gba:items-center gba:h-full">
-              <span className={iconClasses} data-testid="page-header-icon">
-                {React.isValidElement(headerIcon)
-                  ? React.cloneElement(headerIcon as React.ReactElement, {
-                      size: isDisplay ? 48 : 32,
-                    })
-                  : headerIcon}
-              </span>
-            </div>
-            <div className="gba:flex gba:items-center gba:h-full">
-              <span className={labelClasses}>{headerLabel}</span>
-            </div>
-          </div>
-          
-          {/* Center section: pageHeaderCenter - Perfectly centered */}
-          <div className="gba:flex gba:items-center gba:h-full gba:justify-center">
-            {pageHeaderCenter}
-          </div>
-          
-          {/* Right section: pageHeaderRight */}
-          <div className="gba:flex gba:items-center gba:h-full gba:justify-end">
-            {pageHeaderRight}
-          </div>
-        </div>
-        {pageController && (
-          <div className="gba:flex gba:justify-start gba:py-2">
-            {pageController}
-          </div>
-        )}
-      </header>
-      <div className="flex flex-col flex-1 min-h-0">
-        {contentHeader && (
-          <div className="gba:py-2 gba:border-b gba:border-gray-200">
-            {contentHeader}
-          </div>
-        )}
-        <div className="gba:flex-1 gba:min-h-0">{contentContainer}</div>
-      </div>
-    </div>
+      {contentContainer}
+    </NWPageLayout>
   );
 };
