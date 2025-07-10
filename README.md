@@ -52,8 +52,8 @@ npm run publish:screen -- /<product>/<path-to-screen>/<screen-name> [options]
 # (Ensure .env is configured with AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_SAS_TOKEN)
 npm run publish:screen -- /irm/overview-screens/LeadOverview
 
-# Publish the OpportunityDetail screen from the CRM product
-npm run publish:screen -- /crm/detail-screens/OpportunityDetail
+# Publish the OpportunityRecord screen from the CRM product
+npm run publish:screen -- /crm/detail-screens/OpportunityRecord
 
 # Publish with resource URL prompts enabled for the EmployeeDirectory screen
 npm run publish:screen -- /hr/employee-screens/EmployeeDirectory --resource
