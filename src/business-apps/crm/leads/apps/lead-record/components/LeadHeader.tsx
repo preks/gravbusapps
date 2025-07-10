@@ -1,6 +1,8 @@
 import React from 'react';
 import { Button } from 'antd';
 import { TagsOutlined, StarOutlined, UserOutlined } from '@ant-design/icons';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { startProcess } from '@/common/utils/start-process';
 import { Lead } from '../types';
 
@@ -9,9 +11,10 @@ interface LeadHeaderProps {
   leadData: any;
   leadId: string;
   additionalData?: any;
+  accessToken: string;
 }
 
-export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, additionalData }) => {
+export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, additionalData, accessToken }) => {
   return (
     <div className="gba:lead-header" style={{ 
       marginBottom: '24px', 
@@ -25,20 +28,6 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
         justifyContent: 'space-between'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ 
-            width: '48px', 
-            height: '48px', 
-            borderRadius: '50%', 
-            backgroundColor: '#f5f5f5', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            fontSize: '20px', 
-            color: '#1890ff', 
-            fontWeight: 'bold' 
-          }}>
-            {lead.name ? lead.name[0] : 'A'}
-          </div>
           <div>
             <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '4px' }}>
               {lead.name}
@@ -59,67 +48,31 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            backgroundColor: '#f0f7ff',
-            color: '#1677ff',
-            padding: '4px 16px',
-            borderRadius: '16px',
-            fontSize: '14px',
-            fontWeight: 'normal'
-          }} data-testid="lead-status-badge">
-            {lead.status || 'Qualified'}
-          </div>
+          {accessToken && (
+            <AppActionButton
+              data-testid="lead-record-action-button"
+              variant="primary"
+              size="md"
+              contextsArray={[FlowContextName.leadEntity]}
+              externalContextData={{
+                leadId: leadId
+              }}
+              prefixDataTestId="lead-record-action"
+              accessToken={accessToken}
+              emptyStateBehavior="enabled"
+              deferMainContextRequestsUntilClick
+            >
+              Actions
+            </AppActionButton>
+          )}
           
-          <button 
-            style={{
-              borderColor: '#d9d9d9',
-              color: '#000000',
-              backgroundColor: 'white',
-              height: '36px',
-              padding: '0 16px',
-              fontWeight: 'normal',
-              fontSize: '14px',
-              borderRadius: '4px',
-              border: '1px solid #d9d9d9'
-            }}
-            data-testid="edit-lead-button"
-          >
-            Edit
-          </button>
-          
-          <button 
-            style={{
-              backgroundColor: '#000000',
-              borderColor: '#000000',
-              color: 'white',
-              height: '36px',
-              padding: '0 16px',
-              fontWeight: 'normal',
-              fontSize: '14px',
-              borderRadius: '4px',
-              border: '1px solid #000000'
-            }}
-            data-testid="schedule-meeting-button"
-          >
-            Schedule Meeting
-          </button>
-          
-          <Button 
+          {!lead.convertedOpportunityId ? <Button 
             type="primary"
-            style={{
-              backgroundColor: '#000000',
-              borderColor: '#000000',
-              height: '36px',
-              padding: '0 16px',
-              fontWeight: 'normal',
-              fontSize: '14px',
-              borderRadius: '4px'
-            }}
             data-testid="convert-to-opportunity-button"
             onClick={() => {
               startProcess({
                 domain: 'customer-relations',
-                processName: 'convertLeadToOpportunity',
+                processName: 'convertLead',
                 payload: {
                   leadId,
                   employeeId: additionalData?.employeeId
@@ -128,8 +81,8 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
               });
             }}
           >
-            Convert to Opportunity
-          </Button>
+            Convert Lead
+          </Button> : null}
         </div>
       </div>
     </div>
