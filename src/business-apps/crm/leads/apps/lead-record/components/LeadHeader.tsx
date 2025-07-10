@@ -24,8 +24,21 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
     await markAsLost(leadId, lead.version, onStatusUpdate);
   };
 
+  const handleConvertLead = () => {
+    startProcess({
+      domain: 'customer-relations',
+      processName: 'convertLead',
+      payload: {
+        leadId,
+        employeeId: additionalData?.employeeId
+      },
+      builderType: 'NATIVE_SCREEN',
+    });
+  };
+
   const staticActions = [];
   
+  // Add "Mark as Lost" action if conditions are met
   if (lead.status?.toLowerCase() !== 'lost' && !lead.convertedOpportunityId) {
     staticActions.push({
       key: 'mark-as-lost',
@@ -36,6 +49,18 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
       category: 'ACTION'
     });
   }
+
+  // Add "Convert Lead" action if not already converted
+  if (!lead.convertedOpportunityId) {
+    staticActions.push({
+      key: 'convert-lead',
+      label: getTranslationFromI18nKeyAndLabel('crm:lead.convertLead', 'Convert Lead'),
+      onClick: handleConvertLead,
+      icon: 'ArrowRightOutlined',
+      category: 'ACTION'
+    });
+  }
+
   return (
     <div className="gba:lead-header" style={{ 
       marginBottom: '24px', 
@@ -87,24 +112,6 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
               Actions
             </AppActionButton>
           )}
-          
-          {!lead.convertedOpportunityId ? <Button 
-            type="primary"
-            data-testid="convert-to-opportunity-button"
-            onClick={() => {
-              startProcess({
-                domain: 'customer-relations',
-                processName: 'convertLead',
-                payload: {
-                  leadId,
-                  employeeId: additionalData?.employeeId
-                },
-                builderType: 'NATIVE_SCREEN',
-              });
-            }}
-          >
-            Convert Lead
-          </Button> : null}
         </div>
       </div>
     </div>
