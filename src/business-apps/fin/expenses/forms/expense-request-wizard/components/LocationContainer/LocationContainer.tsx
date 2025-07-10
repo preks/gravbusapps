@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@newwork/gravity-ui-catalog';
 import { ICONS } from '../../../../utils/icons';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 /**
  * LocationContainer component props
@@ -13,6 +14,7 @@ interface LocationContainerProps {
   onRemove?: () => void;
   showRemoveButton?: boolean;
   children: React.ReactNode;
+  summary?: React.ReactNode;
 }
 
 /**
@@ -27,7 +29,8 @@ const LocationContainer: React.FC<LocationContainerProps> = ({
   onToggleCollapse,
   onRemove,
   showRemoveButton = false,
-  children
+  children,
+  summary
 }) => {
   return (
     <div className="gba:locationContainer" data-testid={`location-container-${title.toLowerCase().replace(/\s+/g, '-')}`}>
@@ -55,7 +58,7 @@ const LocationContainer: React.FC<LocationContainerProps> = ({
                 style={{ width: "24px", height: "24px" }}
                 data-testid={`remove-icon-${title.toLowerCase().replace(/\s+/g, '-')}`}
               />
-              Remove
+              {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.remove_destination_button', 'Remove Destination')}
             </Button>
           )}
           <Button
@@ -73,6 +76,13 @@ const LocationContainer: React.FC<LocationContainerProps> = ({
           </Button>
         </div>
       </div>
+      
+      {/* Show summary when collapsed */}
+      {isCollapsed && summary && (
+        <div data-testid={`location-summary-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+          {summary}
+        </div>
+      )}
       
       {/* Only show content when not collapsed */}
       {!isCollapsed && (

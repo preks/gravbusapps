@@ -271,7 +271,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                     >
                       <img
                         src={ICONS.X_ICON}
-                        alt={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.cancel_title_edit', 'Cancel')}
+                        alt={getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.cancel_items_button', 'Cancel')}
                         width="20"
                         height="20"
                         data-testid="title-cancel-button-icon"

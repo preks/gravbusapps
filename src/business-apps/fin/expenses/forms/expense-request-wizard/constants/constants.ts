@@ -1,3 +1,5 @@
+import { LocationData } from "../utils/types";
+
 /**
  * Tab names enum for expense request wizard
  */
@@ -9,8 +11,6 @@ export enum SCREEN_NAMES_ENUM {
   ALLOWANCE_TAB="AllowanceScreen",
   SUMMARY_TAB="SummaryScreen"
 }
-
-
 /**
  * Point type enum
  */
@@ -37,3 +37,42 @@ export const ABSENCE_STATUS = "APPROVED"
 
 export const EXCLUDED_STATUSES= ["DISCARDED"]
 
+export const ADDRESS_TYPES_ENUM = {
+  value: {
+    PRIMARY: "PRIMARY",
+    SECONDARY: "SECONDARY"
+  }
+};
+
+export const defaultStartLocation : LocationData = {
+    id: "start-location",
+    name: "Start Location",
+    isAbroad: false,
+    location: "",
+    departureDate: undefined,
+    departureTime: undefined,
+    isCollapsed: false,
+    travelRegionRef: undefined,
+}
+
+export const defaultEndLocation: LocationData = {
+    id: "end-location",
+    name: "End Location",
+    isAbroad: false,
+    location: "",
+    departureDate: undefined,
+    departureTime: undefined,
+    isCollapsed: false,
+    travelRegionRef: undefined,
+  };
+
+export const defaultDestination: LocationData ={
+  id: "destination-1",
+  name: "Destination",
+  isAbroad: false,
+  location: "",
+  departureDate: undefined,
+  departureTime: undefined,
+  isCollapsed: false,
+  travelRegionRef: undefined,
+}

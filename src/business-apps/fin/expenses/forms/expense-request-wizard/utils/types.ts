@@ -1,3 +1,5 @@
+import { BusinessAppContextProps } from "@/business-apps/types";
+
 export interface LocationData {
     id: string;
     name: string;
@@ -84,3 +86,18 @@ export interface LocationData {
       expenseItems: ExpenseItemData[] | any[];
     };
   }
+
+export interface TripScreenProps extends BusinessAppContextProps {
+    additionalData?: { 
+      mdi_modulePayload?: {
+        tripData?: any;
+      };
+      [key: string]: any;
+    };
+  }
+
+export interface LocationFormLabels{
+  inputFieldLabel?:string;
+  dateFieldLabel?:string;
+  timeFieldLabel?:string
+}

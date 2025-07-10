@@ -1,5 +1,11 @@
 /* TripScreen component styles */
 
+/* Location summary styles - just basic padding */
+.gba\:locationContainer > div[data-testid^="location-summary"] {
+  padding: 8px 32px;
+}
+
+
 .gba\:tripScreenContainer {
   width: 100%;
   display: flex;

@@ -81,10 +81,7 @@ const RejectionComment: React.FC<RejectionCommentProps> = ({ comment }) => {
         className="gba:text-[14px] gba:font-[700] gba:text-red-500 gba:mb-3" 
         data-testid="rejection-comment-title"
       >
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_request.add_request_trip_details.trip_request_returned',
-          'Trip Request Returned'
-        )}
+        {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.trip_request_returned', 'Trip Request Returned')}
       </div>
       <p 
         className="gba:text-[14px] gba:m-0 gba:leading-relaxed" 
