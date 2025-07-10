@@ -16,26 +16,18 @@
 @config "../tailwind.config.js";
 @import "tw-animate-css";
 @import "./business-apps/irm/kanban-board/KanbanBoard/kanban-styles.css";
-@import "./business-apps/crm/overview-screens/CompanyOverview/styles/CompanyOverview.css";
-@import "./business-apps/crm/overview-screens/CompanyOverview/AddNewCompany/styles/AddNewCompany.css";
-@import "./business-apps/crm/overview-screens/OpportunityOverview/styles/OpportunityOverview.css";
-@import "./business-apps/crm/components/tables/styles/CrmDataTable.css";
-@import "./business-apps/crm/components/layout/styles/PageHeader.css";
-@import "./business-apps/crm/detail-screens/CompanyDetail/styles/CompanyDetail.css";
-@import "./business-apps/crm/detail-screens/OpportunityDetail/styles/OpportunityDetail.css";
 @import "./business-apps/hr/absence/apps/AbsenceCalendar/styles/AbsenceCalendar.css";
 @import "./business-apps/fin/expenses/forms/expense-item/ExpenseItem.css";
 @import "./business-apps/fin/expenses/forms/expense-request/ExpenseRequest.css";
 @import "./business-apps/fin/expenses/forms/expense-request-invalid/ExpenseRequestInvalid.css";
 @import "./business-apps/fin/expenses/forms/expense-request/components/PlanCard.css";
-@import "@newwork/gravity-ui-catalog/dist/assets/style.css";
+@import "@newwork/gravity-ui-catalog/dist/assets/style.no-base.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/absenceHub.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/absenceListCard.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/entitlementCard.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/statisticsTab.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/upcomingAbsenceCard.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/statsCard.css";
-@import "./business-apps/hr/forms/EmployeeTermination/EmployeeTermination.css";
 @import "@newwork/nw-design-system/dist/index.css";
 
 @custom-variant dark (&:is(.dark *));
@@ -166,4 +158,10 @@
   .font-secondary {
     font-family: var(--font-secondary, 'Dela Gothic One', sans-serif) !important;
   }
+}
+
+/* Spinner animation for status progression loading */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

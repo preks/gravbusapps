@@ -5,7 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCalendarExpensePlans, ExpensePlan } from '../../../hooks/useCalendarExpensePlans';
 import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests';
 import { ExpenseStatus } from '../../../utils'; // Assuming utils exist, getExpensePlanStatusDisplay removed
-import { formatDate } from '@/common/utils/windowUtils';
+import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const { Text } = Typography;
 
@@ -137,7 +137,7 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
         type: getEventTypeFromStatus(plan.status as ExpenseStatus),
         note: `${plan.title || 'Expense Plan'} (${formatDate(plan.startDate, 'date.short')} - ${formatDate(plan.endDate, 'date.short')})`,
         status: plan.status,
-        title: 'Expense Plan',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initial_expense_plan_select_label', 'Expense Plan'),
         eventType: 'Plan',
       });
     });
@@ -167,7 +167,7 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
         type: getEventTypeFromStatus(request.status as ExpenseStatus),
         note: `${request.title || 'Expense Request'} (${formatDate(request.requestDate, 'date.short')})`,
         status: request.status,
-        title: 'Expense Request',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_title_header', 'Expense Request'),
         eventType: 'Request',
       });
     });
@@ -187,10 +187,10 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
 
     return (
       <CalendarTimeline<ExpenseTimelineItem, ExpenseTimelineEvent>
-        title="Expense Calendar"
+        title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_calendar', 'Expense Calendar')}
         items={timelineItems}
         events={timelineEvents}
-        itemLabel="Employee"
+        itemLabel={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
         searchPlaceholder="Search Employees..."
         renderItemContent={(item) => (
           <div className="gba:p-2">
@@ -199,9 +199,9 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
           </div>
         )}
         legendItems={[
-          { label: 'In Transit', color: 'blue' },
-          { label: 'Approval Required', color: 'yellow' },
-          { label: 'Paid', color: 'green' }
+          { label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit'), color: 'blue' }, 
+          { label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approval_required', 'Approval Required'), color: 'yellow' },
+          { label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'), color: 'green' }
         ]}
         // initialDate={new Date()} // Optional: set an initial date
         // initialViewRange={30} // Optional: set initial number of days to show

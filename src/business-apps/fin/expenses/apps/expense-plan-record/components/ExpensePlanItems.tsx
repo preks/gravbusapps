@@ -287,8 +287,4 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems })
   );
 };
 
-
-
-
-
 export default ExpensePlanItems;

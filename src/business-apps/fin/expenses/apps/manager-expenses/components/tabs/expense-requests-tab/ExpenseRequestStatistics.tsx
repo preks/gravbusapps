@@ -3,6 +3,7 @@ import { ClockCircleOutlined, FileOutlined, DollarOutlined } from '@ant-design/i
 import { ExpenseRequestStatisticsData } from '../../../hooks/useGetExpenseRequests';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { formatAmount } from '../../../utils/currencyUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpenseRequestStatisticsProps {
   requestStats: ExpenseRequestStatisticsData | null;
@@ -25,43 +26,43 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   const widgets: WidgetItem[] = requestStats ? [
     {
       key: 'pending-requests',
-      title: 'Pending Requests',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.pending_requests_btn', 'Pending Requests'),
       value: requestStats.pendingCount,
       color: '#faad14',
       prefix: <ClockCircleOutlined />,
       span: { xs: 24, sm: 12, md: 6, lg: 6 },
-      description: 'Waiting for approval'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.waiting_for_approval', 'Waiting for approval')
     },
     {
       key: 'pending-amount',
-      title: 'Pending Amount',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_amount', 'Pending Amount'),
       value: requestStats.pendingAmount ? formatAmount(requestStats.pendingAmount) : '0,00',
       color: '#faad14',
       prefix: <DollarOutlined />,
       suffix: '€',
       valueIsString: true,
       span: { xs: 24, sm: 12, md: 6, lg: 6 },
-      description: 'Total pending funds'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.total_pending_funds', 'Total pending funds')
     },
     {
       key: 'total-requests',
-      title: 'Total Requests (Submitted)',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.total_requests_submitted', 'Total Requests (Submitted)'),
       value: totalRequests,
       color: '#1890ff',
       prefix: <FileOutlined />,
       span: { xs: 24, sm: 12, md: 6, lg: 6 },
-      description: 'All submitted requests'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.all_submitted_requests', 'All submitted requests')
     },
     {
       key: 'total-submitted-amount',
-      title: 'Total Submitted Amount',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.total_submitted_amount', 'Total Submitted Amount'),
       value: requestStats.totalSubmittedAmount ? formatAmount(requestStats.totalSubmittedAmount) : '0,00',
       color: '#3f8600',
       prefix: <DollarOutlined />,
       suffix: '€',
       valueIsString: true,
       span: { xs: 24, sm: 12, md: 6, lg: 6 },
-      description: 'All expense requests'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.all_expense_requests', 'All expense requests')
     }
   ] : [];
 

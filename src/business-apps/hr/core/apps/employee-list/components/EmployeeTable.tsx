@@ -7,6 +7,7 @@ import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees';
 import { formatDataTestId } from '@/modules/orgchart/utils';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 // Memoized AppActionButton to prevent unnecessary re-renders and API calls
 const MemoizedAppActionButton = memo<{
@@ -70,7 +71,8 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
 
   // Handle view profile action
   const handleViewProfile = useCallback((employeeId: string) => {
-    window.location.href = `/platform/landing_screen/srn_employeeProfile?id=${employeeId}`;
+    const url = buildPlatformUrl('/platform/landing_screen/srn_employeeProfile', { id: employeeId });
+    navigateTo(url);
   }, []);
 
   // Handle row click to select employee

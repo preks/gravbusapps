@@ -1,11 +1,28 @@
 import type { StatsCardProps } from "../types/absenceTypes"
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { CalendarOutlined } from '@ant-design/icons';
-// No date formatting used, so remove both imports.
 
 export const StatsCard = ({ stat }: StatsCardProps) => {
-  const { title, used, total, progress, daysLeft, color } = stat;
+  const { title, used, total, progress, daysLeft, color, checkEntitlement } = stat as any;
 
+  // If checkEntitlement is explicitly false, show only used days
+  if (checkEntitlement === false) {
+    return (
+      <div className="gba:statsCard" data-testid="stats-card">
+        <div className="gba:statsCardRow gba:statsCardRow--top" data-testid="stats-card-row-top">
+          <span className="gba:statsCardIcon" data-testid="stats-card-icon">
+            <CalendarOutlined style={{ color: `#${color}` }} />
+          </span>
+          <span className="gba:statsCardTitle" data-testid="stats-card-title">{title}</span>
+        </div>
+        <div className="gba:statsCardRow gba:statsCardRow--bottom" data-testid="stats-card-row-bottom">
+          <span className="gba:statsCardUsed" style={used && used > 0 ? { color: "rgba(13, 188, 123)" } : { color: "rgba(0, 0, 0)" }} data-testid="stats-card-used">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {used}</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Default: show all details
   return (
     <div className="gba:statsCard" data-testid="stats-card">
       <div className="gba:statsCardRow gba:statsCardRow--top" data-testid="stats-card-row-top">
@@ -25,11 +42,12 @@ export const StatsCard = ({ stat }: StatsCardProps) => {
         </div>
       </div>
       <div className="gba:statsCardRow gba:statsCardRow--bottom" data-testid="stats-card-row-bottom">
-        <span className="gba:statsCardUsed" data-testid="stats-card-used">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {used}</span>
-        <span className="gba:statsCardTotal" data-testid="stats-card-total">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} {total}</span>
+        <span className="gba:statsCardUsed" style={used && used > 0 ? { color: "rgba(13, 188, 123)" } : { color: "rgba(0, 0, 0)" }} data-testid="stats-card-used">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {used}</span>
+        <span className="gba:statsCardTotal"  data-testid="stats-card-total">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} {total}</span>
       </div>
     </div>
   );
 }
+
 
 export default StatsCard

@@ -7,6 +7,7 @@ import { useExpenseReportData, ReportType } from '../../hooks/useExpenseReportDa
 import dayjs from 'dayjs';
 import { ensureShortDateFormat } from '../../utils/dateUtils';
 import { formatAmount } from '../../utils/currencyUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const { Title, Text } = Typography;
 
@@ -69,27 +70,27 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
       case ReportType.EXPENSE_ITEM:
         return [
           {
-            title: 'Date',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date'),
             dataIndex: 'date',
             key: 'date',
             render: (date: string) => ensureShortDateFormat(date),
             sorter: (a: any, b: any) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf()
           },
           {
-            title: 'Title',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
             dataIndex: 'title',
             key: 'title',
             ellipsis: true,
             sorter: (a: any, b: any) => (a.title || '').localeCompare(b.title || '')
           },
           {
-            title: 'Category',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.category', 'Category'),
             dataIndex: 'category',
             key: 'category',
             sorter: (a: any, b: any) => (a.category || '').localeCompare(b.category || '')
           },
           {
-            title: 'Amount',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
             dataIndex: 'amount',
             key: 'amount',
             render: (amount: number, record: any) => {
@@ -104,7 +105,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
             }
           },
           {
-            title: 'Employee',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
             dataIndex: 'employeeName',
             key: 'employeeName',
             render: (name: string) => name || '-',
@@ -116,7 +117,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
       case ReportType.EXPENSE_PLAN:
         return [
           {
-            title: 'Date',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date'),
             dataIndex: 'startDate',
             key: 'startDate',
             render: (date: string) => ensureShortDateFormat(date),
@@ -127,14 +128,14 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
             }
           },
           {
-            title: 'Title',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
             dataIndex: 'title',
             key: 'title',
             ellipsis: true,
             sorter: (a: any, b: any) => (a.title || '').localeCompare(b.title || '')
           },
           {
-            title: 'Status',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
             dataIndex: 'status',
             key: 'status',
             render: (status: string) => (
@@ -145,7 +146,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
             sorter: (a: any, b: any) => (a.status || '').localeCompare(b.status || '')
           },
           {
-            title: 'Amount',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
             dataIndex: 'totalAmount',
             key: 'totalAmount',
             render: (amount: number, record: any) => {
@@ -160,7 +161,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
             }
           },
           {
-            title: 'Employee',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
             dataIndex: 'employeeName',
             key: 'employeeName',
             render: (name: string) => name || '-',
@@ -172,7 +173,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
       case ReportType.EXPENSE_REQUEST:
         return [
           {
-            title: 'Date',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date'),
             dataIndex: 'createdAt',
             key: 'createdAt',
             render: (date: string) => ensureShortDateFormat(date),
@@ -183,14 +184,14 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
             }
           },
           {
-            title: 'Title',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
             dataIndex: 'title',
             key: 'title',
             ellipsis: true,
             sorter: (a: any, b: any) => (a.title || '').localeCompare(b.title || '')
           },
           {
-            title: 'Status',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
             dataIndex: 'status',
             key: 'status',
             render: (status: string) => (
@@ -201,7 +202,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
             sorter: (a: any, b: any) => (a.status || '').localeCompare(b.status || '')
           },
           {
-            title: 'Amount',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
             dataIndex: 'totalAmount',
             key: 'totalAmount',
             render: (amount: number, record: any) => {
@@ -216,7 +217,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
             }
           },
           {
-            title: 'Employee',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
             dataIndex: 'employeeName',
             key: 'employeeName',
             render: (name: string) => name || '-',
@@ -228,7 +229,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
       case ReportType.ADVANCE_PAYMENT:
         return [
           {
-            title: 'Date',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date'),
             dataIndex: 'startDate',
             key: 'startDate',
             render: (date: string) => ensureShortDateFormat(date),
@@ -239,20 +240,20 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
             }
           },
           {
-            title: 'Code',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.code', 'Code'),
             dataIndex: 'code',
             key: 'code',
             sorter: (a: any, b: any) => (a.code || '').localeCompare(b.code || '')
           },
           {
-            title: 'Title',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
             dataIndex: 'title',
             key: 'title',
             ellipsis: true,
             sorter: (a: any, b: any) => (a.title || '').localeCompare(b.title || '')
           },
           {
-            title: 'Status',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
             dataIndex: 'status',
             key: 'status',
             render: (status: string) => (
@@ -263,7 +264,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
             sorter: (a: any, b: any) => (a.status || '').localeCompare(b.status || '')
           },
           {
-            title: 'Amount',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
             dataIndex: 'totalAmount',
             key: 'totalAmount',
             render: (amount: number) => {
@@ -278,7 +279,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
             }
           },
           {
-            title: 'Advance',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.advance', 'Advance'),
             dataIndex: 'advanceAmount',
             key: 'advanceAmount',
             render: (amount: number) => {
@@ -293,7 +294,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
             }
           },
           {
-            title: 'Employee',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
             dataIndex: 'employeeName',
             key: 'employeeName',
             render: (name: string) => name || '-',
@@ -315,7 +316,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
 
   return (
     <Modal
-      title="Report List"
+      title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.report_list', 'Report List')}
       open={visible}
       onCancel={onCancel}
       footer={null}
@@ -331,7 +332,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
         <div className="gba:w-1/4 gba:pr-4 gba:border-r gba:border-gray-200 gba:overflow-y-auto gba:p-4">
           <div className="gba:mb-4">
             <Input
-              placeholder="Filter report types..."
+              placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.filter_report_types', 'Filter report types...')}
               prefix={<SearchOutlined />}
               onChange={(e) => setReportTypeSearchTerm(e.target.value)}
               value={reportTypeSearchTerm}
@@ -359,7 +360,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
             <Title level={4}>{getReportTitle()}</Title>
             <div className="gba:flex gba:items-center gba:gap-4">
               <Input
-                placeholder="Search report contents..."
+                placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.search_report_contents', 'Search report contents...')}
                 prefix={<SearchOutlined />}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 value={searchTerm}
@@ -376,7 +377,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
             </div>
           ) : error ? (
             <Alert
-              message="Error"
+              message={getTranslationFromI18nKeyAndLabel('lowcoder:general_notifications.error_title', 'Error')}
               description={error}
               type="error"
               showIcon
