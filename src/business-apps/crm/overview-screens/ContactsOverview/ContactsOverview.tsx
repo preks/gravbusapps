@@ -35,7 +35,7 @@ import {
 import { useContactsData, Contact } from './hooks/useContactsData';
 import { BusinessAppContextProps } from "@/business-apps/types";
 import { env } from '@/common/env/EnvUtils';
-import { ContactProfile } from '../../overview-screens/ContactProfile/ContactProfile';
+import { ContactDetail } from '../../detail-screens/ContactDetail/ContactDetail';
 import { AddEditContactModal } from './components';
 
 const { Title, Text, Paragraph } = Typography;
@@ -71,7 +71,7 @@ interface MetricCardProps {
 export function ContactsOverview({ accessToken, employeeId }: BusinessAppContextProps) {
   const [searchText, setSearchText] = useState('');
   const [selectedContactId, setSelectedContactId] = useState<string | undefined>();
-  const [isContactProfileVisible, setIsContactProfileVisible] = useState(false);
+  const [isContactDetailVisible, setIsContactDetailVisible] = useState(false);
   const [isAddContactModalVisible, setIsAddContactModalVisible] = useState(false);
   const [isEditContactModalVisible, setIsEditContactModalVisible] = useState(false);
   const [isNewContact, setIsNewContact] = useState(false);
@@ -203,7 +203,7 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
   const handleRowClick = (record: ExtendedContact) => {
     if (record && record.id) {
       setSelectedContactId(record.id);
-      setIsContactProfileVisible(true);
+      setIsContactDetailVisible(true);
       setIsNewContact(false);
       setIsEditMode(false);
     } else {
@@ -211,8 +211,8 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
     }
   };
   
-  const handleContactProfileBack = () => {
-    setIsContactProfileVisible(false);
+  const handleContactDetailBack = () => {
+    setIsContactDetailVisible(false);
     setSelectedContactId(undefined);
     setIsNewContact(false);
     setIsEditMode(false);
@@ -602,14 +602,14 @@ export function ContactsOverview({ accessToken, employeeId }: BusinessAppContext
 
   return (
     <div style={{ padding: 24 }}>
-      {isContactProfileVisible ? (
-        <ContactProfile
+      {isContactDetailVisible ? (
+        <ContactDetail
           accessToken={accessToken}
           employeeId={employeeId}
           contactId={selectedContactId}
           isEditMode={isEditMode}
           isNewContact={isNewContact}
-          onBack={handleContactProfileBack}
+          onBack={handleContactDetailBack}
           onDelete={refetchContacts}
         />
       ) : (
