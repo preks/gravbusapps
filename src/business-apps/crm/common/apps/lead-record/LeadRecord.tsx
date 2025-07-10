@@ -1,0 +1,144 @@
+import React from "react";
+import { Row, Col, Spin } from 'antd';
+import { ArrowLeftOutlined } from '@ant-design/icons';
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { navigateTo } from "@/common/utils/navigationUtils";
+import { useLeadData } from "./hooks/useLeadData";
+import { LeadHeader } from "./components/LeadHeader";
+import { StatusProgression } from "./components/StatusProgression";
+import { CompanyInformation } from "./components/CompanyInformation";
+import { ContactInformation } from "./components/ContactInformation";
+import { ActivityTimeline } from "./components/ActivityTimeline";
+import { TasksSection } from "./components/TasksSection";
+
+
+interface LeadRecordContentProps extends BusinessAppContextProps {
+  leadId: string;
+  onBack: () => void;
+}
+
+const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, ...props }) => {
+  const { lead, leadData, loading, error, leadStatuses, loadingStatuses, refetchLeadData } = useLeadData(leadId, props.accessToken);
+
+  if (loading) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (error || !lead) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
+        <div className="gba:text-center">
+          <p className="gba:text-red-500 gba:text-lg">{error || 'Lead not found'}</p>
+          <button
+            onClick={onBack}
+            className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
+          >
+            Back to Leads Overview
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="gba:lead-details-container" data-testid="lead-opportunity-investment-detail" style={{ backgroundColor: 'white', padding: '16px' }}>
+      {/* Back navigation */}
+      <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
+        <button
+          onClick={onBack}
+          className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
+          data-testid="back-button"
+        >
+          <ArrowLeftOutlined className="gba:mr-2" />
+          <span>Back to Leads Overview</span>
+        </button>
+      </div>
+
+      {/* Lead header */}
+      <LeadHeader lead={lead} leadData={leadData} leadId={leadId} additionalData={props} accessToken={props.accessToken} />
+
+      {/* Status Progression */}
+      {!loadingStatuses && leadStatuses.length > 0 && lead && (
+        <StatusProgression 
+          currentStatus={leadData?.leadStatus?.value || lead?.status || 'New'} 
+          statuses={leadStatuses}
+          leadId={leadId}
+          leadVersion={parseInt(lead.version) || 0}
+          accessToken={props.accessToken}
+          onStatusUpdate={refetchLeadData}
+        />
+      )}
+
+      {/* Main content */}
+      <div className="gba:lead-details-content" data-testid="lead-details-content">
+        
+        {/* First Row: Company Information + Contacts */}
+        <Row gutter={24} style={{ marginBottom: '24px', display: 'flex', alignItems: 'stretch' }}>
+          {/* Company Information - 3/4 width */}
+          <Col span={18} style={{ display: 'flex' }}>
+            <CompanyInformation lead={lead} leadData={leadData} />
+          </Col>
+
+          {/* Contacts - 1/4 width */}
+          <Col span={6} style={{ display: 'flex' }}>
+            <ContactInformation leadData={leadData} />
+          </Col>
+        </Row>
+
+        {/* Second Row: Activity Timeline + Tasks */}
+        <Row gutter={24}>
+          {/* Activity Timeline - 1/2 width */}
+          <Col span={12}>
+            <ActivityTimeline leadId={leadId} context={props} />
+          </Col>
+
+          {/* Tasks - 1/2 width */}
+          <Col span={12}>
+            <TasksSection leadId={leadId} context={props} />
+          </Col>
+        </Row>
+      </div>
+    </div>
+  );
+};
+
+interface LeadRecordProps extends BusinessAppContextProps {
+  leadId?: string;
+  onBack?: () => void;
+}
+
+const LeadRecord: React.FC<LeadRecordProps> = (props) => {
+  const leadId = props.leadId || new URLSearchParams(window.location.search).get('leadId');
+  
+  const handleBack = () => {
+    if (props.onBack) {
+      props.onBack();
+    } else {
+      // Navigate back to leads overview
+      navigateTo('/platform/crm/leads-overview');
+    }
+  };
+
+  if (!leadId) {
+    return (
+      <div data-testid="lead-record-no-id">
+        <p>No lead ID provided</p>
+      </div>
+    );
+  }
+  return (
+    <LeadRecordContent
+      {...props}
+      leadId={leadId}
+      onBack={handleBack}
+    />
+  );
+};
+
+export { LeadRecord, LeadRecordContent }; 
+
+export default LeadRecord;

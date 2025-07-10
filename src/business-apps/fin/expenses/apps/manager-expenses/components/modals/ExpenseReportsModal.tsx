@@ -84,7 +84,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
             sorter: (a: any, b: any) => (a.title || '').localeCompare(b.title || '')
           },
           {
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.category', 'Category'),
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.category', 'Category'),
             dataIndex: 'category',
             key: 'category',
             sorter: (a: any, b: any) => (a.category || '').localeCompare(b.category || '')
@@ -332,7 +332,7 @@ const ExpenseReportsModal: React.FC<ExpenseReportsModalProps> = ({
         <div className="gba:w-1/4 gba:pr-4 gba:border-r gba:border-gray-200 gba:overflow-y-auto gba:p-4">
           <div className="gba:mb-4">
             <Input
-              placeholder="Filter report types..."
+              placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.filter_report_types', 'Filter report types...')}
               prefix={<SearchOutlined />}
               onChange={(e) => setReportTypeSearchTerm(e.target.value)}
               value={reportTypeSearchTerm}

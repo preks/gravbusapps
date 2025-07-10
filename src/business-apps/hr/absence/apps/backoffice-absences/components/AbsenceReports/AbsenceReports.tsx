@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { RiBarChartLine } from "@remixicon/react";
 import { useState, useEffect } from "react";
 import { env } from "@/common/env/EnvUtils";
+import { navigateTo } from "@/common/utils/navigationUtils";
 
 interface ResourceUrl {
   id: string;
@@ -169,7 +170,7 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
           href={absenceReport.url}
           onClick={(e) => {
             e.preventDefault();
-            window.location.href = absenceReport.url;
+            navigateTo(absenceReport.url);
           }}
           className="gba:block gba:hover:no-underline"
         >

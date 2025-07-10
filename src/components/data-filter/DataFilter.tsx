@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { PiMagnifyingGlass, PiCaretUp, PiCaretDown } from "react-icons/pi";
 import { Checkbox } from "@newwork/gravity-ui-catalog";
+import { Tooltip } from "antd";
 import { cn } from "../../common/utils/cn";
 import { DebouncedInput } from "./DebouncedInput";
 
@@ -22,6 +23,15 @@ export interface DataFilterGroup {
     loading: boolean;
     error: any;
   };
+  /**
+   * Optional custom component to render instead of the default filter list.
+   * If provided, the search input will be hidden for this group.
+   */
+  customComponent?: React.ReactNode;
+  /**
+   * If true, hides the search input for this filter group
+   */
+  hideSearch?: boolean;
 }
 
 /**
@@ -273,8 +283,12 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                         name={filter.id}
                       />
                     </div>
+                    <Tooltip 
+                      title={filter.label + (typeof filter.count === "number" ? ` (${filter.count})` : "")}
+                      placement="right"
+                    >
                     <span
-                      className={`gba:text-sm ${
+                        className={`gba:text-sm gba:text-left gba:truncate gba:block gba:max-w-[280px] ${
                         filter.selected
                           ? "gba:font-medium gba:text-primary-500"
                           : "gba:text-gray-700"
@@ -285,6 +299,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                         ? ` (${filter.count})`
                         : ""}
                     </span>
+                    </Tooltip>
                   </button>
                 ));
               } else {
@@ -340,21 +355,32 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                       className="gba:flex gba:flex-col gba:w-full gba:pl-2"
                       id={groupId}
                     >
-                      {/* Per-group search input with debounce */}
-                      <div className="gba:w-full gba:mb-2 gba:mt-1">
-                        <DebouncedInput
-                          className="gba:w-full gba:h-8 gba:px-2 gba:text-sm gba:bg-gray-100/40 gba:rounded gba:border-none gba:outline-none"
-                          placeholder={`Search in ${group.title}...`}
-                          value={groupSearch}
-                          onChange={(value) =>
-                            handleGroupSearchChange(group.id, value)
-                          }
-                          ariaLabel={`Search filters in ${group.title}`}
-                          debounceDelay={300}
-                        />
-                      </div>
-                      {/* Show loading, error, or filter options */}
-                      {filterContent}
+                      {/* Render custom component if provided */}
+                      {group.customComponent ? (
+                        <div className="gba:w-full gba:mt-1">
+                          {group.customComponent}
+                        </div>
+                      ) : (
+                        <>
+                          {/* Per-group search input with debounce - only show if not disabled */}
+                          {!group.hideSearch && (
+                            <div className="gba:w-full gba:mb-2 gba:mt-1">
+                              <DebouncedInput
+                                className="gba:w-full gba:h-8 gba:px-2 gba:text-sm gba:bg-gray-100/40 gba:rounded gba:border-none gba:outline-none"
+                                placeholder={`Search in ${group.title}...`}
+                                value={groupSearch}
+                                onChange={(value) =>
+                                  handleGroupSearchChange(group.id, value)
+                                }
+                                ariaLabel={`Search filters in ${group.title}`}
+                                debounceDelay={300}
+                              />
+                            </div>
+                          )}
+                          {/* Show loading, error, or filter options */}
+                          {filterContent}
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
