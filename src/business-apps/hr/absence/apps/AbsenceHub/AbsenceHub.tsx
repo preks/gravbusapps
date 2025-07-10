@@ -1,4 +1,4 @@
-import { Tabs } from "antd";
+import { Button, Tabs } from "antd";
 import {
   CalendarOutlined,
   UnorderedListOutlined,
@@ -34,6 +34,7 @@ import {
   getCatalogValue,
 } from "@/common/utils/windowUtils";
 import { PiCalendarBlank } from "react-icons/pi";
+import { startProcess } from "@/common/utils/start-process";
 
 export const AbsenceHub = (props: BusinessAppContextProps) => {
   const [activeTab, setActiveTab] = useState("calendar");
@@ -233,6 +234,14 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
       ? upcomingAbsences
       : upcomingAbsences.filter((a) => a.type === activeFilter);
 
+  const handleCreateAbsence = () => {
+    startProcess({
+      domain: "employee-time",
+      processName: "changeEmployeeAbsenceEnterEmployeeAbsence",
+      payload: { employeeId: employeeId },
+    });
+  };
+  
   return (
     <div className="gba:absence-container" data-testid="absencehub-container">
       <div className="gba:absence-header" data-testid="absencehub-header">
@@ -338,14 +347,40 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                 >
                   {activeTab === "calendar" && (
                     <>
-                      <AbsenceTypeFilter
-                        filterOptions={filterOptions}
-                        activeFilter={activeFilter}
-                        onFilterChange={(filter) => {
-                          setActiveFilter(filter);
-                          setCurrentPage(1);
-                        }}
-                      />
+                      <div
+                        className="gba:flex gba:items-center gba:justify-between gba:mb-4"
+                        data-testid="absence-type-filter-row"
+                      >
+                        <AbsenceTypeFilter
+                          filterOptions={filterOptions}
+                          activeFilter={activeFilter}
+                          onFilterChange={(filter) => {
+                            setActiveFilter(filter);
+                            setCurrentPage(1);
+                          }}
+                        />
+                        <Button
+                          type="primary"
+                          style={{
+                            backgroundColor: "transparent",
+                            borderColor: "#18181a",
+                            color: "black",
+                            fontWeight: "500",
+                            borderRadius: "8px",
+                            border: "1px solid #18181a",
+                            padding: "8px 16px",
+                            boxShadow: "none",
+                            outline: "none",
+                          }}
+                          onClick={handleCreateAbsence}
+                        >
+                          {getTranslationFromI18nKeyAndLabel(
+                            "absence.create",
+                            "Create Absence",
+                            getCurrentActiveUserLocale()
+                          )}
+                        </Button>
+                      </div>
                       <AbsenceCalendar
                         accessToken={props.accessToken}
                         userInfo={props.userInfo}
@@ -365,14 +400,40 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                       className="gba:absenceList"
                       data-testid="absencehub-absence-list"
                     >
-                      <AbsenceTypeFilter
-                        filterOptions={filterOptions}
-                        activeFilter={activeFilter}
-                        onFilterChange={(filter) => {
-                          setActiveFilter(filter);
-                          setCurrentPage(1);
-                        }}
-                      />
+                      <div
+                        className="gba:flex gba:items-center gba:justify-between gba:mb-4"
+                        data-testid="absence-type-filter-row"
+                      >
+                        <AbsenceTypeFilter
+                          filterOptions={filterOptions}
+                          activeFilter={activeFilter}
+                          onFilterChange={(filter) => {
+                            setActiveFilter(filter);
+                            setCurrentPage(1);
+                          }}
+                        />
+                        <Button
+                          type="primary"
+                          style={{
+                            backgroundColor: "transparent",
+                            borderColor: "#18181a",
+                            color: "black",
+                            fontWeight: "500",
+                            borderRadius: "8px",
+                            border: "1px solid #18181a",
+                            padding: "8px 16px",
+                            boxShadow: "none",
+                            outline: "none",
+                          }}
+                          onClick={handleCreateAbsence}
+                        >
+                          {getTranslationFromI18nKeyAndLabel(
+                            "absence.create",
+                            "Create Absence",
+                            getCurrentActiveUserLocale()
+                          )}
+                        </Button>
+                      </div>
                       <h3
                         className="gba:absenceListTitle"
                         data-testid="absencehub-absence-history-title"
