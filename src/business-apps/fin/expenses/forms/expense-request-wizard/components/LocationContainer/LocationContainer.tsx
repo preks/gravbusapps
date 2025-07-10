@@ -79,7 +79,7 @@ const LocationContainer: React.FC<LocationContainerProps> = ({
       
       {/* Show summary when collapsed */}
       {isCollapsed && summary && (
-        <div data-testid={`location-summary-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+        <div className="gba:locationSummary" data-testid={`location-summary-${title.toLowerCase().replace(/\s+/g, '-')}`}>
           {summary}
         </div>
       )}
