@@ -79,6 +79,14 @@ export interface DataControllerProps {
     icon?: React.ReactNode;
     "data-testid"?: string;
   };
+  /**
+   * Optional date range filter state
+   */
+  dateRange?: {
+    createdAfter?: string;
+    createdBefore?: string;
+    onClear?: () => void;
+  };
 }
 
 export const DataController: React.FC<Readonly<DataControllerProps>> = ({
@@ -97,6 +105,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   actions,
   addButton,
   hideFilter = false,
+  dateRange,
 }) => {
   const [showSearchInput, setShowSearchInput] = useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -131,6 +140,41 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
       inputRef.current.focus();
     }
   }, [showSearchInput]);
+
+  // Helper function to format date range labels
+  const formatDateRangeLabel = useCallback((createdAfter?: string, createdBefore?: string): string => {
+    if (createdAfter && createdBefore) {
+      const startDate = new Date(createdAfter).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+      const endDate = new Date(createdBefore).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+      return `${startDate} - ${endDate}`;
+    } else if (createdAfter) {
+      const startDate = new Date(createdAfter).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+      return `after ${startDate}`;
+    } else if (createdBefore) {
+      const endDate = new Date(createdBefore).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+      return `before ${endDate}`;
+    }
+    return '';
+  }, []);
+
+  // Check if date range filter is active
+  const hasDateRangeFilter = dateRange && (dateRange.createdAfter || dateRange.createdBefore);
 
   return (
     <div className="gba:w-full gba:bg-white">
@@ -256,9 +300,30 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
         )}
       </div>
       {/* Filter pills row: always below the bar group, left-aligned */}
-      {filter && filter.length > 0 && setFilter && (
+      {((filter && filter.length > 0) || hasDateRangeFilter) && (
         <div className="gba:flex gba:items-center gba:gap-2 gba:self-start gba:mt-4">
-          {filter.map((val) => (
+          {/* Date range filter pill */}
+          {hasDateRangeFilter && (
+            <div
+              className="gba:flex gba:h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-blue-100"
+            >
+              <span className="gba:text-blue-800">
+                {formatDateRangeLabel(dateRange?.createdAfter, dateRange?.createdBefore)}
+              </span>
+              <button
+                className="gba:ml-0.5 gba:bg-transparent gba:border-none gba:text-blue-800 gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:p-0 gba:cursor-pointer gba:rounded-full gba:hover:bg-blue-200 gba:transition-colors"
+                onClick={dateRange?.onClear}
+                aria-label="Remove date range filter"
+                tabIndex={0}
+                type="button"
+              >
+                <PiX size={12} />
+              </button>
+            </div>
+          )}
+          
+          {/* Regular filter pills */}
+          {filter && filter.length > 0 && setFilter && filter.map((val) => (
             <div
               key={val}
               className="gba:flex gba:h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-gray-100"
@@ -275,9 +340,14 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
               </button>
             </div>
           ))}
+          
+          {/* Clear all filters button */}
           <button
             className="gba:flex gba:items-center gba:gap-1 gba:text-sm gba:text-gray-600 gba:hover:text-gray-800 gba:transition-colors"
-            onClick={() => setFilter([])}
+            onClick={() => {
+              if (setFilter) setFilter([]);
+              if (dateRange?.onClear) dateRange.onClear();
+            }}
             type="button"
           >
             <span>Clear all filters</span>
