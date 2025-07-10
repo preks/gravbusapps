@@ -5,7 +5,7 @@ import { useKanbanStore } from "./lib/kanban-store";
 import { KanbanColumn } from "./components/KanbanColumn";
 import { OpportunityCard } from "./components/OpportunityCard";
 import { OpportunityDialog } from "./components/OpportunityDialog";
-import OpportunityDetail from "../../../crm/detail-screens/OpportunityDetail/OpportunityDetail";
+import OpportunityRecord from "../../../crm/common/apps/opportunity-record/OpportunityRecord";
 import { getTranslationFromI18nKeyAndLabel } from "../../../../common/utils/windowUtils";
 import type { Opportunity } from "./lib/types";
 
@@ -95,7 +95,7 @@ export function KanbanBoard({ accessToken, userInfo }: BusinessAppContextProps) 
   if (isViewingOpportunity && selectedOpportunity) {
     return (
       <div className="gba:h-full gba:w-full" data-testid="opportunity-detail-container">
-        <OpportunityDetail 
+        <OpportunityRecord 
           opportunityId={selectedOpportunity?.id || ''}
           accessToken={accessToken}
           onBack={() => selectOpportunity(null)}
