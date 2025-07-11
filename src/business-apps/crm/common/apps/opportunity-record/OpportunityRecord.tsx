@@ -113,6 +113,12 @@ interface Account {
 }
 
 interface OpportunityData {
+  statusRef: string;
+  sourceRef: string;
+  annualRevenueRef: string;
+  companyWebsite: string;
+  countryRef: string;
+  address: string;  
   id: string;
   version: number;
   name: string;
@@ -340,6 +346,12 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = ({ opportunityId, on
               : hardcodedActivities;
           
           const transformedData: OpportunityData = {
+            statusRef: apiData.statusRef,
+            sourceRef: apiData.sourceRef,
+            annualRevenueRef: apiData.annualRevenueRef,
+            companyWebsite: apiData.companyWebsite,
+            countryRef: apiData.countryRef,
+            address: apiData.address,
             id: apiData.id,
             name: apiData.name,
             version: apiData.version,
@@ -411,7 +423,6 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = ({ opportunityId, on
         padding: '20px',
         textAlign: 'center',
         backgroundColor: 'white',
-        padding: '16px 16px 16px 24px'
       }}>
         <h2>Error</h2>
         <p>{error}</p>
@@ -925,7 +936,7 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = ({ opportunityId, on
                 <Button
                   variant="primary"
                   size="small"
-                  onClick={handleSaveContactInfo}
+                  // onClick={handleSaveContactInfo}
                   data-testid="save-contact-info-button"
                   loading={savingContactInfo}
                 >
@@ -1158,7 +1169,7 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = ({ opportunityId, on
                 <Button
                   variant="primary"
                   size="small"
-                  onClick={handleSaveLeadInfo}
+                  // onClick={handleSaveLeadInfo}
                   data-testid="save-lead-info-button"
                   loading={savingLeadInfo}
                 >
