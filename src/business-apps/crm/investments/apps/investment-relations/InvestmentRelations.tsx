@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Tabs } from 'antd';
-import { ToggleGroup, ToggleGroupItem } from '@newwork/nw-design-system';
-import { 
-  DollarCircleOutlined, 
+import { ToggleGroup, ToggleGroupItem, PageLayout } from '@newwork/nw-design-system';
+import {
+  DollarCircleOutlined,
   TeamOutlined,
   BarChartOutlined,
   UserOutlined,
-  FundOutlined,
   BankOutlined,
   ContactsOutlined,
   DashboardOutlined,
   AppstoreOutlined,
   UnorderedListOutlined
 } from '@ant-design/icons';
+import { TrendUp } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { PageLayout } from '@/components/layout/pageLayout';
 import { LeadList } from '@/business-apps/crm/common/components/lead-list';
 import { AccountList } from '@/business-apps/crm/common/components/account-list';
 import { ContactList } from '@/business-apps/crm/common/components/contact-list';
@@ -26,10 +25,10 @@ import { Account } from '@/business-apps/crm/common/components/account-list/type
 import { Contact } from '@/business-apps/crm/common/components/contact-list/types';
 import { Opportunity } from '@/business-apps/crm/common/components/opportunity-list/types';
 
-export interface InvestmentRelationsProps extends BusinessAppContextProps {}
+export interface InvestmentRelationsProps extends BusinessAppContextProps { }
 
 export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context) => {
-  const tabOptions = [
+  const viewOptions = [
     {
       key: 'dashboard',
       icon: <DashboardOutlined />,
@@ -57,7 +56,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
     },
     {
       key: 'investments',
-      icon: <FundOutlined />,
+      icon: <TrendUp />,
       label: 'Investments'
     }
   ];
@@ -66,14 +65,14 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
   const getInitialView = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const viewFromUrl = urlParams.get('view');
-    
+
     // Validate that the view exists in our options
-    if (viewFromUrl && tabOptions.some(option => option.key === viewFromUrl)) {
+    if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
       return viewFromUrl;
     }
-    
+
     // Default to first view
-    return tabOptions[0].key;
+    return viewOptions[0].key;
   };
 
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
@@ -81,10 +80,10 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
   // Update URL when view changes
   const updateUrl = (view: string) => {
     const urlParams = new URLSearchParams(window.location.search);
-    
+
     // Always set the view parameter (including for default)
     urlParams.set('view', view);
-    
+
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
     window.history.replaceState({}, '', newUrl);
   };
@@ -162,7 +161,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
       case 'dashboard':
         return (
           <div data-testid="dashboard-tab-content">
-            <InvestmentsDashboard 
+            <InvestmentsDashboard
               accessToken={context.accessToken}
               userInfo={context.userInfo}
             />
@@ -171,7 +170,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
       case 'investments':
         return (
           <div data-testid="investments-tab-content">
-            <Investments 
+            <Investments
               accessToken={context.accessToken}
               userInfo={context.userInfo}
             />
@@ -205,36 +204,29 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
   return (
     <div data-testid="investment-relations-app">
       <PageLayout
-        headerIcon={<FundOutlined />}
-        headerLabel="Investment Relations"
-        pageHeaderCenter={
-          <ToggleGroup
-            type="single"
-            value={activeTab}
-            onValueChange={handleTabChange}
-            variant="outline"
-            size="xl"
-            data-testid="investment-relations-tabs"
-          >
-            {tabOptions.map((option) => (
-              <ToggleGroupItem
-                key={option.key}
-                value={option.key}
-                data-testid={`investment-relations-tab-${option.key}`}
-              >
-                {option.icon}
-                {option.label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        }
-        contentContainer={
-          <div className="gba:h-full gba:overflow-auto">
-            {renderTabContent()}
-          </div>
-        }
+        headerPhosphorIcon={{
+          icon: TrendUp,
+          variant: "premium",
+          size: "lg",
+          label: "Investment Relations"
+        }}
+        headerTitle="Investment Relations"
+        headerDescription="Manage investment portfolios, client relationships, and track investment opportunities across asset classes"
+        headerSubViews={{
+          value: activeTab,
+          onValueChange: handleTabChange,
+          items: viewOptions.map((option) => ({
+            value: option.key,
+            label: option.label,
+            icon: option.icon
+          }))
+        }}
         className="gba:min-h-screen"
-      />
+      >
+        <div className="gba:h-full gba:overflow-auto">
+          {renderTabContent()}
+        </div>
+      </PageLayout>
     </div>
   );
 };
