@@ -1,7 +1,8 @@
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Typography, Spin, Alert } from 'antd';
+import { Typography, Spin, Alert, message } from 'antd';
 import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
+import { PlusSquareIcon } from '@/components/dataController/DataController';
 import { FileTextOutlined, FileImageOutlined } from '@ant-design/icons';
 import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
@@ -112,24 +113,69 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
 
   const handleSelectItem = useCallback((item: any) => {
     setSelectedItem(item);
-    setSelectedRowKeys([item.id]);
   }, []);
 
   const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
     setSelectedRowKeys(newSelectedRowKeys);
-    if (newSelectedRowKeys.length === 1) {
-      const selectedItemId = newSelectedRowKeys[0];
-      const item = items?.find(i => i.id === selectedItemId);
-      setSelectedItem(item);
-    } else {
-      setSelectedItem(null);
-    }
-  }, [items]);
+  }, []);
 
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null);
     setSelectedRowKeys([]);
   }, []);
+
+  // Handlers for the top buttons
+  const handleCreateExpenseRequest = useCallback(() => {
+    if (!selectedRowKeys.length) return;
+    const selectedItems = items?.filter((item: any) => selectedRowKeys.includes(item.id)) || [];
+    // Only allow creation if all items are in 'CREATED' status (draft)
+    const allDraft = selectedItems.every((item: any) => item.status === 'CREATED');
+    if (!allDraft) {
+      message.warning(
+        getTranslationFromI18nKeyAndLabel(
+          'gba.expenseItems.createRequestDraftOnly',
+          'An Expense Request can be started only with items in status draft.'
+        )
+      );
+      return;
+    }
+    const expenseItems = selectedItems.map((element: any) => ({
+      itemId: element.id,
+      currencyId: element.currencyId
+    }));
+    const payload = {
+      employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+      expenseItems
+    };
+    // Log payload for create button
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeExpenseItem',
+      payload,
+      builderType: 'NATIVE_SCREEN'
+    });
+  }, [selectedRowKeys, items, contextProps.userInfo]);
+
+  const handleDeleteSelection = useCallback((ids?: string[]) => {
+    const targetIds = ids || selectedRowKeys;
+    console.log('handleDeleteSelection - ids:', targetIds);
+    if (!targetIds.length) return;
+    const selectedItems = items?.filter((item: any) => targetIds.includes(item.id)) || [];
+    const allAllowed = selectedItems.every((item: any) => item.status === 'CREATED' || item.status === 'ASSIGNED');
+    if (!allAllowed) {
+      message.warning('You can only discard items with status "Created" or "Assigned".');
+      return;
+    }
+    const payload = {
+      employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+      expenseItemsIds: targetIds
+    };
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'discardExpenseItems',
+      payload,
+    });
+  }, [selectedRowKeys, items, contextProps.userInfo]);
 
   const renderDataBody = useCallback(() => {
     if (isLoading && !items?.length) {
@@ -157,10 +203,17 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
           selectedRowKeys,
           onChange: handleRowSelectionChange,
           columnWidth: 48,
+          renderCell: (_checked, _record, _index, originNode) => (
+            <div onClick={(e) => e.stopPropagation()}>{originNode}</div>
+          ),
         }}
         onRow={(record: any) => ({
           onClick: (event) => {
-            if ((event.target as HTMLElement).tagName !== 'INPUT') {
+            const target = event.target as HTMLElement;
+            const isCheckboxColumn = target.closest('.ant-table-selection-column');
+            const isActionButton = target.closest('[class*="ant-dropdown-trigger"]');
+
+            if (!isCheckboxColumn && !isActionButton) {
               handleSelectItem(record);
             }
           },
@@ -221,15 +274,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                           key: 'discard',
                           label: 'Discard Expense Item',
                           onClick: () => {
-                            startProcess({
-                              domain: 'employee-expense',
-                              processName: 'discardExpenseItems',
-                              payload: {
-                                employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
-                                expenseItemIds: [record.id]
-                              },
-                              builderType: 'NATIVE_SCREEN'
-                            });
+                            handleDeleteSelection([record.id]);
                           }
                         }
                       ]
@@ -299,11 +344,15 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
             sorter: (a: any, b: any) => (a.reimbursableAmount ?? 0) - (b.reimbursableAmount ?? 0),
             sortOrder: sortField === 'reimbursableAmount' ? sortOrder : null,
             onCell: () => ({ className: 'gba:text-right gba:font-bold' }),
-            render: (amount: number, record: any) => (
-              <span data-testid="expense-amount-cell">
-                {formatNumberFunction(String(amount ?? '0'))} {record.currencyCode}
-              </span>
-            )
+            render: (amount: number, record: any) => {
+  // Only use currency.code from the nested currency object from the query result
+  const currency = record.currency?.code || '';
+  return (
+    <span data-testid="expense-amount-cell">
+      {currency} {formatNumberFunction(String(amount ?? '0'))}
+    </span>
+  );
+}
           }
         ] as any}
       />
@@ -353,12 +402,38 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
         placeholder: 'Search by description, amount, or status...',
         filter: selectedFilters,
         setFilter: setFilters,
-
         filterLabelMap: filterLabelMap,
-        addButton: {
-          onClick: handleAddExpenseItem,
-          label: getTranslationFromI18nKeyAndLabel('gba.expenseItems.add', 'Add'),
-        },
+        actions: [
+          ...(selectedRowKeys.length > 0
+            ? [
+                <button
+                  key="create-expense-request"
+                  className="gba:btn gba:btn-primary"
+                  data-testid="create-expense-request-btn"
+                  onClick={handleCreateExpenseRequest}
+                >
+                  Create Expense Request (from Selection)
+                </button>,
+                <button
+                  key="delete-selection"
+                  className="gba:btn gba:btn-danger"
+                  data-testid="delete-selection-btn"
+                  onClick={() => handleDeleteSelection()}
+                >
+                  Delete Selection
+                </button>
+              ]
+            : []),
+          <button
+            key="add-expense-item"
+            className="gba:btn gba:btn-primary gba:inline-flex gba:items-center"
+            data-testid="add-expense-item-btn"
+            onClick={handleAddExpenseItem}
+          >
+            <PlusSquareIcon className="gba:mr-2" />
+            {getTranslationFromI18nKeyAndLabel('gba.expenseItems.add', 'Add')}
+          </button>
+        ],
       }}
       dataFilterProps={{
         filterGroups: dynamicFilterGroups, // Now uses only existing statuses with correct labels

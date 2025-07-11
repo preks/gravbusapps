@@ -87,7 +87,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
       className={containerClasses}
       style={backgroundStyle}
     >
-      <header className="gba:flex gba:flex-col gba:box-border gba:border-b gba:border-gray-200 gba:relative">
+      <header className="gba:flex gba:flex-col gba:box-border gba:relative">
         <div className="gba:h-24 gba:grid gba:grid-cols-3 gba:items-center gba:w-full">
           {/* Left section: Icon + Label */}
           <div className="gba:flex gba:items-center gba:h-full gba:gap-4 gba:justify-start">
@@ -123,7 +123,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
       </header>
       <div className="flex flex-col flex-1 min-h-0">
         {contentHeader && (
-          <div className="gba:py-2 gba:border-b gba:border-gray-200">
+          <div>
             {contentHeader}
           </div>
         )}

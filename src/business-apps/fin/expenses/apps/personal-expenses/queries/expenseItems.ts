@@ -88,6 +88,7 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
       currencyRef
       currency {
         code
+        value
       }
       costCenter {
         name
@@ -177,6 +178,7 @@ export const GET_EXPENSE_ITEM_BY_ID = `
       currencyRef
       currency {
         code
+        value
       }
       costCenter {
         name
