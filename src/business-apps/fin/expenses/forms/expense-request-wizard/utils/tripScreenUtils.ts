@@ -407,3 +407,134 @@ export const getValidLocality = (employeeAddresses: any[]) => {
       address.locality && address.locality.trim());
     return secondary ? secondary.locality : "";
   };
+
+/**
+ * Sets trip data from external component data
+ * @param expenseRequestData - Expense request data
+ * @param expenseRulesData - Expense rules data
+ * @param setStartLocation - Function to set start location
+ * @param setDestinations - Function to set destinations
+ * @param setEndLocation - Function to set end location
+ */
+export const setByExternalCustomComponent = (
+  expenseRequestData: any,
+  expenseRulesData: any,
+  setStartLocation: React.Dispatch<React.SetStateAction<LocationData>>,
+  setDestinations: React.Dispatch<React.SetStateAction<LocationData[]>>,
+  setEndLocation: React.Dispatch<React.SetStateAction<LocationData>>
+) => {
+  if (!expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip || 
+      !Array.isArray(expenseRequestData.ExpenseRequestByPk.expenseRequestTrip) || 
+      expenseRequestData.ExpenseRequestByPk.expenseRequestTrip.length === 0) {
+    return;
+  }
+
+  try {
+    const tripData = expenseRequestData.ExpenseRequestByPk.expenseRequestTrip;
+    
+    // Find start point
+    const startPoint = tripData.find((trip: any) => trip.pointType === 'START_POINT');
+    if (startPoint) {
+      const isAbroad = checkIfAbroad(startPoint.travelRegionRef, expenseRulesData);
+      setStartLocation(prev => ({
+        ...prev,
+        location: startPoint.address || '',
+        departureDate: startPoint.tripDateTime ? new Date(startPoint.tripDateTime.split('T')[0]) : undefined,
+        departureTime: startPoint.tripDateTime ? new Date(startPoint.tripDateTime) : undefined,
+        travelRegionRef: startPoint.travelRegionRef || '',
+        isAbroad
+      }));
+    }
+    
+    // Find destination points
+    const destinationPoints = tripData
+      .filter((trip: any) => trip.pointType === 'DESTINATION_POINT')
+      .sort((a: any, b: any) => a.tripOrder - b.tripOrder);
+    
+    if (destinationPoints.length > 0) {
+      const formattedDestinations = destinationPoints.map((destination: any, index: number) => {
+        const isAbroad = checkIfAbroad(destination.travelRegionRef, expenseRulesData);
+        return {
+          id: `destination-${index}}`,
+          name: '',
+          location: destination.address || '',
+          departureDate: destination.tripDateTime ? new Date(destination.tripDateTime.split('T')[0]) : undefined,
+          departureTime: destination.tripDateTime ? new Date(destination.tripDateTime) : undefined,
+          isCollapsed: false,
+          travelRegionRef: destination.travelRegionRef || '',
+          isAbroad
+        };
+      });
+      
+      setDestinations(formattedDestinations);
+    }
+    
+    // Find end point
+    const endPoint = tripData.find((trip: any) => trip.pointType === 'END_POINT');
+    if (endPoint) {
+      const isAbroad = checkIfAbroad(endPoint.travelRegionRef, expenseRulesData);
+      setEndLocation(prev => ({
+        ...prev,
+        location: endPoint.address || '',
+        departureDate: endPoint.tripDateTime ? new Date(endPoint.tripDateTime.split('T')[0]) : undefined,
+        departureTime: endPoint.tripDateTime ? new Date(endPoint.tripDateTime) : undefined,
+        travelRegionRef: endPoint.travelRegionRef || '',
+        isAbroad
+      }));
+    }
+  } catch (error) {
+    showToast(
+      getTranslationFromI18nKeyAndLabel(
+        'lowcoder:modify_expense_request.error_prefill_trip_data',
+        'Error prefilling trip data'
+      ),
+      'error'
+    );
+  }
+};
+
+/**
+ * Check if a travel region is abroad
+ * @param travelRegionRef - Travel region reference
+ * @param expenseRulesData - Expense rules data
+ * @returns True if region is abroad, false otherwise
+ */
+const checkIfAbroad = (travelRegionRef: string, expenseRulesData: any): boolean => {
+  if (!travelRegionRef || !expenseRulesData?.homeRegionRule || !Array.isArray(expenseRulesData.homeRegionRule)) {
+    return false;
+  }
+  
+  // If the travel region is found in home region rules, it's not abroad
+  const isHomeRegion = expenseRulesData.homeRegionRule.some(
+    (rule: any) => rule.travelRegionRef === travelRegionRef
+  );
+  
+  return !isHomeRegion;
+};
+
+
+export const setLocalitiesDefault = (expenseRequestData: any,
+  setStartLocation: React.Dispatch<React.SetStateAction<LocationData>>,
+  setEndLocation: React.Dispatch<React.SetStateAction<LocationData>>,
+  setLocationsAreSynced: React.Dispatch<React.SetStateAction<boolean>>
+) => {
+    try {
+      const employeeAddresses = expenseRequestData?.EmployeeAddress || [];
+      const localityToSet = getValidLocality(employeeAddresses);
+      
+      if (localityToSet) {
+        setStartLocation(prevLocation => ({
+          ...prevLocation,
+          location: localityToSet
+        }));
+        setEndLocation(prevLocation => ({
+          ...prevLocation,
+          location: localityToSet
+        }));
+        
+        setLocationsAreSynced(true);
+      }
+    } catch (error) {
+      
+    }
+  };

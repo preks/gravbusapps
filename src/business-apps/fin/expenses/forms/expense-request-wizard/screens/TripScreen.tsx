@@ -20,7 +20,7 @@ import { ABSENCE_STATUS,  defaultDestination, defaultEndLocation, defaultStartLo
 import RejectionComment from "../components/RejectionComment";
 import { EVENTS } from "../../../utils/constants";
 import { mergeUniqueById } from '../../../utils/functionUtils';
-import { getValidLocality } from '../utils/tripScreenUtils';
+import { setByExternalCustomComponent, setLocalitiesDefault } from '../utils/tripScreenUtils';
 
 
 export const TripScreen: React.FC<TripScreenProps> = (props) => {
@@ -255,29 +255,8 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
     }
   };
   
-  const setLocalitiesDefault = () => {
-    try {
-      const employeeAddresses = expenseRequestData?.EmployeeAddress || [];
-      const localityToSet = getValidLocality(employeeAddresses);
-      
-      if (localityToSet) {
-        setStartLocation(prevLocation => ({
-          ...prevLocation,
-          location: localityToSet
-        }));
-        setEndLocation(prevLocation => ({
-          ...prevLocation,
-          location: localityToSet
-        }));
-        
-        setLocationsAreSynced(true);
-      }
-    } catch (error) {
-      
-    }
-  };
   
-  const handleStartLocationChange = (updatedLocation: LocationData) => {
+const handleStartLocationChange = (updatedLocation: LocationData) => {
     const sanitizedLocation = validateAndSanitizeLocation(updatedLocation, startLimits);
     
     const wereSynced = locationsAreSynced && 
@@ -307,18 +286,21 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
   };
   
   const loadInitialTripData = async () => {
-    if (!additionalData) return;
     try {
-      if ((additionalData && additionalData.mdi_modulePayload?.tripData) || 
+      
+      if ((expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip && 
+        Array.isArray(expenseRequestData.ExpenseRequestByPk.expenseRequestTrip) && 
+        expenseRequestData.ExpenseRequestByPk.expenseRequestTrip.length !== 0) || 
           (expenseRequestData.ExpenseRequestByPk.expensePlan)) {
         
         let myData: any = [];
-        if (additionalData.mdi_modulePayload?.tripData) {
-          myData = additionalData.mdi_modulePayload.tripData;
+        if (expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip &&
+          Array.isArray(expenseRequestData.ExpenseRequestByPk.expenseRequestTrip) && 
+          expenseRequestData.ExpenseRequestByPk.expenseRequestTrip.length !== 0) {
+          myData = expenseRequestData.ExpenseRequestByPk.expenseRequestTrip;
         } else if (expenseRequestData.ExpenseRequestByPk.expensePlan) {
           myData = expenseRequestData.ExpenseRequestByPk.expensePlan;
         }
-        
         const startObject = myData.expenseRequestTrip?.find((item: any) => item.pointType === 'START_POINT');
         
         if (startObject && startObject.tripDateTime && dayjs(startObject.tripDateTime).isValid()) {
@@ -345,15 +327,18 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
             
             setExpenseRulesData(rulesResponse);
             
-            // todo setByExternalCustomComponent function when it's created
+            // Prefill trip data from expense request
+            setByExternalCustomComponent(expenseRequestData, rulesResponse, setStartLocation, setDestinations, setEndLocation);
           } else {
-            // todo setByExternalCustomComponent function when it's created
+            // Still try to prefill with available data even if rule is missing
+            setByExternalCustomComponent(expenseRequestData, null, setStartLocation, setDestinations, setEndLocation);
           }
         } else {
-          // todo setByExternalCustomComponent function when it's created
+          // Try to prefill with available data even if start object is invalid
+          setByExternalCustomComponent(expenseRequestData, expenseRulesData, setStartLocation, setDestinations, setEndLocation)
         }
       } else {
-        setLocalitiesDefault();
+        setLocalitiesDefault(expenseRequestData, setStartLocation, setEndLocation, setLocationsAreSynced);
       }
     } catch (error) {
       showToast(
@@ -501,11 +486,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
         
         setExpenseRulesData(rulesResponse);
         
-        if (additionalData) {
-          await loadInitialTripData();
-        } else {
-          setLocalitiesDefault();
-        }
+        await loadInitialTripData()
       } catch (error) {
         showToast(
           getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetching_expense_data", "Error fetching expense data"),
