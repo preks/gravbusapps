@@ -3,6 +3,7 @@ import { DataTable, Avatar, Button, Tag } from '@newwork/gravity-ui-catalog';
 import { PiUser, PiEnvelope, PiPhone, PiLinkedinLogo, PiBuilding } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Contact } from '../types';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 interface ContactTableProps extends BusinessAppContextProps {
   contacts: Contact[];
@@ -16,10 +17,10 @@ interface ContactTableProps extends BusinessAppContextProps {
   currentPage: number;
   pageSize: number;
   sortField: string;
-  sortOrder: 'ASC' | 'DESC';
+  sortOrder: 'ASC' | 'DESC' | '';
   onSelectContact?: (contact: Contact) => void;
   onPaginationChange: (page: number, pageSize?: number) => void;
-  onSortingChange: (field: string, order: 'ASC' | 'DESC') => void;
+  onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void;
   selectedContactId?: string;
   onEdit?: (contact: Contact) => void;
 }
@@ -57,10 +58,8 @@ const ContactTable: React.FC<ContactTableProps> = ({
 
   // Get sort order for column
   const getSortOrder = (columnField: string) => {
-    if (sortField === 'createdAt' && sortOrder === 'DESC' && columnField === 'createdAt') {
-      return false;
-    }
-    if (sortField === columnField) {
+    // Show indicator only if this column is currently being sorted and we're not in the cleared state
+    if (sortField === columnField && sortOrder !== '') {
       return sortOrder === 'ASC' ? 'ascend' : 'descend';
     }
     return false;
@@ -68,6 +67,11 @@ const ContactTable: React.FC<ContactTableProps> = ({
 
   // Handle row click
   const handleRowClick = useCallback((record: Contact) => {
+    // Navigate to contact record page
+    const url = buildPlatformUrl('/platform/crm/contact-record', { contactId: record.id });
+    navigateTo(url);
+    
+    // Also call the selection callback if provided
     onSelectContact?.(record);
   }, [onSelectContact]);
 
@@ -91,8 +95,9 @@ const ContactTable: React.FC<ContactTableProps> = ({
         onSortingChange(field, order);
       }
     } else {
-      if (sortField !== 'createdAt' || sortOrder !== 'DESC') {
-        onSortingChange('createdAt', 'DESC');
+      // Sort order is null - clear sorting (3-state behavior)
+      if (sortField !== '' || sortOrder !== '') {
+        onSortingChange('', '');
       }
     }
   };
@@ -178,10 +183,20 @@ const ContactTable: React.FC<ContactTableProps> = ({
       render: (_: any, record: Contact) => (
         <div className="gba:space-y-1">
           {record.contactType && (
-            <Tag color="blue">{record.contactType}</Tag>
+            <Tag 
+              color="blue"
+              className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]"
+            >
+              {record.contactType}
+            </Tag>
           )}
           {record.contactRole && (
-            <Tag color="green">{record.contactRole}</Tag>
+            <Tag 
+              color="green"
+              className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]"
+            >
+              {record.contactRole}
+            </Tag>
           )}
         </div>
       )
@@ -211,7 +226,20 @@ const ContactTable: React.FC<ContactTableProps> = ({
       loading={loading}
       onChange={handleTableChange}
       onSorterChange={handleSorterChange}
-      onRowClick={handleRowClick}
+      onRow={(record) => ({
+        onClick: () => handleRowClick(record as Contact),
+        className: selectedContactId === (record as Contact).id ? 'gba:bg-blue-50' : '',
+        style: { cursor: 'pointer' }
+      })}
+      sorter={
+        // Only set sorter if we have an active sort field and order
+        sortField && sortOrder 
+          ? {
+              field: sortField,
+              order: sortOrder === 'ASC' ? 'ascend' : 'descend'
+            }
+          : undefined
+      }
       pagination={{
         current: currentPage,
         pageSize,

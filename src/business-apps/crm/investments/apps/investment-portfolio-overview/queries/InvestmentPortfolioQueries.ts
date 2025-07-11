@@ -2,9 +2,10 @@ import { useCallback } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { InvestmentQueryVariables, InvestmentPortfolioResponse } from '../types';
+import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits';
 
 const GET_INVESTMENT_PORTFOLIO_DATA = (variables: InvestmentQueryVariables): string => {
-  const { limit = 100, offset = 0, search, orderBy } = variables;
+  const { limit = 50, offset = 0, search, orderBy } = variables;
   
   let whereClause = '';
   if (search) {
@@ -101,7 +102,11 @@ export const useGetInvestmentPortfolioData = (context: BusinessAppContextProps) 
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchInvestmentPortfolioData = useCallback(async (variables: InvestmentQueryVariables = {}) => {
-    const query = GET_INVESTMENT_PORTFOLIO_DATA(variables);
+    const safeVariables = {
+      ...variables,
+      limit: enforceQueryLimit(variables.limit || 50)
+    };
+    const query = GET_INVESTMENT_PORTFOLIO_DATA(safeVariables);
     try {
       const result = await graphqlClient.request<InvestmentPortfolioResponse>(query);
       return result;

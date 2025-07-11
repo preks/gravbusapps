@@ -35,6 +35,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
     filterLabelMap,
     addFilter,
     removeFilter,
+    clearAllFilters,
     getFilters,
     createdAfter: filterCreatedAfter,
     createdBefore: filterCreatedBefore,
@@ -48,7 +49,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
       search: urlParams.get('search') || '',
       page: parseInt(urlParams.get('page') || '1', 10),
       pageSize: parseInt(urlParams.get('pageSize') || '20', 10),
-      sortField: urlParams.get('sortField') || 'createdAt',
+      sortField: urlParams.get('sortField') || '',
       sortOrder: urlParams.get('sortOrder') || 'DESC'
     };
   });
@@ -102,7 +103,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
     }
     
     if (params.sortField !== undefined) {
-      if (params.sortField !== 'createdAt') {
+      if (params.sortField !== 'createdAt' && params.sortField !== '') {
         newSearchParams.set('sortField', params.sortField);
       } else {
         newSearchParams.delete('sortField');
@@ -138,9 +139,16 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
 
   // Function for DataController setFilter requirement
   const handleSetFilter = useCallback((filters: string[]) => {
-    // This is called by DataController but we manage filters through addFilter/removeFilter
-    // so we can implement this as a no-op or sync with selectedFilters if needed
-  }, []);
+    // This is called by DataController's "Clear all filters" button or individual filter removal
+    if (filters.length === 0) {
+      // Clear all filters
+      clearAllFilters();
+    } else {
+      // Handle individual filter removal - find which filters were removed and remove them
+      const removedFilters = selectedFilters.filter(f => !filters.includes(f));
+      removedFilters.forEach(filterId => removeFilter(filterId));
+    }
+  }, [clearAllFilters, selectedFilters, removeFilter]);
 
   // Get account data with search, sorting, and filters
   const filters = getFilters();
@@ -223,11 +231,28 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
   }, [pageSize, updateURLParams, loadPage]);
 
   // Handle sorting change
-  const handleSortingChange = useCallback((field: string, order: 'ASC' | 'DESC') => {
-    setSortField(field);
-    setSortOrder(order);
-    setCurrentPage(1);
-    updateURLParams({ sortField: field, sortOrder: order, page: 1 });
+  const handleSortingChange = useCallback((field: string, order: 'ASC' | 'DESC' | '') => {
+    // When order is empty, clear sorting completely
+    if (order === '') {
+      setSortField('');
+      setSortOrder('DESC'); // Keep DESC as default for state type, but field will be empty
+      setCurrentPage(1);
+      updateURLParams({ 
+        sortField: '', 
+        sortOrder: 'DESC',
+        page: 1 
+      });
+    } else {
+      setSortField(field);
+      setSortOrder(order);
+      setCurrentPage(1);
+      updateURLParams({ 
+        sortField: field, 
+        sortOrder: order,
+        page: 1 
+      });
+    }
+    
     loadPage(1, pageSize);
   }, [pageSize, updateURLParams, loadPage]);
 
@@ -265,7 +290,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
           ),
           addButton: {
             onClick: handleAddAccount,
-            label: 'Add Account',
+            label: 'Add',
             'data-testid': 'add-account-button'
           },
         }}

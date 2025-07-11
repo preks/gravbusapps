@@ -91,7 +91,7 @@ export const useOverviewData = (
           pipelineRef: pipeline.ref,
           startDate: dateRange.startDate.toISOString(),
           endDate: dateRange.endDate.toISOString(),
-          limit: 1000
+          limit: 50
         })
       );
 
@@ -110,7 +110,7 @@ export const useOverviewData = (
         fetchOpenLeadsForRevenueSource({
           startDate: dateRange.startDate.toISOString(),
           endDate: dateRange.endDate.toISOString(),
-          limit: 1000
+          limit: 50
         })
       ]);
 

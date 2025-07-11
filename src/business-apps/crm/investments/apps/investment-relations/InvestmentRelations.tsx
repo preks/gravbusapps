@@ -3,7 +3,6 @@ import { Button, Tabs } from 'antd';
 import { ToggleGroup, ToggleGroupItem } from '@newwork/nw-design-system';
 import { 
   DollarCircleOutlined, 
-  ReloadOutlined, 
   TeamOutlined,
   BarChartOutlined,
   UserOutlined,
@@ -78,11 +77,6 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
   };
 
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
-
-  const handleRefresh = () => {
-    // TODO: Add refresh functionality when more data sources are available
-    window.location.reload();
-  };
 
   // Update URL when view changes
   const updateUrl = (view: string) => {
@@ -233,24 +227,6 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-        }
-        pageHeaderRight={
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:text-right gba:text-gray-600 gba:text-sm gba:hidden sm:gba:block">
-              <div>Last updated</div>
-              <div className="gba:font-medium">
-                {new Date().toLocaleTimeString()}
-              </div>
-            </div>
-            <Button
-              data-testid="investment-relations-refresh-button"
-              type="primary"
-              icon={<ReloadOutlined />}
-              onClick={handleRefresh}
-            >
-              <span className="gba:hidden sm:gba:inline">Refresh</span>
-            </Button>
-          </div>
         }
         contentContainer={
           <div className="gba:h-full gba:overflow-auto">

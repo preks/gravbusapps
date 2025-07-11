@@ -1,17 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import {
-  useGetInvestments,
   useGetLiquidFundInvestments,
   useGetEquityInvestments,
   useGetRealEstateInvestments,
   useGetPrivateEquityInvestments,
-  InvestmentResponse,
   LiquidFundInvestmentResponse,
   EquityInvestmentResponse,
   RealEstateInvestmentResponse,
-  PrivateEquityInvestmentResponse
-} from '../queries';
+  PrivateEquityInvestmentResponse,
+  InvestmentResponse
+} from '../queries/InvestmentQueries';
 
 export interface EnhancedInvestment {
   id: string;
@@ -90,7 +89,6 @@ const calculateROI = (bookValue: number, initialAmount: number): number => {
 };
 
 const transformInvestmentData = (
-  investments: InvestmentResponse[],
   liquidFunds: LiquidFundInvestmentResponse[],
   equityInvestments: EquityInvestmentResponse[],
   realEstateInvestments: RealEstateInvestmentResponse[],
@@ -304,19 +302,38 @@ const calculateTypeMetrics = (investments: EnhancedInvestment[]): InvestmentType
   });
 };
 
-export const useInvestmentDataIntegration = (context: BusinessAppContextProps) => {
+export interface InvestmentDataIntegrationOptions {
+  searchTerm?: string;
+  filters?: Record<string, any>;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+  orderBy?: any;
+  currentPage?: number;
+  pageSize?: number;
+}
+
+export const useInvestmentDataIntegration = (
+  context: BusinessAppContextProps,
+  options: InvestmentDataIntegrationOptions = {}
+) => {
   const [investments, setInvestments] = useState<EnhancedInvestment[]>([]);
   const [metrics, setMetrics] = useState<InvestmentMetrics | null>(null);
   const [typeMetrics, setTypeMetrics] = useState<InvestmentTypeMetrics[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
+  const [totalCounts, setTotalCounts] = useState({
+    liquidFunds: 0,
+    equity: 0,
+    realEstate: 0,
+    privateEquity: 0,
+    total: 0
+  });
 
-  const { fetchInvestments } = useGetInvestments(context);
-  const { fetchLiquidFundInvestments } = useGetLiquidFundInvestments(context);
-  const { fetchEquityInvestments } = useGetEquityInvestments(context);
-  const { fetchRealEstateInvestments } = useGetRealEstateInvestments(context);
-  const { fetchPrivateEquityInvestments } = useGetPrivateEquityInvestments(context);
+  const { fetchLiquidFundInvestments, fetchLiquidFundInvestmentsCount } = useGetLiquidFundInvestments(context);
+  const { fetchEquityInvestments, fetchEquityInvestmentsCount } = useGetEquityInvestments(context);
+  const { fetchRealEstateInvestments, fetchRealEstateInvestmentsCount } = useGetRealEstateInvestments(context);
+  const { fetchPrivateEquityInvestments, fetchPrivateEquityInvestmentsCount } = useGetPrivateEquityInvestments(context);
 
   useEffect(() => {
     const loadData = async () => {
@@ -326,24 +343,71 @@ export const useInvestmentDataIntegration = (context: BusinessAppContextProps) =
       setError(null);
 
       try {
-        // Fetch all investment types in parallel
+        // Build order by clause based on sorting options
+        let orderBy = options.orderBy;
+        if (!orderBy && options.sortBy && options.sortOrder) {
+          // Convert simple sort to GraphQL orderBy format
+          orderBy = [{ [options.sortBy]: options.sortOrder }];
+        }
+        if (!orderBy) {
+          // Default sorting
+          orderBy = [{ createdAt: 'DESC' }];
+        }
+
+        // For specific investment type queries, use nested investment ordering
+        const nestedOrderBy = orderBy.map((order: any) => {
+          const [field, direction] = Object.entries(order)[0];
+          // If the field exists on the main investment table, nest it under 'investment'
+          if (['name', 'acquisitionDate', 'bookValue', 'marketValue', 'initialInvestmentAmount', 'totalInvestmentAmount', 'createdAt', 'updatedAt'].includes(field)) {
+            return { investment: { [field]: direction } };
+          }
+          return order;
+        });
+
+        // Calculate pagination parameters
+        const pageSize = options.pageSize || 20;
+        const currentPage = options.currentPage || 1;
+        const offset = (currentPage - 1) * pageSize;
+
+        const queryVariables = {
+          limit: pageSize,
+          offset: offset,
+          orderBy: nestedOrderBy,
+          ...(options.searchTerm && {
+            where: {
+              _or: [
+                { investment: { name: { _ilike: `%${options.searchTerm}%` } } },
+                { investment: { notesSummary: { _ilike: `%${options.searchTerm}%` } } },
+                { investment: { account: { name: { _ilike: `%${options.searchTerm}%` } } } }
+              ]
+            }
+          }),
+          ...options.filters
+        };
+
+        // Fetch all investment types and their counts in parallel
         const [
-          allInvestments,
           liquidFunds,
           equityInvestments,
           realEstateInvestments,
-          privateEquityInvestments
+          privateEquityInvestments,
+          liquidFundsCount,
+          equityCount,
+          realEstateCount,
+          privateEquityCount
         ] = await Promise.all([
-          fetchInvestments({ limit: 100 }),
-          fetchLiquidFundInvestments({ limit: 100 }),
-          fetchEquityInvestments({ limit: 100 }),
-          fetchRealEstateInvestments({ limit: 100 }),
-          fetchPrivateEquityInvestments({ limit: 100 })
+          fetchLiquidFundInvestments(queryVariables),
+          fetchEquityInvestments(queryVariables),
+          fetchRealEstateInvestments(queryVariables),
+          fetchPrivateEquityInvestments(queryVariables),
+          fetchLiquidFundInvestmentsCount(queryVariables),
+          fetchEquityInvestmentsCount(queryVariables),
+          fetchRealEstateInvestmentsCount(queryVariables),
+          fetchPrivateEquityInvestmentsCount(queryVariables)
         ]);
 
         // Transform data into enhanced format
         const enhancedInvestments = transformInvestmentData(
-          allInvestments,
           liquidFunds,
           equityInvestments,
           realEstateInvestments,
@@ -352,6 +416,16 @@ export const useInvestmentDataIntegration = (context: BusinessAppContextProps) =
 
         const calculatedMetrics = calculateMetrics(enhancedInvestments);
         const calculatedTypeMetrics = calculateTypeMetrics(enhancedInvestments);
+
+        // Update total counts
+        const totalCount = liquidFundsCount + equityCount + realEstateCount + privateEquityCount;
+        setTotalCounts({
+          liquidFunds: liquidFundsCount,
+          equity: equityCount,
+          realEstate: realEstateCount,
+          privateEquity: privateEquityCount,
+          total: totalCount
+        });
 
         setInvestments(enhancedInvestments);
         setMetrics(calculatedMetrics);
@@ -365,7 +439,7 @@ export const useInvestmentDataIntegration = (context: BusinessAppContextProps) =
     };
 
     loadData();
-  }, [context.accessToken, refetchTrigger]);
+  }, [context.accessToken, refetchTrigger, options.searchTerm, options.filters, options.sortBy, options.sortOrder, options.orderBy, options.currentPage, options.pageSize]);
 
   const refetch = useCallback(() => {
     setRefetchTrigger(prev => prev + 1);
@@ -377,6 +451,7 @@ export const useInvestmentDataIntegration = (context: BusinessAppContextProps) =
     typeMetrics,
     isLoading,
     error,
-    refetch
+    refetch,
+    totalCounts
   };
 }; 

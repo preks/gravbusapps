@@ -105,6 +105,7 @@ export const GET_OPPORTUNITIES_DATA = `
         id
         firstName
         lastName
+        pictureThumbnail
       }
       currency {
         id

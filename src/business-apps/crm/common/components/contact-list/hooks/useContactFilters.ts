@@ -15,6 +15,7 @@ export interface ContactFilters {
   filterLabelMap: Record<string, string>;
   addFilter: (filterId: string) => void;
   removeFilter: (filterId: string) => void;
+  clearAllFilters: () => void;
   getFilters: () => any;
   createdAfter?: string;
   createdBefore?: string;
@@ -73,6 +74,10 @@ export const useContactFilters = (context: BusinessAppContextProps): ContactFilt
     setSelectedFilters(prev => prev.filter(id => id !== filterId));
   }, []);
 
+  const clearAllFilters = useCallback(() => {
+    setSelectedFilters([]);
+  }, []);
+
   const handleDateRangeChange = useCallback((after?: string, before?: string) => {
     setCreatedAfter(after);
     setCreatedBefore(before);
@@ -121,6 +126,7 @@ export const useContactFilters = (context: BusinessAppContextProps): ContactFilt
     filterLabelMap,
     addFilter,
     removeFilter,
+    clearAllFilters,
     getFilters,
     createdAfter,
     createdBefore,

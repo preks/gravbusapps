@@ -3,7 +3,6 @@ import { Tabs, Button, Spin, Alert } from 'antd';
 import { ToggleGroup, ToggleGroupItem } from '@newwork/nw-design-system';
 import { 
   DashboardOutlined, 
-  ReloadOutlined, 
   ShoppingCartOutlined,
   BarChartOutlined,
   UserOutlined,
@@ -87,10 +86,6 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
     error,
     refetch
   } = useSalesDashboard(context, dateRange);
-
-  const handleRefresh = () => {
-    refetch();
-  };
 
   // Update URL when view changes
   const updateUrl = (view: string) => {
@@ -305,25 +300,6 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-        }
-        pageHeaderRight={
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:text-right gba:text-gray-600 gba:text-sm gba:hidden sm:gba:block">
-              <div>Last updated</div>
-              <div className="gba:font-medium">
-                {new Date().toLocaleTimeString()}
-              </div>
-            </div>
-            <Button
-              data-testid="customer-relations-refresh-button"
-              type="primary"
-              icon={<ReloadOutlined />}
-              onClick={handleRefresh}
-              loading={isLoading}
-            >
-              <span className="gba:hidden sm:gba:inline">Refresh</span>
-            </Button>
-          </div>
         }
         contentContainer={
           <div className="gba:h-full gba:overflow-auto">

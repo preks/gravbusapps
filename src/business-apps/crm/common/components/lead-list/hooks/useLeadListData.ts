@@ -3,6 +3,7 @@ import { Lead, LeadQueryVariables } from '../types';
 import { useGetLeadsData } from '../queries/LeadQueries';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { LeadFilters } from './useLeadFilters';
+import { enforceQueryLimit, createQueryVariables } from '../../../utils/queryLimits';
 
 interface UseLeadListDataProps extends LeadFilters {
   sortField?: string;
@@ -58,7 +59,9 @@ export const useLeadListData = ({
     setError(null);
     
     try {
-      const offset = (targetPage - 1) * newPageSize;
+      // Enforce query limit to ensure optimal performance
+      const safePageSize = enforceQueryLimit(newPageSize);
+      const offset = (targetPage - 1) * safePageSize;
       
       // Build where clause directly (similar to employee hook pattern)
       const baseWhere = { isDeleted: { _eq: false } };
@@ -194,11 +197,16 @@ export const useLeadListData = ({
       
       // Build orderBy based on sortField and sortOrder
       const orderBy: any = {};
-      orderBy[sortField] = sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST';
+      if (sortField && sortField !== '') {
+        orderBy[sortField] = sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST';
+      } else {
+        // No sorting - use natural order (by ID)
+        orderBy.id = 'ASC_NULLS_LAST';
+      }
       
       const variables: LeadQueryVariables = {
         offset,
-        limit: newPageSize,
+        limit: safePageSize,
         orderBy: [orderBy],
         where
       };
@@ -208,8 +216,8 @@ export const useLeadListData = ({
       setLeads(result.Lead || []);
       setTotal(result.LeadAggregate?.aggregate?.count || 0);
       setCurrentPage(targetPage);
-      setPageSize(newPageSize);
-      setHasMore((result.Lead || []).length === newPageSize);
+      setPageSize(safePageSize);
+      setHasMore((result.Lead || []).length === safePageSize);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load leads'));
       setLeads([]);
