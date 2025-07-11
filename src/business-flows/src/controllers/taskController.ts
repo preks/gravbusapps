@@ -66,10 +66,11 @@ export const getClaimableTasksController = async (
       let canClaim = false;
       
       // Check if task can be claimed
-      if (task.inputData?.taskCategory === 'CLAIM') {
-        // Traditional CLAIM type tasks with assignment targets
+      if (task.inputData?.taskCategory === 'CLAIM' && task.taskType === 'CLAIM') {
+        // CLAIM type tasks - must not be assigned to anyone and user must match assignment targets
         const assignmentTargets: AssignmentTarget[] = task.inputData.assignmentTargets || [];
-        canClaim = userMatchesAssignmentTargets(userId, assignmentTargets);
+        const isUnassigned = !task.workerId && !task.inputData?.userId;
+        canClaim = isUnassigned && userMatchesAssignmentTargets(userId, assignmentTargets);
       } else if (task.inputData?.taskCategory === 'HUMAN' && !task.workerId) {
         // HUMAN tasks with no assigned worker can be claimed
         canClaim = true;
@@ -80,6 +81,8 @@ export const getClaimableTasksController = async (
           ...task,
           title: task.inputData?.title || 'Untitled Task',
           description: task.inputData?.description || 'No description available',
+          assignedTo: null, // Claimable tasks are not assigned to anyone
+          assignedToName: null,
           templateTitle: task.inputData?.templateTitle,
           stepTitle: task.inputData?.title,
           contentBlocks: task.inputData?.contentBlocks || [],
@@ -143,26 +146,44 @@ export const getUserTasksController = async (
       statusFilter = Array.isArray(status) ? status : [status];
     }
 
-    // Get tasks for the user
-    const tasks = await getUserTasks(userId, statusFilter, parseInt(limit));
+    // Get all tasks and filter for those actually assigned to this user
+    const allTasks = await getUserTasks('system', statusFilter, parseInt(limit));
+    
+    // Filter tasks that are actually assigned to this user
+    const assignedTasks = allTasks.filter(task => {
+      const isHumanTask = task.inputData?.taskCategory === 'HUMAN';
+      const isClaimTask = task.inputData?.taskCategory === 'CLAIM' && task.taskType === 'CLAIM';
+      
+      // HUMAN tasks assigned to this user
+      if (isHumanTask && task.workerId === userId) {
+        return true;
+      }
+      
+      // CLAIM tasks should NOT appear in assigned tasks - they should only be in claimable tasks
+      if (isClaimTask) {
+        return false;
+      }
+      
+      return false;
+    });
     
     // Enhance tasks with additional information
-    const enhancedTasks: EnhancedTask[] = tasks.map(task => {
+    const enhancedTasks: EnhancedTask[] = assignedTasks.map(task => {
       const isHumanTask = task.inputData?.taskCategory === 'HUMAN';
-      const isClaimTask = task.inputData?.taskCategory === 'CLAIM';
+      const isClaimTask = task.inputData?.taskCategory === 'CLAIM' && task.taskType === 'CLAIM';
       
-            return {
+      return {
         ...task,
         title: task.inputData?.title || 'Untitled Task',
         description: task.inputData?.description || 'No description available',
-        assignedTo: req.params.userId,
+        assignedTo: task.workerId || task.inputData?.userId,
         assignedToName: user?.name || 'System User',
         templateTitle: task.inputData?.templateTitle,
         stepTitle: task.inputData?.title,
         contentBlocks: task.inputData?.contentBlocks || [],
         inputBlocks: task.inputData?.inputBlocks || [],
         priority: 5,
-        canClaim: isClaimTask && task.status === TaskStatus.SCHEDULED,
+        canClaim: false, // Assigned tasks cannot be claimed
         canComplete: isHumanTask && task.status === TaskStatus.IN_PROGRESS,
         canRelease: isHumanTask && task.status === TaskStatus.IN_PROGRESS,
         canReassign: task.inputData?.allowReassignment || false
@@ -222,7 +243,7 @@ export const getTaskController = async (
       contentBlocks: task.inputData?.contentBlocks || [],
       inputBlocks: task.inputData?.inputBlocks || [],
       priority: 5,
-      canClaim: task.inputData?.taskCategory === 'CLAIM' && task.status === TaskStatus.SCHEDULED,
+      canClaim: task.inputData?.taskCategory === 'CLAIM' && task.taskType === 'CLAIM' && task.status === TaskStatus.SCHEDULED,
       canComplete: task.taskType === 'HUMAN' && task.status === TaskStatus.IN_PROGRESS,
       canRelease: task.taskType === 'HUMAN' && task.status === TaskStatus.IN_PROGRESS,
       canReassign: task.inputData?.allowReassignment || false

@@ -316,6 +316,21 @@ export const executeWorkflowController = async (
       throw new Error('Template does not have a workflow definition');
     }
     
+    // Resolve assignment targets for each step
+    const resolvedAssignments: any = {};
+    template.steps.forEach((step: any, index) => {
+      if (step.assignmentTargets && step.assignmentTargets.length > 0) {
+        resolvedAssignments[`step_${index}`] = {
+          assignmentTargets: step.assignmentTargets,
+          stepType: step.stepType,
+          title: step.title,
+          description: step.description,
+          contentBlocks: step.contentBlocks || [],
+          inputBlocks: step.inputBlocks || []
+        };
+      }
+    });
+    
     // Prepare workflow input
     const workflowInput = {
       initiator: initiator || 'system',
@@ -324,7 +339,7 @@ export const executeWorkflowController = async (
         templateId: templateId,
         launchedAt: new Date().toISOString()
       },
-      resolvedAssignments: {}, // TODO: Implement assignment resolution
+      resolvedAssignments,
       ...runtimeParameters // Include runtime content block values
     };
     

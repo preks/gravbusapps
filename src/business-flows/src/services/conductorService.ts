@@ -137,7 +137,7 @@ export const createWorkflowDefinition = (template: FlowTemplate): any => {
           stepType: step.type,
           contentBlocks: processContentBlocks(step.contentBlocks || [], index),
           inputBlocks: step.inputBlocks || [],
-          assignmentTargets: assignment.targets,
+          assignmentTargets: assignment.targets || (step as any).assignmentTargets || [],
           allowReassignment: assignment.allowReassignment || false,
           // This will be populated at execution time with resolved userIds
           forkedTasks: `\${workflow.input.resolvedAssignments.step_${index}.forkedTasks}`,
@@ -161,7 +161,7 @@ export const createWorkflowDefinition = (template: FlowTemplate): any => {
           title: step.title,
           description: step.description,
           stepType: step.type,
-          assignmentTargets: assignment?.targets || [],
+          assignmentTargets: assignment?.targets || (step as any).assignmentTargets || [],
           taskCategory: 'CLAIM', // Add consistent field for type identification
         },
       };
@@ -178,7 +178,7 @@ export const createWorkflowDefinition = (template: FlowTemplate): any => {
           stepType: step.type,
           contentBlocks: processContentBlocks(step.contentBlocks || [], index),
           inputBlocks: step.inputBlocks || [],
-          assignmentTargets: assignment?.targets || [],
+          assignmentTargets: assignment?.targets || (step as any).assignmentTargets || [],
           sharedTask: true,
           allowReassignment: assignment?.allowReassignment || false,
           userId: `\${claim_${stepId}.output.userId}`, // Get userId from CLAIM task output
@@ -680,8 +680,8 @@ export const releaseTask = async (taskId: string, userId: string): Promise<Task>
     const task = await getTaskById(taskId);
     
     // Check if task can be released
-    if (task.taskType !== 'HUMAN') {
-      throw new AppError('Only HUMAN tasks can be released', StatusCodes.BAD_REQUEST);
+    if (task.taskType !== 'HUMAN' && !task.taskType.startsWith('CLAIM')) {
+      throw new AppError('Only HUMAN and CLAIM tasks can be released', StatusCodes.BAD_REQUEST);
     }
     
     if (task.status !== TaskStatus.IN_PROGRESS) {
@@ -723,19 +723,21 @@ export const releaseTask = async (taskId: string, userId: string): Promise<Task>
 };
 
 /**
- * Complete a HUMAN task
+ * Complete a HUMAN or CLAIM task
  */
 export const completeTask = async (taskId: string, output: any): Promise<Task> => {
   try {
     // First get the task to ensure it exists
     const task = await getTaskById(taskId);
     
-    if (task.taskType !== 'HUMAN') {
-      throw new AppError('Task is not of type HUMAN', StatusCodes.BAD_REQUEST);
+    // Allow both HUMAN and CLAIM tasks (CLAIM tasks are user-interactive tasks)
+    if (task.taskType !== 'HUMAN' && !task.taskType.startsWith('CLAIM')) {
+      throw new AppError('Task is not of type HUMAN or CLAIM', StatusCodes.BAD_REQUEST);
     }
     
-    if (task.status !== TaskStatus.IN_PROGRESS) {
-      throw new AppError('Task is not in IN_PROGRESS state', StatusCodes.BAD_REQUEST);
+    // Allow completion of SCHEDULED tasks as well as IN_PROGRESS tasks
+    if (task.status !== TaskStatus.IN_PROGRESS && task.status !== TaskStatus.SCHEDULED) {
+      throw new AppError('Task is not in IN_PROGRESS or SCHEDULED state', StatusCodes.BAD_REQUEST);
     }
     
     // Update the task with the output data and complete it
@@ -745,11 +747,11 @@ export const completeTask = async (taskId: string, output: any): Promise<Task> =
       status: 'COMPLETED',
       outputData: {
         ...output,
-        result: 'COMPLETED'
+        result: output.result || 'COMPLETED'
       }
     });
     
-    logger.info(`Task ${taskId} completed by worker ${task.workerId}`);
+    logger.info(`Task ${taskId} completed by worker ${task.workerId || 'system'}`);
     return updatedTask.data;
   } catch (error) {
     if (error instanceof AppError) {

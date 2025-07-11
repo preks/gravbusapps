@@ -1,11 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { Select, Card, List, Button, Badge, Tag, Spin, Alert, Modal, Typography, Space, Divider } from 'antd';
-import { UserOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { Select, Card, List, Button, Badge, Tag, Spin, Alert, Modal, Typography, Space, Divider, Form, Input, InputNumber, DatePicker, Radio, Checkbox, Upload } from 'antd';
+import { 
+  UserOutlined, 
+  ClockCircleOutlined, 
+  CheckCircleOutlined, 
+  ExclamationCircleOutlined,
+  FileTextOutlined,
+  InfoCircleOutlined,
+  OrderedListOutlined,
+  EyeOutlined,
+  FileOutlined,
+  PictureOutlined,
+  LinkOutlined,
+  UploadOutlined,
+  EditOutlined,
+  CalendarOutlined,
+  NumberOutlined,
+  UnorderedListOutlined,
+  CheckSquareOutlined,
+  ReloadOutlined,
+  SwapOutlined,
+  CloseCircleOutlined
+} from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { env } from '@/common/env/EnvUtils';
 
 const { Option } = Select;
 const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
 
 interface TaskInboxProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
@@ -22,10 +44,12 @@ interface Task {
   assignedToName?: string;
   templateTitle?: string;
   stepTitle?: string;
+  stepType?: string; // APPROVAL, ACKNOWLEDGE, TASK, INFORMATION
   contentBlocks?: any[];
   inputBlocks?: any[];
   canClaim?: boolean;
   canComplete?: boolean;
+  canRelease?: boolean;
   canReassign?: boolean;
   workflowInstanceId?: string;
   updateTime?: number;
@@ -67,8 +91,10 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
   const [error, setError] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalVisible, setIsTaskModalVisible] = useState(false);
+  const [taskFormData, setTaskFormData] = useState<any>({});
+  const [form] = Form.useForm();
 
-  const API_BASE = (env('NEXT_PUBLIC_BUSINESS_FLOWS_API_URL') || 'http://localhost:3003') + '/api';
+  const API_BASE = (env('NEXT_PUBLIC_BUSINESS_FLOWS_API_URL') || 'http://localhost:3000') + '/api';
 
   // Fetch tasks and stats for selected user
   const fetchUserData = async (userId: string) => {
@@ -112,8 +138,25 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
   }, [selectedUserId]);
 
   const handleTaskClick = (task: Task) => {
-    setSelectedTask(task);
+    // Map stepType from inputData if available, or fallback to flowType
+    const enhancedTask = {
+      ...task,
+      stepType: (task as any).inputData?.stepType || 
+               task.stepType || 
+               (task as any).inputData?.flowType || 
+               (task as any).inputData?.flowData?.flowType
+    };
+    
+    setSelectedTask(enhancedTask);
     setIsTaskModalVisible(true);
+    
+    // Initialize form data for input blocks
+    const initialFormData: any = {};
+    enhancedTask.inputBlocks?.forEach((block: any) => {
+      initialFormData[block.id] = block.type === 'checkbox' ? [] : '';
+    });
+    setTaskFormData(initialFormData);
+    form.setFieldsValue(initialFormData);
   };
 
   const handleClaimTask = async (taskId: string) => {
@@ -137,18 +180,52 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
     }
   };
 
-  const handleCompleteTask = async (taskId: string, outputData: any) => {
+  const handleReleaseTask = async (taskId: string) => {
     try {
+      const response = await fetch(`${API_BASE}/tasks/${taskId}/release`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: selectedUserId })
+      });
+
+      if (response.ok) {
+        // Refresh tasks after releasing
+        await fetchUserData(selectedUserId);
+        setIsTaskModalVisible(false);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to release task');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to release task');
+    }
+  };
+
+  const handleCompleteTask = async (taskId: string, action: string = 'completed') => {
+    try {
+      // Validate form if there are input blocks
+      if (selectedTask?.inputBlocks && selectedTask.inputBlocks.length > 0) {
+        await form.validateFields();
+      }
+
       const response = await fetch(`${API_BASE}/tasks/${taskId}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ outputData })
+        body: JSON.stringify({ 
+          outputData: {
+            result: action,
+            formData: taskFormData,
+            completedAt: new Date().toISOString()
+          }
+        })
       });
 
       if (response.ok) {
         // Refresh tasks after completing
         await fetchUserData(selectedUserId);
         setIsTaskModalVisible(false);
+        setTaskFormData({});
+        form.resetFields();
       } else {
         const errorData = await response.json();
         setError(errorData.message || 'Failed to complete task');
@@ -168,111 +245,467 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
     }
   };
 
-  const getTaskTypeIcon = (taskType: string) => {
-    switch (taskType) {
-      case 'HUMAN': return <UserOutlined />;
-      case 'CLAIM': return <ExclamationCircleOutlined />;
-      default: return <ClockCircleOutlined />;
+  const getTaskTypeIcon = (task: Task) => {
+    // First check step type for more specific icons
+    if (task.stepType) {
+      switch (task.stepType) {
+        case 'APPROVAL': return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+        case 'ACKNOWLEDGE': return <EyeOutlined style={{ color: '#1890ff' }} />;
+        case 'TASK': return <OrderedListOutlined style={{ color: '#722ed1' }} />;
+        case 'INFORMATION': return <InfoCircleOutlined style={{ color: '#faad14' }} />;
+        default: break;
+      }
     }
+    
+    // Fall back to task type
+    switch (task.taskType) {
+      case 'HUMAN': return <UserOutlined style={{ color: '#1890ff' }} />;
+      case 'CLAIM': return <ExclamationCircleOutlined style={{ color: '#fa541c' }} />;
+      default: return <ClockCircleOutlined style={{ color: '#8c8c8c' }} />;
+    }
+  };
+
+  const getStepTypeColor = (stepType: string) => {
+    switch (stepType) {
+      case 'APPROVAL': return 'green';
+      case 'ACKNOWLEDGE': return 'blue';
+      case 'TASK': return 'purple';
+      case 'INFORMATION': return 'orange';
+      default: return 'default';
+    }
+  };
+
+  const getContentBlockIcon = (type: string) => {
+    switch (type) {
+      case 'text': return <FileTextOutlined />;
+      case 'document': return <FileOutlined />;
+      case 'image': return <PictureOutlined />;
+      case 'link': return <LinkOutlined />;
+      default: return <FileTextOutlined />;
+    }
+  };
+
+  const getInputBlockIcon = (type: string) => {
+    switch (type) {
+      case 'text': return <EditOutlined />;
+      case 'textarea': return <FileTextOutlined />;
+      case 'number': return <NumberOutlined />;
+      case 'dropdown': return <UnorderedListOutlined />;
+      case 'radio': return <CheckCircleOutlined />;
+      case 'checkbox': return <CheckSquareOutlined />;
+      case 'datetime': return <CalendarOutlined />;
+      case 'file': return <UploadOutlined />;
+      case 'signature': return <EditOutlined />;
+      default: return <EditOutlined />;
+    }
+  };
+
+  const renderContentBlock = (block: any, index: number) => {
+    return (
+      <Card key={index} size="small" style={{ marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          {getContentBlockIcon(block.type)}
+          <Text strong>{block.type?.toUpperCase()} Block</Text>
+          {block.required && <Tag color="red">Required</Tag>}
+        </div>
+        {block.description && (
+          <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: 4 }}>
+            {block.description}
+          </Text>
+        )}
+        <div style={{ 
+          padding: '8px', 
+          backgroundColor: '#f5f5f5', 
+          borderRadius: '4px',
+          border: '1px solid #d9d9d9'
+        }}>
+          {block.content ? (
+            <Text>{block.content}</Text>
+          ) : (
+            <Text type="secondary" italic>Content will be provided at execution time</Text>
+          )}
+        </div>
+      </Card>
+    );
+  };
+
+  const renderInputBlock = (block: any, index: number) => {
+    const commonProps = {
+      value: taskFormData[block.id],
+      onChange: (value: any) => {
+        const newFormData = { ...taskFormData, [block.id]: value };
+        setTaskFormData(newFormData);
+        form.setFieldValue(block.id, value);
+      }
+    };
+
+    const renderInputField = () => {
+      switch (block.type) {
+        case 'text':
+          return (
+            <Input 
+              {...commonProps}
+              placeholder={block.placeholder || 'Enter text'}
+              onChange={(e) => commonProps.onChange(e.target.value)}
+            />
+          );
+        case 'textarea':
+          return (
+            <TextArea 
+              {...commonProps}
+              placeholder={block.placeholder || 'Enter text'}
+              rows={3}
+              onChange={(e) => commonProps.onChange(e.target.value)}
+            />
+          );
+        case 'number':
+          return (
+            <InputNumber 
+              {...commonProps}
+              placeholder={block.placeholder || 'Enter number'}
+              style={{ width: '100%' }}
+            />
+          );
+        case 'dropdown':
+          return (
+            <Select 
+              {...commonProps}
+              placeholder={block.placeholder || 'Select option'}
+              style={{ width: '100%' }}
+            >
+              {block.options?.map((option: any) => (
+                <Option key={option.value} value={option.value}>
+                  {option.label}
+                </Option>
+              ))}
+            </Select>
+          );
+        case 'radio':
+          return (
+            <Radio.Group 
+              {...commonProps}
+            >
+              {block.options?.map((option: any) => (
+                <Radio key={option.value} value={option.value}>
+                  {option.label}
+                </Radio>
+              ))}
+            </Radio.Group>
+          );
+        case 'checkbox':
+          return (
+            <Checkbox.Group 
+              {...commonProps}
+              options={block.options?.map((option: any) => ({
+                label: option.label,
+                value: option.value
+              }))}
+            />
+          );
+        case 'datetime':
+          return (
+            <DatePicker 
+              {...commonProps}
+              showTime
+              placeholder={block.placeholder || 'Select date and time'}
+              style={{ width: '100%' }}
+            />
+          );
+        case 'file':
+          return (
+            <Upload
+              beforeUpload={() => false}
+              onChange={(info) => commonProps.onChange(info.fileList)}
+            >
+              <Button icon={<UploadOutlined />}>
+                {block.placeholder || 'Click to upload'}
+              </Button>
+            </Upload>
+          );
+        default:
+          return (
+            <Input 
+              {...commonProps}
+              placeholder={block.placeholder || 'Enter value'}
+              onChange={(e) => commonProps.onChange(e.target.value)}
+            />
+          );
+      }
+    };
+
+    return (
+      <Card key={index} size="small" style={{ marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          {getInputBlockIcon(block.type)}
+          <Text strong>{block.label || `Input ${index + 1}`}</Text>
+          {block.required && <Tag color="red">Required</Tag>}
+        </div>
+        {block.description && (
+          <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: 8 }}>
+            {block.description}
+          </Text>
+        )}
+        <Form.Item
+          name={block.id}
+          rules={[
+            { required: block.required, message: `${block.label || 'This field'} is required` }
+          ]}
+          style={{ marginBottom: 0 }}
+        >
+          {renderInputField()}
+        </Form.Item>
+      </Card>
+    );
   };
 
   const renderTaskModal = () => {
     if (!selectedTask) return null;
 
+    const hasInputBlocks = selectedTask.inputBlocks && selectedTask.inputBlocks.length > 0;
+
     return (
       <Modal
-        title={`Task: ${selectedTask.title}`}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {getTaskTypeIcon(selectedTask)}
+            <span>{selectedTask.title}</span>
+          </div>
+        }
         open={isTaskModalVisible}
-        onCancel={() => setIsTaskModalVisible(false)}
+        onCancel={() => {
+          setIsTaskModalVisible(false);
+          setTaskFormData({});
+          form.resetFields();
+        }}
         footer={null}
         width={800}
         data-testid={`${prefixDataTestId}-TaskModal`}
       >
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          {/* Task Header */}
-          <div>
-            <Space>
-              <Tag color={getTaskStatusColor(selectedTask.status)}>{selectedTask.status}</Tag>
-              <Tag color="blue">{selectedTask.taskType}</Tag>
-              {selectedTask.templateTitle && <Tag color="purple">{selectedTask.templateTitle}</Tag>}
-            </Space>
-          </div>
-
-          {/* Task Description */}
-          <div>
-            <Title level={5}>Description</Title>
-            <Paragraph>{selectedTask.description}</Paragraph>
-          </div>
-
-          {/* Content Blocks */}
-          {selectedTask.contentBlocks && selectedTask.contentBlocks.length > 0 && (
+        <Form form={form} layout="vertical">
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            {/* Task Header */}
             <div>
-              <Title level={5}>Content</Title>
-              {selectedTask.contentBlocks.map((block, index) => (
-                <Card key={index} size="small" style={{ marginBottom: 8 }}>
-                  <Text strong>Block {index + 1} ({block.type}):</Text>
-                  <br />
-                  <Text>{block.content || 'No content'}</Text>
-                </Card>
-              ))}
+              <Space wrap>
+                <Tag color={getTaskStatusColor(selectedTask.status)}>{selectedTask.status}</Tag>
+                <Tag color="blue">{selectedTask.taskType}</Tag>
+                {selectedTask.stepType && (
+                  <Tag color={getStepTypeColor(selectedTask.stepType)}>
+                    {selectedTask.stepType}
+                  </Tag>
+                )}
+                {selectedTask.templateTitle && <Tag color="purple">{selectedTask.templateTitle}</Tag>}
+              </Space>
             </div>
-          )}
 
-          {/* Input Blocks */}
-          {selectedTask.inputBlocks && selectedTask.inputBlocks.length > 0 && (
+            {/* Task Description */}
             <div>
-              <Title level={5}>Input Required</Title>
-              {selectedTask.inputBlocks.map((block, index) => (
-                <Card key={index} size="small" style={{ marginBottom: 8 }}>
-                  <Text strong>{block.label || `Input ${index + 1}`}:</Text>
-                  <br />
-                  <Text type="secondary">{block.description || 'No description'}</Text>
-                </Card>
-              ))}
+              <Title level={5}>Description</Title>
+              <Paragraph>{selectedTask.description}</Paragraph>
             </div>
-          )}
 
-          <Divider />
+            {/* Content Blocks */}
+            {selectedTask.contentBlocks && selectedTask.contentBlocks.length > 0 && (
+              <div>
+                <Title level={5}>Content</Title>
+                {selectedTask.contentBlocks.map((block, index) => renderContentBlock(block, index))}
+              </div>
+            )}
 
-          {/* Task Actions */}
-          <div>
-            <Title level={5}>Actions</Title>
-            <Space>
-              {selectedTask.canClaim && (
-                <Button 
-                  type="primary" 
-                  onClick={() => handleClaimTask(selectedTask.taskId)}
-                  data-testid={`${prefixDataTestId}-ClaimButton`}
-                >
-                  Claim Task
-                </Button>
-              )}
-              {selectedTask.canComplete && (
-                <Button 
-                  type="primary" 
-                  onClick={() => handleCompleteTask(selectedTask.taskId, { result: 'completed', notes: 'Task completed via inbox' })}
-                  data-testid={`${prefixDataTestId}-CompleteButton`}
-                >
-                  Complete Task
-                </Button>
-              )}
-              <Button onClick={() => setIsTaskModalVisible(false)}>
-                Close
-              </Button>
-            </Space>
-          </div>
+            {/* Input Blocks */}
+            {hasInputBlocks && (
+              <div>
+                <Title level={5}>Required Input</Title>
+                {selectedTask.inputBlocks!.map((block, index) => renderInputBlock(block, index))}
+              </div>
+            )}
 
-          {/* Task Details */}
-          <div style={{ marginTop: 16, padding: 16, backgroundColor: '#f5f5f5', borderRadius: 4 }}>
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              Task ID: {selectedTask.taskId} | 
-              Workflow: {selectedTask.workflowInstanceId} | 
-              Priority: {selectedTask.priority} |
-              Updated: {selectedTask.updateTime ? new Date(selectedTask.updateTime).toLocaleString() : 'Unknown'}
-            </Text>
-          </div>
-        </Space>
+            <Divider />
+
+            {/* Task Actions */}
+            <div>
+              <Title level={5}>Actions</Title>
+              <Space wrap>
+                {selectedTask.canClaim && (
+                  <Button 
+                    type="primary" 
+                    icon={<ExclamationCircleOutlined />}
+                    onClick={() => handleClaimTask(selectedTask.taskId)}
+                    data-testid={`${prefixDataTestId}-ClaimButton`}
+                  >
+                    Claim Task
+                  </Button>
+                )}
+                
+                {/* Step-type specific actions */}
+                {selectedTask.canComplete && selectedTask.stepType === 'APPROVAL' && (
+                  <>
+                    <Button 
+                      type="primary" 
+                      icon={<CheckCircleOutlined />}
+                      onClick={() => handleCompleteTask(selectedTask.taskId, 'approved')}
+                      data-testid={`${prefixDataTestId}-ApproveButton`}
+                      style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                    >
+                      Approve
+                    </Button>
+                    <Button 
+                      danger
+                      icon={<CloseCircleOutlined />}
+                      onClick={() => handleCompleteTask(selectedTask.taskId, 'rejected')}
+                      data-testid={`${prefixDataTestId}-RejectButton`}
+                    >
+                      Reject
+                    </Button>
+                  </>
+                )}
+                
+                {selectedTask.canComplete && selectedTask.stepType === 'ACKNOWLEDGE' && (
+                  <Button 
+                    type="primary" 
+                    icon={<EyeOutlined />}
+                    onClick={() => handleCompleteTask(selectedTask.taskId, 'acknowledged')}
+                    data-testid={`${prefixDataTestId}-AcknowledgeButton`}
+                    style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
+                  >
+                    Acknowledge
+                  </Button>
+                )}
+                
+                {selectedTask.canComplete && selectedTask.stepType === 'TASK' && (
+                  <Button 
+                    type="primary" 
+                    icon={<CheckCircleOutlined />}
+                    onClick={() => handleCompleteTask(selectedTask.taskId, 'completed')}
+                    data-testid={`${prefixDataTestId}-CompleteButton`}
+                    style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}
+                  >
+                    Complete
+                  </Button>
+                )}
+                
+                {selectedTask.canComplete && selectedTask.stepType === 'INFORMATION' && (
+                  <Button 
+                    type="primary" 
+                    icon={<InfoCircleOutlined />}
+                    onClick={() => handleCompleteTask(selectedTask.taskId, 'reviewed')}
+                    data-testid={`${prefixDataTestId}-CloseButton`}
+                    style={{ backgroundColor: '#faad14', borderColor: '#faad14' }}
+                  >
+                    Close
+                  </Button>
+                )}
+                
+                {/* Generic complete for tasks without specific step types */}
+                {selectedTask.canComplete && !selectedTask.stepType && (
+                  <Button 
+                    type="primary" 
+                    icon={<CheckCircleOutlined />}
+                    onClick={() => handleCompleteTask(selectedTask.taskId, 'completed')}
+                    data-testid={`${prefixDataTestId}-CompleteButton`}
+                  >
+                    Complete Task
+                  </Button>
+                )}
+                
+                {selectedTask.canRelease && (
+                  <Button 
+                    icon={<ReloadOutlined />}
+                    onClick={() => handleReleaseTask(selectedTask.taskId)}
+                    data-testid={`${prefixDataTestId}-ReleaseButton`}
+                  >
+                    Release Task
+                  </Button>
+                )}
+                {selectedTask.canReassign && (
+                  <Button 
+                    icon={<SwapOutlined />}
+                    data-testid={`${prefixDataTestId}-ReassignButton`}
+                  >
+                    Reassign Task
+                  </Button>
+                )}
+                
+                {/* Cancel/Close button - only show if not INFORMATION type (which has its own Close) */}
+                {selectedTask.stepType !== 'INFORMATION' && (
+                  <Button onClick={() => {
+                    setIsTaskModalVisible(false);
+                    setTaskFormData({});
+                    form.resetFields();
+                  }}>
+                    Cancel
+                  </Button>
+                )}
+              </Space>
+            </div>
+
+            {/* Task Details */}
+            <div style={{ marginTop: 16, padding: 16, backgroundColor: '#f5f5f5', borderRadius: 4 }}>
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                Task ID: {selectedTask.taskId} | 
+                Workflow: {selectedTask.workflowInstanceId} | 
+                Priority: {selectedTask.priority} |
+                Updated: {selectedTask.updateTime ? new Date(selectedTask.updateTime).toLocaleString() : 'Unknown'}
+              </Text>
+            </div>
+          </Space>
+        </Form>
       </Modal>
+    );
+  };
+
+  const renderTaskListItem = (task: Task) => {
+    const hasContentBlocks = task.contentBlocks && task.contentBlocks.length > 0;
+    const hasInputBlocks = task.inputBlocks && task.inputBlocks.length > 0;
+    
+    // Get stepType from inputData if available, or fallback to flowType
+    const stepType = (task as any).inputData?.stepType || 
+                    task.stepType || 
+                    (task as any).inputData?.flowType || 
+                    (task as any).inputData?.flowData?.flowType;
+    
+    // Enhanced task for icon display
+    const enhancedTask = { ...task, stepType };
+
+    return (
+      <List.Item.Meta
+        avatar={getTaskTypeIcon(enhancedTask)}
+        title={
+          <Space wrap>
+            <span>{task.title}</span>
+            <Tag color={getTaskStatusColor(task.status)}>
+              {task.status}
+            </Tag>
+            {stepType && (
+              <Tag color={getStepTypeColor(stepType)}>
+                {stepType}
+              </Tag>
+            )}
+            {task.templateTitle && (
+              <Tag color="purple">{task.templateTitle}</Tag>
+            )}
+            {hasContentBlocks && (
+              <Tag color="cyan">
+                {task.contentBlocks!.length} Content
+              </Tag>
+            )}
+            {hasInputBlocks && (
+              <Tag color="orange">
+                {task.inputBlocks!.length} Input
+              </Tag>
+            )}
+          </Space>
+        }
+        description={
+          <div>
+            <div>{task.description}</div>
+            {task.stepTitle && task.stepTitle !== task.title && (
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                Step: {task.stepTitle}
+              </Text>
+            )}
+          </div>
+        }
+      />
     );
   };
 
@@ -407,21 +840,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
                   style={{ cursor: 'pointer' }}
                   onClick={() => handleTaskClick(task)}
                 >
-                  <List.Item.Meta
-                    avatar={getTaskTypeIcon(task.taskType)}
-                    title={
-                      <Space>
-                        <span>{task.title}</span>
-                        <Tag color={getTaskStatusColor(task.status)}>
-                          {task.status}
-                        </Tag>
-                        {task.templateTitle && (
-                          <Tag color="purple">{task.templateTitle}</Tag>
-                        )}
-                      </Space>
-                    }
-                    description={task.description}
-                  />
+                  {renderTaskListItem(task)}
                 </List.Item>
               )}
               locale={{ emptyText: 'No assigned tasks' }}
@@ -450,21 +869,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
                   style={{ cursor: 'pointer' }}
                   onClick={() => handleTaskClick(task)}
                 >
-                  <List.Item.Meta
-                    avatar={getTaskTypeIcon(task.taskType)}
-                    title={
-                      <Space>
-                        <span>{task.title}</span>
-                        <Tag color={getTaskStatusColor(task.status)}>
-                          {task.status}
-                        </Tag>
-                        {task.templateTitle && (
-                          <Tag color="purple">{task.templateTitle}</Tag>
-                        )}
-                      </Space>
-                    }
-                    description={task.description}
-                  />
+                  {renderTaskListItem(task)}
                 </List.Item>
               )}
               locale={{ emptyText: 'No claimable tasks' }}
