@@ -33,22 +33,20 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
         const crmDocument = response?.crmDocument;
         if (!crmDocument) return;
         
-        // Only handle once
         window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener);
         
         setLoading(false);
         message.success('Document uploaded and saved successfully');
         
-        // Notify parent of successful upload
         if (window.parent !== window) {
           window.parent.postMessage({ 
             type: 'CRM_DOCUMENT_UPLOADED', 
             leadId: additionalData?.leadId,
+            opportunityId: additionalData?.opportunityId,
             document: crmDocument 
           }, '*');
         }
         
-        // Close the form window
         setTimeout(() => {
           if (window.parent !== window) {
             window.parent.focus();
@@ -65,11 +63,9 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
     window.addEventListener('com.newwork.process.taskCompletion', handler as EventListener);
     
     return () => {
-      // Remove event listener on cleanup
       window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [additionalData?.leadId]);
+  }, [additionalData?.leadId, additionalData?.opportunityId]);
 
   const handleSubmit = async (values: any) => {
     if (!fileList.length || !fileList[0]?.originFileObj) {
@@ -80,12 +76,15 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
     setLoading(true);
     
     try {
-      // First upload the file to file server
       const file = fileList[0].originFileObj;
       const pathParams = { accessScope: 'public' };
+      
+      const entityType = additionalData?.leadId ? 'leads' : 'opportunities';
+      const entityId = additionalData?.leadId || additionalData?.opportunityId;
+      
       const queryParams = {
         appName: 'crm',
-        folderPath: `/leads/${additionalData?.leadId}/documents`,
+        folderPath: `/${entityType}/${entityId}/documents`,
       };
       
       const uploadResponse = await fileClient.uploadFile(
@@ -94,13 +93,13 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
         queryParams
       );
       
-      // Create the document with the uploaded file information
       const payload = {
         changeMode: 'INSERT',
         crmDocument: {
           name: values.name || file.name,
           description: values.description || '',
-          lead: additionalData?.leadId,
+          ...(additionalData?.leadId && { lead: additionalData.leadId }),
+          ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
           version: 0,
           file: uploadResponse.fileInfo.fileId,
           fileSize: file.size,
@@ -125,7 +124,6 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
   const handleFileChange = ({ fileList: newFileList }: any) => {
     setFileList(newFileList);
     
-    // Auto-fill name from file name if not already set
     if (newFileList.length > 0 && newFileList[0].originFileObj) {
       const fileName = newFileList[0].originFileObj.name;
       if (!form.getFieldValue('name')) {
@@ -135,7 +133,6 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
   };
 
   const beforeUpload = (file: File) => {
-    // Prevent automatic upload, we'll handle it manually
     return false;
   };
 
