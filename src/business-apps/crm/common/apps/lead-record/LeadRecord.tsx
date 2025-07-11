@@ -24,10 +24,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log('LeadRecord: Process completion event received:', event);
-        
         if (event.detail?.resolution === 'success') {
-          console.log('LeadRecord: Refreshing lead data after successful process completion');
           refetchLeadData();
           return;
         }
@@ -35,7 +32,6 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
         // Also check for different event structure
         const response = event.detail?.response;
         if (response?.detail?.resolution === 'success') {
-          console.log('LeadRecord: Refreshing lead data after successful process completion (alt structure)');
           refetchLeadData();
         }
       } catch (err) {
@@ -46,14 +42,12 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
     // Universal event listener to capture all events
     const handleAllEvents = (event: any) => {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        console.log('LeadRecord: Detected process/task event:', event.type, event);
         handleProcessCompletion(event);
       }
     };
 
     // Add focus event listener to refresh data when user returns to the tab
     const handleFocus = () => {
-      console.log('LeadRecord: Window gained focus, refreshing lead data...');
       refetchLeadData();
     };
 
@@ -86,7 +80,6 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
     const originalDispatchEvent = window.dispatchEvent;
     window.dispatchEvent = function(event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        console.log('LeadRecord: Custom Event dispatched:', event.type, event);
         handleAllEvents(event);
       }
       return originalDispatchEvent.call(this, event);

@@ -50,7 +50,6 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
   // Add focus event listener to refresh data when user returns to the tab
   useEffect(() => {
     const handleFocus = () => {
-      console.log('Window gained focus, refreshing opportunity tasks...');
       loadTasks();
     };
 
@@ -72,7 +71,6 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
     const handleProcessCompletion = (event: any) => {
       try {
         if (event.detail?.resolution === 'success') {
-          console.log('Opportunity Tasks: Refreshing tasks after successful process...');
           loadTasks();
           return;
         }
@@ -80,7 +78,6 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
         // Also check for different event structure
         const response = event.detail?.response;
         if (response?.detail?.resolution === 'success') {
-          console.log('Opportunity Tasks: Refreshing tasks after successful response...');
           loadTasks();
         }
       } catch (err) {
@@ -91,7 +88,6 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
     // Universal event listener to capture all events
     const handleAllEvents = (event: any) => {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        console.log('Opportunity Tasks: Detected process/task event:', event.type, event);
         handleProcessCompletion(event);
       }
     };
@@ -118,7 +114,6 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
     const originalDispatchEvent = window.dispatchEvent;
     window.dispatchEvent = function(event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        console.log('Opportunity Tasks: Custom Event dispatched:', event.type, event);
         handleAllEvents(event);
       }
       return originalDispatchEvent.call(this, event);
