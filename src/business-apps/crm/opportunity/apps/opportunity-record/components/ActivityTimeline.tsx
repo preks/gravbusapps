@@ -157,7 +157,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
   // Add focus event listener to refresh data when user returns to the tab
   useEffect(() => {
     const handleFocus = () => {
-      console.log('Window gained focus, refreshing data...');
       if (activeTab === 'activities') {
         loadActivities();
       } else if (activeTab === 'documents') {
@@ -198,10 +197,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     // Listen for postMessage events from document upload form
     const handlePostMessage = (event: MessageEvent) => {
       try {
-        console.log('PostMessage event received:', event.data);
         if (event.data?.type === 'CRM_DOCUMENT_UPLOADED' && event.data?.opportunityId === opportunityId) {
           // Refresh documents when a document is uploaded
-          console.log('Refreshing documents from postMessage...');
           loadDocuments();
         }
       } catch (err) {
@@ -212,7 +209,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     // Universal event listener to capture all events
     const handleAllEvents = (event: any) => {
       if (event.type && event.type.includes('process') || event.type && event.type.includes('task')) {
-        console.log('Detected process/task event:', event.type, event);
         handleProcessCompletion(event);
       }
     };
@@ -241,7 +237,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     const originalDispatchEvent = window.dispatchEvent;
     window.dispatchEvent = function(event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        console.log('Custom Event dispatched:', event.type, event);
         handleAllEvents(event);
       }
       return originalDispatchEvent.call(this, event);

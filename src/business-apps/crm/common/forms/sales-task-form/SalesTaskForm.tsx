@@ -98,7 +98,6 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
   }, [accessToken, additionalData?.leadId, fileClient, fileList, restClient]);
 
   const handleSubmit = async (values: any) => {
-    console.log('values', values);
     setLoading(true);
     const payload = {
       changeMode: 'INSERT',
@@ -113,7 +112,6 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
         ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
       },
     };
-    console.log('payload', payload);
     dispatchProcessContinueEvent('pse_submit', payload);
     setLoading(false);
   };
@@ -158,9 +156,14 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
         <Form.Item
           label={getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Name')}
           name="title"
-          rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesTask.titleRequired', 'Name is required') }]}
         >
-          <Input data-testid="name-input" className="gba:w-full" maxLength={100} />
+          <Input 
+            data-testid="name-input" 
+            className="gba:w-full" 
+            maxLength={100} 
+            placeholder={getTranslationFromI18nKeyAndLabel('crm:salesTask.titlePlaceholder', 'Enter task name')}
+            allowClear
+          />
         </Form.Item>
         <Form.Item
           label={getTranslationFromI18nKeyAndLabel('crm:salesTask.type', 'Type')}

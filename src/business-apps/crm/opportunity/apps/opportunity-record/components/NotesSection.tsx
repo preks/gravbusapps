@@ -120,13 +120,9 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log('Notes: Process completion event received:', event);
         const response = event.detail?.response;
-        console.log('Notes: Event response:', response);
         
         if (response?.crmNote) {
-          console.log('Notes: Refreshing notes...');
-          // Refresh notes when a new note is added
           loadNotes();
         }
       } catch (err) {
@@ -134,7 +130,6 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
       }
     };
 
-    // Listen to multiple possible event names
     const eventNames = [
       'com.newwork.process.taskCompletion',
       'com.newwork.process.completion',

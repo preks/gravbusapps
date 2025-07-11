@@ -113,8 +113,6 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
             type="default"
             data-testid="edit-opportunity-button"
             onClick={() => {
-              // TODO: Implement edit functionality
-              console.log('Edit opportunity:', opportunityId);
             }}
           >
             Edit Opportunity

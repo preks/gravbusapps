@@ -26,16 +26,6 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
     try {
       setUpdating(true);
       
-      // TODO: Implement stage update API call
-      // This would typically involve a GraphQL mutation or REST API call
-      console.log('Updating opportunity stage:', {
-        opportunityId,
-        currentStage,
-        newStage,
-        opportunityVersion
-      });
-      
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       message.success(`Stage updated to ${newStage}`);
