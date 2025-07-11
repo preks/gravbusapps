@@ -1,4 +1,3 @@
-
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -20,4 +19,4 @@ const stageNameMap: Record<string, string> = {
 
 export function formatStage(stageCode: string): string {
   return stageNameMap[stageCode] || stageCode;
-}
+} 

@@ -14,9 +14,10 @@ interface BusinessAppContextProps {
 interface KanbanColumnProps extends BusinessAppContextProps {
   stage: Stage;
   opportunities: Opportunity[];
+  sourceApp?: string;
 }
 
-export function KanbanColumn({ stage, opportunities }: KanbanColumnProps) {
+export function KanbanColumn({ stage, opportunities, sourceApp }: KanbanColumnProps) {
   const { setNodeRef } = useDroppable({
     id: stage.id,
     data: {
@@ -49,7 +50,7 @@ export function KanbanColumn({ stage, opportunities }: KanbanColumnProps) {
           </div>
         </div>
       </div>
-      <div className="gba:flex-1 gba:overflow-y-auto gba:p-2 gba:max-h-[calc(100vh-200px)]">
+      <div className="gba:flex-1 gba:overflow-y-auto gba:scroll-smooth gba:p-2 gba:max-h-[calc(100vh-200px)]">
         <div className="gba:space-y-2">
           {opportunities.map((opportunity) => (
             <OpportunityCard key={opportunity.id} opportunity={opportunity} />
@@ -66,4 +67,4 @@ export function KanbanColumn({ stage, opportunities }: KanbanColumnProps) {
   );
 }
 
-export default KanbanColumn;
+export default KanbanColumn; 

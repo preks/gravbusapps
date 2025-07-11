@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useKanbanStore } from "../lib/kanban-store";
 import { DownOutlined, EditOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { Button, Tooltip, Popconfirm } from "antd";
-import { getPlatformContext } from "../../../../../common/utils/windowUtils";
+import { getPlatformContext } from "@/common/utils/windowUtils";
 
 interface BusinessAppContextProps {
   accessToken: string;
@@ -137,4 +137,4 @@ export function PipelineSelector({ accessToken }: BusinessAppContextProps) {
   );
 }
 
-export default PipelineSelector;
+export default PipelineSelector; 

@@ -31,6 +31,7 @@ function isFormScreen(screenPath) {
 }
 
 // Helper function to handle form screen publishing
+// Note: This function requires user interaction and should not be called in no-interaction mode
 async function handleFormScreenPublishing(azureDestinationPath) {
   console.log("📋 Form detected - using form-specific publishing flow");
 
@@ -245,6 +246,13 @@ const argv = yargs(hideBin(process.argv))
     type: "boolean",
     default: false,
   })
+  .option("no-interaction", {
+    alias: "ci",
+    description:
+      "Disable all user prompts for CI/CD pipeline usage",
+    type: "boolean",
+    default: false,
+  })
   .help().argv;
 
 async function main() {
@@ -253,16 +261,17 @@ async function main() {
   if (!screenPathArg) {
     console.error("Error: Screen path argument is missing.");
     console.log(
-      "Usage: npm run publish:screen -- /<product>/[path/to/]/<ScreenName>"
+      "Usage: npm run publish:screen -- /<product>/[path/to/]/<ScreenName> [options]"
     );
     console.log(
       "Example: npm run publish:screen -- /irm/overview-screens/LeadOverview"
     );
     console.log("Example: npm run publish:screen -- /.debug/DebugView");
-
-    console.log(
-      "Example: npm run publish:screen -- /assets/main.css (to publish the main CSS file)"
-    );
+    console.log("Example: npm run publish:screen -- /assets/main.css (to publish the main CSS file)");
+    console.log("");
+    console.log("Options:");
+    console.log("  --resource, -r     Enable resource URL prompts");
+    console.log("  --no-interaction, --ci  Disable all prompts for CI/CD usage");
     process.exit(1);
   }
 
@@ -474,20 +483,22 @@ async function main() {
   // Handle different publishing flows for forms vs regular screens
   if (isFormScreen(screenPathArg)) {
     // For forms, use form-specific publishing flow only on first-time publish or with --resource flag
-    if (isFirstTimePublish || argv.resource) {
+    if ((isFirstTimePublish || argv.resource) && !argv.noInteraction) {
       console.log(isFirstTimePublish 
         ? "🆕 First time publishing this form - prompting for screen type" 
         : "🔄 Resource flag enabled - prompting for screen type");
       await handleFormScreenPublishing(azureDestinationPath);
     } else {
-      console.log("⏩ Skipping form screen configuration (not first-time publish and no --resource flag)");
+      console.log(argv.noInteraction 
+        ? "⏩ Skipping form screen configuration (no-interaction mode)"
+        : "⏩ Skipping form screen configuration (not first-time publish and no --resource flag)");
     }
   } else {
     // For regular screens, use standard resource URL flow
     // Handle resource URL addition based on flags and first-time publish
     let shouldAddResourceUrl = false;
 
-    if (argv.resource || isFirstTimePublish) {
+    if ((argv.resource || isFirstTimePublish) && !argv.noInteraction) {
       if (isFirstTimePublish) {
         console.log(
           "🆕 First time publishing this screen - resource URL prompt enabled"
@@ -506,7 +517,9 @@ async function main() {
       ]);
       shouldAddResourceUrl = addResourceUrlAnswer.shouldAdd;
     } else {
-      console.log("⏩ Skipping resource URL addition (direct publish mode)");
+      console.log(argv.noInteraction 
+        ? "⏩ Skipping resource URL addition (no-interaction mode)"
+        : "⏩ Skipping resource URL addition (direct publish mode)");
     }
 
     if (shouldAddResourceUrl) {
@@ -520,7 +533,7 @@ async function main() {
     // Handle custom URL addition on first-time publish or if resource flag is provided
     let shouldAddCustomUrl = false;
 
-    if (isFirstTimePublish || argv.resource) {
+    if ((isFirstTimePublish || argv.resource) && !argv.noInteraction) {
       // Ask user if they want to add a custom URL
       const addCustomUrlAnswer = await inquirer.prompt([
         {
@@ -533,9 +546,9 @@ async function main() {
       ]);
       shouldAddCustomUrl = addCustomUrlAnswer.shouldAdd;
     } else {
-      console.log(
-        "⏩ Skipping custom URL addition (not first-time publish and no --resource flag)"
-      );
+      console.log(argv.noInteraction 
+        ? "⏩ Skipping custom URL addition (no-interaction mode)"
+        : "⏩ Skipping custom URL addition (not first-time publish and no --resource flag)");
     }
 
     if (shouldAddCustomUrl) {
