@@ -30,9 +30,11 @@ export const NotesForm: React.FC<NotesFormProps> = (props) => {
         reminderDate: values.reminderDate ? dayjs(values.reminderDate).toISOString() : null,
         lastEditDate: new Date().toISOString(),
         authorEmployee: additionalData?.employeeId,
-        lead: additionalData?.leadId
+        ...(additionalData?.leadId && { lead: additionalData.leadId }),
+        ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId })
       },
     };
+    
     dispatchProcessContinueEvent('pse_submit', payload);
     setLoading(false);
   };

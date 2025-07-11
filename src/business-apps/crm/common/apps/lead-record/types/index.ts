@@ -168,4 +168,5 @@ export interface ReferenceData {
   id: string;
   code: string;
   value: string;
+  alternativeCode?: string;
 } 

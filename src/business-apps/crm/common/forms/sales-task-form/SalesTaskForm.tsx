@@ -7,7 +7,6 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import dayjs from 'dayjs';
 import { useSalesTaskTypes } from './hooks/useSalesTaskTypes';
 import { useSalesTaskPriorities } from './hooks/useSalesTaskPriorities';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { useFileClient } from '@/common/network/files/useFileClient';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
@@ -36,7 +35,6 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
   const fileClient = useFileClient({ accessToken } as any);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
 
-  // Fetch dynamic catalog entries
   const { data: typeOptions, loading: typeLoading } = useSalesTaskTypes(accessToken, { search: typeSearch });
   const { data: priorityOptions, loading: priorityLoading } = useSalesTaskPriorities(accessToken, { search: prioritySearch });
 
@@ -46,7 +44,6 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
         const response = event.detail?.response;
         const salesTask = response?.salesTask;
         if (!salesTask) return;
-        // File upload
         const uploadFile = fileList && fileList[0];
         if (!uploadFile || !uploadFile.originFileObj) {
           message.error('No file selected for upload');
@@ -63,7 +60,6 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
           pathParams,
           queryParams
         );
-        // POST to savesalesTask
         const crmDocumentPayload = {
           crmDocument: {
             name: file.name,
@@ -85,15 +81,12 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
       } catch (err: any) {
         message.error(err?.message || 'Failed to upload and save document');
       } finally {
-        // Only handle once
         window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener);
       }
     };
     window.addEventListener('com.newwork.process.taskCompletion', handler as EventListener);
     return () => {
-      // Remove only if event was handled, not on unmount
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, additionalData?.leadId, fileClient, fileList, restClient]);
 
   const handleSubmit = async (values: any) => {
@@ -102,14 +95,16 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
       changeMode: 'INSERT',
       salesTask: {
         version: 0,
-        taskTypeRef: values.taskTypeRef,
-        title: values.title,
+        typeRef: values.taskTypeRef,
+        name: values.title,
         priorityRef: values.priorityRef,
         deadline: values.deadline ? dayjs(values.deadline).toISOString() : null,
         description: values.description,
-        lead: additionalData?.leadId,
+        ...(additionalData?.leadId && { lead: additionalData.leadId }),
+        ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
       },
     };
+    
     dispatchProcessContinueEvent('pse_submit', payload);
     setLoading(false);
   };
@@ -122,7 +117,6 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
     setFileList(newFileList);
   };
 
-  // Memoize dropdown options for performance
   const mappedTypeOptions = useMemo(() =>
     (typeOptions || []).map((entry: any) => ({
       value: entry.id,
@@ -154,9 +148,14 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
         <Form.Item
           label={getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Name')}
           name="title"
-          rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesTask.titleRequired', 'Name is required') }]}
         >
-          <Input data-testid="name-input" className="gba:w-full" maxLength={100} />
+          <Input 
+            data-testid="name-input" 
+            className="gba:w-full" 
+            maxLength={100} 
+            placeholder={getTranslationFromI18nKeyAndLabel('crm:salesTask.titlePlaceholder', 'Enter task name')}
+            allowClear
+          />
         </Form.Item>
         <Form.Item
           label={getTranslationFromI18nKeyAndLabel('crm:salesTask.type', 'Type')}
