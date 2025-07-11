@@ -47,13 +47,38 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
     loadTasks();
   }, [leadId]);
 
+  // Add focus event listener to refresh data when user returns to the tab
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('Window gained focus, refreshing tasks...');
+      loadTasks();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        handleFocus();
+      }
+    });
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [leadId]);
+
   // Listen for process completion events to refresh tasks
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        const response = event.detail?.response;
+        if (event.detail?.resolution === 'success') {
+          loadTasks();
+          return;
+        }
         
-        if (response?.detail.resolution === 'success') {
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === 'success') {
           loadTasks();
         }
       } catch (err) {
@@ -61,11 +86,20 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
       }
     };
 
-    // Listen to multiple possible event names
+    // Universal event listener to capture all events
+    const handleAllEvents = (event: any) => {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        console.log('Detected process/task event:', event.type, event);
+        handleProcessCompletion(event);
+      }
+    };
+
+    // Listen to multiple possible event names (comprehensive list like activities)
     const eventNames = [
       'com.newwork.process.taskCompletion',
       'com.newwork.process.completion',
       'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
       'processCompletion',
       'taskCompletion',
       'taskCompleted',
@@ -78,10 +112,23 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
       window.addEventListener(eventName, handleProcessCompletion as EventListener);
     });
 
+    // Add a universal listener for debugging (like activities)
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event: Event) {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        console.log('Custom Event dispatched:', event.type, event);
+        handleAllEvents(event);
+      }
+      return originalDispatchEvent.call(this, event);
+    };
+
     return () => {
       eventNames.forEach(eventName => {
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
+      
+      // Restore original dispatchEvent
+      window.dispatchEvent = originalDispatchEvent;
     };
   }, [leadId]);
 
@@ -141,6 +188,30 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
     if (typeof type === 'string') return type;
     if (type.value) return type.value;
     return 'Unknown';
+  };
+
+  // Create task summary with all important details
+  const createTaskSummary = (task: SalesTaskData) => {
+    const parts = [];
+    
+    // Add type if available
+    const typeValue = getTypeValue(task.type);
+    if (typeValue && typeValue !== 'Unknown') {
+      parts.push(typeValue);
+    }
+    
+    // Add priority if available
+    const priorityValue = getPriorityValue(task.priority);
+    if (priorityValue && priorityValue !== 'Unknown') {
+      parts.push(`${priorityValue} priority`);
+    }
+    
+    // Add deadline if available
+    if (task.dueDate) {
+      parts.push(`Due: ${dayjs(task.dueDate).format('MMM D, YYYY')}`);
+    }
+    
+    return parts.length > 0 ? parts.join(' • ') : '';
   };
 
   return (
@@ -205,25 +276,26 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
               <Timeline.Item key={task.id || index} color={getPriorityColor(getPriorityValue(task.priority))}>
                 <div style={{ position: 'relative' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text strong>{task.name}</Text>
+                    <Text strong style={{ fontSize: '16px', color: '#1f2937' }}>
+                      {task.name || 'Untitled Task'}
+                    </Text>
                   </div>
                   <div>
                     <Text type="secondary">
                       {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')}
                     </Text>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                    <div style={{ flex: 1 }}>
-                      {task.description && (
-                        <div style={{ marginBottom: '4px' }}>{task.description}</div>
-                      )}
-                      <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                        {getPriorityValue(task.priority)} priority • {getTypeValue(task.type)}
-                        {task.dueDate && (
-                          <span> • Due: {dayjs(task.dueDate).format('MMM D, YYYY')}</span>
-                        )}
+                  <div style={{ marginTop: '4px' }}>
+                    {createTaskSummary(task) && (
+                      <div style={{ fontSize: '13px', color: '#4b5563', fontWeight: '500', marginBottom: '4px' }}>
+                        {createTaskSummary(task)}
                       </div>
-                    </div>
+                    )}
+                    {task.description && (
+                      <div style={{ marginTop: '4px', color: '#374151' }}>
+                        {task.description}
+                      </div>
+                    )}
                   </div>
                   <Button 
                     type="text" 

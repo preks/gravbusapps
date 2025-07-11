@@ -34,6 +34,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const [selectedRequest, setSelectedRequest] = useState<ExpenseRequest | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   
+  // Get expense requests data using the hook
+  const {
+    requests,
+    isLoading,
+    error,
+    totalCount,
+    fetchRequests,
+    approveRequest,
+    rejectRequest
+  } = useGetExpenseRequests(contextProps);
+
   // Use the expense request filters hook
   const {
     search: searchText,
@@ -45,17 +56,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     removeFilter,
     getFilters
   } = useExpenseRequestFilters();
-
-  // Get expense requests data using the hook
-  const {
-    requests,
-    isLoading,
-    error,
-    totalCount,
-    fetchRequests,
-    approveRequest,
-    rejectRequest
-  } = useGetExpenseRequests(contextProps);
 
   // Sync with parent search prop if provided
   useEffect(() => {
@@ -72,7 +72,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       currentPage,
       pageSize,
       undefined, // sortBy
-      filters.status ? filters.status[0] : undefined // status filter
+      filters.status ? filters.status[0] : undefined, // status filter
+      filters.requestDateStart
     );
   }, [searchText, currentPage, pageSize, getFilters, fetchRequests]);
 
@@ -319,7 +320,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       currentPage,
       pageSize,
       undefined, // sortBy
-      filters.status ? filters.status[0] : undefined // status filter
+      filters.status ? filters.status[0] : undefined, // status filter
+      filters.requestDateStart
     );
   }, [selectedFilters, searchText, currentPage, pageSize, getFilters, fetchRequests]);
 

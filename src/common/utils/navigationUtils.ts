@@ -4,8 +4,9 @@ interface NavigationMapping {
 
 // Mapping of platform URLs to app names for development mode
 const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
-  '/platform/crm/leads-overview': 'LeadsOverview',
+  '/platform/crm/lead-list': 'LeadList',
   '/platform/crm/lead-record': 'LeadRecord',
+  '/platform/crm/opportunity-record': 'OpportunityRecord',
   '/platform/fin/expenses/expense-plan-record': 'ExpensePlanRecord',
   '/platform/fin/expenses/expense-request-record': 'ExpenseRequestRecord',
   '/platform/employee-record': 'EmployeeRecord',

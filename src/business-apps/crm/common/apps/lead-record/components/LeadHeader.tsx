@@ -4,6 +4,8 @@ import { TagsOutlined, StarOutlined, UserOutlined } from '@ant-design/icons';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { startProcess } from '@/common/utils/start-process';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { useMarkLeadAsLost } from '../hooks/useMarkLeadAsLost';
 import { Lead } from '../types';
 
 interface LeadHeaderProps {
@@ -12,9 +14,53 @@ interface LeadHeaderProps {
   leadId: string;
   additionalData?: any;
   accessToken: string;
+  onStatusUpdate?: () => void;
 }
 
-export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, additionalData, accessToken }) => {
+export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, additionalData, accessToken, onStatusUpdate }) => {
+  const { markAsLost, isLoading } = useMarkLeadAsLost({ accessToken } as any);
+
+  const handleMarkAsLost = async () => {
+    await markAsLost(leadId, lead.version, onStatusUpdate);
+  };
+
+  const handleConvertLead = () => {
+    startProcess({
+      domain: 'customer-relations',
+      processName: 'convertLead',
+      payload: {
+        leadId,
+        employeeId: additionalData?.employeeId
+      },
+      builderType: 'NATIVE_SCREEN',
+    });
+  };
+
+  const staticActions = [];
+  
+  // Add "Mark as Lost" action if conditions are met
+  if (lead.status?.toLowerCase() !== 'lost' && !lead.convertedOpportunityId) {
+    staticActions.push({
+      key: 'mark-as-lost',
+      label: getTranslationFromI18nKeyAndLabel('crm:lead.markAsLost', 'Mark as Lost'),
+      onClick: handleMarkAsLost,
+      icon: 'StopOutlined',
+      loading: isLoading,
+      category: 'ACTION'
+    });
+  }
+
+  // Add "Convert Lead" action if not already converted
+  if (!lead.convertedOpportunityId) {
+    staticActions.push({
+      key: 'convert-lead',
+      label: getTranslationFromI18nKeyAndLabel('crm:lead.convertLead', 'Convert Lead'),
+      onClick: handleConvertLead,
+      icon: 'ArrowRightOutlined',
+      category: 'ACTION'
+    });
+  }
+
   return (
     <div className="gba:lead-header" style={{ 
       marginBottom: '24px', 
@@ -57,6 +103,7 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
               externalContextData={{
                 leadId: leadId
               }}
+              staticFlowData={staticActions}
               prefixDataTestId="lead-record-action"
               accessToken={accessToken}
               emptyStateBehavior="enabled"
@@ -65,24 +112,6 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
               Actions
             </AppActionButton>
           )}
-          
-          {!lead.convertedOpportunityId ? <Button 
-            type="primary"
-            data-testid="convert-to-opportunity-button"
-            onClick={() => {
-              startProcess({
-                domain: 'customer-relations',
-                processName: 'convertLead',
-                payload: {
-                  leadId,
-                  employeeId: additionalData?.employeeId
-                },
-                builderType: 'NATIVE_SCREEN',
-              });
-            }}
-          >
-            Convert Lead
-          </Button> : null}
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Row, Col, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -19,6 +19,84 @@ interface LeadRecordContentProps extends BusinessAppContextProps {
 
 const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, ...props }) => {
   const { lead, leadData, loading, error, leadStatuses, loadingStatuses, refetchLeadData } = useLeadData(leadId, props.accessToken);
+
+  // Add comprehensive event listeners for process completion (like activities)
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        if (event.detail?.resolution === 'success') {
+          refetchLeadData();
+          return;
+        }
+        
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === 'success') {
+          refetchLeadData();
+        }
+      } catch (err) {
+        console.error('LeadRecord: Error handling process completion:', err);
+      }
+    };
+
+    // Universal event listener to capture all events
+    const handleAllEvents = (event: any) => {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleProcessCompletion(event);
+      }
+    };
+
+    // Add focus event listener to refresh data when user returns to the tab
+    const handleFocus = () => {
+      refetchLeadData();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        handleFocus();
+      }
+    });
+
+    // Listen to multiple possible event names (comprehensive list like activities)
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
+
+    // Add a universal listener for debugging (like activities)
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event: Event) {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleAllEvents(event);
+      }
+      return originalDispatchEvent.call(this, event);
+    };
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+      
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
+      
+      // Restore original dispatchEvent
+      window.dispatchEvent = originalDispatchEvent;
+    };
+  }, [leadId, refetchLeadData]);
 
   if (loading) {
     return (
@@ -59,7 +137,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
       </div>
 
       {/* Lead header */}
-      <LeadHeader lead={lead} leadData={leadData} leadId={leadId} additionalData={props} accessToken={props.accessToken} />
+      <LeadHeader lead={lead} leadData={leadData} leadId={leadId} additionalData={props} accessToken={props.accessToken} onStatusUpdate={refetchLeadData} />
 
       {/* Status Progression */}
       {!loadingStatuses && leadStatuses.length > 0 && lead && (
@@ -119,7 +197,7 @@ const LeadRecord: React.FC<LeadRecordProps> = (props) => {
       props.onBack();
     } else {
       // Navigate back to leads overview
-      navigateTo('/platform/crm/leads-overview');
+      navigateTo('/platform/crm/lead-list');
     }
   };
 
