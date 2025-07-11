@@ -349,7 +349,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
   const currency = record.currency?.code || '';
   return (
     <span data-testid="expense-amount-cell">
-      {currency} {formatNumberFunction(String(amount ?? '0'))}
+      {formatNumberFunction(String(amount ?? '0'))} {currency}
     </span>
   );
 }

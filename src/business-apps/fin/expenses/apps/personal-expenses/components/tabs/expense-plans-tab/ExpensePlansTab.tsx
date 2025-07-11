@@ -1,58 +1,76 @@
-import React, { useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetExpensePlans } from '../../../hooks/useGetExpensePlans';
-import ExpensePlanStatistics from './ExpensePlanStatistics';
 import ExpensePlansTable from './ExpensePlansTable';
+import { useGetExpensePlans } from '../../../hooks/useGetExpensePlans';
+import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters';
+import ExpensePlanStatistics from './ExpensePlanStatistics';
 
-export interface ExpensePlansTabProps extends BusinessAppContextProps {
+interface ExpensePlansTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
 }
 
 const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
-  // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = useMemo(() => ({
-    accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
-  
-  // Fetch all expense plans for statistics
-  const { items: allPlans, fetchItems } = useGetExpensePlans(contextProps);
-  
-  // State for search coordination
-  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  // Load all items for statistics when component mounts
+  const {
+    filterGroups,
+    selectedFilters,
+    handleFilterChange,
+    clearFilters,
+    setFilters,
+    search,
+    setSearch,
+    graphqlFilters,
+  } = useExpensePlanFilters();
+
+  // Fetch paginated data for the table
+  const { items, isLoading, error, totalCount, fetchItems } = useGetExpensePlans(props);
+  
+  // Fetch all data for the statistics cards
+  const { items: allPlans, isLoading: statsLoading, error: statsError, fetchItems: fetchAllItems } = useGetExpensePlans(props);
+
   useEffect(() => {
-    if (contextProps.accessToken) {
-      // Fetch all items for statistics display (large page size)
-      fetchItems('', 1, 1000);
-    }
-  }, [contextProps.accessToken, fetchItems]);
+    fetchItems(graphqlFilters, currentPage, pageSize);
+  }, [fetchItems, graphqlFilters, currentPage, pageSize]);
 
-  // Create memoized content header with statistics component
+  useEffect(() => {
+    // Fetch all items with a high limit for statistics, ignoring filters
+    fetchAllItems({}, 1, 1000);
+  }, [fetchAllItems]);
+
   const contentHeader = useMemo(() => {
-    return allPlans && allPlans.length > 0 ? (
-      <ExpensePlanStatistics plans={allPlans} />
-    ) : null;
-  }, [allPlans]);
-  
-  // Update the content header when it changes
+    return <ExpensePlanStatistics plans={allPlans} statsLoading={statsLoading} statsError={statsError ? new Error(statsError) : null} />;
+  }, [allPlans, statsLoading, statsError]);
+
   useEffect(() => {
     if (props.onContentHeaderChange) {
       props.onContentHeaderChange(contentHeader);
     }
   }, [props.onContentHeaderChange, contentHeader]);
 
-  // Handle search term changes from table
-  const handleSearchChange = useCallback((term: string) => {
-    setSearchTerm(term);
+  const handleTableChange = useCallback((pagination: any) => {
+    setCurrentPage(pagination.current);
+    setPageSize(pagination.pageSize);
   }, []);
 
   return (
     <ExpensePlansTable
-      {...contextProps}
-      search={searchTerm}
-      onSearchChange={handleSearchChange}
+      {...props}
+      items={items}
+      isLoading={isLoading}
+      error={error}
+      totalCount={totalCount}
+      currentPage={currentPage}
+      pageSize={pageSize}
+      onTableChange={handleTableChange}
+      search={search}
+      onSearchChange={setSearch}
+      selectedFilters={selectedFilters}
+      setFilters={setFilters}
+      filterGroups={filterGroups}
+      handleFilterChange={handleFilterChange}
+      clearFilters={clearFilters}
     />
   );
 };

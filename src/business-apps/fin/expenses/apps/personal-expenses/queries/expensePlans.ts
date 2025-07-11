@@ -1,16 +1,11 @@
 // GraphQL query to get expense plans filtered by employee ID with pagination and search
 export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
-  query GetExpensePlansByEmployee($employeeId: uuid!, $limit: Int, $offset: Int, $searchTerm: String) {
+  query GetExpensePlansByEmployee($employeeId: uuid!, $limit: Int, $offset: Int, $filters: ExpensePlanBoolExp!, $activeUserLocale: String = "en") {
     ExpensePlanAggregate(
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
-        _or: [
-          {title: {_ilike: $searchTerm}},
-          {code: {_ilike: $searchTerm}},
-          {description: {_ilike: $searchTerm}},
-          {status: {_ilike: $searchTerm}}
-        ]
+        _and: [$filters]
       }
     ) {
       aggregate {
@@ -24,45 +19,105 @@ export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
-        _or: [
-          {title: {_ilike: $searchTerm}},
-          {code: {_ilike: $searchTerm}},
-          {description: {_ilike: $searchTerm}},
-          {status: {_ilike: $searchTerm}}
-        ]
+        _and: [$filters]
       }
     ) {
       id
       code
-      title
-      description
+      reimbursableAmount
       startDate
       endDate
       planDate
-      totalAmount
+      decisionDate
+      status    
+      title
+      totalAmount  
+      requestTypeRef
+      createdAt
+      employeeDocumentId
       advancePaymentPaidAmount
-      advancePaymentTotalAmount
-      costCenter {
-        name
+      advancePaymentInTransitAmount  
+      employeeDocument {
+        file
+        fileSize
         id
-      }
-      status
-      employee {
-        fullName
-      }
-      additionalProperties
-      requestType {
-        value
-        translations {
-          value
-          localeCode
+        description
+        mimeType
+        name
+        type
+        employee {
+          id
         }
       }
       currency {
-        value
-        translations {
-          value
+        type
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
           localeCode
+          value
+        }
+        catalog {
+          defaultLocale
+        }
+        value
+        id
+        code
+      }
+      currencyRef
+      description
+      requestType {
+        value
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          localeCode
+          value
+        }
+        catalog {
+          defaultLocale
+        }
+      }
+      expensePlanItem {
+        title
+        status
+        totalAmount
+        expenseDate
+      }
+      advancePayment{
+        id
+        amount
+        status
+        currency {
+          code
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+        }
+      }
+      expenseRequestTrip {
+        tripDateTime
+      }  
+      expenseRequest {
+        id
+        code
+        status
+        totalAmount
+      }
+      employee {
+        id
+        code
+        firstName
+        lastName
+        employeePosition {
+          siteLocation {
+            name
+          }
+          organizationalUnit {
+            name
+          }
+          firstName
+          lastName
         }
       }
     }
