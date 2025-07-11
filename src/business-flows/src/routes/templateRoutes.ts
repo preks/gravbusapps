@@ -11,7 +11,8 @@ import {
   getDraftsController,
   getTemplateWithMetadataController,
   publishTemplateController,
-  getOriginalTemplateController
+  getOriginalTemplateController,
+  executeWorkflowController
 } from '../controllers/templateController';
 import { createTemplateValidator, updateTemplateValidator } from '../validators/templateValidator';
 import { validateRequest } from '../middleware/validationMiddleware';
@@ -53,3 +54,6 @@ templateRoutes.get('/:id/original', getOriginalTemplateController);
 
 // POST publish a draft template
 templateRoutes.post('/:id/publish', publishTemplateController);
+
+// POST execute/launch a workflow from a template
+templateRoutes.post('/:id/execute', executeWorkflowController);

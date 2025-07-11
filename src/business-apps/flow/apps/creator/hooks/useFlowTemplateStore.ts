@@ -34,6 +34,8 @@ interface FlowTemplateState {
   addContentBlock: (stepId: string, type: ContentBlockType) => void;
   removeContentBlock: (stepId: string, blockId: string) => void;
   updateContentBlock: (stepId: string, blockId: string, content: string) => void;
+  updateContentBlockDescription: (stepId: string, blockId: string, description: string) => void;
+  updateContentBlockRequired: (stepId: string, blockId: string, required: boolean) => void;
   
   addInputBlock: (stepId: string, type: InputBlockType) => void;
   removeInputBlock: (stepId: string, blockId: string) => void;
@@ -228,6 +230,8 @@ export const useFlowTemplateStore = create<FlowTemplateState>((set, get) => ({
       id: `content-${Date.now()}`,
       type,
       content: '',
+      description: '', // Default empty description
+      required: false, // Default not required
     };
     
     return { 
@@ -265,6 +269,38 @@ export const useFlowTemplateStore = create<FlowTemplateState>((set, get) => ({
               ...step,
               contentBlocks: step.contentBlocks.map(block =>
                 block.id === blockId ? { ...block, content } : block
+              )
+            }
+          : step
+      )
+    } 
+  })),
+
+  updateContentBlockDescription: (stepId, blockId, description) => set((state) => ({ 
+    flowTemplate: { 
+      ...state.flowTemplate, 
+      steps: state.flowTemplate.steps.map(step => 
+        step.id === stepId 
+          ? {
+              ...step,
+              contentBlocks: step.contentBlocks.map(block =>
+                block.id === blockId ? { ...block, description } : block
+              )
+            }
+          : step
+      )
+    } 
+  })),
+
+  updateContentBlockRequired: (stepId, blockId, required) => set((state) => ({ 
+    flowTemplate: { 
+      ...state.flowTemplate, 
+      steps: state.flowTemplate.steps.map(step => 
+        step.id === stepId 
+          ? {
+              ...step,
+              contentBlocks: step.contentBlocks.map(block =>
+                block.id === blockId ? { ...block, required } : block
               )
             }
           : step

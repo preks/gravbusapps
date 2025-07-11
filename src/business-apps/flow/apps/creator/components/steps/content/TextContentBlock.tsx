@@ -19,15 +19,23 @@ export const TextContentBlock: React.FC<TextContentBlockProps> = ({
   onRemove,
   'data-testid': testId = 'text-content-block'
 }) => {
-  const { updateContentBlock } = useFlowTemplateStore();
+  const { updateContentBlock, updateContentBlockDescription, updateContentBlockRequired } = useFlowTemplateStore();
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     updateContentBlock(taskId, block.id, e.target.value);
   };
 
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateContentBlockDescription(taskId, block.id, e.target.value);
+  };
+
+  const handleRequiredChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateContentBlockRequired(taskId, block.id, e.target.checked);
+  };
+
   return (
     <div className="gba:border gba:border-gray-200 gba:rounded gba:p-4 gba:bg-gray-50" data-testid={testId}>
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-2" data-testid={`${testId}-header`}>
+      <div className="gba:flex gba:justify-between gba:items-center gba:mb-3" data-testid={`${testId}-header`}>
         <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${testId}-title`}>
           <span className="gba:text-blue-500 gba:font-medium">
             {getTranslationFromI18nKeyAndLabel('flow.creator.textBlock', 'Text Block')}
@@ -43,13 +51,50 @@ export const TextContentBlock: React.FC<TextContentBlockProps> = ({
         </button>
       </div>
       
-      <textarea
-        value={block.content}
-        onChange={handleContentChange}
-        className="gba:border gba:border-gray-300 gba:rounded gba:px-3 gba:py-2 gba:w-full gba:min-h-[120px]"
-        placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.enterTextContent', 'Enter text content here...')}
-        data-testid={`${testId}-content-input`}
-      />
+      <div className="gba:space-y-3">
+        {/* Description field */}
+        <div>
+          <label className="gba:block gba:text-sm gba:font-medium gba:mb-1">
+            {getTranslationFromI18nKeyAndLabel('flow.creator.description', 'Description')}
+          </label>
+          <input
+            type="text"
+            value={block.description || ''}
+            onChange={handleDescriptionChange}
+            className="gba:border gba:border-gray-300 gba:rounded gba:px-3 gba:py-2 gba:w-full"
+            placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.enterDescription', 'Enter description to help users understand what to fill...')}
+            data-testid={`${testId}-description-input`}
+          />
+        </div>
+
+        {/* Required checkbox */}
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <input
+            type="checkbox"
+            checked={block.required || false}
+            onChange={handleRequiredChange}
+            className="gba:rounded"
+            data-testid={`${testId}-required-checkbox`}
+          />
+          <label className="gba:text-sm">
+            {getTranslationFromI18nKeyAndLabel('flow.creator.required', 'Required at execution time')}
+          </label>
+        </div>
+
+        {/* Content textarea */}
+        <div>
+          <label className="gba:block gba:text-sm gba:font-medium gba:mb-1">
+            {getTranslationFromI18nKeyAndLabel('flow.creator.content', 'Content')}
+          </label>
+          <textarea
+            value={block.content}
+            onChange={handleContentChange}
+            className="gba:border gba:border-gray-300 gba:rounded gba:px-3 gba:py-2 gba:w-full gba:min-h-[120px]"
+            placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.enterTextContent', 'Enter text content here or leave empty to fill at execution time...')}
+            data-testid={`${testId}-content-input`}
+          />
+        </div>
+      </div>
     </div>
   );
 };

@@ -6,6 +6,7 @@ import {
   getUserTasks,
   getTaskById,
   claimTask as conductorClaimTask,
+  releaseTask as conductorReleaseTask,
   completeTask as conductorCompleteTask
 } from './conductorService';
 
@@ -64,6 +65,37 @@ export const claimTask = async (taskId: string, userId: string): Promise<Task> =
     }
     logger.error(`Failed to claim task ${taskId} for user ${userId}`, error);
     throw new AppError('Failed to claim task', StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+/**
+ * Release a task from a user
+ */
+export const releaseTask = async (taskId: string, userId: string): Promise<Task> => {
+  try {
+    // Check if the task exists and is releasable
+    const task = await getTaskById(taskId);
+    
+    if (task.taskType !== 'HUMAN') {
+      throw new AppError('Only human tasks can be released', StatusCodes.BAD_REQUEST);
+    }
+    
+    if (task.status !== TaskStatus.IN_PROGRESS) {
+      throw new AppError('Task is not in progress', StatusCodes.BAD_REQUEST);
+    }
+    
+    if (task.workerId !== userId && task.inputData?.userId !== userId) {
+      throw new AppError('You are not assigned to this task', StatusCodes.FORBIDDEN);
+    }
+    
+    // Release the task in Conductor
+    return await conductorReleaseTask(taskId, userId);
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    logger.error(`Failed to release task ${taskId} for user ${userId}`, error);
+    throw new AppError('Failed to release task', StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

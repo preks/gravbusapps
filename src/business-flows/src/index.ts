@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { templateRoutes } from './routes/templateRoutes';
-import { taskRoutes } from './routes/taskRoutes';
+import taskRoutes from './routes/taskRoutes';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { initializeServices } from './utils/init';

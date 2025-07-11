@@ -24,6 +24,7 @@ interface RuntimeContentBlock {
   blockId: string;
   blockType: string;
   label: string;
+  required: boolean;
 }
 
 interface LaunchParameters {
@@ -119,40 +120,44 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
     try {
       setIsLaunching(true);
       
-      // Prepare workflow input
-      const workflowInput = {
+      // Prepare execution parameters
+      const executionParams = {
+        runtimeParameters: launchParameters,
         initiator: user?.id || employeeId,
         context: {
           flowInstanceId: `flow_instance_${Date.now()}`,
           launchedBy: user?.name || user?.id || employeeId,
-          launchedAt: new Date().toISOString()
-        },
-        resolvedAssignments: {}, // Would be populated based on template assignments
-        ...launchParameters // Add runtime content block values
+          launchedAt: new Date().toISOString(),
+          templateTitle: selectedTemplate.title
+        }
       };
 
-      // For now, we'll just log the workflow input
-      // In a real implementation, this would call the Conductor API to start the workflow
-      console.log('Launching workflow with input:', workflowInput);
+      // Execute the workflow via API
+      const result = await flowTemplateClient.executeWorkflow(selectedTemplate.id!, executionParams);
       
-      // TODO: Call actual workflow start API
-      // const workflowId = await startWorkflow(templateMetadata.metadata.workflowDefinition.name, workflowInput);
+      console.log('Workflow launched successfully:', result);
       
-      alert('Workflow launched successfully! (This is a demo - check console for details)');
+      alert(`Workflow launched successfully!\n\nWorkflow ID: ${result.workflowId}\nTemplate: ${selectedTemplate.title}`);
+      
+      // Reset form after successful launch
+      setLaunchParameters({});
+      setSelectedTemplate(null);
+      setTemplateMetadata(null);
       
     } catch (err) {
       console.error('Error launching workflow:', err);
-      alert('Failed to launch workflow');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to launch workflow';
+      alert(`Failed to launch workflow: ${errorMessage}`);
     } finally {
       setIsLaunching(false);
     }
   };
 
-     // Check if all required parameters are filled
-   const canLaunch = selectedTemplate && templateMetadata && 
-     (templateMetadata.metadata.workflowDefinition?.metadata?.runtimeContentBlocks || []).every(
-       (block: RuntimeContentBlock) => launchParameters[block.parameterName]?.trim()
-     );
+       // Check if all required parameters are filled
+  const canLaunch = selectedTemplate && templateMetadata && 
+    (templateMetadata.metadata.workflowDefinition?.metadata?.runtimeContentBlocks || []).every(
+      (block: RuntimeContentBlock) => !block.required || launchParameters[block.parameterName]?.trim()
+    );
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-6 gba:p-6" data-testid={testId}>
@@ -275,23 +280,15 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
                       <div key={block.parameterName} className="gba:space-y-2">
                         <label className="gba:block gba:text-sm gba:font-medium">
                           {block.label}
+                          {block.required && <span className="gba:text-red-500 gba:ml-1">*</span>}
                         </label>
-                                                 {block.blockType === 'TEXT' ? (
-                           <TextArea
-                             value={launchParameters[block.parameterName] || ''}
-                             onChange={(e: any) => handleParameterChange(block.parameterName, e.target.value)}
-                             placeholder={`Enter content for ${block.label}`}
-                             rows={3}
-                             data-testid={`${testId}-param-${block.parameterName}`}
-                           />
-                         ) : (
-                          <Input
-                            value={launchParameters[block.parameterName] || ''}
-                            onChange={(e) => handleParameterChange(block.parameterName, e.target.value)}
-                            placeholder={`Enter content for ${block.label}`}
-                            data-testid={`${testId}-param-${block.parameterName}`}
-                          />
-                        )}
+                        <TextArea
+                          value={launchParameters[block.parameterName] || ''}
+                          onChange={(e: any) => handleParameterChange(block.parameterName, e.target.value)}
+                          placeholder={`Enter content for ${block.label}`}
+                          rows={3}
+                          data-testid={`${testId}-param-${block.parameterName}`}
+                        />
                       </div>
                     ))}
                   </div>

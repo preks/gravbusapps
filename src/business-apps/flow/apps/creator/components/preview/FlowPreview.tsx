@@ -107,7 +107,7 @@ function renderStepWithAssignment(step: FlowStep, index: number, isParallel: boo
   const hasAssignment = step.assignment && step.assignment.targets.length > 0;
   const assignToAll = step.assignment?.assignToAll;
   const hasGroupAssignments = hasAssignment && step.assignment?.targets.some(target => 
-    target.entity === 'department' || target.entity === 'team' || target.entity === 'role'
+    target.entity === 'department' || target.entity === 'role'
   );
   
   // If assignToAll is true, show multiple task generation visualization

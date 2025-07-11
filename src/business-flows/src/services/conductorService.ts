@@ -7,6 +7,7 @@ import { AppError } from '../middleware/errorHandler';
 import { StatusCodes } from 'http-status-codes';
 
 const conductorApiUrl = process.env.CONDUCTOR_API_URL || 'http://localhost:8080/api';
+
 const conductorClient = axios.create({
   baseURL: conductorApiUrl,
   headers: {
@@ -91,7 +92,8 @@ export const createWorkflowDefinition = (template: FlowTemplate): any => {
           blockIndex,
           blockId: block.id,
           blockType: block.type,
-          label: `Content for ${template.steps[stepIndex]?.title || `Step ${stepIndex + 1}`} - Block ${blockIndex + 1}`
+          label: block.description || `Content for ${template.steps[stepIndex]?.title || `Step ${stepIndex + 1}`} - Block ${blockIndex + 1}`,
+          required: block.required || false
         });
         
         // Wire to workflow input parameter
@@ -148,7 +150,7 @@ export const createWorkflowDefinition = (template: FlowTemplate): any => {
       // For assignToAll=false: Use CLAIM task + HUMAN task pattern
       // First CLAIM task to determine who gets the task
       const claimTask = {
-        name: `CLAIM_${stepId}`,
+        name: 'CLAIM',
         taskReferenceName: `claim_${stepId}`,
         type: 'SIMPLE',
         taskDefinition: {
@@ -160,6 +162,7 @@ export const createWorkflowDefinition = (template: FlowTemplate): any => {
           description: step.description,
           stepType: step.type,
           assignmentTargets: assignment?.targets || [],
+          taskCategory: 'CLAIM', // Add consistent field for type identification
         },
       };
       
@@ -180,6 +183,7 @@ export const createWorkflowDefinition = (template: FlowTemplate): any => {
           allowReassignment: assignment?.allowReassignment || false,
           userId: `\${claim_${stepId}.output.userId}`, // Get userId from CLAIM task output
           assignee: `\${claim_${stepId}.output.userId}`, // Assign to the user who claimed it
+          taskCategory: 'HUMAN', // Add consistent field for type identification
         },
       };
       
@@ -379,29 +383,108 @@ export const startWorkflow = async (workflowName: string, input: any): Promise<s
  */
 export const getUserTasks = async (userId: string, status?: TaskStatus[], limit = 100): Promise<Task[]> => {
   try {
-    // First get all tasks of type CLAIM that are not yet claimed
-    const claimTasksResponse = await conductorClient.get('/tasks', {
+    // Since search API doesn't return our tasks, let's get tasks from specific workflows
+    // First, get all workflows
+    const workflowSearchResponse = await conductorClient.get('/workflow/search', {
       params: {
-        taskType: 'CLAIM',
-        status: status || [TaskStatus.SCHEDULED],
-      },
+        size: 100,
+        sort: 'startTime:DESC'
+      }
     });
     
-    const claimTasks = claimTasksResponse.data || [];
+    const allTasks: any[] = [];
     
-    // Then get all tasks of type HUMAN that are assigned to this user
-    const humanTasksResponse = await conductorClient.get('/tasks', {
-      params: {
-        taskType: 'HUMAN',
-        status: status || [TaskStatus.IN_PROGRESS, TaskStatus.SCHEDULED],
-        limit,
-      },
-    });
+    // Extract tasks from workflows
+    if (workflowSearchResponse.data?.results) {
+      for (const workflow of workflowSearchResponse.data.results) {
+        if (workflow.status === 'RUNNING') {
+          try {
+            // Get full workflow details including tasks
+            const fullWorkflowResponse = await conductorClient.get(`/workflow/${workflow.workflowId}`);
+            if (fullWorkflowResponse.data?.tasks) {
+              allTasks.push(...fullWorkflowResponse.data.tasks);
+            }
+          } catch (error) {
+            logger.warn(`Failed to get tasks for workflow ${workflow.workflowId}`, error);
+          }
+        }
+      }
+    }
     
-    const humanTasks = (humanTasksResponse.data || [])
-      .filter((task: Task) => task.inputData?.userId === userId);
+    // Filter tasks for the specific user and convert to our Task format
+    const userTasks = allTasks
+      .filter((conductorTask: any) => {
+        // Exclude completed tasks
+        if (conductorTask.status === 'COMPLETED') {
+          return false;
+        }
+        
+        // If userId is 'system', return all non-completed tasks
+        if (userId === 'system') {
+          return conductorTask.status === 'IN_PROGRESS' || conductorTask.status === 'SCHEDULED';
+        }
+        
+        // Include HUMAN tasks assigned to this user that are not completed
+        if (conductorTask.taskType === 'HUMAN' && conductorTask.workerId === userId) {
+          return conductorTask.status === 'IN_PROGRESS' || conductorTask.status === 'SCHEDULED';
+        }
+        
+        // Include tasks that can be claimed (no specific worker assigned and not completed)
+        if (!conductorTask.workerId && (conductorTask.status === 'IN_PROGRESS' || conductorTask.status === 'SCHEDULED')) {
+          return true;
+        }
+        
+        return false;
+      })
+      .map((conductorTask: any) => {
+        // Parse input and output safely (they might not be valid JSON)
+        let parsedInput = {};
+        let parsedOutput = {};
+        
+        try {
+          if (conductorTask.input && conductorTask.input.startsWith('{') && conductorTask.input.includes('=')) {
+            // This is a Java-style object representation, not JSON
+            // For now, we'll create a simple object with the raw data
+            parsedInput = { raw: conductorTask.input };
+          } else if (conductorTask.input) {
+            parsedInput = JSON.parse(conductorTask.input);
+          }
+        } catch (e) {
+          parsedInput = { raw: conductorTask.input };
+        }
+        
+        try {
+          if (conductorTask.output && conductorTask.output.startsWith('{') && conductorTask.output.includes('=')) {
+            parsedOutput = { raw: conductorTask.output };
+          } else if (conductorTask.output) {
+            parsedOutput = JSON.parse(conductorTask.output);
+          }
+        } catch (e) {
+          parsedOutput = { raw: conductorTask.output };
+        }
+        
+        // Use inputData directly from Conductor task if available, otherwise use parsed input
+        const inputData = conductorTask.inputData || parsedInput;
+        
+        return {
+          taskId: conductorTask.taskId,
+          workflowInstanceId: conductorTask.workflowInstanceId || conductorTask.workflowId,
+          referenceTaskName: conductorTask.referenceTaskName || conductorTask.taskDefName,
+          taskType: conductorTask.taskType,
+          name: conductorTask.taskDefName,
+          status: conductorTask.status,
+          input: parsedInput,
+          output: parsedOutput,
+          workerId: conductorTask.workerId,
+          priority: conductorTask.workflowPriority || 5,
+          startTime: conductorTask.startTime ? new Date(conductorTask.startTime).getTime() : Date.now(),
+          updateTime: conductorTask.updateTime ? new Date(conductorTask.updateTime).getTime() : Date.now(),
+          inputData: inputData
+        };
+      })
+      .slice(0, limit);
     
-    return [...claimTasks, ...humanTasks].slice(0, limit);
+    return userTasks;
   } catch (error) {
     logger.error('Failed to get user tasks', error);
     throw new AppError('Failed to get user tasks', StatusCodes.INTERNAL_SERVER_ERROR);
@@ -413,8 +496,133 @@ export const getUserTasks = async (userId: string, status?: TaskStatus[], limit 
  */
 export const getTaskById = async (taskId: string): Promise<Task> => {
   try {
-    const response = await conductorClient.get(`/tasks/${taskId}`);
-    return response.data;
+    // Try to get task directly first
+    try {
+      const taskResponse = await conductorClient.get(`/tasks/${taskId}`);
+      if (taskResponse.data) {
+        const conductorTask = taskResponse.data;
+        
+        // Convert Conductor task to our Task format
+        let parsedInput = {};
+        let parsedOutput = {};
+        
+        try {
+          if (conductorTask.input && conductorTask.input.startsWith('{') && conductorTask.input.includes('=')) {
+            parsedInput = { raw: conductorTask.input };
+          } else if (conductorTask.input) {
+            parsedInput = JSON.parse(conductorTask.input);
+          }
+        } catch (e) {
+          parsedInput = { raw: conductorTask.input };
+        }
+        
+        try {
+          if (conductorTask.output && conductorTask.output.startsWith('{') && conductorTask.output.includes('=')) {
+            parsedOutput = { raw: conductorTask.output };
+          } else if (conductorTask.output) {
+            parsedOutput = JSON.parse(conductorTask.output);
+          }
+        } catch (e) {
+          parsedOutput = { raw: conductorTask.output };
+        }
+        
+        // Use inputData directly from Conductor task if available, otherwise use parsed input
+        const inputData = conductorTask.inputData || parsedInput;
+        
+        return {
+          taskId: conductorTask.taskId,
+          workflowInstanceId: conductorTask.workflowInstanceId || conductorTask.workflowId,
+          referenceTaskName: conductorTask.referenceTaskName || conductorTask.taskDefName,
+          taskType: conductorTask.taskType,
+          name: conductorTask.taskDefName,
+          status: conductorTask.status,
+          input: parsedInput,
+          output: parsedOutput,
+          workerId: conductorTask.workerId,
+          priority: conductorTask.workflowPriority || 5,
+          startTime: conductorTask.startTime ? new Date(conductorTask.startTime).getTime() : Date.now(),
+          updateTime: conductorTask.updateTime ? new Date(conductorTask.updateTime).getTime() : Date.now(),
+          inputData: inputData
+        };
+      }
+    } catch (directError) {
+      // Fall back to searching through workflows
+      logger.warn(`Direct task access failed for ${taskId}, trying workflow search`, directError);
+    }
+    
+    // Fallback: search through workflows like getUserTasks does
+    const workflowSearchResponse = await conductorClient.get('/workflow/search', {
+      params: {
+        size: 100,
+        sort: 'startTime:DESC'
+      }
+    });
+    
+    const allTasks: any[] = [];
+    
+    if (workflowSearchResponse.data?.results) {
+      for (const workflow of workflowSearchResponse.data.results) {
+        if (workflow.status === 'RUNNING') {
+          try {
+            const fullWorkflowResponse = await conductorClient.get(`/workflow/${workflow.workflowId}`);
+            if (fullWorkflowResponse.data?.tasks) {
+              allTasks.push(...fullWorkflowResponse.data.tasks);
+            }
+          } catch (error) {
+            logger.warn(`Failed to get tasks for workflow ${workflow.workflowId}`, error);
+          }
+        }
+      }
+    }
+    
+    const conductorTask = allTasks.find((t: any) => t.taskId === taskId);
+    
+    if (!conductorTask) {
+      throw new AppError('Task not found', StatusCodes.NOT_FOUND);
+    }
+    
+    // Convert Conductor task to our Task format
+    let parsedInput = {};
+    let parsedOutput = {};
+    
+    try {
+      if (conductorTask.input && conductorTask.input.startsWith('{') && conductorTask.input.includes('=')) {
+        parsedInput = { raw: conductorTask.input };
+      } else if (conductorTask.input) {
+        parsedInput = JSON.parse(conductorTask.input);
+      }
+    } catch (e) {
+      parsedInput = { raw: conductorTask.input };
+    }
+    
+    try {
+      if (conductorTask.output && conductorTask.output.startsWith('{') && conductorTask.output.includes('=')) {
+        parsedOutput = { raw: conductorTask.output };
+      } else if (conductorTask.output) {
+        parsedOutput = JSON.parse(conductorTask.output);
+      }
+    } catch (e) {
+      parsedOutput = { raw: conductorTask.output };
+    }
+    
+    // Use inputData directly from Conductor task if available, otherwise use parsed input
+    const inputData = conductorTask.inputData || parsedInput;
+    
+    return {
+      taskId: conductorTask.taskId,
+      workflowInstanceId: conductorTask.workflowInstanceId || conductorTask.workflowId,
+      referenceTaskName: conductorTask.referenceTaskName || conductorTask.taskDefName,
+      taskType: conductorTask.taskType,
+      name: conductorTask.taskDefName,
+      status: conductorTask.status,
+      input: parsedInput,
+      output: parsedOutput,
+      workerId: conductorTask.workerId,
+      priority: conductorTask.workflowPriority || 5,
+      startTime: conductorTask.startTime ? new Date(conductorTask.startTime).getTime() : Date.now(),
+      updateTime: conductorTask.updateTime ? new Date(conductorTask.updateTime).getTime() : Date.now(),
+      inputData: inputData
+    };
   } catch (error) {
     logger.error(`Failed to get task ${taskId}`, error);
     throw new AppError('Failed to get task', StatusCodes.NOT_FOUND);
@@ -429,7 +637,7 @@ export const claimTask = async (taskId: string, userId: string): Promise<Task> =
     // First get the task to ensure it exists and is of type CLAIM
     const task = await getTaskById(taskId);
     
-    if (task.taskType !== 'CLAIM') {
+    if (task.inputData?.taskCategory !== 'CLAIM') {
       throw new AppError('Task is not of type CLAIM', StatusCodes.BAD_REQUEST);
     }
     
@@ -464,6 +672,57 @@ export const claimTask = async (taskId: string, userId: string): Promise<Task> =
 };
 
 /**
+ * Release a task by removing its worker assignment
+ */
+export const releaseTask = async (taskId: string, userId: string): Promise<Task> => {
+  try {
+    // First get the task to ensure it exists and can be released
+    const task = await getTaskById(taskId);
+    
+    // Check if task can be released
+    if (task.taskType !== 'HUMAN') {
+      throw new AppError('Only HUMAN tasks can be released', StatusCodes.BAD_REQUEST);
+    }
+    
+    if (task.status !== TaskStatus.IN_PROGRESS) {
+      throw new AppError('Task is not in IN_PROGRESS state and cannot be released', StatusCodes.BAD_REQUEST);
+    }
+    
+    // Check if the user is authorized to release this task
+    if (task.workerId !== userId && task.inputData?.userId !== userId) {
+      throw new AppError('You are not authorized to release this task', StatusCodes.FORBIDDEN);
+    }
+    
+    // For this demo, we'll mark the task as released in the output data
+    // In a production system, this would integrate with Conductor's task assignment system
+    // to actually remove the worker assignment and make the task available for others
+    
+    const updatedTask = await conductorClient.post(`/tasks`, {
+      taskId: task.taskId,
+      workflowInstanceId: task.workflowInstanceId,
+      status: "COMPLETED", // Complete the task with a "released" status
+      outputData: {
+        released: true,
+        releasedBy: userId,
+        releasedAt: new Date().toISOString(),
+        reason: 'Task released by user',
+        previousAssignee: task.workerId,
+        result: 'RELEASED' // Mark as released instead of completed
+      }
+    });
+    
+    logger.info(`Task ${taskId} released by user ${userId}`);
+    return updatedTask.data;
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    logger.error(`Failed to release task ${taskId}`, error);
+    throw new AppError('Failed to release task', StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+/**
  * Complete a HUMAN task
  */
 export const completeTask = async (taskId: string, output: any): Promise<Task> => {
@@ -483,15 +742,11 @@ export const completeTask = async (taskId: string, output: any): Promise<Task> =
     const updatedTask = await conductorClient.post(`/tasks`, {
       taskId: task.taskId,
       workflowInstanceId: task.workflowInstanceId,
-      taskType: task.taskType,
-      status: TaskStatus.COMPLETED,
-      inputData: task.inputData,
+      status: 'COMPLETED',
       outputData: {
-        ...task.outputData,
         ...output,
         result: 'COMPLETED'
-      },
-      workerId: task.workerId,
+      }
     });
     
     logger.info(`Task ${taskId} completed by worker ${task.workerId}`);

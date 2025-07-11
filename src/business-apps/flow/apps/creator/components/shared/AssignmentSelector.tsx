@@ -11,7 +11,7 @@ interface AssignmentSelectorProps {
 }
 
 // Entity type configuration with colors and icons
-type EntityType = 'user' | 'department' | 'team' | 'capability' | 'role';
+type EntityType = 'user' | 'department' | 'capability' | 'role';
 
 interface EntityTypeConfig {
   value: EntityType;
@@ -43,13 +43,6 @@ const entityTypeConfigs: EntityTypeConfig[] = [
     searchPlaceholder: getTranslationFromI18nKeyAndLabel('flow.creator.searchDepartments', 'Search departments...') 
   },
   { 
-    value: 'team', 
-    label: getTranslationFromI18nKeyAndLabel('flow.creator.team', 'Team'), 
-    color: 'gba:!bg-purple-100 gba:!text-purple-800 gba:!border-purple-300',
-    icon: <Users className="gba:w-4 gba:h-4" />,
-    searchPlaceholder: getTranslationFromI18nKeyAndLabel('flow.creator.searchTeams', 'Search teams...') 
-  },
-  { 
     value: 'capability', 
     label: getTranslationFromI18nKeyAndLabel('flow.creator.capability', 'Capability'), 
     color: 'gba:!bg-rose-100 gba:!text-rose-800 gba:!border-rose-300',
@@ -65,32 +58,45 @@ const entityTypeConfigs: EntityTypeConfig[] = [
   }
 ];
 
-// Mock entity data - in a real implementation, this would be fetched from an API
+// Mock entity data - cross-functional organization matching backend exactly
 const mockEntities: Record<EntityType, EntityItem[]> = {
   user: [
-    { id: 'user1', name: 'John Doe' },
-    { id: 'user2', name: 'Jane Smith' },
-    { id: 'user3', name: 'Alex Johnson' },
+    { id: 'user-001', name: 'Alice Johnson (HR Manager)' },
+    { id: 'user-002', name: 'Bob Smith (Finance Manager)' },
+    { id: 'user-007', name: 'Grace Lee (Senior Software Engineer)' },
+    { id: 'user-008', name: 'Henry Taylor (Sales Manager)' },
+    { id: 'user-009', name: 'Ivy Chen (Marketing Manager)' },
   ],
   department: [
-    { id: 'dept1', name: 'Human Resources' },
-    { id: 'dept2', name: 'Engineering' },
-    { id: 'dept3', name: 'Marketing' },
-  ],
-  team: [
-    { id: 'team1', name: 'Frontend Team' },
-    { id: 'team2', name: 'Backend Team' },
-    { id: 'team3', name: 'DevOps Team' },
+    { id: 'dept-001', name: 'Human Resources' },
+    { id: 'dept-002', name: 'Finance' },
+    { id: 'dept-003', name: 'Engineering' },
+    { id: 'dept-004', name: 'Sales' },
+    { id: 'dept-005', name: 'Marketing' },
   ],
   capability: [
-    { id: 'cap1', name: 'Project Management' },
-    { id: 'cap2', name: 'Software Development' },
-    { id: 'cap3', name: 'Design' },
+    { id: 'cap-001', name: 'Employee Relations' },
+    { id: 'cap-002', name: 'Recruitment' },
+    { id: 'cap-003', name: 'Financial Analysis' },
+    { id: 'cap-004', name: 'Budget Management' },
+    { id: 'cap-005', name: 'Software Development' },
+    { id: 'cap-006', name: 'System Architecture' },
+    { id: 'cap-007', name: 'Sales Strategy' },
+    { id: 'cap-008', name: 'Contract Negotiation' },
+    { id: 'cap-009', name: 'Digital Marketing' },
+    { id: 'cap-010', name: 'Brand Management' },
+    { id: 'cap-011', name: 'Compliance Management' },
+    { id: 'cap-012', name: 'Risk Assessment' },
+    { id: 'cap-013', name: 'Project Management' },
+    { id: 'cap-014', name: 'Customer Relations' },
+    { id: 'cap-015', name: 'Content Creation' },
   ],
   role: [
-    { id: 'manager', name: 'Manager' },
-    { id: 'director', name: 'Director' },
-    { id: 'ceo', name: 'CEO' },
+    { id: 'role-001', name: 'HR Manager' },
+    { id: 'role-003', name: 'Finance Manager' },
+    { id: 'role-005', name: 'Senior Software Engineer' },
+    { id: 'role-007', name: 'Sales Manager' },
+    { id: 'role-009', name: 'Marketing Manager' },
   ],
 };
 

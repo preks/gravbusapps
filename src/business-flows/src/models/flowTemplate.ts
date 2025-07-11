@@ -29,7 +29,7 @@ export type StepType = 'APPROVAL' | 'ACKNOWLEDGE' | 'TASK' | 'INFORMATION';
 
 // Assignment target
 export type AssignmentTarget = {
-  entity: 'user' | 'department' | 'team' | 'capability' | 'role';
+  entity: 'user' | 'department' | 'capability' | 'role';
   id: string;
   name: string;
 };

@@ -29,7 +29,7 @@ export const ContentBlocksList: React.FC<ContentBlocksListProps> = ({
 
   const renderBlock = (block: ContentBlock, index: number) => {
     switch (block.type) {
-      case 'text':
+      case ContentBlockType.TEXT:
         return (
           <TextContentBlock
             key={block.id}
@@ -39,7 +39,7 @@ export const ContentBlocksList: React.FC<ContentBlocksListProps> = ({
             data-testid={`${testId}-text-${index}`}
           />
         );
-      case 'document':
+      case ContentBlockType.DOCUMENT:
         return (
           <DocumentContentBlock
             key={block.id}
@@ -49,7 +49,7 @@ export const ContentBlocksList: React.FC<ContentBlocksListProps> = ({
             data-testid={`${testId}-document-${index}`}
           />
         );
-      case 'image':
+      case ContentBlockType.IMAGE:
         return (
           <ImageContentBlock
             key={block.id}
@@ -59,7 +59,7 @@ export const ContentBlocksList: React.FC<ContentBlocksListProps> = ({
             data-testid={`${testId}-image-${index}`}
           />
         );
-      case 'link':
+      case ContentBlockType.LINK:
         return (
           <LinkContentBlock
             key={block.id}
@@ -78,7 +78,7 @@ export const ContentBlocksList: React.FC<ContentBlocksListProps> = ({
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid={testId}>
       <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid={`${testId}-add-buttons`}>
         <button
-          onClick={() => handleAddBlock('text')}
+          onClick={() => handleAddBlock(ContentBlockType.TEXT)}
           className="gba:px-3 gba:py-1 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-sm"
           data-testid={`${testId}-add-text-button`}
         >
@@ -86,7 +86,7 @@ export const ContentBlocksList: React.FC<ContentBlocksListProps> = ({
         </button>
         
         <button
-          onClick={() => handleAddBlock('document')}
+          onClick={() => handleAddBlock(ContentBlockType.DOCUMENT)}
           className="gba:px-3 gba:py-1 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-sm"
           data-testid={`${testId}-add-document-button`}
         >
@@ -94,7 +94,7 @@ export const ContentBlocksList: React.FC<ContentBlocksListProps> = ({
         </button>
         
         <button
-          onClick={() => handleAddBlock('image')}
+          onClick={() => handleAddBlock(ContentBlockType.IMAGE)}
           className="gba:px-3 gba:py-1 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-sm"
           data-testid={`${testId}-add-image-button`}
         >
@@ -102,7 +102,7 @@ export const ContentBlocksList: React.FC<ContentBlocksListProps> = ({
         </button>
         
         <button
-          onClick={() => handleAddBlock('link')}
+          onClick={() => handleAddBlock(ContentBlockType.LINK)}
           className="gba:px-3 gba:py-1 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-sm"
           data-testid={`${testId}-add-link-button`}
         >

@@ -4,7 +4,7 @@
 
 // Assignment target
 export type AssignmentTarget = {
-  entity: 'user' | 'department' | 'team' | 'capability' | 'role';
+  entity: 'user' | 'department' | 'capability' | 'role';
   id: string;
 };
 
@@ -51,6 +51,8 @@ export type ContentBlock = {
   id: string;
   type: ContentBlockType;
   content: string;
+  description?: string; // Description to help users understand what content to fill
+  required?: boolean; // Whether this content block is required at execution time
 };
 
 // Step type enum

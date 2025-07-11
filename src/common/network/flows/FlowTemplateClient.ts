@@ -242,4 +242,26 @@ export class FlowTemplateClient extends RestClient {
     const response = await this.post<ApiResponse<any>>('/api/templates/generate-conductor-flow-with-assignments', template);
     return response.data;
   }
+
+  /**
+   * Execute/Launch a workflow from a template
+   */
+  async executeWorkflow(id: string, params: {
+    runtimeParameters: { [key: string]: string };
+    initiator?: string;
+    context?: any;
+  }): Promise<{
+    workflowId: string;
+    templateId: string;
+    workflowName: string;
+    input: any;
+  }> {
+    const response = await this.post<ApiResponse<{
+      workflowId: string;
+      templateId: string;
+      workflowName: string;
+      input: any;
+    }>>(`/api/templates/${id}/execute`, params);
+    return response.data;
+  }
 } 

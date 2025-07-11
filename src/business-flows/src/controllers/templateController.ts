@@ -13,7 +13,7 @@ import {
   publishTemplate,
   getOriginalTemplate
 } from '../services/templateService';
-import { createWorkflowDefinition, generateSampleResolvedAssignments } from '../services/conductorService';
+import { createWorkflowDefinition, generateSampleResolvedAssignments, startWorkflow } from '../services/conductorService';
 import { FlowTemplate } from '../models/flowTemplate';
 import { logger } from '../utils/logger';
 
@@ -44,9 +44,9 @@ export const createTemplateController = async (
  * Get a template by ID
  */
 export const getTemplateController = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
+  req: any,
+  res: any,
+  next: any
 ): Promise<void> => {
   try {
     const templateId = req.params.id;
@@ -65,9 +65,9 @@ export const getTemplateController = async (
  * Get all templates
  */
 export const getAllTemplatesController = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
+  req: any,
+  res: any,
+  next: any
 ): Promise<void> => {
   try {
     const templates = getAllTemplates();
@@ -86,9 +86,9 @@ export const getAllTemplatesController = async (
  * Update a template by ID
  */
 export const updateTemplateController = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
+  req: any,
+  res: any,
+  next: any
 ): Promise<void> => {
   try {
     const templateId = req.params.id;
@@ -109,9 +109,9 @@ export const updateTemplateController = async (
  * Delete a template by ID
  */
 export const deleteTemplateController = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
+  req: any,
+  res: any,
+  next: any
 ): Promise<void> => {
   try {
     const templateId = req.params.id;
@@ -128,9 +128,9 @@ export const deleteTemplateController = async (
  * Uses the same logic as the workflow registration to ensure consistency
  */
 export const generateConductorFlowController = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
+  req: any,
+  res: any,
+  next: any
 ): Promise<void> => {
   try {
     const templateData: FlowTemplate = req.body;
@@ -154,9 +154,9 @@ export const generateConductorFlowController = async (
  * when executed with resolved user assignments
  */
 export const generateConductorFlowWithResolvedAssignmentsController = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
+  req: any,
+  res: any,
+  next: any
 ): Promise<void> => {
   try {
     const templateData: FlowTemplate = req.body;
@@ -289,6 +289,59 @@ export const getOriginalTemplateController = async (
     res.status(StatusCodes.OK).json({
       status: 'success',
       data: originalTemplate
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Execute/Launch a workflow from a template
+ */
+export const executeWorkflowController = async (
+  req: any,
+  res: any,
+  next: any
+): Promise<void> => {
+  try {
+    const templateId = req.params.id;
+    const { runtimeParameters, initiator, context } = req.body;
+    
+    // Get the template with metadata
+    const templateWithMetadata = getTemplateWithMetadata(templateId);
+    const template = templateWithMetadata.template;
+    const workflowDefinition = templateWithMetadata.metadata.workflowDefinition;
+    
+    if (!workflowDefinition) {
+      throw new Error('Template does not have a workflow definition');
+    }
+    
+    // Prepare workflow input
+    const workflowInput = {
+      initiator: initiator || 'system',
+      context: context || {
+        flowInstanceId: `flow_instance_${Date.now()}`,
+        templateId: templateId,
+        launchedAt: new Date().toISOString()
+      },
+      resolvedAssignments: {}, // TODO: Implement assignment resolution
+      ...runtimeParameters // Include runtime content block values
+    };
+    
+    // Start the workflow
+    const workflowId = await startWorkflow(workflowDefinition.name, workflowInput);
+    
+    logger.info(`Workflow started: ${workflowId} from template: ${templateId}`);
+    
+    res.status(StatusCodes.CREATED).json({
+      status: 'success',
+      data: {
+        workflowId,
+        templateId,
+        workflowName: workflowDefinition.name,
+        input: workflowInput
+      },
+      message: 'Workflow started successfully'
     });
   } catch (error) {
     next(error);
