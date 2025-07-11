@@ -22,7 +22,6 @@ const initialValues = {
   files: [],
 };
 
-// Hook for fetching activity types
 const SALES_ACTIVITY_TYPE_CATALOG = 'SalesActivityType';
 const SALES_ACTIVITY_TYPE_VERSION = 'v1';
 
@@ -74,7 +73,6 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
   const fileClient = useFileClient({ accessToken } as any);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
 
-  // Fetch dynamic catalog entries
   const { data: typeOptions, loading: typeLoading } = useSalesActivityTypes(accessToken, { search: typeSearch });
 
   useEffect(() => {
@@ -83,9 +81,7 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
         const response = event.detail?.response;
         const salesActivity = response?.salesActivity;
         if (!salesActivity) return;
-        // Only handle once
         window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener);
-        // File upload
         const uploadFile = fileList && fileList[0];
         if (!uploadFile || !uploadFile.originFileObj) {
           message.error('No file selected for upload');
@@ -102,7 +98,6 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
           pathParams,
           queryParams
         );
-        // POST to saveCrmDocument
         const crmDocumentPayload = {
           crmDocument: {
             name: file.name,
@@ -128,9 +123,7 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
     };
     window.addEventListener('com.newwork.process.taskCompletion', handler as EventListener);
     return () => {
-      // Remove only if event was handled, not on unmount
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, additionalData?.leadId, fileClient, fileList, restClient]);
 
   const handleSubmit = async (values: any) => {
@@ -148,6 +141,7 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
         ownerEmployee: additionalData?.employeeId
       },
     };
+    
     dispatchProcessContinueEvent('pse_submit', payload);
     setLoading(false);
   };
@@ -160,7 +154,6 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
     setFileList(newFileList);
   };
 
-  // Memoize dropdown options for performance
   const mappedTypeOptions = useMemo(() =>
     (typeOptions || []).map((entry: any) => ({
       value: entry.id,

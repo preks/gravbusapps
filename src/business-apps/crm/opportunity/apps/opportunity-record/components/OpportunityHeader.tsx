@@ -50,29 +50,39 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '4px' }}>
-              {opportunity.name}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '4px' }}>
+              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
+                {opportunity.name}
+              </div>
+              {opportunityData?.estimatedAmount && (
+                <div style={{ 
+                  backgroundColor: '#f6ffed', 
+                  border: '1px solid #b7eb8f', 
+                  borderRadius: '6px', 
+                  padding: '8px 12px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  color: '#389e0d'
+                }}>
+                  <DollarOutlined style={{ marginRight: '6px' }} />
+                  {formatCurrency(
+                    opportunityData.estimatedAmount, 
+                    opportunityData?.currency?.code || extractCurrencyCode(opportunity?.currency?.id || 'Currency:v1:EUR')
+                  )}
+                </div>
+              )}
             </div>
             
-            {/* First line - Status, Currency, Estimated Amount, Winning Chance */}
             <div style={{ color: '#8c8c8c', fontSize: '14px', marginBottom: '8px' }}>
               <StarOutlined style={{ marginRight: '4px' }} />
               <span>Status: {opportunityData?.opportunityStatus?.value || opportunity.status}</span>
               <span style={{ margin: '0 8px' }}>•</span>
-              <span>Currency: {extractCurrencyCode(opportunity.currency.id)}</span>
-              {opportunity.value > 0 && (
-                <>
-                  <span style={{ margin: '0 8px' }}>•</span>
-                  <DollarOutlined style={{ marginRight: '4px' }} />
-                  <span>Estimated Amount: {formatCurrency(opportunity.value, extractCurrencyCode(opportunity.currency.id))}</span>
-                </>
-              )}
+              <span>Currency: {opportunityData?.currency?.code || extractCurrencyCode(opportunity?.currency?.id || 'Currency:v1:EUR')}</span>
               <span style={{ margin: '0 8px' }}>•</span>
               <PercentageOutlined style={{ marginRight: '4px' }} />
               <span>Winning Chance: {opportunity.probability ? `${opportunity.probability}%` : 'Not set'}</span>
             </div>
 
-            {/* Second line - Close Date, Owner, Creation Date */}
             <div style={{ color: '#8c8c8c', fontSize: '14px', marginBottom: '8px' }}>
               <CalendarOutlined style={{ marginRight: '4px' }} />
               <span>Close Date: {formatDate(opportunity.expectedCloseDate)}</span>

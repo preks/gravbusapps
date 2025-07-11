@@ -34,6 +34,7 @@ export const NotesForm: React.FC<NotesFormProps> = (props) => {
         ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId })
       },
     };
+    
     dispatchProcessContinueEvent('pse_submit', payload);
     setLoading(false);
   };

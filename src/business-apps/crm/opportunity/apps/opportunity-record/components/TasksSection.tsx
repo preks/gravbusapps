@@ -47,16 +47,40 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
     loadTasks();
   }, [opportunityId]);
 
+  // Add focus event listener to refresh data when user returns to the tab
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('Window gained focus, refreshing opportunity tasks...');
+      loadTasks();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        handleFocus();
+      }
+    });
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [opportunityId]);
+
   // Listen for process completion events to refresh tasks
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log('Tasks: Process completion event received:', event);
-        const response = event.detail?.response;
-        console.log('Tasks: Event response:', response);
+        if (event.detail?.resolution === 'success') {
+          console.log('Opportunity Tasks: Refreshing tasks after successful process...');
+          loadTasks();
+          return;
+        }
         
-        if (response?.detail.resolution === 'success') {
-          console.log('Tasks: Refreshing tasks...');
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === 'success') {
+          console.log('Opportunity Tasks: Refreshing tasks after successful response...');
           loadTasks();
         }
       } catch (err) {
@@ -64,11 +88,20 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
       }
     };
 
-    // Listen to multiple possible event names
+    // Universal event listener to capture all events
+    const handleAllEvents = (event: any) => {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        console.log('Opportunity Tasks: Detected process/task event:', event.type, event);
+        handleProcessCompletion(event);
+      }
+    };
+
+    // Listen to multiple possible event names (comprehensive list like lead record)
     const eventNames = [
       'com.newwork.process.taskCompletion',
       'com.newwork.process.completion',
       'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
       'processCompletion',
       'taskCompletion',
       'taskCompleted',
@@ -81,10 +114,23 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
       window.addEventListener(eventName, handleProcessCompletion as EventListener);
     });
 
+    // Add a universal listener for debugging (like lead record)
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event: Event) {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        console.log('Opportunity Tasks: Custom Event dispatched:', event.type, event);
+        handleAllEvents(event);
+      }
+      return originalDispatchEvent.call(this, event);
+    };
+
     return () => {
       eventNames.forEach(eventName => {
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
+      
+      // Restore original dispatchEvent
+      window.dispatchEvent = originalDispatchEvent;
     };
   }, [opportunityId]);
 

@@ -95,10 +95,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
           activityMapping.push({ activityIndex, titleIndex, descriptionIndex });
         });
 
-        // Translate all texts at once
         const translatedTexts = await translateMultipleTexts(textsToTranslate, selectedLanguage, context.accessToken);
         
-        // Create translated activities based on original activities
         const translatedActivities: TranslatedActivity[] = originalActivities.map((originalActivity, activityIndex) => {
           const mapping = activityMapping[activityIndex];
           return {
@@ -113,7 +111,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
       } catch (err) {
         console.error('Translation error:', err);
         message.error('Failed to translate activities');
-        // Fallback to original activities
         setActivities(originalActivities);
       } finally {
         setTranslating(false);
@@ -142,7 +139,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
   };
 
   const refreshNotes = () => {
-    // Force NotesSection to re-render by updating the key
     setNotesKey(prev => prev + 1);
   };
 
@@ -154,7 +150,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     }
   }, [opportunityId, activeTab]);
 
-  // Add focus event listener to refresh data when user returns to the tab
   useEffect(() => {
     const handleFocus = () => {
       if (activeTab === 'activities') {
@@ -178,7 +173,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     };
   }, [activeTab, opportunityId]);
 
-  // Listen for process completion events and postMessage events
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
@@ -194,11 +188,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
       }
     };
 
-    // Listen for postMessage events from document upload form
     const handlePostMessage = (event: MessageEvent) => {
       try {
         if (event.data?.type === 'CRM_DOCUMENT_UPLOADED' && event.data?.opportunityId === opportunityId) {
-          // Refresh documents when a document is uploaded
           loadDocuments();
         }
       } catch (err) {
@@ -206,14 +198,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
       }
     };
 
-    // Universal event listener to capture all events
     const handleAllEvents = (event: any) => {
       if (event.type && event.type.includes('process') || event.type && event.type.includes('task')) {
         handleProcessCompletion(event);
       }
     };
 
-    // Listen to multiple possible event names
     const eventNames = [
       'com.newwork.process.taskCompletion',
       'com.newwork.process.completion',
@@ -233,7 +223,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     
     window.addEventListener('message', handlePostMessage);
 
-    // Add a universal listener for debugging
     const originalDispatchEvent = window.dispatchEvent;
     window.dispatchEvent = function(event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
@@ -248,7 +237,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
       });
       window.removeEventListener('message', handlePostMessage);
       
-      // Restore original dispatchEvent
       window.dispatchEvent = originalDispatchEvent;
     };
   }, [opportunityId]);

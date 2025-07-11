@@ -9,6 +9,7 @@ export interface OpportunityResponse {
   id: string;
   version: string;
   name: string;
+  estimatedAmount?: number;
   opportunityStatus?: {
     id: string;
     value: string;
@@ -77,6 +78,7 @@ export const GET_OPPORTUNITY_BY_ID = `
       id
       version
       name
+      estimatedAmount
       opportunityStatus {
         id
         value

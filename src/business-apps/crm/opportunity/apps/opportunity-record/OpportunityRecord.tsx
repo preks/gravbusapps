@@ -55,7 +55,6 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
 
   return (
     <div className="gba:opportunity-details-container" data-testid="opportunity-record-detail" style={{ backgroundColor: 'white', padding: '16px' }}>
-      {/* Back navigation */}
       <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
         <button
           onClick={onBack}
@@ -67,7 +66,6 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
         </button>
       </div>
 
-      {/* Opportunity header */}
       <OpportunityHeader 
         opportunity={opportunity} 
         opportunityData={opportunityData} 
@@ -76,39 +74,19 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
         accessToken={props.accessToken} 
       />
 
-      {/* Stage Progression - Hidden for now since stage data is not available in API */}
-      {/* TODO: Re-enable when stage data is available from the API
-      {!loadingStages && opportunityStages.length > 0 && opportunity && (
-        <StageProgression 
-          currentStage={opportunityData?.opportunityStage?.value || opportunity?.stage || 'Discovery'} 
-          stages={opportunityStages}
-          opportunityId={opportunityId}
-          opportunityVersion={parseInt(opportunity.version) || 0}
-          accessToken={props.accessToken}
-          onStageUpdate={refetchOpportunityData}
-        />
-      )}
-      */}
-
-      {/* Main content */}
       <div className="gba:opportunity-details-content" data-testid="opportunity-details-content">
         
-        {/* First Row: Company Information + Contacts */}
         <Row gutter={24} style={{ marginBottom: '24px', display: 'flex', alignItems: 'stretch' }}>
-          {/* Company Information - 3/4 width */}
           <Col span={18} style={{ display: 'flex' }}>
             <CompanyInformation opportunity={opportunity} opportunityData={opportunityData} />
           </Col>
 
-          {/* Contacts - 1/4 width */}
           <Col span={6} style={{ display: 'flex' }}>
             <ContactInformation opportunityData={opportunityData} />
           </Col>
         </Row>
 
-        {/* Second Row: Activity Timeline + Tasks */}
         <Row gutter={24}>
-          {/* Activity Timeline - 1/2 width */}
           <Col span={12}>
             <ActivityTimeline 
               opportunityId={opportunityId}
@@ -116,7 +94,6 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
             />
           </Col>
 
-          {/* Tasks - 1/2 width */}
           <Col span={12}>
             <TasksSection 
               opportunityId={opportunityId}
@@ -135,20 +112,35 @@ interface OpportunityRecordProps extends BusinessAppContextProps {
 }
 
 const OpportunityRecord: React.FC<OpportunityRecordProps> = (props) => {
-  // Default opportunity ID for testing purposes
-  const defaultOpportunityId = '2cabb386-82b8-4a9b-8a91-e8d008b4b2e8';
+  const urlParams = new URLSearchParams(window.location.search);
   const opportunityId = props.opportunityId || 
-                       new URLSearchParams(window.location.search).get('opportunityId') || 
-                       defaultOpportunityId;
+                       urlParams.get('opportunityId') ||
+                       urlParams.get('id');
   
   const handleBack = () => {
     if (props.onBack) {
       props.onBack();
     } else {
-      // Navigate back to opportunities overview
       navigateTo('/platform/crm/opportunity-overview');
     }
   };
+
+  if (!opportunityId) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
+        <div className="gba:text-center">
+          <p className="gba:text-red-500 gba:text-lg">No opportunity ID provided</p>
+          <p className="gba:text-gray-500 gba:mb-4">Please provide an opportunity ID via props or URL parameter</p>
+          <button
+            onClick={handleBack}
+            className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
+          >
+            Back to Opportunities Overview
+          </button>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <OpportunityRecordContent

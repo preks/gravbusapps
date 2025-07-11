@@ -41,12 +41,10 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
     
     try {
       const result = await fetchCrmNotes({ opportunityId });
-      // Sort notes by createdAt in descending order (newest first)
       const sortedNotes = (result.CrmNote || []).sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       
-      // Store original notes for translation reference
       originalNotesRef.current = sortedNotes;
       setNotes(sortedNotes);
     } catch (err) {
@@ -60,13 +58,11 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
     loadNotes();
   }, [opportunityId]);
 
-  // Handle language change and translate notes
   useEffect(() => {
     const translateNotes = async () => {
       const originalNotes = originalNotesRef.current;
       
       if (selectedLanguage === 'Original' || originalNotes.length === 0) {
-        // Reset to original text for Original language or no notes
         setNotes(originalNotes);
         return;
       }
@@ -74,7 +70,6 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
       setTranslating(true);
       
       try {
-        // Collect all text to translate from original notes
         const textsToTranslate: string[] = [];
         const noteMapping: Array<{ noteIndex: number, titleIndex: number, textIndex: number }> = [];
         
@@ -88,10 +83,8 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
           noteMapping.push({ noteIndex, titleIndex, textIndex });
         });
 
-        // Translate all texts at once
         const translatedTexts = await translateMultipleTexts(textsToTranslate, selectedLanguage, context.accessToken);
         
-        // Create translated notes based on original notes
         const translatedNotes: TranslatedNote[] = originalNotes.map((originalNote, noteIndex) => {
           const mapping = noteMapping[noteIndex];
           return {
@@ -106,7 +99,6 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
       } catch (err) {
         console.error('Translation error:', err);
         message.error('Failed to translate notes');
-        // Fallback to original notes
         setNotes(originalNotes);
       } finally {
         setTranslating(false);
@@ -116,7 +108,6 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
     translateNotes();
   }, [selectedLanguage, context.accessToken]);
 
-  // Listen for process completion events to refresh notes
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
@@ -161,12 +152,10 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
         headers: { Authorization: `Bearer ${context.accessToken}` }
       });
       
-      // Remove the note from both states
       setNotes(prevNotes => 
         prevNotes.filter(n => n.id !== note.id)
       );
       
-      // Also remove from original notes ref
       originalNotesRef.current = originalNotesRef.current.filter(n => n.id !== note.id);
       
       message.success('Note deleted successfully');

@@ -7,7 +7,6 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import dayjs from 'dayjs';
 import { useSalesTaskTypes } from './hooks/useSalesTaskTypes';
 import { useSalesTaskPriorities } from './hooks/useSalesTaskPriorities';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { useFileClient } from '@/common/network/files/useFileClient';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
@@ -36,18 +35,15 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
   const fileClient = useFileClient({ accessToken } as any);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
 
-  // Fetch dynamic catalog entries
   const { data: typeOptions, loading: typeLoading } = useSalesTaskTypes(accessToken, { search: typeSearch });
   const { data: priorityOptions, loading: priorityLoading } = useSalesTaskPriorities(accessToken, { search: prioritySearch });
 
-  console.log('typeOptions', typeOptions);
   useEffect(() => {
     const handler = async (event: any) => {
       try {
         const response = event.detail?.response;
         const salesTask = response?.salesTask;
         if (!salesTask) return;
-        // File upload
         const uploadFile = fileList && fileList[0];
         if (!uploadFile || !uploadFile.originFileObj) {
           message.error('No file selected for upload');
@@ -64,7 +60,6 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
           pathParams,
           queryParams
         );
-        // POST to savesalesTask
         const crmDocumentPayload = {
           crmDocument: {
             name: file.name,
@@ -86,15 +81,12 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
       } catch (err: any) {
         message.error(err?.message || 'Failed to upload and save document');
       } finally {
-        // Only handle once
         window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener);
       }
     };
     window.addEventListener('com.newwork.process.taskCompletion', handler as EventListener);
     return () => {
-      // Remove only if event was handled, not on unmount
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, additionalData?.leadId, fileClient, fileList, restClient]);
 
   const handleSubmit = async (values: any) => {
@@ -112,6 +104,7 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
         ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
       },
     };
+    
     dispatchProcessContinueEvent('pse_submit', payload);
     setLoading(false);
   };
@@ -124,7 +117,6 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
     setFileList(newFileList);
   };
 
-  // Memoize dropdown options for performance
   const mappedTypeOptions = useMemo(() =>
     (typeOptions || []).map((entry: any) => ({
       value: entry.id,
