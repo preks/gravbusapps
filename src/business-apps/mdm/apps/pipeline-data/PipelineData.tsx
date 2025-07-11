@@ -37,4 +37,4 @@ const PipelineData: React.FC<PipelineDataProps> = ({
 };
 
 export default PipelineData;
-export { PipelineData }; 
+export { PipelineData };

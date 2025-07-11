@@ -57,7 +57,8 @@ export interface ExpenseRequestsResult {
     page?: number, 
     pageSize?: number, 
     employeeId?: string,
-    status?: string
+    status?: string,
+    requestDateStart?: string
   ) => Promise<void>;
   approveRequest: (requestId: string) => Promise<boolean>;
   rejectRequest: (requestId: string, rejectionReason?: string) => Promise<boolean>;
@@ -88,34 +89,52 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
    * Helper function to build GraphQL variables for the query
    */
   const buildQueryVariables = (
-    managerId: string, 
-    searchTerm: string, 
-    page: number, 
+    managerId: string,
+    searchTerm: string,
+    page: number,
     pageSize: number,
     employeeId?: string,
-    status?: string
+    status?: string,
+    requestDateStart?: string
   ) => {
-    const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`;
     const offset = (page - 1) * pageSize;
-    
-    // Build variables object dynamically based on provided filters
-    const variables: Record<string, any> = {
-      managerId,
-      searchTerm: formattedSearchTerm,
-      limit: pageSize,
-      offset: offset,
+
+    const where: any = {
+      _and: [
+        { status: { _neq: 'DISCARDED' } },
+        { employee: { employeePosition: { supervisorEmployeeId: { _eq: managerId } } } },
+        { isDeleted: { _eq: false } },
+      ],
     };
-    
-    // Only include filter variables if they are provided
-    if (status && status !== 'all') {
-      variables.status = status;
+
+    if (status && status.toUpperCase() !== 'ALL') {
+      where._and.push({ status: { _eq: status.toUpperCase() } });
+    }
+
+    if (requestDateStart) {
+      where._and.push({ requestDate: { _gte: requestDateStart } });
+    }
+
+    if (searchTerm) {
+      const formattedSearchTerm = `%${searchTerm}%`;
+      where._and.push({
+        _or: [
+          { code: { _ilike: formattedSearchTerm } },
+          { title: { _ilike: formattedSearchTerm } },
+          { employee: { fullName: { _ilike: formattedSearchTerm } } },
+        ],
+      });
     }
     
     if (employeeId && employeeId !== 'all') {
-      variables.employeeId = employeeId;
+        where._and.push({ employee: { id: { _eq: employeeId } } });
     }
-    
-    return variables;
+
+    return {
+      where,
+      limit: pageSize,
+      offset: offset,
+    };
   };
 
   /**
@@ -140,11 +159,12 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
   
   // Function to fetch requests with search, pagination, and filtering
   const fetchRequests = useCallback(async (
-    searchTerm: string = '',
-    page: number = 1,
-    pageSize: number = 10,
-    employeeId: string = 'all', // This is a filter parameter, distinct from supervisor's ID
-    status: string = 'all'
+    searchTerm: string = '', 
+    page: number = 1, 
+    pageSize: number = 10, 
+    employeeId: string = 'all', 
+    status: string = 'all',
+    requestDateStart?: string
   ) => {
     if (!accessToken) {
       setError('Access token not available.');
@@ -167,7 +187,7 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     
     try {
       // Build query variables with helper function
-      const variables = buildQueryVariables(supervisorEmployeeId, searchTerm, page, pageSize, employeeId, status);
+      const variables = buildQueryVariables(supervisorEmployeeId, searchTerm, page, pageSize, employeeId, status, requestDateStart);
       
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',

@@ -15,14 +15,6 @@
 @import "tailwindcss" prefix(gba);
 @config "../tailwind.config.js";
 @import "tw-animate-css";
-@import "./business-apps/irm/kanban-board/KanbanBoard/kanban-styles.css";
-@import "./business-apps/crm/overview-screens/CompanyOverview/styles/CompanyOverview.css";
-@import "./business-apps/crm/overview-screens/CompanyOverview/AddNewCompany/styles/AddNewCompany.css";
-@import "./business-apps/crm/overview-screens/OpportunityOverview/styles/OpportunityOverview.css";
-@import "./business-apps/crm/components/tables/styles/CrmDataTable.css";
-@import "./business-apps/crm/components/layout/styles/PageHeader.css";
-@import "./business-apps/crm/detail-screens/CompanyDetail/styles/CompanyDetail.css";
-@import "./business-apps/crm/detail-screens/OpportunityDetail/styles/OpportunityDetail.css";
 @import "./business-apps/hr/absence/apps/AbsenceCalendar/styles/AbsenceCalendar.css";
 @import "./business-apps/fin/expenses/forms/expense-item/ExpenseItem.css";
 @import "./business-apps/fin/expenses/forms/expense-request/ExpenseRequest.css";
@@ -35,7 +27,7 @@
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/statisticsTab.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/upcomingAbsenceCard.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/statsCard.css";
-@import "@newwork/nw-design-system/dist/index.css";
+@import "@newwork/nw-design-system/index.css";
 
 @custom-variant dark (&:is(.dark *));
 
