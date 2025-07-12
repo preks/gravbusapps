@@ -4,7 +4,7 @@
 
 // Assignment target
 export type AssignmentTarget = {
-  entity: 'user' | 'department' | 'capability' | 'role';
+  entity: 'user' | 'department' | 'capability' | 'role' | 'team';
   id: string;
 };
 

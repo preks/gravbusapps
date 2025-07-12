@@ -10,11 +10,14 @@ interface BusinessAppContextProps {
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { FlowTemplate, TaskExecutionType, TimingType, TimeUnit, FlowStep, StepType } from './types/flowTemplate';
 import { FlowTemplateList } from './components/FlowTemplateList';
-import { FlowTemplateDialog } from './components/FlowTemplateDialog';
+import { FlowWizardDialog } from './components/wizard/FlowWizardDialog';
+import { FlowTemplateForm } from './components/FlowTemplateForm';
 import { useFlowTemplateStore } from './hooks/useFlowTemplateStore';
+import { useWizardStore } from './hooks/useWizardStore';
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient';
 import { FlowTemplate as ApiFlowTemplate } from '@/common/network/flows/FlowTemplateClient';
-import { Spin, Alert } from 'antd';
+import { Spin, Alert, Modal, Button, Card, Typography, Space } from 'antd';
+import { StarOutlined, ToolOutlined } from '@ant-design/icons';
 
 /**
  * Flow Creator App component for defining workflow templates
@@ -33,9 +36,12 @@ export const FlowCreator: React.FC<BusinessAppContextProps> = ({
   const [templates, setTemplates] = useState<FlowTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isCustomFormOpen, setIsCustomFormOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<FlowTemplate | null>(null);
   const { resetTemplate, initializeTemplate } = useFlowTemplateStore();
+  const { initializeWizard } = useWizardStore();
 
   // No conversion needed - using the same format everywhere!
 
@@ -81,9 +87,22 @@ export const FlowCreator: React.FC<BusinessAppContextProps> = ({
   };
 
   const handleCreateNew = () => {
+    setIsCreateModalOpen(true);
+  };
+
+  const handleWizardCreate = () => {
     resetTemplate();
     setSelectedTemplate(null);
-    setIsDialogOpen(true);
+    initializeWizard();
+    setIsCreateModalOpen(false);
+    setIsWizardOpen(true);
+  };
+
+  const handleCustomCreate = () => {
+    resetTemplate();
+    setSelectedTemplate(null);
+    setIsCreateModalOpen(false);
+    setIsCustomFormOpen(true);
   };
 
   const handleEdit = async (template: FlowTemplate) => {
@@ -97,13 +116,13 @@ export const FlowCreator: React.FC<BusinessAppContextProps> = ({
         initializeTemplate(template);
         setSelectedTemplate(template);
       }
-      setIsDialogOpen(true);
+      setIsWizardOpen(true);
     } catch (error) {
       // Fallback to the current template if original is not available
       console.warn('Could not load original template, using current:', error);
       initializeTemplate(template);
       setSelectedTemplate(template);
-      setIsDialogOpen(true);
+      setIsWizardOpen(true);
     }
   };
 
@@ -145,13 +164,80 @@ export const FlowCreator: React.FC<BusinessAppContextProps> = ({
         />
       )}
       
-      <FlowTemplateDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        isEditing={!!selectedTemplate}
-        onSave={saveTemplate}
-        data-testid={`${testId}-dialog`}
+      {/* Create Method Selection Modal */}
+      <Modal
+        title="Create New Workflow Template"
+        open={isCreateModalOpen}
+        onCancel={() => setIsCreateModalOpen(false)}
+        footer={null}
+        width={600}
+        centered
+      >
+        <div className="gba:space-y-4">
+          <Card 
+            hoverable 
+            onClick={handleWizardCreate}
+            className="gba:cursor-pointer"
+          >
+            <div className="gba:flex gba:items-center gba:space-x-4">
+              <StarOutlined className="gba:text-2xl gba:text-blue-500" />
+              <div>
+                <h3 className="gba:text-lg gba:font-semibold gba:mb-1">
+                  Guided Wizard (Recommended)
+                </h3>
+                <p className="gba:text-gray-600">
+                  Use pre-built business patterns to create workflows quickly with guided steps
+                </p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card 
+            hoverable 
+            onClick={handleCustomCreate}
+            className="gba:cursor-pointer"
+          >
+            <div className="gba:flex gba:items-center gba:space-x-4">
+              <ToolOutlined className="gba:text-2xl gba:text-gray-500" />
+              <div>
+                <h3 className="gba:text-lg gba:font-semibold gba:mb-1">
+                  Custom Template
+                </h3>
+                <p className="gba:text-gray-600">
+                  Build a workflow from scratch with full control over every detail
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </Modal>
+
+      {/* Wizard Dialog */}
+      <FlowWizardDialog
+        visible={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+        onComplete={async (template: any) => {
+          await saveTemplate(template.template);
+          setIsWizardOpen(false);
+        }}
+        data-testid={`${testId}-wizard-dialog`}
       />
+
+             {/* Custom Form Dialog */}
+       <Modal
+         title="Create Custom Workflow Template"
+         open={isCustomFormOpen}
+         onCancel={() => setIsCustomFormOpen(false)}
+         footer={null}
+         width="90vw"
+         style={{ maxWidth: '1200px' }}
+         centered
+         destroyOnClose
+       >
+         <div style={{ minHeight: '70vh', maxHeight: '80vh', overflow: 'auto' }}>
+           <FlowTemplateForm />
+         </div>
+       </Modal>
     </div>
   );
 };
