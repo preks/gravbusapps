@@ -18,7 +18,7 @@ import {
   CheckCircleOutlined
 } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { SimplifiedStep, AttachmentLink, InputBlock, InputBlockType, StepType } from '../../types/flowTemplate';
+import { SimplifiedStep, AttachmentLink, Input, InputBlockType, StepType } from '../../types/flowTemplate';
 import { AssignmentSelector } from '../shared/AssignmentSelector';
 
 const { TextArea } = Input;
@@ -160,7 +160,7 @@ export const SimplifiedStepEditor: React.FC<SimplifiedStepEditorProps> = ({
   };
 
   const addInputBlock = () => {
-    const newInput: InputBlock = {
+    const newInput: Input = {
       type: InputBlockType.TEXT,
       label: '',
       required: false,
@@ -171,7 +171,7 @@ export const SimplifiedStepEditor: React.FC<SimplifiedStepEditorProps> = ({
     });
   };
 
-  const updateInputBlock = (index: number, updates: Partial<InputBlock>) => {
+  const updateInputBlock = (index: number, updates: Partial<Input>) => {
     const updatedInputs = [...step.requestInput.inputs];
     updatedInputs[index] = { ...updatedInputs[index], ...updates };
     updateRequestInput({ inputs: updatedInputs });

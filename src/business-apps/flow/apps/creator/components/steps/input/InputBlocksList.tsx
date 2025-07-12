@@ -1,7 +1,7 @@
 import React from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFlowTemplateStore } from '../../../hooks/useFlowTemplateStore';
-import { InputBlock, InputBlockType } from '../../../types/flowTemplate';
+import { Input, InputBlockType } from '../../../types/flowTemplate';
 import { TextInputBlock } from './TextInputBlock';
 import { SelectInputBlock } from './SelectInputBlock';
 import { DatetimeInputBlock } from './DatetimeInputBlock';
@@ -10,7 +10,7 @@ import { SignatureBlock } from './SignatureBlock';
 
 interface InputBlocksListProps {
   taskId: string;
-  blocks: InputBlock[];
+  blocks: Input[];
   'data-testid'?: string;
 }
 
@@ -28,7 +28,7 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
     addInputBlock(taskId, type);
   };
 
-  const renderBlock = (block: InputBlock, index: number) => {
+  const renderBlock = (block: Input, index: number) => {
     switch (block.type) {
       case 'text':
       case 'textarea':

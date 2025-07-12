@@ -48,185 +48,264 @@ export const registerTaskDefinitions = async (): Promise<void> => {
 };
 
 /**
- * Convert a flow template to a Conductor workflow definition
- * 
- * Two different patterns are used based on assignment configuration:
- * 
- * 1. assignToAll=false (shared task): CLAIM task → HUMAN task
- *    - CLAIM task allows any eligible user to claim the task
- *    - HUMAN task is then assigned to the user who claimed it
- * 
- * 2. assignToAll=true (individual tasks): DYNAMIC FORK JOIN → HUMAN tasks
- *    - Uses DYNAMIC FORK JOIN to create parallel HUMAN tasks for each resolved user
- *    - No CLAIM task needed since users are known upfront
- *    - Requires 'resolvedAssignments' input parameter with structure:
- *      resolvedAssignments: {
- *        step_0: {
- *          forkedTasks: [
- *            { name: "HUMAN_step1_user1", taskReferenceName: "human_step1_user1" },
- *            { name: "HUMAN_step1_user2", taskReferenceName: "human_step1_user2" }
- *          ],
- *          forkedTasksInputs: [
- *            { assignee: "user1", assigneeType: "user", ... },
- *            { assignee: "user2", assigneeType: "user", ... }
- *          ]
- *        }
- *      }
+ * Transform UI assignment structure to backend assignment structure
  */
-export const createWorkflowDefinition = (template: FlowTemplate): any => {
-  // Generate workflow name based on template title
-  const workflowName = `flow_${template.title.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
+const transformUIAssignmentToBackend = (step: any): any => {
+  // If step has usePredefinedAssignment structure (UI format)
+  if (step.usePredefinedAssignment?.enabled && step.usePredefinedAssignment.assignment) {
+    const uiAssignment = step.usePredefinedAssignment.assignment;
+    
+    // Convert UI TaskAssignment to backend Assignment
+    const backendAssignment: any = {
+      type: 'SPECIFIC_USERS', // Default type
+      userIds: [],
+      roleIds: [],
+      departmentIds: []
+    };
+    
+    // Process targets and convert to appropriate arrays
+    if (uiAssignment.targets && Array.isArray(uiAssignment.targets)) {
+      uiAssignment.targets.forEach((target: any) => {
+        switch (target.entity) {
+          case 'user':
+            backendAssignment.userIds.push(target.id);
+            backendAssignment.type = 'SPECIFIC_USERS';
+            break;
+          case 'role':
+            backendAssignment.roleIds.push(target.id);
+            backendAssignment.type = 'ROLE_BASED';
+            break;
+          case 'department':
+            backendAssignment.departmentIds.push(target.id);
+            backendAssignment.type = 'DEPARTMENT';
+            break;
+        }
+      });
+    }
+    
+    // Preserve additional properties
+    backendAssignment.assignmentMode = uiAssignment.assignmentMode;
+    backendAssignment.allowReassignment = uiAssignment.allowReassignment;
+    
+    return backendAssignment;
+  }
   
-  // Extract content blocks that need runtime values (empty content)
-  const runtimeContentBlocks: any[] = [];
+  // If step already has backend assignment structure, return as-is
+  if (step.assignment) {
+    return step.assignment;
+  }
   
-  // Helper function to process content blocks
-  const processContentBlocks = (contentBlocks: any[], stepIndex: number) => {
-    return contentBlocks.map((block, blockIndex) => {
-      if (!block.content || block.content.trim() === '') {
-        // This content block needs to be filled at runtime
-        const parameterName = `step_${stepIndex}_content_${blockIndex}`;
-        runtimeContentBlocks.push({
-          parameterName,
-          stepIndex,
-          blockIndex,
-          blockId: block.id,
-          blockType: block.type,
-          label: block.description || `Content for ${template.steps[stepIndex]?.title || `Step ${stepIndex + 1}`} - Block ${blockIndex + 1}`,
-          required: block.required || false
-        });
-        
-        // Wire to workflow input parameter
-        return {
-          ...block,
-          content: `\${workflow.input.${parameterName}}`
-        };
-      }
-      return block;
+  // No assignment
+  return null;
+};
+
+/**
+ * Transform backend assignment structure to UI assignment structure
+ */
+const transformBackendAssignmentToUI = (assignment: any): any => {
+  if (!assignment) return null;
+  
+  // If it's already UI format, return as-is
+  if (assignment.targets && assignment.assignmentMode !== undefined) {
+    return {
+      enabled: true,
+      assignment: assignment
+    };
+  }
+  
+  // Convert backend Assignment to UI TaskAssignment
+  const targets: any[] = [];
+  
+  // Convert userIds to user targets
+  if (assignment.userIds && Array.isArray(assignment.userIds)) {
+    assignment.userIds.forEach((userId: string) => {
+      targets.push({ entity: 'user', id: userId });
     });
+  }
+  
+  // Convert roleIds to role targets
+  if (assignment.roleIds && Array.isArray(assignment.roleIds)) {
+    assignment.roleIds.forEach((roleId: string) => {
+      targets.push({ entity: 'role', id: roleId });
+    });
+  }
+  
+  // Convert departmentIds to department targets
+  if (assignment.departmentIds && Array.isArray(assignment.departmentIds)) {
+    assignment.departmentIds.forEach((departmentId: string) => {
+      targets.push({ entity: 'department', id: departmentId });
+    });
+  }
+  
+  return {
+    enabled: true,
+    assignment: {
+      targets: targets,
+      assignmentMode: assignment.assignmentMode || 'CLAIM',
+      allowReassignment: assignment.allowReassignment !== false
+    }
+  };
+};
+
+/**
+ * Create a workflow definition from a flow template
+ * Updated for simplified model and proper ID management
+ */
+export const createWorkflowDefinition = (template: any): any => {
+  // Debug: Log template structure
+  logger.info('Creating workflow definition for template:', JSON.stringify(template, null, 2));
+  
+  // Validate template structure
+  if (!template || !template.name) {
+    logger.error('Invalid template structure - missing name:', template);
+    throw new AppError('Invalid template structure - missing name', StatusCodes.BAD_REQUEST);
+  }
+  
+  if (!template.steps || !Array.isArray(template.steps)) {
+    logger.error('Invalid template structure - missing or invalid steps:', template);
+    throw new AppError('Invalid template structure - missing or invalid steps', StatusCodes.BAD_REQUEST);
+  }
+  
+  // Create a clean workflow name from template name
+  const cleanName = template.name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '') // Remove special characters
+    .replace(/\s+/g, '_') // Replace spaces with underscores
+    .replace(/_+/g, '_') // Replace multiple underscores with single
+    .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+  
+  const workflowName = `flow_${cleanName}`;
+  const version = template.version || 1;
+  
+  // Use step title to make task name more readable
+  const processInputBlocks = (inputBlocks: any[], stepIndex: number) => {
+    return inputBlocks.map((block: any, blockIndex: number) => ({
+      ...block,
+      parameterName: `step${stepIndex}_${block.name}`,
+      blockId: `step${stepIndex}_block${blockIndex}`,
+    }));
   };
   
-  // Start building the workflow tasks
   const workflowTasks: any[] = [];
   
-  // Determine if we should use parallel or sequential execution
-  const isParallel = template.executionStrategy === 'PARALLEL';
-  
-  // Process each step and group tasks by execution pattern
-  const stepGroups: any[] = [];
-  
-  template.steps.forEach((step, index) => {
-    const stepId = step.id || `step_${index}`;
+  // Process each step - always sequential execution for simplified model
+  template.steps.forEach((step: any, index: number) => {
+    // Validate step structure
+    if (!step || !step.name) {
+      logger.error(`Invalid step structure at index ${index} - missing name:`, step);
+      throw new AppError(`Invalid step structure at index ${index} - missing name`, StatusCodes.BAD_REQUEST);
+    }
     
-    // Get assignment configuration (step-level overrides flow-level when present)
-    const assignment = step.assignment || template.assignment;
+    const stepId = `step_${index}`;
     
-    if (assignment && assignment.assignToAll) {
-      // For assignToAll=true: Use DYNAMIC FORK JOIN to create tasks for all resolved users
-      // No CLAIM task needed since we know all users upfront
-      const dynamicForkTask = {
-        name: `DYNAMIC_FORK_${stepId}`,
-        taskReferenceName: `dynamic_fork_${stepId}`,
-        type: 'FORK_JOIN_DYNAMIC',
-        dynamicForkTasksParam: 'forkedTasks',
-        dynamicForkTasksInputParamName: 'forkedTasksInputs',
-        inputParameters: {
-          stepIndex: index,
-          title: step.title,
-          description: step.description,
-          stepType: step.type,
-          contentBlocks: processContentBlocks(step.contentBlocks || [], index),
-          inputBlocks: step.inputBlocks || [],
-          assignmentTargets: assignment.targets || (step as any).assignmentTargets || [],
-          allowReassignment: assignment.allowReassignment || false,
-          // This will be populated at execution time with resolved userIds
-          forkedTasks: `\${workflow.input.resolvedAssignments.step_${index}.forkedTasks}`,
-          forkedTasksInputs: `\${workflow.input.resolvedAssignments.step_${index}.forkedTasksInputs}`,
-        },
-      };
+    // Use step title to make task name more readable
+    const sanitizedTitle = step.name.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+    
+    // Transform assignment structure (handles both UI and backend formats)
+    const transformedAssignment = transformUIAssignmentToBackend(step);
+    const hasAssignment = transformedAssignment !== null;
+    
+    if (hasAssignment) {
+      const assignment = step.assignment;
       
-      stepGroups.push(dynamicForkTask);
-    } else {
-      // For assignToAll=false: Use CLAIM task + HUMAN task pattern
-      // First CLAIM task to determine who gets the task
+      // Create CLAIM task first - this handles the claiming logic
       const claimTask = {
-        name: 'CLAIM',
+        name: `CLAIM_${sanitizedTitle}_${stepId}`,
         taskReferenceName: `claim_${stepId}`,
         type: 'SIMPLE',
-        taskDefinition: {
-          name: 'CLAIM',
-        },
         inputParameters: {
           stepIndex: index,
-          title: step.title,
-          description: step.description,
+          title: step.name,
+          message: step.description || '',
           stepType: step.type,
-          assignmentTargets: assignment?.targets || (step as any).assignmentTargets || [],
-          taskCategory: 'CLAIM', // Add consistent field for type identification
+          assignment: assignment,
+          assignmentMode: 'CLAIM',
+          taskCategory: 'CLAIM',
         },
       };
       
-      // Then HUMAN task assigned to the user who claimed it
+      // Create HUMAN task that depends on the CLAIM task
       const humanTask = {
-        name: `HUMAN_${stepId}`,
+        name: `HUMAN_${sanitizedTitle}_${stepId}`,
         taskReferenceName: `human_${stepId}`,
         type: 'HUMAN',
         inputParameters: {
           stepIndex: index,
-          title: step.title,
-          description: step.description,
+          title: step.name,
+          message: step.description || '',
           stepType: step.type,
-          contentBlocks: processContentBlocks(step.contentBlocks || [], index),
-          inputBlocks: step.inputBlocks || [],
-          assignmentTargets: assignment?.targets || (step as any).assignmentTargets || [],
-          sharedTask: true,
-          allowReassignment: assignment?.allowReassignment || false,
-          userId: `\${claim_${stepId}.output.userId}`, // Get userId from CLAIM task output
-          assignee: `\${claim_${stepId}.output.userId}`, // Assign to the user who claimed it
-          taskCategory: 'HUMAN', // Add consistent field for type identification
+          attachments: step.links || [],
+          inputBlocks: step.inputs ? processInputBlocks(step.inputs, index) : [],
+          assignment: assignment,
+          assignmentMode: 'CLAIM',
+          taskCategory: 'HUMAN',
+          // Get the user who claimed the task
+          userId: `\${claim_${stepId}.output.userId}`,
+          assignee: `\${claim_${stepId}.output.userId}`,
+          claimedBy: `\${claim_${stepId}.output.userId}`,
         },
       };
       
-      // Add both tasks sequentially for this step
-      stepGroups.push(claimTask);
-      stepGroups.push(humanTask);
+      workflowTasks.push(claimTask);
+      workflowTasks.push(humanTask);
+    } else {
+      // No predefined assignment - will be configured at execution time
+      // Still use CLAIM pattern for consistency
+      const claimTask = {
+        name: `CLAIM_${sanitizedTitle}_${stepId}`,
+        taskReferenceName: `claim_${stepId}`,
+        type: 'SIMPLE',
+        inputParameters: {
+          stepIndex: index,
+          title: step.name,
+          message: step.description || '',
+          stepType: step.type,
+          assignmentMode: 'CLAIM',
+          executionTimeAssignment: true,
+          taskCategory: 'CLAIM',
+        },
+      };
+      
+      const humanTask = {
+        name: `HUMAN_${sanitizedTitle}_${stepId}`,
+        taskReferenceName: `human_${stepId}`,
+        type: 'HUMAN',
+        inputParameters: {
+          stepIndex: index,
+          title: step.name,
+          message: step.description || '',
+          stepType: step.type,
+          attachments: step.links || [],
+          inputBlocks: step.inputs ? processInputBlocks(step.inputs, index) : [],
+          assignmentMode: 'CLAIM',
+          executionTimeAssignment: true,
+          taskCategory: 'HUMAN',
+          // Get the user who claimed the task
+          userId: `\${claim_${stepId}.output.userId}`,
+          assignee: `\${claim_${stepId}.output.userId}`,
+          claimedBy: `\${claim_${stepId}.output.userId}`,
+        },
+      };
+      
+      workflowTasks.push(claimTask);
+      workflowTasks.push(humanTask);
     }
   });
   
-  // Set workflowTasks to the step groups
-  workflowTasks.push(...stepGroups);
-  
-  // Wrap tasks in appropriate execution structure
-  let finalTasks: any[];
-  
-  if (isParallel && workflowTasks.length > 1) {
-    // Use FORK_JOIN for parallel execution
-    finalTasks = [{
-      name: 'FORK_JOIN',
-      taskReferenceName: 'parallel_execution',
-      type: 'FORK_JOIN',
-      forkTasks: [workflowTasks], // All tasks in parallel
-      joinOn: workflowTasks.map(task => task.taskReferenceName),
-    }];
-  } else {
-    // Sequential execution (default)
-    finalTasks = workflowTasks;
-  }
-  
-  // Create the workflow definition
+  // Create the workflow definition (always sequential for simplified model)
   const workflowDef = {
     name: workflowName,
     description: template.description,
-    version: 1,
-    tasks: finalTasks,
+    version: version,
+    tasks: workflowTasks,
     inputParameters: [
       'initiator', 
       'context', 
-      'resolvedAssignments', // Contains resolved userIds for each step's assignments
-      ...runtimeContentBlocks.map(block => block.parameterName) // Add runtime content parameters
+      'resolvedAssignments', // Contains resolved userIds for steps with ASSIGN mode
+      'executionTimeAssignments', // Contains assignments configured at execution time
     ],
     outputParameters: {
-      results: finalTasks.map(task => `\${${task.taskReferenceName}.output}`),
+      results: workflowTasks.map(task => `\${${task.taskReferenceName}.output}`),
       completed: true,
     },
     schemaVersion: 2,
@@ -236,19 +315,19 @@ export const createWorkflowDefinition = (template: FlowTemplate): any => {
     timeoutSeconds: 0,
     variables: {},
     metadata: {
-      flowType: template.flowType || 'TEMPLATE',
+      flowType: template.type || 'TEMPLATE',
+      // Store the complete original template for editing
       originalTemplate: {
-        title: template.title,
-        description: template.description,
-        executionStrategy: template.executionStrategy,
-        stepsCount: template.steps.length,
-        flowType: template.flowType,
+        ...template,
+        id: workflowName, // Use workflow name as ID
       },
-      assignmentResolutionRequired: template.steps.some(step => {
-        const assignment = step.assignment || template.assignment;
-        return assignment && assignment.assignToAll;
+      assignmentResolutionRequired: template.steps.some((step: any) => {
+        return step.assignment;
       }),
-      runtimeContentBlocks, // Content blocks that need to be filled at execution time
+      executionTimeAssignmentRequired: template.steps.some((step: any) => {
+        return !step.assignment;
+      }),
+      claimTaskPattern: true, // Indicates this workflow uses CLAIM->HUMAN task pattern
     },
   };
   
@@ -257,30 +336,60 @@ export const createWorkflowDefinition = (template: FlowTemplate): any => {
 
 /**
  * Generate a sample resolvedAssignments structure for testing
- * In production, this would be created by resolving the assignment targets to actual userIds
+ * Updated for simplified model - resolves assignment targets to actual userIds
  */
-export const generateSampleResolvedAssignments = (template: FlowTemplate): any => {
+export const generateSampleResolvedAssignments = (template: any): any => {
   const resolvedAssignments: any = {};
   
-  template.steps.forEach((step, index) => {
-    const assignment = step.assignment || template.assignment;
+  template.steps.forEach((step: any, index: number) => {
+    const hasAssignment = step.usePredefinedAssignment?.enabled && step.usePredefinedAssignment?.assignment;
     
-    if (assignment && assignment.assignToAll) {
-      const stepId = step.id || `step_${index}`;
+    if (hasAssignment) {
+      const assignment = step.usePredefinedAssignment.assignment;
       
-      // Generate sample resolved userIds based on assignment targets
-      const forkedTasks: any[] = [];
-      const forkedTasksInputs: any[] = [];
-      
-      if (assignment.targets.length > 0) {
-        // Use actual targets
-        assignment.targets.forEach((target, targetIndex) => {
-          // In production, this would resolve department/team/role to actual userIds
-          const sampleUserIds = target.entity === 'user' 
-            ? [target.id] 
-            : [`${target.id}_user1`, `${target.id}_user2`, `${target.id}_user3`]; // Mock resolution
-            
-          sampleUserIds.forEach((userId, userIndex) => {
+      if (assignment.assignmentMode === 'ASSIGN') {
+        // Generate sample resolved userIds for ASSIGN mode
+        const forkedTasks: any[] = [];
+        const forkedTasksInputs: any[] = [];
+        
+        if (assignment.targets && assignment.targets.length > 0) {
+          // Use actual targets
+          assignment.targets.forEach((target: any, targetIndex: number) => {
+            // In production, this would resolve department/team/role to actual userIds
+            const sampleUserIds = target.entity === 'user' 
+              ? [target.id] 
+              : [`${target.id}_user1`, `${target.id}_user2`, `${target.id}_user3`]; // Mock resolution
+              
+            sampleUserIds.forEach((userId: string, userIndex: number) => {
+              const taskId = `step${index}_${userId}`;
+              
+              forkedTasks.push({
+                name: `HUMAN_${taskId}`,
+                taskReferenceName: `human_${taskId}`,
+                type: 'HUMAN'
+              });
+              
+              forkedTasksInputs.push({
+                stepIndex: index,
+                title: step.title,
+                message: step.message,
+                stepType: step.type,
+                attachments: step.attachments || [],
+                inputBlocks: step.requestInput?.enabled ? step.requestInput.inputs || [] : [],
+                assignee: userId,
+                assigneeType: 'user',
+                assigneeName: userId,
+                allowReassignment: assignment.allowReassignment || false,
+                targetIndex: targetIndex,
+                userIndex: userIndex,
+              });
+            });
+          });
+        } else {
+          // Generate sample users when no targets specified (for testing)
+          const sampleUserIds = ['sample_user1', 'sample_user2', 'sample_user3'];
+          
+          sampleUserIds.forEach((userId: string, userIndex: number) => {
             const taskId = `step${index}_${userId}`;
             
             forkedTasks.push({
@@ -292,53 +401,25 @@ export const generateSampleResolvedAssignments = (template: FlowTemplate): any =
             forkedTasksInputs.push({
               stepIndex: index,
               title: step.title,
-              description: step.description,
+              message: step.message,
               stepType: step.type,
-              contentBlocks: step.contentBlocks || [], // Keep original for sample generation
-              inputBlocks: step.inputBlocks || [],
+              attachments: step.attachments || [],
+              inputBlocks: step.requestInput?.enabled ? step.requestInput.inputs || [] : [],
               assignee: userId,
               assigneeType: 'user',
               assigneeName: userId,
               allowReassignment: assignment.allowReassignment || false,
-              targetIndex: targetIndex,
+              targetIndex: 0,
               userIndex: userIndex,
             });
           });
-        });
-      } else {
-        // Generate sample users when no targets specified (for testing)
-        const sampleUserIds = ['sample_user1', 'sample_user2', 'sample_user3'];
+        }
         
-        sampleUserIds.forEach((userId, userIndex) => {
-          const taskId = `step${index}_${userId}`;
-          
-          forkedTasks.push({
-            name: `HUMAN_${taskId}`,
-            taskReferenceName: `human_${taskId}`,
-            type: 'HUMAN'
-          });
-          
-          forkedTasksInputs.push({
-            stepIndex: index,
-            title: step.title,
-            description: step.description,
-            stepType: step.type,
-            contentBlocks: step.contentBlocks || [],
-            inputBlocks: step.inputBlocks || [],
-            assignee: userId,
-            assigneeType: 'user',
-            assigneeName: userId,
-            allowReassignment: assignment.allowReassignment || false,
-            targetIndex: 0,
-            userIndex: userIndex,
-          });
-        });
+        resolvedAssignments[`step_${index}`] = {
+          forkedTasks,
+          forkedTasksInputs
+        };
       }
-      
-      resolvedAssignments[`step_${index}`] = {
-        forkedTasks,
-        forkedTasksInputs
-      };
     }
   });
   
@@ -346,12 +427,33 @@ export const generateSampleResolvedAssignments = (template: FlowTemplate): any =
 };
 
 /**
- * Register a workflow definition with Conductor
+ * Register a workflow definition in Conductor
+ * Updated to handle versioning - creates new version if workflow exists
  */
 export const registerWorkflowDefinition = async (workflowDef: any): Promise<any> => {
   try {
-    const response = await conductorClient.post('/metadata/workflow', workflowDef);
-    logger.info(`Workflow ${workflowDef.name} registered successfully`);
+    // Check if workflow already exists
+    let existingWorkflow;
+    try {
+      existingWorkflow = await getWorkflowDefinition(workflowDef.name);
+    } catch (error) {
+      // Workflow doesn't exist, continue with registration
+      existingWorkflow = null;
+    }
+
+    if (existingWorkflow) {
+      // Workflow exists, create new version
+      const nextVersion = (existingWorkflow.version || 1) + 1;
+      workflowDef.version = nextVersion;
+      logger.info(`Workflow ${workflowDef.name} exists, creating version ${nextVersion}`);
+    } else {
+      // New workflow, start with version 1
+      workflowDef.version = workflowDef.version || 1;
+      logger.info(`Creating new workflow ${workflowDef.name} version ${workflowDef.version}`);
+    }
+
+    const response = await conductorClient.put('/metadata/workflow', [workflowDef]);
+    logger.info(`Workflow ${workflowDef.name} (v${workflowDef.version}) registered successfully`);
     return response.data;
   } catch (error) {
     logger.error('Failed to register workflow definition', error);
@@ -759,6 +861,76 @@ export const completeTask = async (taskId: string, output: any): Promise<Task> =
     }
     logger.error(`Failed to complete task ${taskId}`, error);
     throw new AppError('Failed to complete task', StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+/**
+ * Get all workflow definitions from Conductor
+ */
+export const getAllWorkflowDefinitions = async (): Promise<any[]> => {
+  try {
+    const response = await conductorClient.get('/metadata/workflow');
+    return response.data || [];
+  } catch (error) {
+    logger.error('Failed to get workflow definitions', error);
+    throw new AppError('Failed to get workflow definitions', StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+/**
+ * Get a specific workflow definition from Conductor
+ */
+export const getWorkflowDefinition = async (workflowName: string, version?: number): Promise<any> => {
+  try {
+    // If no version specified, get the latest version
+    if (!version) {
+      const response = await conductorClient.get(`/metadata/workflow/${workflowName}`);
+      return response.data;
+    }
+    
+    const response = await conductorClient.get(`/metadata/workflow/${workflowName}/${version}`);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      throw new AppError('Workflow definition not found', StatusCodes.NOT_FOUND);
+    }
+    logger.error('Failed to get workflow definition', error);
+    throw new AppError('Failed to get workflow definition', StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+/**
+ * Convert workflow definition back to template format
+ * Simplified to use only the stored original template (unidirectional transformation)
+ */
+export const convertWorkflowDefinitionToTemplate = (workflowDef: any): any => {
+  try {
+    // Always use the stored original template - this is the single source of truth
+    if (workflowDef.metadata?.originalTemplate) {
+      return workflowDef.metadata.originalTemplate;
+    }
+
+    // Fallback for legacy workflows without stored original template
+    // This should only happen for old workflows created before this change
+    return {
+      id: workflowDef.name,
+      name: workflowDef.name.replace(/^flow_/, '').replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+      description: workflowDef.description || '',
+      type: workflowDef.metadata?.flowType || 'TEMPLATE',
+      version: workflowDef.version || 1,
+      steps: [] // Empty steps for legacy workflows - they need to be recreated
+    };
+  } catch (error) {
+    logger.error('Failed to convert workflow definition to template', error);
+    // Return minimal template
+    return {
+      id: workflowDef.name,
+      name: workflowDef.name || 'Unknown Template',
+      description: workflowDef.description || '',
+      type: 'TEMPLATE',
+      version: workflowDef.version || 1,
+      steps: []
+    };
   }
 };
 

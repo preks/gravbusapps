@@ -1,11 +1,11 @@
 import React from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFlowTemplateStore } from '../../../hooks/useFlowTemplateStore';
-import { InputBlock } from '../../../types/flowTemplate';
+import { Input } from '../../../types/flowTemplate';
 
 interface TextInputBlockProps {
   taskId: string;
-  block: InputBlock;
+  block: Input;
   onRemove: () => void;
   'data-testid'?: string;
 }

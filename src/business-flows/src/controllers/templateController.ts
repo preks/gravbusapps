@@ -50,7 +50,7 @@ export const getTemplateController = async (
 ): Promise<void> => {
   try {
     const templateId = req.params.id;
-    const template = getTemplateById(templateId);
+    const template = await getTemplateById(templateId);
     
     res.status(StatusCodes.OK).json({
       status: 'success',
@@ -70,7 +70,7 @@ export const getAllTemplatesController = async (
   next: any
 ): Promise<void> => {
   try {
-    const templates = getAllTemplates();
+    const templates = await getAllTemplates();
     
     res.status(StatusCodes.OK).json({
       status: 'success',
@@ -115,7 +115,7 @@ export const deleteTemplateController = async (
 ): Promise<void> => {
   try {
     const templateId = req.params.id;
-    deleteTemplate(templateId);
+    await deleteTemplate(templateId);
     
     res.status(StatusCodes.NO_CONTENT).send();
   } catch (error) {
@@ -219,7 +219,7 @@ export const getDraftsController = async (
   next: any
 ): Promise<void> => {
   try {
-    const drafts = getDraftTemplates();
+    const drafts = await getDraftTemplates();
     
     res.status(StatusCodes.OK).json({
       status: 'success',
@@ -241,7 +241,7 @@ export const getTemplateWithMetadataController = async (
 ): Promise<void> => {
   try {
     const templateId = req.params.id;
-    const templateWithMetadata = getTemplateWithMetadata(templateId);
+    const templateWithMetadata = await getTemplateWithMetadata(templateId);
     
     res.status(StatusCodes.OK).json({
       status: 'success',
@@ -284,7 +284,7 @@ export const getOriginalTemplateController = async (
 ): Promise<void> => {
   try {
     const templateId = req.params.id;
-    const originalTemplate = getOriginalTemplate(templateId);
+    const originalTemplate = await getOriginalTemplate(templateId);
     
     res.status(StatusCodes.OK).json({
       status: 'success',
@@ -308,7 +308,7 @@ export const executeWorkflowController = async (
     const { runtimeParameters, initiator, context } = req.body;
     
     // Get the template with metadata
-    const templateWithMetadata = getTemplateWithMetadata(templateId);
+    const templateWithMetadata = await getTemplateWithMetadata(templateId);
     const template = templateWithMetadata.template;
     const workflowDefinition = templateWithMetadata.metadata.workflowDefinition;
     
@@ -318,15 +318,15 @@ export const executeWorkflowController = async (
     
     // Resolve assignment targets for each step
     const resolvedAssignments: any = {};
-    template.steps.forEach((step: any, index) => {
-      if (step.assignmentTargets && step.assignmentTargets.length > 0) {
+    template.steps.forEach((step: any, index: number) => {
+      if (step.assignment) {
         resolvedAssignments[`step_${index}`] = {
-          assignmentTargets: step.assignmentTargets,
-          stepType: step.stepType,
-          title: step.title,
+          assignment: step.assignment,
+          stepType: step.type,
+          name: step.name,
           description: step.description,
-          contentBlocks: step.contentBlocks || [],
-          inputBlocks: step.inputBlocks || []
+          inputs: step.inputs || [],
+          links: step.links || []
         };
       }
     });
@@ -340,7 +340,7 @@ export const executeWorkflowController = async (
         launchedAt: new Date().toISOString()
       },
       resolvedAssignments,
-      ...runtimeParameters // Include runtime content block values
+      ...runtimeParameters // Include runtime input values
     };
     
     // Start the workflow

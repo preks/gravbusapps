@@ -6,13 +6,14 @@ interface BusinessAppContextProps {
   userInfo: any;
   employeeId: string;
   'data-testid'?: string;
-};
+}
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient';
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient';
-import { Spin, Alert, Card, Button, Input, Select, Typography } from 'antd';
+import { Spin, Alert, Card, Button, Input, Select, Typography, Modal } from 'antd';
 const { TextArea } = Input;
-import { PlayCircleOutlined, FileTextOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons';
+import { ExecutionWizard } from '../creator/components/execution/ExecutionWizard';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -52,6 +53,7 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
   const [templateMetadata, setTemplateMetadata] = useState<any>(null);
   const [launchParameters, setLaunchParameters] = useState<LaunchParameters>({});
   const [isLaunching, setIsLaunching] = useState(false);
+  const [showExecutionWizard, setShowExecutionWizard] = useState(false);
 
   // Load published templates from API
   const loadPublishedTemplates = async () => {
@@ -113,8 +115,56 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
     }));
   };
 
-  // Launch the workflow
-  const handleLaunch = async () => {
+  // Launch the workflow using ExecutionWizard
+  const handleLaunchWithWizard = () => {
+    if (!selectedTemplate) return;
+    setShowExecutionWizard(true);
+  };
+
+  // Execute workflow from ExecutionWizard
+  const handleExecuteWorkflow = async (executionConfig: any) => {
+    if (!selectedTemplate || !templateMetadata) return;
+
+    try {
+      setIsLaunching(true);
+      
+      // Prepare execution parameters
+      const executionParams = {
+        runtimeParameters: launchParameters,
+        initiator: user?.id || employeeId,
+        context: {
+          flowInstanceId: `flow_instance_${Date.now()}`,
+          launchedBy: user?.name || user?.id || employeeId,
+          launchedAt: new Date().toISOString(),
+          templateTitle: selectedTemplate.title
+        },
+        ...executionConfig
+      };
+
+      // Execute the workflow via API
+      const result = await flowTemplateClient.executeWorkflow(selectedTemplate.id!, executionParams);
+      
+      console.log('Workflow launched successfully:', result);
+      
+      alert(`Workflow launched successfully!\n\nWorkflow ID: ${result.workflowId}\nTemplate: ${selectedTemplate.title}`);
+      
+      // Reset form after successful launch
+      setLaunchParameters({});
+      setSelectedTemplate(null);
+      setTemplateMetadata(null);
+      setShowExecutionWizard(false);
+      
+    } catch (err) {
+      console.error('Error launching workflow:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to launch workflow';
+      alert(`Failed to launch workflow: ${errorMessage}`);
+    } finally {
+      setIsLaunching(false);
+    }
+  };
+
+  // Direct launch (legacy method - kept for simple templates)
+  const handleDirectLaunch = async () => {
     if (!selectedTemplate || !templateMetadata) return;
 
     try {
@@ -242,16 +292,16 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
             )}
           </div>
 
-          {/* Parameter Configuration */}
-          <div data-testid={`${testId}-parameter-config`}>
+          {/* Launch Configuration */}
+          <div data-testid={`${testId}-launch-config`}>
             <Title level={4} className="gba:mb-4">
-              {getTranslationFromI18nKeyAndLabel('flow.launcher.configureParameters', 'Configure Parameters')}
+              {getTranslationFromI18nKeyAndLabel('flow.launcher.launchConfiguration', 'Launch Configuration')}
             </Title>
             
             {!selectedTemplate ? (
               <Alert
                 message="Select a Template"
-                description="Please select a template from the left to configure its parameters."
+                description="Please select a template from the left to configure its launch parameters."
                 type="info"
                 data-testid={`${testId}-select-template-prompt`}
               />
@@ -301,20 +351,30 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
                   />
                 )}
 
-                <div className="gba:pt-4 gba:border-t">
+                <div className="gba:pt-4 gba:border-t gba:space-y-3">
                   <Button
                     type="primary"
                     size="large"
+                    icon={<SettingOutlined />}
+                    onClick={handleLaunchWithWizard}
+                    className="gba:w-full"
+                    data-testid={`${testId}-launch-wizard-button`}
+                  >
+                    {getTranslationFromI18nKeyAndLabel('flow.launcher.launchWithWizard', 'Launch with Configuration Wizard')}
+                  </Button>
+                  
+                  <Button
+                    size="large"
                     icon={<PlayCircleOutlined />}
-                    onClick={handleLaunch}
+                    onClick={handleDirectLaunch}
                     disabled={!canLaunch}
                     loading={isLaunching}
                     className="gba:w-full"
-                    data-testid={`${testId}-launch-button`}
+                    data-testid={`${testId}-direct-launch-button`}
                   >
                     {isLaunching 
                       ? getTranslationFromI18nKeyAndLabel('flow.launcher.launching', 'Launching...') 
-                      : getTranslationFromI18nKeyAndLabel('flow.launcher.launch', 'Launch Flow')
+                      : getTranslationFromI18nKeyAndLabel('flow.launcher.quickLaunch', 'Quick Launch')
                     }
                   </Button>
                 </div>
@@ -322,6 +382,26 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
             )}
           </div>
         </div>
+      )}
+
+      {/* Execution Wizard Modal */}
+      {selectedTemplate && (
+        <Modal
+          title={getTranslationFromI18nKeyAndLabel('flow.launcher.configureExecution', 'Configure Execution')}
+          open={showExecutionWizard}
+          onCancel={() => setShowExecutionWizard(false)}
+          footer={null}
+          width={1200}
+          className="gba:execution-wizard-modal"
+          data-testid={`${testId}-execution-wizard-modal`}
+        >
+          <ExecutionWizard
+            template={selectedTemplate as any}
+            onExecute={handleExecuteWorkflow}
+            onCancel={() => setShowExecutionWizard(false)}
+            data-testid={`${testId}-execution-wizard`}
+          />
+        </Modal>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import { logger } from './logger';
 import { initializeConductor } from '../services/conductorService';
 import { initializeTemplates } from '../services/templateService';
+import { registerSampleFlows } from './registerSampleFlows';
 
 /**
  * Initialize all services required for the application
@@ -12,8 +13,11 @@ export const initializeServices = async (): Promise<void> => {
     // Initialize Conductor with custom task types
     await initializeConductor();
     
-    // Initialize sample templates
+    // Initialize sample templates (legacy - keeping for backwards compatibility)
     initializeTemplates();
+    
+    // Register sample flows for end-to-end testing
+    await registerSampleFlows();
     
     logger.info('Services initialized successfully');
   } catch (error) {
