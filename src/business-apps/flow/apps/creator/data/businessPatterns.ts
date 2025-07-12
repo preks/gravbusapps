@@ -40,7 +40,6 @@ export const APPROVAL_PATTERNS: BusinessPattern[] = [
       forbiddenStepTypes: [StepType.INFORMATION],
       recommendedInputBlocks: [InputBlockType.TEXTAREA, InputBlockType.DROPDOWN],
       recommendedContentBlocks: [ContentBlockType.TEXT, ContentBlockType.DOCUMENT],
-      executionStrategy: TaskExecutionType.SEQUENTIAL,
       minSteps: 1,
       maxSteps: 1
     },
@@ -113,7 +112,6 @@ export const APPROVAL_PATTERNS: BusinessPattern[] = [
       forbiddenStepTypes: [StepType.INFORMATION],
       recommendedInputBlocks: [InputBlockType.TEXTAREA, InputBlockType.DROPDOWN],
       recommendedContentBlocks: [ContentBlockType.TEXT, ContentBlockType.DOCUMENT],
-      executionStrategy: TaskExecutionType.SEQUENTIAL,
       minSteps: 2,
       maxSteps: 5
     },
@@ -210,7 +208,6 @@ export const INFORMATION_PATTERNS: BusinessPattern[] = [
       forbiddenStepTypes: [StepType.APPROVAL],
       recommendedInputBlocks: [],
       recommendedContentBlocks: [ContentBlockType.TEXT, ContentBlockType.DOCUMENT, ContentBlockType.LINK],
-      executionStrategy: TaskExecutionType.PARALLEL,
       minSteps: 1,
       maxSteps: 1
     },
@@ -272,7 +269,6 @@ export const INFORMATION_PATTERNS: BusinessPattern[] = [
       forbiddenStepTypes: [StepType.APPROVAL],
       recommendedInputBlocks: [InputBlockType.CHECKBOX],
       recommendedContentBlocks: [ContentBlockType.TEXT, ContentBlockType.DOCUMENT],
-      executionStrategy: TaskExecutionType.PARALLEL,
       minSteps: 1,
       maxSteps: 1
     },
@@ -342,7 +338,6 @@ export const TASK_COORDINATION_PATTERNS: BusinessPattern[] = [
       forbiddenStepTypes: [StepType.INFORMATION],
       recommendedInputBlocks: [InputBlockType.TEXTAREA, InputBlockType.FILE, InputBlockType.DROPDOWN],
       recommendedContentBlocks: [ContentBlockType.TEXT, ContentBlockType.DOCUMENT],
-      executionStrategy: TaskExecutionType.PARALLEL,
       minSteps: 1,
       maxSteps: 10
     },
@@ -420,7 +415,6 @@ export const DECISION_MAKING_PATTERNS: BusinessPattern[] = [
       forbiddenStepTypes: [StepType.APPROVAL, StepType.INFORMATION],
       recommendedInputBlocks: [InputBlockType.TEXTAREA, InputBlockType.RADIO, InputBlockType.DROPDOWN],
       recommendedContentBlocks: [ContentBlockType.TEXT, ContentBlockType.DOCUMENT],
-      executionStrategy: TaskExecutionType.PARALLEL,
       minSteps: 1,
       maxSteps: 1
     },
@@ -503,7 +497,6 @@ export const REVIEW_FEEDBACK_PATTERNS: BusinessPattern[] = [
       forbiddenStepTypes: [StepType.INFORMATION],
       recommendedInputBlocks: [InputBlockType.TEXTAREA, InputBlockType.DROPDOWN, InputBlockType.FILE],
       recommendedContentBlocks: [ContentBlockType.TEXT, ContentBlockType.DOCUMENT],
-      executionStrategy: TaskExecutionType.PARALLEL,
       minSteps: 1,
       maxSteps: 1
     },
@@ -596,7 +589,6 @@ export const REQUEST_RESPONSE_PATTERNS: BusinessPattern[] = [
       forbiddenStepTypes: [StepType.INFORMATION],
       recommendedInputBlocks: [InputBlockType.TEXTAREA, InputBlockType.DROPDOWN, InputBlockType.FILE],
       recommendedContentBlocks: [ContentBlockType.TEXT],
-      executionStrategy: TaskExecutionType.SEQUENTIAL,
       minSteps: 1,
       maxSteps: 1
     },

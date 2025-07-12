@@ -4,21 +4,35 @@
 
 // Assignment target
 export type AssignmentTarget = {
-  entity: 'user' | 'department' | 'capability' | 'role' | 'team';
+  entity: 'user' | 'department' | 'capability' | 'role';
   id: string;
 };
+
+// Assignment modes
+export enum AssignmentMode {
+  ASSIGN = 'ASSIGN', // Assign to all - creates separate tasks for each assignee
+  CLAIM = 'CLAIM'    // Claimable by one - creates one shared task that any assignee can claim
+}
 
 // Task assignment configuration
 export type TaskAssignment = {
   targets: AssignmentTarget[];
-  assignToAll: boolean; // true = assign to all targets (creates multiple tasks), false = assign to any (creates single task)
+  assignmentMode: AssignmentMode;
   allowReassignment?: boolean;
 };
 
-// Input block types enum
+// Attachment/Link types for unified content management
+export type AttachmentLink = {
+  type: 'document' | 'image' | 'hyperlink';
+  url: string;
+  title: string;
+  description?: string;
+};
+
+// Input block types (simplified)
 export enum InputBlockType {
   TEXT = 'TEXT',
-  TEXTAREA = 'TEXTAREA', 
+  TEXTAREA = 'TEXTAREA',
   NUMBER = 'NUMBER',
   DROPDOWN = 'DROPDOWN',
   RADIO = 'RADIO',
@@ -28,78 +42,66 @@ export enum InputBlockType {
   SIGNATURE = 'SIGNATURE'
 }
 
+// Input block definition
 export type InputBlock = {
-  id: string;
   type: InputBlockType;
   label: string;
   required: boolean;
   placeholder?: string;
-  options?: Array<{ value: string; label: string }>;
-  multiple?: boolean; // For select types that can have multiple selections
-  accept?: string; // For file input to specify allowed file types
+  options?: string[];
 };
 
-// Content block types enum
-export enum ContentBlockType {
-  TEXT = 'TEXT',
-  DOCUMENT = 'DOCUMENT',
-  IMAGE = 'IMAGE',
-  LINK = 'LINK'
-}
-
-export type ContentBlock = {
-  id: string;
-  type: ContentBlockType;
-  content: string;
-  description?: string; // Description to help users understand what content to fill
-  required?: boolean; // Whether this content block is required at execution time
-};
-
-// Step type enum
+// Step types
 export enum StepType {
-  APPROVAL = 'APPROVAL',
-  ACKNOWLEDGE = 'ACKNOWLEDGE', 
   TASK = 'TASK',
-  INFORMATION = 'INFORMATION'
+  APPROVAL = 'APPROVAL',
+  INFORMATION = 'INFORMATION',
+  ACKNOWLEDGE = 'ACKNOWLEDGE'
 }
 
-// Step definition with simplified assignment
-export type FlowStep = {
-  id: string;
-  title: string;
-  description: string;
-  type: StepType;
-  contentBlocks: ContentBlock[];
-  inputBlocks: InputBlock[];
-  assignment?: TaskAssignment;
-};
+// Timing configuration
+export enum TimingType {
+  BEFORE = 'BEFORE',
+  AFTER = 'AFTER'
+}
 
-// Time unit enum for reminders and escalations
 export enum TimeUnit {
+  MINUTES = 'MINUTES',
   HOURS = 'HOURS',
   DAYS = 'DAYS'
 }
 
-// Timing type enum for reminders and escalations
-export enum TimingType {
-  AFTER = 'AFTER',
-  BEFORE = 'BEFORE'
-}
+// Simplified step definition
+export type SimplifiedStep = {
+  title: string;
+  message: string; // Rich text/Markdown content replacing content blocks
+  attachments: AttachmentLink[]; // Unified attachments and links
+  
+  // Optional sections (disabled by default)
+  requestInput: {
+    enabled: boolean;
+    inputs: InputBlock[];
+  };
+  
+  usePredefinedAssignment: {
+    enabled: boolean;
+    assignment?: TaskAssignment;
+    // When enabled=false, assignment happens at execution time
+  };
+  
+  // Keep step type for workflow logic
+  type: StepType;
+};
 
-// Task execution type enum (keeping for backward compatibility)
-export enum TaskExecutionType {
-  PARALLEL = 'PARALLEL',
-  SEQUENTIAL = 'SEQUENTIAL'
-}
-
-// Flow template with flow-level assignment
-export type FlowTemplate = {
+// Simplified flow template (removed flow-level assignment and parallel execution)
+export type SimplifiedFlowTemplate = {
   id?: string;
   title: string;
   description: string;
-  executionStrategy: TaskExecutionType;
-  // Flow-level assignment that overrides task-level assignments when configured
-  assignment?: TaskAssignment;
+  // Removed: executionStrategy (always sequential)
+  // Removed: assignment (flow-level assignment)
+  
+  // Keep flow-level configurations that make sense
   reminder?: {
     timing: {
       type: TimingType;
@@ -114,8 +116,48 @@ export type FlowTemplate = {
       unit: TimeUnit;
     };
   };
-  steps: FlowStep[];
-  flowType?: 'TEMPLATE' | 'INSTANCE' | 'DRAFT'; // Optional metadata to specify the flow type
+  
+  steps: SimplifiedStep[];
+  flowType?: 'TEMPLATE' | 'INSTANCE' | 'DRAFT';
+};
+
+// Legacy types for backward compatibility during migration
+// TODO: Remove these after migration is complete
+export type FlowStep = SimplifiedStep;
+export type FlowTemplate = SimplifiedFlowTemplate;
+
+// Execution configuration for runtime
+export type ExecutionConfiguration = {
+  templateId: string;
+  stepConfigurations: {
+    [stepIndex: number]: {
+      title?: string; // Allow editing title at execution time
+      assignment?: TaskAssignment;
+      message?: string; // Allow editing message at execution time
+      attachments?: AttachmentLink[]; // Allow adding execution-specific attachments
+    };
+  };
+};
+
+// Legacy enums for backward compatibility
+export enum TaskExecutionType {
+  SEQUENTIAL = 'SEQUENTIAL'
+  // Removed: PARALLEL
+}
+
+export enum ContentBlockType {
+  TEXT = 'TEXT',
+  DOCUMENT = 'DOCUMENT',
+  LINK = 'LINK',
+  IMAGE = 'IMAGE'
+}
+
+export type ContentBlock = {
+  id: string;
+  type: ContentBlockType;
+  content: string;
+  description?: string;
+  required: boolean;
 };
 
 // Form field error type

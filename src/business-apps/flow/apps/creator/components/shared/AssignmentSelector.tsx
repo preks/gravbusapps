@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { TaskAssignment, AssignmentTarget } from '../../types/flowTemplate';
+import { TaskAssignment, AssignmentTarget, AssignmentMode } from '../../types/flowTemplate';
 import { Button, Popover, PopoverTrigger, PopoverContent, Input, Badge, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@newwork/nw-design-system';
 import { X, Plus, Search, UserCircle, Users, Building2, MapPin, FileCheck, Crown, Info } from 'lucide-react';
 
@@ -10,7 +10,6 @@ interface AssignmentSelectorProps {
   'data-testid'?: string;
 }
 
-// Entity type configuration with colors and icons
 type EntityType = 'user' | 'department' | 'capability' | 'role';
 
 interface EntityTypeConfig {
@@ -115,36 +114,35 @@ const AssignmentBadges: React.FC<AssignmentBadgesProps> = ({
   'data-testid': testId = 'assignment-badges'
 }) => {
   if (targets.length === 0) {
-    return null;
+    return (
+      <div className="gba:text-sm gba:text-gray-500 gba:text-center gba:py-2" data-testid={`${testId}-empty`}>
+        {getTranslationFromI18nKeyAndLabel('flow.creator.noAssignees', 'No user or group selected')}
+      </div>
+    );
   }
-  
+
   return (
     <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid={testId}>
       {targets.map((target, index) => {
         const config = entityTypeConfigs.find(c => c.value === target.entity);
         const entity = mockEntities[target.entity]?.find(e => e.id === target.id);
         
-        if (!config || !entity) return null;
-        
         return (
-          <Badge 
-            key={`${target.entity}-${target.id}-${index}`}
+          <Badge
+            key={`${target.entity}-${target.id}`}
             variant="outline"
-            className={`gba:px-3 gba:py-2 gba:font-medium ${config.color}`}
-            style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}
-            data-testid={`${testId}-${index}`}
+            className={`gba:flex gba:items-center gba:gap-1 gba:pr-1 ${config?.color || 'gba:!bg-gray-100 gba:!text-gray-800 gba:!border-gray-300'}`}
+            data-testid={`${testId}-badge-${index}`}
           >
-            <div className="gba:flex gba:items-center gba:gap-2">
-              {config.icon}
-              <span>{entity.name}</span>
-              <button 
-                onClick={() => onRemove(index)}
-                className="gba:ml-1.5 gba:rounded-full gba:hover:bg-gray-200 gba:p-0.5"
-                data-testid={`${testId}-${index}-remove`}
-              >
-                <X className="gba:w-3.5 gba:h-3.5" />
-              </button>
-            </div>
+            {config?.icon}
+            <span className="gba:text-xs">{entity?.name || target.id}</span>
+            <button
+              onClick={() => onRemove(index)}
+              className="gba:ml-1 gba:text-gray-500 hover:gba:text-red-500 gba:transition-colors"
+              data-testid={`${testId}-remove-${index}`}
+            >
+              <X className="gba:w-3 gba:h-3" />
+            </button>
           </Badge>
         );
       })}
@@ -153,7 +151,7 @@ const AssignmentBadges: React.FC<AssignmentBadgesProps> = ({
 };
 
 /**
- * Component for entity search and selection
+ * Component for searching and selecting entities
  */
 interface EntitySearchListProps {
   entityType: EntityType;
@@ -198,7 +196,7 @@ const EntitySearchList: React.FC<EntitySearchListProps> = ({
           type="text"
           placeholder={config.searchPlaceholder}
           value={searchQuery}
-          onChange={(e) => onSearch(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSearch(e.target.value)}
           className="gba:border-0 gba:p-0 gba:shadow-none gba:flex-1 gba:focus-visible:ring-0"
           data-testid={`${testId}-search-input`}
         />
@@ -253,7 +251,7 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
   // Initialize assignment if not provided
   const assignment = value || {
     targets: [],
-    assignToAll: true,
+    assignmentMode: AssignmentMode.ASSIGN,
     allowReassignment: true
   };
 
@@ -262,11 +260,11 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
     if (!value) {
       onChange({
         targets: [],
-        assignToAll: true,
+        assignmentMode: AssignmentMode.ASSIGN,
         allowReassignment: true
       });
     }
-  }, [value?.targets, value?.assignToAll, value?.allowReassignment, onChange]);
+  }, [value?.targets, value?.assignmentMode, value?.allowReassignment, onChange]);
 
   // Handle adding a new target
   const handleAddTarget = (target: AssignmentTarget) => {
@@ -297,11 +295,11 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
     onChange(newAssignment);
   };
 
-  // Handle assignment type change
-  const handleAssignToAllChange = (assignToAll: boolean) => {
+  // Handle assignment mode change
+  const handleAssignmentModeChange = (mode: AssignmentMode) => {
     onChange({
       ...assignment,
-      assignToAll
+      assignmentMode: mode
     });
   };
 
@@ -315,51 +313,51 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
 
   return (
     <div className="gba:space-y-4 gba:relative" style={{ isolation: 'isolate' }} data-testid={testId}>
-      {/* Assignment Type */}
-      <div className="gba:space-y-3" data-testid={`${testId}-assignment-type`}>
+      {/* Assignment Mode */}
+      <div className="gba:space-y-3" data-testid={`${testId}-assignment-mode`}>
         <TooltipProvider>
-          <div className="gba:flex gba:gap-6" data-testid={`${testId}-assignment-type-options`}>
+          <div className="gba:flex gba:gap-6" data-testid={`${testId}-assignment-mode-options`}>
             <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:flex gba:items-center gba:gap-2" data-testid={`${testId}-assign-to-all`}>
+              <label className="gba:flex gba:items-center gba:gap-2" data-testid={`${testId}-assign-mode`}>
                 <input
                   type="radio"
-                  name={`assignment-type-${testId}`}
-                  checked={assignment.assignToAll !== false}
-                  onChange={() => handleAssignToAllChange(true)}
-                  data-testid={`${testId}-assign-to-all-radio`}
+                  name={`assignment-mode-${testId}`}
+                  checked={assignment.assignmentMode === AssignmentMode.ASSIGN}
+                  onChange={() => handleAssignmentModeChange(AssignmentMode.ASSIGN)}
+                  data-testid={`${testId}-assign-mode-radio`}
                 />
-                {getTranslationFromI18nKeyAndLabel('flow.creator.assignToAll', 'Assign to all')}
+                {getTranslationFromI18nKeyAndLabel('flow.creator.assignedToAll', 'Assigned to all of selection')}
               </label>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-help" data-testid={`${testId}-assign-to-all-info`} />
+                  <Info className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-help" data-testid={`${testId}-assign-mode-info`} />
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent style={{ zIndex: 10000 }}>
                   <p className="gba:max-w-[200px] gba:text-sm">
-                    {getTranslationFromI18nKeyAndLabel('flow.creator.assignToAllDescription', 'Create separate tasks for each assignee. All must complete their individual tasks.')}
+                    {getTranslationFromI18nKeyAndLabel('flow.creator.assignModeDescription', 'Create separate tasks for each selected user. All must complete their individual tasks.')}
                   </p>
                 </TooltipContent>
               </Tooltip>
             </div>
             
             <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:flex gba:items-center gba:gap-2" data-testid={`${testId}-assign-to-any`}>
+              <label className="gba:flex gba:items-center gba:gap-2" data-testid={`${testId}-claim-mode`}>
                 <input
                   type="radio"
-                  name={`assignment-type-${testId}`}
-                  checked={assignment.assignToAll === false}
-                  onChange={() => handleAssignToAllChange(false)}
-                  data-testid={`${testId}-assign-to-any-radio`}
+                  name={`assignment-mode-${testId}`}
+                  checked={assignment.assignmentMode === AssignmentMode.CLAIM}
+                  onChange={() => handleAssignmentModeChange(AssignmentMode.CLAIM)}
+                  data-testid={`${testId}-claim-mode-radio`}
                 />
-                {getTranslationFromI18nKeyAndLabel('flow.creator.assignToAny', 'Assign to any')}
+                {getTranslationFromI18nKeyAndLabel('flow.creator.claimableByOne', 'Claimable by one of selection')}
               </label>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-help" data-testid={`${testId}-assign-to-any-info`} />
+                  <Info className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-help" data-testid={`${testId}-claim-mode-info`} />
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent style={{ zIndex: 10000 }}>
                   <p className="gba:max-w-[200px] gba:text-sm">
-                    {getTranslationFromI18nKeyAndLabel('flow.creator.assignToAnyDescription', 'Create one shared task. Any assignee can complete it for everyone.')}
+                    {getTranslationFromI18nKeyAndLabel('flow.creator.claimModeDescription', 'Create one shared task. Any selected user can claim and complete the task.')}
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -368,29 +366,30 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
         </TooltipProvider>
       </div>
 
-      {/* Add Assignees Button and Popover */}
+      {/* Select Assignees Button and Popover */}
       <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
         <PopoverTrigger>
           <div className="gba:inline-flex">
             <Button 
               variant="outline" 
               className="gba:flex gba:items-center gba:gap-2" 
-              data-testid={`${testId}-add-button`}
+              data-testid={`${testId}-select-button`}
               onClick={() => setIsPopoverOpen(true)}
               type="button"
             >
               <Plus className="gba:w-4 gba:h-4" />
-              {getTranslationFromI18nKeyAndLabel('flow.creator.addAssignees', 'Add Assignees')}
+              {getTranslationFromI18nKeyAndLabel('flow.creator.selectAssignees', 'Select')}
             </Button>
           </div>
         </PopoverTrigger>
         <PopoverContent 
-          className="gba:w-[350px] gba:p-4 gba:z-[1000]" 
+          className="gba:w-[350px] gba:p-4" 
           data-testid={`${testId}-popover`}
           sideOffset={5}
           side="bottom"
           align="start"
           avoidCollisions
+          style={{ zIndex: 10000 }}
         >
           <div className="gba:space-y-4">
             {/* Entity Type Select */}
@@ -405,7 +404,7 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
               <SelectTrigger className="gba:w-full w-full gba:font-normal">
                 <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.selectEntityType', 'Select entity type')} />
               </SelectTrigger>
-              <SelectContent className="gba:z-[1001]">
+              <SelectContent style={{ zIndex: 10001 }}>
                 {entityTypeConfigs.map((config) => (
                   <SelectItem key={config.value} value={config.value} data-testid={`${testId}-entity-type-${config.value}`}>
                     <div className="gba:flex gba:items-center gba:gap-2">
@@ -441,12 +440,13 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
       <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${testId}-reassignment-option`}>
         <input
           type="checkbox"
-          checked={assignment.allowReassignment ?? true}
+          id={`${testId}-allow-reassignment`}
+          checked={assignment.allowReassignment || false}
           onChange={handleReassignmentChange}
           data-testid={`${testId}-allow-reassignment-checkbox`}
         />
-        <label className="gba:text-sm">
-          {getTranslationFromI18nKeyAndLabel('flow.creator.allowReassignment', 'Allow reassignment / delegation')}
+        <label htmlFor={`${testId}-allow-reassignment`} className="gba:text-sm gba:text-gray-700">
+          {getTranslationFromI18nKeyAndLabel('flow.creator.allowReassignment', 'Allow reassignment')}
         </label>
       </div>
     </div>

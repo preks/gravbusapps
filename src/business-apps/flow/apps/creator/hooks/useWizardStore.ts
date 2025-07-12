@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { BusinessPattern, WizardState, WizardStep, PatternSelection } from '../types/businessPatterns';
-import { FlowTemplate, FlowStep, StepType } from '../types/flowTemplate';
+import { FlowTemplate, SimplifiedStep, StepType, AssignmentMode } from '../types/flowTemplate';
 import { PATTERN_BY_ID } from '../data/businessPatterns';
 import { validateTemplateAgainstPattern, ValidationResult } from '../utils/patternValidation';
 
@@ -54,15 +54,7 @@ const WIZARD_STEPS: WizardStep[] = [
     id: 'step-configuration',
     title: 'Configure Steps',
     description: 'Customize workflow steps and content',
-    component: 'StepConfiguration',
-    required: true,
-    canSkip: false
-  },
-  {
-    id: 'assignment-configuration',
-    title: 'Configure Assignments',
-    description: 'Set up task assignments and responsibilities',
-    component: 'AssignmentConfiguration',
+    component: 'SimplifiedStepConfiguration',
     required: true,
     canSkip: false
   },
@@ -103,7 +95,6 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
       const newConfiguration = {
         ...state.configuration,
         patternId: pattern.id,
-        executionStrategy: pattern.configuration.executionStrategy,
         requiresAssignment: pattern.configuration.requiresAssignment,
         requiresDeadline: pattern.configuration.requiresDeadline,
         requiresEscalation: pattern.configuration.requiresEscalation
@@ -186,31 +177,29 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
     const { configuration } = get();
     
     // Create steps from pattern's pre-configured steps
-    const steps: FlowStep[] = pattern.preConfiguredSteps.map((preStep, index) => ({
-      id: `step-${Date.now()}-${index}`,
+    const steps: SimplifiedStep[] = pattern.preConfiguredSteps.map((preStep, index) => ({
       title: preStep.title,
-      description: preStep.description,
-      type: preStep.type,
-      contentBlocks: preStep.contentBlocks.map((block, blockIndex) => ({
-        id: `content-${Date.now()}-${blockIndex}`,
-        type: block.type,
-        content: block.content,
-        description: block.description,
-        required: block.required
-      })),
-      inputBlocks: preStep.inputBlocks.map((block, blockIndex) => ({
-        id: `input-${Date.now()}-${blockIndex}`,
-        type: block.type,
-        label: block.label,
-        required: block.required,
-        placeholder: block.placeholder,
-        options: block.options
-      })),
-      assignment: preStep.assignmentRequired ? {
-        targets: [],
-        assignToAll: preStep.assignmentType === 'all',
-        allowReassignment: true
-      } : undefined
+      message: preStep.description, // Use description as message
+      attachments: [], // Start with empty attachments
+      requestInput: {
+        enabled: preStep.inputBlocks.length > 0,
+        inputs: preStep.inputBlocks.map((block) => ({
+          type: block.type,
+          label: block.label,
+          required: block.required,
+          placeholder: block.placeholder,
+          options: block.options?.map(opt => typeof opt === 'string' ? opt : opt.value)
+        }))
+      },
+      usePredefinedAssignment: {
+        enabled: preStep.assignmentRequired,
+        assignment: preStep.assignmentRequired ? {
+          targets: [],
+          assignmentMode: preStep.assignmentType === 'all' ? AssignmentMode.ASSIGN : AssignmentMode.CLAIM,
+          allowReassignment: true
+        } : undefined
+      },
+      type: preStep.type
     }));
     
     // Apply configuration overrides
@@ -226,15 +215,9 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
     const template: FlowTemplate = {
       title: configuration.title || `${pattern.title} Workflow`,
       description: configuration.description || pattern.description,
-      executionStrategy: configuration.executionStrategy || pattern.configuration.executionStrategy,
       steps,
       flowType: 'TEMPLATE'
     };
-    
-    // Apply flow-level assignment if configured
-    if (configuration.flowLevelAssignment) {
-      template.assignment = configuration.flowLevelAssignment;
-    }
     
     // Apply timing configurations
     if (configuration.reminder) {
@@ -273,16 +256,6 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
         // If no steps in configuration yet, check if pattern has pre-configured steps
         // This allows the user to proceed with default pattern steps
         return !!(selectedPattern.preConfiguredSteps && selectedPattern.preConfiguredSteps.length > 0);
-        
-      case 'assignment-configuration':
-        // Validate that assignments are configured
-        // This step comes after step configuration, so we can validate against the configured steps
-        if (configuration.assignments && Object.keys(configuration.assignments).length > 0) {
-          return true;
-        }
-        
-        // For now, allow proceeding without assignments (they can be configured later)
-        return true;
       
       case 'advanced-settings':
         // Advanced settings are optional
