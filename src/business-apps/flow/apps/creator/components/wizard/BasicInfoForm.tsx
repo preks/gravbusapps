@@ -1,12 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { Input, Textarea, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
 import { Alert, AlertDescription } from '@newwork/nw-design-system';
+import { 
+  Shield, 
+  Megaphone, 
+  Target, 
+  MessageSquare, 
+  FileText, 
+  HandHeart,
+  UserCheck,
+  GitBranch,
+  CheckSquare,
+  LucideIcon
+} from 'lucide-react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useWizardStore } from '../../hooks/useWizardStore';
 
 interface BasicInfoFormProps {
   'data-testid'?: string;
 }
+
+// Icon mapping for Lucide icons
+const ICON_MAP: Record<string, LucideIcon> = {
+  'Shield': Shield,
+  'Megaphone': Megaphone,
+  'Target': Target,
+  'MessageSquare': MessageSquare,
+  'FileText': FileText,
+  'HandHeart': HandHeart,
+  'UserCheck': UserCheck,
+  'GitBranch': GitBranch,
+  'CheckSquare': CheckSquare
+};
+
+// Helper function to render Lucide icons
+const renderIcon = (iconName: string, className?: string, style?: React.CSSProperties) => {
+  const IconComponent = ICON_MAP[iconName];
+  if (!IconComponent) {
+    console.warn(`Icon "${iconName}" not found in ICON_MAP`);
+    return <div className={className} style={style}>?</div>;
+  }
+  return <IconComponent className={className} style={style} />;
+};
 
 /**
  * Basic information form for workflow template creation
@@ -120,7 +155,7 @@ export const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
         <Card className="gba:bg-blue-50 gba:border-blue-200" data-testid={`${testId}-pattern-context`}>
           <CardHeader className="gba:pb-3">
             <CardTitle className="gba:flex gba:items-center gba:space-x-2 gba:text-lg">
-              <span className="gba:text-xl">{selectedPattern.icon}</span>
+              {renderIcon(selectedPattern.icon, 'gba:w-5 gba:h-5', { color: selectedPattern.color })}
               <span>Creating: {selectedPattern.title}</span>
             </CardTitle>
           </CardHeader>

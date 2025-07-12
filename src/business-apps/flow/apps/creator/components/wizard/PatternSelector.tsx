@@ -242,7 +242,9 @@ export const PatternSelector: React.FC<PatternSelectorProps> = ({
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
               <div className="gba:flex gba:items-center gba:space-x-2">
-                <span className="gba:text-xl">{selectedPattern.icon}</span>
+                <div className="gba:text-xl">
+                  {renderIcon(selectedPattern.icon, 'gba:w-6 gba:h-6', { color: selectedPattern.color })}
+                </div>
                 <span>Selected Pattern: {selectedPattern.title}</span>
               </div>
               <Button 

@@ -401,7 +401,7 @@ export const DECISION_MAKING_PATTERNS: BusinessPattern[] = [
     category: BusinessPatternCategory.DECISION_MAKING,
     subPattern: DecisionMakingPattern.CONSULTATION,
     title: 'Consultation',
-    description: 'Gather opinions before deciding',
+    description: 'Gather data before deciding',
     icon: 'MessageSquare',
     color: '#8B5CF6',
     useCases: [

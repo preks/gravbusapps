@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { Button, Input, Select, Checkbox, Form, Space, Typography, Alert, Divider } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined, DragOutlined } from '@ant-design/icons';
+import { Button, Typography, Alert, Space } from 'antd';
+import { PlusOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Settings, Eye, EyeOff, Lightbulb } from 'lucide-react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useWizardStore } from '../../hooks/useWizardStore';
 import { StepType, ContentBlockType, InputBlockType } from '../../types/flowTemplate';
-import { AssignmentConfiguration } from './AssignmentConfiguration';
+import { StepEditor } from './StepEditor';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 interface StepConfigurationProps {
-  onNext: () => void;
+  onNext?: () => void;
   'data-testid'?: string;
 }
 
@@ -48,8 +48,7 @@ export const StepConfiguration: React.FC<StepConfigurationProps> = ({
   'data-testid': testId = 'step-configuration'
 }) => {
   const { selectedPattern, configuration, updateConfiguration } = useWizardStore();
-  const [form] = Form.useForm();
-  const [editingStep, setEditingStep] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
   const [steps, setSteps] = useState<ConfigurableStep[]>(() => {
     // Initialize with pattern's pre-configured steps
     if (selectedPattern?.preConfiguredSteps) {
@@ -81,18 +80,16 @@ export const StepConfiguration: React.FC<StepConfigurationProps> = ({
     return [];
   });
 
-  // Update configuration when steps change
+  // Save configuration whenever steps change
   useEffect(() => {
-    if (steps.length > 0) {
-      updateConfiguration('steps', steps);
-    }
+    updateConfiguration('steps', steps);
   }, [steps, updateConfiguration]);
 
   const handleAddStep = () => {
     const newStep: ConfigurableStep = {
       id: `step-${Date.now()}`,
       title: 'New Step',
-      description: 'Step description',
+      description: '',
       type: StepType.TASK,
       assignment: {
         required: true,
@@ -102,356 +99,109 @@ export const StepConfiguration: React.FC<StepConfigurationProps> = ({
       contentBlocks: [],
       inputBlocks: []
     };
-    const updatedSteps = [...steps, newStep];
-    setSteps(updatedSteps);
-    // Configuration will be updated via useEffect
-    setEditingStep(newStep.id);
+    setSteps([...steps, newStep]);
   };
 
   const handleUpdateStep = (stepId: string, updates: Partial<ConfigurableStep>) => {
-    const updatedSteps = steps.map(step => 
+    setSteps(steps.map(step => 
       step.id === stepId ? { ...step, ...updates } : step
-    );
-    setSteps(updatedSteps);
-    // Configuration will be updated via useEffect
+    ));
   };
 
   const handleDeleteStep = (stepId: string) => {
-    const updatedSteps = steps.filter(step => step.id !== stepId);
-    setSteps(updatedSteps);
-    // Configuration will be updated via useEffect
-    if (editingStep === stepId) {
-      setEditingStep(null);
-    }
+    setSteps(steps.filter(step => step.id !== stepId));
   };
-
-  const handleAddContentBlock = (stepId: string) => {
-    const newBlock = {
-      id: `content-${Date.now()}`,
-      type: ContentBlockType.TEXT,
-      content: 'Content block text',
-      required: true
-    };
-    
-    handleUpdateStep(stepId, {
-      contentBlocks: [...(steps.find(s => s.id === stepId)?.contentBlocks || []), newBlock]
-    });
-  };
-
-  const handleAddInputBlock = (stepId: string) => {
-    const newBlock = {
-      id: `input-${Date.now()}`,
-      type: InputBlockType.TEXT,
-      label: 'Input Label',
-      required: true,
-      placeholder: 'Enter value...'
-    };
-    
-    handleUpdateStep(stepId, {
-      inputBlocks: [...(steps.find(s => s.id === stepId)?.inputBlocks || []), newBlock]
-    });
-  };
-
-  const handleSaveConfiguration = () => {
-    updateConfiguration('steps', steps);
-    onNext();
-  };
-
-  const getStepTypeOptions = () => [
-    { value: StepType.TASK, label: 'Task' },
-    { value: StepType.APPROVAL, label: 'Approval' },
-    { value: StepType.INFORMATION, label: 'Information' },
-    { value: StepType.ACKNOWLEDGE, label: 'Acknowledge' }
-  ];
-
-  const getContentBlockTypeOptions = () => [
-    { value: ContentBlockType.TEXT, label: 'Text' },
-    { value: ContentBlockType.DOCUMENT, label: 'Document' },
-    { value: ContentBlockType.LINK, label: 'Link' },
-    { value: ContentBlockType.IMAGE, label: 'Image' }
-  ];
-
-  const getInputBlockTypeOptions = () => [
-    { value: InputBlockType.TEXT, label: 'Text Input' },
-    { value: InputBlockType.TEXTAREA, label: 'Text Area' },
-    { value: InputBlockType.DROPDOWN, label: 'Dropdown' },
-    { value: InputBlockType.CHECKBOX, label: 'Checkbox' },
-    { value: InputBlockType.DATETIME, label: 'Date/Time' },
-    { value: InputBlockType.FILE, label: 'File Upload' }
-  ];
-
-  const renderStepEditor = (step: ConfigurableStep) => (
-    <Card key={step.id} className="gba:mb-4" data-testid={`${testId}-step-${step.id}`}>
-      <CardHeader>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:flex gba:items-center gba:space-x-2">
-            <DragOutlined className="gba:cursor-move" />
-            <span>{step.title}</span>
-          </CardTitle>
-          <Space>
-            <Button
-              icon={<EditOutlined />}
-              onClick={() => setEditingStep(editingStep === step.id ? null : step.id)}
-              type={editingStep === step.id ? 'primary' : 'default'}
-              size="small"
-            >
-              {editingStep === step.id ? 'Done' : 'Edit'}
-            </Button>
-            <Button
-              icon={<DeleteOutlined />}
-              onClick={() => handleDeleteStep(step.id)}
-              danger
-              size="small"
-            >
-              Delete
-            </Button>
-          </Space>
-        </div>
-      </CardHeader>
-      
-      {editingStep === step.id && (
-        <CardContent>
-          <Form layout="vertical">
-            <Form.Item label="Step Title">
-              <Input
-                value={step.title}
-                onChange={(e) => handleUpdateStep(step.id, { title: e.target.value })}
-                placeholder="Enter step title"
-              />
-            </Form.Item>
-            
-            <Form.Item label="Description">
-              <TextArea
-                value={step.description}
-                onChange={(e) => handleUpdateStep(step.id, { description: e.target.value })}
-                placeholder="Enter step description"
-                rows={2}
-              />
-            </Form.Item>
-            
-            <Form.Item label="Step Type">
-              <Select
-                value={step.type}
-                onChange={(value) => handleUpdateStep(step.id, { type: value })}
-                options={getStepTypeOptions()}
-              />
-            </Form.Item>
-            
-            <Form.Item label="Assignment Configuration">
-              <AssignmentConfiguration
-                value={{
-                  required: step.assignment.required,
-                  type: step.assignment.type,
-                  targets: step.assignment.targets?.map((target, index) => ({
-                    id: `target-${index}`,
-                    type: 'user' as const,
-                    value: target,
-                    label: target
-                  })) || [],
-                  allowReassignment: true,
-                  autoAssign: false,
-                  fallbackAssignment: {
-                    enabled: false,
-                    type: 'manager'
-                  }
-                }}
-                onChange={(config) => handleUpdateStep(step.id, {
-                  assignment: {
-                    required: config.required,
-                    type: config.type,
-                    targets: config.targets.map(t => t.value)
-                  }
-                })}
-              />
-            </Form.Item>
-            
-            <Divider />
-            
-            <div className="gba:mb-4">
-              <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-                <Text strong>Content Blocks</Text>
-                <Button
-                  icon={<PlusOutlined />}
-                  onClick={() => handleAddContentBlock(step.id)}
-                  size="small"
-                >
-                  Add Content
-                </Button>
-              </div>
-              
-                             {step.contentBlocks.map((block, index) => (
-                 <Card key={block.id} className="gba:mb-2 gba:p-2">
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <Select
-                      value={block.type}
-                      onChange={(value) => {
-                        const updatedBlocks = [...step.contentBlocks];
-                        updatedBlocks[index] = { ...block, type: value };
-                        handleUpdateStep(step.id, { contentBlocks: updatedBlocks });
-                      }}
-                      options={getContentBlockTypeOptions()}
-                      style={{ width: 120 }}
-                    />
-                    <Input
-                      value={block.content}
-                      onChange={(e) => {
-                        const updatedBlocks = [...step.contentBlocks];
-                        updatedBlocks[index] = { ...block, content: e.target.value };
-                        handleUpdateStep(step.id, { contentBlocks: updatedBlocks });
-                      }}
-                      placeholder="Content text"
-                      style={{ flex: 1 }}
-                    />
-                    <Checkbox
-                      checked={block.required}
-                      onChange={(e) => {
-                        const updatedBlocks = [...step.contentBlocks];
-                        updatedBlocks[index] = { ...block, required: e.target.checked };
-                        handleUpdateStep(step.id, { contentBlocks: updatedBlocks });
-                      }}
-                    >
-                      Required
-                    </Checkbox>
-                    <Button
-                      icon={<DeleteOutlined />}
-                      onClick={() => {
-                        const updatedBlocks = step.contentBlocks.filter((_, i) => i !== index);
-                        handleUpdateStep(step.id, { contentBlocks: updatedBlocks });
-                      }}
-                      size="small"
-                      danger
-                    />
-                  </div>
-                </Card>
-              ))}
-            </div>
-            
-            <div className="gba:mb-4">
-              <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-                <Text strong>Input Blocks</Text>
-                <Button
-                  icon={<PlusOutlined />}
-                  onClick={() => handleAddInputBlock(step.id)}
-                  size="small"
-                >
-                  Add Input
-                </Button>
-              </div>
-              
-                             {step.inputBlocks.map((block, index) => (
-                 <Card key={block.id} className="gba:mb-2 gba:p-2">
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <Select
-                      value={block.type}
-                      onChange={(value) => {
-                        const updatedBlocks = [...step.inputBlocks];
-                        updatedBlocks[index] = { ...block, type: value };
-                        handleUpdateStep(step.id, { inputBlocks: updatedBlocks });
-                      }}
-                      options={getInputBlockTypeOptions()}
-                      style={{ width: 120 }}
-                    />
-                    <Input
-                      value={block.label}
-                      onChange={(e) => {
-                        const updatedBlocks = [...step.inputBlocks];
-                        updatedBlocks[index] = { ...block, label: e.target.value };
-                        handleUpdateStep(step.id, { inputBlocks: updatedBlocks });
-                      }}
-                      placeholder="Input label"
-                      style={{ flex: 1 }}
-                    />
-                    <Input
-                      value={block.placeholder}
-                      onChange={(e) => {
-                        const updatedBlocks = [...step.inputBlocks];
-                        updatedBlocks[index] = { ...block, placeholder: e.target.value };
-                        handleUpdateStep(step.id, { inputBlocks: updatedBlocks });
-                      }}
-                      placeholder="Placeholder text"
-                      style={{ flex: 1 }}
-                    />
-                    <Checkbox
-                      checked={block.required}
-                      onChange={(e) => {
-                        const updatedBlocks = [...step.inputBlocks];
-                        updatedBlocks[index] = { ...block, required: e.target.checked };
-                        handleUpdateStep(step.id, { inputBlocks: updatedBlocks });
-                      }}
-                    >
-                      Required
-                    </Checkbox>
-                    <Button
-                      icon={<DeleteOutlined />}
-                      onClick={() => {
-                        const updatedBlocks = step.inputBlocks.filter((_, i) => i !== index);
-                        handleUpdateStep(step.id, { inputBlocks: updatedBlocks });
-                      }}
-                      size="small"
-                      danger
-                    />
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </Form>
-        </CardContent>
-      )}
-      
-      {editingStep !== step.id && (
-        <CardContent>
-          <div className="gba:space-y-2">
-            <div>
-              <Text strong>Type:</Text> <Text>{step.type}</Text>
-            </div>
-            <div>
-              <Text strong>Description:</Text> <Text>{step.description}</Text>
-            </div>
-            <div>
-              <Text strong>Assignment:</Text> <Text>{step.assignment.required ? `Required (${step.assignment.type})` : 'Not required'}</Text>
-            </div>
-            <div>
-              <Text strong>Content Blocks:</Text> <Text>{step.contentBlocks.length}</Text>
-            </div>
-            <div>
-              <Text strong>Input Blocks:</Text> <Text>{step.inputBlocks.length}</Text>
-            </div>
-          </div>
-        </CardContent>
-      )}
-    </Card>
-  );
 
   return (
     <div className="gba:space-y-6" data-testid={testId}>
       {/* Header */}
-      <div className="gba:text-center gba:mb-6">
-        <Title level={3}>
-          {getTranslationFromI18nKeyAndLabel('flow.wizard.configureSteps', 'Configure Workflow Steps')}
-        </Title>
-        <Text className="gba:text-gray-600">
-          {getTranslationFromI18nKeyAndLabel('flow.wizard.configureStepsDescription', 'Customize the steps for your workflow based on the selected pattern')}
+      <div className="gba:text-center gba:mb-8">
+        <div className="gba:flex gba:items-center gba:justify-center gba:space-x-3 gba:mb-3">
+          <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:rounded-full gba:bg-blue-100">
+            <Settings className="gba:w-6 gba:h-6 gba:text-blue-600" />
+          </div>
+          <Title level={3} className="gba:mb-0 gba:text-gray-800">
+            {getTranslationFromI18nKeyAndLabel('flow.wizard.configureSteps', 'Configure Workflow Steps')}
+          </Title>
+        </div>
+        <Text className="gba:text-gray-600 gba:text-base gba:block gba:mb-4 gba:max-w-2xl gba:mx-auto">
+          {getTranslationFromI18nKeyAndLabel('flow.wizard.configureStepsDescription', 'Customize the steps for your workflow based on the selected pattern. Add content blocks to display information and input blocks to collect data from users.')}
         </Text>
+        
+        {/* Help Toggle */}
+        <Button
+          icon={showHelp ? <EyeOff className="gba:w-4 gba:h-4" /> : <Lightbulb className="gba:w-4 gba:h-4" />}
+          onClick={() => setShowHelp(!showHelp)}
+          type="link"
+          size="small"
+          className="gba:text-blue-600 gba:font-medium"
+        >
+          {showHelp ? 'Hide Tips' : 'Show Tips'}
+        </Button>
       </div>
 
-      {/* Pattern Summary */}
-      {selectedPattern && (
+      {/* Help Section */}
+      {showHelp && (
         <Alert
-          message={`Pattern: ${selectedPattern.title}`}
-          description={selectedPattern.description}
+          message="Step Configuration Tips"
+          description={
+            <div className="gba:space-y-3 gba:text-sm">
+              <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+                <div className="gba:space-y-2">
+                  <Text strong className="gba:text-blue-700">Step Types:</Text>
+                  <div>• <strong>Tasks</strong> require action from users (approvals, form completion)</div>
+                  <div>• <strong>Information</strong> steps display content without requiring input</div>
+                  <div>• <strong>Approval</strong> steps require approval or rejection decisions</div>
+                  <div>• <strong>Acknowledge</strong> steps require users to acknowledge information</div>
+                </div>
+                <div className="gba:space-y-2">
+                  <Text strong className="gba:text-green-700">Content & Inputs:</Text>
+                  <div>• <strong>Content blocks</strong> display information to users</div>
+                  <div>• <strong>Input blocks</strong> collect data from users</div>
+                  <div>• Use different block types for various content and input needs</div>
+                  <div>• Mark blocks as required to ensure completion</div>
+                </div>
+              </div>
+            </div>
+          }
           type="info"
           showIcon
+          closable
+          onClose={() => setShowHelp(false)}
+          className="gba:mb-6"
         />
       )}
 
+      {/* Pattern Summary */}
+      {selectedPattern && (
+        <div className="gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded-lg gba:p-5">
+          <div className="gba:flex gba:items-center gba:space-x-3 gba:mb-2">
+            <CheckCircleOutlined className="gba:text-blue-600 gba:text-lg" />
+            <Text strong className="gba:text-blue-800 gba:text-lg">Selected Pattern: {selectedPattern.title}</Text>
+          </div>
+          <Text className="gba:text-blue-700 gba:text-sm">{selectedPattern.description}</Text>
+        </div>
+      )}
+
       {/* Steps Configuration */}
-      <div className="gba:space-y-4">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <Title level={4}>Workflow Steps ({steps.length})</Title>
+      <div className="gba:space-y-6">
+        <div className="gba:flex gba:items-center gba:justify-between gba:bg-gray-50 gba:p-5 gba:rounded-lg gba:border gba:border-gray-200">
+          <div className="gba:flex gba:items-center gba:space-x-4">
+            <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:rounded-full gba:bg-blue-100">
+              <Text className="gba:text-xl gba:font-bold gba:text-blue-600">{steps.length}</Text>
+            </div>
+            <div>
+              <Title level={4} className="gba:mb-1 gba:text-gray-800">Workflow Steps</Title>
+              <Text className="gba:text-sm gba:text-gray-600">
+                {steps.length === 0 ? 'No steps configured' : `${steps.length} step${steps.length > 1 ? 's' : ''} configured`}
+              </Text>
+            </div>
+          </div>
           <Button
             icon={<PlusOutlined />}
             onClick={handleAddStep}
             type="primary"
+            size="large"
             data-testid={`${testId}-add-step`}
           >
             Add Step
@@ -459,29 +209,44 @@ export const StepConfiguration: React.FC<StepConfigurationProps> = ({
         </div>
 
         {steps.length === 0 ? (
-          <Card className="gba:text-center gba:py-12">
-            <Text className="gba:text-gray-500">
-              No steps configured yet. Click "Add Step" to create your first step.
-            </Text>
+          <Card className="gba:text-center gba:py-16 gba:bg-gray-50 gba:border-dashed gba:border-2 gba:border-gray-300">
+            <div className="gba:space-y-4">
+              <div className="gba:flex gba:justify-center">
+                <div className="gba:w-20 gba:h-20 gba:rounded-full gba:bg-gray-200 gba:flex gba:items-center gba:justify-center">
+                  <Settings className="gba:w-10 gba:h-10 gba:text-gray-400" />
+                </div>
+              </div>
+              <div>
+                <Text className="gba:text-gray-600 gba:text-xl gba:block gba:mb-2 gba:font-medium">No steps configured yet</Text>
+                <Text className="gba:text-gray-500 gba:text-base">
+                  Add your first step to start building your workflow
+                </Text>
+              </div>
+              <Button
+                icon={<PlusOutlined />}
+                onClick={handleAddStep}
+                type="primary"
+                size="large"
+                className="gba:mt-4"
+              >
+                Add First Step
+              </Button>
+            </div>
           </Card>
         ) : (
           <div className="gba:space-y-4">
-            {steps.map(renderStepEditor)}
+            {steps.map((step, index) => (
+              <StepEditor
+                key={step.id}
+                step={step}
+                index={index}
+                onUpdate={(updates) => handleUpdateStep(step.id, updates)}
+                onDelete={() => handleDeleteStep(step.id)}
+                data-testid={`${testId}-step-editor`}
+              />
+            ))}
           </div>
         )}
-      </div>
-
-      {/* Save Button */}
-      <div className="gba:flex gba:justify-end gba:pt-6">
-        <Button
-          type="primary"
-          onClick={handleSaveConfiguration}
-          disabled={steps.length === 0}
-          size="large"
-          data-testid={`${testId}-save-button`}
-        >
-          Save Configuration
-        </Button>
       </div>
     </div>
   );

@@ -1,11 +1,22 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { Button } from '@newwork/nw-design-system';
 import { Progress } from '@newwork/nw-design-system';
-
+import { Button } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
+import { 
+  Shield, 
+  Megaphone, 
+  Target, 
+  MessageSquare, 
+  FileText, 
+  HandHeart,
+  UserCheck,
+  GitBranch,
+  CheckSquare,
+  LucideIcon
+} from 'lucide-react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useWizardStore, useWizardNavigation, useWizardValidation } from '../../hooks/useWizardStore';
+import { useWizardStore } from '../../hooks/useWizardStore';
 import { PatternSelector } from './PatternSelector';
 import { BasicInfoForm } from './BasicInfoForm';
 import { StepConfiguration } from './StepConfiguration';
@@ -18,8 +29,31 @@ interface FlowWizardProps {
   'data-testid'?: string;
 }
 
+// Icon mapping for Lucide icons
+const ICON_MAP: Record<string, LucideIcon> = {
+  'Shield': Shield,
+  'Megaphone': Megaphone,
+  'Target': Target,
+  'MessageSquare': MessageSquare,
+  'FileText': FileText,
+  'HandHeart': HandHeart,
+  'UserCheck': UserCheck,
+  'GitBranch': GitBranch,
+  'CheckSquare': CheckSquare
+};
+
+// Helper function to render Lucide icons
+const renderIcon = (iconName: string, className?: string, style?: React.CSSProperties) => {
+  const IconComponent = ICON_MAP[iconName];
+  if (!IconComponent) {
+    console.warn(`Icon "${iconName}" not found in ICON_MAP`);
+    return <div className={className} style={style}>?</div>;
+  }
+  return <IconComponent className={className} style={style} />;
+};
+
 /**
- * Multi-step wizard for creating flow templates based on business patterns
+ * Multi-step wizard for creating workflow templates
  */
 export const FlowWizard: React.FC<FlowWizardProps> = ({
   onComplete,
@@ -27,99 +61,92 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
   'data-testid': testId = 'flow-wizard'
 }) => {
   const { 
-    selectedPattern, 
-    generateTemplate, 
-    completeWizard,
-    initializeWizard,
-    resetWizard,
-    configuration
+    currentStep, 
+    nextStep, 
+    previousStep, 
+    selectedPattern,
+    configuration,
+    steps
   } = useWizardStore();
-  
-  const {
-    currentStep,
-    currentStepInfo,
-    canGoNext,
-    canGoPrevious,
-    progress,
-    nextStep,
-    previousStep
-  } = useWizardNavigation();
-  
-  const {
-    validateCurrentStep,
-    validateTemplate,
-    isValid
-  } = useWizardValidation();
 
-  // Get context-aware validation message
-  const getValidationMessage = () => {
-    const step = currentStepInfo;
-    if (!step) return 'Please complete the current step before proceeding.';
-    
-    switch (step.id) {
+  const progress = ((currentStep + 1) / useWizardStore.getState().steps.length) * 100;
+  const currentStepInfo = useWizardStore.getState().steps[currentStep];
+
+  // Navigation helpers
+  const canGoNext = currentStep < useWizardStore.getState().steps.length - 1;
+  const canGoPrevious = currentStep > 0;
+
+  // Validation logic for each step
+  const validateCurrentStep = (): boolean => {
+    switch (currentStepInfo.id) {
       case 'pattern-selection':
-        return 'Please select a business pattern to continue.';
+        return selectedPattern !== null;
       
       case 'basic-info':
-        const missingFields = [];
-        if (!configuration.title) missingFields.push('title');
-        if (!configuration.description) missingFields.push('description');
-        
-        if (missingFields.length > 0) {
-          return `Please provide a ${missingFields.join(' and ')} for your workflow.`;
-        }
-        return 'Please complete the basic information.';
+        return !!(configuration.title && configuration.description);
       
       case 'step-configuration':
-        if (!selectedPattern) return 'Please select a pattern first.';
-        if (!configuration.steps || configuration.steps.length === 0) {
-          return 'Please configure at least one workflow step.';
-        }
-        return 'Please complete the step configuration.';
+        return configuration.steps && configuration.steps.length > 0;
       
       case 'assignment-configuration':
-        return 'Please configure assignment rules for your workflow steps.';
+        return !!(configuration.assignmentStrategy);
       
       case 'advanced-settings':
-        return 'Please review the advanced settings.';
+        return true; // Advanced settings are optional
       
       case 'review-preview':
-        return 'Please review your workflow configuration. Some required fields may be missing.';
+        return true; // Review step is always valid
       
       default:
-        return 'Please complete all required fields before proceeding.';
+        return false;
     }
   };
 
-  // Handle wizard completion
-  const handleComplete = () => {
-    try {
-      const template = generateTemplate();
-      const patternSelection = completeWizard();
+  // Get validation message for current step
+  const getValidationMessage = () => {
+    switch (currentStepInfo.id) {
+      case 'pattern-selection':
+        return 'Please select a workflow pattern to continue.';
       
-      onComplete({
-        template,
-        patternSelection
-      });
-    } catch (error) {
-      console.error('Error completing wizard:', error);
+      case 'basic-info':
+        if (!configuration.title) return 'Please enter a workflow title.';
+        if (!configuration.description) return 'Please enter a workflow description.';
+        return '';
+      
+      case 'step-configuration':
+        if (!configuration.steps || configuration.steps.length === 0) return 'Please add at least one workflow step.';
+        return '';
+      
+      case 'assignment-configuration':
+        if (!configuration.assignmentStrategy) return 'Please select an assignment strategy.';
+        return '';
+      
+      default:
+        return '';
     }
   };
 
-  // Handle wizard cancellation
+  const handleComplete = () => {
+    if (!validateCurrentStep()) return;
+    
+    const template = {
+      pattern: selectedPattern,
+      configuration,
+      createdAt: new Date().toISOString()
+    };
+    
+    onComplete(template);
+  };
+
   const handleCancel = () => {
-    if (window.confirm(getTranslationFromI18nKeyAndLabel('flow.wizard.cancelConfirm', 'Are you sure you want to cancel? All progress will be lost.'))) {
-      resetWizard();
-      onCancel();
-    }
+    onCancel();
   };
 
-  // Render current step component
   const renderCurrentStep = () => {
     switch (currentStepInfo.id) {
       case 'pattern-selection':
         return (
-          <PatternSelector
+          <PatternSelector 
             onNext={nextStep}
             data-testid={`${testId}-pattern-selector`}
           />
@@ -136,7 +163,7 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
         return (
           <StepConfiguration
             onNext={nextStep}
-            data-testid={`${testId}-step-config`}
+            data-testid={`${testId}-step-configuration`}
           />
         );
       
@@ -166,7 +193,7 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
               <Card className="gba:bg-green-50 gba:border-green-200">
                 <CardHeader>
                   <CardTitle className="gba:flex gba:items-center gba:space-x-2">
-                    <span className="gba:text-xl">{selectedPattern.icon}</span>
+                    {renderIcon(selectedPattern.icon, 'gba:w-5 gba:h-5', { color: selectedPattern.color })}
                     <span>Ready to Create: {selectedPattern.title}</span>
                   </CardTitle>
                 </CardHeader>
@@ -280,7 +307,7 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
       <div className="gba:flex gba:justify-between gba:items-center gba:px-6 gba:pb-6" data-testid={`${testId}-navigation`}>
         <div className="gba:flex gba:space-x-3">
           <Button
-            variant="outline"
+            variant="outlined"
             onClick={handleCancel}
             data-testid={`${testId}-cancel-button`}
           >
@@ -289,7 +316,7 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
           
           {canGoPrevious && (
             <Button
-              variant="outline"
+              variant="outlined"
               onClick={previousStep}
               data-testid={`${testId}-previous-button`}
             >
