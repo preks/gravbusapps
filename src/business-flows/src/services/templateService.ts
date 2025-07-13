@@ -15,7 +15,19 @@ import {
 // Templates are stored as workflow definitions in Conductor
 
 /**
- * Create a new flow template
+ * Check if template already exists by ID
+ */
+export const templateExists = async (templateId: string): Promise<boolean> => {
+  try {
+    await getWorkflowDefinition(templateId);
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+/**
+ * Create a new flow template with duplicate prevention
  */
 export const createTemplate = async (templateData: FlowTemplate, isDraft: boolean = false): Promise<FlowTemplate> => {
   try {
@@ -31,11 +43,20 @@ export const createTemplate = async (templateData: FlowTemplate, isDraft: boolea
     const version = templateData.version || 1;
     
     const template: FlowTemplate = {
-      ...templateData,
       id: workflowName, // Use workflow name as ID
       version: version,
-      type: templateData.type || 'TEMPLATE' // Default to TEMPLATE if not specified
+      type: templateData.type || 'TEMPLATE', // Default to TEMPLATE if not specified
+      name: templateData.name || 'Untitled Template', // Ensure name is included
+      description: templateData.description,
+      steps: templateData.steps || [] // Ensure steps is included
     };
+
+    // Check if template already exists
+    const exists = await templateExists(workflowName);
+    if (exists) {
+      logger.warn(`Template ${workflowName} already exists, updating instead of creating`);
+      return await updateTemplate(workflowName, templateData, isDraft);
+    }
 
     // Create a workflow definition in Conductor (skip for drafts)
     let workflowDef;

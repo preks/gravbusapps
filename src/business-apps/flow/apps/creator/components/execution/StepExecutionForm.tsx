@@ -7,21 +7,21 @@ import {
   PaperClipOutlined
 } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { SimplifiedStep } from '../../types/flowTemplate';
+import { FlowStep } from '../../types/flowTemplate';
 import { AssignmentSelector } from '../shared/AssignmentSelector';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 interface StepExecutionFormProps {
-  step: SimplifiedStep;
+  step: FlowStep;
   stepIndex: number;
   configuration: {
     title?: string;
     message?: string;
     assignment?: any;
     inputValues?: { [key: string]: any };
-    attachments?: any[];
+    links?: any[];
   };
   onConfigurationChange: (updates: any) => void;
   'data-testid'?: string;
@@ -82,7 +82,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
       </Card>
 
       {/* Assignment Configuration */}
-      {!step.usePredefinedAssignment?.enabled && (
+      {!step.assignment && (
         <Card size="small" title={
           <div className="gba:flex gba:items-center gba:gap-2">
             <UserOutlined />
@@ -103,7 +103,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
         </Card>
       )}
 
-      {step.usePredefinedAssignment?.enabled && (
+      {step.assignment && (
         <Card size="small" title={
           <div className="gba:flex gba:items-center gba:gap-2">
             <UserOutlined />
@@ -114,28 +114,26 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
             {getTranslationFromI18nKeyAndLabel('flow.execution.predefinedAssignmentDescription', 'This step has a predefined assignment that will be used during execution.')}
           </Text>
           
-          {step.usePredefinedAssignment.assignment && (
-            <div className="gba:mt-4 gba:p-3 gba:bg-gray-50 gba:rounded">
-              <div className="gba:space-y-2">
-                <div>
+          <div className="gba:mt-4 gba:p-3 gba:bg-gray-50 gba:rounded">
+            <div className="gba:space-y-2">
+                              <div>
                   <strong>{getTranslationFromI18nKeyAndLabel('flow.execution.assignmentMode', 'Assignment Mode')}:</strong>{' '}
-                  {step.usePredefinedAssignment.assignment.assignmentMode === 'ASSIGN' 
-                    ? getTranslationFromI18nKeyAndLabel('flow.execution.assignToAll', 'Assigned to all')
+                  {step.assignment.assignmentMode === 'ASSIGN' 
+                    ? getTranslationFromI18nKeyAndLabel('flow.execution.assignedToAll', 'Assigned to all')
                     : getTranslationFromI18nKeyAndLabel('flow.execution.claimableByOne', 'Claimable by one')
                   }
                 </div>
-                <div>
-                  <strong>{getTranslationFromI18nKeyAndLabel('flow.execution.targets', 'Targets')}:</strong>{' '}
-                  {step.usePredefinedAssignment.assignment.targets?.length || 0} selected
-                </div>
+              <div>
+                <strong>{getTranslationFromI18nKeyAndLabel('flow.execution.targets', 'Targets')}:</strong>{' '}
+                {step.assignment.targets?.length || 0} selected
               </div>
             </div>
-          )}
+          </div>
         </Card>
       )}
 
       {/* Input Form Configuration */}
-      {step.requestInput?.enabled && step.requestInput.inputs.length > 0 && (
+      {step.inputs && step.inputs.length > 0 && (
         <Card size="small" title={
           <div className="gba:flex gba:items-center gba:gap-2">
             <FormOutlined />
@@ -148,7 +146,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
             </Text>
             
             <div className="gba:space-y-3">
-              {step.requestInput.inputs.map((input, index) => (
+              {step.inputs.map((input, index) => (
                 <div key={index}>
                   <label className="gba:block gba:text-sm gba:font-medium gba:mb-1">
                     {input.label}
@@ -163,7 +161,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
                       rows={2}
                       data-testid={`${testId}-input-${index}`}
                     />
-                  ) : input.type === 'DROPDOWN' ? (
+                  ) : input.type === 'SELECT' ? (
                     <Input
                       value={configuration.inputValues?.[`input_${index}`] || ''}
                       onChange={(e) => updateInputValue(index, e.target.value)}
@@ -185,25 +183,25 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
         </Card>
       )}
 
-      {/* Attachments */}
-      {step.attachments && step.attachments.length > 0 && (
+      {/* Links */}
+      {step.links && step.links.length > 0 && (
         <Card size="small" title={
           <div className="gba:flex gba:items-center gba:gap-2">
             <PaperClipOutlined />
-            <span>{getTranslationFromI18nKeyAndLabel('flow.execution.attachments', 'Attachments')}</span>
+            <span>{getTranslationFromI18nKeyAndLabel('flow.execution.links', 'Links')}</span>
           </div>
         }>
           <div className="gba:space-y-2">
             <Text className="gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('flow.execution.attachmentsDescription', 'The following attachments will be included with this step:')}
+              {getTranslationFromI18nKeyAndLabel('flow.execution.linksDescription', 'The following links will be included with this step:')}
             </Text>
             
             <div className="gba:space-y-2">
-              {step.attachments.map((attachment, index) => (
+              {step.links.map((link, index) => (
                 <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:bg-gray-50 gba:rounded">
                   <PaperClipOutlined className="gba:text-gray-500" />
-                  <span className="gba:text-sm">{attachment.title || attachment.url}</span>
-                  <span className="gba:text-xs gba:text-gray-500 gba:ml-auto">{attachment.type}</span>
+                  <span className="gba:text-sm">{link.name || link.url}</span>
+                  <span className="gba:text-xs gba:text-gray-500 gba:ml-auto">{link.type}</span>
                 </div>
               ))}
             </div>

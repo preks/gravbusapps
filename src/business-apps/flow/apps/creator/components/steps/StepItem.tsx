@@ -2,13 +2,12 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
 import { Button, Input, Label, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
-import { Trash2, Settings, FileText, FormInput, User, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trash2, Settings, FileText, FormInput, User, ChevronDown, ChevronUp, Link } from 'lucide-react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore';
 import { AssignmentSelector } from '../shared/AssignmentSelector';
-import { ContentBlocksList } from './content/ContentBlocksList';
 import { InputBlocksList } from './input/InputBlocksList';
-import { StepType } from '../../types/flowTemplate';
+import { FlowStepType } from '../../types/flowTemplate';
 
 interface StepItemProps {
   step: any;
@@ -72,9 +71,9 @@ export const StepItem: React.FC<StepItemProps> = ({
                   <User className="gba:h-4 gba:w-4 gba:mr-2" />
                   {getTranslationFromI18nKeyAndLabel('flow.creator.basic', 'Basic')}
                 </TabsTrigger>
-                <TabsTrigger value="content" data-testid={`${testId}-content-tab`}>
-                  <FileText className="gba:h-4 gba:w-4 gba:mr-2" />
-                  {getTranslationFromI18nKeyAndLabel('flow.creator.content', 'Content')}
+                <TabsTrigger value="links" data-testid={`${testId}-links-tab`}>
+                  <Link className="gba:h-4 gba:w-4 gba:mr-2" />
+                  {getTranslationFromI18nKeyAndLabel('flow.creator.links', 'Links')}
                 </TabsTrigger>
                 <TabsTrigger value="input" data-testid={`${testId}-input-tab`}>
                   <FormInput className="gba:h-4 gba:w-4 gba:mr-2" />
@@ -108,19 +107,19 @@ export const StepItem: React.FC<StepItemProps> = ({
                       data-testid={`${testId}-type-select`}
                     >
                       <SelectTrigger className="gba:w-full">
-                        <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.selectStepType', 'Select step type')} />
+                        <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.selectFlowStepType', 'Select step type')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={StepType.TASK}>
+                        <SelectItem value={FlowStepType.TASK}>
                           {getTranslationFromI18nKeyAndLabel('flow.creator.task', 'Task')}
                         </SelectItem>
-                        <SelectItem value={StepType.APPROVAL}>
+                        <SelectItem value={FlowStepType.APPROVAL}>
                           {getTranslationFromI18nKeyAndLabel('flow.creator.approval', 'Approval')}
                         </SelectItem>
-                        <SelectItem value={StepType.INFORMATION}>
+                        <SelectItem value={FlowStepType.INFORMATION}>
                           {getTranslationFromI18nKeyAndLabel('flow.creator.information', 'Information')}
                         </SelectItem>
-                        <SelectItem value={StepType.ACKNOWLEDGE}>
+                        <SelectItem value={FlowStepType.ACKNOWLEDGE}>
                           {getTranslationFromI18nKeyAndLabel('flow.creator.acknowledge', 'Acknowledge')}
                         </SelectItem>
                       </SelectContent>
@@ -154,20 +153,73 @@ export const StepItem: React.FC<StepItemProps> = ({
                 </div>
               </TabsContent>
               
-              {/* Content Tab */}
-              <TabsContent value="content" data-testid={`${testId}-content-tab-content`}>
-                <ContentBlocksList 
-                  taskId={step.id} 
-                  blocks={step.contentBlocks} 
-                  data-testid={`${testId}-content-blocks`}
-                />
+              {/* Links Tab */}
+              <TabsContent value="links" data-testid={`${testId}-links-tab-content`}>
+                <div className="gba:space-y-4">
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <h4 className="gba:text-sm gba:font-medium">
+                      {getTranslationFromI18nKeyAndLabel('flow.creator.links', 'Links')}
+                    </h4>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newLinks = [...(step.links || []), { name: '', url: '', type: 'URL' }];
+                        handleUpdateStep({ links: newLinks });
+                      }}
+                      data-testid={`${testId}-add-link`}
+                    >
+                      {getTranslationFromI18nKeyAndLabel('flow.creator.addLink', 'Add Link')}
+                    </Button>
+                  </div>
+                  
+                  <div className="gba:space-y-2">
+                    {(step.links || []).map((link: any, index: number) => (
+                      <div key={index} className="gba:flex gba:gap-2 gba:items-center">
+                        <Input
+                          placeholder="Link name"
+                          value={link.name}
+                          onChange={(e) => {
+                            const newLinks = [...(step.links || [])];
+                            newLinks[index] = { ...newLinks[index], name: e.target.value };
+                            handleUpdateStep({ links: newLinks });
+                          }}
+                          className="gba:flex-1"
+                          data-testid={`${testId}-link-name-${index}`}
+                        />
+                        <Input
+                          placeholder="URL"
+                          value={link.url}
+                          onChange={(e) => {
+                            const newLinks = [...(step.links || [])];
+                            newLinks[index] = { ...newLinks[index], url: e.target.value };
+                            handleUpdateStep({ links: newLinks });
+                          }}
+                          className="gba:flex-1"
+                          data-testid={`${testId}-link-url-${index}`}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newLinks = (step.links || []).filter((_: any, i: number) => i !== index);
+                            handleUpdateStep({ links: newLinks });
+                          }}
+                          data-testid={`${testId}-remove-link-${index}`}
+                        >
+                          <Trash2 className="gba:h-4 gba:w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </TabsContent>
               
               {/* Input Fields Tab */}
               <TabsContent value="input" data-testid={`${testId}-input-tab-content`}>
                 <InputBlocksList 
                   taskId={step.id} 
-                  blocks={step.inputBlocks} 
+                  blocks={step.inputs} 
                   data-testid={`${testId}-input-blocks`}
                 />
               </TabsContent>

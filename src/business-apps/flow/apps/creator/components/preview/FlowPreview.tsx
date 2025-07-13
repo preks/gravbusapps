@@ -1,15 +1,14 @@
 import React from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore';
-import { TaskExecutionType, StepType } from '../../types/flowTemplate';
-import { FlowStep } from '../../types/flowTemplate';
+import { FlowStepType, FlowStep } from '../../types/flowTemplate';
 
 /**
  * Visual representation of the workflow as a flowchart
  */
 export const FlowPreview: React.FC = () => {
   const { flowTemplate } = useFlowTemplateStore();
-  const { steps, executionStrategy } = flowTemplate;
+  const { steps } = flowTemplate;
 
   return (
     <div className="gba:border gba:border-gray-200 gba:rounded gba:p-4 gba:bg-white" data-testid="flow-preview">
@@ -17,12 +16,6 @@ export const FlowPreview: React.FC = () => {
         <h3 className="gba:font-medium" data-testid="flow-preview-title">
           {getTranslationFromI18nKeyAndLabel('flow.creator.flowPreview', 'Flow Preview')}
         </h3>
-                <div className={`gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:font-medium ${executionStrategy === TaskExecutionType.PARALLEL ? 'gba:bg-purple-100 gba:text-purple-700' : 'gba:bg-blue-100 gba:text-blue-700'}`} data-testid="flow-preview-execution-mode">
-          {executionStrategy === TaskExecutionType.PARALLEL
-            ? getTranslationFromI18nKeyAndLabel('flow.creator.parallel', 'Parallel')
-            : getTranslationFromI18nKeyAndLabel('flow.creator.sequential', 'Sequential')
-          }
-        </div>
       </div>
       
       {steps.length === 0 ? (
@@ -34,41 +27,27 @@ export const FlowPreview: React.FC = () => {
         </div>
       ) : (
         <div className="gba:flex gba:flex-col gba:items-center gba:gap-4" data-testid="flow-preview-diagram">
-          {executionStrategy === TaskExecutionType.PARALLEL ? (
-            // Parallel Layout - Steps side by side
-            <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">
-              <div className="gba:text-sm gba:text-gray-600 gba:mb-2" data-testid="parallel-layout-label">
-                {getTranslationFromI18nKeyAndLabel('flow.creator.allStepsExecuteSimultaneously', 'All steps execute simultaneously')}
-              </div>
-              <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-3" data-testid="parallel-steps-container">
-                {steps.map((step, index) => 
-                  renderStepWithAssignment(step, index, true, 'flow-preview')
+          {/* Sequential Layout - Steps in vertical flow */}
+          <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">
+            <div className="gba:text-sm gba:text-gray-600 gba:mb-2" data-testid="sequential-layout-label">
+              {getTranslationFromI18nKeyAndLabel('flow.creator.stepsExecuteInOrder', 'Steps execute one after another')}
+            </div>
+            {steps.map((step, index) => (
+              <React.Fragment key={step.id}>
+                {/* Step Node */}
+                {renderStepWithAssignment(step, index, false, 'flow-preview')}
+                
+                {/* Arrow connecting to next step */}
+                {index < steps.length - 1 && (
+                  <div className="gba:h-6 gba:flex gba:items-center gba:justify-center" data-testid={`flow-preview-arrow-${index}`}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 4L12 20M12 20L18 14M12 20L6 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
                 )}
-              </div>
-            </div>
-          ) : (
-            // Sequential Layout - Steps in vertical flow
-            <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">
-              <div className="gba:text-sm gba:text-gray-600 gba:mb-2" data-testid="sequential-layout-label">
-                {getTranslationFromI18nKeyAndLabel('flow.creator.stepsExecuteInOrder', 'Steps execute one after another')}
-              </div>
-              {steps.map((step, index) => (
-                <React.Fragment key={step.id}>
-                  {/* Step Node */}
-                  {renderStepWithAssignment(step, index, false, 'flow-preview')}
-                  
-                  {/* Arrow connecting to next step */}
-                  {index < steps.length - 1 && (
-                    <div className="gba:h-6 gba:flex gba:items-center gba:justify-center" data-testid={`flow-preview-arrow-${index}`}>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 4L12 20M12 20L18 14M12 20L6 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-          )}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -78,15 +57,15 @@ export const FlowPreview: React.FC = () => {
 /**
  * Returns the appropriate color class based on the step type
  */
-function getStepTypeColor(type: StepType): string {
+function getFlowStepTypeColor(type: FlowStepType): string {
   switch (type) {
-    case StepType.TASK:
+    case FlowStepType.TASK:
       return 'gba:bg-blue-50 gba:border-blue-200 gba:text-blue-500';
-    case StepType.APPROVAL:
+    case FlowStepType.APPROVAL:
       return 'gba:bg-green-50 gba:border-green-200 gba:text-green-500';
-    case StepType.ACKNOWLEDGE:
+    case FlowStepType.ACKNOWLEDGE:
       return 'gba:bg-purple-50 gba:border-purple-200 gba:text-purple-500';
-    case StepType.INFORMATION:
+    case FlowStepType.INFORMATION:
       return 'gba:bg-amber-50 gba:border-amber-200 gba:text-amber-500';
     default:
       return 'gba:bg-gray-50 gba:border-gray-200 gba:text-gray-700';
@@ -105,13 +84,13 @@ function capitalizeFirstLetter(string: string): string {
  */
 function renderStepWithAssignment(step: FlowStep, index: number, isParallel: boolean, testId: string): JSX.Element {
   const hasAssignment = step.assignment && step.assignment.targets.length > 0;
-  const assignToAll = step.assignment?.assignToAll;
+  const isAssignMode = step.assignment?.assignmentMode === 'ASSIGN';
   const hasGroupAssignments = hasAssignment && step.assignment?.targets.some(target => 
     target.entity === 'department' || target.entity === 'role'
   );
   
-  // If assignToAll is true, show multiple task generation visualization
-  if (assignToAll) {
+  // If assignmentMode is ASSIGN, show multiple task generation visualization
+  if (isAssignMode) {
     return (
       <div key={step.id} className="gba:flex gba:flex-col gba:items-center gba:gap-2" data-testid={`${testId}-step-${index}-multiple`}>
         <div className="gba:text-xs gba:text-gray-500 gba:mb-1">
@@ -130,7 +109,7 @@ function renderStepWithAssignment(step: FlowStep, index: number, isParallel: boo
             <div
               key={`${step.id}-task-${taskIndex}`}
               className={`gba:w-16 gba:h-12 gba:border gba:rounded gba:text-center gba:relative gba:text-xs gba:flex gba:flex-col gba:justify-center
-                         ${getStepTypeColor(step.type)}`}
+                         ${getFlowStepTypeColor(step.type)}`}
               data-testid={`${testId}-step-${index}-task-${taskIndex}`}
             >
               <div className={`gba:absolute gba:-top-1 gba:-left-1 gba:w-3 gba:h-3 gba:text-white gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold ${isParallel ? 'gba:bg-purple-500' : 'gba:bg-blue-500'}`}>
@@ -156,7 +135,7 @@ function renderStepWithAssignment(step: FlowStep, index: number, isParallel: boo
      <div 
        key={step.id}
        className={`${isParallel ? 'gba:w-48' : 'gba:w-64'} gba:p-3 gba:border gba:rounded gba:text-center gba:relative
-                  ${getStepTypeColor(step.type)}`}
+                  ${getFlowStepTypeColor(step.type)}`}
        data-testid={`${testId}-step-${index}`}
      >
        <div className={`gba:absolute gba:-top-2 gba:-left-2 gba:w-6 gba:h-6 gba:text-white gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold ${isParallel ? 'gba:bg-purple-500' : 'gba:bg-blue-500'}`}>
@@ -164,7 +143,7 @@ function renderStepWithAssignment(step: FlowStep, index: number, isParallel: boo
        </div>
       <div className="gba:font-medium gba:text-sm">{step.title || `Step ${index + 1}`}</div>
       <div className="gba:text-xs gba:mt-1">{capitalizeFirstLetter(step.type)}</div>
-      {step.assignment && !assignToAll && (
+      {step.assignment && step.assignment.assignmentMode === 'CLAIM' && (
         <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
           {getTranslationFromI18nKeyAndLabel('flow.creator.sharedTask', 'Shared task')}
         </div>

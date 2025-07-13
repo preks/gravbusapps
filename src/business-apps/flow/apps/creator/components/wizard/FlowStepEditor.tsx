@@ -18,46 +18,46 @@ import {
   CheckCircleOutlined
 } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { SimplifiedStep, AttachmentLink, Input, InputBlockType, StepType } from '../../types/flowTemplate';
+import { FlowStep, Link, InputType, InputBlock, FlowStepType, TaskAssignment } from '../../types/flowTemplate';
 import { AssignmentSelector } from '../shared/AssignmentSelector';
 
 const { TextArea } = Input;
 
-interface SimplifiedStepEditorProps {
-  step: SimplifiedStep;
+interface FlowStepEditorProps {
+  step: FlowStep;
   stepIndex: number;
-  onStepChange: (stepIndex: number, updatedStep: SimplifiedStep) => void;
+  onStepChange: (stepIndex: number, updatedStep: FlowStep) => void;
   isNewStep?: boolean;
   'data-testid'?: string;
 }
 
 // Configuration for input block types
 const INPUT_BLOCK_CONFIG = {
-  [InputBlockType.TEXT]: {
+  [InputType.TEXT]: {
     icon: <FileTextOutlined />,
     color: '#1890ff',
     label: 'Text Input',
     description: 'Single line text input'
   },
-  [InputBlockType.TEXTAREA]: {
+  [InputType.TEXTAREA]: {
     icon: <MessageOutlined />,
     color: '#52c41a',
     label: 'Long Text',
     description: 'Multi-line text input'
   },
-  [InputBlockType.NUMBER]: {
+  [InputType.NUMBER]: {
     icon: <FileTextOutlined />,
     color: '#fa8c16',
     label: 'Number',
     description: 'Numeric input'
   },
-  [InputBlockType.DROPDOWN]: {
+  [InputType.SELECT]: {
     icon: <SettingOutlined />,
     color: '#722ed1',
     label: 'Dropdown',
     description: 'Select from predefined options'
   },
-  [InputBlockType.FILE]: {
+  [InputType.FILE]: {
     icon: <FileImageOutlined />,
     color: '#eb2f96',
     label: 'File Upload',
@@ -65,26 +65,7 @@ const INPUT_BLOCK_CONFIG = {
   }
 };
 
-// Configuration for attachment types
-const ATTACHMENT_TYPE_CONFIG = {
-  'document': {
-    icon: <FileTextOutlined />,
-    color: '#1890ff',
-    label: 'Document'
-  },
-  'image': {
-    icon: <FileImageOutlined />,
-    color: '#52c41a',
-    label: 'Image'
-  },
-  'hyperlink': {
-    icon: <LinkOutlined />,
-    color: '#fa8c16',
-    label: 'Link'
-  }
-};
-
-export const SimplifiedStepEditor: React.FC<SimplifiedStepEditorProps> = ({
+export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
   step,
   stepIndex,
   onStepChange,
@@ -92,95 +73,88 @@ export const SimplifiedStepEditor: React.FC<SimplifiedStepEditorProps> = ({
   'data-testid': testId = 'simplified-step-editor'
 }) => {
   const [isExpanded, setIsExpanded] = useState(isNewStep);
-  const [showAttachments, setShowAttachments] = useState(step.attachments.length > 0);
+  const [showLinks, setShowLinks] = useState((step.links?.length || 0) > 0);
+  const [showInputs, setShowInputs] = useState((step.inputs?.length || 0) > 0);
+  const [showAssignment, setShowAssignment] = useState(!!step.assignment);
 
-  const updateStep = (updates: Partial<SimplifiedStep>) => {
+  const updateStep = (updates: Partial<FlowStep>) => {
     onStepChange(stepIndex, { ...step, ...updates });
   };
 
-  const updateRequestInput = (updates: Partial<SimplifiedStep['requestInput']>) => {
-    updateStep({
-      requestInput: { ...step.requestInput, ...updates }
-    });
-  };
-
-  const updateAssignment = (updates: Partial<SimplifiedStep['usePredefinedAssignment']>) => {
-    updateStep({
-      usePredefinedAssignment: { ...step.usePredefinedAssignment, ...updates }
-    });
-  };
-
-  const addAttachment = () => {
-    const newAttachment: AttachmentLink = {
-      type: 'hyperlink',
+  const addLink = () => {
+    const newLink: Link = {
+      name: '',
       url: '',
-      title: '',
-      description: ''
+      type: 'URL' as any
     };
+    const currentLinks = step.links || [];
     updateStep({
-      attachments: [...step.attachments, newAttachment]
+      links: [...currentLinks, newLink]
     });
   };
 
   const handleFileUpload = (file: File) => {
-    // Determine file type based on MIME type
-    let attachmentType: 'document' | 'image' | 'hyperlink' = 'document';
-    if (file.type.startsWith('image/')) {
-      attachmentType = 'image';
-    }
-
     // Create a temporary URL for the file (in real implementation, this would be uploaded to server)
     const fileUrl = URL.createObjectURL(file);
     
-    const newAttachment: AttachmentLink = {
-      type: attachmentType,
+    const newLink: Link = {
+      name: file.name,
       url: fileUrl,
-      title: file.name,
-      description: `Uploaded ${attachmentType}: ${file.name}`
+      type: 'FILE' as any
     };
 
+    const currentLinks = step.links || [];
     updateStep({
-      attachments: [...step.attachments, newAttachment]
+      links: [...currentLinks, newLink]
     });
 
     message.success(`${file.name} uploaded successfully`);
     return false; // Prevent default upload
   };
 
-  const updateAttachment = (index: number, updates: Partial<AttachmentLink>) => {
-    const updatedAttachments = [...step.attachments];
-    updatedAttachments[index] = { ...updatedAttachments[index], ...updates };
-    updateStep({ attachments: updatedAttachments });
+  const updateLink = (index: number, updates: Partial<Link>) => {
+    const currentLinks = step.links || [];
+    const updatedLinks = [...currentLinks];
+    updatedLinks[index] = { ...updatedLinks[index], ...updates };
+    updateStep({ links: updatedLinks });
   };
 
-  const removeAttachment = (index: number) => {
+  const removeLink = (index: number) => {
+    const currentLinks = step.links || [];
     updateStep({
-      attachments: step.attachments.filter((_, i) => i !== index)
+      links: currentLinks.filter((_, i) => i !== index)
     });
   };
 
   const addInputBlock = () => {
-    const newInput: Input = {
-      type: InputBlockType.TEXT,
+    const newInput: InputBlock = {
+      type: InputType.TEXT,
+      name: '',
       label: '',
-      required: false,
-      placeholder: ''
+      required: false
     };
-    updateRequestInput({
-      inputs: [...step.requestInput.inputs, newInput]
+    const currentInputs = step.inputs || [];
+    updateStep({
+      inputs: [...currentInputs, newInput]
     });
   };
 
-  const updateInputBlock = (index: number, updates: Partial<Input>) => {
-    const updatedInputs = [...step.requestInput.inputs];
+  const updateInputBlock = (index: number, updates: Partial<InputBlock>) => {
+    const currentInputs = step.inputs || [];
+    const updatedInputs = [...currentInputs];
     updatedInputs[index] = { ...updatedInputs[index], ...updates };
-    updateRequestInput({ inputs: updatedInputs });
+    updateStep({ inputs: updatedInputs });
   };
 
   const removeInputBlock = (index: number) => {
-    updateRequestInput({
-      inputs: step.requestInput.inputs.filter((_, i) => i !== index)
+    const currentInputs = step.inputs || [];
+    updateStep({
+      inputs: currentInputs.filter((_, i) => i !== index)
     });
+  };
+
+  const updateAssignment = (assignment: TaskAssignment | undefined) => {
+    updateStep({ assignment });
   };
 
   return (
@@ -218,25 +192,25 @@ export const SimplifiedStepEditor: React.FC<SimplifiedStepEditorProps> = ({
               style={{ width: '100%' }}
               data-testid={`${testId}-step-type-select`}
             >
-              <Select.Option value={StepType.TASK}>
+              <Select.Option value={FlowStepType.TASK}>
                 <Space>
                   <UserOutlined />
                   {getTranslationFromI18nKeyAndLabel('flow.creator.stepType.task', 'Task')}
                 </Space>
               </Select.Option>
-              <Select.Option value={StepType.APPROVAL}>
+              <Select.Option value={FlowStepType.APPROVAL}>
                 <Space>
                   <SettingOutlined />
                   {getTranslationFromI18nKeyAndLabel('flow.creator.stepType.approval', 'Approval')}
                 </Space>
               </Select.Option>
-              <Select.Option value={StepType.INFORMATION}>
+              <Select.Option value={FlowStepType.INFORMATION}>
                 <Space>
                   <MessageOutlined />
                   {getTranslationFromI18nKeyAndLabel('flow.creator.stepType.information', 'Information')}
                 </Space>
               </Select.Option>
-              <Select.Option value={StepType.ACKNOWLEDGE}>
+              <Select.Option value={FlowStepType.ACKNOWLEDGE}>
                 <Space>
                   <CheckCircleOutlined />
                   {getTranslationFromI18nKeyAndLabel('flow.creator.stepType.acknowledge', 'Acknowledge')}
@@ -270,28 +244,28 @@ export const SimplifiedStepEditor: React.FC<SimplifiedStepEditorProps> = ({
             />
           </div>
 
-          {/* Attachments & Links Section */}
-          <div data-testid={`${testId}-attachments-section`}>
+          {/* Links Section */}
+          <div data-testid={`${testId}-links-section`}>
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
               <Switch
-                checked={showAttachments}
-                onChange={(checked) => setShowAttachments(checked)}
-                data-testid={`${testId}-attachments-toggle`}
+                checked={showLinks}
+                onChange={(checked) => setShowLinks(checked)}
+                data-testid={`${testId}-links-toggle`}
               />
               <label className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('flow.creator.addAttachmentsLinks', 'Add Attachments & Links')}
+                {getTranslationFromI18nKeyAndLabel('flow.creator.addLinks', 'Add Links')}
               </label>
             </div>
 
-            {showAttachments && (
+            {showLinks && (
               <div className="gba:space-y-4">
                 <div className="gba:flex gba:items-center gba:justify-end">
                   <Button
                     type="dashed"
                     size="small"
                     icon={<PlusOutlined />}
-                    onClick={addAttachment}
-                    data-testid={`${testId}-add-attachment`}
+                    onClick={addLink}
+                    data-testid={`${testId}-add-link`}
                   >
                     {getTranslationFromI18nKeyAndLabel('flow.creator.addLink', 'Add Link')}
                   </Button>
@@ -316,48 +290,35 @@ export const SimplifiedStepEditor: React.FC<SimplifiedStepEditorProps> = ({
                   </p>
                 </Upload.Dragger>
                 
-                {step.attachments.length === 0 ? (
+                {step.links?.length === 0 ? (
                   <div className="gba:text-center gba:py-4 gba:text-gray-500 gba:text-sm">
-                    {getTranslationFromI18nKeyAndLabel('flow.creator.noAttachments', 'No attachments or links added yet')}
+                    {getTranslationFromI18nKeyAndLabel('flow.creator.noLinks', 'No links added yet')}
                   </div>
                 ) : (
                   <div className="gba:space-y-2">
-                    {step.attachments.map((attachment, index) => (
+                    {step.links?.map((link, index) => (
                       <div key={index} className="gba:border gba:rounded gba:p-3 gba:space-y-2">
                         <div className="gba:flex gba:items-center gba:gap-2">
-                          <Select
-                            value={attachment.type}
-                            onChange={(value) => updateAttachment(index, { type: value })}
-                            style={{ width: 120 }}
-                            data-testid={`${testId}-attachment-type-${index}`}
-                          >
-                            {Object.entries(ATTACHMENT_TYPE_CONFIG).map(([type, config]) => (
-                              <Select.Option key={type} value={type}>
-                                <Space>
-                                  {config.icon}
-                                  {config.label}
-                                </Space>
-                              </Select.Option>
-                            ))}
-                          </Select>
                           <Input
-                            value={attachment.title}
-                            onChange={(e) => updateAttachment(index, { title: e.target.value })}
-                            data-testid={`${testId}-attachment-title-${index}`}
+                            value={link.name}
+                            onChange={(e) => updateLink(index, { name: e.target.value })}
+                            placeholder="Link name"
+                            data-testid={`${testId}-link-name-${index}`}
                           />
                           <Button
                             type="text"
                             danger
                             size="small"
                             icon={<DeleteOutlined />}
-                            onClick={() => removeAttachment(index)}
-                            data-testid={`${testId}-remove-attachment-${index}`}
+                            onClick={() => removeLink(index)}
+                            data-testid={`${testId}-remove-link-${index}`}
                           />
                         </div>
                         <Input
-                          value={attachment.url}
-                          onChange={(e) => updateAttachment(index, { url: e.target.value })}
-                          data-testid={`${testId}-attachment-url-${index}`}
+                          value={link.url}
+                          onChange={(e) => updateLink(index, { url: e.target.value })}
+                          placeholder="URL"
+                          data-testid={`${testId}-link-url-${index}`}
                         />
                       </div>
                     ))}
@@ -367,20 +328,20 @@ export const SimplifiedStepEditor: React.FC<SimplifiedStepEditorProps> = ({
             )}
           </div>
 
-          {/* Request Input Section */}
-          <div data-testid={`${testId}-request-input-section`}>
+          {/* Inputs Section */}
+          <div data-testid={`${testId}-inputs-section`}>
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
               <div className="gba:flex gba:items-center gba:gap-2">
                 <Switch
-                  checked={step.requestInput.enabled}
-                  onChange={(enabled) => updateRequestInput({ enabled })}
-                  data-testid={`${testId}-request-input-toggle`}
+                  checked={showInputs}
+                  onChange={(checked) => setShowInputs(checked)}
+                  data-testid={`${testId}-inputs-toggle`}
                 />
                 <label className="gba:text-sm gba:font-medium">
                   {getTranslationFromI18nKeyAndLabel('flow.creator.addInputForm', 'Add Input Form')}
                 </label>
               </div>
-              {step.requestInput.enabled && (
+              {showInputs && (
                 <Button
                   type="dashed"
                   size="small"
@@ -393,14 +354,14 @@ export const SimplifiedStepEditor: React.FC<SimplifiedStepEditorProps> = ({
               )}
             </div>
 
-            {step.requestInput.enabled && (
+            {showInputs && (
               <div className="gba:space-y-2">
-                {step.requestInput.inputs.length === 0 ? (
+                {step.inputs?.length === 0 ? (
                   <div className="gba:text-center gba:py-4 gba:text-gray-500 gba:text-sm">
                     {getTranslationFromI18nKeyAndLabel('flow.creator.noInputs', 'No input fields added yet')}
                   </div>
                 ) : (
-                  step.requestInput.inputs.map((input, index) => (
+                  step.inputs?.map((input, index) => (
                     <div key={index} className="gba:border gba:rounded gba:p-3 gba:space-y-2">
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Select
@@ -447,12 +408,12 @@ export const SimplifiedStepEditor: React.FC<SimplifiedStepEditorProps> = ({
             )}
           </div>
 
-          {/* Use Predefined Assignment Section */}
+          {/* Assignment Section */}
           <div data-testid={`${testId}-assignment-section`}>
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
               <Switch
-                checked={step.usePredefinedAssignment.enabled}
-                onChange={(enabled) => updateAssignment({ enabled })}
+                checked={showAssignment}
+                onChange={(checked) => setShowAssignment(checked)}
                 data-testid={`${testId}-assignment-toggle`}
               />
               <label className="gba:text-sm gba:font-medium">
@@ -473,11 +434,11 @@ export const SimplifiedStepEditor: React.FC<SimplifiedStepEditorProps> = ({
               </Popover>
             </div>
             
-            {step.usePredefinedAssignment.enabled && (
+            {showAssignment && (
               <div className="gba:pl-6">
                 <AssignmentSelector
-                  value={step.usePredefinedAssignment.assignment}
-                  onChange={(assignment) => updateAssignment({ assignment })}
+                  value={step.assignment}
+                  onChange={updateAssignment}
                   data-testid={`${testId}-assignment-selector`}
                 />
               </div>

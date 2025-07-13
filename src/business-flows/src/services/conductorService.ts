@@ -865,12 +865,39 @@ export const completeTask = async (taskId: string, output: any): Promise<Task> =
 };
 
 /**
- * Get all workflow definitions from Conductor
+ * Get all workflow definitions from Conductor (latest versions only)
  */
 export const getAllWorkflowDefinitions = async (): Promise<any[]> => {
   try {
     const response = await conductorClient.get('/metadata/workflow');
-    return response.data || [];
+    const allWorkflows = response.data || [];
+    
+    // Group workflows by name and keep only the latest version of each
+    const workflowGroups: { [key: string]: any[] } = {};
+    
+    allWorkflows.forEach((workflow: any) => {
+      const name = workflow.name;
+      if (!name) return;
+      
+      if (!workflowGroups[name]) {
+        workflowGroups[name] = [];
+      }
+      workflowGroups[name].push(workflow);
+    });
+    
+    // For each group, keep only the workflow with the highest version number
+    const latestWorkflows: any[] = [];
+    
+    Object.values(workflowGroups).forEach((versions: any[]) => {
+      if (versions.length > 0) {
+        // Sort by version (descending) and take the first one
+        const sortedVersions = versions.sort((a, b) => (b.version || 1) - (a.version || 1));
+        latestWorkflows.push(sortedVersions[0]);
+      }
+    });
+    
+    logger.info(`Retrieved ${latestWorkflows.length} latest workflow definitions from ${allWorkflows.length} total versions`);
+    return latestWorkflows;
   } catch (error) {
     logger.error('Failed to get workflow definitions', error);
     throw new AppError('Failed to get workflow definitions', StatusCodes.INTERNAL_SERVER_ERROR);

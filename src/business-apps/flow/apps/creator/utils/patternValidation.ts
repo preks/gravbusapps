@@ -3,7 +3,7 @@
  */
 
 import { BusinessPattern, ValidationRule } from '../types/businessPatterns';
-import { FlowTemplate, FlowStep, StepType } from '../types/flowTemplate';
+import { FlowTemplate, FlowStep, FlowStepType, InputType } from '../types/flowTemplate';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -114,28 +114,19 @@ function validatePatternConfiguration(
   const config = pattern.configuration;
 
   // Validate step count
-  if (template.steps.length < config.minSteps) {
+  if (template.steps.length < pattern.configuration.minSteps) {
     errors.push({
       field: 'steps',
-      message: `Pattern requires at least ${config.minSteps} step${config.minSteps > 1 ? 's' : ''}`,
+      message: `Pattern "${pattern.title}" requires at least ${pattern.configuration.minSteps} steps`,
       severity: 'error'
     });
   }
 
-  if (template.steps.length > config.maxSteps) {
-    errors.push({
-      field: 'steps',
-      message: `Pattern allows maximum ${config.maxSteps} step${config.maxSteps > 1 ? 's' : ''}`,
-      severity: 'error'
-    });
-  }
-
-  // Validate execution strategy
-  if (template.executionStrategy !== config.executionStrategy) {
+  if (template.steps.length > pattern.configuration.maxSteps) {
     warnings.push({
-      field: 'executionStrategy',
-      message: `Pattern recommends ${config.executionStrategy} execution strategy`,
-      suggestion: `Consider changing to ${config.executionStrategy} for optimal workflow performance`
+      field: 'steps',
+      message: `Pattern "${pattern.title}" typically uses no more than ${pattern.configuration.maxSteps} steps`,
+      suggestion: 'Consider simplifying the workflow to match the pattern'
     });
   }
 
@@ -144,7 +135,7 @@ function validatePatternConfiguration(
     const step = template.steps[i];
     
     // Check forbidden step types
-    if (config.forbiddenStepTypes.includes(step.type)) {
+    if (config.forbiddenFlowStepTypes.includes(step.type)) {
       errors.push({
         field: `steps[${i}].type`,
         message: `Step type ${step.type} is not allowed for ${pattern.title} pattern`,
@@ -153,11 +144,11 @@ function validatePatternConfiguration(
     }
 
     // Check recommended step types
-    if (config.recommendedStepTypes.length > 0 && !config.recommendedStepTypes.includes(step.type)) {
+    if (config.recommendedFlowStepTypes.length > 0 && !config.recommendedFlowStepTypes.includes(step.type)) {
       warnings.push({
         field: `steps[${i}].type`,
         message: `Step type ${step.type} is not recommended for ${pattern.title} pattern`,
-        suggestion: `Consider using: ${config.recommendedStepTypes.join(', ')}`
+        suggestion: `Consider using: ${config.recommendedFlowStepTypes.join(', ')}`
       });
     }
 
@@ -231,7 +222,7 @@ function validateSingleApproverRules(
 ): void {
   const step = template.steps[0];
   
-  if (step && step.type !== StepType.APPROVAL) {
+  if (step && step.type !== FlowStepType.APPROVAL) {
     errors.push({
       field: 'steps[0].type',
       message: 'Single approver pattern must use APPROVAL step type',
@@ -247,11 +238,11 @@ function validateSingleApproverRules(
     });
   }
 
-  if (step && step.assignment && step.assignment.assignToAll) {
+  if (step && step.assignment && step.assignment.assignmentMode === 'ASSIGN') {
     warnings.push({
       field: 'steps[0].assignment',
       message: 'Single approver should not assign to all targets',
-      suggestion: 'Set assignToAll to false for single approver pattern'
+      suggestion: 'Set assignmentMode to CLAIM for single approver pattern'
     });
   }
 }
@@ -266,7 +257,7 @@ function validateApprovalChainRules(
 ): void {
   // All steps must be approval steps
   template.steps.forEach((step, index) => {
-    if (step.type !== StepType.APPROVAL) {
+    if (step.type !== FlowStepType.APPROVAL) {
       errors.push({
         field: `steps[${index}].type`,
         message: 'Approval chain pattern requires all steps to be APPROVAL type',
@@ -290,15 +281,6 @@ function validateApprovalChainRules(
       });
     }
   });
-
-  // Sequential execution recommended
-  if (template.executionStrategy !== 'SEQUENTIAL') {
-    warnings.push({
-      field: 'executionStrategy',
-      message: 'Approval chain works best with sequential execution',
-      suggestion: 'Consider changing to SEQUENTIAL execution strategy'
-    });
-  }
 }
 
 /**
@@ -311,7 +293,7 @@ function validateAnnouncementRules(
 ): void {
   const step = template.steps[0];
   
-  if (step && step.type !== StepType.INFORMATION) {
+  if (step && step.type !== FlowStepType.INFORMATION) {
     errors.push({
       field: 'steps[0].type',
       message: 'Announcement pattern must use INFORMATION step type',
@@ -319,17 +301,17 @@ function validateAnnouncementRules(
     });
   }
 
-  if (step && step.inputBlocks.length > 0) {
+  if (step && step.inputs?.length || 0 > 0) {
     errors.push({
-      field: 'steps[0].inputBlocks',
+      field: 'steps[0].inputs',
       message: 'Announcement pattern should not have input blocks',
       severity: 'error'
     });
   }
 
-  if (step && step.contentBlocks.length === 0) {
+  if (step && step.inputs?.length === 0) {
     warnings.push({
-      field: 'steps[0].contentBlocks',
+      field: 'steps[0].inputs',
       message: 'Announcement should have content to share',
       suggestion: 'Add content blocks to provide information to recipients'
     });
@@ -346,7 +328,7 @@ function validateAcknowledgmentRules(
 ): void {
   const step = template.steps[0];
   
-  if (step && step.type !== StepType.ACKNOWLEDGE) {
+  if (step && step.type !== FlowStepType.ACKNOWLEDGE) {
     errors.push({
       field: 'steps[0].type',
       message: 'Acknowledgment pattern must use ACKNOWLEDGE step type',
@@ -354,19 +336,19 @@ function validateAcknowledgmentRules(
     });
   }
 
-  if (step && step.inputBlocks.length === 0) {
+  if (step && step.inputs?.length === 0) {
     errors.push({
-      field: 'steps[0].inputBlocks',
+      field: 'steps[0].inputs',
       message: 'Acknowledgment pattern requires input blocks for confirmation',
       severity: 'error'
     });
   }
 
   // Check for checkbox input block
-  const hasCheckbox = step?.inputBlocks.some(block => block.type === 'CHECKBOX');
+  const hasCheckbox = step?.inputs?.some(block => block.type === 'CHECKBOX');
   if (step && !hasCheckbox) {
     warnings.push({
-      field: 'steps[0].inputBlocks',
+      field: 'steps[0].inputs',
       message: 'Acknowledgment pattern typically uses checkbox for confirmation',
       suggestion: 'Consider adding a checkbox input block for acknowledgment'
     });
@@ -382,7 +364,7 @@ function validateTaskAssignmentRules(
   warnings: ValidationWarning[]
 ): void {
   template.steps.forEach((step, index) => {
-    if (step.type !== StepType.TASK) {
+    if (step.type !== FlowStepType.TASK) {
       errors.push({
         field: `steps[${index}].type`,
         message: 'Task assignment pattern should use TASK step type',
@@ -398,9 +380,9 @@ function validateTaskAssignmentRules(
       });
     }
 
-    if (step.inputBlocks.length === 0) {
+    if (step.inputs?.length === 0) {
       warnings.push({
-        field: `steps[${index}].inputBlocks`,
+        field: `steps[${index}].inputs`,
         message: `Task "${step.title}" should have input blocks for results`,
         suggestion: 'Add input blocks to collect task completion information'
       });
@@ -418,7 +400,7 @@ function validateConsultationRules(
 ): void {
   const step = template.steps[0];
   
-  if (step && step.type !== StepType.TASK) {
+  if (step && step.type !== FlowStepType.TASK) {
     errors.push({
       field: 'steps[0].type',
       message: 'Consultation pattern should use TASK step type',
@@ -453,7 +435,7 @@ function validateDocumentReviewRules(
 ): void {
   const step = template.steps[0];
   
-  if (step && step.type !== StepType.TASK) {
+  if (step && step.type !== FlowStepType.TASK) {
     errors.push({
       field: 'steps[0].type',
       message: 'Document review pattern should use TASK step type',
@@ -461,20 +443,20 @@ function validateDocumentReviewRules(
     });
   }
 
-  if (step && step.contentBlocks.length === 0) {
+  if (step && step.inputs?.length === 0) {
     warnings.push({
-      field: 'steps[0].contentBlocks',
-      message: 'Document review should have documents to review',
-      suggestion: 'Add content blocks with documents or links to review'
+      field: 'steps[0].inputs',
+      message: 'Document review should have input blocks for feedback',
+      suggestion: 'Add input blocks to collect review feedback'
     });
   }
 
-  const hasDocumentContent = step?.contentBlocks.some(block => block.type === 'DOCUMENT');
-  if (step && !hasDocumentContent) {
+  const hasDocumentInput = step?.inputs?.some(block => block.type === InputType.FILE);
+  if (step && !hasDocumentInput) {
     warnings.push({
-      field: 'steps[0].contentBlocks',
-      message: 'Document review typically includes document content blocks',
-      suggestion: 'Consider adding document content blocks for review materials'
+      field: 'steps[0].inputs',
+      message: 'Document review typically includes file input blocks',
+      suggestion: 'Consider adding file input blocks for review materials'
     });
   }
 }
@@ -489,7 +471,7 @@ function validateServiceRequestRules(
 ): void {
   const step = template.steps[0];
   
-  if (step && step.type !== StepType.TASK) {
+  if (step && step.type !== FlowStepType.TASK) {
     errors.push({
       field: 'steps[0].type',
       message: 'Service request pattern should use TASK step type',
@@ -505,11 +487,11 @@ function validateServiceRequestRules(
     });
   }
 
-  if (step && step.assignment && step.assignment.assignToAll) {
+  if (step && step.assignment && step.assignment.assignmentMode === 'ASSIGN') {
     warnings.push({
       field: 'steps[0].assignment',
       message: 'Service request typically assigns to any available provider',
-      suggestion: 'Consider setting assignToAll to false for service requests'
+      suggestion: 'Consider setting assignmentMode to CLAIM for service requests'
     });
   }
 }
@@ -542,15 +524,15 @@ function getFieldValue(template: FlowTemplate, fieldPath: string): any {
 /**
  * Checks if a pattern allows certain step types
  */
-export function isStepTypeAllowed(pattern: BusinessPattern, stepType: StepType): boolean {
-  return !pattern.configuration.forbiddenStepTypes.includes(stepType);
+export function isFlowStepTypeAllowed(pattern: BusinessPattern, stepType: FlowStepType): boolean {
+  return !pattern.configuration.forbiddenFlowStepTypes.includes(stepType);
 }
 
 /**
  * Gets recommended step types for a pattern
  */
-export function getRecommendedStepTypes(pattern: BusinessPattern): StepType[] {
-  return pattern.configuration.recommendedStepTypes;
+export function getRecommendedFlowStepTypes(pattern: BusinessPattern): FlowStepType[] {
+  return pattern.configuration.recommendedFlowStepTypes;
 }
 
 /**
@@ -558,11 +540,4 @@ export function getRecommendedStepTypes(pattern: BusinessPattern): StepType[] {
  */
 export function patternRequiresAssignment(pattern: BusinessPattern): boolean {
   return pattern.configuration.requiresAssignment;
-}
-
-/**
- * Gets the recommended execution strategy for a pattern
- */
-export function getRecommendedExecutionStrategy(pattern: BusinessPattern): string {
-  return pattern.configuration.executionStrategy;
 } 

@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { BusinessPattern, WizardState, WizardStep, PatternSelection } from '../types/businessPatterns';
-import { FlowTemplate, SimplifiedStep, StepType, AssignmentMode } from '../types/flowTemplate';
-import { PATTERN_BY_ID } from '../data/businessPatterns';
+import { FlowTemplate, FlowStep, FlowStepType, AssignmentMode } from '../types/flowTemplate';
 import { validateTemplateAgainstPattern, ValidationResult } from '../utils/patternValidation';
 
 interface WizardStore extends WizardState {
@@ -54,7 +53,7 @@ const WIZARD_STEPS: WizardStep[] = [
     id: 'step-configuration',
     title: 'Configure Steps',
     description: 'Customize workflow steps and content',
-    component: 'SimplifiedStepConfiguration',
+    component: 'FlowStepConfiguration',
     required: true,
     canSkip: false
   },
@@ -177,28 +176,18 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
     const { configuration } = get();
     
     // Create steps from pattern's pre-configured steps
-    const steps: SimplifiedStep[] = pattern.preConfiguredSteps.map((preStep, index) => ({
+    const steps: FlowStep[] = pattern.preConfiguredSteps.map((preStep, index) => ({
+      id: `step-${index}`,
       title: preStep.title,
       message: preStep.description, // Use description as message
-      attachments: [], // Start with empty attachments
-      requestInput: {
-        enabled: preStep.inputBlocks.length > 0,
-        inputs: preStep.inputBlocks.map((block) => ({
-          type: block.type,
-          label: block.label,
-          required: block.required,
-          placeholder: block.placeholder,
-          options: block.options?.map(opt => typeof opt === 'string' ? opt : opt.value)
-        }))
-      },
-      usePredefinedAssignment: {
-        enabled: preStep.assignmentRequired,
-        assignment: preStep.assignmentRequired ? {
-          targets: [],
-          assignmentMode: preStep.assignmentType === 'all' ? AssignmentMode.ASSIGN : AssignmentMode.CLAIM,
-          allowReassignment: true
-        } : undefined
-      },
+      links: preStep.links || [], // Use pre-configured links or empty array
+      inputs: preStep.inputs?.map((block) => ({
+        type: block.type,
+        name: block.name,
+        label: block.label,
+        required: block.required,
+        options: block.options
+      })) || [],
       type: preStep.type
     }));
     
@@ -213,20 +202,11 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
     }
     
     const template: FlowTemplate = {
-      title: configuration.title || `${pattern.title} Workflow`,
+      type: 'TEMPLATE',
+      name: configuration.title || `${pattern.title} Workflow`,
       description: configuration.description || pattern.description,
-      steps,
-      flowType: 'TEMPLATE'
+      steps
     };
-    
-    // Apply timing configurations
-    if (configuration.reminder) {
-      template.reminder = configuration.reminder;
-    }
-    
-    if (configuration.escalation) {
-      template.escalation = configuration.escalation;
-    }
     
     return template;
   },

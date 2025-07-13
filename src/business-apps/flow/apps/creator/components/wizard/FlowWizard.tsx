@@ -19,7 +19,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useWizardStore } from '../../hooks/useWizardStore';
 import { PatternSelector } from './PatternSelector';
 import { BasicInfoForm } from './BasicInfoForm';
-import { SimplifiedStepConfiguration } from './SimplifiedStepConfiguration';
+import { FlowStepConfiguration } from './FlowStepConfiguration';
 import { AdvancedSettings } from './AdvancedSettings';
 
 interface FlowWizardProps {
@@ -148,7 +148,7 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
       
       case 'step-configuration':
         return (
-          <SimplifiedStepConfiguration
+          <FlowStepConfiguration
             steps={configuration.steps || []}
             onStepsChange={(steps) => useWizardStore.getState().updateConfiguration('steps', steps)}
             data-testid={`${testId}-step-configuration`}

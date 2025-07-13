@@ -3,10 +3,26 @@
  */
 
 // Flow Template Types for Creator App
+export enum FlowStepType {
+  TASK = 'TASK',
+  APPROVAL = 'APPROVAL',
+  INFORMATION = 'INFORMATION',
+  ACKNOWLEDGE = 'ACKNOWLEDGE'
+}
 
-export type StepType = 'TASK' | 'APPROVAL' | 'INFORMATION' | 'ACKNOWLEDGE';
-
-export type InputType = 'TEXT' | 'TEXTAREA' | 'SELECT' | 'MULTISELECT' | 'NUMBER' | 'DATE' | 'CHECKBOX' | 'FILE';
+export enum InputType {
+  TEXT = 'TEXT',
+  TEXTAREA = 'TEXTAREA',
+  SELECT = 'SELECT',
+  MULTISELECT = 'MULTISELECT',
+  NUMBER = 'NUMBER',
+  DATE = 'DATE',
+  CHECKBOX = 'CHECKBOX',
+  FILE = 'FILE',
+  RADIO = 'RADIO',
+  DATETIME = 'DATETIME',
+  SIGNATURE = 'SIGNATURE'
+}
 
 export interface InputOption {
   value: string;
@@ -21,32 +37,51 @@ export interface InputBlock {
   options?: InputOption[];
 }
 
+export enum LinkType {
+  FILE = 'FILE',
+  URL = 'URL',
+  IMAGE = 'IMAGE',
+  DOCUMENT = 'DOCUMENT'
+}
+
 export interface Link {
   name: string;
   url: string;
+  type: LinkType
 }
 
-export interface Assignment {
-  type: 'SPECIFIC_USERS' | 'ROLE_BASED' | 'DEPARTMENT' | 'MANAGER' | 'SELF';
-  userIds?: string[];
-  roleIds?: string[];
-  departmentIds?: string[];
+export enum AssignmentMode {
+  CLAIM = 'CLAIM',
+  ASSIGN = 'ASSIGN'
 }
 
-export interface SimplifiedStep {
-  type: StepType;
-  name: string;
+export type AssignmentTarget = {
+  entity: 'user' | 'department' | 'capability' | 'role';
+  id: string;
+};
+
+export type TaskAssignment = {
+  targets: AssignmentTarget[];
+  assignmentMode: AssignmentMode;
+  allowReassignment?: boolean;
+};
+
+export interface FlowStep {
+  id: string;
+  type: FlowStepType;
+  title: string;
   description?: string;
+  message?: string;
   inputs?: InputBlock[];
   links?: Link[];
-  assignment?: Assignment;
+  assignment?: TaskAssignment;
 }
 
 export interface FlowTemplate {
   type: 'TEMPLATE' | 'INSTANCE' | 'DRAFT';
   name: string;
   description?: string;
-  steps: SimplifiedStep[];
+  steps: FlowStep[];
 }
 
 export interface ExecutionConfiguration {
@@ -55,13 +90,13 @@ export interface ExecutionConfiguration {
   inputs?: Record<string, any>;
 }
 
-// Legacy type aliases for backward compatibility
-export type InputBlockType = InputType;
-export type AttachmentLink = Link;
-export interface SimplifiedStepLegacy extends Omit<SimplifiedStep, 'inputs' | 'links' | 'assignment'> {
-  requestInput?: {
-    blocks: InputBlock[];
-  };
-  attachments?: Link[];
-  usePredefinedAssignment?: Assignment;
+export enum TimeUnit {
+  HOURS = 'HOURS',
+  DAYS = 'DAYS'
 }
+
+export enum TimingType {
+  AFTER = 'AFTER',
+  BEFORE = 'BEFORE'
+}
+

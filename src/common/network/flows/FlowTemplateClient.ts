@@ -1,69 +1,87 @@
 import { RestClient } from '../rest/RestClient';
 import { env } from '../../env/EnvUtils';
 
-// Assignment target
-export type AssignmentTarget = {
-  entity: 'user' | 'department' | 'team' | 'capability' | 'role';
-  id: string;
-};
+// Import types from flow apps to ensure consistency
+export enum FlowStepType {
+  TASK = 'TASK',
+  APPROVAL = 'APPROVAL',
+  INFORMATION = 'INFORMATION',
+  ACKNOWLEDGE = 'ACKNOWLEDGE'
+}
 
-// Task assignment configuration
-export type TaskAssignment = {
-  targets: AssignmentTarget[];
-  assignToAll: boolean;
-  allowReassignment?: boolean;
-};
-
-// Input block types
-export enum InputBlockType {
+export enum InputType {
   TEXT = 'TEXT',
-  TEXTAREA = 'TEXTAREA', 
+  TEXTAREA = 'TEXTAREA',
+  SELECT = 'SELECT',
+  MULTISELECT = 'MULTISELECT',
   NUMBER = 'NUMBER',
-  DROPDOWN = 'DROPDOWN',
-  RADIO = 'RADIO',
+  DATE = 'DATE',
   CHECKBOX = 'CHECKBOX',
-  DATETIME = 'DATETIME',
   FILE = 'FILE',
+  RADIO = 'RADIO',
+  DATETIME = 'DATETIME',
   SIGNATURE = 'SIGNATURE'
 }
 
-export type InputBlock = {
-  id: string;
-  type: InputBlockType;
+export interface InputOption {
+  value: string;
   label: string;
-  required: boolean;
-  placeholder?: string;
-  options?: Array<{ value: string; label: string }>;
-  multiple?: boolean;
-  accept?: string;
-};
+}
 
-// Content block types
-export enum ContentBlockType {
-  TEXT = 'TEXT',
-  DOCUMENT = 'DOCUMENT',
+export interface InputBlock {
+  type: InputType;
+  name: string;
+  label: string;
+  required?: boolean;
+  options?: InputOption[];
+}
+
+export enum LinkType {
+  FILE = 'FILE',
+  URL = 'URL',
   IMAGE = 'IMAGE',
-  LINK = 'LINK'
+  DOCUMENT = 'DOCUMENT'
 }
 
-export type ContentBlock = {
+export interface Link {
+  name: string;
+  url: string;
+  type: LinkType
+}
+
+export enum AssignmentMode {
+  CLAIM = 'CLAIM',
+  ASSIGN = 'ASSIGN'
+}
+
+export type AssignmentTarget = {
+  entity: 'user' | 'department' | 'capability' | 'role';
   id: string;
-  type: ContentBlockType;
-  content: string;
 };
 
-// Step types
-export enum StepType {
-  APPROVAL = 'APPROVAL',
-  ACKNOWLEDGE = 'ACKNOWLEDGE', 
-  TASK = 'TASK',
-  INFORMATION = 'INFORMATION'
+export type TaskAssignment = {
+  targets: AssignmentTarget[];
+  assignmentMode: AssignmentMode;
+  allowReassignment?: boolean;
+};
+
+export interface FlowStep {
+  id: string;
+  type: FlowStepType;
+  title: string;
+  description?: string;
+  message?: string;
+  inputs?: InputBlock[];
+  links?: Link[];
+  assignment?: TaskAssignment;
 }
 
-// Task execution type
-export enum TaskExecutionType {
-  PARALLEL = 'PARALLEL',
-  SEQUENTIAL = 'SEQUENTIAL'
+export interface FlowTemplate {
+  id?: string;
+  type: 'TEMPLATE' | 'INSTANCE' | 'DRAFT';
+  name: string;
+  description?: string;
+  steps: FlowStep[];
 }
 
 // Time units
@@ -76,42 +94,6 @@ export enum TimeUnit {
 export enum TimingType {
   AFTER = 'AFTER',
   BEFORE = 'BEFORE'
-}
-
-// Step definition
-export type FlowStep = {
-  id: string;
-  title: string;
-  description: string;
-  type: StepType;
-  contentBlocks: ContentBlock[];
-  inputBlocks: InputBlock[];
-  assignment?: TaskAssignment;
-};
-
-// Complete FlowTemplate interface matching the frontend
-export interface FlowTemplate {
-  id?: string;
-  title: string;
-  description: string;
-  executionStrategy: TaskExecutionType;
-  assignment?: TaskAssignment;
-  reminder?: {
-    timing: {
-      type: TimingType;
-      value: number;
-      unit: TimeUnit;
-    };
-  };
-  escalation?: {
-    timing: {
-      type: TimingType;
-      value: number;
-      unit: TimeUnit;
-    };
-  };
-  steps: FlowStep[];
-  flowType?: 'TEMPLATE' | 'INSTANCE' | 'DRAFT';
 }
 
 export interface StoredTemplate {
@@ -248,7 +230,7 @@ export class FlowTemplateClient extends RestClient {
    */
   async executeWorkflow(id: string, params: {
     runtimeParameters: { [key: string]: string };
-    initiator?: string;
+    initiator: string;
     context?: any;
   }): Promise<{
     workflowId: string;

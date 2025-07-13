@@ -8,14 +8,13 @@ interface BusinessAppContextProps {
   'data-testid'?: string;
 };
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { FlowTemplate, TaskExecutionType, TimingType, TimeUnit, FlowStep, StepType } from './types/flowTemplate';
 import { FlowTemplateList } from './components/FlowTemplateList';
 import { FlowWizardDialog } from './components/wizard/FlowWizardDialog';
 import { FlowTemplateForm } from './components/FlowTemplateForm';
 import { useFlowTemplateStore } from './hooks/useFlowTemplateStore';
 import { useWizardStore } from './hooks/useWizardStore';
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient';
-import { FlowTemplate as ApiFlowTemplate } from '@/common/network/flows/FlowTemplateClient';
+import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient';
 import { Spin, Alert, Modal, Button, Card, Typography, Space } from 'antd';
 import { StarOutlined, ToolOutlined } from '@ant-design/icons';
 

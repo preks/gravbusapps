@@ -33,7 +33,7 @@ export const JsonPreviewSection: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${flowTemplate.title || 'flow-template'}.json`;
+    a.download = `${flowTemplate.name || 'flow-template'}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -135,7 +135,7 @@ export const JsonPreviewSection: React.FC = () => {
           
           <div className="gba:text-center gba:p-3 gba:bg-green-50 gba:rounded">
             <div className="gba:text-2xl gba:font-bold gba:text-green-600">
-              {flowTemplate.steps.reduce((sum, step) => sum + step.inputBlocks.length, 0)}
+              {flowTemplate.steps.reduce((sum, step) => sum + (step.inputs?.length || 0), 0)}
             </div>
             <div className="gba:text-sm gba:text-gray-600">
               {getTranslationFromI18nKeyAndLabel('flow.creator.inputFields', 'Input Fields')}
@@ -144,19 +144,19 @@ export const JsonPreviewSection: React.FC = () => {
           
           <div className="gba:text-center gba:p-3 gba:bg-purple-50 gba:rounded">
             <div className="gba:text-2xl gba:font-bold gba:text-purple-600">
-              {flowTemplate.steps.reduce((sum, step) => sum + step.contentBlocks.length, 0)}
+              {flowTemplate.steps.reduce((sum, step) => sum + (step.links?.length || 0), 0)}
             </div>
             <div className="gba:text-sm gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('flow.creator.contentBlocks', 'Content Blocks')}
+              {getTranslationFromI18nKeyAndLabel('flow.creator.links', 'Links')}
             </div>
           </div>
           
           <div className="gba:text-center gba:p-3 gba:bg-amber-50 gba:rounded">
             <div className="gba:text-2xl gba:font-bold gba:text-amber-600 gba:capitalize">
-              {flowTemplate.executionStrategy}
+              {flowTemplate.steps.reduce((sum, step) => sum + (step.assignment ? 1 : 0), 0)}
             </div>
             <div className="gba:text-sm gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('flow.creator.execution', 'Execution')}
+              {getTranslationFromI18nKeyAndLabel('flow.creator.assignments', 'Assignments')}
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFlowTemplateStore } from '../../../hooks/useFlowTemplateStore';
-import { Input, InputBlockType } from '../../../types/flowTemplate';
+import { Input, InputType } from '../../../types/flowTemplate';
 import { TextInputBlock } from './TextInputBlock';
 import { SelectInputBlock } from './SelectInputBlock';
 import { DatetimeInputBlock } from './DatetimeInputBlock';
@@ -24,7 +24,7 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
 }) => {
   const { addInputBlock, removeInputBlock } = useFlowTemplateStore();
 
-  const handleAddBlock = (type: InputBlockType) => {
+  const handleAddBlock = (type: InputType) => {
     addInputBlock(taskId, type);
   };
 

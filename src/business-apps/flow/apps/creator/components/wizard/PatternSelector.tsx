@@ -19,7 +19,14 @@ import {
   BusinessPattern, 
   BusinessPatternCategory
 } from '../../types/businessPatterns';
-import { PATTERNS_BY_CATEGORY } from '../../data/businessPatterns';
+import { 
+  APPROVAL_PATTERNS,
+  INFORMATION_PATTERNS,
+  TASK_COORDINATION_PATTERNS,
+  DECISION_MAKING_PATTERNS,
+  REVIEW_FEEDBACK_PATTERNS,
+  REQUEST_RESPONSE_PATTERNS
+} from '../../data/businessPatterns';
 import { useWizardStore } from '../../hooks/useWizardStore';
 
 interface PatternSelectorProps {
@@ -77,6 +84,15 @@ const CATEGORY_INFO = {
     icon: 'HandHeart',
     color: '#06B6D4'
   }
+};
+
+const PATTERNS_BY_CATEGORY = {
+  [BusinessPatternCategory.APPROVAL]: APPROVAL_PATTERNS,
+  [BusinessPatternCategory.INFORMATION]: INFORMATION_PATTERNS,
+  [BusinessPatternCategory.TASK_COORDINATION]: TASK_COORDINATION_PATTERNS,
+  [BusinessPatternCategory.DECISION_MAKING]: DECISION_MAKING_PATTERNS,
+  [BusinessPatternCategory.REVIEW_FEEDBACK]: REVIEW_FEEDBACK_PATTERNS,
+  [BusinessPatternCategory.REQUEST_RESPONSE]: REQUEST_RESPONSE_PATTERNS
 };
 
 // Helper function to render Lucide icons
@@ -269,7 +285,7 @@ export const PatternSelector: React.FC<PatternSelectorProps> = ({
                   <div className="gba:flex gba:justify-between gba:items-center">
                     <span>Execution Strategy:</span>
                     <Badge variant="outline">
-                      {selectedPattern.configuration.executionStrategy}
+                      Sequential
                     </Badge>
                   </div>
                   <div className="gba:flex gba:justify-between gba:items-center">

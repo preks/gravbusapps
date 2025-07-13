@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import { SimplifiedFlowTemplate, SimplifiedStep, TaskAssignment, InputBlockType, StepType, TimingType, TimeUnit } from '../types/flowTemplate';
+import { FlowTemplate, FlowStep, TaskAssignment, InputType, FlowStepType } from '../types/flowTemplate';
 
 interface FlowTemplateState {
-  flowTemplate: SimplifiedFlowTemplate;
+  flowTemplate: FlowTemplate;
   isValid: boolean;
   errors: Record<string, string>;
   isSaving: boolean;
@@ -10,19 +10,13 @@ interface FlowTemplateState {
   // General template actions
   updateTitle: (title: string) => void;
   updateDescription: (description: string) => void;
-  initializeTemplate: (template: SimplifiedFlowTemplate) => void;
-  
-  // Reminder actions
-  updateReminderTiming: (type: TimingType, value: number, unit: TimeUnit) => void;
-  
-  // Escalation actions
-  updateEscalationTiming: (type: TimingType, value: number, unit: TimeUnit) => void;
+  initializeTemplate: (template: FlowTemplate) => void;
   
   // Step management actions
   addStep: () => void;
   removeStep: (stepIndex: number) => void;
-  updateStep: (stepIndex: number, updates: Partial<SimplifiedStep>) => void;
-  reorderSteps: (newStepOrder: SimplifiedStep[]) => void;
+  updateStep: (stepIndex: number, updates: Partial<FlowStep>) => void;
+  reorderSteps: (newStepOrder: FlowStep[]) => void;
   
   // Template actions
   resetTemplate: () => void;
@@ -31,31 +25,21 @@ interface FlowTemplateState {
 }
 
 // Initial empty step
-const createEmptyStep = (): SimplifiedStep => ({
+const createEmptyStep = (): FlowStep => ({
+  id: crypto.randomUUID(),
   title: '',
   message: '',
-  attachments: [],
-  requestInput: {
-    enabled: false,
-    inputs: []
-  },
-  usePredefinedAssignment: {
-    enabled: false,
-    assignment: {
-      targets: [],
-      assignToAll: true,
-      allowReassignment: true
-    }
-  },
-  type: StepType.TASK
+  links: [],
+  inputs: [],
+  type: FlowStepType.TASK
 });
 
 // Initial template state
-const initialFlowTemplate: SimplifiedFlowTemplate = {
-  title: '',
+const initialFlowTemplate: FlowTemplate = {
+  type: 'TEMPLATE',
+  name: '',
   description: '',
-  steps: [createEmptyStep()],
-  flowType: 'TEMPLATE'
+  steps: [createEmptyStep()]
 };
 
 export const useFlowTemplateStore = create<FlowTemplateState>((set, get) => ({
@@ -66,46 +50,12 @@ export const useFlowTemplateStore = create<FlowTemplateState>((set, get) => ({
   
   // General template actions
   updateTitle: (title) => set((state) => ({ 
-    flowTemplate: { ...state.flowTemplate, title } 
+    flowTemplate: { ...state.flowTemplate, name: title } 
   })),
   
   updateDescription: (description) => set((state) => ({ 
     flowTemplate: { ...state.flowTemplate, description } 
   })),
-  
-  // Reminder actions
-  updateReminderTiming: (type, value, unit) => set((state) => {
-    const currentReminder = state.flowTemplate.reminder || {
-      timing: { type: TimingType.BEFORE, value: 24, unit: TimeUnit.HOURS }
-    };
-    
-    return { 
-      flowTemplate: { 
-        ...state.flowTemplate, 
-        reminder: {
-          ...currentReminder,
-          timing: { type, value, unit }
-        }
-      } 
-    };
-  }),
-  
-  // Escalation actions
-  updateEscalationTiming: (type, value, unit) => set((state) => {
-    const currentEscalation = state.flowTemplate.escalation || {
-      timing: { type: TimingType.AFTER, value: 48, unit: TimeUnit.HOURS }
-    };
-    
-    return { 
-      flowTemplate: { 
-        ...state.flowTemplate, 
-        escalation: {
-          ...currentEscalation,
-          timing: { type, value, unit }
-        }
-      } 
-    };
-  }),
   
   // Step management actions
   addStep: () => set((state) => {
@@ -186,7 +136,7 @@ export const useFlowTemplateStore = create<FlowTemplateState>((set, get) => ({
     const errors: Record<string, string> = {};
     
     // Basic validation
-    if (!flowTemplate.title) {
+    if (!flowTemplate.name) {
       errors.title = 'Title is required';
     }
     

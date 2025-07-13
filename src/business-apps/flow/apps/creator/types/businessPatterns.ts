@@ -2,7 +2,7 @@
  * Business pattern definitions for wizard-based flow template creation
  */
 
-import { StepType, TaskExecutionType, InputBlockType, ContentBlockType } from './flowTemplate';
+import { FlowStepType, InputType } from './flowTemplate';
 
 // Business pattern categories
 export enum BusinessPatternCategory {
@@ -64,11 +64,9 @@ export interface PatternConfiguration {
   requiresDeadline: boolean;
   requiresEscalation: boolean;
   allowsMultipleSteps: boolean;
-  recommendedStepTypes: StepType[];
-  forbiddenStepTypes: StepType[];
-  recommendedInputBlocks: InputBlockType[];
-  recommendedContentBlocks: ContentBlockType[];
-  executionStrategy: TaskExecutionType;
+  recommendedFlowStepTypes: FlowStepType[];
+  forbiddenFlowStepTypes: FlowStepType[];
+  recommendedInputs: InputType[];
   minSteps: number;
   maxSteps: number;
 }
@@ -92,24 +90,16 @@ export interface BusinessPattern {
 export interface PreConfiguredStep {
   title: string;
   description: string;
-  type: StepType;
-  contentBlocks: PreConfiguredContentBlock[];
-  inputBlocks: PreConfiguredInputBlock[];
-  assignmentRequired: boolean;
-  assignmentType: 'single' | 'multiple' | 'any' | 'all';
-}
-
-export interface PreConfiguredContentBlock {
-  type: ContentBlockType;
-  content: string;
-  description: string;
-  required: boolean;
+  type: FlowStepType;
+  inputs?: PreConfiguredInputBlock[];
+  links?: any[];
 }
 
 export interface PreConfiguredInputBlock {
-  type: InputBlockType;
+  type: InputType;
+  name: string;
   label: string;
-  required: boolean;
+  required?: boolean;
   placeholder?: string;
   options?: Array<{ value: string; label: string }>;
 }

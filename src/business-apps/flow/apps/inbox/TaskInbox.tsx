@@ -45,8 +45,7 @@ interface Task {
   templateTitle?: string;
   stepTitle?: string;
   stepType?: string; // APPROVAL, ACKNOWLEDGE, TASK, INFORMATION
-  contentBlocks?: any[];
-  inputBlocks?: any[];
+  inputs?: any[];
   canClaim?: boolean;
   canComplete?: boolean;
   canRelease?: boolean;
@@ -152,7 +151,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
     
     // Initialize form data for input blocks
     const initialFormData: any = {};
-    enhancedTask.inputBlocks?.forEach((block: any) => {
+    enhancedTask.inputs?.forEach((block: any) => {
       initialFormData[block.id] = block.type === 'checkbox' ? [] : '';
     });
     setTaskFormData(initialFormData);
@@ -204,7 +203,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
   const handleCompleteTask = async (taskId: string, action: string = 'completed') => {
     try {
       // Validate form if there are input blocks
-      if (selectedTask?.inputBlocks && selectedTask.inputBlocks.length > 0) {
+      if (selectedTask?.inputs && selectedTask.inputs.length > 0) {
         await form.validateFields();
       }
 
@@ -265,23 +264,13 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
     }
   };
 
-  const getStepTypeColor = (stepType: string) => {
+  const getFlowStepTypeColor = (stepType: string) => {
     switch (stepType) {
       case 'APPROVAL': return 'green';
       case 'ACKNOWLEDGE': return 'blue';
       case 'TASK': return 'purple';
       case 'INFORMATION': return 'orange';
       default: return 'default';
-    }
-  };
-
-  const getContentBlockIcon = (type: string) => {
-    switch (type) {
-      case 'text': return <FileTextOutlined />;
-      case 'document': return <FileOutlined />;
-      case 'image': return <PictureOutlined />;
-      case 'link': return <LinkOutlined />;
-      default: return <FileTextOutlined />;
     }
   };
 
@@ -298,35 +287,6 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
       case 'signature': return <EditOutlined />;
       default: return <EditOutlined />;
     }
-  };
-
-  const renderContentBlock = (block: any, index: number) => {
-    return (
-      <Card key={index} size="small" style={{ marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          {getContentBlockIcon(block.type)}
-          <Text strong>{block.type?.toUpperCase()} Block</Text>
-          {block.required && <Tag color="red">Required</Tag>}
-        </div>
-        {block.description && (
-          <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: 4 }}>
-            {block.description}
-          </Text>
-        )}
-        <div style={{ 
-          padding: '8px', 
-          backgroundColor: '#f5f5f5', 
-          borderRadius: '4px',
-          border: '1px solid #d9d9d9'
-        }}>
-          {block.content ? (
-            <Text>{block.content}</Text>
-          ) : (
-            <Text type="secondary" italic>Content will be provided at execution time</Text>
-          )}
-        </div>
-      </Card>
-    );
   };
 
   const renderInputBlock = (block: any, index: number) => {
@@ -461,7 +421,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
   const renderTaskModal = () => {
     if (!selectedTask) return null;
 
-    const hasInputBlocks = selectedTask.inputBlocks && selectedTask.inputBlocks.length > 0;
+          const hasInputBlocks = selectedTask.inputs && selectedTask.inputs.length > 0;
 
     return (
       <Modal
@@ -489,7 +449,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
                 <Tag color={getTaskStatusColor(selectedTask.status)}>{selectedTask.status}</Tag>
                 <Tag color="blue">{selectedTask.taskType}</Tag>
                 {selectedTask.stepType && (
-                  <Tag color={getStepTypeColor(selectedTask.stepType)}>
+                  <Tag color={getFlowStepTypeColor(selectedTask.stepType)}>
                     {selectedTask.stepType}
                   </Tag>
                 )}
@@ -503,19 +463,11 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
               <Paragraph>{selectedTask.description}</Paragraph>
             </div>
 
-            {/* Content Blocks */}
-            {selectedTask.contentBlocks && selectedTask.contentBlocks.length > 0 && (
-              <div>
-                <Title level={5}>Content</Title>
-                {selectedTask.contentBlocks.map((block, index) => renderContentBlock(block, index))}
-              </div>
-            )}
-
             {/* Input Blocks */}
             {hasInputBlocks && (
               <div>
                 <Title level={5}>Required Input</Title>
-                {selectedTask.inputBlocks!.map((block, index) => renderInputBlock(block, index))}
+                {selectedTask.inputs!.map((block: any, index: number) => renderInputBlock(block, index))}
               </div>
             )}
 
@@ -654,8 +606,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
   };
 
   const renderTaskListItem = (task: Task) => {
-    const hasContentBlocks = task.contentBlocks && task.contentBlocks.length > 0;
-    const hasInputBlocks = task.inputBlocks && task.inputBlocks.length > 0;
+          const hasInputBlocks = task.inputs && task.inputs.length > 0;
     
     // Get stepType from inputData if available, or fallback to flowType
     const stepType = (task as any).inputData?.stepType || 
@@ -676,21 +627,16 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
               {task.status}
             </Tag>
             {stepType && (
-              <Tag color={getStepTypeColor(stepType)}>
+              <Tag color={getFlowStepTypeColor(stepType)}>
                 {stepType}
               </Tag>
             )}
             {task.templateTitle && (
               <Tag color="purple">{task.templateTitle}</Tag>
             )}
-            {hasContentBlocks && (
-              <Tag color="cyan">
-                {task.contentBlocks!.length} Content
-              </Tag>
-            )}
             {hasInputBlocks && (
               <Tag color="orange">
-                {task.inputBlocks!.length} Input
+                {task.inputs!.length} Input
               </Tag>
             )}
           </Space>

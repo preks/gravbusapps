@@ -18,16 +18,6 @@ import { ExecutionWizard } from '../creator/components/execution/ExecutionWizard
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-interface RuntimeContentBlock {
-  parameterName: string;
-  stepIndex: number;
-  blockIndex: number;
-  blockId: string;
-  blockType: string;
-  label: string;
-  required: boolean;
-}
-
 interface LaunchParameters {
   [key: string]: string;
 }
@@ -63,7 +53,7 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
       // Get all templates and filter for published ones (non-draft)
       const allTemplates = await flowTemplateClient.getAllTemplates();
       const publishedTemplates = allTemplates.filter(template => 
-        template.flowType !== 'DRAFT' && template.flowType !== 'INSTANCE'
+        template.type !== 'DRAFT' && template.type !== 'INSTANCE'
       );
       setTemplates(publishedTemplates);
     } catch (err) {
@@ -74,19 +64,14 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
     }
   };
 
-  // Load template metadata to get runtime content blocks
+  // Load template metadata
   const loadTemplateMetadata = async (templateId: string) => {
     try {
       const metadata = await flowTemplateClient.getTemplateWithMetadata(templateId);
       setTemplateMetadata(metadata);
       
-             // Initialize launch parameters for runtime content blocks
-       const runtimeBlocks = metadata.metadata.workflowDefinition?.metadata?.runtimeContentBlocks || [];
-       const initialParams: LaunchParameters = {};
-       runtimeBlocks.forEach((block: RuntimeContentBlock) => {
-         initialParams[block.parameterName] = '';
-       });
-       setLaunchParameters(initialParams);
+      // Initialize empty launch parameters
+      setLaunchParameters({});
     } catch (err) {
       console.error('Error loading template metadata:', err);
     }
@@ -136,7 +121,7 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
           flowInstanceId: `flow_instance_${Date.now()}`,
           launchedBy: user?.name || user?.id || employeeId,
           launchedAt: new Date().toISOString(),
-          templateTitle: selectedTemplate.title
+          templateTitle: selectedTemplate.name
         },
         ...executionConfig
       };
@@ -146,7 +131,7 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
       
       console.log('Workflow launched successfully:', result);
       
-      alert(`Workflow launched successfully!\n\nWorkflow ID: ${result.workflowId}\nTemplate: ${selectedTemplate.title}`);
+      alert(`Workflow launched successfully!\n\nWorkflow ID: ${result.workflowId}\nTemplate: ${selectedTemplate.name}`);
       
       // Reset form after successful launch
       setLaunchParameters({});
@@ -178,7 +163,7 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
           flowInstanceId: `flow_instance_${Date.now()}`,
           launchedBy: user?.name || user?.id || employeeId,
           launchedAt: new Date().toISOString(),
-          templateTitle: selectedTemplate.title
+          templateTitle: selectedTemplate.name
         }
       };
 
@@ -187,7 +172,7 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
       
       console.log('Workflow launched successfully:', result);
       
-      alert(`Workflow launched successfully!\n\nWorkflow ID: ${result.workflowId}\nTemplate: ${selectedTemplate.title}`);
+      alert(`Workflow launched successfully!\n\nWorkflow ID: ${result.workflowId}\nTemplate: ${selectedTemplate.name}`);
       
       // Reset form after successful launch
       setLaunchParameters({});
@@ -203,11 +188,8 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
     }
   };
 
-       // Check if all required parameters are filled
-  const canLaunch = selectedTemplate && templateMetadata && 
-    (templateMetadata.metadata.workflowDefinition?.metadata?.runtimeContentBlocks || []).every(
-      (block: RuntimeContentBlock) => !block.required || launchParameters[block.parameterName]?.trim()
-    );
+  // Check if template can be launched
+  const canLaunch = selectedTemplate && templateMetadata;
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-6 gba:p-6" data-testid={testId}>
@@ -267,18 +249,14 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
                       <FileTextOutlined className="gba:text-blue-500 gba:text-lg gba:mt-1" />
                       <div className="gba:flex-1">
                         <Title level={5} className="gba:m-0 gba:mb-1">
-                          {template.title}
+                          {template.name}
                         </Title>
                         <Text type="secondary" className="gba:text-sm">
                           {template.description}
                         </Text>
                         <div className="gba:mt-2 gba:flex gba:gap-2">
-                          <span className={`gba:px-2 gba:py-1 gba:rounded gba:text-xs ${
-                            template.executionStrategy === 'PARALLEL' 
-                              ? 'gba:bg-purple-100 gba:text-purple-700' 
-                              : 'gba:bg-blue-100 gba:text-blue-700'
-                          }`}>
-                            {template.executionStrategy}
+                          <span className="gba:px-2 gba:py-1 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-xs">
+                            SEQUENTIAL
                           </span>
                           <span className="gba:px-2 gba:py-1 gba:bg-gray-100 gba:text-gray-700 gba:rounded gba:text-xs">
                             {template.steps.length} step{template.steps.length !== 1 ? 's' : ''}
@@ -313,43 +291,19 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
               <div className="gba:space-y-4">
                 <div className="gba:p-4 gba:bg-gray-50 gba:rounded">
                   <Title level={5} className="gba:m-0 gba:mb-2">
-                    {selectedTemplate.title}
+                    {selectedTemplate.name}
                   </Title>
                   <Text type="secondary">
                     {selectedTemplate.description}
                   </Text>
                 </div>
 
-                                 {templateMetadata.metadata.workflowDefinition?.metadata?.runtimeContentBlocks?.length > 0 ? (
-                   <div className="gba:space-y-4">
-                     <Text strong>
-                       {getTranslationFromI18nKeyAndLabel('flow.launcher.fillRequiredContent', 'Fill Required Content')}
-                     </Text>
-                     
-                     {templateMetadata.metadata.workflowDefinition.metadata.runtimeContentBlocks.map((block: RuntimeContentBlock) => (
-                      <div key={block.parameterName} className="gba:space-y-2">
-                        <label className="gba:block gba:text-sm gba:font-medium">
-                          {block.label}
-                          {block.required && <span className="gba:text-red-500 gba:ml-1">*</span>}
-                        </label>
-                        <TextArea
-                          value={launchParameters[block.parameterName] || ''}
-                          onChange={(e: any) => handleParameterChange(block.parameterName, e.target.value)}
-                          placeholder={`Enter content for ${block.label}`}
-                          rows={3}
-                          data-testid={`${testId}-param-${block.parameterName}`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <Alert
-                    message="No Parameters Required"
-                    description="This template has no content blocks that need to be filled at launch time."
-                    type="success"
-                    showIcon
-                  />
-                )}
+                <Alert
+                  message="No Parameters Required"
+                  description="This template has no content blocks that need to be filled at launch time."
+                  type="success"
+                  showIcon
+                />
 
                 <div className="gba:pt-4 gba:border-t gba:space-y-3">
                   <Button

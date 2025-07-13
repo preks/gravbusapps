@@ -71,8 +71,8 @@ export const getClaimableTasksController = async (
         const assignmentTargets: AssignmentTarget[] = task.inputData.assignmentTargets || [];
         const isUnassigned = !task.workerId && !task.inputData?.userId;
         canClaim = isUnassigned && userMatchesAssignmentTargets(userId, assignmentTargets);
-      } else if (task.inputData?.taskCategory === 'HUMAN' && !task.workerId) {
-        // HUMAN tasks with no assigned worker can be claimed
+      } else if (task.inputData?.taskCategory === 'HUMAN' && !task.workerId && !task.inputData?.userId) {
+        // HUMAN tasks with no assigned worker and no userId can be claimed
         canClaim = true;
       }
       
@@ -154,8 +154,8 @@ export const getUserTasksController = async (
       const isHumanTask = task.inputData?.taskCategory === 'HUMAN';
       const isClaimTask = task.inputData?.taskCategory === 'CLAIM' && task.taskType === 'CLAIM';
       
-      // HUMAN tasks assigned to this user
-      if (isHumanTask && task.workerId === userId) {
+      // HUMAN tasks assigned to this user (check both workerId and inputData.userId)
+      if (isHumanTask && (task.workerId === userId || task.inputData?.userId === userId)) {
         return true;
       }
       

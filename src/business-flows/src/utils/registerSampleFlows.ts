@@ -30,7 +30,7 @@ export interface Assignment {
   departmentIds?: string[];
 }
 
-export interface SimplifiedStep {
+export interface FlowStep {
   type: StepType;
   name: string;
   description?: string;
@@ -45,7 +45,7 @@ export interface FlowTemplate {
   name: string;
   description?: string;
   version?: number;
-  steps: SimplifiedStep[];
+  steps: FlowStep[];
 }
 
 export const registerSampleFlows = async (): Promise<void> => {

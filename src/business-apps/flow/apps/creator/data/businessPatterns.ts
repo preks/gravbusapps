@@ -12,7 +12,7 @@ import {
   ReviewFeedbackPattern,
   RequestResponsePattern
 } from '../types/businessPatterns';
-import { StepType, TaskExecutionType, InputBlockType, ContentBlockType } from '../types/flowTemplate';
+import { FlowStepType, InputType } from '../types/flowTemplate';
 
 // 🔐 APPROVAL WORKFLOWS
 export const APPROVAL_PATTERNS: BusinessPattern[] = [
@@ -36,10 +36,9 @@ export const APPROVAL_PATTERNS: BusinessPattern[] = [
       requiresDeadline: true,
       requiresEscalation: true,
       allowsMultipleSteps: false,
-      recommendedStepTypes: [StepType.APPROVAL],
-      forbiddenStepTypes: [StepType.INFORMATION],
-      recommendedInputBlocks: [InputBlockType.TEXTAREA, InputBlockType.DROPDOWN],
-      recommendedContentBlocks: [ContentBlockType.TEXT, ContentBlockType.DOCUMENT],
+      recommendedFlowStepTypes: [FlowStepType.APPROVAL],
+      forbiddenFlowStepTypes: [FlowStepType.INFORMATION],
+      recommendedInputs: [InputType.TEXTAREA, InputType.SELECT],
       minSteps: 1,
       maxSteps: 1
     },
@@ -47,25 +46,16 @@ export const APPROVAL_PATTERNS: BusinessPattern[] = [
       {
         title: 'Approval Required',
         description: 'Request approval from designated approver',
-        type: StepType.APPROVAL,
-        contentBlocks: [
+        type: FlowStepType.APPROVAL,
+        inputs: [
           {
-            type: ContentBlockType.TEXT,
-            content: 'Please review and approve this request.',
-            description: 'Approval request message',
-            required: true
-          }
-        ],
-        inputBlocks: [
-          {
-            type: InputBlockType.TEXTAREA,
+            type: InputType.TEXTAREA,
+            name: 'comments',
             label: 'Comments',
             required: false,
             placeholder: 'Add any comments about this approval...'
           }
-        ],
-        assignmentRequired: true,
-        assignmentType: 'single'
+        ]
       }
     ],
     validationRules: [
@@ -108,10 +98,9 @@ export const APPROVAL_PATTERNS: BusinessPattern[] = [
       requiresDeadline: true,
       requiresEscalation: true,
       allowsMultipleSteps: true,
-      recommendedStepTypes: [StepType.APPROVAL],
-      forbiddenStepTypes: [StepType.INFORMATION],
-      recommendedInputBlocks: [InputBlockType.TEXTAREA, InputBlockType.DROPDOWN],
-      recommendedContentBlocks: [ContentBlockType.TEXT, ContentBlockType.DOCUMENT],
+      recommendedFlowStepTypes: [FlowStepType.APPROVAL],
+      forbiddenFlowStepTypes: [FlowStepType.INFORMATION],
+      recommendedInputs: [InputType.TEXTAREA, InputType.SELECT],
       minSteps: 2,
       maxSteps: 5
     },
@@ -119,48 +108,30 @@ export const APPROVAL_PATTERNS: BusinessPattern[] = [
       {
         title: 'First Level Approval',
         description: 'Initial approval in the chain',
-        type: StepType.APPROVAL,
-        contentBlocks: [
+        type: FlowStepType.APPROVAL,
+        inputs: [
           {
-            type: ContentBlockType.TEXT,
-            content: 'Please review and provide your approval for this request.',
-            description: 'First level approval message',
-            required: true
-          }
-        ],
-        inputBlocks: [
-          {
-            type: InputBlockType.TEXTAREA,
+            type: InputType.TEXTAREA,
+            name: 'comments',
             label: 'Comments',
             required: false,
             placeholder: 'Add comments for next approver...'
           }
-        ],
-        assignmentRequired: true,
-        assignmentType: 'single'
+        ]
       },
       {
         title: 'Final Approval',
         description: 'Final approval in the chain',
-        type: StepType.APPROVAL,
-        contentBlocks: [
+        type: FlowStepType.APPROVAL,
+        inputs: [
           {
-            type: ContentBlockType.TEXT,
-            content: 'Please provide final approval for this request.',
-            description: 'Final approval message',
-            required: true
-          }
-        ],
-        inputBlocks: [
-          {
-            type: InputBlockType.TEXTAREA,
+            type: InputType.TEXTAREA,
+            name: 'finalComments',
             label: 'Final Comments',
             required: false,
             placeholder: 'Add final approval comments...'
           }
-        ],
-        assignmentRequired: true,
-        assignmentType: 'single'
+        ]
       }
     ],
     validationRules: [
@@ -204,10 +175,9 @@ export const INFORMATION_PATTERNS: BusinessPattern[] = [
       requiresDeadline: false,
       requiresEscalation: false,
       allowsMultipleSteps: false,
-      recommendedStepTypes: [StepType.INFORMATION],
-      forbiddenStepTypes: [StepType.APPROVAL],
-      recommendedInputBlocks: [],
-      recommendedContentBlocks: [ContentBlockType.TEXT, ContentBlockType.DOCUMENT, ContentBlockType.LINK],
+      recommendedFlowStepTypes: [FlowStepType.INFORMATION],
+      forbiddenFlowStepTypes: [FlowStepType.APPROVAL],
+      recommendedInputs: [],
       minSteps: 1,
       maxSteps: 1
     },
@@ -215,18 +185,8 @@ export const INFORMATION_PATTERNS: BusinessPattern[] = [
       {
         title: 'Information Announcement',
         description: 'Share information with recipients',
-        type: StepType.INFORMATION,
-        contentBlocks: [
-          {
-            type: ContentBlockType.TEXT,
-            content: 'Important information to share with the team.',
-            description: 'Announcement content',
-            required: true
-          }
-        ],
-        inputBlocks: [],
-        assignmentRequired: true,
-        assignmentType: 'multiple'
+        type: FlowStepType.INFORMATION,
+        inputs: []
       }
     ],
     validationRules: [
@@ -236,11 +196,11 @@ export const INFORMATION_PATTERNS: BusinessPattern[] = [
         message: 'Recipients are required for announcements'
       },
       {
-        field: 'steps[0].inputBlocks',
+        field: 'steps[0].inputs',
         rule: 'custom',
         message: 'Information steps should not have input blocks',
         customValidator: (value, template) => {
-          return template.steps[0].inputBlocks.length === 0;
+          return template.steps[0].inputs.length === 0;
         }
       }
     ]
@@ -265,10 +225,9 @@ export const INFORMATION_PATTERNS: BusinessPattern[] = [
       requiresDeadline: true,
       requiresEscalation: true,
       allowsMultipleSteps: false,
-      recommendedStepTypes: [StepType.ACKNOWLEDGE],
-      forbiddenStepTypes: [StepType.APPROVAL],
-      recommendedInputBlocks: [InputBlockType.CHECKBOX],
-      recommendedContentBlocks: [ContentBlockType.TEXT, ContentBlockType.DOCUMENT],
+      recommendedFlowStepTypes: [FlowStepType.ACKNOWLEDGE],
+      forbiddenFlowStepTypes: [FlowStepType.APPROVAL],
+      recommendedInputs: [InputType.CHECKBOX],
       minSteps: 1,
       maxSteps: 1
     },
@@ -276,24 +235,15 @@ export const INFORMATION_PATTERNS: BusinessPattern[] = [
       {
         title: 'Acknowledgment Required',
         description: 'Confirm you have read and understood this information',
-        type: StepType.ACKNOWLEDGE,
-        contentBlocks: [
+        type: FlowStepType.ACKNOWLEDGE,
+        inputs: [
           {
-            type: ContentBlockType.TEXT,
-            content: 'Please read the following information carefully and acknowledge your understanding.',
-            description: 'Information to acknowledge',
-            required: true
-          }
-        ],
-        inputBlocks: [
-          {
-            type: InputBlockType.CHECKBOX,
+            type: InputType.CHECKBOX,
+            name: 'acknowledgment',
             label: 'I have read and understood this information',
             required: true
           }
-        ],
-        assignmentRequired: true,
-        assignmentType: 'multiple'
+        ]
       }
     ],
     validationRules: [
@@ -303,7 +253,7 @@ export const INFORMATION_PATTERNS: BusinessPattern[] = [
         message: 'Recipients are required for acknowledgment'
       },
       {
-        field: 'steps[0].inputBlocks',
+        field: 'steps[0].inputs',
         rule: 'min',
         value: 1,
         message: 'Acknowledgment step must have at least one input block'
@@ -334,10 +284,9 @@ export const TASK_COORDINATION_PATTERNS: BusinessPattern[] = [
       requiresDeadline: true,
       requiresEscalation: true,
       allowsMultipleSteps: true,
-      recommendedStepTypes: [StepType.TASK],
-      forbiddenStepTypes: [StepType.INFORMATION],
-      recommendedInputBlocks: [InputBlockType.TEXTAREA, InputBlockType.FILE, InputBlockType.DROPDOWN],
-      recommendedContentBlocks: [ContentBlockType.TEXT, ContentBlockType.DOCUMENT],
+      recommendedFlowStepTypes: [FlowStepType.TASK],
+      forbiddenFlowStepTypes: [FlowStepType.INFORMATION],
+      recommendedInputs: [InputType.TEXTAREA, InputType.FILE, InputType.SELECT],
       minSteps: 1,
       maxSteps: 10
     },
@@ -345,30 +294,22 @@ export const TASK_COORDINATION_PATTERNS: BusinessPattern[] = [
       {
         title: 'Complete Task',
         description: 'Complete the assigned task',
-        type: StepType.TASK,
-        contentBlocks: [
+        type: FlowStepType.TASK,
+        inputs: [
           {
-            type: ContentBlockType.TEXT,
-            content: 'Please complete the following task.',
-            description: 'Task instructions',
-            required: true
-          }
-        ],
-        inputBlocks: [
-          {
-            type: InputBlockType.TEXTAREA,
+            type: InputType.TEXTAREA,
+            name: 'taskResults',
             label: 'Task Results',
             required: true,
             placeholder: 'Describe what you completed...'
           },
           {
-            type: InputBlockType.FILE,
+            type: InputType.FILE,
+            name: 'attachments',
             label: 'Attachments',
             required: false
           }
-        ],
-        assignmentRequired: true,
-        assignmentType: 'single'
+        ]
       }
     ],
     validationRules: [
@@ -400,72 +341,65 @@ export const DECISION_MAKING_PATTERNS: BusinessPattern[] = [
     icon: 'MessageSquare',
     color: '#8B5CF6',
     useCases: [
-      'Strategic decision input',
-      'Expert opinion gathering',
-      'Stakeholder consultation',
-      'Advisory feedback collection'
+      'Expert consultation before decision',
+      'Stakeholder feedback collection',
+      'Technical review process',
+      'Multi-perspective analysis'
     ],
     configuration: {
       requiresApproval: false,
       requiresAssignment: true,
       requiresDeadline: true,
-      requiresEscalation: false,
-      allowsMultipleSteps: false,
-      recommendedStepTypes: [StepType.TASK],
-      forbiddenStepTypes: [StepType.APPROVAL, StepType.INFORMATION],
-      recommendedInputBlocks: [InputBlockType.TEXTAREA, InputBlockType.RADIO, InputBlockType.DROPDOWN],
-      recommendedContentBlocks: [ContentBlockType.TEXT, ContentBlockType.DOCUMENT],
-      minSteps: 1,
-      maxSteps: 1
+      requiresEscalation: true,
+      allowsMultipleSteps: true,
+      recommendedFlowStepTypes: [FlowStepType.TASK, FlowStepType.INFORMATION],
+      forbiddenFlowStepTypes: [FlowStepType.APPROVAL],
+      recommendedInputs: [InputType.TEXTAREA, InputType.FILE, InputType.SELECT],
+      minSteps: 2,
+      maxSteps: 5
     },
     preConfiguredSteps: [
       {
-        title: 'Provide Consultation',
-        description: 'Share your opinion and recommendations',
-        type: StepType.TASK,
-        contentBlocks: [
+        title: 'Gather Information',
+        description: 'Collect relevant information and feedback',
+        type: FlowStepType.TASK,
+        inputs: [
           {
-            type: ContentBlockType.TEXT,
-            content: 'Please provide your consultation on this matter.',
-            description: 'Consultation request details',
-            required: true
-          }
-        ],
-        inputBlocks: [
-          {
-            type: InputBlockType.TEXTAREA,
-            label: 'Your Recommendation',
+            type: InputType.TEXTAREA,
+            name: 'feedback',
+            label: 'Feedback',
             required: true,
-            placeholder: 'Share your thoughts and recommendations...'
+            placeholder: 'Provide your feedback and recommendations...'
           },
           {
-            type: InputBlockType.RADIO,
-            label: 'Overall Assessment',
-            required: true,
-            options: [
-              { value: 'strongly_recommend', label: 'Strongly Recommend' },
-              { value: 'recommend', label: 'Recommend' },
-              { value: 'neutral', label: 'Neutral' },
-              { value: 'not_recommend', label: 'Do Not Recommend' },
-              { value: 'strongly_not_recommend', label: 'Strongly Do Not Recommend' }
-            ]
+            type: InputType.FILE,
+            name: 'supportingDocuments',
+            label: 'Supporting Documents',
+            required: false
           }
-        ],
-        assignmentRequired: true,
-        assignmentType: 'multiple'
+        ]
+      },
+      {
+        title: 'Review and Decide',
+        description: 'Review collected information and make decision',
+        type: FlowStepType.TASK,
+        inputs: [
+          {
+            type: InputType.TEXTAREA,
+            name: 'decisionSummary',
+            label: 'Decision Summary',
+            required: true,
+            placeholder: 'Summarize your decision and reasoning...'
+          }
+        ]
       }
     ],
     validationRules: [
       {
-        field: 'assignment',
-        rule: 'required',
-        message: 'Consultants must be assigned'
-      },
-      {
-        field: 'assignment.targets',
+        field: 'steps',
         rule: 'min',
-        value: 1,
-        message: 'At least one consultant must be assigned'
+        value: 2,
+        message: 'Consultation requires at least 2 steps'
       }
     ]
   }
@@ -474,177 +408,151 @@ export const DECISION_MAKING_PATTERNS: BusinessPattern[] = [
 // 📝 REVIEW & FEEDBACK
 export const REVIEW_FEEDBACK_PATTERNS: BusinessPattern[] = [
   {
-    id: 'document-review',
+    id: 'peer-review',
     category: BusinessPatternCategory.REVIEW_FEEDBACK,
-    subPattern: ReviewFeedbackPattern.DOCUMENT_REVIEW,
-    title: 'Document Review',
-    description: 'Review and provide feedback',
-    icon: 'FileText',
-    color: '#EF4444',
+    subPattern: ReviewFeedbackPattern.PEER_REVIEW,
+    title: 'Peer Review',
+    description: 'Review work from colleagues',
+    icon: 'Users',
+    color: '#EC4899',
     useCases: [
-      'Document review and feedback',
-      'Content review process',
-      'Report validation',
-      'Proposal evaluation'
+      'Code review process',
+      'Document peer review',
+      'Design feedback collection',
+      'Quality assurance review'
     ],
     configuration: {
       requiresApproval: false,
       requiresAssignment: true,
       requiresDeadline: true,
       requiresEscalation: true,
-      allowsMultipleSteps: false,
-      recommendedStepTypes: [StepType.TASK],
-      forbiddenStepTypes: [StepType.INFORMATION],
-      recommendedInputBlocks: [InputBlockType.TEXTAREA, InputBlockType.DROPDOWN, InputBlockType.FILE],
-      recommendedContentBlocks: [ContentBlockType.TEXT, ContentBlockType.DOCUMENT],
+      allowsMultipleSteps: true,
+      recommendedFlowStepTypes: [FlowStepType.TASK],
+      forbiddenFlowStepTypes: [FlowStepType.APPROVAL],
+      recommendedInputs: [InputType.TEXTAREA, InputType.FILE, InputType.CHECKBOX],
       minSteps: 1,
-      maxSteps: 1
+      maxSteps: 3
     },
     preConfiguredSteps: [
       {
-        title: 'Document Review',
-        description: 'Review the document and provide feedback',
-        type: StepType.TASK,
-        contentBlocks: [
+        title: 'Review Work',
+        description: 'Review the submitted work and provide feedback',
+        type: FlowStepType.TASK,
+        inputs: [
           {
-            type: ContentBlockType.TEXT,
-            content: 'Please review the attached document and provide your feedback.',
-            description: 'Document review instructions',
-            required: true
-          },
-          {
-            type: ContentBlockType.DOCUMENT,
-            content: '',
-            description: 'Document to review',
-            required: true
-          }
-        ],
-        inputBlocks: [
-          {
-            type: InputBlockType.TEXTAREA,
+            type: InputType.TEXTAREA,
+            name: 'reviewComments',
             label: 'Review Comments',
             required: true,
-            placeholder: 'Provide detailed feedback on the document...'
+            placeholder: 'Provide detailed review comments...'
           },
           {
-            type: InputBlockType.DROPDOWN,
-            label: 'Review Status',
-            required: true,
-            options: [
-              { value: 'approved', label: 'Approved' },
-              { value: 'approved_with_changes', label: 'Approved with Changes' },
-              { value: 'needs_revision', label: 'Needs Revision' },
-              { value: 'rejected', label: 'Rejected' }
-            ]
+            type: InputType.CHECKBOX,
+            name: 'qualityStandardsMet',
+            label: 'Work meets quality standards',
+            required: true
           },
           {
-            type: InputBlockType.FILE,
-            label: 'Revised Document',
+            type: InputType.FILE,
+            name: 'reviewAttachments',
+            label: 'Review Attachments',
             required: false
           }
-        ],
-        assignmentRequired: true,
-        assignmentType: 'multiple'
+        ]
       }
     ],
     validationRules: [
       {
         field: 'assignment',
         rule: 'required',
-        message: 'Reviewers must be assigned'
-      },
-      {
-        field: 'steps[0].contentBlocks',
-        rule: 'min',
-        value: 1,
-        message: 'Document review must have content to review'
+        message: 'Reviewers are required for peer review'
       }
     ]
   }
 ];
 
-// 🙋 REQUEST & RESPONSE
+// 🔄 REQUEST & RESPONSE
 export const REQUEST_RESPONSE_PATTERNS: BusinessPattern[] = [
   {
-    id: 'service-request',
+    id: 'request-response',
     category: BusinessPatternCategory.REQUEST_RESPONSE,
     subPattern: RequestResponsePattern.SERVICE_REQUEST,
-    title: 'Service Request',
-    description: 'Request help or service',
-    icon: 'HandHeart',
+    title: 'Request & Response',
+    description: 'Make a request and get a response',
+    icon: 'MessageCircle',
     color: '#06B6D4',
     useCases: [
-      'IT support requests',
-      'Facility maintenance requests',
-      'HR service requests',
-      'General help requests'
+      'Information requests',
+      'Support ticket handling',
+      'Service requests',
+      'Question and answer workflows'
     ],
     configuration: {
       requiresApproval: false,
       requiresAssignment: true,
       requiresDeadline: true,
       requiresEscalation: true,
-      allowsMultipleSteps: false,
-      recommendedStepTypes: [StepType.TASK],
-      forbiddenStepTypes: [StepType.INFORMATION],
-      recommendedInputBlocks: [InputBlockType.TEXTAREA, InputBlockType.DROPDOWN, InputBlockType.FILE],
-      recommendedContentBlocks: [ContentBlockType.TEXT],
-      minSteps: 1,
-      maxSteps: 1
+      allowsMultipleSteps: true,
+      recommendedFlowStepTypes: [FlowStepType.TASK],
+      forbiddenFlowStepTypes: [FlowStepType.APPROVAL],
+      recommendedInputs: [InputType.TEXTAREA, InputType.FILE, InputType.SELECT],
+      minSteps: 2,
+      maxSteps: 4
     },
     preConfiguredSteps: [
       {
-        title: 'Fulfill Service Request',
-        description: 'Complete the requested service',
-        type: StepType.TASK,
-        contentBlocks: [
+        title: 'Submit Request',
+        description: 'Submit your request for information or service',
+        type: FlowStepType.TASK,
+        inputs: [
           {
-            type: ContentBlockType.TEXT,
-            content: 'Please fulfill the following service request.',
-            description: 'Service request details',
-            required: true
-          }
-        ],
-        inputBlocks: [
-          {
-            type: InputBlockType.TEXTAREA,
-            label: 'Service Completion Notes',
+            type: InputType.TEXTAREA,
+            name: 'requestDetails',
+            label: 'Request Details',
             required: true,
-            placeholder: 'Describe how the service was completed...'
+            placeholder: 'Describe your request in detail...'
           },
           {
-            type: InputBlockType.DROPDOWN,
-            label: 'Service Status',
-            required: true,
-            options: [
-              { value: 'completed', label: 'Completed Successfully' },
-              { value: 'partially_completed', label: 'Partially Completed' },
-              { value: 'unable_to_complete', label: 'Unable to Complete' },
-              { value: 'requires_followup', label: 'Requires Follow-up' }
-            ]
+            type: InputType.FILE,
+            name: 'supportingDocuments',
+            label: 'Supporting Documents',
+            required: false
           }
-        ],
-        assignmentRequired: true,
-        assignmentType: 'any'
+        ]
+      },
+      {
+        title: 'Provide Response',
+        description: 'Provide response to the request',
+        type: FlowStepType.TASK,
+        inputs: [
+          {
+            type: InputType.TEXTAREA,
+            name: 'response',
+            label: 'Response',
+            required: true,
+            placeholder: 'Provide your response...'
+          },
+          {
+            type: InputType.FILE,
+            name: 'responseAttachments',
+            label: 'Response Attachments',
+            required: false
+          }
+        ]
       }
     ],
     validationRules: [
       {
-        field: 'assignment',
-        rule: 'required',
-        message: 'Service providers must be assigned'
-      },
-      {
-        field: 'assignment.targets',
+        field: 'steps',
         rule: 'min',
-        value: 1,
-        message: 'At least one service provider must be assigned'
+        value: 2,
+        message: 'Request-response requires at least 2 steps'
       }
     ]
   }
 ];
 
-// All patterns combined
+// Combine all patterns
 export const ALL_BUSINESS_PATTERNS: BusinessPattern[] = [
   ...APPROVAL_PATTERNS,
   ...INFORMATION_PATTERNS,
@@ -654,18 +562,96 @@ export const ALL_BUSINESS_PATTERNS: BusinessPattern[] = [
   ...REQUEST_RESPONSE_PATTERNS
 ];
 
-// Pattern lookup by category
-export const PATTERNS_BY_CATEGORY = {
-  [BusinessPatternCategory.APPROVAL]: APPROVAL_PATTERNS,
-  [BusinessPatternCategory.INFORMATION]: INFORMATION_PATTERNS,
-  [BusinessPatternCategory.TASK_COORDINATION]: TASK_COORDINATION_PATTERNS,
-  [BusinessPatternCategory.DECISION_MAKING]: DECISION_MAKING_PATTERNS,
-  [BusinessPatternCategory.REVIEW_FEEDBACK]: REVIEW_FEEDBACK_PATTERNS,
-  [BusinessPatternCategory.REQUEST_RESPONSE]: REQUEST_RESPONSE_PATTERNS
-};
-
-// Pattern lookup by ID
-export const PATTERN_BY_ID = ALL_BUSINESS_PATTERNS.reduce((acc, pattern) => {
-  acc[pattern.id] = pattern;
-  return acc;
-}, {} as Record<string, BusinessPattern>); 
+// Pattern validation rules
+export const PATTERN_VALIDATION_RULES = {
+  'single-approver': [
+    {
+      field: 'steps[0].inputs',
+      rule: 'custom' as const,
+      message: 'Single approver should have comment input',
+      customValidator: (value: any, template: any) => {
+        return template.steps[0].inputs.some((block: any) => 
+          block.type === InputType.TEXTAREA && block.label.toLowerCase().includes('comment')
+        );
+      }
+    }
+  ],
+  'approval-chain': [
+    {
+      field: 'steps',
+      rule: 'custom' as const,
+      message: 'Approval chain steps should have sequential assignments',
+      customValidator: (value: any, template: any) => {
+        return template.steps.every((step: any, index: number) => 
+          step.assignment && step.assignment.targets.length > 0
+        );
+      }
+    }
+  ],
+  'announcement': [
+    {
+      field: 'steps[0].inputs',
+      rule: 'custom' as const,
+      message: 'Announcement should not have input blocks',
+      customValidator: (value: any, template: any) => {
+        return template.steps[0].inputs.length === 0;
+      }
+    }
+  ],
+  'acknowledgment-required': [
+    {
+      field: 'steps[0].inputs',
+      rule: 'custom' as const,
+      message: 'Acknowledgment should have checkbox input',
+      customValidator: (value: any, template: any) => {
+        return template.steps[0].inputs.some((block: any) => 
+          block.type === InputType.CHECKBOX
+        );
+      }
+    }
+  ],
+  'task-assignment': [
+    {
+      field: 'steps[0].inputs',
+      rule: 'custom' as const,
+      message: 'Task assignment should have result input',
+      customValidator: (value: any, template: any) => {
+        return template.steps[0].inputs.some((block: any) => 
+          block.type === InputType.TEXTAREA && block.label.toLowerCase().includes('result')
+        );
+      }
+    }
+  ],
+  'consultation': [
+    {
+      field: 'steps',
+      rule: 'custom' as const,
+      message: 'Consultation should have multiple steps',
+      customValidator: (value: any, template: any) => {
+        return template.steps.length >= 2;
+      }
+    }
+  ],
+  'peer-review': [
+    {
+      field: 'steps[0].inputs',
+      rule: 'custom' as const,
+      message: 'Peer review should have quality checkbox',
+      customValidator: (value: any, template: any) => {
+        return template.steps[0].inputs.some((block: any) => 
+          block.type === InputType.CHECKBOX && block.label.toLowerCase().includes('quality')
+        );
+      }
+    }
+  ],
+  'request-response': [
+    {
+      field: 'steps',
+      rule: 'custom' as const,
+      message: 'Request-response should have request and response steps',
+      customValidator: (value: any, template: any) => {
+        return template.steps.length >= 2;
+      }
+    }
+  ]
+}; 

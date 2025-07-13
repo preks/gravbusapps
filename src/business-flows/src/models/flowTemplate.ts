@@ -52,17 +52,9 @@ export interface FlowTemplate {
   steps: FlowStep[];
 }
 
-// Legacy types for backward compatibility
-export type InputBlockType = 'text' | 'textarea' | 'number' | 'dropdown' | 'radio' | 'checkbox' | 'datetime' | 'file' | 'signature';
-export type ContentBlockType = 'text' | 'document' | 'image';
-export type ExecutionStrategy = 'PARALLEL' | 'SEQUENTIAL';
-export type TimeUnit = 'hours' | 'days';
-export type TimingType = 'after' | 'before';
-
 export type AssignmentTarget = {
   entity: 'user' | 'department' | 'capability' | 'role';
   id: string;
-  name: string;
 };
 
 export type TaskAssignment = {

@@ -10,7 +10,7 @@ import {
   EyeOutlined
 } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { SimplifiedFlowTemplate, SimplifiedStep, AssignmentMode } from '../../types/flowTemplate';
+import { FlowTemplate, FlowStep, AssignmentMode } from '../../types/flowTemplate';
 import { AssignmentSelector } from '../shared/AssignmentSelector';
 import { StepExecutionForm } from './StepExecutionForm';
 import { FlowStepModal } from './FlowStepModal';
@@ -18,7 +18,7 @@ import { FlowStepModal } from './FlowStepModal';
 const { Title, Text } = Typography;
 
 interface ExecutionWizardProps {
-  template: SimplifiedFlowTemplate;
+  template: FlowTemplate;
   onExecute: (executionConfig: ExecutionConfiguration) => Promise<void>;
   onCancel: () => void;
   'data-testid'?: string;
@@ -35,7 +35,7 @@ interface StepConfiguration {
   message?: string;
   assignment?: any;
   inputValues?: { [key: string]: any };
-  attachments?: any[];
+  links?: any[];
 }
 
 export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
@@ -48,7 +48,7 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
   const [stepConfigurations, setStepConfigurations] = useState<{ [stepIndex: number]: StepConfiguration }>({});
   const [isExecuting, setIsExecuting] = useState(false);
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
-  const [previewStep, setPreviewStep] = useState<SimplifiedStep | null>(null);
+  const [previewStep, setPreviewStep] = useState<FlowStep | null>(null);
   const [previewStepIndex, setPreviewStepIndex] = useState(-1);
 
   // Initialize step configurations
@@ -58,9 +58,9 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
       initialConfigurations[index] = {
         title: step.title,
         message: step.message,
-        assignment: step.usePredefinedAssignment?.enabled ? step.usePredefinedAssignment.assignment : null,
+        assignment: step.assignment || null,
         inputValues: {},
-        attachments: step.attachments || []
+        links: step.links || []
       };
     });
     setStepConfigurations(initialConfigurations);
@@ -117,7 +117,7 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
       ...step,
       title: config?.title || step.title,
       message: config?.message || step.message,
-      attachments: config?.attachments || step.attachments
+      links: config?.links || step.links
     });
     setPreviewStepIndex(stepIndex);
     setPreviewModalVisible(true);
@@ -135,8 +135,8 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
       template.steps.forEach((step, index) => {
         const config = stepConfigurations[index];
         
-        if (step.usePredefinedAssignment?.enabled) {
-          resolvedAssignments[`step_${index}`] = step.usePredefinedAssignment.assignment;
+        if (step.assignment) {
+          resolvedAssignments[`step_${index}`] = step.assignment;
         } else if (config?.assignment) {
           executionTimeAssignments[`step_${index}`] = config.assignment;
         }
@@ -165,7 +165,7 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
   const canExecute = template.steps.every((step, index) => {
     const config = stepConfigurations[index];
     // Check if steps that need execution-time assignment have been configured
-    if (!step.usePredefinedAssignment?.enabled && !config?.assignment) {
+    if (!step.assignment && !config?.assignment) {
       return false;
     }
     return true;
@@ -187,7 +187,7 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
       <div className="gba:space-y-6">
         {/* Template Info */}
         <div className="gba:bg-gray-50 gba:p-4 gba:rounded-lg">
-          <Title level={5} className="gba:mb-2">{template.title}</Title>
+          <Title level={5} className="gba:mb-2">{template.name}</Title>
           <Text className="gba:text-gray-600">{template.description}</Text>
         </div>
 
@@ -279,9 +279,9 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
             title: previewStep.title,
             message: previewStep.message,
             stepType: previewStep.type,
-            attachments: previewStep.attachments,
-            inputBlocks: previewStep.requestInput?.enabled ? previewStep.requestInput.inputs : [],
-            assignmentMode: previewStep.usePredefinedAssignment?.enabled ? previewStep.usePredefinedAssignment.assignment?.assignmentMode : undefined
+            links: previewStep.links || [],
+            inputs: previewStep.inputs || [],
+            ...(previewStep.assignment?.assignmentMode && { assignmentMode: previewStep.assignment.assignmentMode })
           }}
           onComplete={async () => {}} // No-op for preview
           onCancel={() => setPreviewModalVisible(false)}

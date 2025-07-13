@@ -12,7 +12,7 @@ import {
   SettingOutlined
 } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { StepType, InputBlockType } from '../../types/flowTemplate';
+import { FlowStepType, InputType } from '../../types/flowTemplate';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -25,9 +25,9 @@ interface FlowStepModalProps {
     stepIndex: number;
     title: string;
     message: string;
-    stepType: StepType;
-    attachments?: any[];
-    inputBlocks?: any[];
+    stepType: FlowStepType;
+    links?: any[];
+    inputs?: any[];
     assignee?: string;
     assignmentMode?: string;
     allowReassignment?: boolean;
@@ -50,7 +50,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<'APPROVED' | 'REJECTED' | 'COMPLETED' | null>(null);
 
-  const getStepIcon = (stepType: StepType) => {
+  const getStepIcon = (stepType: FlowStepType) => {
     switch (stepType) {
       case 'TASK':
         return <UserOutlined className="gba:text-blue-500" />;
@@ -65,7 +65,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
     }
   };
 
-  const getStepTypeLabel = (stepType: StepType) => {
+  const getFlowStepTypeLabel = (stepType: FlowStepType) => {
     switch (stepType) {
       case 'TASK':
         return getTranslationFromI18nKeyAndLabel('flow.step.task', 'Task');
@@ -84,8 +84,8 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
     try {
       setIsSubmitting(true);
       
-      // Validate form if there are input blocks
-      if (task.inputBlocks && task.inputBlocks.length > 0) {
+      // Validate form if there are inputs
+      if (task.inputs && task.inputs.length > 0) {
         await form.validateFields();
       }
       
@@ -121,7 +121,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
     const fieldName = `input_${index}`;
     
     switch (input.type) {
-      case InputBlockType.TEXTAREA:
+      case InputType.TEXTAREA:
         return (
           <Form.Item
             key={index}
@@ -137,7 +137,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
           </Form.Item>
         );
         
-      case InputBlockType.DROPDOWN:
+      case InputType.SELECT:
         return (
           <Form.Item
             key={index}
@@ -156,7 +156,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
           </Form.Item>
         );
         
-      case InputBlockType.NUMBER:
+      case InputType.NUMBER:
         return (
           <Form.Item
             key={index}
@@ -175,7 +175,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
           </Form.Item>
         );
         
-      case InputBlockType.FILE:
+      case InputType.FILE:
         return (
           <Form.Item
             key={index}
@@ -282,7 +282,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
           <div>
             <Title level={4} className="gba:mb-0">{task.title}</Title>
             <Tag color="blue" className="gba:mt-1">
-              {getStepTypeLabel(task.stepType)}
+              {getFlowStepTypeLabel(task.stepType)}
             </Tag>
           </div>
         </div>
@@ -304,23 +304,23 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
           </Card>
         )}
 
-        {/* Attachments */}
-        {task.attachments && task.attachments.length > 0 && (
+        {/* Links */}
+        {task.links && task.links.length > 0 && (
           <Card 
             size="small" 
             title={
               <div className="gba:flex gba:items-center gba:gap-2">
                 <PaperClipOutlined />
-                <span>{getTranslationFromI18nKeyAndLabel('flow.step.attachments', 'Attachments')}</span>
+                <span>{getTranslationFromI18nKeyAndLabel('flow.step.links', 'Links')}</span>
               </div>
             }
           >
             <div className="gba:space-y-2">
-              {task.attachments.map((attachment, index) => (
+              {task.links.map((link, index) => (
                 <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:bg-gray-50 gba:rounded">
                   <PaperClipOutlined className="gba:text-gray-500" />
-                  <span className="gba:text-sm">{attachment.title || attachment.url}</span>
-                  <Tag className="gba:ml-auto">{attachment.type}</Tag>
+                  <span className="gba:text-sm">{link.name || link.url}</span>
+                  <Tag className="gba:ml-auto">{link.type}</Tag>
                 </div>
               ))}
             </div>
@@ -328,7 +328,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
         )}
 
         {/* Input Form */}
-        {task.inputBlocks && task.inputBlocks.length > 0 && (
+        {task.inputs && task.inputs.length > 0 && (
           <Card 
             size="small" 
             title={
@@ -343,7 +343,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
               layout="vertical"
               data-testid={`${testId}-form`}
             >
-              {task.inputBlocks.map((input, index) => renderInputField(input, index))}
+              {task.inputs.map((input, index) => renderInputField(input, index))}
             </Form>
           </Card>
         )}

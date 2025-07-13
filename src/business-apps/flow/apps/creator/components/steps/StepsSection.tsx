@@ -1,7 +1,6 @@
 import React from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore';
-import { TaskExecutionType } from '../../types/flowTemplate';
 import { StepItem } from './StepItem';
 import { FlowPreview } from '../preview/FlowPreview';
 
@@ -19,12 +18,6 @@ export const StepsSection: React.FC = () => {
           <h2 className="gba:text-xl gba:font-semibold" data-testid="steps-section-title">
             {getTranslationFromI18nKeyAndLabel('flow.creator.steps', 'Steps')}
           </h2>
-                  <div className={`gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:font-medium ${flowTemplate.executionStrategy === TaskExecutionType.PARALLEL ? 'gba:bg-purple-100 gba:text-purple-700' : 'gba:bg-blue-100 gba:text-blue-700'}`} data-testid="steps-execution-mode">
-          {flowTemplate.executionStrategy === TaskExecutionType.PARALLEL 
-              ? getTranslationFromI18nKeyAndLabel('flow.creator.parallel', 'Parallel')
-              : getTranslationFromI18nKeyAndLabel('flow.creator.sequential', 'Sequential')
-            }
-          </div>
         </div>
         
         <button

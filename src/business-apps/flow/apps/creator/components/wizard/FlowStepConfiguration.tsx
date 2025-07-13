@@ -1,37 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Space, Alert, Card } from 'antd';
+import { Button, Alert, Card } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { SimplifiedStep, StepType, InputBlockType } from '../../types/flowTemplate';
-import { SimplifiedStepEditor } from './SimplifiedStepEditor';
+import { FlowStep, FlowStepType } from '../../types/flowTemplate';
+import { FlowStepEditor } from './FlowStepEditor';
 
-interface SimplifiedStepConfigurationProps {
-  steps: SimplifiedStep[];
-  onStepsChange: (steps: SimplifiedStep[]) => void;
+interface FlowStepConfigurationProps {
+  steps: FlowStep[];
+  onStepsChange: (steps: FlowStep[]) => void;
   'data-testid'?: string;
 }
 
-const createEmptyStep = (): SimplifiedStep => ({
+const createEmptyStep = (): FlowStep => ({
+  id: crypto.randomUUID(),
   title: '',
   message: '',
-  attachments: [],
-  requestInput: {
-    enabled: false,
-    inputs: []
-  },
-  usePredefinedAssignment: {
-    enabled: false,
-    assignment: undefined
-  },
-  type: StepType.TASK
+  links: [],
+  inputs: [],
+  type: FlowStepType.TASK
 });
 
-export const SimplifiedStepConfiguration: React.FC<SimplifiedStepConfigurationProps> = ({
+export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
   steps,
   onStepsChange,
   'data-testid': testId = 'simplified-step-configuration'
 }) => {
-  const [localSteps, setLocalSteps] = useState<SimplifiedStep[]>(steps);
+  const [localSteps, setLocalSteps] = useState<FlowStep[]>(steps);
   const [newlyCreatedSteps, setNewlyCreatedSteps] = useState<Set<number>>(new Set());
 
   // Auto-save when steps change
@@ -80,7 +74,7 @@ export const SimplifiedStepConfiguration: React.FC<SimplifiedStepConfigurationPr
     }
   };
 
-  const updateStep = (stepIndex: number, updatedStep: SimplifiedStep) => {
+  const updateStep = (stepIndex: number, updatedStep: FlowStep) => {
     const updatedSteps = [...localSteps];
     updatedSteps[stepIndex] = updatedStep;
     setLocalSteps(updatedSteps);
@@ -119,22 +113,18 @@ export const SimplifiedStepConfiguration: React.FC<SimplifiedStepConfigurationPr
         errors.push(`${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.titleRequired', 'Title is required')}`);
       }
       
-      if (step.requestInput.enabled && step.requestInput.inputs.length === 0) {
-        errors.push(`${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.inputFieldsRequired', 'At least one input field is required when input is enabled')}`);
-      }
-      
-      step.requestInput.inputs.forEach((input, inputIndex) => {
+      step.inputs?.forEach((input, inputIndex) => {
         if (!input.label.trim()) {
           errors.push(`${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}, ${getTranslationFromI18nKeyAndLabel('flow.creator.input', 'Input')} ${inputIndex + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.labelRequired', 'Label is required')}`);
         }
       });
       
-      step.attachments.forEach((attachment, attachmentIndex) => {
-        if (!attachment.title.trim()) {
-          errors.push(`${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}, ${getTranslationFromI18nKeyAndLabel('flow.creator.attachment', 'Attachment')} ${attachmentIndex + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.titleRequired', 'Title is required')}`);
+      step.links?.forEach((link, linkIndex) => {
+        if (!link.name.trim()) {
+          errors.push(`${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}, ${getTranslationFromI18nKeyAndLabel('flow.creator.link', 'Link')} ${linkIndex + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.nameRequired', 'Name is required')}`);
         }
-        if (!attachment.url.trim()) {
-          errors.push(`${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}, ${getTranslationFromI18nKeyAndLabel('flow.creator.attachment', 'Attachment')} ${attachmentIndex + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.urlRequired', 'URL is required')}`);
+        if (!link.url.trim()) {
+          errors.push(`${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}, ${getTranslationFromI18nKeyAndLabel('flow.creator.link', 'Link')} ${linkIndex + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.urlRequired', 'URL is required')}`);
         }
       });
     });
@@ -154,7 +144,7 @@ export const SimplifiedStepConfiguration: React.FC<SimplifiedStepConfigurationPr
             {getTranslationFromI18nKeyAndLabel('flow.creator.configureSteps', 'Configure Steps')}
           </h3>
           <p className="gba:text-sm gba:text-gray-600">
-            {getTranslationFromI18nKeyAndLabel('flow.creator.stepConfigurationDescription', 'Define the steps in your workflow. Each step can have a message, attachments, input fields, and assignment configuration.')}
+            {getTranslationFromI18nKeyAndLabel('flow.creator.stepConfigurationDescription', 'Define the steps in your workflow. Each step can have a message, links, input fields, and assignment configuration.')}
           </p>
         </div>
         <Button
@@ -187,7 +177,7 @@ export const SimplifiedStepConfiguration: React.FC<SimplifiedStepConfigurationPr
       <div className="gba:space-y-4" data-testid={`${testId}-steps-list`}>
         {localSteps.map((step, index) => (
           <div key={index} className="gba:relative">
-            <SimplifiedStepEditor
+            <FlowStepEditor
               step={step}
               stepIndex={index}
               onStepChange={updateStep}
@@ -269,8 +259,8 @@ export const SimplifiedStepConfiguration: React.FC<SimplifiedStepConfigurationPr
             </p>
             <p className="gba:text-xs gba:text-gray-600">
               {localSteps.length} {getTranslationFromI18nKeyAndLabel('flow.creator.steps', 'steps')} • 
-              {localSteps.filter(s => s.requestInput.enabled).length} {getTranslationFromI18nKeyAndLabel('flow.creator.withInput', 'with input')} • 
-              {localSteps.filter(s => s.usePredefinedAssignment.enabled).length} {getTranslationFromI18nKeyAndLabel('flow.creator.withAssignment', 'with predefined assignment')}
+              {localSteps.filter(s => s.inputs && s.inputs.length > 0).length} {getTranslationFromI18nKeyAndLabel('flow.creator.withInput', 'with input')} • 
+              {localSteps.filter(s => s.assignment && s.assignment.targets.length > 0).length} {getTranslationFromI18nKeyAndLabel('flow.creator.withAssignment', 'with predefined assignment')}
             </p>
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
