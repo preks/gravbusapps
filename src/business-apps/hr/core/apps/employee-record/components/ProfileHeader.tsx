@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import dayjs from "dayjs";
 import {
   PiEnvelopeSimple,
@@ -22,6 +22,10 @@ import AppActionButton from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { useFeature } from "@/common/hooks/useFeature";
 import { Feature } from "@/common/types/constants/FeatureHub";
+import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat';
+import { useEmployeeWorkCommunications, WorkCommunication } from '../hooks/useEmployeeWorkCommunications';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { notification } from 'antd';
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -132,33 +136,75 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
   employee,
   accessToken,
 }) => {
+  // Translation helper
+  const t = (key: string) => getTranslationFromI18nKeyAndLabel(key, key);
   const [isHovering, setIsHovering] = useState(false);
+  const [workCommunications, setWorkCommunications] = useState<WorkCommunication[]>([]);
+  const [employeeEmail, setEmployeeEmail] = useState<string | undefined>();
+  
+  // Use the openChat hook for direct Teams integration
+  const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat();
+  
+  // Use the hook to fetch employee work communications
+  const { employee: employeeWithComms, loading } = useEmployeeWorkCommunications({
+    accessToken,
+    employeeId: employee?.id || ''
+  });
 
-  // Communication handlers
-  const handleCommunication = (eventType: string) => {
-    if (!employee.additionalProperties?.userId) return;
+  // Communication handlers that directly use the hook methods
+  const handleChat = useCallback(() => {
+    // Use the email from GraphQL response if available, fallback to userInfo
+    const userEmail = employeeEmail || (userInfo && (userInfo as any).email);
+    const userId = employee.additionalProperties?.userId || employee.id || '';
+    
+    if (!userEmail) {
+      notification.error({
+        message: 'Cannot start chat',
+        description: 'No email address associated with this employee',
+        className: 'employee-chat-error-notification'
+      });
+      return;
+    }
+    
+    // Call will succeed even if email is undefined (will use userId as fallback)
+    openChatWithUser(userId, userEmail);
+  }, [employee, userInfo, employeeEmail, openChatWithUser, t]);
+  
+  const handleAudioCall = useCallback(() => {
+    // Use the email from GraphQL response if available, fallback to userInfo
+    const userEmail = employeeEmail || (userInfo && (userInfo as any).email);
+    const userId = employee.additionalProperties?.userId || employee.id || '';
+    
+    if (!userEmail) {
+      notification.error({
+        message: 'Cannot start audio call',
+        description: 'No email address associated with this employee',
+        className: 'employee-audio-call-error-notification'
+      });
+      return;
+    }
+    
+    // Call will succeed even if email is undefined (will use userId as fallback)
+    openAudioConferenceWithUser(userId, userEmail);
+  }, [employee, userInfo, employeeEmail, openAudioConferenceWithUser, t]);
 
-    const customEvent = new CustomEvent(eventType, {
-      detail: {
-        userId: employee.additionalProperties.userId,
-        displayName: getEmployeeFullName(employee),
-      },
-    });
-
-    window.dispatchEvent(customEvent);
-  };
-
-  const handleChat = () => {
-    handleCommunication("custom:event:openChatWithUser");
-  };
-
-  const handleAudioCall = () => {
-    handleCommunication("custom:event:openAudioConferenceWithUser");
-  };
-
-  const handleVideoCall = () => {
-    handleCommunication("custom:event:openVideoConferenceWithUser");
-  };
+  const handleVideoCall = useCallback(() => {
+    // Use the email from GraphQL response if available, fallback to userInfo
+    const userEmail = employeeEmail || (userInfo && (userInfo as any).email);
+    const userId = employee.additionalProperties?.userId || employee.id || '';
+    
+    if (!userEmail) {
+      notification.error({
+        message: 'Cannot start video call',
+        description: 'No email address associated with this employee',
+        className: 'employee-video-call-error-notification'
+      });
+      return;
+    }
+    
+    // Call will succeed even if email is undefined (will use userId as fallback)
+    openVideoConferenceWithUser(userId, userEmail);
+  }, [employee, userInfo, employeeEmail, openVideoConferenceWithUser, t]);
 
   const calculateTimeSince = () => {
     if (!employee.workingCondition[0]?.hireDate) return "";
@@ -186,6 +232,16 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
   // We don't need to manage the profile picture state anymore as EmployeeAvatar handles it
 
   const getBusinessEmail = () => {
+    // First try to get from the GraphQL work communications
+    const emailComm = workCommunications.find(
+      (c) => c.channel?.value?.toLowerCase().includes('e-mail') || c.channel?.value?.toLowerCase().includes('email')
+    );
+    
+    if (emailComm?.value) {
+      return emailComm.value;
+    }
+    
+    // Fallback to the original method
     const email = employee.communication?.find(
       (c) => c.channel?.code === "EMAIL"
     )?.value;
@@ -193,11 +249,35 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
   };
 
   const getBusinessPhone = () => {
+    // First try to get from the GraphQL work communications
+    const phoneComm = workCommunications.find(
+      (c) => c.channel?.value?.toLowerCase().includes('phone') || c.channel?.value?.toLowerCase().includes('mobile')
+    );
+    
+    if (phoneComm?.value) {
+      return formatPhoneNumber(phoneComm.value);
+    }
+    
+    // Fallback to the original method
     const phone = employee.communication?.find(
       (c) => c.channel?.code === "PHONE"
     )?.value;
     return phone ? formatPhoneNumber(phone) : "";
   };
+
+  // Update work communications when employee data is loaded
+  useEffect(() => {
+    if (employeeWithComms) {
+      if (employeeWithComms.workCommunications) {
+        setWorkCommunications(employeeWithComms.workCommunications);
+      }
+      
+      // Set the email directly from the enhanced employee data
+      if (employeeWithComms.email) {
+        setEmployeeEmail(employeeWithComms.email);
+      }
+    }
+  }, [employeeWithComms]);
 
   const coreCollaborationMode = useFeature(Feature.Core.Collaboration.Key);
   const isAudioCallEnabled = coreCollaborationMode === Feature.Core.Collaboration.Values.Full;
@@ -269,34 +349,42 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                 </div>
 
                 {/* Communication Actions - Always visible */}
-                <div className="gba:mt-3 gba:flex gba:justify-center gba:gap-3">
-                  <button
-                    onClick={handleChat}
-                    className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                    title="Chat"
-                    aria-label="Chat"
-                    disabled={!userInfo?.id}
-                  >
-                    <PiChat className="gba:h-5 gba:w-5" />
-                  </button>
-                  <button
-                    onClick={handleAudioCall}
-                    className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                    title="Audio Call"
-                    aria-label="Audio Call"
-                    disabled={!isAudioCallEnabled}
-                  >
-                    <PiPhone className="gba:h-5 gba:w-5" />
-                  </button>
-                  <button
-                    onClick={handleVideoCall}
-                    className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                    title="Video Call"
-                    aria-label="Video Call"
-                    disabled={!isVideoCallEnabled}
-                  >
-                    <PiVideoCamera className="gba:h-5 gba:w-5" />
-                  </button>
+                <div className="gba:mt-3 gba:flex gba:justify-center gba:gap-3" data-testid="communication-buttons">
+                  {loading ? (
+                    <div className="gba:text-xs gba:text-gray-500" data-testid="loading-communications">
+                      Loading communications...
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={handleChat}
+                        className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
+                        title="Chat"
+                        aria-label="Chat"
+                        data-testid="employee-chat-button"
+                      >
+                        <PiChat className="gba:h-5 gba:w-5" />
+                      </button>
+                      <button
+                        onClick={handleAudioCall}
+                        className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
+                        title="Audio Call"
+                        aria-label="Audio Call"
+                        data-testid="employee-audio-call-button"
+                      >
+                        <PiPhone className="gba:h-5 gba:w-5" />
+                      </button>
+                      <button
+                        onClick={handleVideoCall}
+                        className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
+                        title="Video Call"
+                        aria-label="Video Call"
+                        data-testid="employee-video-call-button"
+                      >
+                        <PiVideoCamera className="gba:h-5 gba:w-5" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -329,6 +417,24 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                       : undefined
                   }
                 />
+
+                {/* Email */}
+                  <ProfileInfoItem
+                    icon={<PiEnvelopeSimple className="gba:h-4 gba:w-4" />}
+                    label={"Work Email"}
+                    value={employeeWithComms?.email ? employeeWithComms.email : "N/A"}
+                    linkTo={employeeWithComms?.email ? `mailto:${employeeWithComms.email}` : undefined}
+                    data-testid="employee-email-info"
+                  />
+            
+
+                  <ProfileInfoItem
+                    icon={<PiPhone className="gba:h-4 gba:w-4" />}
+                    label={"Work Phone"}
+                    value={employeeWithComms?.phone ? formatPhoneNumber(employeeWithComms.phone) : "N/A"}
+                    linkTo={employeeWithComms?.phone ? `tel:${employeeWithComms.phone}` : undefined}
+                    data-testid="employee-phone-info"
+                  />
 
                 {/* Manager */}
                 <ProfileInfoItem
