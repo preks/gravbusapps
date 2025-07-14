@@ -60,10 +60,13 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
       multiSelect: true,
       filters: Object.values(ExpenseStatus).map(status => {
         const id = status.toLowerCase();
-        return { 
-          id, 
-          label: status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' '),
-          selected: selectedFilters.includes(id) 
+        const displayLabel = getExpenseItemStatusDisplay(status).label;
+        const beLabel = status.charAt(0) + status.slice(1).toLowerCase();
+        const label = displayLabel !== beLabel ? `${displayLabel} (${beLabel})` : displayLabel;
+        return {
+          id,
+          label,
+          selected: selectedFilters.includes(id)
         };
       })
     },
@@ -89,9 +92,11 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
 
     // Add all status options
     Object.values(ExpenseStatus).forEach(status => {
-      const key = status.toLowerCase();
-      labelMap[key] = getExpenseItemStatusDisplay(status).label;
-    });
+  const key = status.toLowerCase();
+  const displayLabel = getExpenseItemStatusDisplay(status).label;
+  const beLabel = status.charAt(0) + status.slice(1).toLowerCase();
+  labelMap[key] = displayLabel !== beLabel ? `${displayLabel} (${beLabel})` : displayLabel;
+});
 
     return labelMap;
   }, []);

@@ -14,25 +14,26 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   const [pageSize, setPageSize] = useState(20);
 
   const {
-    filterGroups,
-    selectedFilters,
-    handleFilterChange,
-    clearFilters,
-    setFilters,
-    search,
-    setSearch,
-    graphqlFilters,
-  } = useExpensePlanFilters();
-
-  // Fetch paginated data for the table
+  filterGroups,
+  selectedFilters,
+  setFilters,
+  handleFilterChange,
+  clearFilters,
+  search,
+  setSearch,
+  getFilters
+} = useExpensePlanFilters();
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpensePlans(props);
-  
-  // Fetch all data for the statistics cards
   const { items: allPlans, isLoading: statsLoading, error: statsError, fetchItems: fetchAllItems } = useGetExpensePlans(props);
 
   useEffect(() => {
-    fetchItems(graphqlFilters, currentPage, pageSize);
-  }, [fetchItems, graphqlFilters, currentPage, pageSize]);
+    // Always use the latest filter state for fetching
+    fetchItems(
+      getFilters(),
+      currentPage,
+      pageSize
+    );
+  }, [fetchItems, currentPage, pageSize, JSON.stringify(getFilters())]);
 
   useEffect(() => {
     // Fetch all items with a high limit for statistics, ignoring filters
@@ -57,7 +58,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   return (
     <ExpensePlansTable
       {...props}
-      items={items}
+      items={items.filter(plan => plan.status !== 'DISCARDED')}
       isLoading={isLoading}
       error={error}
       totalCount={totalCount}

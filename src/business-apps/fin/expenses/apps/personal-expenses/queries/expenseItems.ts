@@ -19,7 +19,6 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
         currencyRef: {_eq: $currencyRef},
-
         expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
         _or: [
           {title: {_ilike: $searchTerm}},
@@ -216,7 +215,8 @@ export const GET_EXPENSE_ITEM_STATISTICS = `
         updatedAt: {
           _gte: $startDate,
           _lte: $endDate
-        }
+        },
+         expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}}
       }
     ) {
       aggregate {
@@ -228,7 +228,8 @@ export const GET_EXPENSE_ITEM_STATISTICS = `
     expenseItemsCount: ExpenseItemAggregate(
       where: {
         employeeId: {_eq: $employeeId},
-        isDeleted: {_eq: false}
+        isDeleted: {_eq: false},
+        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}}
       }
     ) {
       aggregate {
