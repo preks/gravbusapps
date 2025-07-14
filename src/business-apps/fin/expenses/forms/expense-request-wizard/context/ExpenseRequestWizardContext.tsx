@@ -71,6 +71,10 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   const mockAdditionalData = {
     psi_taskPayload: {
       stepKey: "Tab3_pse_save",
+      initialParameters:{expenseItems:[{
+        itemId: "3734da7b-d212-4d93-9217-f2ecb9034284",
+        currencyId: "Currency:v1:EUR"
+    }]},
       expenseRequest: {
         id: "90c7cdc0-ccef-4c0a-b5ba-a57af67bd38d",
         version: 4,

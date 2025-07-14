@@ -116,10 +116,13 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   const navigateToNextScreen = () => {
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.ITEMS_TAB:
+        if(!isTrip)
+          setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB);
+        else
         setCurrentScreen(SCREEN_NAMES_ENUM.ALLOWANCE_TAB);
         break;
       case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
-        setCurrentScreen(SCREEN_NAMES_ENUM.ALLOWANCE_TAB);
+        setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
         break;
       case SCREEN_NAMES_ENUM.TRIPS_TAB:
         setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
@@ -152,6 +155,9 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
         }
         break;
       case SCREEN_NAMES_ENUM.SUMMARY_TAB:
+        if(!isTrip)
+          setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
+          else
         setCurrentScreen(SCREEN_NAMES_ENUM.ALLOWANCE_TAB);
         break;
       default:
@@ -318,7 +324,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
           </div>
         </div>
       </div>
-      <ProgressIndicator currentScreen={currentScreen} />
+      <ProgressIndicator currentScreen={currentScreen} isTrip={isTrip} />
       
       <div data-testid="expense-request-wizard-content-container">
         {loading ? (

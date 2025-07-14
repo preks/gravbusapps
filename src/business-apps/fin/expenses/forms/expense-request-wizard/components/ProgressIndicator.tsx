@@ -3,6 +3,7 @@ import { SCREEN_NAMES_ENUM } from '../constants/constants';
 
 interface ProgressIndicatorProps {
   currentScreen: string;
+  isTrip?: boolean;
 }
 
 /**
@@ -11,34 +12,73 @@ interface ProgressIndicatorProps {
  * @param props - Component props
  * @returns ProgressIndicator component
  */
-const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ currentScreen }) => {
-  // Determine which lines should be filled based on current screen
+const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ currentScreen, isTrip = true }) => {
+  // Determine which lines should be filled based on current screen and request type
   const getLineStates = () => {
-    switch (currentScreen) {
-      case SCREEN_NAMES_ENUM.TRIPS_TAB:
-        return [true, false, false, false]; // Trip Details: 1st line filled
-      case SCREEN_NAMES_ENUM.ITEMS_TAB:
-        return [true, true, false, false]; // Expense Items: 1st and 2nd lines filled
-      case SCREEN_NAMES_ENUM.ALLOWANCE_TAB:
-        return [true, true, true, false]; // Allowances: 1st, 2nd, and 3rd lines filled
-      case SCREEN_NAMES_ENUM.SUMMARY_TAB:
-        return [true, true, true, true]; // Summary: All lines filled
-      default:
-        return [false, false, false, false];
+    // For non-trip expense requests, we only show Items and Summary tabs
+    if (!isTrip) {
+      switch (currentScreen) {
+        case SCREEN_NAMES_ENUM.ITEMS_TAB:
+          return [true, false]; // Expense Items: 1st line filled
+        case SCREEN_NAMES_ENUM.SUMMARY_TAB:
+          return [true, true]; // Summary: Both lines filled
+        default:
+          return [false, false];
+      }
+    } else {
+      // For trip expense requests, we show all tabs
+      switch (currentScreen) {
+        case SCREEN_NAMES_ENUM.TRIPS_TAB:
+          return [true, false, false, false]; // Trip Details: 1st line filled
+        case SCREEN_NAMES_ENUM.ITEMS_TAB:
+          return [true, true, false, false]; // Expense Items: 1st and 2nd lines filled
+        case SCREEN_NAMES_ENUM.ALLOWANCE_TAB:
+          return [true, true, true, false]; // Allowances: 1st, 2nd, and 3rd lines filled
+        case SCREEN_NAMES_ENUM.SUMMARY_TAB:
+          return [true, true, true, true]; // Summary: All lines filled
+        default:
+          return [false, false, false, false];
+      }
     }
   };
 
   const lineStates = getLineStates();
 
+  // Create a custom style for the progress indicator container based on isTrip
+  const containerStyle = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '8px',
+    margin: '0 0 30px 0',
+    width: '100%'
+  };
+
+  // Create a custom style for each progress line based on isTrip
+  const getLineStyle = () => {
+    if (!isTrip) {
+      // For non-trip requests, make each bar take up 50% of the space
+      return {
+        width: '49%',
+        height: '3px',
+        borderRadius: '1.5px'
+      };
+    } else {
+      // For trip requests, keep the default 25% width
+      return {};
+    }
+  };
+
   return (
     <div 
       className="gba:progressIndicator" 
+      style={containerStyle}
       data-testid="expense-request-wizard-progress-indicator"
     >
       {lineStates.map((isFilled, index) => (
         <div
           key={`progress-line-${index}`}
           className={`gba:progressLine ${isFilled ? 'gba:progressLineFilled' : 'gba:progressLineEmpty'}`}
+          style={getLineStyle()}
           data-testid={`expense-request-wizard-progress-line-${index}`}
         />
       ))}

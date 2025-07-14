@@ -455,7 +455,7 @@ export const setByExternalCustomComponent = (
       const formattedDestinations = destinationPoints.map((destination: any, index: number) => {
         const isAbroad = checkIfAbroad(destination.travelRegionRef, expenseRulesData);
         return {
-          id: `destination-${index}}`,
+          id: `destination-${index}`,
           name: '',
           location: destination.address || '',
           departureDate: destination.tripDateTime ? new Date(destination.tripDateTime.split('T')[0]) : undefined,

@@ -22,6 +22,43 @@ import { EVENTS } from "../../../utils/constants";
 import { mergeUniqueById } from '../../../utils/functionUtils';
 import { setByExternalCustomComponent, setLocalitiesDefault } from '../utils/tripScreenUtils';
 
+/**
+ * Filters travel regions based on expense items' currency
+ * @param items - Expense items with currency information
+ * @param mainRule - Home region rule
+ * @param otherRules - All available travel regions
+ * @returns Filtered travel regions and flag indicating if all items use the same currency
+ */
+const filterRules = (items: any[], mainRule: any, otherRules: any[]) => {
+  if (!items || !items.length || !mainRule || !otherRules) {
+    return { sameRuleCurrency: false, valuesArray: otherRules || [] };
+  }
+
+  const ruleCurrency = mainRule.currency?.id;
+  if (!ruleCurrency) {
+    return { sameRuleCurrency: false, valuesArray: otherRules || [] };
+  }
+
+  const allMatch = items.every(item => item.currencyId === ruleCurrency || item.currency === ruleCurrency);
+
+  if (allMatch) {
+    return {
+      sameRuleCurrency: true,
+      valuesArray: otherRules.filter((rule) => rule.currency?.id === ruleCurrency)
+    };
+  }
+
+  return {
+    sameRuleCurrency: false,
+    valuesArray: otherRules.filter(rule => 
+      items.some(item => {
+        const itemCurrency = item.currencyId || item.currency;
+        return itemCurrency === rule.currency?.id;
+      })
+    )
+  };
+};
+
 
 export const TripScreen: React.FC<TripScreenProps> = (props) => {
   const { accessToken, additionalData } = props;
@@ -29,6 +66,40 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
   const graphqlClient = useGraphqlClient(accessToken);
   const { expenseRequestData, employeeRuleId, submitActionTripData, setEmployeeRuleId, updateTripFormValidation } = useExpenseRequestWizardContext();
   const { userInfo } = props;
+  
+  // Get expense items from additionalData if available
+  const getExpenseItems = () => {
+    if (additionalData?.psi_taskPayload?.initialParameters?.expenseItems) {
+      return additionalData.psi_taskPayload.initialParameters.expenseItems;
+    }
+    return [];
+  };
+  
+  // Get expense items
+  const expenseItems = getExpenseItems();
+  
+  /**
+   * Get filtered travel regions based on abroad status and expense items currency
+   * @param isAbroad - Whether the location is abroad
+   * @returns Filtered travel regions
+   */
+  const getFilteredTravelRegions = (isAbroad: boolean) => {
+    // First filter by abroad status
+    const baseRegions = isAbroad
+      ? (expenseRulesData?.AllowanceRegionRuleDetail || []).filter((region: any) => region.home === false)
+      : (expenseRulesData?.AllowanceRegionRuleDetail || []);
+    
+    // Then filter by expense items currency if items exist
+    if (expenseItems && expenseItems.length > 0 && expenseRulesData?.homeRegionRule?.length > 0) {
+      return filterRules(
+        expenseItems, 
+        expenseRulesData.homeRegionRule[0], 
+        baseRegions
+      ).valuesArray;
+    }
+    
+    return baseRegions;
+  };
   
   const initialStartLocation: LocationData = defaultStartLocation
 
@@ -288,7 +359,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
   const loadInitialTripData = async () => {
     try {
       
-      if ((expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip && 
+      if ((expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip &&
         Array.isArray(expenseRequestData.ExpenseRequestByPk.expenseRequestTrip) && 
         expenseRequestData.ExpenseRequestByPk.expenseRequestTrip.length !== 0) || 
           (expenseRequestData.ExpenseRequestByPk.expensePlan)) {
@@ -570,7 +641,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
     return () => {
       document.removeEventListener('expense-request-save-trip', saveEventHandler);
     };
-  }, []);
+  }, [startLocation, destinations, endLocation, expenseRulesData]);
 
   useEffect(() => {
     const nextEventHandler = () => {
@@ -580,7 +651,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
     return () => {
       document.removeEventListener('expense-request-next-trip', nextEventHandler);
     };
-  }, []);
+  }, [startLocation, destinations, endLocation, expenseRulesData, validateTripForm]);
 
   if (!expenseRequestData) {
     return <LoadScreen accessToken={accessToken} userInfo={userInfo} />;
@@ -638,7 +709,11 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
               <LocationForm
                 locationData={startLocation}
                 onUpdate={(field, value) => {
-                  const updatedLocation = { ...startLocation, [field]: value };
+                  // Clear travel region when abroad toggle changes
+                  const updatedLocation = field === 'isAbroad' 
+                    ? { ...startLocation, [field]: value, travelRegionRef: undefined }
+                    : { ...startLocation, [field]: value };
+                  
                   handleStartLocationChange(updatedLocation);
                   if (field === 'departureDate' || field === 'departureTime') {
                     checkAbsencesAndRequests(
@@ -662,7 +737,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
                   }
                 }}
                 dateTimeLimits={startLimits}
-                travelRegions={expenseRulesData?.AllowanceRegionRuleDetail || []}
+                travelRegions={getFilteredTravelRegions(startLocation.isAbroad)}
                 overlapWarning={endLocation.departureDate ? null : startLocationOverlap }
                 showFutureWarning={true}
                 errorMessage={employeeRuleError || ruleConflictError}
@@ -708,7 +783,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
                   index={index}
                   showDateTimeFields={index < destinations.length - 1}
                   dateTimeLimits={destinationLimits[destination.id] ?? {}}
-                  travelRegions={expenseRulesData?.AllowanceRegionRuleDetail || []}
+                  travelRegions={getFilteredTravelRegions(destination.isAbroad)}
                 />
               </LocationContainer>
             </div>
@@ -782,7 +857,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
                 }}
                 showDateTimeFields={true}
                 dateTimeLimits={endLimits}
-                travelRegions={expenseRulesData?.AllowanceRegionRuleDetail || []}
+                travelRegions={getFilteredTravelRegions(endLocation.isAbroad)}
                 overlapWarning={startLocation.departureDate && endLocation.departureDate ? (endLocationOverlap || startLocationOverlap) : null}
                 showFutureWarning={true}
                 locationFormLabels={{

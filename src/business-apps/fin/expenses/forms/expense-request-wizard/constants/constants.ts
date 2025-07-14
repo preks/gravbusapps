@@ -67,7 +67,7 @@ export const defaultEndLocation: LocationData = {
   };
 
 export const defaultDestination: LocationData ={
-  id: "destination-1",
+  id: "destination-0",
   name: "Destination",
   isAbroad: false,
   location: "",
