@@ -180,7 +180,7 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
   };
 
   return (
-    <div className="gba:max-w-4xl gba:mx-auto gba:p-6" data-testid={testId}>
+    <div className="gba:mx-auto gba:p-6" data-testid={testId}>
       <Card>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-3">

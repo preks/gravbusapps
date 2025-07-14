@@ -191,15 +191,15 @@ export const createWorkflowDefinition = (template: any): any => {
   // Process each step - always sequential execution for simplified model
   template.steps.forEach((step: any, index: number) => {
     // Validate step structure
-    if (!step || !step.name) {
-      logger.error(`Invalid step structure at index ${index} - missing name:`, step);
-      throw new AppError(`Invalid step structure at index ${index} - missing name`, StatusCodes.BAD_REQUEST);
+    if (!step || !step.title) {
+      logger.error(`Invalid step structure at index ${index} - missing title:`, step?.title || step?.message);
+      throw new AppError(`Invalid step structure at index ${index} - missing title`, StatusCodes.BAD_REQUEST);
     }
     
     const stepId = `step_${index}`;
     
     // Use step title to make task name more readable
-    const sanitizedTitle = step.name.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+    const sanitizedTitle = step.title.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
     
     // Transform assignment structure (handles both UI and backend formats)
     const transformedAssignment = transformUIAssignmentToBackend(step);
@@ -215,8 +215,8 @@ export const createWorkflowDefinition = (template: any): any => {
         type: 'SIMPLE',
         inputParameters: {
           stepIndex: index,
-          title: step.name,
-          message: step.description || '',
+          title: step.title,
+          message: step.message || '',
           stepType: step.type,
           assignment: assignment,
           assignmentMode: 'CLAIM',
@@ -231,8 +231,8 @@ export const createWorkflowDefinition = (template: any): any => {
         type: 'HUMAN',
         inputParameters: {
           stepIndex: index,
-          title: step.name,
-          message: step.description || '',
+          title: step.title,
+          message: step.message || '',
           stepType: step.type,
           attachments: step.links || [],
           inputBlocks: step.inputs ? processInputBlocks(step.inputs, index) : [],
@@ -257,8 +257,8 @@ export const createWorkflowDefinition = (template: any): any => {
         type: 'SIMPLE',
         inputParameters: {
           stepIndex: index,
-          title: step.name,
-          message: step.description || '',
+          title: step.title,
+          message: step.message || '',
           stepType: step.type,
           assignmentMode: 'CLAIM',
           executionTimeAssignment: true,
@@ -272,8 +272,8 @@ export const createWorkflowDefinition = (template: any): any => {
         type: 'HUMAN',
         inputParameters: {
           stepIndex: index,
-          title: step.name,
-          message: step.description || '',
+          title: step.title,
+          message: step.message || '',
           stepType: step.type,
           attachments: step.links || [],
           inputBlocks: step.inputs ? processInputBlocks(step.inputs, index) : [],

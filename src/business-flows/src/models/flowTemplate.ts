@@ -26,20 +26,29 @@ export interface Link {
   url: string;
 }
 
-export interface Assignment {
-  type: 'SPECIFIC_USERS' | 'ROLE_BASED' | 'DEPARTMENT' | 'MANAGER' | 'SELF';
-  userIds?: string[];
-  roleIds?: string[];
-  departmentIds?: string[];
+export enum AssignmentMode {
+  CLAIM = 'CLAIM',
+  ASSIGN = 'ASSIGN'
+}
+
+export type AssignmentTarget = {
+  entity: 'user' | 'department' | 'capability' | 'role';
+  id: string;
+};
+
+export interface TaskAssignment {
+  targets: AssignmentTarget[];
+  assignmentMode: AssignmentMode;
+  allowReassignment?: boolean;
 }
 
 export interface FlowStep {
   type: StepType;
-  name: string;
-  description?: string;
+  title: string;
+  message?: string;
   inputs?: InputBlock[];
   links?: Link[];
-  assignment?: Assignment;
+  assignment?: TaskAssignment;
 }
 
 // Flow template main type
@@ -52,13 +61,4 @@ export interface FlowTemplate {
   steps: FlowStep[];
 }
 
-export type AssignmentTarget = {
-  entity: 'user' | 'department' | 'capability' | 'role';
-  id: string;
-};
-
-export type TaskAssignment = {
-  targets: AssignmentTarget[];
-  assignToAll: boolean;
-  allowReassignment: boolean;
-};
+// Assignment types moved to top of file

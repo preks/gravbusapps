@@ -235,36 +235,38 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
             ) : (
               <div className="gba:space-y-3">
                 {templates.map((template) => (
-                  <Card
-                    key={template.id}
-                    className={`gba:cursor-pointer gba:transition-all ${
-                      selectedTemplate?.id === template.id 
-                        ? 'gba:border-blue-500 gba:shadow-md' 
-                        : 'gba:border-gray-200 hover:gba:border-gray-300'
-                    }`}
-                    onClick={() => handleTemplateSelect(template)}
-                    data-testid={`${testId}-template-${template.id}`}
-                  >
-                    <div className="gba:flex gba:items-start gba:gap-3">
-                      <FileTextOutlined className="gba:text-blue-500 gba:text-lg gba:mt-1" />
-                      <div className="gba:flex-1">
-                        <Title level={5} className="gba:m-0 gba:mb-1">
-                          {template.name}
-                        </Title>
-                        <Text type="secondary" className="gba:text-sm">
-                          {template.description}
-                        </Text>
-                        <div className="gba:mt-2 gba:flex gba:gap-2">
-                          <span className="gba:px-2 gba:py-1 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-xs">
-                            SEQUENTIAL
-                          </span>
-                          <span className="gba:px-2 gba:py-1 gba:bg-gray-100 gba:text-gray-700 gba:rounded gba:text-xs">
-                            {template.steps.length} step{template.steps.length !== 1 ? 's' : ''}
-                          </span>
+                  <div className="gba:mt-4">
+                    <Card
+                      key={template.id}
+                      className={`gba:cursor-pointer gba:transition-all ${
+                        selectedTemplate?.id === template.id 
+                          ? 'gba:border-blue-500 gba:shadow-md' 
+                          : 'gba:border-gray-200 hover:gba:border-gray-300'
+                      }`}
+                      onClick={() => handleTemplateSelect(template)}
+                      data-testid={`${testId}-template-${template.id}`}
+                    >
+                      <div className="gba:flex gba:items-start gba:gap-3">
+                        <FileTextOutlined className="gba:text-blue-500 gba:text-lg gba:mt-1" />
+                        <div className="gba:flex-1">
+                          <Title level={5} className="gba:m-0 gba:mb-1">
+                            {template.name}
+                          </Title>
+                          <Text type="secondary" className="gba:text-sm">
+                            {template.description}
+                          </Text>
+                          <div className="gba:mt-2 gba:flex gba:gap-2">
+                            <span className="gba:px-2 gba:py-1 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-xs">
+                              SEQUENTIAL
+                            </span>
+                            <span className="gba:px-2 gba:py-1 gba:bg-gray-100 gba:text-gray-700 gba:rounded gba:text-xs">
+                              {template.steps.length} step{template.steps.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Card>
+                    </Card>
+                  </div>
                 ))}
               </div>
             )}
@@ -341,7 +343,7 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
       {/* Execution Wizard Modal */}
       {selectedTemplate && (
         <Modal
-          title={getTranslationFromI18nKeyAndLabel('flow.launcher.configureExecution', 'Configure Execution')}
+          title={<h1 className="gba:text-lg gba:font-bold gba:text-gray-900 gba:mb-4">{getTranslationFromI18nKeyAndLabel('flow.launcher.configureExecution', 'Configure Execution')}</h1>}
           open={showExecutionWizard}
           onCancel={() => setShowExecutionWizard(false)}
           footer={null}

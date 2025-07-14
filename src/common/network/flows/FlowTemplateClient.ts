@@ -114,84 +114,171 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+/**
+ * Backend step format (what the API returns)
+ */
+interface BackendFlowStep {
+  id?: string;
+  type: FlowStepType;
+  title: string;
+  message?: string;
+  inputs?: InputBlock[];
+  links?: Link[];
+  assignment?: TaskAssignment;
+}
+
+/**
+ * Backend template format (what the API returns)
+ */
+interface BackendFlowTemplate {
+  id?: string;
+  type: 'TEMPLATE' | 'INSTANCE' | 'DRAFT';
+  name: string;
+  description?: string;
+  steps: BackendFlowStep[];
+}
+
 export class FlowTemplateClient extends RestClient {
   constructor(accessToken: string) {
-    super(
-      env('NEXT_PUBLIC_BUSINESS_FLOWS_API_URL') || 'http://localhost:3001',
-      {
-        'Authorization': `Bearer ${accessToken}`
-      }
-    );
+    super(env('NEXT_PUBLIC_FLOW_BACKEND_URL') || 'http://localhost:3000', {
+      'Authorization': `Bearer ${accessToken}`
+    });
+  }
+
+  /**
+   * Transform backend step format to frontend format
+   */
+  private transformBackendStep(backendStep: BackendFlowStep, index: number): FlowStep {
+    return {
+      id: backendStep.id || `step-${index}`,
+      type: backendStep.type,
+      title: backendStep.title,
+      message: backendStep.message || '',
+      description: backendStep.message,
+      inputs: backendStep.inputs || [],
+      links: backendStep.links || [],
+      assignment: backendStep.assignment
+    };
+  }
+
+  /**
+   * Transform backend template format to frontend format
+   */
+  private transformBackendTemplate(backendTemplate: BackendFlowTemplate): FlowTemplate {
+    return {
+      id: backendTemplate.id,
+      type: backendTemplate.type,
+      name: backendTemplate.name,
+      description: backendTemplate.description,
+      steps: backendTemplate.steps.map((step, index) => this.transformBackendStep(step, index))
+    };
+  }
+
+  /**
+   * Transform frontend step format to backend format
+   */
+  private transformFrontendStep(frontendStep: FlowStep): BackendFlowStep {
+    return {
+      id: frontendStep.id,
+      type: frontendStep.type,
+      title: frontendStep.title,
+      message: frontendStep.message || frontendStep.description,
+      inputs: frontendStep.inputs || [],
+      links: frontendStep.links || [],
+      assignment: frontendStep.assignment
+    };
+  }
+
+  /**
+   * Transform frontend template format to backend format
+   */
+  private transformFrontendTemplate(frontendTemplate: FlowTemplate): BackendFlowTemplate {
+    return {
+      id: frontendTemplate.id,
+      type: frontendTemplate.type,
+      name: frontendTemplate.name,
+      description: frontendTemplate.description,
+      steps: frontendTemplate.steps.map(step => this.transformFrontendStep(step))
+    };
   }
 
   /**
    * Create a new template
    */
   async createTemplate(template: FlowTemplate, isDraft: boolean = false): Promise<FlowTemplate> {
-    const response = await this.post<ApiResponse<FlowTemplate>>('/api/templates', {
-      ...template,
+    const backendTemplate = this.transformFrontendTemplate(template);
+    const response = await this.post<ApiResponse<BackendFlowTemplate>>('/api/templates', {
+      ...backendTemplate,
       isDraft
     });
-    return response.data;
+    return this.transformBackendTemplate(response.data);
   }
 
   /**
-   * Save template as draft
+   * Save draft template
    */
   async saveDraft(template: FlowTemplate): Promise<FlowTemplate> {
-    const response = await this.post<ApiResponse<FlowTemplate>>('/api/templates/drafts', template);
-    return response.data;
+    const backendTemplate = this.transformFrontendTemplate(template);
+    const response = await this.post<ApiResponse<BackendFlowTemplate>>('/api/templates/drafts', backendTemplate);
+    return this.transformBackendTemplate(response.data);
   }
 
   /**
    * Get all templates
    */
   async getAllTemplates(): Promise<FlowTemplate[]> {
-    const response = await this.get<ApiResponse<FlowTemplate[]>>('/api/templates');
-    return response.data;
+    const response = await this.get<ApiResponse<BackendFlowTemplate[]>>('/api/templates');
+    return response.data.map(template => this.transformBackendTemplate(template));
   }
 
   /**
    * Get all draft templates
    */
   async getDrafts(): Promise<FlowTemplate[]> {
-    const response = await this.get<ApiResponse<FlowTemplate[]>>('/api/templates/drafts');
-    return response.data;
+    const response = await this.get<ApiResponse<BackendFlowTemplate[]>>('/api/templates/drafts');
+    return response.data.map(template => this.transformBackendTemplate(template));
   }
 
   /**
    * Get template by ID
    */
   async getTemplate(id: string): Promise<FlowTemplate> {
-    const response = await this.get<ApiResponse<FlowTemplate>>(`/api/templates/${id}`);
-    return response.data;
+    const response = await this.get<ApiResponse<BackendFlowTemplate>>(`/api/templates/${id}`);
+    return this.transformBackendTemplate(response.data);
   }
 
   /**
    * Get template with metadata by ID
    */
   async getTemplateWithMetadata(id: string): Promise<StoredTemplate> {
-    const response = await this.get<ApiResponse<StoredTemplate>>(`/api/templates/${id}/metadata`);
-    return response.data;
+    const response = await this.get<ApiResponse<any>>(`/api/templates/${id}/metadata`);
+    return {
+      template: this.transformBackendTemplate(response.data.template),
+      metadata: response.data.metadata
+    };
   }
 
   /**
    * Get original template for editing by ID
    */
   async getOriginalTemplate(id: string): Promise<FlowTemplate> {
-    const response = await this.get<ApiResponse<FlowTemplate>>(`/api/templates/${id}/original`);
-    return response.data;
+    const response = await this.get<ApiResponse<BackendFlowTemplate>>(`/api/templates/${id}/original`);
+    return this.transformBackendTemplate(response.data);
   }
 
   /**
    * Update template
    */
   async updateTemplate(id: string, template: Partial<FlowTemplate>, isDraft: boolean = false): Promise<FlowTemplate> {
-    const response = await this.put<ApiResponse<FlowTemplate>>(`/api/templates/${id}`, {
-      ...template,
+    const backendTemplate = template.steps 
+      ? this.transformFrontendTemplate(template as FlowTemplate)
+      : template;
+    
+    const response = await this.put<ApiResponse<BackendFlowTemplate>>(`/api/templates/${id}`, {
+      ...backendTemplate,
       isDraft
     });
-    return response.data;
+    return this.transformBackendTemplate(response.data);
   }
 
   /**
@@ -202,18 +289,19 @@ export class FlowTemplateClient extends RestClient {
   }
 
   /**
-   * Publish a draft template
+   * Publish template
    */
   async publishTemplate(id: string): Promise<FlowTemplate> {
-    const response = await this.post<ApiResponse<FlowTemplate>>(`/api/templates/${id}/publish`, {});
-    return response.data;
+    const response = await this.post<ApiResponse<BackendFlowTemplate>>(`/api/templates/${id}/publish`, {});
+    return this.transformBackendTemplate(response.data);
   }
 
   /**
    * Generate Conductor workflow definition
    */
   async generateConductorFlow(template: FlowTemplate): Promise<any> {
-    const response = await this.post<ApiResponse<any>>('/api/templates/generate-conductor-flow', template);
+    const backendTemplate = this.transformFrontendTemplate(template);
+    const response = await this.post<ApiResponse<any>>('/api/templates/generate-conductor-flow', backendTemplate);
     return response.data;
   }
 
@@ -221,12 +309,13 @@ export class FlowTemplateClient extends RestClient {
    * Generate Conductor workflow definition with resolved assignments
    */
   async generateConductorFlowWithAssignments(template: FlowTemplate): Promise<any> {
-    const response = await this.post<ApiResponse<any>>('/api/templates/generate-conductor-flow-with-assignments', template);
+    const backendTemplate = this.transformFrontendTemplate(template);
+    const response = await this.post<ApiResponse<any>>('/api/templates/generate-conductor-flow-with-assignments', backendTemplate);
     return response.data;
   }
 
   /**
-   * Execute/Launch a workflow from a template
+   * Execute workflow
    */
   async executeWorkflow(id: string, params: {
     runtimeParameters: { [key: string]: string };
@@ -238,12 +327,7 @@ export class FlowTemplateClient extends RestClient {
     workflowName: string;
     input: any;
   }> {
-    const response = await this.post<ApiResponse<{
-      workflowId: string;
-      templateId: string;
-      workflowName: string;
-      input: any;
-    }>>(`/api/templates/${id}/execute`, params);
+    const response = await this.post<ApiResponse<any>>(`/api/templates/${id}/execute`, params);
     return response.data;
   }
 } 

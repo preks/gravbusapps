@@ -23,20 +23,29 @@ export interface Link {
   url: string;
 }
 
-export interface Assignment {
-  type: 'SPECIFIC_USERS' | 'ROLE_BASED' | 'DEPARTMENT' | 'MANAGER' | 'SELF';
-  userIds?: string[];
-  roleIds?: string[];
-  departmentIds?: string[];
+export type AssignmentTarget = {
+  entity: 'user' | 'department' | 'capability' | 'role';
+  id: string;
+};
+
+export enum AssignmentMode {
+  CLAIM = 'CLAIM',
+  ASSIGN = 'ASSIGN'
 }
+
+export type TaskAssignment = {
+  targets: AssignmentTarget[];
+  assignmentMode: AssignmentMode;
+  allowReassignment?: boolean;
+};
 
 export interface FlowStep {
   type: StepType;
-  name: string;
-  description?: string;
+  title: string;
+  message?: string;
   inputs?: InputBlock[];
   links?: Link[];
-  assignment?: Assignment;
+  assignment?: TaskAssignment;
 }
 
 export interface FlowTemplate {
@@ -61,8 +70,8 @@ export const registerSampleFlows = async (): Promise<void> => {
         steps: [
           {
             type: 'TASK',
-            name: 'Welcome & Initial Setup',
-            description: 'Welcome new employee and collect initial information',
+            title: 'Welcome & Initial Setup',
+            message: 'Welcome new employee and collect initial information',
             inputs: [
               {
                 type: 'TEXT',
@@ -94,14 +103,15 @@ export const registerSampleFlows = async (): Promise<void> => {
               }
             ],
             assignment: {
-              type: 'ROLE_BASED',
-              roleIds: ['hr-manager']
+              targets: [{ entity: 'role', id: 'role-001' }], // HR Manager
+              assignmentMode: AssignmentMode.CLAIM,
+              allowReassignment: true
             }
           },
           {
             type: 'TASK',
-            name: 'Equipment & Workspace Setup',
-            description: 'Assign equipment and prepare workspace',
+            title: 'Equipment & Workspace Setup',
+            message: 'Assign equipment and prepare workspace',
             inputs: [
               {
                 type: 'SELECT',
@@ -134,14 +144,15 @@ export const registerSampleFlows = async (): Promise<void> => {
               }
             ],
             assignment: {
-              type: 'DEPARTMENT',
-              departmentIds: ['it-support']
+              targets: [{ entity: 'department', id: 'dept-003' }], // Engineering
+              assignmentMode: AssignmentMode.ASSIGN,
+              allowReassignment: false
             }
           },
           {
             type: 'APPROVAL',
-            name: 'IT Systems Access Approval',
-            description: 'Approve access to company IT systems',
+            title: 'IT Systems Access Approval',
+            message: 'Approve access to company IT systems',
             inputs: [
               {
                 type: 'MULTISELECT',
@@ -150,40 +161,67 @@ export const registerSampleFlows = async (): Promise<void> => {
                 required: true,
                 options: [
                   { value: 'email', label: 'Email System' },
-                  { value: 'crm', label: 'CRM System' },
-                  { value: 'hr-system', label: 'HR System' },
-                  { value: 'project-management', label: 'Project Management' }
+                  { value: 'intranet', label: 'Company Intranet' },
+                  { value: 'hr-system', label: 'HR Management System' },
+                  { value: 'project-tools', label: 'Project Management Tools' }
                 ]
               },
               {
                 type: 'TEXTAREA',
-                name: 'approvalNotes',
-                label: 'Approval Notes',
-                required: false
+                name: 'accessJustification',
+                label: 'Access Justification',
+                required: true
               }
             ],
             assignment: {
-              type: 'ROLE_BASED',
-              roleIds: ['it-security-manager']
+              targets: [{ entity: 'role', id: 'role-005' }], // Senior Software Engineer
+              assignmentMode: AssignmentMode.ASSIGN,
+              allowReassignment: false
             }
           },
           {
             type: 'INFORMATION',
-            name: 'Training Schedule',
-            description: 'Provide training schedule and next steps',
-            links: [
+            title: 'Training Schedule',
+            message: 'Review mandatory training requirements and schedule',
+            inputs: [
               {
-                name: 'Training Calendar',
-                url: 'https://company.com/training-calendar'
+                type: 'DATE',
+                name: 'trainingStartDate',
+                label: 'Training Start Date',
+                required: true
               },
               {
-                name: 'First Week Guide',
-                url: 'https://company.com/first-week-guide'
+                type: 'SELECT',
+                name: 'trainingType',
+                label: 'Training Type',
+                required: true,
+                options: [
+                  { value: 'orientation', label: 'General Orientation' },
+                  { value: 'role-specific', label: 'Role-Specific Training' },
+                  { value: 'compliance', label: 'Compliance Training' }
+                ]
+              }
+            ],
+            links: [
+              {
+                name: 'Training Portal',
+                url: 'https://company.com/training'
               }
             ],
             assignment: {
-              type: 'ROLE_BASED',
-              roleIds: ['training-coordinator']
+              targets: [{ entity: 'role', id: 'role-001' }], // HR Manager
+              assignmentMode: AssignmentMode.ASSIGN,
+              allowReassignment: false
+            }
+          },
+          {
+            type: 'ACKNOWLEDGE',
+            title: 'Onboarding Complete',
+            message: 'Confirm that all onboarding steps have been completed',
+            assignment: {
+              targets: [{ entity: 'role', id: 'role-001' }], // HR Manager
+              assignmentMode: AssignmentMode.ASSIGN,
+              allowReassignment: false
             }
           }
         ]
@@ -191,13 +229,13 @@ export const registerSampleFlows = async (): Promise<void> => {
       {
         type: 'TEMPLATE',
         name: 'Document Review & Approval',
-        description: 'Review and approve important documents',
+        description: 'Standard document review and approval process',
         version: 1,
         steps: [
           {
             type: 'TASK',
-            name: 'Document Submission',
-            description: 'Submit document for review',
+            title: 'Document Submission',
+            message: 'Submit document for review and approval',
             inputs: [
               {
                 type: 'TEXT',
@@ -206,26 +244,36 @@ export const registerSampleFlows = async (): Promise<void> => {
                 required: true
               },
               {
-                type: 'TEXTAREA',
-                name: 'documentSummary',
-                label: 'Document Summary',
-                required: true
-              },
-              {
                 type: 'FILE',
                 name: 'documentFile',
                 label: 'Document File',
                 required: true
+              },
+              {
+                type: 'SELECT',
+                name: 'documentType',
+                label: 'Document Type',
+                required: true,
+                options: [
+                  { value: 'policy', label: 'Policy Document' },
+                  { value: 'procedure', label: 'Procedure Manual' },
+                  { value: 'guideline', label: 'Guidelines' },
+                  { value: 'other', label: 'Other' }
+                ]
+              },
+              {
+                type: 'TEXTAREA',
+                name: 'submissionNotes',
+                label: 'Submission Notes',
+                required: false
               }
-            ],
-            assignment: {
-              type: 'SELF'
-            }
+            ]
+            // Assignment will be set to executing user at runtime
           },
           {
-            type: 'APPROVAL',
-            name: 'Manager Review',
-            description: 'Manager reviews and approves the document',
+            type: 'TASK',
+            title: 'Initial Review',
+            message: 'Conduct initial review of submitted document',
             inputs: [
               {
                 type: 'SELECT',
@@ -242,19 +290,37 @@ export const registerSampleFlows = async (): Promise<void> => {
                 type: 'TEXTAREA',
                 name: 'reviewComments',
                 label: 'Review Comments',
+                required: true
+              }
+            ],
+            assignment: {
+              targets: [{ entity: 'capability', id: 'cap-005' }], // Software Development
+              assignmentMode: AssignmentMode.ASSIGN,
+              allowReassignment: false
+            }
+          },
+          {
+            type: 'APPROVAL',
+            title: 'Final Approval',
+            message: 'Provide final approval for document publication',
+            inputs: [
+              {
+                type: 'CHECKBOX',
+                name: 'approvalConfirmation',
+                label: 'I approve this document for publication',
+                required: true
+              },
+              {
+                type: 'TEXTAREA',
+                name: 'approvalNotes',
+                label: 'Approval Notes',
                 required: false
               }
             ],
             assignment: {
-              type: 'MANAGER'
-            }
-          },
-          {
-            type: 'ACKNOWLEDGE',
-            name: 'Final Notification',
-            description: 'Notify submitter of review outcome',
-            assignment: {
-              type: 'SELF'
+              targets: [{ entity: 'role', id: 'role-009' }], // Marketing Manager
+              assignmentMode: AssignmentMode.ASSIGN,
+              allowReassignment: false
             }
           }
         ]
@@ -262,18 +328,18 @@ export const registerSampleFlows = async (): Promise<void> => {
       {
         type: 'TEMPLATE',
         name: 'Expense Report Approval',
-        description: 'Submit and approve expense reports',
+        description: 'Employee expense report submission and approval workflow',
         version: 1,
         steps: [
           {
             type: 'TASK',
-            name: 'Expense Submission',
-            description: 'Submit expense report with receipts',
+            title: 'Expense Submission',
+            message: 'Submit expense report with receipts',
             inputs: [
               {
                 type: 'TEXT',
                 name: 'expenseTitle',
-                label: 'Expense Title',
+                label: 'Expense Report Title',
                 required: true
               },
               {
@@ -283,31 +349,42 @@ export const registerSampleFlows = async (): Promise<void> => {
                 required: true
               },
               {
-                type: 'DATE',
-                name: 'expenseDate',
-                label: 'Expense Date',
-                required: true
+                type: 'SELECT',
+                name: 'expenseCategory',
+                label: 'Expense Category',
+                required: true,
+                options: [
+                  { value: 'travel', label: 'Travel' },
+                  { value: 'meals', label: 'Meals & Entertainment' },
+                  { value: 'supplies', label: 'Office Supplies' },
+                  { value: 'training', label: 'Training & Development' },
+                  { value: 'other', label: 'Other' }
+                ]
               },
               {
                 type: 'FILE',
                 name: 'receipts',
                 label: 'Receipts',
                 required: true
+              },
+              {
+                type: 'TEXTAREA',
+                name: 'businessPurpose',
+                label: 'Business Purpose',
+                required: true
               }
-            ],
-            assignment: {
-              type: 'SELF'
-            }
+            ]
+            // Assignment will be set to executing user at runtime
           },
           {
             type: 'APPROVAL',
-            name: 'Manager Approval',
-            description: 'Manager approves expense report',
+            title: 'Manager Approval',
+            message: 'Review and approve expense report',
             inputs: [
               {
                 type: 'SELECT',
-                name: 'approvalStatus',
-                label: 'Approval Status',
+                name: 'approvalDecision',
+                label: 'Approval Decision',
                 required: true,
                 options: [
                   { value: 'approved', label: 'Approved' },
@@ -317,22 +394,45 @@ export const registerSampleFlows = async (): Promise<void> => {
               },
               {
                 type: 'TEXTAREA',
-                name: 'approvalComments',
-                label: 'Approval Comments',
+                name: 'managerComments',
+                label: 'Manager Comments',
                 required: false
               }
             ],
             assignment: {
-              type: 'MANAGER'
+              targets: [{ entity: 'user', id: 'user-002' }], // Bob Smith (Finance Manager)
+              assignmentMode: AssignmentMode.ASSIGN,
+              allowReassignment: false
             }
           },
           {
-            type: 'INFORMATION',
-            name: 'Processing Notification',
-            description: 'Notify about expense processing status',
+            type: 'TASK',
+            title: 'Finance Processing',
+            message: 'Process approved expense for reimbursement',
+            inputs: [
+              {
+                type: 'DATE',
+                name: 'processingDate',
+                label: 'Processing Date',
+                required: true
+              },
+              {
+                type: 'TEXT',
+                name: 'reimbursementMethod',
+                label: 'Reimbursement Method',
+                required: true
+              },
+              {
+                type: 'TEXTAREA',
+                name: 'processingNotes',
+                label: 'Processing Notes',
+                required: false
+              }
+            ],
             assignment: {
-              type: 'ROLE_BASED',
-              roleIds: ['finance-team']
+              targets: [{ entity: 'department', id: 'dept-002' }], // Finance
+              assignmentMode: AssignmentMode.ASSIGN,
+              allowReassignment: false
             }
           }
         ]
@@ -340,13 +440,13 @@ export const registerSampleFlows = async (): Promise<void> => {
       {
         type: 'TEMPLATE',
         name: 'Project Kickoff Process',
-        description: 'Initialize new project with stakeholder alignment',
+        description: 'Standard project initiation and kickoff workflow',
         version: 1,
         steps: [
           {
             type: 'TASK',
-            name: 'Project Planning',
-            description: 'Define project scope and requirements',
+            title: 'Project Planning',
+            message: 'Define project scope, timeline, and resources',
             inputs: [
               {
                 type: 'TEXT',
@@ -362,35 +462,54 @@ export const registerSampleFlows = async (): Promise<void> => {
               },
               {
                 type: 'DATE',
-                name: 'targetStartDate',
-                label: 'Target Start Date',
+                name: 'startDate',
+                label: 'Project Start Date',
                 required: true
               },
               {
                 type: 'DATE',
-                name: 'targetEndDate',
-                label: 'Target End Date',
+                name: 'endDate',
+                label: 'Project End Date',
                 required: true
+              },
+              {
+                type: 'MULTISELECT',
+                name: 'teamMembers',
+                label: 'Team Members',
+                required: true,
+                options: [
+                  { value: 'john-doe', label: 'John Doe' },
+                  { value: 'jane-smith', label: 'Jane Smith' },
+                  { value: 'bob-johnson', label: 'Bob Johnson' },
+                  { value: 'alice-brown', label: 'Alice Brown' }
+                ]
+              }
+            ],
+            links: [
+              {
+                name: 'Project Template',
+                url: 'https://company.com/project-template'
               }
             ],
             assignment: {
-              type: 'ROLE_BASED',
-              roleIds: ['project-manager']
+              targets: [{ entity: 'role', id: 'role-007' }], // Sales Manager
+              assignmentMode: AssignmentMode.ASSIGN,
+              allowReassignment: false
             }
           },
           {
             type: 'APPROVAL',
-            name: 'Stakeholder Approval',
-            description: 'Get stakeholder approval for project scope',
+            title: 'Stakeholder Approval',
+            message: 'Approve project plan and resource allocation',
             inputs: [
               {
                 type: 'SELECT',
-                name: 'scopeApproval',
-                label: 'Scope Approval',
+                name: 'approvalStatus',
+                label: 'Approval Status',
                 required: true,
                 options: [
                   { value: 'approved', label: 'Approved' },
-                  { value: 'needs-revision', label: 'Needs Revision' },
+                  { value: 'conditional', label: 'Conditional Approval' },
                   { value: 'rejected', label: 'Rejected' }
                 ]
               },
@@ -402,56 +521,55 @@ export const registerSampleFlows = async (): Promise<void> => {
               }
             ],
             assignment: {
-              type: 'ROLE_BASED',
-              roleIds: ['stakeholder']
-            }
-          },
-          {
-            type: 'TASK',
-            name: 'Resource Allocation',
-            description: 'Allocate team members and resources',
-            inputs: [
-              {
-                type: 'MULTISELECT',
-                name: 'teamMembers',
-                label: 'Team Members',
-                required: true,
-                options: [
-                  { value: 'developer-1', label: 'Developer 1' },
-                  { value: 'developer-2', label: 'Developer 2' },
-                  { value: 'designer', label: 'Designer' },
-                  { value: 'qa-engineer', label: 'QA Engineer' }
-                ]
-              },
-              {
-                type: 'NUMBER',
-                name: 'budgetAllocation',
-                label: 'Budget Allocation',
-                required: true
-              }
-            ],
-            assignment: {
-              type: 'ROLE_BASED',
-              roleIds: ['resource-manager']
+              targets: [{ entity: 'role', id: 'role-003' }], // Finance Manager (project sponsor)
+              assignmentMode: AssignmentMode.ASSIGN,
+              allowReassignment: false
             }
           },
           {
             type: 'INFORMATION',
-            name: 'Kickoff Meeting',
-            description: 'Schedule and conduct project kickoff meeting',
-            links: [
+            title: 'Kickoff Meeting',
+            message: 'Schedule and conduct project kickoff meeting',
+            inputs: [
               {
-                name: 'Project Charter',
-                url: 'https://company.com/project-charter'
+                type: 'DATE',
+                name: 'meetingDate',
+                label: 'Meeting Date',
+                required: true
               },
               {
-                name: 'Team Guidelines',
-                url: 'https://company.com/team-guidelines'
+                type: 'TEXT',
+                name: 'meetingLocation',
+                label: 'Meeting Location',
+                required: true
+              },
+              {
+                type: 'TEXTAREA',
+                name: 'meetingAgenda',
+                label: 'Meeting Agenda',
+                required: true
+              }
+            ],
+            links: [
+              {
+                name: 'Meeting Room Booking',
+                url: 'https://company.com/book-room'
               }
             ],
             assignment: {
-              type: 'ROLE_BASED',
-              roleIds: ['project-manager']
+              targets: [{ entity: 'role', id: 'role-007' }], // Sales Manager
+              assignmentMode: AssignmentMode.ASSIGN,
+              allowReassignment: false
+            }
+          },
+          {
+            type: 'ACKNOWLEDGE',
+            title: 'Project Initiation Complete',
+            message: 'Confirm project has been successfully initiated',
+            assignment: {
+              targets: [{ entity: 'role', id: 'role-003' }], // Finance Manager (project sponsor)
+              assignmentMode: AssignmentMode.ASSIGN,
+              allowReassignment: false
             }
           }
         ]
@@ -459,66 +577,59 @@ export const registerSampleFlows = async (): Promise<void> => {
     ];
 
     let successCount = 0;
-    let errorCount = 0;
+    let failureCount = 0;
 
-    // Register each sample flow
     for (const flow of sampleFlows) {
       try {
-        const createdTemplate = await createTemplate(flow);
-        logger.info(`Successfully registered sample flow: ${flow.name} (ID: ${createdTemplate.id})`);
+        await createTemplate(flow);
+        logger.info(`Successfully registered sample flow: ${flow.name} (ID: ${flow.id})`);
         successCount++;
       } catch (error) {
-        logger.error(`Failed to register sample flow ${flow.name}:`, error);
-        errorCount++;
+        logger.error(`Failed to register sample flow: ${flow.name}`, error);
+        failureCount++;
       }
     }
 
-    logger.info(`Sample flow registration completed. ${successCount} flows registered successfully, ${errorCount} failed.`);
+    logger.info(`Sample flow registration completed. ${successCount} flows registered successfully, ${failureCount} failed.`);
   } catch (error) {
     logger.error('Error during sample flow registration:', error);
+    throw error;
   }
 };
 
-/**
- * Get a sample flow by ID
- */
 export const getSampleFlowById = (id: string): FlowTemplate | undefined => {
-  // This would need to be implemented to return flows from the template service
-  return undefined;
+  const sampleFlows = [
+    // Sample flows would be defined here for testing purposes
+    // In production, these would be fetched from the database
+  ];
+  return sampleFlows.find(flow => flow.id === id);
 };
 
-/**
- * Get sample flow summaries for display
- */
 export const getSampleFlowSummaries = () => {
   return [
     {
-      id: 'Employee Onboarding Process',
-      title: 'Employee Onboarding Process',
+      id: 'flow_employee_onboarding_process',
+      name: 'Employee Onboarding Process',
       description: 'Complete onboarding workflow for new employees',
-      stepCount: 4,
-      flowType: 'TEMPLATE'
+      stepCount: 5
     },
     {
-      id: 'Document Review & Approval',
-      title: 'Document Review & Approval',
-      description: 'Review and approve important documents',
-      stepCount: 3,
-      flowType: 'TEMPLATE'
+      id: 'flow_document_review_approval',
+      name: 'Document Review & Approval',
+      description: 'Standard document review and approval process',
+      stepCount: 3
     },
     {
-      id: 'Expense Report Approval',
-      title: 'Expense Report Approval',
-      description: 'Submit and approve expense reports',
-      stepCount: 3,
-      flowType: 'TEMPLATE'
+      id: 'flow_expense_report_approval',
+      name: 'Expense Report Approval',
+      description: 'Employee expense report submission and approval workflow',
+      stepCount: 3
     },
     {
-      id: 'Project Kickoff Process',
-      title: 'Project Kickoff Process',
-      description: 'Initialize new project with proper approvals',
-      stepCount: 4,
-      flowType: 'TEMPLATE'
+      id: 'flow_project_kickoff_process',
+      name: 'Project Kickoff Process',
+      description: 'Standard project initiation and kickoff workflow',
+      stepCount: 4
     }
   ];
 }; 

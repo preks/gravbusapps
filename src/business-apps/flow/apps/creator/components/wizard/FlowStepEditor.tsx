@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Input, Button, Switch, Space, Tag, Tooltip, Select, Divider, Upload, message, Popover } from 'antd';
 import { 
   PlusOutlined, 
@@ -15,7 +15,10 @@ import {
   UploadOutlined,
   PaperClipOutlined,
   InfoCircleOutlined,
-  CheckCircleOutlined
+  CheckCircleOutlined,
+  EditOutlined,
+  CheckOutlined,
+  CloseOutlined
 } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { FlowStep, Link, InputType, InputBlock, FlowStepType, TaskAssignment } from '../../types/flowTemplate';
@@ -74,8 +77,16 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(isNewStep);
   const [showLinks, setShowLinks] = useState((step.links?.length || 0) > 0);
-  const [showInputs, setShowInputs] = useState((step.inputs?.length || 0) > 0);
+  const [showInputs, setShowInputs] = useState(false); // default to false for simplicity
   const [showAssignment, setShowAssignment] = useState(!!step.assignment);
+  const [editMode, setEditMode] = useState(false);
+  const [localTitle, setLocalTitle] = useState(step.title || '');
+  const [localMessage, setLocalMessage] = useState(step.message || '');
+
+  useEffect(() => {
+    setLocalTitle(step.title || '');
+    setLocalMessage(step.message || '');
+  }, [step.title, step.message]);
 
   const updateStep = (updates: Partial<FlowStep>) => {
     onStepChange(stepIndex, { ...step, ...updates });
@@ -219,30 +230,90 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
             </Select>
           </div>
 
-          {/* Title Field */}
-          <div data-testid={`${testId}-title-field`}>
-            <label className="gba:block gba:text-sm gba:font-medium gba:mb-1">
-              {getTranslationFromI18nKeyAndLabel('flow.creator.stepTitle', 'Step Title')}
-            </label>
-            <Input
-              value={step.title}
-              onChange={(e) => updateStep({ title: e.target.value })}
-              data-testid={`${testId}-title-input`}
-            />
-          </div>
+          {/* Title and Message with Edit Toggle */}
+          <Card size="small" title={getTranslationFromI18nKeyAndLabel('flow.creator.stepInfo', 'Step Information')}>
+            <div className="gba:space-y-4">
+              {/* Title Field */}
+              <div data-testid={`${testId}-title-field`}>
+                <label className="gba:block gba:text-sm gba:font-medium gba:mb-1">
+                  {getTranslationFromI18nKeyAndLabel('flow.creator.stepTitle', 'Step Title')}
+                </label>
+                {editMode ? (
+                  <Input
+                    value={localTitle}
+                    onChange={e => setLocalTitle(e.target.value)}
+                    data-testid={`${testId}-title-input`}
+                    className="gba:mb-2"
+                  />
+                ) : (
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <span className="gba:text-base gba:font-semibold">{step.title}</span>
+                  </div>
+                )}
+              </div>
 
-          {/* Message Field */}
-          <div data-testid={`${testId}-message-field`}>
-            <label className="gba:block gba:text-sm gba:font-medium gba:mb-1">
-              {getTranslationFromI18nKeyAndLabel('flow.creator.message', 'Message')}
-            </label>
-            <TextArea
-              value={step.message}
-              onChange={(e) => updateStep({ message: e.target.value })}
-              rows={4}
-              data-testid={`${testId}-message-input`}
-            />
-          </div>
+              {/* Message Field */}
+              <div data-testid={`${testId}-message-field`}>
+                <label className="gba:block gba:text-sm gba:font-medium gba:mb-1">
+                  {getTranslationFromI18nKeyAndLabel('flow.creator.message', 'Message')}
+                </label>
+                {editMode ? (
+                  <TextArea
+                    value={localMessage}
+                    onChange={e => setLocalMessage(e.target.value)}
+                    rows={4}
+                    data-testid={`${testId}-message-input`}
+                    className="gba:mb-2"
+                  />
+                ) : (
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <span className="gba:text-base">{step.message}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Edit Toggle */}
+              <div className="gba:mt-2">
+                {editMode ? (
+                  <Space>
+                    <Button
+                      icon={<CheckOutlined />}
+                      type="primary"
+                      size="small"
+                      onClick={() => {
+                        updateStep({ title: localTitle, message: localMessage });
+                        setEditMode(false);
+                      }}
+                      data-testid={`${testId}-save-edit`}
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      icon={<CloseOutlined />}
+                      size="small"
+                      onClick={() => {
+                        setLocalTitle(step.title || '');
+                        setLocalMessage(step.message || '');
+                        setEditMode(false);
+                      }}
+                      data-testid={`${testId}-cancel-edit`}
+                    >
+                      Cancel
+                    </Button>
+                  </Space>
+                ) : (
+                  <Button
+                    icon={<EditOutlined />}
+                    size="small"
+                    onClick={() => setEditMode(true)}
+                    data-testid={`${testId}-edit-toggle`}
+                  >
+                    Edit
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Card>
 
           {/* Links Section */}
           <div data-testid={`${testId}-links-section`}>
@@ -329,16 +400,17 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
           </div>
 
           {/* Inputs Section */}
+          {/* Input Form Configuration - hide behind switch */}
           <div data-testid={`${testId}-inputs-section`}>
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
               <div className="gba:flex gba:items-center gba:gap-2">
                 <Switch
                   checked={showInputs}
-                  onChange={(checked) => setShowInputs(checked)}
+                  onChange={setShowInputs}
                   data-testid={`${testId}-inputs-toggle`}
                 />
                 <label className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('flow.creator.addInputForm', 'Add Input Form')}
+                  {getTranslationFromI18nKeyAndLabel('flow.creator.showAdvancedInputConfig', 'Show advanced input configuration')}
                 </label>
               </div>
               {showInputs && (

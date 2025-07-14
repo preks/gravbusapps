@@ -172,18 +172,7 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
   });
 
   return (
-    <Card 
-      className="gba:w-full gba:max-w-4xl gba:mx-auto"
-      data-testid={testId}
-      title={
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <PlayCircleOutlined className="gba:text-blue-500" />
-          <Title level={4} className="gba:mb-0">
-            {getTranslationFromI18nKeyAndLabel('flow.execution.title', 'Execute Workflow')}
-          </Title>
-        </div>
-      }
-    >
+    <div>
       <div className="gba:space-y-6">
         {/* Template Info */}
         <div className="gba:bg-gray-50 gba:p-4 gba:rounded-lg">
@@ -196,16 +185,15 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
           current={currentStep}
           items={wizardSteps}
           size="small"
-          className="gba:mb-6"
+          className="gba:mb-8"
           data-testid={`${testId}-steps`}
         />
 
         {/* Current Step Configuration */}
         {currentStepData && currentStepConfig && (
           <div className="gba:space-y-4">
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                {getStepIcon(currentStepData.type)}
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-4 gba:mt-6">
+              <div className="gba:flex gba:items-center gba:gap-2 pl-2">
                 <Title level={5} className="gba:mb-0">
                   {getTranslationFromI18nKeyAndLabel('flow.execution.configureStep', 'Configure Step')}: {currentStepData.title}
                 </Title>
@@ -289,6 +277,6 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
           data-testid={`${testId}-preview-modal`}
         />
       )}
-    </Card>
+    </div>
   );
 }; 

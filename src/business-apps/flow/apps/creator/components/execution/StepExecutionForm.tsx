@@ -1,17 +1,12 @@
-import React from 'react';
-import { Card, Input, Space, Typography, Divider, Switch } from 'antd';
-import { 
-  UserOutlined,
-  MessageOutlined,
-  FormOutlined,
-  PaperClipOutlined
-} from '@ant-design/icons';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React, { useState } from 'react';
+import { Card, Input, Button, Switch, Tooltip, Typography, Divider, Tag } from 'antd';
+import { EditOutlined, CheckOutlined, CloseOutlined, UserOutlined, FormOutlined, PaperClipOutlined } from '@ant-design/icons';
 import { FlowStep } from '../../types/flowTemplate';
 import { AssignmentSelector } from '../shared/AssignmentSelector';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
-const { Title, Text } = Typography;
-const { TextArea } = Input;
+const { TextArea, } = Input;
+const { Text, Title } = Typography;
 
 interface StepExecutionFormProps {
   step: FlowStep;
@@ -34,6 +29,11 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
   onConfigurationChange,
   'data-testid': testId = 'step-execution-form'
 }) => {
+  const [showAdvancedInputs, setShowAdvancedInputs] = useState(false);
+  const [editTitleMessage, setEditTitleMessage] = useState(false);
+  const [editedTitle, setEditedTitle] = useState<string | null>(null);
+  const [editedMessage, setEditedMessage] = useState<string | null>(null);
+
   const updateConfiguration = (field: string, value: any) => {
     onConfigurationChange({ [field]: value });
   };
@@ -45,169 +45,200 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
   };
 
   return (
-    <div className="gba:space-y-6" data-testid={testId}>
-      {/* Step Basic Info */}
-      <Card size="small" title={
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <MessageOutlined />
-          <span>{getTranslationFromI18nKeyAndLabel('flow.execution.stepInfo', 'Step Information')}</span>
-        </div>
-      }>
-        <div className="gba:space-y-4">
-          <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:mb-1">
-              {getTranslationFromI18nKeyAndLabel('flow.execution.stepTitle', 'Step Title')}
-            </label>
-            <Input
-              value={configuration.title}
-              onChange={(e) => updateConfiguration('title', e.target.value)}
-              placeholder={step.title}
-              data-testid={`${testId}-title-input`}
-            />
+    <div className="gba:space-y-6 gba:p-2" data-testid={testId}>
+      {/* Title & Message Card */}
+      <Card 
+        size="small" 
+        className="gba:mb-4 gba:shadow-md gba:rounded-lg gba:border gba:bg-white"
+        style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+        title={
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <UserOutlined />
+            <span className="gba:font-semibold">Title & Message</span>
           </div>
-
-          <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:mb-1">
-              {getTranslationFromI18nKeyAndLabel('flow.execution.stepMessage', 'Step Message')}
-            </label>
-            <TextArea
-              value={configuration.message}
-              onChange={(e) => updateConfiguration('message', e.target.value)}
-              placeholder={step.message}
-              rows={3}
-              data-testid={`${testId}-message-input`}
-            />
+        }
+      >
+        <div className="gba:p-2">
+          <div className="gba:flex gba:items-start gba:justify-between">
+            <div className="gba:flex-1">
+              <Text className="gba:m-0 gba:mb-2 gba:font-bold gba:text-xl gba:text-gray-900">
+                {configuration.title ?? step.title}
+              </Text>
+              <Text className="gba:block gba:text-gray-600 gba:text-base gba:leading-relaxed">
+                {configuration.message ?? step.message}
+              </Text>
+            </div>
+            <Tooltip title="Edit title and message">
+              <Button
+                icon={<EditOutlined />}
+                size="small"
+                className="gba:ml-4"
+                onClick={() => setEditTitleMessage(true)}
+                data-testid={`${testId}-edit-title-message-toggle`}
+              />
+            </Tooltip>
           </div>
+          
+          {editTitleMessage && (
+            <>
+              <Divider className="gba:my-3" />
+              <div className="gba:space-y-3">
+                <Input
+                  value={editedTitle ?? configuration.title ?? step.title}
+                  onChange={e => setEditedTitle(e.target.value)}
+                  placeholder="Title"
+                  data-testid={`${testId}-edit-title-input`}
+                />
+                <TextArea
+                  rows={2}
+                  value={editedMessage ?? configuration.message ?? step.message}
+                  onChange={e => setEditedMessage(e.target.value)}
+                  placeholder="Message"
+                  data-testid={`${testId}-edit-message-input`}
+                />
+                <div className="gba:flex gba:gap-2">
+                  <Button
+                    icon={<CheckOutlined />}
+                    size="small"
+                    type="primary"
+                    onClick={() => {
+                      updateConfiguration('title', editedTitle ?? step.title);
+                      updateConfiguration('message', editedMessage ?? step.message);
+                      setEditTitleMessage(false);
+                      setEditedTitle(null);
+                      setEditedMessage(null);
+                    }}
+                    data-testid={`${testId}-edit-title-message-save`}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    icon={<CloseOutlined />}
+                    size="small"
+                    onClick={() => {
+                      setEditTitleMessage(false);
+                      setEditedTitle(null);
+                      setEditedMessage(null);
+                    }}
+                    data-testid={`${testId}-edit-title-message-cancel`}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </Card>
 
       {/* Assignment Configuration */}
       {!step.assignment && (
-        <Card size="small" title={
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <UserOutlined />
-            <span>{getTranslationFromI18nKeyAndLabel('flow.execution.assignment', 'Assignment')}</span>
-          </div>
-        }>
-          <div className="gba:space-y-4">
-            <Text className="gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('flow.execution.assignmentDescription', 'Configure who should receive this task at execution time.')}
-            </Text>
-            
-            <AssignmentSelector
-              value={configuration.assignment}
-              onChange={(assignment) => updateConfiguration('assignment', assignment)}
-              data-testid={`${testId}-assignment-selector`}
-            />
-          </div>
-        </Card>
-      )}
-
-      {step.assignment && (
-        <Card size="small" title={
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <UserOutlined />
-            <span>{getTranslationFromI18nKeyAndLabel('flow.execution.predefinedAssignment', 'Predefined Assignment')}</span>
-          </div>
-        }>
-          <Text className="gba:text-gray-600">
-            {getTranslationFromI18nKeyAndLabel('flow.execution.predefinedAssignmentDescription', 'This step has a predefined assignment that will be used during execution.')}
-          </Text>
-          
-          <div className="gba:mt-4 gba:p-3 gba:bg-gray-50 gba:rounded">
-            <div className="gba:space-y-2">
-                              <div>
-                  <strong>{getTranslationFromI18nKeyAndLabel('flow.execution.assignmentMode', 'Assignment Mode')}:</strong>{' '}
-                  {step.assignment.assignmentMode === 'ASSIGN' 
-                    ? getTranslationFromI18nKeyAndLabel('flow.execution.assignedToAll', 'Assigned to all')
-                    : getTranslationFromI18nKeyAndLabel('flow.execution.claimableByOne', 'Claimable by one')
-                  }
-                </div>
-              <div>
-                <strong>{getTranslationFromI18nKeyAndLabel('flow.execution.targets', 'Targets')}:</strong>{' '}
-                {step.assignment.targets?.length || 0} selected
+        <div className="gba:mt-4">
+          <Card 
+            size="small" 
+            className="gba:mb-4 gba:shadow-md gba:rounded-lg gba:border gba:bg-white gba:mt-4"
+            style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+            title={
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <UserOutlined />
+                <span className="gba:font-semibold">{getTranslationFromI18nKeyAndLabel('flow.execution.assignment', 'Assignment')}</span>
               </div>
+            }
+          >
+            <div className="gba:space-y-4 gba:p-2">
+              <Text className="gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel('flow.execution.assignmentDescription', 'Configure who should receive this task at execution time.')}
+              </Text>
+              
+              <AssignmentSelector
+                value={configuration.assignment}
+                onChange={(assignment) => updateConfiguration('assignment', assignment)}
+                data-testid={`${testId}-assignment-selector`}
+              />
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       )}
 
-      {/* Input Form Configuration */}
-      {step.inputs && step.inputs.length > 0 && (
-        <Card size="small" title={
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <FormOutlined />
-            <span>{getTranslationFromI18nKeyAndLabel('flow.execution.inputForm', 'Input Form')}</span>
-          </div>
-        }>
-          <div className="gba:space-y-4">
-            <Text className="gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('flow.execution.inputFormDescription', 'Configure default values for input fields (optional).')}
-            </Text>
-            
-            <div className="gba:space-y-3">
-              {step.inputs.map((input, index) => (
-                <div key={index}>
-                  <label className="gba:block gba:text-sm gba:font-medium gba:mb-1">
-                    {input.label}
-                    {input.required && <span className="gba:text-red-500 gba:ml-1">*</span>}
-                  </label>
-                  
-                  {input.type === 'TEXTAREA' ? (
-                    <TextArea
-                      value={configuration.inputValues?.[`input_${index}`] || ''}
-                      onChange={(e) => updateInputValue(index, e.target.value)}
-                      placeholder={getTranslationFromI18nKeyAndLabel('flow.execution.defaultValue', 'Default value (optional)')}
-                      rows={2}
-                      data-testid={`${testId}-input-${index}`}
-                    />
-                  ) : input.type === 'SELECT' ? (
-                    <Input
-                      value={configuration.inputValues?.[`input_${index}`] || ''}
-                      onChange={(e) => updateInputValue(index, e.target.value)}
-                      placeholder={getTranslationFromI18nKeyAndLabel('flow.execution.defaultValue', 'Default value (optional)')}
-                      data-testid={`${testId}-input-${index}`}
-                    />
+      {/* Predefined Assignment */}
+      {step.assignment && (
+        <div className="gba:mt-4">
+          <Card
+            size="small"
+            className="gba:mb-4 gba:shadow-md gba:rounded-lg gba:border gba:bg-white gba:mt-4"
+            style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+            title={
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <UserOutlined />
+                <span className="gba:font-semibold">Assignment</span>
+              </div>
+            }
+            data-testid="step-execution-assignment-card"
+          >
+            <div className="gba:space-y-3 gba:p-2">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <span className="gba:text-sm gba:text-gray-500 gba:font-medium">Mode:</span>
+                <Tag color="blue" data-testid="step-execution-assignment-mode">
+                  {step.assignment.assignmentMode || 'N/A'}
+                </Tag>
+              </div>
+              <div className="gba:flex gba:items-start gba:gap-2">
+                <span className="gba:text-sm gba:text-gray-500 gba:font-medium gba:mt-1">Targets:</span>
+                <div className="gba:flex-1">
+                  {Array.isArray(step.assignment.targets) && step.assignment.targets.length > 0 ? (
+                    <div className="gba:flex gba:flex-wrap gba:gap-1">
+                      {step.assignment.targets.map((target, idx) => (
+                        <Tag color="purple" key={idx} data-testid="step-execution-assignment-target">
+                          {target.entity}:{target.id}
+                        </Tag>
+                      ))}
+                    </div>
                   ) : (
-                    <Input
-                      value={configuration.inputValues?.[`input_${index}`] || ''}
-                      onChange={(e) => updateInputValue(index, e.target.value)}
-                      placeholder={getTranslationFromI18nKeyAndLabel('flow.execution.defaultValue', 'Default value (optional)')}
-                      data-testid={`${testId}-input-${index}`}
-                    />
+                    <span className="gba:text-gray-400 gba:text-sm" data-testid="step-execution-assignment-no-targets">
+                      No targets selected
+                    </span>
                   )}
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       )}
 
-      {/* Links */}
+      {/* Links Section */}
       {step.links && step.links.length > 0 && (
-        <Card size="small" title={
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PaperClipOutlined />
-            <span>{getTranslationFromI18nKeyAndLabel('flow.execution.links', 'Links')}</span>
-          </div>
-        }>
-          <div className="gba:space-y-2">
-            <Text className="gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('flow.execution.linksDescription', 'The following links will be included with this step:')}
-            </Text>
-            
-            <div className="gba:space-y-2">
-              {step.links.map((link, index) => (
-                <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:bg-gray-50 gba:rounded">
-                  <PaperClipOutlined className="gba:text-gray-500" />
-                  <span className="gba:text-sm">{link.name || link.url}</span>
-                  <span className="gba:text-xs gba:text-gray-500 gba:ml-auto">{link.type}</span>
-                </div>
-              ))}
+        <Card 
+          size="small" 
+          className="gba:mb-4 gba:shadow-md gba:rounded-lg gba:border gba:bg-white gba:mt-4"
+          style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+          title={
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <PaperClipOutlined />
+              <span className="gba:font-semibold">Links</span>
             </div>
+          }
+        >
+          <div className="gba:space-y-2 gba:p-2">
+            {step.links.map((link, idx) => (
+              <div key={idx} className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-gray-50 gba:rounded-md">
+                <PaperClipOutlined className="gba:text-gray-500" />
+                {link.url ? (
+                  <a href={link.url} target="_blank" rel="noopener noreferrer" className="gba:text-blue-600 gba:underline gba:flex-1">
+                    {link.name || link.url}
+                  </a>
+                ) : (
+                  <span className="gba:text-sm gba:flex-1">{link.name || link.url}</span>
+                )}
+                {link.type && (
+                  <span className="gba:text-xs gba:text-gray-500 gba:bg-gray-200 gba:px-2 gba:py-1 gba:rounded">
+                    {link.type}
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
         </Card>
       )}
     </div>
   );
-}; 
+};
