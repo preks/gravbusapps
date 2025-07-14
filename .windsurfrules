@@ -69,6 +69,7 @@ src
 - Use typescript for type safety
 - Use prettier for code styling
 - Use eslint for linting
+- Use `recharts` for chart creation
 
 - Do not install other packages for UI themes, icons, etc. unless absolutely necessary or I request them.
 - The list of required dependencies must be small and simple and must reuse existing packages.
@@ -81,6 +82,8 @@ src
 - For Table component development, use rules from .cursor\rules\tables-integration.mdc .
 - Use always the existing `DebouncedInput` component for search fields to provide debounced search.
 - When tab components are used, provide a unique tab key for each tab and use this in a URL query parameter.
+- Charts and visualizations should **ALWAYS** use the `recharts` library (e.g., `<LineChart>`, `<BarChart>`, etc.).
+- Charts should **NEVER** use libraries like `Chart.js`, `D3`, `Plotly`, `Highcharts`, `@ant-design/plots`, `@ant-design/charts`.
 
 - Add all CSS files in `src/index.css`, so that they are included in `dist/assets/main.css` by the vite bundler. Only this way will they be applied on the NEWWORK platform.
 
