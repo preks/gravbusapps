@@ -1,0 +1,138 @@
+---
+trigger: always_on
+---
+
+# Statistics Component Guidelines for AI Agents
+
+## Overview
+When creating statistics components in this project, ALWAYS use the WidgetGroup component for consistency, maintainability, and better UX.
+
+## Required Pattern
+
+### 1. Import Structure
+```typescript
+import React from 'react';
+import { WidgetGroup, WidgetItem } from '@/components/widget-group';
+import { 
+  // Ant Design icons for prefixes
+  UserOutlined,
+  DollarOutlined,
+  // etc.
+} from '@ant-design/icons';
+```
+
+### 2. Props Interface
+```typescript
+interface ComponentStatisticsProps {
+  statistics: StatisticsDataType;
+  isLoading?: boolean;        // Optional with default false
+  error?: Error | null;       // Optional with default null
+  onRetry?: () => void;       // Optional
+}
+```
+
+### 3. Component Structure
+```typescript
+const ComponentStatistics: React.FC<ComponentStatisticsProps> = ({
+  statistics,
+  isLoading = false,
+  error = null,
+  onRetry
+}) => {
+  // Custom formatting functions if needed
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      // ... other options
+    }).format(amount);
+  };
+
+  // Transform stats data into widgets format
+  const widgets: WidgetItem[] = [
+    {
+      key: 'unique-key',
+      title: 'Display Title',
+      value: statistics.someValue,
+      prefix: <SomeIcon />,
+      color: '#1890ff',              // Use meaningful colors
+      span: { xs: 24, sm: 12, lg: 6 }, // Responsive spans
+      description: 'Helpful description',
+      // Optional props:
+      suffix: '%',                   // For percentages
+      precision: 2,                  // For decimals
+      valueIsString: true,           // For pre-formatted values
+      onClick: handleClick           // For interactive widgets
+    },
+    // ... more widgets
+  ];
+
+  return (
+    <div data-testid="component-statistics-container">
+      <WidgetGroup
+        widgets={widgets}
+        isLoading={isLoading}
+        error={error}
+        onRetry={onRetry}
+        skeletonCount={4}
+        emptyText="No statistics available."
+        data-testid="component-statistics"
+      />
+    </div>
+  );
+};
+```
+
+## Key Requirements
+
+### Widget Configuration
+- **key**: Unique identifier (kebab-case)
+- **title**: Clear, descriptive title
+- **value**: The actual statistic value
+- **prefix**: Meaningful icon from @ant-design/icons
+- **color**: Use consistent color scheme:
+  - Blue (#1890ff, #1677ff): Recent/new items
+  - Green (#52c41a, #3f8600): Active/success metrics
+  - Orange (#fa8c16, #faad14): Warnings/attention needed
+  - Purple (#722ed1, #eb2f96): Special metrics/this year
+  - Red (#ff4d4f): Errors/negative metrics
+
+### Responsive Layout
+- Use consistent span patterns:
+  - `{ xs: 24, sm: 12, lg: 6 }` for 4 widgets per row on large screens
+  - `{ xs: 24, sm: 12, md: 8, lg: 5, xl: 5 }` for 5 widgets (adjust as needed)
+
+### Data Formatting
+- **Currency**: Use `valueIsString: true` with pre-formatted values
+- **Percentages**: Use `suffix: '%'`
+- **Decimals**: Use `precision: number`
+- **Large numbers**: Consider `notation: 'compact'` in formatters
+
+### Descriptions
+- Always provide helpful descriptions
+- Use present tense
+- Be specific: "Past 2 weeks", "Currently active", "Action required"
+
+## Don't Use
+- ❌ Ant Design Card/Row/Col/Statistic directly
+- ❌ Custom card layouts
+- ❌ Inconsistent color schemes
+- ❌ Missing descriptions
+- ❌ Hard-coded responsive breakpoints
+
+## Best Practices
+- ✅ Use WidgetGroup for ALL statistics components
+- ✅ Provide meaningful icons and colors
+- ✅ Include helpful descriptions
+- ✅ Handle loading/error states through WidgetGroup
+- ✅ Make widgets interactive when appropriate (onClick)
+- ✅ Use consistent naming conventions
+- ✅ Pre-format complex values (currency, percentages)
+- ✅ Test responsive behavior across screen sizes
+
+## Example Files to Reference
+- `src/business-apps/crm/common/components/lead-list/components/LeadStatistics.tsx`
+- `src/business-apps/fin/expenses/apps/personal-expenses/components/tabs/expense-items-tab/ExpenseItemStatistics.tsx`
+- `src/components/widget-group/WidgetGroup.tsx` (for WidgetItem interface)
+
+This pattern ensures consistency, better UX, and easier maintenance across all statistics components. 

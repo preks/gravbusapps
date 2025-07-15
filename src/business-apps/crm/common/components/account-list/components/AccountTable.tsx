@@ -152,11 +152,38 @@ export const AccountTable: React.FC<AccountTableProps> = ({
 
   // Handle row click
   const handleRowClick = useCallback((record: Account) => {
+    // Navigate to account record page
+    const url = buildPlatformUrl('/platform/crm/account-record', { accountId: record.id });
+    navigateTo(url);
+    
+    // Also call the selection callback if provided
     onSelectAccount?.(record);
   }, [onSelectAccount]);
 
   // Define columns for the table
   const columns: any[] = [
+    {
+      title: '',
+      key: 'actions',
+      render: (_: any, record: Account) => (
+        <div className="gba:flex gba:justify-start gba:gap-2">
+          <AppActionButton
+            data-testid={`${DATA_TEST_ID_PREFIX}-update-account-button-${record.id}`}
+            variant="secondary"
+            contextsArray={[FlowContextName.accountEntity]}
+            externalContextData={{
+              accountId: record.id
+            }}
+            prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-account`}
+            accessToken={accessToken}
+            emptyStateBehavior="disable"
+            deferMainContextRequestsUntilClick
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      ),
+      width: '60px',
+    },
     {
       title: t('account.company', 'Company'),
       dataIndex: 'name',
@@ -308,39 +335,6 @@ export const AccountTable: React.FC<AccountTableProps> = ({
         );
       },
       width: '13%',
-    },
-    {
-      title: '',
-      key: 'actions',
-      render: (_: any, record: Account) => (
-        <div className="gba:flex gba:justify-end gba:gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              const url = buildPlatformUrl('/platform/crm/account-record', { accountId: record.id });
-              navigateTo(url);
-            }}
-            data-testid={`${DATA_TEST_ID_PREFIX}-view-account-button-${record.id}`}
-          >
-            View
-          </Button>
-          <AppActionButton
-            data-testid={`${DATA_TEST_ID_PREFIX}-update-account-button-${record.id}`}
-            variant="primary"
-            contextsArray={[FlowContextName.leadEntity]}
-            externalContextData={{
-              accountId: record.id
-            }}
-            prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-account`}
-            accessToken={accessToken}
-            emptyStateBehavior="enabled"
-            deferMainContextRequestsUntilClick
-          />
-        </div>
-      ),
-      width: '10%',
     },
   ];
 

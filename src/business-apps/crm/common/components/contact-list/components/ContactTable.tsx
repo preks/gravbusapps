@@ -1,6 +1,8 @@
 import React, { useCallback } from 'react';
 import { DataTable, Avatar, Button, Tag } from '@newwork/gravity-ui-catalog';
 import { PiUser, PiEnvelope, PiPhone, PiLinkedinLogo, PiBuilding } from 'react-icons/pi';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Contact } from '../types';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
@@ -104,31 +106,68 @@ const ContactTable: React.FC<ContactTableProps> = ({
 
   const columns = [
     {
+      title: '',
+      key: 'actions',
+      render: (_: any, record: Contact) => (
+        <div className="gba:flex gba:justify-start gba:gap-2">
+          <AppActionButton
+            data-testid={`${DATA_TEST_ID_PREFIX}-update-contact-button-${record.id}`}
+            variant="secondary"
+            contextsArray={[FlowContextName.contactEntity]}
+            externalContextData={{
+              contactId: record.id
+            }}
+            prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-contact`}
+            accessToken={accessToken}
+            emptyStateBehavior="disable"
+            deferMainContextRequestsUntilClick
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      ),
+      width: '60px',
+    },
+    {
       title: 'Contact',
       dataIndex: 'firstName',
       key: 'firstName',
       sorter: true,
       sortOrder: getSortOrder('firstName'),
       width: '30%',
-      render: (_: any, record: Contact) => (
-        <div className="gba:flex gba:items-center gba:gap-3">
-          <Avatar 
-            src={record.ownerEmployee?.pictureThumbnail} 
-            fallback={<PiUser />}
-            size="sm"
-          />
-          <div>
-            <div className="gba:font-medium gba:text-sm">
-              {getContactName(record)}
-            </div>
-            {record.jobTitle && (
-              <div className="gba:text-xs gba:text-gray-500">
-                {record.jobTitle}
+      render: (_: any, record: Contact) => {
+        const contactName = getContactName(record);
+        
+        const initialsValue = contactName !== '-'
+          ? contactName.split(' ').map(n => n[0]).join('').toUpperCase()
+          : 'C';
+        
+        return (
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <Avatar
+              initials={initialsValue}
+              // @ts-ignore - Type issue in gravity-ui-catalog
+              contentType="initials"
+              alt={contactName}
+              // @ts-ignore - Type issue in gravity-ui-catalog
+              size="sm"
+              // @ts-ignore - Type issue in gravity-ui-catalog
+              shape="circle"
+              // @ts-ignore - Type issue in gravity-ui-catalog
+              appearance="gradient"
+            />
+            <div>
+              <div className="gba:font-medium gba:text-sm">
+                {contactName}
               </div>
-            )}
+              {record.jobTitle && (
+                <div className="gba:text-xs gba:text-gray-500">
+                  {record.jobTitle}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )
+        );
+      }
     },
     {
       title: 'Contact Info',
@@ -222,6 +261,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
   return (
     <DataTable
       dataSource={contacts}
+      // @ts-ignore - Type issue in gravity-ui-catalog
       columns={columns}
       loading={loading}
       onChange={handleTableChange}

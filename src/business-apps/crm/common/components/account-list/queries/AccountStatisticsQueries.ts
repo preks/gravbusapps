@@ -9,11 +9,8 @@ export interface UseAccountStatisticsQueriesProps extends BusinessAppContextProp
 export interface AccountStatisticsData {
   recentAccounts: number;
   activeAccounts: number;
-  mostCommonIndustry: string;
-  mostCommonLegalForm: string;
   totalAccountsThisYear: number;
   totalRevenue: number;
-  averageEmployees: number;
 }
 
 // Query to get recent accounts count (past two weeks)
@@ -46,45 +43,7 @@ export const GET_ACTIVE_ACCOUNTS_COUNT = `
   }
 `;
 
-// Query to get most common industry in recent accounts
-export const GET_MOST_COMMON_INDUSTRY = `
-  query GetMostCommonIndustry($twoWeeksAgo: timestamptz!, $sourceApp: String) {
-    Account(
-      where: {
-        createdAt: {_gte: $twoWeeksAgo}, 
-        industryRef: {_isNull: false},
-        sourceApp: {_eq: $sourceApp},
-        isDeleted: {_eq: false}
-      }
-    ) {
-      industry {
-        value
-        code
-      }
-      industryRef
-    }
-  }
-`;
 
-// Query to get most common legal form in recent accounts
-export const GET_MOST_COMMON_LEGAL_FORM = `
-  query GetMostCommonLegalForm($twoWeeksAgo: timestamptz!, $sourceApp: String) {
-    Account(
-      where: {
-        createdAt: {_gte: $twoWeeksAgo}, 
-        legalFormRef: {_isNull: false},
-        sourceApp: {_eq: $sourceApp},
-        isDeleted: {_eq: false}
-      }
-    ) {
-      legalForm {
-        value
-        code
-      }
-      legalFormRef
-    }
-  }
-`;
 
 // Query to get total accounts count for this year
 export const GET_TOTAL_ACCOUNTS_THIS_YEAR_COUNT = `
@@ -148,81 +107,7 @@ export const useAccountStatisticsQueries = (context: UseAccountStatisticsQueries
     }
   }, [graphqlClient, sourceApp]);
 
-  const fetchMostCommonIndustry = useCallback(async (): Promise<string> => {
-    try {
-      const now = new Date();
-      const twoWeeksAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)).toISOString();
-      
-      const result = await graphqlClient.request<{
-        Account: Array<{ 
-          industry: { value: string; code: string } | null;
-          industryRef: string | null;
-        }>
-      }>(GET_MOST_COMMON_INDUSTRY, { twoWeeksAgo, sourceApp });
 
-      // Count occurrences of each industry
-      const industryCounts: Record<string, number> = {};
-      result.Account.forEach(account => {
-        const industry = account.industry?.value;
-        if (industry) {
-          industryCounts[industry] = (industryCounts[industry] || 0) + 1;
-        }
-      });
-
-      // Find the most common industry
-      let mostCommon = 'N/A';
-      let maxCount = 0;
-      Object.entries(industryCounts).forEach(([industry, count]) => {
-        if (count > maxCount) {
-          maxCount = count;
-          mostCommon = industry;
-        }
-      });
-
-      return mostCommon;
-    } catch (error) {
-      console.error('Error fetching most common industry:', error);
-      return 'N/A';
-    }
-  }, [graphqlClient, sourceApp]);
-
-  const fetchMostCommonLegalForm = useCallback(async (): Promise<string> => {
-    try {
-      const now = new Date();
-      const twoWeeksAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)).toISOString();
-      
-      const result = await graphqlClient.request<{
-        Account: Array<{ 
-          legalForm: { value: string; code: string } | null;
-          legalFormRef: string | null;
-        }>
-      }>(GET_MOST_COMMON_LEGAL_FORM, { twoWeeksAgo, sourceApp });
-
-      // Count occurrences of each legal form
-      const legalFormCounts: Record<string, number> = {};
-      result.Account.forEach(account => {
-        const legalForm = account.legalForm?.value;
-        if (legalForm) {
-          legalFormCounts[legalForm] = (legalFormCounts[legalForm] || 0) + 1;
-        }
-      });
-
-      // Find the most common legal form
-      let mostCommon = 'N/A';
-      let maxCount = 0;
-      Object.entries(legalFormCounts).forEach(([form, count]) => {
-        if (count > maxCount) {
-          maxCount = count;
-          mostCommon = form;
-        }
-      });
-
-      return mostCommon;
-    } catch (error) {
-      console.error('Error fetching most common legal form:', error);
-      return 'N/A';
-    }
-  }, [graphqlClient, sourceApp]);
 
   const fetchTotalAccountsThisYear = useCallback(async (): Promise<number> => {
     try {
@@ -265,8 +150,6 @@ export const useAccountStatisticsQueries = (context: UseAccountStatisticsQueries
   return {
     fetchRecentAccounts,
     fetchActiveAccounts,
-    fetchMostCommonIndustry,
-    fetchMostCommonLegalForm,
     fetchTotalAccountsThisYear,
     fetchTotalRevenueEstimate
   };
