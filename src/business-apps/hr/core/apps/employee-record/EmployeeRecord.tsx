@@ -177,6 +177,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   
   // Add event listener to refresh data after process completion (e.g., when using AppActionButtons)
   useEffect(() => {
+    console.log('inside useEffect')
     // Define the event handler
     const handleProcessCompletion = (event: Event) => {
       console.log("🚀 ~ handleProcessCompletion ~ handleProcessCompletion:", handleProcessCompletion)
