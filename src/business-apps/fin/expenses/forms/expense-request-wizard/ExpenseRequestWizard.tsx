@@ -36,21 +36,65 @@ interface ExpenseRequestWizardContentProps extends BusinessAppContextProps {
  * @returns Expense Request Wizard Content component
  */
 const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = ({ onCancel, accessToken, userInfo }) => {
-  const { loading, expenseRuleError, expenseRequestData, currentTitle, setCurrentTitle, isTripFormValid } = useExpenseRequestWizardContext();
+  const { loading, expenseRuleError, expenseRequestData, currentTitle, setCurrentTitle, isTripFormValid, currentCurrency, setCurrentCurrency } = useExpenseRequestWizardContext();
   const [currentScreen, setCurrentScreen] = useState<string>(SCREEN_NAMES_ENUM.ITEMS_TAB);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [titleValue, setTitleValue] = useState<string>('');
   const [titleError, setTitleError] = useState<string>('');
+  const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false);
 
   // Get request type (trip or expense)
-  const isTrip = expenseRequestData?.ExpenseRequestByPk?.requestTypeRef?.toLowerCase().includes('trip');
+  const isTrip = !expenseRequestData?.ExpenseRequestByPk?.requestTypeRef?.toLowerCase().includes('trip');
 
   // Initialize title value when data is loaded
   useEffect(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {
+      setCurrentTitle(expenseRequestData.ExpenseRequestByPk.title || '');
       setTitleValue(expenseRequestData.ExpenseRequestByPk.title || '');
     }
-  }, [expenseRequestData]);
+  }, [expenseRequestData, setCurrentTitle]);
+
+  // State for tracking selected items count for the footer
+  const [selectedItemCount, setSelectedItemCount] = useState<number>(0);
+  
+  // Update currency based on expense request or first item
+  useEffect(() => {
+    if (expenseRequestData?.ExpenseRequestByPk?.currencyRef) {
+      // Use the expense request currency if available
+      setCurrentCurrency(expenseRequestData.ExpenseRequestByPk.currencyRef);
+    } else if (expenseRequestData?.ExpenseItem && expenseRequestData.ExpenseItem.length > 0) {
+      // Otherwise use the first item's currency
+      const firstItem = expenseRequestData.ExpenseItem[0];
+      if (firstItem && firstItem.currencyRef) {
+        setCurrentCurrency(firstItem.currencyRef);
+      } else {
+        setCurrentCurrency(null);
+      }
+    } else {
+      // If no items, set to null
+      setCurrentCurrency(null);
+    }
+  }, [expenseRequestData?.ExpenseRequestByPk?.currencyRef, expenseRequestData?.ExpenseItem, setCurrentCurrency]);
+  
+  // Listen for custom footer events
+  useEffect(() => {
+    const handleFooterUpdate = (event: any) => {
+      if (event.detail) {
+        if (typeof event.detail.showCustomFooter === 'boolean') {
+          setShowCustomFooter(event.detail.showCustomFooter);
+        }
+        if (typeof event.detail.selectedItemCount === 'number') {
+          setSelectedItemCount(event.detail.selectedItemCount);
+        }
+      }
+    };
+    
+    document.addEventListener('expense-wizard-update-footer', handleFooterUpdate);
+    
+    return () => {
+      document.removeEventListener('expense-wizard-update-footer', handleFooterUpdate);
+    };
+  }, []);
 
   // Title validation functions
   const validateTitle = (value: string): string => {
@@ -350,58 +394,101 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
       <div className="gba:footerContainer" data-testid="expense-request-wizard-footer">
         <hr className="gba:divider" data-testid="expense-request-wizard-bottom-divider" />
         <div className="gba:actionButtonsContainer" data-testid="expense-request-wizard-actions">
-          <Button 
-            variant="outline" 
-            className="gba:cancelButton" 
-            data-testid="expense-request-wizard-cancel-button"
-            onClick={onCancel}
-          >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.cancel_items_button', 'Cancel')}
-          </Button>
-          <div className="gba:rightButtonsContainer">
-            <Button 
-              variant="outline" 
-              className="gba:submitButton" 
-              data-testid="expense-request-wizard-save-button"
-              onClick={() => {
-                // If we're on the trip screen, the TripScreen component will handle the save
-                // through its own handleSave method which is connected to the context
-                if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
-                  // Dispatch a custom event that TripScreen will listen for
-                  const saveEvent = new CustomEvent('expense-request-save-trip');
-                  document.dispatchEvent(saveEvent);
-                } else {
-                  // Handle save click for current screen
-                }
-              }}
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.save_button', 'Save')}
-            </Button>
+          {showCustomFooter ? (
+            <>
               <Button 
-                variant="primary" 
-                className="gba:submitButton" 
-                data-testid="expense-request-wizard-next-button"
-                disabled ={currentScreen !== SCREEN_NAMES_ENUM.TRIPS_TAB ? false : (!isTripFormValid)}
+                variant="outline" 
+                className="gba:cancelButton" 
+                data-testid="expense-request-wizard-cancel-selection-button"
                 onClick={() => {
-                  // If we're on the trip screen, the TripScreen component will handle the save
-                  // through its own handleSave method which is connected to the context
-                  if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
-                    // Dispatch a custom event that TripScreen will listen for
-                    const nextEvent = new CustomEvent('expense-request-next-trip');
-                    document.dispatchEvent(nextEvent);
-                    navigateToNextScreen()
-                  } else {
-                    // Handle save click for current screen
-                    navigateToNextScreen()
-                  }
+                  // Dispatch a custom event that ItemsScreen will listen for
+                  const cancelEvent = new CustomEvent('expense-items-cancel-selection');
+                  document.dispatchEvent(cancelEvent);
                 }}
               >
-                {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
-                  ? getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request.btn_cancel', 'Cancel')}
+              </Button>
+              <div className="gba:rightButtonsContainer">
+                <Button 
+                  variant="primary" 
+                  className="gba:submitButton" 
+                  data-testid="expense-request-wizard-confirm-selection-button"
+                  disabled={selectedItemCount === 0}
+                  onClick={() => {
+                    // Dispatch a custom event that ItemsScreen will listen for
+                    const confirmEvent = new CustomEvent('expense-items-confirm-selection');
+                    document.dispatchEvent(confirmEvent);
+                  }}
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_items_submit', 'Confirm')}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <Button 
+                variant="outline" 
+                className="gba:cancelButton" 
+                data-testid="expense-request-wizard-cancel-button"
+                onClick={onCancel}
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.cancel_items_button', 'Cancel')}
+              </Button>
+              <div className="gba:rightButtonsContainer">
+                <Button 
+                  variant="outline" 
+                  className="gba:submitButton" 
+                  data-testid="expense-request-wizard-save-button"
+                  onClick={() => {
+                    // If we're on the trip screen, the TripScreen component will handle the save
+                    // through its own handleSave method which is connected to the context
+                    if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
+                      // Dispatch a custom event that TripScreen will listen for
+                      const saveEvent = new CustomEvent('expense-request-save-trip');
+                      document.dispatchEvent(saveEvent);
+                    } else if (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB) {
+                      // Dispatch a custom event that ItemsScreen will listen for
+                      const saveEvent = new CustomEvent('expense-request-save-items');
+                      document.dispatchEvent(saveEvent);
+                    } else {
+                      // Handle save click for current screen
+                    }
+                  }}
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.save_button', 'Save')}
+                </Button>
+                <Button 
+                  variant="primary" 
+                  className="gba:submitButton" 
+                  data-testid="expense-request-wizard-next-button"
+                  disabled={currentScreen !== SCREEN_NAMES_ENUM.TRIPS_TAB ? false : (!isTripFormValid)}
+                  onClick={() => {
+                    // If we're on the trip screen, the TripScreen component will handle the save
+                    // through its own handleSave method which is connected to the context
+                    if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
+                      // Dispatch a custom event that TripScreen will listen for
+                      const nextEvent = new CustomEvent('expense-request-next-trip');
+                      document.dispatchEvent(nextEvent);
+                      navigateToNextScreen()
+                    } else if (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB) {
+                      // Dispatch a custom event that ItemsScreen will listen for
+                      const nextEvent = new CustomEvent('expense-request-next-items');
+                      document.dispatchEvent(nextEvent);
+                      navigateToNextScreen()
+                    } else {
+                      // Handle save click for current screen
+                      navigateToNextScreen()
+                    }
+                  }}
+                >
+                  {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
+                    ? getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
                   : getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')
                 }
-              </Button>
-          </div>
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -414,7 +501,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
  * @returns Expense Request Wizard component
  */
 const ExpenseRequestWizard: React.FC<BusinessAppContextProps> = (props) => {
-  const { accessToken, userInfo, additionalData } = props;
+  const { accessToken, userInfo } = props;
   
   const handleCancel = () => {
     try {
@@ -430,15 +517,13 @@ const ExpenseRequestWizard: React.FC<BusinessAppContextProps> = (props) => {
   return (
     <ExpenseRequestWizardProvider 
       accessToken={accessToken} 
-      userInfo={userInfo} 
-      additionalData={additionalData}
+      userInfo={userInfo}
     >
       <div className="gba:expenseRequestWizardWrapper" data-testid="expense-request-wizard-wrapper">
         <ExpenseRequestWizardContent 
           onCancel={handleCancel} 
           accessToken={accessToken} 
-          userInfo={userInfo} 
-          additionalData={additionalData} 
+          userInfo={userInfo}
         />
       </div>
     </ExpenseRequestWizardProvider>
