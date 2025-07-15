@@ -20,7 +20,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@newwork/gravity-ui-catalog": "7.10.0",
-    "@newwork/nw-design-system": "^0.0.1-44",
+    "@newwork/nw-design-system": "^0.0.1-49",
     "@remixicon/react": "^4.6.0",
     "antd": "^5.25.1",
     "clsx": "^2.1.1",
