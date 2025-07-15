@@ -56,6 +56,22 @@ definitions:
         artifacts:
           - changed-tsx.txt
 
+    - step: &publish-changed-prod-screens
+          name: Publish Changed Production Screens
+          size: 2x
+          caches:
+            - nodecustom
+          services:
+            - docker
+          script:
+            - npm install @rollup/rollup-linux-x64-gnu || true
+            - npm rebuild rollup
+            - npm install lightningcss-linux-x64-gnu || true
+            - npm rebuild lightningcss
+            - node scripts/publish-prod-screens.js
+          artifacts:
+            - changed-tsx.txt
+
 pipelines:
   pull-requests:
     '**':
@@ -69,6 +85,10 @@ pipelines:
     hotfix/*:
       - step: *install_dependencies
       - step: *publish-changed-screens
+
+    master:
+      - step: *install_dependencies
+      - step: *publish-changed-prod-screens
 
   custom:
     dry-run:
