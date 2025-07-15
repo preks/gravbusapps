@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, ReactNode, useMemo } from 'rea
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import ExpensePlansTable from './ExpensePlansTable';
 import { useGetExpensePlans } from '../../../hooks/useGetExpensePlans';
+import { useGetExpensePlanStatistics } from '../../../hooks/useGetExpensePlanStatistics';
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters';
 import ExpensePlanStatistics from './ExpensePlanStatistics';
 
@@ -24,10 +25,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   getFilters
 } = useExpensePlanFilters();
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpensePlans(props);
-  const { items: allPlans, isLoading: statsLoading, error: statsError, fetchItems: fetchAllItems } = useGetExpensePlans(props);
+  const { statistics, isLoading: statsLoading, error: statsError, fetchStatistics } = useGetExpensePlanStatistics(props);
 
   useEffect(() => {
-    // Always use the latest filter state for fetching
     fetchItems(
       getFilters(),
       currentPage,
@@ -36,13 +36,22 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   }, [fetchItems, currentPage, pageSize, JSON.stringify(getFilters())]);
 
   useEffect(() => {
-    // Fetch all items with a high limit for statistics, ignoring filters
-    fetchAllItems({}, 1, 1000);
-  }, [fetchAllItems]);
+    fetchStatistics();
+  }, [fetchStatistics]);
 
   const contentHeader = useMemo(() => {
-    return <ExpensePlanStatistics plans={allPlans} statsLoading={statsLoading} statsError={statsError ? new Error(statsError) : null} />;
-  }, [allPlans, statsLoading, statsError]);
+    // We need to fetch all plans for the other statistics for now.
+    // TODO: Refactor other statistics to be server-side as well.
+    return <ExpensePlanStatistics 
+      plans={items} 
+      currentMonthTotal={statistics.currentMonthTotal} 
+      previousMonthTotal={statistics.previousMonthTotal} 
+      totalEstimated={statistics.totalEstimated} 
+      pendingApproval={statistics.pendingApproval} 
+      topDestination={statistics.topDestination} 
+      statsLoading={statsLoading} 
+      statsError={statsError ? new Error(statsError) : null} />;
+  }, [items, statistics, statsLoading, statsError]);
 
   useEffect(() => {
     if (props.onContentHeaderChange) {

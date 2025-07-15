@@ -5,6 +5,7 @@ import { getExpensePlanStatusDisplay } from '../../../utils';
 import ExpensePlanDetails from './ExpensePlanDetails';
 import { startProcess } from '@/common/utils/start-process';
 import { Spin, Alert, Typography } from 'antd';
+import { formatDate, formatNumberFunction } from '@/common/utils/windowUtils';
 import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
 import { FileTextOutlined } from '@ant-design/icons';
 import Pill from '@/components/pill/Pill';
@@ -13,13 +14,7 @@ import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 
 const { Text } = Typography;
 
-// Helper function to format currency values
-const formatCurrency = (value: number): string => {
-  if (typeof value !== 'number') {
-    return '-';
-  }
-  return value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
+
 
 export interface ExpensePlansTableProps extends BusinessAppContextProps {
   items: ExpensePlan[] | undefined;
@@ -123,13 +118,13 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             title: 'Start Date',
             dataIndex: 'startDate',
             key: 'startDate',
-            render: (date: string) => (date ? new Date(date).toLocaleDateString('en-GB') : '-'),
+            render: (date: string) => (date ? formatDate(date, 'date.long') : '-'),
           },
           {
             title: 'End Date',
             dataIndex: 'endDate',
             key: 'endDate',
-            render: (date: string) => (date ? new Date(date).toLocaleDateString('en-GB') : '-'),
+            render: (date: string) => (date ? formatDate(date, 'date.long') : '-'),
           },
           {
             title: 'Status',
@@ -146,8 +141,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             key: 'reimbursableAmount',
             align: 'right',
             render: (amount: number, record: ExpensePlan) => {
-              const currencySymbol = record.currency?.code === 'EUR' ? '€' : record.currency?.code ?? '$';
-              return `${currencySymbol}${formatCurrency(amount ?? 0)}`;
+              const currencyCode = record.currency?.code || '';
+              return `${formatNumberFunction(String(amount ?? '0'))} ${currencyCode}`;
             },
           },
           {
@@ -156,8 +151,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             key: 'advancePaymentPaidAmount',
             align: 'right',
             render: (amount: number, record: ExpensePlan) => {
-              const currencySymbol = record.currency?.code === 'EUR' ? '€' : record.currency?.code ?? '$';
-              return `${currencySymbol}${formatCurrency(amount ?? 0)}`;
+              const currencyCode = record.currency?.code || '';
+              return `${formatNumberFunction(String(amount ?? '0'))} ${currencyCode}`;
             },
           },
           {

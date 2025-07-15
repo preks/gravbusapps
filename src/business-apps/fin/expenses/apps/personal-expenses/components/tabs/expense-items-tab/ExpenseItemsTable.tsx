@@ -320,7 +320,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
             key: 'reimbursableAmount',
             sorter: (a: any, b: any) => (a.reimbursableAmount ?? 0) - (b.reimbursableAmount ?? 0),
             sortOrder: sortField === 'reimbursableAmount' ? sortOrder : null,
-            onCell: () => ({ className: 'gba:text-right gba:font-bold' }),
+            onCell: () => ({ className: 'gba:text-right' }),
             render: (amount: number, record: any) => {
   // Only use currency.code from the nested currency object from the query result
   const currency = record.currency?.code || '';

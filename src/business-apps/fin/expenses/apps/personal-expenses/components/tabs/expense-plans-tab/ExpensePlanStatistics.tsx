@@ -1,4 +1,6 @@
+import { formatNumberFunction } from '@/common/utils/windowUtils';
 import React, { useMemo } from 'react';
+import dayjs from 'dayjs';
 import { 
   FileTextOutlined, 
   DollarOutlined, 
@@ -9,66 +11,67 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 
 interface ExpensePlanStatisticsProps {
   plans: any[];
+  currentMonthTotal: number;
+  previousMonthTotal: number;
+  totalEstimated: number;
+  pendingApproval: number;
+  topDestination: string;
   statsLoading?: boolean;
   statsError?: Error | null;
   fetchPlanStatistics?: () => void;
 }
 
 const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({ 
-  plans,
+  currentMonthTotal,
+  previousMonthTotal,
+  totalEstimated,
+  pendingApproval,
+  topDestination,
   statsLoading = false,
   statsError = null,
   fetchPlanStatistics = () => {}
 }) => {
   // Calculate summary statistics with memoization
-  const totalPlans = useMemo(() => plans?.length ?? 0, [plans]);
-  
-  const totalEstimated = useMemo(() => 
-    plans?.reduce((sum, plan) => sum + (plan.totalAmount ?? 0), 0) ?? 0, 
-  [plans]);
-  
-  const pendingApproval = useMemo(() => 
-    plans?.filter(plan => plan.status === 'Submitted').length ?? 0, 
-  [plans]);
-  
-  // Get unique destinations (for the top destinations card) with memoization
-  const uniqueDestinations = useMemo(() => {
-    const destinations = new Set<string>();
-    plans?.forEach(plan => {
-      // Try to get request type from the new field structure
-      if (plan.requestType?.value) {
-        destinations.add(plan.requestType.value);
-      } else {
-        // Fallback to additionalProperties if requestType is not available
-        const additionalProps = plan.additionalProperties as Record<string, any> | null;
-        const tripType = additionalProps?.tripType ?? additionalProps?.travelType ?? '';
-        if (tripType) destinations.add(tripType);
-      }
-    });
-    return destinations.size || 2; // Default to 2 if no destinations found (for UI display)
-  }, [plans]);
+  const currentMonthName = dayjs().format('MMMM');
+
+  const totalPlans = useMemo(() => currentMonthTotal, [currentMonthTotal]);
+
+  const percentageChange = useMemo(() => {
+    if (previousMonthTotal === 0) {
+      return currentMonthTotal > 0 ? 100 : 0;
+    }
+    return ((currentMonthTotal - previousMonthTotal) / previousMonthTotal) * 100;
+  }, [currentMonthTotal, previousMonthTotal]);
+
+  const description = useMemo(() => {
+    if (previousMonthTotal === 0 && currentMonthTotal > 0) {
+      return 'New activity this month';
+    }
+    if (percentageChange === 0) {
+      return 'No change from last month';
+    }
+    const sign = percentageChange > 0 ? '+' : '';
+    return `${sign}${percentageChange.toFixed(0)}% from last month`;
+  }, [percentageChange, currentMonthTotal, previousMonthTotal]);
 
   // Transform the stats data into widgets format
   const widgets: WidgetItem[] = [
     {
       key: 'total-plans',
-      title: 'Total Plans',
+      title: `Total Plans for ${currentMonthName}`,
       value: totalPlans,
       prefix: <FileTextOutlined />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 6 },
-      description: '+15% from last month'
+      description: description
     },
     {
       key: 'total-estimated',
-      title: 'Total Estimated',
-      value: totalEstimated,
+      title: `Total Estimated for ${currentMonthName}`,
+      value: `${formatNumberFunction(String(totalEstimated ?? '0'))} €`,
       prefix: <DollarOutlined />,
-      suffix: '€',
       color: '#3f8600',
-      precision: 2,
       span: { xs: 24, sm: 12, md: 6 },
-      description: 'Across all plans'
     },
     {
       key: 'pending-approval',
@@ -81,12 +84,12 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
     },
     {
       key: 'top-destinations',
-      title: 'Top Destinations',
-      value: uniqueDestinations,
+      title: 'Top Destination',
+      value: topDestination,
       prefix: <CompassOutlined />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, md: 6 },
-      description: 'Unique locations'
+      description: 'Most frequent'
     }
   ];
 

@@ -165,15 +165,57 @@ export const GET_EXPENSE_PLAN_BY_ID = `
 `;
 
 export const GET_EXPENSE_PLAN_STATISTICS = `
-  query GetExpensePlanStatistics($employeeId: uuid!) {
+  query GetExpensePlanStatistics($employeeId: uuid!, $startDate: timestamptz!, $endDate: timestamptz!, $activeUserLocale: String!) {
     ExpensePlanAggregate(
       where: {
         employeeId: {_eq: $employeeId},
-        isDeleted: {_eq: false}
+        isDeleted: {_eq: false},
+        createdAt: {_gte: $startDate, _lte: $endDate}
       }
     ) {
       aggregate {
         count
+      }
+    }
+    TotalEstimated: ExpensePlanAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        createdAt: {_gte: $startDate, _lte: $endDate},
+        status: {_nin: ["DRAFT", "PAID", "CLOSED"]}
+      }
+    ) {
+      aggregate {
+        sum {
+          totalAmount
+        }
+      }
+    }
+    PendingApproval: ExpensePlanAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_eq: "PENDING"}
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    Destinations: ExpensePlan(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        expenseRequestTrip: {pointType: {_eq: "DESTINATION_POINT"}}
+      }
+    ) {
+      expenseRequestTrip(orderBy: {tripDateTime: ASC}, where: {isDeleted: {_eq: false}, pointType: {_eq: "DESTINATION_POINT"}}) {
+        travelRegion {
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            value
+          }
+          value
+        }
       }
     }
   }
