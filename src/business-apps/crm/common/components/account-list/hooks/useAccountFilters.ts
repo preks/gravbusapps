@@ -15,6 +15,7 @@ export interface AccountFilters {
   filterLabelMap: Record<string, string>;
   addFilter: (filterId: string) => void;
   removeFilter: (filterId: string) => void;
+  clearAllFilters: () => void;
   getFilters: () => any;
   createdAfter?: string;
   createdBefore?: string;
@@ -74,6 +75,10 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
     setSelectedFilters(prev => prev.filter(id => id !== filterId));
   }, []);
 
+  const clearAllFilters = useCallback(() => {
+    setSelectedFilters([]);
+  }, []);
+
   const handleDateRangeChange = useCallback((after?: string, before?: string) => {
     setCreatedAfter(after);
     setCreatedBefore(before);
@@ -122,6 +127,7 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
     filterLabelMap,
     addFilter,
     removeFilter,
+    clearAllFilters,
     getFilters,
     createdAfter,
     createdBefore,

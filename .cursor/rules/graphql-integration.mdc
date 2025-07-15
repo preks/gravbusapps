@@ -5,6 +5,8 @@ alwaysApply: true
 ---
 # GraphQL Integration Pattern
 
+**ALWAYS** use Graphql MCP tool to make sure the graphql queries are corect.
+
 When working with GraphQL APIs in business apps:
 
 - Use `useGraphQLClient()` from `src/common/network/graphql/useGraphQLClient.ts`

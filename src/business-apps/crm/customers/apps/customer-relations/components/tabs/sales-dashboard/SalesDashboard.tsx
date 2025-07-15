@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Typography, Tabs, Spin, Alert, Button } from 'antd';
-import { ReloadOutlined, DashboardOutlined, BarChartOutlined, PieChartOutlined } from '@ant-design/icons';
+import { DashboardOutlined, BarChartOutlined, PieChartOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 import { PageLayout } from '@/components/layout/pageLayout';
@@ -27,10 +27,6 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = (context) => {
     error,
     refetch
   } = useSalesDashboard(context, dateRange);
-
-  const handleRefresh = () => {
-    refetch();
-  };
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
@@ -65,7 +61,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = (context) => {
             type="error"
             showIcon
             action={
-              <Button size="small" onClick={handleRefresh} type="primary">
+              <Button size="small" onClick={refetch} type="primary">
                 Retry
               </Button>
             }
@@ -116,26 +112,6 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = (context) => {
       <PageLayout
         headerIcon={<DashboardOutlined />}
         headerLabel="Sales Dashboard"
-        pageHeaderRight={
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:text-right gba:text-gray-600 gba:text-sm gba:hidden sm:gba:block">
-              <div>Last updated</div>
-              <div className="gba:font-medium">
-                {new Date().toLocaleTimeString()}
-              </div>
-            </div>
-            <Button
-              data-testid="sales-dashboard-refresh"
-              type="primary"
-              icon={<ReloadOutlined />}
-              onClick={handleRefresh}
-              loading={isLoading}
-            >
-              <span className="gba:hidden sm:gba:inline">Refresh</span>
-            </Button>
-          </div>
-        }
-
         contentContainer={
           <div className="gba:h-full gba:overflow-hidden">
             <Tabs

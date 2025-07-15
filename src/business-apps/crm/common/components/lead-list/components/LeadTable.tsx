@@ -9,6 +9,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Lead } from '../types';
 import dayjs from 'dayjs';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 interface LeadTableProps {
   leads: Lead[];
@@ -22,10 +23,10 @@ interface LeadTableProps {
   currentPage: number;
   pageSize: number;
   sortField: string;
-  sortOrder: 'ASC' | 'DESC';
+  sortOrder: 'ASC' | 'DESC' | '';
   onSelectLead?: (lead: Lead) => void;
   onPaginationChange: (page: number, pageSize?: number) => void;
-  onSortingChange: (field: string, order: 'ASC' | 'DESC') => void;
+  onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void;
   selectedLeadId?: string;
   accessToken: string;
   sourceApp?: string;
@@ -100,36 +101,38 @@ export const LeadTable: React.FC<LeadTableProps> = ({
 
   // Get rating badge styling based on value
   const getRatingBadgeClass = (rating?: string) => {
-    if (!rating) return 'gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200';
+    const baseClasses = 'gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]';
+    if (!rating) return `${baseClasses} gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200`;
     switch (rating.toLowerCase()) {
       case 'cold':
-        return 'gba:!bg-blue-100 gba:!text-blue-700 gba:!border-blue-200';
+        return `${baseClasses} gba:!bg-blue-100 gba:!text-blue-700 gba:!border-blue-200`;
       case 'warm':
-        return 'gba:!bg-orange-100 gba:!text-orange-700 gba:!border-orange-200';
+        return `${baseClasses} gba:!bg-orange-100 gba:!text-orange-700 gba:!border-orange-200`;
       case 'hot':
-        return 'gba:!bg-red-100 gba:!text-red-700 gba:!border-red-200';
+        return `${baseClasses} gba:!bg-red-100 gba:!text-red-700 gba:!border-red-200`;
       default:
-        return 'gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200';
+        return `${baseClasses} gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200`;
     }
   };
 
   // Get lead status badge styling
   const getStatusBadgeClass = (status?: string) => {
-    if (!status) return 'gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200';
+    const baseClasses = 'gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]';
+    if (!status) return `${baseClasses} gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200`;
     switch (status.toLowerCase()) {
       case 'new':
       case 'open':
-        return 'gba:!bg-blue-100 gba:!text-blue-700 gba:!border-blue-200';
+        return `${baseClasses} gba:!bg-blue-100 gba:!text-blue-700 gba:!border-blue-200`;
       case 'qualified':
       case 'contacted':
-        return 'gba:!bg-green-100 gba:!text-green-700 gba:!border-green-200';
+        return `${baseClasses} gba:!bg-green-100 gba:!text-green-700 gba:!border-green-200`;
       case 'unqualified':
       case 'lost':
-        return 'gba:!bg-red-100 gba:!text-red-700 gba:!border-red-200';
+        return `${baseClasses} gba:!bg-red-100 gba:!text-red-700 gba:!border-red-200`;
       case 'converted':
-        return 'gba:!bg-green-100 gba:!text-green-700 gba:!border-green-200';
+        return `${baseClasses} gba:!bg-green-100 gba:!text-green-700 gba:!border-green-200`;
       default:
-        return 'gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200';
+        return `${baseClasses} gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200`;
     }
   };
 
@@ -162,25 +165,18 @@ export const LeadTable: React.FC<LeadTableProps> = ({
       if (field !== sortField || order !== sortOrder) {
         onSortingChange(field, order);
       }
-    } else  {
-      // Sort order is null - this means cancel sorting
-      // Reset to default sorting (createdAt DESC)
-      if (sortField !== 'createdAt' || sortOrder !== 'DESC') {
-        onSortingChange('createdAt', 'DESC');
+    } else {
+      // Sort order is null - clear sorting (3-state behavior)
+      if (sortField !== '' || sortOrder !== '') {
+        onSortingChange('', '');
       }
     }
   };
 
   // Helper function to determine if a column should show sorting indicator
-  // Only show indicator if user has explicitly sorted (not default createdAt DESC)
   const getSortOrder = (columnField: string) => {
-    // If this is the default state (createdAt DESC), don't show any indicators
-    if (sortField === 'createdAt' && sortOrder === 'DESC' && columnField === 'createdAt') {
-      return false;
-    }
-    
-    // Show indicator only if this column is currently being sorted
-    if (sortField === columnField) {
+    // Show indicator only if this column is currently being sorted and we're not in the cleared state
+    if (sortField === columnField && sortOrder !== '') {
       return sortOrder === 'ASC' ? 'ascend' : 'descend';
     }
     
@@ -364,7 +360,8 @@ export const LeadTable: React.FC<LeadTableProps> = ({
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              window.open(`/platform/crm/lead-record?leadId=${record.id}`, '_blank');
+              const url = buildPlatformUrl('/platform/crm/lead-record', { leadId: record.id });
+              navigateTo(url);
             }}
             data-testid={`${DATA_TEST_ID_PREFIX}-view-lead-button-${record.id}`}
           >
@@ -430,13 +427,13 @@ export const LeadTable: React.FC<LeadTableProps> = ({
           pageSizeOptions: ['10', '20', '50', '100'],
         }}
         sorter={
-          // Only set sorter if it's not the default createdAt DESC sorting
-          sortField === 'createdAt' && sortOrder === 'DESC' 
-            ? undefined 
-            : {
+          // Only set sorter if we have an active sort field and order
+          sortField && sortOrder 
+            ? {
                 field: sortField,
                 order: sortOrder === 'ASC' ? 'ascend' : 'descend'
               }
+            : undefined
         }
         onChange={handleTableChange}
         onSorterChange={handleSorterChange}

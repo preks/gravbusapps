@@ -1,0 +1,93 @@
+import { useState, useEffect } from 'react';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+
+interface EmployeeAbsence {
+  id: string;
+  startDate: string;
+  endDate: string;
+  calendarDays: number;
+  effectiveDays: number;
+  status: string;
+  type: {
+    value: string;
+  };
+}
+
+const getEmployeeUpcomingAbsence = `
+  query GetEmployeeUpcomingAbsence($employeeId: uuid!) {
+    EmployeeAbsence(
+      where: {
+        employee: {
+          id: { _eq: $employeeId }
+        },
+        startDate: { _gte: "${new Date().toISOString().split('T')[0]}" }
+      },
+      limit: 1
+    ) {
+      id
+      startDate
+      endDate
+      calendarDays
+      effectiveDays
+      status
+      type {
+        value
+      }
+    }
+  }
+`;
+
+export const useEmployeeUpcomingAbsence = (accessToken: string, employeeId: string) => {
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [upcomingAbsence, setUpcomingAbsence] = useState<EmployeeAbsence | null>(null);
+
+  const graphqlClient = useGraphqlClient(accessToken);
+
+  useEffect(() => {
+    const fetchUpcomingAbsence = async () => {
+      if (!accessToken || !employeeId) return;
+
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const variables = {
+          employeeId
+        };
+
+        const response = await graphqlClient.request(
+          getEmployeeUpcomingAbsence,
+          variables
+        );
+        
+        // Check if we have data and sort by startDate to get the most immediate upcoming absence
+        if (response?.EmployeeAbsence && response.EmployeeAbsence.length > 0) {
+          // If we have multiple absences, sort them by startDate (ascending)
+          if (response.EmployeeAbsence.length > 1) {
+            response.EmployeeAbsence.sort((a: EmployeeAbsence, b: EmployeeAbsence) => {
+              return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+            });
+          }
+          setUpcomingAbsence(response.EmployeeAbsence[0]);
+        } else {
+          setUpcomingAbsence(null);
+        }
+      } catch (err) {
+        console.error('Error fetching upcoming absence:', err);
+        setError('Failed to fetch upcoming absence');
+        setUpcomingAbsence(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUpcomingAbsence();
+  }, [accessToken, employeeId, graphqlClient]);
+
+  return {
+    loading,
+    error,
+    upcomingAbsence
+  };
+};

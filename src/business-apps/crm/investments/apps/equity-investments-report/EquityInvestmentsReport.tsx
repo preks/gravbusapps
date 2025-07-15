@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Tag, Button, Space, Alert, Spin, Typography, Tabs } from 'antd';
-import { PlusOutlined, ReloadOutlined, DollarOutlined, BuildOutlined, LineChartOutlined, TeamOutlined, BarChartOutlined, PieChartOutlined, RiseOutlined, FundOutlined } from '@ant-design/icons';
+import { PlusOutlined, DollarOutlined, BuildOutlined, LineChartOutlined, TeamOutlined, BarChartOutlined, PieChartOutlined, RiseOutlined, FundOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -100,14 +100,6 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
           <Tag color="purple">{equityInvestments.length} {getTranslationFromI18nKeyAndLabel('equity.investments.items', 'equity investments')}</Tag>
         </div>
         <Space>
-          <Button
-            data-testid={formatDataTestId(prefixDataTestId, 'RefreshButton')}
-            type="default"
-            icon={<ReloadOutlined />}
-            onClick={() => refetch()}
-          >
-            {getTranslationFromI18nKeyAndLabel('button.refresh', 'Refresh')}
-          </Button>
           <Button
             data-testid={formatDataTestId(prefixDataTestId, 'AddButton')}
             type="primary"

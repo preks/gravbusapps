@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { DataTable, Avatar, Tag } from '@newwork/gravity-ui-catalog';
 import { PiUser, PiCurrencyDollar, PiTarget, PiFunnel, PiCalendar, PiBuilding } from 'react-icons/pi';
 import { Opportunity } from '../types';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 export interface OpportunityTableProps {
   data: Opportunity[];
@@ -15,10 +16,10 @@ export interface OpportunityTableProps {
   currentPage: number;
   pageSize: number;
   sortField: string;
-  sortOrder: 'ASC' | 'DESC';
+  sortOrder: 'ASC' | 'DESC' | '';
   onSelectOpportunity?: (opportunity: Opportunity) => void;
   onPaginationChange: (page: number, pageSize?: number) => void;
-  onSortingChange: (field: string, order: 'ASC' | 'DESC') => void;
+  onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void;
   selectedOpportunityId?: string;
   accessToken: string;
 }
@@ -81,10 +82,8 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
 
   // Get sort order for column
   const getSortOrder = (columnField: string): any => {
-    if (sortField === 'createdAt' && sortOrder === 'DESC' && columnField === 'createdAt') {
-      return false;
-    }
-    if (sortField === columnField) {
+    // Show indicator only if this column is currently being sorted and we're not in the cleared state
+    if (sortField === columnField && sortOrder !== '') {
       return sortOrder === 'ASC' ? 'ascend' : 'descend';
     }
     return false;
@@ -92,6 +91,11 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
 
   // Handle row click
   const handleRowClick = useCallback((record: Opportunity) => {
+    // Navigate to opportunity record page
+    const url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: record.id });
+    navigateTo(url);
+    
+    // Also call the selection callback if provided
     onSelectOpportunity?.(record);
   }, [onSelectOpportunity]);
 
@@ -115,8 +119,9 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
         onSortingChange(field, order);
       }
     } else {
-      if (sortField !== 'createdAt' || sortOrder !== 'DESC') {
-        onSortingChange('createdAt', 'DESC');
+      // Sort order is null - clear sorting (3-state behavior)
+      if (sortField !== '' || sortOrder !== '') {
+        onSortingChange('', '');
       }
     }
   };
@@ -168,7 +173,10 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
       width: '12%',
       align: 'center',
       render: (_: any, record: Opportunity) => (
-        <Tag color={getWinRateColor(record.winningChance)}>
+        <Tag 
+          color={getWinRateColor(record.winningChance)}
+          className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]"
+        >
           {record.winningChance ? `${record.winningChance}%` : '0%'}
         </Tag>
       )
@@ -181,7 +189,10 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
       sortOrder: getSortOrder('stage'),
       width: '15%',
       render: (_: any, record: Opportunity) => (
-        <Tag color={getStageColor(record.stage)}>
+        <Tag 
+          color={getStageColor(record.stage)}
+          className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]"
+        >
           {record.stage || 'Unknown'}
         </Tag>
       )
@@ -237,7 +248,20 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
       loading={loading}
       onChange={handleTableChange}
       onSorterChange={handleSorterChange}
-      onRowClick={handleRowClick}
+      onRow={(record) => ({
+        onClick: () => handleRowClick(record as Opportunity),
+        className: selectedOpportunityId === (record as Opportunity).id ? 'gba:bg-blue-50' : '',
+        style: { cursor: 'pointer' }
+      })}
+      sorter={
+        // Only set sorter if we have an active sort field and order
+        sortField && sortOrder 
+          ? {
+              field: sortField,
+              order: sortOrder === 'ASC' ? 'ascend' : 'descend'
+            }
+          : undefined
+      }
       pagination={{
         current: currentPage,
         pageSize,

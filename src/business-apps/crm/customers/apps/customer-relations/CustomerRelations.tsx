@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, Button, Spin, Alert } from 'antd';
-import { ToggleGroup, ToggleGroupItem } from '@newwork/nw-design-system';
-import { 
-  DashboardOutlined, 
-  ReloadOutlined, 
-  ShoppingCartOutlined,
+import { ToggleGroup, ToggleGroupItem, PageLayout } from '@newwork/nw-design-system';
+import {
+  DashboardOutlined,
+  ReloadOutlined,
   BarChartOutlined,
   UserOutlined,
   PieChartOutlined,
@@ -15,8 +14,8 @@ import {
   AppstoreOutlined,
   UnorderedListOutlined
 } from '@ant-design/icons';
+import { Handshake } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { PageLayout } from '@/components/layout/pageLayout';
 import { OverviewTab } from './components/tabs/sales-dashboard/components/OverviewTab';
 import { PipelineDetailsTab } from './components/tabs/sales-dashboard/components/PipelineDetailsTab';
 import { useSalesDashboard } from './components/tabs/sales-dashboard/hooks/useSalesDashboard';
@@ -30,10 +29,10 @@ import { Account } from '@/business-apps/crm/common/components/account-list/type
 import { Contact } from '@/business-apps/crm/common/components/contact-list/types';
 import { Opportunity } from '@/business-apps/crm/common/components/opportunity-list/types';
 
-export interface CustomerRelationsProps extends BusinessAppContextProps {}
+export interface CustomerRelationsProps extends BusinessAppContextProps { }
 
 export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => {
-  const tabOptions = [
+  const viewOptions = [
     {
       key: 'dashboard',
       icon: <DashboardOutlined />,
@@ -65,14 +64,14 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
   const getInitialView = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const viewFromUrl = urlParams.get('view');
-    
+
     // Validate that the view exists in our options
-    if (viewFromUrl && tabOptions.some(option => option.key === viewFromUrl)) {
+    if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
       return viewFromUrl;
     }
-    
+
     // Default to first view
-    return tabOptions[0].key;
+    return viewOptions[0].key;
   };
 
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
@@ -88,17 +87,13 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
     refetch
   } = useSalesDashboard(context, dateRange);
 
-  const handleRefresh = () => {
-    refetch();
-  };
-
   // Update URL when view changes
   const updateUrl = (view: string) => {
     const urlParams = new URLSearchParams(window.location.search);
-    
+
     // Always set the view parameter (including for default)
     urlParams.set('view', view);
-    
+
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
     window.history.replaceState({}, '', newUrl);
   };
@@ -283,55 +278,29 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
   return (
     <div data-testid="customer-relations-app">
       <PageLayout
-        headerIcon={<ShoppingCartOutlined />}
-        headerLabel="Customer Relations"
-        pageHeaderCenter={
-          <ToggleGroup
-            type="single"
-            value={activeTab}
-            onValueChange={handleTabChange}
-            variant="outline"
-            size="xl"
-            data-testid="customer-relations-tabs"
-          >
-            {tabOptions.map((option) => (
-              <ToggleGroupItem
-                key={option.key}
-                value={option.key}
-                data-testid={`customer-relations-tab-${option.key}`}
-              >
-                {option.icon}
-                {option.label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        }
-        pageHeaderRight={
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:text-right gba:text-gray-600 gba:text-sm gba:hidden sm:gba:block">
-              <div>Last updated</div>
-              <div className="gba:font-medium">
-                {new Date().toLocaleTimeString()}
-              </div>
-            </div>
-            <Button
-              data-testid="customer-relations-refresh-button"
-              type="primary"
-              icon={<ReloadOutlined />}
-              onClick={handleRefresh}
-              loading={isLoading}
-            >
-              <span className="gba:hidden sm:gba:inline">Refresh</span>
-            </Button>
-          </div>
-        }
-        contentContainer={
-          <div className="gba:h-full gba:overflow-auto">
-            {renderTabContent()}
-          </div>
-        }
+        headerPhosphorIcon={{
+          icon: Handshake,
+          variant: "strategy",
+          size: "lg",
+          label: "Customer Relations"
+        }}
+        headerTitle="Customer Relations"
+        headerDescription="Manage customer relationships, track leads, accounts, contacts, and sales opportunities"
+        headerSubViews={{
+          value: activeTab,
+          onValueChange: handleTabChange,
+          items: viewOptions.map((option) => ({
+            value: option.key,
+            label: option.label,
+            icon: option.icon
+          }))
+        }}
         className="gba:min-h-screen"
-      />
+      >
+        <div className="gba:h-full gba:overflow-auto">
+          {renderTabContent()}
+        </div>
+      </PageLayout>
     </div>
   );
 };

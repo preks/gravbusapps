@@ -36,6 +36,16 @@ const AllInvestmentsTab: React.FC<AllInvestmentsTabProps> = (props) => {
     onSubTabChange?.(newSubTab);
   };
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  
+  // Debounce search term to avoid too many API calls
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
   
   const { 
     investments, 
@@ -44,7 +54,9 @@ const AllInvestmentsTab: React.FC<AllInvestmentsTabProps> = (props) => {
     isLoading, 
     error, 
     refetch 
-  } = useInvestmentDataIntegration(props);
+  } = useInvestmentDataIntegration(props, {
+    searchTerm: debouncedSearchTerm
+  });
 
   // Unified navigation function that uses actual investmentId
   const handleInvestmentClick = (investmentId: string) => {
@@ -52,11 +64,8 @@ const AllInvestmentsTab: React.FC<AllInvestmentsTabProps> = (props) => {
     onEquityRowClick(investmentId);
   };
 
-  // Filter investments based on search term
-  const filteredInvestments = investments.filter(investment =>
-    investment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    investment.subType.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // No more client-side filtering - data is already filtered by the query
+  const filteredInvestments = investments;
 
   // Get investments by type
   const equityInvestments = investments.filter(inv => inv.type === 'Equity');

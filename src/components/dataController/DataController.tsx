@@ -177,7 +177,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   const hasDateRangeFilter = dateRange && (dateRange.createdAfter || dateRange.createdBefore);
 
   return (
-    <div className="gba:w-full gba:bg-white">
+    <div className="gba:w-full gba:bg-white gba:px-2 gba:pt-4">
       <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:gap-2">
         {/* Left: Filter and Search */}
         <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:shrink-0">
@@ -258,7 +258,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
             {/* Add Button: match design, no frame, no background, icon left, label right */}
             {addButton && (
               <button
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:bg-black/[0.04] gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
+                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
                 onClick={addButton.onClick}
                 data-testid={addButton["data-testid"]}
                 type="button"
@@ -266,7 +266,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                 <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
                   {addButton.icon ?? <PlusSquareIcon />}
                 </span>
-                <span className="gba:w-[25px] gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
+                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
                   {addButton.label}
                 </span>
               </button>

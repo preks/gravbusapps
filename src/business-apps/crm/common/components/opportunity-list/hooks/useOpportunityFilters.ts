@@ -15,6 +15,7 @@ export interface OpportunityFilters {
   filterLabelMap: Record<string, string>;
   addFilter: (filterId: string) => void;
   removeFilter: (filterId: string) => void;
+  clearAllFilters: () => void;
   getFilters: () => any;
   createdAfter?: string;
   createdBefore?: string;
@@ -87,6 +88,10 @@ export const useOpportunityFilters = (context: BusinessAppContextProps): Opportu
     setSelectedFilters(prev => prev.filter(id => id !== filterId));
   }, []);
 
+  const clearAllFilters = useCallback(() => {
+    setSelectedFilters([]);
+  }, []);
+
   const handleDateRangeChange = useCallback((after?: string, before?: string) => {
     setCreatedAfter(after);
     setCreatedBefore(before);
@@ -138,6 +143,7 @@ export const useOpportunityFilters = (context: BusinessAppContextProps): Opportu
     filterLabelMap,
     addFilter,
     removeFilter,
+    clearAllFilters,
     getFilters,
     createdAfter,
     createdBefore,

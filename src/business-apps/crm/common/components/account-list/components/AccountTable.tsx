@@ -8,6 +8,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Account } from '../types';
 import dayjs from 'dayjs';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 interface AccountTableProps {
   accounts: Account[];
@@ -21,10 +22,10 @@ interface AccountTableProps {
   currentPage: number;
   pageSize: number;
   sortField: string;
-  sortOrder: 'ASC' | 'DESC';
+  sortOrder: 'ASC' | 'DESC' | '';
   onSelectAccount?: (account: Account) => void;
   onPaginationChange: (page: number, pageSize?: number) => void;
-  onSortingChange: (field: string, order: 'ASC' | 'DESC') => void;
+  onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void;
   selectedAccountId?: string;
   accessToken: string;
 }
@@ -131,25 +132,18 @@ export const AccountTable: React.FC<AccountTableProps> = ({
       if (field !== sortField || order !== sortOrder) {
         onSortingChange(field, order);
       }
-    } else  {
-      // Sort order is null - this means cancel sorting
-      // Reset to default sorting (createdAt DESC)
-      if (sortField !== 'createdAt' || sortOrder !== 'DESC') {
-        onSortingChange('createdAt', 'DESC');
+    } else {
+      // Sort order is null - clear sorting (3-state behavior)
+      if (sortField !== '' || sortOrder !== '') {
+        onSortingChange('', '');
       }
     }
   };
 
   // Helper function to determine if a column should show sorting indicator
-  // Only show indicator if user has explicitly sorted (not default createdAt DESC)
   const getSortOrder = (columnField: string) => {
-    // If this is the default state (createdAt DESC), don't show any indicators
-    if (sortField === 'createdAt' && sortOrder === 'DESC' && columnField === 'createdAt') {
-      return false;
-    }
-    
-    // Show indicator only if this column is currently being sorted
-    if (sortField === columnField) {
+    // Show indicator only if this column is currently being sorted and we're not in the cleared state
+    if (sortField === columnField && sortOrder !== '') {
       return sortOrder === 'ASC' ? 'ascend' : 'descend';
     }
     
@@ -285,7 +279,10 @@ export const AccountTable: React.FC<AccountTableProps> = ({
         const type = record.type?.value || '-';
         
         return (
-          <Tag color={getTypeColor(type)}>
+          <Tag 
+            color={getTypeColor(type)}
+            className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center"
+          >
             {type}
           </Tag>
         );
@@ -302,7 +299,10 @@ export const AccountTable: React.FC<AccountTableProps> = ({
         const industry = record.industry?.value || '-';
         
         return (
-          <Tag color={getIndustryColor(industry)}>
+          <Tag 
+            color={getIndustryColor(industry)}
+            className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center"
+          >
             {industry}
           </Tag>
         );
@@ -319,7 +319,8 @@ export const AccountTable: React.FC<AccountTableProps> = ({
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              window.open(`/platform/crm/account-record?accountId=${record.id}`, '_blank');
+              const url = buildPlatformUrl('/platform/crm/account-record', { accountId: record.id });
+              navigateTo(url);
             }}
             data-testid={`${DATA_TEST_ID_PREFIX}-view-account-button-${record.id}`}
           >
@@ -384,13 +385,13 @@ export const AccountTable: React.FC<AccountTableProps> = ({
           pageSizeOptions: ['10', '20', '50', '100'],
         }}
         sorter={
-          // Only set sorter if it's not the default createdAt DESC sorting
-          sortField === 'createdAt' && sortOrder === 'DESC' 
-            ? undefined 
-            : {
+          // Only set sorter if we have an active sort field and order
+          sortField && sortOrder 
+            ? {
                 field: sortField,
                 order: sortOrder === 'ASC' ? 'ascend' : 'descend'
               }
+            : undefined
         }
         onChange={handleTableChange}
         onSorterChange={handleSorterChange}

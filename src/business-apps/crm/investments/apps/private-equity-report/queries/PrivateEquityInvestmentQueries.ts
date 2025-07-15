@@ -2,9 +2,11 @@ import { useCallback } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PrivateEquityInvestmentQueryVariables, PrivateEquityInvestmentResponse } from '../types';
+import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits';
 
 const GET_PRIVATE_EQUITY_INVESTMENT_DATA = (variables: PrivateEquityInvestmentQueryVariables): string => {
   const { limit = 50, offset = 0, search, orderBy } = variables;
+  const safeLimit = enforceQueryLimit(limit);
   
   let whereClause = '';
   if (search) {
@@ -23,7 +25,7 @@ const GET_PRIVATE_EQUITY_INVESTMENT_DATA = (variables: PrivateEquityInvestmentQu
   return `
     query GetPrivateEquityInvestmentData {
       PrivateEquityInvestment(
-        limit: ${limit}
+        limit: ${safeLimit}
         offset: ${offset}
         orderBy: ${orderByClause}
         ${whereClause}

@@ -119,6 +119,7 @@ export const GET_ACCOUNTS_DATA = `
         id
         lastName
         firstName
+        pictureThumbnail
       }
       createdAt
       updatedAt

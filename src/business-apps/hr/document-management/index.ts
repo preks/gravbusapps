@@ -4,7 +4,6 @@ export { default } from './DocumentManagementSetup';
 // Continue to export other relevant items for potential internal use or shared functionality
 // These will be available as named exports.
 export * from '../../../common/types/DocumentTypeObjectTypes';
-export * from '../hooks/useDocumentTypes'; // Assuming useDocumentTypes might be used by other components too
 
 
 // Re-export specific types for convenience if they are commonly used

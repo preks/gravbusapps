@@ -2,9 +2,11 @@ import { useCallback } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { RealEstateInvestmentQueryVariables, RealEstateInvestmentResponse } from '../types';
+import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits';
 
 const GET_REAL_ESTATE_INVESTMENT_DATA = (variables: RealEstateInvestmentQueryVariables): string => {
   const { limit = 50, offset = 0, search, orderBy } = variables;
+  const safeLimit = enforceQueryLimit(limit);
   
   let whereClause = '';
   if (search) {
@@ -25,7 +27,7 @@ const GET_REAL_ESTATE_INVESTMENT_DATA = (variables: RealEstateInvestmentQueryVar
   return `
     query GetRealEstateInvestmentData {
       RealEstateInvestment(
-        limit: ${limit}
+        limit: ${safeLimit}
         offset: ${offset}
         orderBy: ${orderByClause}
         ${whereClause}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tag, Button, Space, Alert, Spin } from 'antd';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import { Typography } from 'antd';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
@@ -88,14 +88,6 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
           <Tag color="blue">{liquidFundInvestments.length} funds</Tag>
         </div>
         <Space>
-          <Button 
-            icon={<ReloadOutlined />} 
-            onClick={() => refetch()}
-            loading={isLoading}
-            data-testid={formatDataTestId(prefixDataTestId, 'RefreshButton')}
-          >
-            Refresh
-          </Button>
           <Button 
             type="primary" 
             icon={<PlusOutlined />}

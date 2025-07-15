@@ -6,8 +6,7 @@ import {
   PhoneOutlined,
   TrophyOutlined,
   ContactsOutlined,
-  TeamOutlined,
-  ReloadOutlined
+  TeamOutlined
 } from '@ant-design/icons';
 import { ContactStatisticsData } from '../types';
 
@@ -31,11 +30,6 @@ const ContactStatistics: React.FC<ContactStatisticsProps> = ({
         description={error.message}
         type="error"
         showIcon
-        action={
-          <Button size="small" icon={<ReloadOutlined />} onClick={onRetry}>
-            Retry
-          </Button>
-        }
         data-testid="contact-statistics-error"
       />
     );
