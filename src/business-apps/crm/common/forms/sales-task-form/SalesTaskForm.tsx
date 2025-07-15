@@ -92,6 +92,12 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
   const handleSubmit = async (values: any) => {
     setLoading(true);
     const payload = {
+      employeeId: additionalData?.employeeId,
+      managerId: additionalData?.managerId,
+      structureId: additionalData?.structureId,
+      locationId: additionalData?.locationId,
+      organizationalUnitId: additionalData?.organizationalUnitId,
+      ...(additionalData?.contactId && { contactId: additionalData.contactId }),
       changeMode: 'INSERT',
       salesTask: {
         version: 0,
@@ -102,6 +108,7 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
         description: values.description,
         ...(additionalData?.leadId && { lead: additionalData.leadId }),
         ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
+        ...(additionalData?.contactId && { contact: additionalData.contactId }),
       },
     };
     

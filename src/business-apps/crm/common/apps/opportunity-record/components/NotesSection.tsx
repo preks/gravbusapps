@@ -9,6 +9,7 @@ import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
+import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 
 const { Text } = Typography;
 
@@ -32,6 +33,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
   const originalNotesRef = useRef<CrmNoteData[]>([]);
   const { fetchCrmNotes } = useGetCrmNotes(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 
   const loadNotes = async () => {
     if (!opportunityId) return;
@@ -264,7 +266,11 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
                       {note.translatedTitle || note.noteTitle}
                     </Text>
                   </div>
-                  <div><Text type="secondary">{dayjs(note.createdAt).format('MMM D, YYYY [at] h:mm A')}</Text></div>
+                  <div>
+                    <Text type="secondary">
+                      {dayjs(note.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(note.createdBy)}
+                    </Text>
+                  </div>
                   <div style={{ marginTop: '4px' }}>
                     <div>{note.translatedText || note.noteText}</div>
                   </div>

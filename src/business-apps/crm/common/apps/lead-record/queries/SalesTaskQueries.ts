@@ -18,6 +18,7 @@ export interface SalesTaskData {
   priority: {
     value: string;
   };
+  createdBy: string;
 }
 
 export interface SalesTaskResponse {
@@ -40,6 +41,7 @@ export const GET_SALES_TASKS = (variables: SalesTaskQueryVariables): string => {
         priority {
           value
         }
+        createdBy
       }
     }
   `;

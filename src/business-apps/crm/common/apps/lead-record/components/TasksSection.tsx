@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Button, Timeline, Typography } from 'antd';
+import { Spin, Alert, Button, Timeline, Typography, message } from 'antd';
 import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -7,6 +7,7 @@ import { useGetSalesTasks, SalesTaskData } from '../queries/SalesTaskQueries';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
+import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 
 const { Text } = Typography;
 
@@ -21,6 +22,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
   const [error, setError] = useState<string | null>(null);
   const { fetchSalesTasks } = useGetSalesTasks(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 
   const loadTasks = async () => {
     if (!leadId) return;
@@ -190,6 +192,8 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
     return 'Unknown';
   };
 
+
+
   // Create task summary with all important details
   const createTaskSummary = (task: SalesTaskData) => {
     const parts = [];
@@ -282,7 +286,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
                   </div>
                   <div>
                     <Text type="secondary">
-                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')}
+                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(task.createdBy)}
                     </Text>
                   </div>
                   <div style={{ marginTop: '4px' }}>

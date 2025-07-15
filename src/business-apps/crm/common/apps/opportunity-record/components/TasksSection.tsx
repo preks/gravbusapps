@@ -7,6 +7,7 @@ import { useGetSalesTasks, SalesTaskData } from '../queries/OpportunityTaskQueri
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
+import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 
 const { Text } = Typography;
 
@@ -21,6 +22,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
   const [error, setError] = useState<string | null>(null);
   const { fetchSalesTasks } = useGetSalesTasks(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 
   const loadTasks = async () => {
     if (!opportunityId) return;
@@ -255,7 +257,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
                   </div>
                   <div>
                     <Text type="secondary">
-                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')}
+                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(task.createdBy)}
                     </Text>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>

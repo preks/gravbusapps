@@ -1673,8 +1673,8 @@ export interface AccountRecordProps extends BusinessAppContextProps {
 
 export const AccountRecord: React.FC<AccountRecordProps> = (props) => {
   const accountId = useMemo(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('accountId');
+    // Hardcoded account ID for testing
+    return 'b58eee23-54b1-4eb3-a0fe-aa59d2a3751c';
   }, []);
 
   if (!accountId) {

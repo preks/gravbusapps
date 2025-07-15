@@ -25,7 +25,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
   useEffect(() => {
     const fetchContactData = async () => {
       if (!contactId) {
-        setLoading(false);
+      setLoading(false);
         return;
       }
 
@@ -70,7 +70,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
           >
             Back to Contacts Overview
           </button>
-        </div>
+      </div>
       </div>
     );
   }
@@ -80,7 +80,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
       {/* Back navigation */}
       <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
         <button
-          onClick={onBack}
+            onClick={onBack}
           className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
           data-testid="back-button"
         >
@@ -105,13 +105,13 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
           {/* Company Information - 3/4 width */}
           <Col span={18} style={{ display: 'flex' }}>
             <CompanyInformation contact={contact} />
-          </Col>
+        </Col>
 
           {/* Personal Information - 1/4 width */}
           <Col span={6} style={{ display: 'flex' }}>
             <ContactPersonalInfo contact={contact} />
-          </Col>
-        </Row>
+        </Col>
+      </Row>
 
         {/* Second Row: Activity Timeline + Tasks */}
         <Row gutter={24}>

@@ -12,6 +12,7 @@ import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
+import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 
 const { Text } = Typography;
 
@@ -43,6 +44,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
   const { fetchCrmDocuments } = useGetCrmDocuments(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const fileClient = useFileClient(context);
+  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 
   const loadActivities = async () => {
     if (!opportunityId) return;
@@ -470,7 +472,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                           {activity.translatedTitle || activity.title}
                         </Text>
                       </div>
-                      <div><Text type="secondary">{dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')}</Text></div>
+                      <div>
+                        <Text type="secondary">
+                          {dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(activity.createdBy)}
+                        </Text>
+                      </div>
                       <div style={{ marginTop: '4px' }}>
                         <div>{activity.translatedDescription || activity.description}</div>
                       </div>
@@ -572,7 +578,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                         <FileTextOutlined />
                         <Text strong>{document.name}</Text>
                       </div>
-                      <div><Text type="secondary">{dayjs(document.createdAt).format('MMM D, YYYY [at] h:mm A')}</Text></div>
+                      <div>
+                        <Text type="secondary">
+                          {dayjs(document.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(document.createdBy)}
+                        </Text>
+                      </div>
                       <div style={{ marginTop: '4px' }}>
                         <Text type="secondary">Type: {document.documentType?.value || 'Unknown'}</Text>
                         {document.fileSize && (

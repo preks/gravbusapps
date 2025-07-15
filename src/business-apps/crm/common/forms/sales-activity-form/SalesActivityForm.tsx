@@ -128,7 +128,20 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
 
   const handleSubmit = async (values: any) => {
     setLoading(true);
+    
+    // Debug: Check what's in additionalData
+    console.log('=== SalesActivityForm Debug ===');
+    console.log('additionalData:', additionalData);
+    console.log('contactId found:', additionalData?.contactId);
+    console.log('===============================');
+    
     const payload = {
+      employeeId: additionalData?.employeeId,
+      managerId: additionalData?.managerId,
+      structureId: additionalData?.structureId,
+      locationId: additionalData?.locationId,
+      organizationalUnitId: additionalData?.organizationalUnitId,
+      ...(additionalData?.contactId && { contactId: additionalData.contactId }),
       changeMode: 'INSERT',
       salesActivity: {
         version: 0,
@@ -137,10 +150,13 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
         date: values.date ? dayjs(values.date).toISOString() : null,
         ...(additionalData?.leadId && { lead: additionalData.leadId }),
         ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
+        ...(additionalData?.contactId && { contact: additionalData.contactId }),
         description: values.description || '',
         ownerEmployee: additionalData?.employeeId
       },
     };
+    
+    console.log('Final payload:', payload);
     
     dispatchProcessContinueEvent('pse_submit', payload);
     setLoading(false);

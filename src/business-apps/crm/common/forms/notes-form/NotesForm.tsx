@@ -22,7 +22,20 @@ export const NotesForm: React.FC<NotesFormProps> = (props) => {
 
   const handleSubmit = async (values: any) => {
     setLoading(true);
+    
+    // Debug: Check what's in additionalData
+    console.log('=== NotesForm Debug ===');
+    console.log('additionalData:', additionalData);
+    console.log('contactId found:', additionalData?.contactId);
+    console.log('=======================');
+    
     const payload = {
+      employeeId: additionalData?.employeeId,
+      managerId: additionalData?.managerId,
+      structureId: additionalData?.structureId,
+      locationId: additionalData?.locationId,
+      organizationalUnitId: additionalData?.organizationalUnitId,
+      ...(additionalData?.contactId && { contactId: additionalData.contactId }),
       changeMode: 'INSERT',
       crmNote: {
         noteTitle: values.noteTitle,
@@ -31,9 +44,12 @@ export const NotesForm: React.FC<NotesFormProps> = (props) => {
         lastEditDate: new Date().toISOString(),
         authorEmployee: additionalData?.employeeId,
         ...(additionalData?.leadId && { lead: additionalData.leadId }),
-        ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId })
+        ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
+        ...(additionalData?.contactId && { contact: additionalData.contactId })
       },
     };
+    
+    console.log('NotesForm final payload:', payload);
     
     dispatchProcessContinueEvent('pse_submit', payload);
     setLoading(false);

@@ -11,9 +11,7 @@ export interface CrmNoteData {
   noteText: string;
   noteTitle: string;
   createdAt: string;
-  authorEmployee: {
-    fullName: string;
-  };
+  createdBy: string;
 }
 
 export interface CrmNoteResponse {
@@ -27,9 +25,7 @@ export const GET_CRM_NOTES = (variables: CrmNoteQueryVariables): string => {
         id
         version
         createdAt
-        authorEmployee {
-          fullName
-        }
+        createdBy
         noteText
         noteTitle
       }
