@@ -1,5 +1,6 @@
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits';
 
 export interface InvestmentQueryVariables {
   id?: string;
@@ -7,6 +8,7 @@ export interface InvestmentQueryVariables {
   limit?: number;
   search?: string;
   where?: any;
+  orderBy?: any;
 }
 
 export interface InvestmentResponse {
@@ -150,84 +152,13 @@ export interface PrivateEquityInvestmentResponse {
   investment?: InvestmentResponse;
 }
 
-const GET_INVESTMENTS_QUERY = `
-  query GetInvestments($limit: Int, $offset: Int, $where: InvestmentBoolExp) {
-    Investment(
-      limit: $limit
-      offset: $offset
-      where: $where
-      orderBy: { createdAt: DESC }
-    ) {
-      id
-      name
-      accountId
-      opportunityId
-      ownerEmployeeId
-      acquisitionDate
-      exitDate
-      plannedExitDate
-      notesSummary
-      bookValue
-      marketValue
-      initialInvestmentAmount
-      totalInvestmentAmount
-      stakePercent
-      debtFinancing
-      leverageRatio
-      investmentGroup {
-        id
-        code
-        value
-      }
-      investmentType {
-        id
-        code
-        value
-      }
-      investmentPhase {
-        id
-        code
-        value
-      }
-      investmentStatus {
-        id
-        code
-        value
-      }
-      investmentRiskLevel {
-        id
-        code
-        value
-      }
-      currency {
-        id
-        code
-        value
-      }
-      account {
-        id
-        name
-      }
-      opportunity {
-        id
-        name
-      }
-      ownerEmployee {
-        id
-        firstName
-        lastName
-      }
-    }
-  }
-`;
-
 const GET_LIQUID_FUND_INVESTMENTS_QUERY = `
-  query GetLiquidFundInvestments($limit: Int, $offset: Int, $where: LiquidFundInvestmentBoolExp) {
+  query GetLiquidFundInvestments($limit: Int, $offset: Int, $where: LiquidFundInvestmentBoolExp, $orderBy: [LiquidFundInvestmentOrderBy!]) {
     LiquidFundInvestment(
       limit: $limit
       offset: $offset
       where: $where
-      orderBy: { createdAt: DESC }
+      orderBy: $orderBy
     ) {
       id
       investmentId
@@ -306,12 +237,12 @@ const GET_LIQUID_FUND_INVESTMENTS_QUERY = `
 `;
 
 const GET_EQUITY_INVESTMENTS_QUERY = `
-  query GetEquityInvestments($limit: Int, $offset: Int, $where: EquityInvestmentBoolExp) {
+  query GetEquityInvestments($limit: Int, $offset: Int, $where: EquityInvestmentBoolExp, $orderBy: [EquityInvestmentOrderBy!]) {
     EquityInvestment(
       limit: $limit
       offset: $offset
       where: $where
-      orderBy: { createdAt: DESC }
+      orderBy: $orderBy
     ) {
       id
       investmentId
@@ -389,12 +320,12 @@ const GET_EQUITY_INVESTMENTS_QUERY = `
 `;
 
 const GET_REAL_ESTATE_INVESTMENTS_QUERY = `
-  query GetRealEstateInvestments($limit: Int, $offset: Int, $where: RealEstateInvestmentBoolExp) {
+  query GetRealEstateInvestments($limit: Int, $offset: Int, $where: RealEstateInvestmentBoolExp, $orderBy: [RealEstateInvestmentOrderBy!]) {
     RealEstateInvestment(
       limit: $limit
       offset: $offset
       where: $where
-      orderBy: { createdAt: DESC }
+      orderBy: $orderBy
     ) {
       id
       investmentId
@@ -497,12 +428,12 @@ const GET_REAL_ESTATE_INVESTMENTS_QUERY = `
 `;
 
 const GET_PRIVATE_EQUITY_INVESTMENTS_QUERY = `
-  query GetPrivateEquityInvestments($limit: Int, $offset: Int, $where: PrivateEquityInvestmentBoolExp) {
+  query GetPrivateEquityInvestments($limit: Int, $offset: Int, $where: PrivateEquityInvestmentBoolExp, $orderBy: [PrivateEquityInvestmentOrderBy!]) {
     PrivateEquityInvestment(
       limit: $limit
       offset: $offset
       where: $where
-      orderBy: { createdAt: DESC }
+      orderBy: $orderBy
     ) {
       id
       investmentId
@@ -576,35 +507,62 @@ const GET_PRIVATE_EQUITY_INVESTMENTS_QUERY = `
   }
 `;
 
-// Hook for fetching investments
-export const useGetInvestments = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphqlClient(context.accessToken);
-
-  const fetchInvestments = async (variables: InvestmentQueryVariables = {}) => {
-    try {
-      const result = await graphqlClient.request<{ Investment: InvestmentResponse[] }>(
-        GET_INVESTMENTS_QUERY,
-        variables
-      );
-      return result.Investment || [];
-    } catch (error) {
-      console.error('Error fetching investments:', error);
-      throw error;
+// Aggregate queries for total counts
+const GET_LIQUID_FUND_INVESTMENTS_AGGREGATE_QUERY = `
+  query GetLiquidFundInvestmentsAggregate($where: LiquidFundInvestmentBoolExp) {
+    LiquidFundInvestmentAggregate(where: $where) {
+      aggregate {
+        count
+      }
     }
-  };
+  }
+`;
 
-  return { fetchInvestments };
-};
+const GET_EQUITY_INVESTMENTS_AGGREGATE_QUERY = `
+  query GetEquityInvestmentsAggregate($where: EquityInvestmentBoolExp) {
+    EquityInvestmentAggregate(where: $where) {
+      aggregate {
+        count
+      }
+    }
+  }
+`;
+
+const GET_REAL_ESTATE_INVESTMENTS_AGGREGATE_QUERY = `
+  query GetRealEstateInvestmentsAggregate($where: RealEstateInvestmentBoolExp) {
+    RealEstateInvestmentAggregate(where: $where) {
+      aggregate {
+        count
+      }
+    }
+  }
+`;
+
+const GET_PRIVATE_EQUITY_INVESTMENTS_AGGREGATE_QUERY = `
+  query GetPrivateEquityInvestmentsAggregate($where: PrivateEquityInvestmentBoolExp) {
+    PrivateEquityInvestmentAggregate(where: $where) {
+      aggregate {
+        count
+      }
+    }
+  }
+`;
 
 // Hook for fetching liquid fund investments
 export const useGetLiquidFundInvestments = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphqlClient(context.accessToken);
 
   const fetchLiquidFundInvestments = async (variables: InvestmentQueryVariables = {}) => {
+    const processedVariables = {
+      ...variables,
+      limit: enforceQueryLimit(variables.limit || 50),
+      orderBy: variables.orderBy || [{ investment: { createdAt: 'DESC' } }]
+    };
+
     try {
       const result = await graphqlClient.request<{ LiquidFundInvestment: LiquidFundInvestmentResponse[] }>(
         GET_LIQUID_FUND_INVESTMENTS_QUERY,
-        variables
+        processedVariables
       );
       return result.LiquidFundInvestment || [];
     } catch (error) {
@@ -613,7 +571,24 @@ export const useGetLiquidFundInvestments = (context: BusinessAppContextProps) =>
     }
   };
 
-  return { fetchLiquidFundInvestments };
+  const fetchLiquidFundInvestmentsCount = async (variables: InvestmentQueryVariables = {}) => {
+    const processedVariables = {
+      where: variables.where
+    };
+
+    try {
+      const result = await graphqlClient.request<{ LiquidFundInvestmentAggregate: { aggregate: { count: number } } }>(
+        GET_LIQUID_FUND_INVESTMENTS_AGGREGATE_QUERY,
+        processedVariables
+      );
+      return result.LiquidFundInvestmentAggregate?.aggregate?.count || 0;
+    } catch (error) {
+      console.error('Error fetching liquid fund investments count:', error);
+      throw error;
+    }
+  };
+
+  return { fetchLiquidFundInvestments, fetchLiquidFundInvestmentsCount };
 };
 
 // Hook for fetching equity investments
@@ -621,10 +596,16 @@ export const useGetEquityInvestments = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphqlClient(context.accessToken);
 
   const fetchEquityInvestments = async (variables: InvestmentQueryVariables = {}) => {
+    const processedVariables = {
+      ...variables,
+      limit: enforceQueryLimit(variables.limit || 50),
+      orderBy: variables.orderBy || [{ investment: { createdAt: 'DESC' } }]
+    };
+
     try {
       const result = await graphqlClient.request<{ EquityInvestment: EquityInvestmentResponse[] }>(
         GET_EQUITY_INVESTMENTS_QUERY,
-        variables
+        processedVariables
       );
       return result.EquityInvestment || [];
     } catch (error) {
@@ -633,7 +614,24 @@ export const useGetEquityInvestments = (context: BusinessAppContextProps) => {
     }
   };
 
-  return { fetchEquityInvestments };
+  const fetchEquityInvestmentsCount = async (variables: InvestmentQueryVariables = {}) => {
+    const processedVariables = {
+      where: variables.where
+    };
+
+    try {
+      const result = await graphqlClient.request<{ EquityInvestmentAggregate: { aggregate: { count: number } } }>(
+        GET_EQUITY_INVESTMENTS_AGGREGATE_QUERY,
+        processedVariables
+      );
+      return result.EquityInvestmentAggregate?.aggregate?.count || 0;
+    } catch (error) {
+      console.error('Error fetching equity investments count:', error);
+      throw error;
+    }
+  };
+
+  return { fetchEquityInvestments, fetchEquityInvestmentsCount };
 };
 
 // Hook for fetching real estate investments
@@ -641,10 +639,16 @@ export const useGetRealEstateInvestments = (context: BusinessAppContextProps) =>
   const graphqlClient = useGraphqlClient(context.accessToken);
 
   const fetchRealEstateInvestments = async (variables: InvestmentQueryVariables = {}) => {
+    const processedVariables = {
+      ...variables,
+      limit: enforceQueryLimit(variables.limit || 50),
+      orderBy: variables.orderBy || [{ investment: { createdAt: 'DESC' } }]
+    };
+
     try {
       const result = await graphqlClient.request<{ RealEstateInvestment: RealEstateInvestmentResponse[] }>(
         GET_REAL_ESTATE_INVESTMENTS_QUERY,
-        variables
+        processedVariables
       );
       return result.RealEstateInvestment || [];
     } catch (error) {
@@ -653,7 +657,24 @@ export const useGetRealEstateInvestments = (context: BusinessAppContextProps) =>
     }
   };
 
-  return { fetchRealEstateInvestments };
+  const fetchRealEstateInvestmentsCount = async (variables: InvestmentQueryVariables = {}) => {
+    const processedVariables = {
+      where: variables.where
+    };
+
+    try {
+      const result = await graphqlClient.request<{ RealEstateInvestmentAggregate: { aggregate: { count: number } } }>(
+        GET_REAL_ESTATE_INVESTMENTS_AGGREGATE_QUERY,
+        processedVariables
+      );
+      return result.RealEstateInvestmentAggregate?.aggregate?.count || 0;
+    } catch (error) {
+      console.error('Error fetching real estate investments count:', error);
+      throw error;
+    }
+  };
+
+  return { fetchRealEstateInvestments, fetchRealEstateInvestmentsCount };
 };
 
 // Hook for fetching private equity investments
@@ -661,10 +682,16 @@ export const useGetPrivateEquityInvestments = (context: BusinessAppContextProps)
   const graphqlClient = useGraphqlClient(context.accessToken);
 
   const fetchPrivateEquityInvestments = async (variables: InvestmentQueryVariables = {}) => {
+    const processedVariables = {
+      ...variables,
+      limit: enforceQueryLimit(variables.limit || 50),
+      orderBy: variables.orderBy || [{ investment: { createdAt: 'DESC' } }]
+    };
+
     try {
       const result = await graphqlClient.request<{ PrivateEquityInvestment: PrivateEquityInvestmentResponse[] }>(
         GET_PRIVATE_EQUITY_INVESTMENTS_QUERY,
-        variables
+        processedVariables
       );
       return result.PrivateEquityInvestment || [];
     } catch (error) {
@@ -673,5 +700,22 @@ export const useGetPrivateEquityInvestments = (context: BusinessAppContextProps)
     }
   };
 
-  return { fetchPrivateEquityInvestments };
+  const fetchPrivateEquityInvestmentsCount = async (variables: InvestmentQueryVariables = {}) => {
+    const processedVariables = {
+      where: variables.where
+    };
+
+    try {
+      const result = await graphqlClient.request<{ PrivateEquityInvestmentAggregate: { aggregate: { count: number } } }>(
+        GET_PRIVATE_EQUITY_INVESTMENTS_AGGREGATE_QUERY,
+        processedVariables
+      );
+      return result.PrivateEquityInvestmentAggregate?.aggregate?.count || 0;
+    } catch (error) {
+      console.error('Error fetching private equity investments count:', error);
+      throw error;
+    }
+  };
+
+  return { fetchPrivateEquityInvestments, fetchPrivateEquityInvestmentsCount };
 }; 

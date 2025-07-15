@@ -6,8 +6,7 @@ import {
   DollarOutlined,
   TeamOutlined,
   BuildOutlined,
-  FileTextOutlined,
-  ReloadOutlined
+  FileTextOutlined
 } from '@ant-design/icons';
 import { AccountStatisticsData } from '../types';
 
@@ -40,11 +39,6 @@ const AccountStatistics: React.FC<AccountStatisticsProps> = ({
         description={error.message}
         type="error"
         showIcon
-        action={
-          <Button size="small" icon={<ReloadOutlined />} onClick={onRetry}>
-            Retry
-          </Button>
-        }
         data-testid="account-statistics-error"
       />
     );

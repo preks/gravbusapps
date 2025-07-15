@@ -4,6 +4,7 @@ import { FIXED_STAGES } from './stages';
 import { GET_OPPORTUNITIES } from '../queries/kanbanQueries';
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient';
 import { opportunityClient } from '@/common/network/opportunity/OpportunityClient';
+import { enforceQueryLimit } from '../../../utils/queryLimits';
 
 interface KanbanStore {
   stages: Stage[];
@@ -64,6 +65,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
       
       const response = await graphQLClient.request(GET_OPPORTUNITIES, { 
         offset: 0, 
+        limit: enforceQueryLimit(200), // Enforce the 100 item limit instead of 200
         where 
       });
       

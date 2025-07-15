@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { navigateTo } from '@/common/utils/navigationUtils';
+import { useEmployeeUpcomingAbsence } from '../../hooks/useEmployeeUpcomingAbsence';
+import dayjs from 'dayjs';
 import { Employee } from '../../hooks/useEmployeeData';
 import { Card, Avatar } from '@newwork/gravity-ui-catalog';
 import { ProfileSection } from '../ProfileSection';
@@ -15,10 +18,12 @@ import {
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { Button } from 'antd';
 
 interface SummaryTabProps {
   employee: Employee;
   accessToken: string;
+  currentUserEmployeeId?: string;
 }
 
 /**
@@ -30,7 +35,9 @@ interface SummaryTabProps {
 // Employee availability & schedule information comes from employee data
 // Specific schedule information should be retrieved from the API
 
-const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken }) => {
+const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentUserEmployeeId }) => {
+  // Fetch upcoming absence for this employee
+  const { loading: absenceLoading, upcomingAbsence } = useEmployeeUpcomingAbsence(accessToken, employee.id);
   // Get additional attributes from additionalProperties
   const getAdditionalAttributes = () => {
     if (!employee.additionalProperties) return [];
@@ -360,6 +367,80 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken }) => {
                     <div className="gba:text-sm gba:text-gray-600">{employee.workingHours?.[0]?.fullTimeEquivalent ? `${employee.workingHours[0].fullTimeEquivalent} hours/week` : 'Not specified'}</div>
                   </div>
                 </div>
+                
+                {/* Quick Actions - Only visible when user is viewing their own profile */}
+                {currentUserEmployeeId && currentUserEmployeeId === employee.id && (
+                  <div className="gba:mt-4 gba:border-t gba:border-gray-200 gba:pt-4">
+                    <h3 className="gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-3" data-testid="quick-actions-heading">Quick Actions</h3>
+                    <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:w-full">
+                      <Button 
+                          type="default" 
+                        className="gba:hover:bg-gray-100 gba:w-full"
+                        data-testid="clock-in-button"
+                        onClick={() => {
+                          // Clock in action logic would go here
+                          console.log('Clock in clicked');
+                        }}
+                      >
+                        <span data-testid="clock-in-button-text">Clock In</span>
+                      </Button>
+                      <Button  
+                        type="default" 
+                        className="gba:hover:bg-gray-100 gba:w-full"
+                        data-testid="clock-out-button"
+                        onClick={() => {
+                          // Clock out action logic would go here
+                          console.log('Clock out clicked');
+                        }}
+                      >
+                        <span data-testid="clock-out-button-text">Clock Out</span>
+                      </Button>
+                    </div>
+                    <div className="gba:mt-2">
+                      <Button 
+                        type="default" 
+                        className="gba:hover:bg-gray-100 gba:w-full"
+                        data-testid="request-absence-button"
+                        onClick={() => {
+                          navigateTo('/?tab=absences&app=EmployeeRecord');
+                        }}
+                      >
+                        <span data-testid="request-absence-button-text">Request Absence</span>
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Upcoming Absence Section */}
+                {upcomingAbsence && (
+                  <div className="gba:mt-4 gba:border-t gba:border-gray-200 gba:pt-4" data-testid="upcoming-absence-section">
+                    <h3 className="gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-3" data-testid="upcoming-absence-heading">Next Planned Absence</h3>
+                    <div className="gba:bg-gray-50 gba:p-3 gba:rounded gba:border gba:border-gray-200">
+                      <div className="gba:flex gba:justify-between gba:items-center">
+                        <div>
+                          <p className="gba:text-sm gba:font-medium" data-testid="absence-type">{upcomingAbsence.type.value}</p>
+                          <div className="gba:flex gba:items-center gba:mt-1">
+                            <span className="gba:text-xs gba:text-gray-500" data-testid="absence-dates">
+                              {dayjs(upcomingAbsence.startDate).format('MMM DD')} - {dayjs(upcomingAbsence.endDate).format('MMM DD, YYYY')}
+                            </span>
+                            <span className="gba:bg-blue-100 gba:text-blue-800 gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full gba:ml-2" data-testid="absence-days">
+                              {upcomingAbsence.calendarDays} days
+                            </span>
+                          </div>
+                        </div>
+                        <div className="gba:bg-green-100 gba:text-green-800 gba:text-xs gba:px-2 gba:py-1 gba:rounded" data-testid="absence-status">
+                          {upcomingAbsence.status}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {absenceLoading && !upcomingAbsence && (
+                  <div className="gba:mt-4 gba:border-t gba:border-gray-200 gba:pt-4 gba:text-center gba:text-sm gba:text-gray-500" data-testid="loading-absence">
+                    Loading upcoming absence...
+                  </div>
+                )}
               </div>
             </div>
           </Card>

@@ -423,8 +423,6 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     return undefined;
   }, [additionalData]);
 
-  console.log("businessApps", businessApps);
-
   return (
     <Layout style={{ minHeight: "100vh" }}>
       <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />

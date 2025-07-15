@@ -6,8 +6,7 @@ import {
   RiseOutlined,
   ClockCircleOutlined,
   FunnelPlotOutlined,
-  LineChartOutlined,
-  ReloadOutlined
+  LineChartOutlined
 } from '@ant-design/icons';
 import { OpportunityStatisticsData } from '../types';
 
@@ -31,11 +30,6 @@ const OpportunityStatistics: React.FC<OpportunityStatisticsProps> = ({
         description={error.message}
         type="error"
         showIcon
-        action={
-          <Button size="small" icon={<ReloadOutlined />} onClick={onRetry}>
-            Retry
-          </Button>
-        }
         data-testid="opportunity-statistics-error"
       />
     );

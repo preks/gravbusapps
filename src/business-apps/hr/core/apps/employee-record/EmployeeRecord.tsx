@@ -226,6 +226,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         <SummaryTab 
           employee={employee}
           accessToken={accessToken}
+          currentUserEmployeeId={currentUserEmployeeId}
         />
       )
     },

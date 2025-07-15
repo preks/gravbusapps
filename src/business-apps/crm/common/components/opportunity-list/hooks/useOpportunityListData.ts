@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Opportunity, UseOpportunityListDataReturn } from '../types';
 import { useGetOpportunitiesData, OpportunityData } from '../queries/OpportunityQueries';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { enforceQueryLimit } from '../../../utils/queryLimits';
 
 interface UseOpportunityListDataParams {
   search?: string;
@@ -88,7 +89,9 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
     setError(null);
 
     try {
-      const offset = (page - 1) * pageSize;
+      // Enforce query limit to ensure optimal performance
+      const safePageSize = enforceQueryLimit(pageSize);
+      const offset = (page - 1) * safePageSize;
       
       // Build where conditions
       const whereCondition: any = {
@@ -172,7 +175,7 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
 
       // Build order by condition
       const orderBy: any = {};
-      if (params.sortField && params.sortOrder) {
+      if (params.sortField && params.sortField !== '' && params.sortOrder) {
         if (params.sortField === 'name') {
           orderBy.name = params.sortOrder;
         } else if (params.sortField === 'estimatedAmount') {
@@ -183,14 +186,17 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
           orderBy.closeDate = params.sortOrder;
         } else if (params.sortField === 'createdAt') {
           orderBy.createdAt = params.sortOrder;
+        } else if (params.sortField === 'ownerEmployeeId') {
+          orderBy.ownerEmployee = { lastName: params.sortOrder };
         }
       } else {
-        orderBy.createdAt = 'DESC';
+        // No sorting - use natural order (by ID)
+        orderBy.id = 'ASC';
       }
 
       const result = await fetchOpportunitiesData({
         offset,
-        limit: pageSize,
+        limit: safePageSize,
         where: whereCondition,
         orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ createdAt: 'DESC' }]
       });
@@ -201,7 +207,7 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
         
         const totalCount = result.OpportunityAggregate?.aggregate?.count || 0;
         setTotal(totalCount);
-        setHasMore(offset + pageSize < totalCount);
+        setHasMore(offset + safePageSize < totalCount);
       }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load opportunities'));

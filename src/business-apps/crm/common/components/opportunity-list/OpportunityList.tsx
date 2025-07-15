@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { PageLayout } from '@/components/layout/pageLayout';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useOpportunityListData } from './hooks/useOpportunityListData';
@@ -10,7 +9,7 @@ import OpportunityTable from './components/OpportunityTable';
 import { Opportunity } from './types';
 import { Alert, Button } from 'antd';
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
-import { ReloadOutlined, PlusOutlined, DollarCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, DollarCircleOutlined } from '@ant-design/icons';
 
 interface OpportunityListProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -24,7 +23,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [sortField, setSortField] = useState('createdAt');
+  const [sortField, setSortField] = useState('');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
   const initialLoadDone = useRef(false);
   
@@ -71,10 +70,17 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
     console.log('Edit opportunity:', opportunity);
   }, []);
 
-  const handleSort = useCallback((field: string, order: 'ASC' | 'DESC') => {
-    setSortField(field);
-    setSortOrder(order);
-    setCurrentPage(1);
+  const handleSort = useCallback((field: string, order: 'ASC' | 'DESC' | '') => {
+    // When order is empty, clear sorting completely
+    if (order === '') {
+      setSortField('');
+      setSortOrder('DESC'); // Keep DESC as default for state type, but field will be empty
+      setCurrentPage(1);
+    } else {
+      setSortField(field);
+      setSortOrder(order);
+      setCurrentPage(1);
+    }
     opportunityListData.loadPage(1, pageSize);
   }, [opportunityListData, pageSize]);
 
@@ -121,11 +127,6 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
           description={opportunityListData.error instanceof Error ? opportunityListData.error.message : String(opportunityListData.error)}
           type="error"
           showIcon
-          action={
-            <Button icon={<ReloadOutlined />} onClick={handleRetryData}>
-              Retry
-            </Button>
-          }
           data-testid="opportunity-list-error"
         />
       </div>
@@ -149,7 +150,17 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
           setSearch: handleSearch,
           debounceDelay: 500,
           filter: opportunityFilters.selectedFilters,
-          setFilter: () => {}, // No-op for now
+          setFilter: (filters: string[]) => {
+            // This is called by DataController's "Clear all filters" button or individual filter removal
+            if (filters.length === 0) {
+              // Clear all filters
+              opportunityFilters.clearAllFilters();
+            } else {
+              // Handle individual filter removal - find which filters were removed and remove them
+              const removedFilters = opportunityFilters.selectedFilters.filter(f => !filters.includes(f));
+              removedFilters.forEach(filterId => opportunityFilters.removeFilter(filterId));
+            }
+          },
           filterLabelMap: opportunityFilters.filterLabelMap,
           dateRange: {
             createdAfter: opportunityFilters.createdAfter,
@@ -166,7 +177,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
           ),
           addButton: {
             onClick: handleAddOpportunity,
-            label: 'Add Opportunity',
+            label: 'Add',
             'data-testid': 'add-opportunity-button'
           },
         }}

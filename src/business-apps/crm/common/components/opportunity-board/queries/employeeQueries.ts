@@ -14,7 +14,7 @@ export interface UseEmployeesWithOpportunitiesReturn {
 }
 
 export const GET_EMPLOYEES_WITH_OPPORTUNITIES = `
-  query GetEmployeesWithOpportunities($sourceApp: String, $limit: Int = 200) {
+  query GetEmployeesWithOpportunities($sourceApp: String, $limit: Int = 100) {
     Opportunity(
       where: { 
         isDeleted: { _eq: false },

@@ -132,7 +132,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
   }, [dataDetails, onDetailsPanelClose]);
 
   return (
-    <div className={cn("gba:flex gba:flex-row gba:h-full gba:w-full gba:bg-gray-100 gba:relative", className
+    <div className={cn("gba:flex gba:flex-row gba:h-full gba:w-full gba:relative", className
     )}>
       {/* Filter Sidebar - left column, visible if open */}
       {showDataFilter && (

@@ -2,9 +2,11 @@ import { useCallback } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { EquityInvestmentQueryVariables, EquityInvestmentResponse } from '../types';
+import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits';
 
 const GET_EQUITY_INVESTMENT_DATA = (variables: EquityInvestmentQueryVariables): string => {
   const { limit = 50, offset = 0, search, orderBy } = variables;
+  const safeLimit = enforceQueryLimit(limit);
   
   let whereClause = '';
   if (search) {
@@ -22,7 +24,7 @@ const GET_EQUITY_INVESTMENT_DATA = (variables: EquityInvestmentQueryVariables): 
   return `
     query GetEquityInvestmentData {
       EquityInvestment(
-        limit: ${limit}
+        limit: ${safeLimit}
         offset: ${offset}
         orderBy: ${orderByClause}
         ${whereClause}

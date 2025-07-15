@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Account, UseAccountListDataReturn } from '../types';
 import { useGetAccountsData, AccountData } from '../queries/AccountQueries';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { enforceQueryLimit } from '../../../utils/queryLimits';
 
 interface UseAccountListDataParams {
   search?: string;
@@ -77,7 +78,9 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
     setError(null);
 
     try {
-      const offset = (page - 1) * pageSize;
+      // Enforce query limit to ensure optimal performance
+      const safePageSize = enforceQueryLimit(pageSize);
+      const offset = (page - 1) * safePageSize;
       
       // Build where conditions
       const whereCondition: any = {
@@ -125,14 +128,21 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
           orderBy.website = params.sortOrder;
         } else if (params.sortField === 'createdAt') {
           orderBy.createdAt = params.sortOrder;
+        } else if (params.sortField === 'ownerEmployeeId') {
+          orderBy.ownerEmployee = { lastName: params.sortOrder };
+        } else if (params.sortField === 'typeRef') {
+          orderBy.legalForm = { value: params.sortOrder };
+        } else if (params.sortField === 'industryRef') {
+          orderBy.industry = { value: params.sortOrder };
         }
       } else {
-        orderBy.createdAt = 'DESC';
+        // No sorting - use natural order (by ID)
+        orderBy.id = 'ASC';
       }
 
       const result = await fetchAccountsData({
         offset,
-        limit: pageSize,
+        limit: safePageSize,
         where: whereCondition,
         orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ createdAt: 'DESC' }]
       });
@@ -143,7 +153,7 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
         
         const totalCount = result.AccountAggregate?.aggregate?.count || 0;
         setTotal(totalCount);
-        setHasMore(offset + pageSize < totalCount);
+        setHasMore(offset + safePageSize < totalCount);
       }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load accounts'));
