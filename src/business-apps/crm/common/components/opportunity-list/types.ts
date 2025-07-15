@@ -53,8 +53,6 @@ export interface OpportunityStatisticsData {
   totalOpportunityValue: number;
   averageWinRate: number;
   totalOpportunitiesThisYear: number;
-  mostCommonStage: string;
-  mostCommonPipeline: string;
 }
 
 export interface UseOpportunityListDataReturn {

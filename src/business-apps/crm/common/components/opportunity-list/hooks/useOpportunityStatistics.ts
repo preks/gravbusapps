@@ -11,9 +11,7 @@ export const useOpportunityStatistics = (props: UseOpportunityStatisticsProps): 
     recentOpportunities: 0,
     totalOpportunityValue: 0,
     averageWinRate: 0,
-    totalOpportunitiesThisYear: 0,
-    mostCommonStage: 'N/A',
-    mostCommonPipeline: 'N/A'
+    totalOpportunitiesThisYear: 0
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -33,9 +31,7 @@ export const useOpportunityStatistics = (props: UseOpportunityStatisticsProps): 
         recentOpportunities: props.sourceApp === 'CRM' ? 18 : 4,
         totalOpportunityValue: props.sourceApp === 'CRM' ? 2450000 : 890000,
         averageWinRate: props.sourceApp === 'CRM' ? 68 : 72,
-        totalOpportunitiesThisYear: props.sourceApp === 'CRM' ? 89 : 17,
-        mostCommonStage: 'Proposal',
-        mostCommonPipeline: 'Standard Sales'
+        totalOpportunitiesThisYear: props.sourceApp === 'CRM' ? 89 : 17
       };
 
       setStatistics(mockStatistics);

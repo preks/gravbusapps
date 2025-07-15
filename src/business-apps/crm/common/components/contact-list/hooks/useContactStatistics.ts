@@ -11,9 +11,7 @@ export const useContactStatistics = (props: UseContactStatisticsProps): UseConta
     recentContacts: 0,
     activeContacts: 0,
     totalEmailEngagements: 0,
-    totalContactsThisYear: 0,
-    mostCommonJobTitle: 'N/A',
-    mostCommonContactSource: 'N/A'
+    totalContactsThisYear: 0
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -33,9 +31,7 @@ export const useContactStatistics = (props: UseContactStatisticsProps): UseConta
         recentContacts: props.sourceApp === 'CRM' ? 12 : 3,
         activeContacts: props.sourceApp === 'CRM' ? 78 : 9,
         totalEmailEngagements: props.sourceApp === 'CRM' ? 65 : 7,
-        totalContactsThisYear: props.sourceApp === 'CRM' ? 34 : 5,
-        mostCommonJobTitle: 'Manager',
-        mostCommonContactSource: 'Website'
+        totalContactsThisYear: props.sourceApp === 'CRM' ? 34 : 5
       };
 
       setStatistics(mockStatistics);

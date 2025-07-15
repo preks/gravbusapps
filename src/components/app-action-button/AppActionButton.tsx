@@ -97,6 +97,7 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
       dropdownLoading={isLoading || (deferMainContextRequestsUntilClick && combinedData.length === 0 && !hasDeferredFetchAttempted)}
       flowData={combinedData}
       portalContainer={document.body}
+      className="gba:[&_.guic-action-button-icon-hover.guic-transform]:!-translate-1/2 gba:[&_.guic-action-button-icon-default.guic-transform]:!-translate-1/2"
       onClick={(e) => {
         e.stopPropagation();
         e.preventDefault();

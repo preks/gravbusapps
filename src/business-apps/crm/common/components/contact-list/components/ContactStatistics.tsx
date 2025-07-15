@@ -1,127 +1,77 @@
 import React from 'react';
-import { Card, Row, Col, Statistic, Alert, Button, Space } from 'antd';
+import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { 
   UserOutlined,
   MailOutlined,
-  PhoneOutlined,
   TrophyOutlined,
-  ContactsOutlined,
-  TeamOutlined
+  ContactsOutlined
 } from '@ant-design/icons';
 import { ContactStatisticsData } from '../types';
 
 interface ContactStatisticsProps {
   statistics: ContactStatisticsData;
-  isLoading: boolean;
-  error: Error | null;
-  onRetry: () => void;
+  isLoading?: boolean;
+  error?: Error | null;
+  onRetry?: () => void;
 }
 
 const ContactStatistics: React.FC<ContactStatisticsProps> = ({
   statistics,
-  isLoading,
-  error,
+  isLoading = false,
+  error = null,
   onRetry
 }) => {
-  if (error) {
-    return (
-      <Alert
-        message="Error Loading Statistics"
-        description={error.message}
-        type="error"
-        showIcon
-        data-testid="contact-statistics-error"
-      />
-    );
-  }
+  // Transform the stats data into widgets format
+  const widgets: WidgetItem[] = [
+    {
+      key: 'recent-contacts',
+      title: 'Recent Contacts',
+      value: statistics.recentContacts,
+      prefix: <UserOutlined />,
+      color: '#1890ff',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: 'Past 2 weeks'
+    },
+    {
+      key: 'active-contacts',
+      title: 'Active Contacts',
+      value: statistics.activeContacts,
+      prefix: <ContactsOutlined />,
+      color: '#52c41a',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: 'Currently active'
+    },
+    {
+      key: 'email-engagements',
+      title: 'Email Engagements',
+      value: statistics.totalEmailEngagements,
+      prefix: <MailOutlined />,
+      color: '#fa8c16',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: 'Contacts with email'
+    },
+    {
+      key: 'this-year',
+      title: 'This Year',
+      value: statistics.totalContactsThisYear,
+      prefix: <TrophyOutlined />,
+      color: '#eb2f96',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: 'New contacts'
+    }
+  ];
 
   return (
     <div data-testid="contact-statistics-container">
-      {/* Main Statistics Cards */}
-      <Row gutter={[16, 16]} className="gba:mb-6">
-        <Col xs={24} sm={12} lg={6}>
-          <Card size="small" loading={isLoading}>
-            <Statistic
-              title="Recent Contacts"
-              value={statistics.recentContacts}
-              prefix={<UserOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-            <div className="gba:text-xs gba:text-gray-500">
-              Past 2 weeks
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card size="small" loading={isLoading}>
-            <Statistic
-              title="Active Contacts"
-              value={statistics.activeContacts}
-              prefix={<ContactsOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-            <div className="gba:text-xs gba:text-gray-500">
-              Currently active
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card size="small" loading={isLoading}>
-            <Statistic
-              title="Email Engagements"
-              value={statistics.totalEmailEngagements}
-              prefix={<MailOutlined />}
-              valueStyle={{ color: '#fa8c16' }}
-            />
-            <div className="gba:text-xs gba:text-gray-500">
-              Contacts with email
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card size="small" loading={isLoading}>
-            <Statistic
-              title="This Year"
-              value={statistics.totalContactsThisYear}
-              prefix={<TrophyOutlined />}
-              valueStyle={{ color: '#eb2f96' }}
-            />
-            <div className="gba:text-xs gba:text-gray-500">
-              New contacts
-            </div>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Additional Statistics */}
-      <Row gutter={[16, 16]} className="gba:mb-6">
-        <Col xs={24} sm={12}>
-          <Card size="small" loading={isLoading}>
-            <Space>
-              <TeamOutlined />
-              <div>
-                <div className="gba:font-medium">Most Common Job Title</div>
-                <div className="gba:text-gray-500">
-                  {statistics.mostCommonJobTitle}
-                </div>
-              </div>
-            </Space>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12}>
-          <Card size="small" loading={isLoading}>
-            <Space>
-              <PhoneOutlined />
-              <div>
-                <div className="gba:font-medium">Most Common Source</div>
-                <div className="gba:text-gray-500">
-                  {statistics.mostCommonContactSource}
-                </div>
-              </div>
-            </Space>
-          </Card>
-        </Col>
-      </Row>
+      <WidgetGroup
+        widgets={widgets}
+        isLoading={isLoading}
+        error={error}
+        onRetry={onRetry}
+        skeletonCount={4}
+        emptyText="No contact statistics available."
+        data-testid="contact-statistics"
+      />
     </div>
   );
 };

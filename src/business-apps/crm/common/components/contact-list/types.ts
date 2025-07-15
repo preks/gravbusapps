@@ -37,8 +37,6 @@ export interface ContactStatisticsData {
   activeContacts: number;
   totalEmailEngagements: number;
   totalContactsThisYear: number;
-  mostCommonJobTitle: string;
-  mostCommonContactSource: string;
 }
 
 export interface UseContactListDataReturn {

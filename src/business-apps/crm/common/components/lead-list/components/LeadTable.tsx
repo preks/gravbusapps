@@ -185,41 +185,74 @@ export const LeadTable: React.FC<LeadTableProps> = ({
 
   // Handle row click
   const handleRowClick = useCallback((record: Lead) => {
+    // Navigate to lead record page
+    const url = buildPlatformUrl('/platform/crm/lead-record', { leadId: record.id });
+    navigateTo(url);
+    
+    // Also call the selection callback if provided
     onSelectLead?.(record);
   }, [onSelectLead]);
 
   // Define columns for the table
   const columns: any[] = [
     {
-      title: t('lead.contact', 'Contact'),
-      dataIndex: 'firstName',
-      key: 'firstName',
+      title: '',
+      key: 'actions',
+      render: (_: any, record: Lead) => (
+        <div className="gba:flex gba:justify-start gba:gap-2">
+          <AppActionButton
+            data-testid={`${DATA_TEST_ID_PREFIX}-update-lead-button-${record.id}`}
+            variant="secondary"
+            contextsArray={[FlowContextName.leadEntity]}
+            externalContextData={{
+              leadId: record.id,
+              ...(sourceApp && { sourceApp })
+            }}
+            prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-lead`}
+            accessToken={accessToken}
+            emptyStateBehavior="disable"
+            deferMainContextRequestsUntilClick
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      ),
+      width: '60px',
+    },
+    {
+      title: t('lead.name', 'Lead'),
+      dataIndex: 'name',
+      key: 'name',
       sorter: true,
-      sortOrder: getSortOrder('firstName'),
+      sortOrder: getSortOrder('name'),
       render: (_: any, record: Lead) => {
-        const contactName = getContactName(record);
+        const leadName = record.name || getContactName(record);
         const contactEmail = getContactEmail(record);
         const contactPhone = getContactPhone(record);
         
         return (
-          <div className="gba:flex gba:flex-col gba:gap-1">
-            <span className="gba:font-medium gba:text-sm">{contactName}</span>
-            {contactEmail !== '-' && (
-              <div className="gba:flex gba:items-center gba:gap-1">
-                <PiEnvelope size={12} className="gba:text-gray-400" />
-                <span className="gba:text-xs gba:text-gray-600">{contactEmail}</span>
-              </div>
-            )}
-            {contactPhone !== '-' && (
-              <div className="gba:flex gba:items-center gba:gap-1">
-                <PiPhone size={12} className="gba:text-gray-400" />
-                <span className="gba:text-xs gba:text-gray-600">{contactPhone}</span>
-              </div>
-            )}
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:bg-green-100 gba:rounded-full">
+              <PiUser size={20} className="gba:text-green-600" />
+            </div>
+            <div className="gba:flex gba:flex-col gba:gap-1">
+              <span className="gba:font-medium gba:text-sm">{leadName}</span>
+              {contactEmail !== '-' && (
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  <PiEnvelope size={12} className="gba:text-gray-400" />
+                  <span className="gba:text-xs gba:text-gray-600">{contactEmail}</span>
+                </div>
+              )}
+              {contactPhone !== '-' && (
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  <PiPhone size={12} className="gba:text-gray-400" />
+                  <span className="gba:text-xs gba:text-gray-600">{contactPhone}</span>
+                </div>
+              )}
+            </div>
           </div>
         );
       },
-      width: '20%',
+      width: '22%',
     },
     {
       title: t('lead.company', 'Company'),
@@ -349,40 +382,6 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         );
       },
       width: '13%',
-    },
-    {
-      title: '',
-      key: 'actions',
-      render: (_: any, record: Lead) => (
-        <div className="gba:flex gba:justify-end gba:gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              const url = buildPlatformUrl('/platform/crm/lead-record', { leadId: record.id });
-              navigateTo(url);
-            }}
-            data-testid={`${DATA_TEST_ID_PREFIX}-view-lead-button-${record.id}`}
-          >
-            View
-          </Button>
-          <AppActionButton
-            data-testid={`${DATA_TEST_ID_PREFIX}-update-lead-button-${record.id}`}
-            variant="primary"
-            contextsArray={[FlowContextName.leadEntity]}
-            externalContextData={{
-              leadId: record.id,
-              ...(sourceApp && { sourceApp })
-            }}
-            prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-lead`}
-            accessToken={accessToken}
-            emptyStateBehavior="enabled"
-            deferMainContextRequestsUntilClick
-          />
-        </div>
-      ),
-      width: '10%',
     },
   ];
 

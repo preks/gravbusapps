@@ -1,6 +1,8 @@
 import React, { useCallback } from 'react';
 import { DataTable, Avatar, Tag } from '@newwork/gravity-ui-catalog';
 import { PiUser, PiCurrencyDollar, PiTarget, PiFunnel, PiCalendar, PiBuilding } from 'react-icons/pi';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Opportunity } from '../types';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
@@ -62,12 +64,18 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
 
   const getStageColor = (stage?: string): string => {
     const stageColors: Record<string, string> = {
+      // Original hardcoded values
       'Qualification': 'blue',
       'Needs Analysis': 'cyan',
       'Proposal': 'orange',
       'Negotiation': 'purple',
       'Closed Won': 'green',
-      'Closed Lost': 'red'
+      'Closed Lost': 'red',
+      'Unknown Stage': 'gray',
+      'New Opportunity': 'blue',
+      'In Qualification': 'cyan',
+      'Proposal In Progress': 'orange',
+      'Closed': 'green'
     };
     return stageColors[stage || ''] || 'gray';
   };
@@ -127,6 +135,28 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
   };
 
   const columns = [
+    {
+      title: '',
+      key: 'actions',
+      render: (_: any, record: Opportunity) => (
+        <div className="gba:flex gba:justify-start gba:gap-2">
+          <AppActionButton
+            data-testid={`${DATA_TEST_ID_PREFIX}-update-opportunity-button-${record.id}`}
+            variant="secondary"
+            contextsArray={[FlowContextName.opportunityEntity]}
+            externalContextData={{
+              opportunityId: record.id
+            }}
+            prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-opportunity`}
+            accessToken={accessToken}
+            emptyStateBehavior="disable"
+            deferMainContextRequestsUntilClick
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      ),
+      width: '60px',
+    },
     {
       title: 'Opportunity',
       dataIndex: 'name',
@@ -193,7 +223,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
           color={getStageColor(record.stage)}
           className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]"
         >
-          {record.stage || 'Unknown'}
+          {record.stage || 'Unknown Stage'}
         </Tag>
       )
     },
@@ -226,24 +256,52 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
       dataIndex: 'ownerEmployee',
       key: 'ownerEmployee',
       width: '15%',
-      render: (_: any, record: Opportunity) => (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <Avatar 
-            size="small" 
-            src={record.ownerEmployee?.pictureThumbnail} 
-            fallback={<PiUser />}
-          />
-          <div className="gba:text-sm gba:truncate" title={record.ownerEmployee?.displayName}>
-            {record.ownerEmployee?.displayName || 'Unassigned'}
+      render: (_: any, record: Opportunity) => {
+        const ownerName = record.ownerEmployee?.displayName || 
+                         `${record.ownerEmployee?.firstName || ''} ${record.ownerEmployee?.lastName || ''}`.trim() || 
+                         'Unassigned';
+        const pictureThumbnail = record.ownerEmployee?.pictureThumbnail;
+        
+        const initialsValue = !pictureThumbnail && ownerName !== 'Unassigned'
+          ? ownerName.split(' ').map(n => n[0]).join('').toUpperCase()
+          : 'U';
+
+        const avatarSrcValue = pictureThumbnail
+          ? `data:image/gif;base64,${pictureThumbnail}`
+          : undefined;
+
+        const avatarContentTypeValue = pictureThumbnail ? 'image' : 'initials';
+        
+        return (
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <Avatar
+              src={avatarSrcValue}
+              initials={initialsValue}
+              // @ts-ignore - Type issue in gravity-ui-catalog
+              contentType={avatarContentTypeValue}
+              alt={ownerName}
+              // @ts-ignore - Type issue in gravity-ui-catalog
+              size="sm"
+              // @ts-ignore - Type issue in gravity-ui-catalog
+              shape="circle"
+              // @ts-ignore - Type issue in gravity-ui-catalog
+              appearance="gradient"
+            />
+            <div className="gba:flex gba:flex-col">
+              <span className="gba:font-medium gba:text-sm gba:truncate" title={ownerName}>
+                {ownerName}
+              </span>
+            </div>
           </div>
-        </div>
-      )
+        );
+      }
     }
   ];
 
   return (
     <DataTable
       dataSource={data}
+      // @ts-ignore - Type issue in gravity-ui-catalog
       columns={columns}
       loading={loading}
       onChange={handleTableChange}

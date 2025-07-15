@@ -10,11 +10,8 @@ export const useAccountStatistics = (context: UseAccountStatisticsProps) => {
   const [statistics, setStatistics] = useState<AccountStatisticsData>({
     recentAccounts: 0,
     activeAccounts: 0,
-    mostCommonIndustry: 'N/A',
-    mostCommonLegalForm: 'N/A',
     totalAccountsThisYear: 0,
-    totalRevenue: 0,
-    averageEmployees: 0
+    totalRevenue: 0
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -22,8 +19,6 @@ export const useAccountStatistics = (context: UseAccountStatisticsProps) => {
   const {
     fetchRecentAccounts,
     fetchActiveAccounts,
-    fetchMostCommonIndustry,
-    fetchMostCommonLegalForm,
     fetchTotalAccountsThisYear,
     fetchTotalRevenueEstimate
   } = useAccountStatisticsQueries(context);
@@ -40,11 +35,9 @@ export const useAccountStatistics = (context: UseAccountStatisticsProps) => {
 
     try {
       // Fetch all statistics in parallel
-      const [recentAccounts, activeAccounts, mostCommonIndustry, mostCommonLegalForm, totalAccountsThisYear, totalRevenue] = await Promise.all([
+      const [recentAccounts, activeAccounts, totalAccountsThisYear, totalRevenue] = await Promise.all([
         fetchRecentAccounts(),
         fetchActiveAccounts(),
-        fetchMostCommonIndustry(),
-        fetchMostCommonLegalForm(),
         fetchTotalAccountsThisYear(),
         fetchTotalRevenueEstimate()
       ]);
@@ -52,11 +45,8 @@ export const useAccountStatistics = (context: UseAccountStatisticsProps) => {
       setStatistics({
         recentAccounts,
         activeAccounts,
-        mostCommonIndustry,
-        mostCommonLegalForm,
         totalAccountsThisYear,
-        totalRevenue,
-        averageEmployees: 0 // TODO: Calculate average employees if needed
+        totalRevenue
       });
     } catch (err) {
       console.error('Error fetching account statistics:', err);
@@ -68,8 +58,6 @@ export const useAccountStatistics = (context: UseAccountStatisticsProps) => {
     context.accessToken,
     fetchRecentAccounts,
     fetchActiveAccounts,
-    fetchMostCommonIndustry,
-    fetchMostCommonLegalForm,
     fetchTotalAccountsThisYear,
     fetchTotalRevenueEstimate
   ]);

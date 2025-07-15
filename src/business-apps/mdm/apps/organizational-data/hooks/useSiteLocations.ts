@@ -4,7 +4,7 @@ import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
 import { SiteLocationData, SiteLocation, PaginatedSiteLocations } from '../types';
 
-const ORGCHART_BASE_URL = env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_ORGCHART')!;
+const ORGCHART_BASE_URL = env('NEXT_PUBLIC_REST_ENDPOINT_ORGCHART')!;
 
 export const useSiteLocations = (context: BusinessAppContextProps, initialPageSize: number = 10) => {
   const [siteLocations, setSiteLocations] = useState<SiteLocation[]>([]);

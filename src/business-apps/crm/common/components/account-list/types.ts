@@ -36,8 +36,6 @@ export interface AccountStatisticsData {
   activeAccounts: number;
   totalRevenue: number;
   totalAccountsThisYear: number;
-  mostCommonIndustry: string;
-  mostCommonLegalForm: string;
 }
 
 export interface UseAccountListDataReturn {

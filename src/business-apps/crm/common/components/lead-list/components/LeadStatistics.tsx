@@ -33,7 +33,7 @@ const LeadStatistics: React.FC<LeadStatisticsProps> = ({
       value: statistics.recentLeads,
       prefix: <UserOutlined />,
       color: '#1677ff',
-      span: { xs: 24, sm: 12, md: 6, lg: 4 },
+      span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
       description: 'New leads (past 2 weeks)'
     },
     {
@@ -42,7 +42,7 @@ const LeadStatistics: React.FC<LeadStatisticsProps> = ({
       value: statistics.hotLeads,
       prefix: <FireOutlined />,
       color: '#ff4d4f',
-      span: { xs: 24, sm: 12, md: 6, lg: 4 },
+      span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
       description: 'High priority prospects'
     },
     {
@@ -51,7 +51,7 @@ const LeadStatistics: React.FC<LeadStatisticsProps> = ({
       value: statistics.mostCommonLeadSource,
       prefix: <ShopOutlined />,
       color: '#52c41a',
-      span: { xs: 24, sm: 12, md: 6, lg: 4 },
+      span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
       description: 'Most common in recent leads'
     },
     {
@@ -60,7 +60,7 @@ const LeadStatistics: React.FC<LeadStatisticsProps> = ({
       value: statistics.mostCommonIndustry,
       prefix: <BankOutlined />,
       color: '#fa8c16',
-      span: { xs: 24, sm: 12, md: 6, lg: 6 },
+      span: { xs: 24, sm: 12, md: 8, lg: 4, xl: 4 },
       description: 'Most common in recent leads'
     },
     {
@@ -71,7 +71,7 @@ const LeadStatistics: React.FC<LeadStatisticsProps> = ({
       color: '#722ed1',
       precision: 1,
       suffix: '%',
-      span: { xs: 24, sm: 12, md: 6, lg: 6 },
+      span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
       description: `${statistics.convertedLeadsThisYear} converted in ${currentYear}`
     }
   ];
