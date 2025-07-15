@@ -78,6 +78,12 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
               <span>Status: {opportunityData?.opportunityStatus?.value || opportunity.status}</span>
               <span style={{ margin: '0 8px' }}>•</span>
               <span>Currency: {opportunityData?.currency?.code || extractCurrencyCode(opportunity?.currency?.id || 'Currency:v1:EUR')}</span>
+              <DollarOutlined style={{ marginRight: '4px' }} />
+              <span>Estimated Amount: {
+                opportunity.value ? 
+                  formatCurrency(opportunity.value, extractCurrencyCode(opportunity.currency.id)) : 
+                  'Not set'
+              }</span>
               <span style={{ margin: '0 8px' }}>•</span>
               <PercentageOutlined style={{ marginRight: '4px' }} />
               <span>Winning Chance: {opportunity.probability ? `${opportunity.probability}%` : 'Not set'}</span>
