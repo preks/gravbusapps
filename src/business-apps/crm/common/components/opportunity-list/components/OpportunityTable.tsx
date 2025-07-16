@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Avatar, AvatarImage, AvatarFallback, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Button } from '@newwork/nw-design-system';
+import { Avatar, AvatarImage, AvatarFallback, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Button, Card, CardContent } from '@newwork/nw-design-system';
 import { PiUser, PiCurrencyDollar, PiTarget, PiFunnel, PiCalendar, PiBuilding, PiCaretUp, PiCaretDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -133,158 +133,174 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
   };
 
   return (
-    <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-      {loading && (
-        <div className="gba:flex gba:justify-center gba:p-4">
-          <Spinner />
-        </div>
-      )}
-      
-      <div className="gba:overflow-x-auto">
-        <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="gba:w-[60px]" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}></TableHead>
-              <TableHead 
-                className="gba:w-[25%] gba:cursor-pointer gba:hover:bg-gray-50"
-                onClick={() => handleSort('name')}
-                data-testid={`${DATA_TEST_ID_PREFIX}-opportunity-header`}
-              >
-                Opportunity
-                {renderSortIcon('name')}
-              </TableHead>
-              <TableHead 
-                className="gba:w-[15%] gba:cursor-pointer gba:hover:bg-gray-50 gba:text-right"
-                onClick={() => handleSort('estimatedAmount')}
-                data-testid={`${DATA_TEST_ID_PREFIX}-value-header`}
-              >
-                Value
-                {renderSortIcon('estimatedAmount')}
-              </TableHead>
-              <TableHead 
-                className="gba:w-[12%] gba:cursor-pointer gba:hover:bg-gray-50 gba:text-center"
-                onClick={() => handleSort('winningChance')}
-                data-testid={`${DATA_TEST_ID_PREFIX}-win-rate-header`}
-              >
-                Win Rate
-                {renderSortIcon('winningChance')}
-              </TableHead>
-              <TableHead 
-                className="gba:w-[15%] gba:cursor-pointer gba:hover:bg-gray-50"
-                onClick={() => handleSort('stage')}
-                data-testid={`${DATA_TEST_ID_PREFIX}-stage-header`}
-              >
-                Stage
-                {renderSortIcon('stage')}
-              </TableHead>
-              <TableHead className="gba:w-[15%]" data-testid={`${DATA_TEST_ID_PREFIX}-pipeline-header`}>Pipeline</TableHead>
-              <TableHead 
-                className="gba:w-[12%] gba:cursor-pointer gba:hover:bg-gray-50"
-                onClick={() => handleSort('closeDate')}
-                data-testid={`${DATA_TEST_ID_PREFIX}-close-date-header`}
-              >
-                Close Date
-                {renderSortIcon('closeDate')}
-              </TableHead>
-              <TableHead className="gba:w-[15%]" data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}>Owner</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((record) => (
-              <TableRow 
-                key={record.id}
-                className={`gba:hover:bg-gray-50 ${selectedOpportunityId === record.id ? 'gba:bg-blue-50' : ''}`}
-                data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
-              >
-                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
-                  <div className="gba:flex gba:justify-start gba:gap-2">
-                    <AppActionButton
-                      data-testid={`${DATA_TEST_ID_PREFIX}-update-opportunity-button-${record.id}`}
-                      variant="secondary"
-                      contextsArray={[FlowContextName.opportunityEntity]}
-                      externalContextData={{
-                        opportunityId: record.id
-                      }}
-                      prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-opportunity`}
-                      accessToken={accessToken}
-                      emptyStateBehavior="disable"
-                      deferMainContextRequestsUntilClick
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                </TableCell>
-                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-opportunity-cell-${record.id}`}>
-                  <div 
-                    className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRowClick(record);
-                    }}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-opportunity-name-${record.id}`}
-                  >
-          <div className="gba:font-medium gba:text-sm gba:truncate" title={record.name}>
-            {record.name}
+    <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+      <CardContent className="gba:p-0">
+        {loading && (
+          <div className="gba:flex gba:justify-center gba:p-4">
+            <Spinner />
           </div>
-          {record.account && (
-            <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-gray-500">
-              <PiBuilding size={12} />
-              <span className="gba:truncate" title={record.account.name}>
-                {record.account.name}
-              </span>
+        )}
+        
+        <div className="gba:overflow-x-auto">
+          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
+            <TableHeader>
+              <TableRow className="gba:border-b gba:bg-gray-50">
+                <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}>ACTIONS</TableHead>
+                <TableHead 
+                  className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort('name')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-opportunity-header`}
+                >
+                  <div className="gba:flex gba:items-center">
+                    Opportunity
+                    {renderSortIcon('name')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort('estimatedAmount')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-value-header`}
+                >
+                  <div className="gba:flex gba:items-center">
+                    Value
+                    {renderSortIcon('estimatedAmount')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort('winningChance')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-win-rate-header`}
+                >
+                  <div className="gba:flex gba:items-center">
+                    Win Rate
+                    {renderSortIcon('winningChance')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort('stage')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-stage-header`}
+                >
+                  <div className="gba:flex gba:items-center">
+                    Stage
+                    {renderSortIcon('stage')}
+                  </div>
+                </TableHead>
+                <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-pipeline-header`}>
+                  Pipeline
+                </TableHead>
+                <TableHead 
+                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort('closeDate')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-close-date-header`}
+                >
+                  <div className="gba:flex gba:items-center">
+                    Close Date
+                    {renderSortIcon('closeDate')}
+                  </div>
+                </TableHead>
+                <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}>
+                  Owner
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((record) => (
+                <TableRow 
+                  key={record.id}
+                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${selectedOpportunityId === record.id ? 'gba:bg-blue-50' : ''}`}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
+                >
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
+                    <div className="gba:flex gba:justify-start gba:gap-2">
+                      <AppActionButton
+                        data-testid={`${DATA_TEST_ID_PREFIX}-update-opportunity-button-${record.id}`}
+                        variant="secondary"
+                        contextsArray={[FlowContextName.opportunityEntity]}
+                        externalContextData={{
+                          opportunityId: record.id
+                        }}
+                        prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-opportunity`}
+                        accessToken={accessToken}
+                        emptyStateBehavior="disable"
+                        deferMainContextRequestsUntilClick
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-opportunity-cell-${record.id}`}>
+                    <div 
+                      className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRowClick(record);
+                      }}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-opportunity-name-${record.id}`}
+                    >
+            <div className="gba:font-medium gba:text-sm gba:truncate" title={record.name}>
+              {record.name}
             </div>
-          )}
-        </div>
-                </TableCell>
-                <TableCell className="gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-value-cell-${record.id}`}>
+            {record.account && (
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-gray-500">
+                <PiBuilding size={12} />
+                <span className="gba:truncate" title={record.account.name}>
+                  {record.account.name}
+                </span>
+              </div>
+            )}
+          </div>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-value-cell-${record.id}`}>
         <div className="gba:text-sm gba:font-medium">
           {formatCurrency(record.estimatedAmount, record.currency?.code)}
         </div>
-                </TableCell>
-                <TableCell className="gba:text-center" data-testid={`${DATA_TEST_ID_PREFIX}-win-rate-cell-${record.id}`}>
-                  <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
-          {record.winningChance ? `${record.winningChance}%` : '0%'}
-                  </Badge>
-                </TableCell>
-                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-stage-cell-${record.id}`}>
-                  <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
-                    {record.stage || 'Unknown Stage'}
-                  </Badge>
-                </TableCell>
-                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-pipeline-cell-${record.id}`}>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-win-rate-cell-${record.id}`}>
+                    <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
+            {record.winningChance ? `${record.winningChance}%` : '0%'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-stage-cell-${record.id}`}>
+                    <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
+                      {record.stage || 'Unknown Stage'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-pipeline-cell-${record.id}`}>
         <div className="gba:text-sm gba:truncate" title={record.salesPipeline?.value}>
           {record.salesPipeline?.value || '-'}
         </div>
-                </TableCell>
-                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-close-date-cell-${record.id}`}>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-close-date-cell-${record.id}`}>
         <div className="gba:text-sm">
           {formatDate(record.closeDate)}
         </div>
-                </TableCell>
-                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}>
-                  <div className="gba:flex gba:items-center gba:gap-3">
-                    <Avatar size="sm">
-                      {record.ownerEmployee?.pictureThumbnail && (
-                        <AvatarImage 
-                          src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`} 
-                          alt={getOwnerName(record)} 
-                        />
-                      )}
-                      <AvatarFallback>
-                        {getOwnerName(record) !== '-' 
-                          ? getOwnerName(record).split(' ').map(n => n[0]).join('').toUpperCase()
-                          : 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="gba:flex gba:flex-col">
-                      <span className="gba:font-medium gba:text-sm">{getOwnerName(record)}</span>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}>
+                    <div className="gba:flex gba:items-center gba:gap-3">
+                      <Avatar size="sm">
+                        {record.ownerEmployee?.pictureThumbnail && (
+                          <AvatarImage 
+                            src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`} 
+                            alt={getOwnerName(record)} 
+                          />
+                        )}
+                        <AvatarFallback>
+                          {getOwnerName(record) !== '-' 
+                            ? getOwnerName(record).split(' ').map(n => n[0]).join('').toUpperCase()
+                            : 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="gba:flex gba:flex-col">
+                        <span className="gba:font-medium gba:text-sm">{getOwnerName(record)}</span>
+                      </div>
                     </div>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
 
       {/* Pagination */}
       <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4">
@@ -348,7 +364,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 };
 

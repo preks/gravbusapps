@@ -2,7 +2,7 @@
 
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Badge, Avatar, AvatarImage, AvatarFallback, Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner } from '@newwork/nw-design-system';
+import { Avatar, AvatarImage, AvatarFallback, Button, Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Card, CardContent } from '@newwork/nw-design-system';
 import { PiUser, PiEnvelope, PiPhone, PiBuilding, PiCalendar, PiMapPin, PiCaretUp, PiCaretDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -194,184 +194,198 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   };
 
   return (
-    <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-      {loading && (
-        <div className="gba:flex gba:justify-center gba:p-4">
-          <Spinner />
-        </div>
-      )}
-      
-      <div className="gba:overflow-x-auto">
-        <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="gba:w-[60px]" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}></TableHead>
-              <TableHead 
-                className="gba:w-[22%] gba:cursor-pointer gba:hover:bg-gray-50"
-                onClick={() => handleSort('name')}
-                data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-header`}
-              >
-                {t('lead.name', 'Lead Contact')}
-                {renderSortIcon('name')}
-              </TableHead>
-              <TableHead 
-                className="gba:w-[20%] gba:cursor-pointer gba:hover:bg-gray-50"
-                onClick={() => handleSort('companyName')}
-                data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-header`}
-              >
-                {t('lead.company', 'Lead Company')}
-                {renderSortIcon('companyName')}
-              </TableHead>
-              <TableHead 
-                className="gba:w-[15%] gba:cursor-pointer gba:hover:bg-gray-50"
-                onClick={() => handleSort('createdAt')}
-                data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
-              >
-                {t('lead.created', 'Creation Date')}
-                {renderSortIcon('createdAt')}
-              </TableHead>
-              <TableHead 
-                className="gba:w-[20%] gba:cursor-pointer gba:hover:bg-gray-50"
-                onClick={() => handleSort('ownerEmployeeId')}
-                data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
-              >
-                {t('lead.owner', 'Owner')}
-                {renderSortIcon('ownerEmployeeId')}
-              </TableHead>
-              <TableHead 
-                className="gba:w-[12%] gba:cursor-pointer gba:hover:bg-gray-50"
-                onClick={() => handleSort('leadStatusRef')}
-                data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
-              >
-                {t('lead.status', 'Status')}
-                {renderSortIcon('leadStatusRef')}
-              </TableHead>
-              <TableHead 
-                className="gba:w-[13%] gba:cursor-pointer gba:hover:bg-gray-50"
-                onClick={() => handleSort('leadRatingRef')}
-                data-testid={`${DATA_TEST_ID_PREFIX}-rating-header`}
-              >
-                {t('lead.rating', 'Rating')}
-                {renderSortIcon('leadRatingRef')}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {leads.map((record) => (
-              <TableRow 
-                key={record.id}
-                className={`gba:hover:bg-gray-50 ${selectedLeadId === record.id ? 'gba:bg-blue-50' : ''}`}
-                data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
-              >
-                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
-                  <div className="gba:flex gba:justify-start gba:gap-2">
-                    <AppActionButton
-                      data-testid={`${DATA_TEST_ID_PREFIX}-update-lead-button-${record.id}`}
-                      variant="secondary"
-                      contextsArray={[FlowContextName.leadEntity]}
-                      externalContextData={{
-                        leadId: record.id
-                      }}
-                      prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-lead`}
-                      accessToken={accessToken}
-                      emptyStateBehavior="disable"
-                      deferMainContextRequestsUntilClick
-                      onClick={(e) => e.stopPropagation()}
-                    />
+    <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+      <CardContent className="gba:p-0">
+        {loading && (
+          <div className="gba:flex gba:justify-center gba:p-4">
+            <Spinner />
+          </div>
+        )}
+        
+        <div className="gba:overflow-x-auto">
+          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
+            <TableHeader>
+              <TableRow className="gba:border-b gba:bg-gray-50">
+                <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}>ACTIONS</TableHead>
+                <TableHead 
+                  className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort('firstName')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-header`}
+                >
+                  <div className="gba:flex gba:items-center">
+                    {t('lead.contact', 'Lead Contact')}
+                    {renderSortIcon('firstName')}
                   </div>
-                </TableCell>
-                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-cell-${record.id}`}>
-                  <div 
-                    className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRowClick(record);
-                    }}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-name-${record.id}`}
-                  >
-                    <Avatar size="sm">
-                      <AvatarFallback>
-                        {getContactName(record) !== '-' 
-                          ? getContactName(record).split(' ').map((n: string) => n[0]).join('').toUpperCase()
-                          : 'L'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="gba:font-medium gba:text-sm">
-                        {getContactName(record)}
+                </TableHead>
+                <TableHead 
+                  className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort('accountName')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-header`}
+                >
+                  <div className="gba:flex gba:items-center">
+                    {t('lead.company', 'Company & Industry')}
+                    {renderSortIcon('accountName')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort('createdAt')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
+                >
+                  <div className="gba:flex gba:items-center">
+                    {t('lead.created', 'Created')}
+                    {renderSortIcon('createdAt')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort('ownerEmployeeId')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
+                >
+                  <div className="gba:flex gba:items-center">
+                    {t('lead.owner', 'Owner')}
+                    {renderSortIcon('ownerEmployeeId')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort('leadStatusRef')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
+                >
+                  <div className="gba:flex gba:items-center">
+                    {t('lead.status', 'Status')}
+                    {renderSortIcon('leadStatusRef')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort('leadRatingRef')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-rating-header`}
+                >
+                  <div className="gba:flex gba:items-center">
+                    {t('lead.rating', 'Rating')}
+                    {renderSortIcon('leadRatingRef')}
+                  </div>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {leads.map((record) => (
+                <TableRow 
+                  key={record.id}
+                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${selectedLeadId === record.id ? 'gba:bg-blue-50' : ''}`}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
+                >
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
+                    <div className="gba:flex gba:justify-start gba:gap-2">
+                      <AppActionButton
+                        data-testid={`${DATA_TEST_ID_PREFIX}-update-lead-button-${record.id}`}
+                        variant="secondary"
+                        contextsArray={[FlowContextName.leadEntity]}
+                        externalContextData={{
+                          leadId: record.id
+                        }}
+                        prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-lead`}
+                        accessToken={accessToken}
+                        emptyStateBehavior="disable"
+                        deferMainContextRequestsUntilClick
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-cell-${record.id}`}>
+                    <div 
+                      className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRowClick(record);
+                      }}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-name-${record.id}`}
+                    >
+                      <Avatar size="sm">
+                        <AvatarFallback>
+                          {getContactName(record) !== '-' 
+                            ? getContactName(record).split(' ').map((n: string) => n[0]).join('').toUpperCase()
+                            : 'L'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="gba:font-medium gba:text-sm">
+                          {getContactName(record)}
+                        </div>
+                        {record.companyName && (
+                          <div className="gba:text-xs gba:text-gray-500">
+                            {record.companyName}
+                          </div>
+                        )}
                       </div>
-                      {record.companyName && (
-                        <div className="gba:text-xs gba:text-gray-500">
-                          {record.companyName}
+                    </div>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-cell-${record.id}`}>
+                    <div className="gba:flex gba:flex-col gba:gap-1">
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiBuilding size={14} className="gba:text-gray-400" />
+                        <span className="gba:font-medium gba:text-sm">{record.companyName || record.account?.name || '-'}</span>
+                      </div>
+                      {record.companyEmail && (
+                        <div className="gba:flex gba:items-center gba:gap-1">
+                          <PiEnvelope size={12} className="gba:text-gray-400" />
+                          <span className="gba:text-xs gba:text-gray-600">{record.companyEmail}</span>
+                        </div>
+                      )}
+                      {record.companyWebsite && (
+                        <div className="gba:flex gba:items-center gba:gap-1">
+                          <span className="gba:text-xs gba:text-gray-600">{record.companyWebsite}</span>
                         </div>
                       )}
                     </div>
-                  </div>
-                </TableCell>
-                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-cell-${record.id}`}>
-                  <div className="gba:flex gba:flex-col gba:gap-1">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <PiBuilding size={14} className="gba:text-gray-400" />
-                      <span className="gba:font-medium gba:text-sm">{record.companyName || record.account?.name || '-'}</span>
-                    </div>
-                    {record.companyEmail && (
-                      <div className="gba:flex gba:items-center gba:gap-1">
-                        <PiEnvelope size={12} className="gba:text-gray-400" />
-                        <span className="gba:text-xs gba:text-gray-600">{record.companyEmail}</span>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}>
+                    {record.createdAt ? (
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiCalendar size={16} className="gba:text-gray-400" />
+                        <span className="gba:text-sm">
+                          {dayjs(record.createdAt).format('MMM DD, YYYY')}
+                        </span>
                       </div>
-                    )}
-                    {record.companyWebsite && (
-                      <div className="gba:flex gba:items-center gba:gap-1">
-                        <span className="gba:text-xs gba:text-gray-600">{record.companyWebsite}</span>
+                    ) : '-'}
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}>
+                    <div className="gba:flex gba:items-center gba:gap-3">
+                      <Avatar size="sm">
+                        {record.ownerEmployee?.pictureThumbnail && (
+                          <AvatarImage 
+                            src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`} 
+                            alt={getOwnerName(record)} 
+                          />
+                        )}
+                        <AvatarFallback>
+                          {!record.ownerEmployee?.pictureThumbnail
+                            ? (getOwnerName(record) !== '-' ? getOwnerName(record).split(' ').map(n => n[0]).join('').toUpperCase() : 'U')
+                            : undefined}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="gba:flex gba:flex-col">
+                        <span className="gba:font-medium gba:text-sm">{getOwnerName(record)}</span>
                       </div>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}>
-                  {record.createdAt ? (
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <PiCalendar size={16} className="gba:text-gray-400" />
-                      <span className="gba:text-sm">
-                        {dayjs(record.createdAt).format('MMM DD, YYYY')}
-                      </span>
                     </div>
-                  ) : '-'}
-                </TableCell>
-                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}>
-                  <div className="gba:flex gba:items-center gba:gap-3">
-                    <Avatar size="sm">
-                      {record.ownerEmployee?.pictureThumbnail && (
-                        <AvatarImage 
-                          src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`} 
-                          alt={getOwnerName(record)} 
-                        />
-                      )}
-                      <AvatarFallback>
-                        {!record.ownerEmployee?.pictureThumbnail
-                          ? (getOwnerName(record) !== '-' ? getOwnerName(record).split(' ').map(n => n[0]).join('').toUpperCase() : 'U')
-                          : undefined}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="gba:flex gba:flex-col">
-                      <span className="gba:font-medium gba:text-sm">{getOwnerName(record)}</span>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
-                  <Badge className={getStatusBadgeClass(record.leadStatus?.value)}>
-                    {record.leadStatus?.value || '-'}
-                  </Badge>
-                </TableCell>
-                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-rating-cell-${record.id}`}>
-                  <Badge className={getRatingBadgeClass(record.leadRating?.value)}>
-                    {record.leadRating?.value || '-'}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
+                    <Badge className={getStatusBadgeClass(record.leadStatus?.value)}>
+                      {record.leadStatus?.value || '-'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-rating-cell-${record.id}`}>
+                    <Badge className={getRatingBadgeClass(record.leadRating?.value)}>
+                      {record.leadRating?.value || '-'}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
 
       {/* Pagination */}
       <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
@@ -440,6 +454,6 @@ export const LeadTable: React.FC<LeadTableProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }; 
