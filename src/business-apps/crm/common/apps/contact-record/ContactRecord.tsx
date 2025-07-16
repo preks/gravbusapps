@@ -68,7 +68,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
             onClick={onBack}
             className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
           >
-            Back to Contacts Overview
+            Back to Customer Relations
           </button>
       </div>
       </div>
@@ -85,7 +85,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
           data-testid="back-button"
         >
           <ArrowLeftOutlined className="gba:mr-2" />
-          <span>Back to Contacts Overview</span>
+          <span>Back to Customer Relations</span>
         </button>
       </div>
 
@@ -144,8 +144,8 @@ const ContactRecord: React.FC<ContactRecordProps> = (props) => {
     if (props.onBack) {
       props.onBack();
     } else {
-      // Navigate back to contacts overview
-      navigateTo('/platform/crm/contacts-overview');
+      // Navigate back to customer relations
+      navigateTo('/platform/crm/customer-relations?view=contacts');
     }
   };
 

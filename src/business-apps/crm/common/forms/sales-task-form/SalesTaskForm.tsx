@@ -44,76 +44,86 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
         const response = event.detail?.response;
         const salesTask = response?.salesTask;
         if (!salesTask) return;
+        
         const uploadFile = fileList && fileList[0];
-        if (!uploadFile || !uploadFile.originFileObj) {
-          message.error('No file selected for upload');
-          return;
+        if (uploadFile && uploadFile.originFileObj) {
+          const file = uploadFile.originFileObj;
+          const pathParams = { accessScope: 'public' };
+          const queryParams = {
+            appName: 'crm',
+            folderPath: `/sales-tasks/${salesTask.id}/documents`,
+          };
+          const uploadResponse = await fileClient.uploadFile(
+            file,
+            pathParams,
+            queryParams
+          );
+          const crmDocumentPayload = {
+            crmDocument: {
+              name: file.name,
+              description: `File for ${salesTask.name}`,
+              file: uploadResponse.fileInfo.fileId,
+              fileSize: file.size,
+              mimeType: file.type,
+              verified: true,
+              verificationDate: Date.now(),
+              salesTask: salesTask.id,
+              version: 0,
+            },
+            changeMode: 'INSERT',
+          };
+          await restClient.post('/customer-relations/saveCrmDocument', crmDocumentPayload, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
         }
-        const file = uploadFile.originFileObj;
-        const pathParams = { accessScope: 'public' };
-        const queryParams = {
-          appName: 'crm',
-          folderPath: `/sales-activities/${salesTask.id}/documents`,
-        };
-        const uploadResponse = await fileClient.uploadFile(
-          file,
-          pathParams,
-          queryParams
-        );
-        const crmDocumentPayload = {
-          crmDocument: {
-            name: file.name,
-            description: `File for ${salesTask.title}`,
-            file: uploadResponse.fileInfo.fileId,
-            fileSize: file.size,
-            mimeType: file.type,
-            verified: true,
-            verificationDate: Date.now(),
-            salesTask: salesTask.id,
-            version: 0,
-          },
-          changeMode: 'INSERT',
-        };
-        await restClient.post('/customer-relations/saveCrmDocument', crmDocumentPayload, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        message.success('Document uploaded and saved successfully');
+        
+        message.success('Task created successfully');
+        setLoading(false);
       } catch (err: any) {
-        message.error(err?.message || 'Failed to upload and save document');
-      } finally {
-        window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener);
+        console.error('Error in process completion:', err);
+        message.error(err?.message || 'Failed to create task');
+        setLoading(false);
       }
     };
+    
     window.addEventListener('com.newwork.process.taskCompletion', handler as EventListener);
+    
     return () => {
+      window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener);
     };
   }, [accessToken, additionalData?.leadId, fileClient, fileList, restClient]);
 
   const handleSubmit = async (values: any) => {
     setLoading(true);
-    const payload = {
-      employeeId: additionalData?.employeeId,
-      managerId: additionalData?.managerId,
-      structureId: additionalData?.structureId,
-      locationId: additionalData?.locationId,
-      organizationalUnitId: additionalData?.organizationalUnitId,
-      ...(additionalData?.contactId && { contactId: additionalData.contactId }),
-      changeMode: 'INSERT',
-      salesTask: {
-        version: 0,
-        typeRef: values.taskTypeRef,
-        name: values.title,
-        priorityRef: values.priorityRef,
-        deadline: values.deadline ? dayjs(values.deadline).toISOString() : null,
-        description: values.description,
-        ...(additionalData?.leadId && { lead: additionalData.leadId }),
-        ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
-        ...(additionalData?.contactId && { contact: additionalData.contactId }),
-      },
-    };
     
-    dispatchProcessContinueEvent('pse_submit', payload);
-    setLoading(false);
+    try {
+      const payload = {
+        employeeId: additionalData?.employeeId,
+        managerId: additionalData?.managerId,
+        structureId: additionalData?.structureId,
+        locationId: additionalData?.locationId,
+        organizationalUnitId: additionalData?.organizationalUnitId,
+        ...(additionalData?.contactId && { contactId: additionalData.contactId }),
+        changeMode: 'INSERT',
+        salesTask: {
+          version: 0,
+          typeRef: values.taskTypeRef,
+          name: values.title,
+          priorityRef: values.priorityRef,
+          deadline: values.deadline ? dayjs(values.deadline).toISOString() : null,
+          description: values.description,
+          ...(additionalData?.leadId && { lead: additionalData.leadId }),
+          ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
+          ...(additionalData?.contactId && { contact: additionalData.contactId }),
+        },
+      };
+      
+      dispatchProcessContinueEvent('pse_submit', payload);
+    } catch (error) {
+      console.error('Error submitting task:', error);
+      message.error('Failed to submit task');
+      setLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -242,6 +252,7 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
             data-testid="cancel-button"
             onClick={handleCancel}
             className="gba:bg-gray-200 gba:text-gray-800"
+            disabled={loading}
           >
             {getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
           </Button>

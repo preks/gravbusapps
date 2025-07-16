@@ -75,91 +75,189 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
 
   const { data: typeOptions, loading: typeLoading } = useSalesActivityTypes(accessToken, { search: typeSearch });
 
+  const [uploadProcessed, setUploadProcessed] = useState(false);
+
   useEffect(() => {
     const handler = async (event: any) => {
       try {
-        const response = event.detail?.response;
-        const salesActivity = response?.salesActivity;
-        if (!salesActivity) return;
-        window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener);
-        const uploadFile = fileList && fileList[0];
-        if (!uploadFile || !uploadFile.originFileObj) {
-          message.error('No file selected for upload');
+        console.log('SalesActivityForm: Process completion event received:', event.type);
+        console.log('SalesActivityForm: Upload already processed:', uploadProcessed);
+        
+        // Prevent multiple executions
+        if (uploadProcessed) {
+          console.log('SalesActivityForm: Upload already processed, skipping');
           return;
         }
-        const file = uploadFile.originFileObj;
-        const pathParams = { accessScope: 'public' };
-        const queryParams = {
-          appName: 'crm',
-          folderPath: `/sales-activities/${salesActivity.id}/documents`,
-        };
-        const uploadResponse = await fileClient.uploadFile(
-          file,
-          pathParams,
-          queryParams
-        );
-        const crmDocumentPayload = {
-          crmDocument: {
-            name: file.name,
-            description: `File for ${salesActivity.title}`,
-            file: uploadResponse.fileInfo.fileId,
-            fileSize: file.size,
-            mimeType: file.type,
-            verified: true,
-            verificationDate: Date.now(),
-            ...(additionalData?.leadId && { lead: additionalData.leadId }),
-            ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
-            version: 0,
-          },
-          changeMode: 'INSERT',
-        };
-        await restClient.post('/customer-relations/saveCrmDocument', crmDocumentPayload, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        message.success('Document uploaded and saved successfully');
+        
+        // Check for successful completion with different response structures
+        let salesActivity = null;
+        const response = event.detail?.response;
+        
+        // Try different ways to get the salesActivity
+        if (response?.salesActivity) {
+          salesActivity = response.salesActivity;
+          console.log('SalesActivityForm: Found salesActivity in response.salesActivity');
+        } else if (event.detail?.salesActivity) {
+          salesActivity = event.detail.salesActivity;
+          console.log('SalesActivityForm: Found salesActivity in event.detail.salesActivity');
+        } else if (event.detail?.resolution === 'success') {
+          // If we have success but no salesActivity, try to proceed anyway with a mock ID
+          console.log('SalesActivityForm: Process successful but no salesActivity found, checking for files anyway');
+          salesActivity = { id: 'temp-id', title: 'Activity' }; // temporary for file upload
+        }
+        
+        if (!salesActivity) {
+          console.log('SalesActivityForm: No salesActivity found in any response format, skipping file upload');
+          return;
+        }
+        
+        // Mark as processed to prevent duplicate uploads
+        setUploadProcessed(true);
+        
+        // Check if we need to upload a file
+        const hasFileToUpload = fileList && fileList.length > 0 && fileList[0]?.originFileObj;
+        
+        if (hasFileToUpload) {
+          console.log('SalesActivityForm: Starting file upload process...');
+          try {
+            const file = fileList[0].originFileObj;
+            const pathParams = { accessScope: 'public' };
+            
+            // Use entity folder path for consistency with document-upload-form
+            const entityType = additionalData?.leadId ? 'leads' : additionalData?.opportunityId ? 'opportunities' : 'contacts';
+            const entityId = additionalData?.leadId || additionalData?.opportunityId || additionalData?.contactId;
+            
+            const queryParams = {
+              appName: 'crm',
+              folderPath: `/${entityType}/${entityId}/documents`,
+            };
+            
+            const uploadResponse = await fileClient.uploadFile(
+              file,
+              pathParams,
+              queryParams
+            );
+            
+            const crmDocumentPayload = {
+              employeeId: additionalData?.employeeId,
+              managerId: additionalData?.managerId,
+              structureId: additionalData?.structureId,
+              locationId: additionalData?.locationId,
+              organizationalUnitId: additionalData?.organizationalUnitId,
+              ...(additionalData?.contactId && { contactId: additionalData.contactId }),
+              changeMode: 'INSERT',
+              crmDocument: {
+                name: file.name,
+                description: `Document for activity: ${salesActivity.title}`,
+                file: uploadResponse.fileInfo.fileId,
+                fileSize: file.size,
+                mimeType: file.type,
+                verified: true,
+                verificationDate: new Date().toISOString(),
+                ...(additionalData?.leadId && { lead: additionalData.leadId }),
+                ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
+                ...(additionalData?.contactId && { contact: additionalData.contactId }),
+                version: 0,
+              },
+            };
+            
+            await restClient.post('/customer-relations/saveCrmDocument', crmDocumentPayload, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            
+            // Send postMessage to parent window for document refresh
+            if (window.parent !== window) {
+              window.parent.postMessage({ 
+                type: 'CRM_DOCUMENT_UPLOADED', 
+                leadId: additionalData?.leadId,
+                opportunityId: additionalData?.opportunityId,
+                contactId: additionalData?.contactId,
+                document: crmDocumentPayload.crmDocument 
+              }, '*');
+            }
+            
+            // Complete the process only after both activity and document are saved
+            message.success('Activity and document created successfully');
+            setLoading(false);
+            console.log('SalesActivityForm: Process completed successfully with file upload');
+            
+          } catch (uploadErr: any) {
+            console.error('Error uploading document:', uploadErr);
+            message.error(`Failed to upload document: ${uploadErr?.message || 'Unknown error'}`);
+            setLoading(false);
+          }
+        } else {
+          // No file to upload, complete the process immediately
+          message.success('Activity created successfully');
+          setLoading(false);
+          console.log('SalesActivityForm: Process completed successfully without file upload');
+        }
       } catch (err: any) {
-        message.error(err?.message || 'Failed to upload and save document');
+        console.error('Error in process completion:', err);
+        message.error(err?.message || 'Failed to create activity');
+        setLoading(false);
       }
     };
-    window.addEventListener('com.newwork.process.taskCompletion', handler as EventListener);
+    
+    // Listen to multiple possible event names like ActivityTimeline does
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handler as EventListener);
+    });
+    
+    console.log('SalesActivityForm: Added event listeners for process completion');
+    
     return () => {
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handler as EventListener);
+      });
     };
-  }, [accessToken, additionalData?.leadId, fileClient, fileList, restClient]);
+      }, [accessToken, additionalData?.leadId, fileClient, fileList, restClient, uploadProcessed]);
 
   const handleSubmit = async (values: any) => {
     setLoading(true);
+    setUploadProcessed(false); // Reset upload flag for new submission
     
-    // Debug: Check what's in additionalData
-    console.log('=== SalesActivityForm Debug ===');
-    console.log('additionalData:', additionalData);
-    console.log('contactId found:', additionalData?.contactId);
-    console.log('===============================');
-    
-    const payload = {
-      employeeId: additionalData?.employeeId,
-      managerId: additionalData?.managerId,
-      structureId: additionalData?.structureId,
-      locationId: additionalData?.locationId,
-      organizationalUnitId: additionalData?.organizationalUnitId,
-      ...(additionalData?.contactId && { contactId: additionalData.contactId }),
-      changeMode: 'INSERT',
-      salesActivity: {
-        version: 0,
-        activityTypeRef: values.activityTypeRef,
-        title: values.title,
-        date: values.date ? dayjs(values.date).toISOString() : null,
-        ...(additionalData?.leadId && { lead: additionalData.leadId }),
-        ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
-        ...(additionalData?.contactId && { contact: additionalData.contactId }),
-        description: values.description || '',
-        ownerEmployee: additionalData?.employeeId
-      },
-    };
-    
-    console.log('Final payload:', payload);
-    
-    dispatchProcessContinueEvent('pse_submit', payload);
-    setLoading(false);
+    try {
+      const payload = {
+        employeeId: additionalData?.employeeId,
+        managerId: additionalData?.managerId,
+        structureId: additionalData?.structureId,
+        locationId: additionalData?.locationId,
+        organizationalUnitId: additionalData?.organizationalUnitId,
+        ...(additionalData?.contactId && { contactId: additionalData.contactId }),
+        changeMode: 'INSERT',
+        salesActivity: {
+          version: 0,
+          activityTypeRef: values.activityTypeRef,
+          title: values.title,
+          date: values.date ? dayjs(values.date).toISOString() : null,
+          ...(additionalData?.leadId && { lead: additionalData.leadId }),
+          ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
+          ...(additionalData?.contactId && { contact: additionalData.contactId }),
+          description: values.description || '',
+          ownerEmployee: additionalData?.employeeId
+        },
+      };
+      
+      dispatchProcessContinueEvent('pse_submit', payload);
+    } catch (error) {
+      console.error('Error submitting activity:', error);
+      message.error('Failed to submit activity');
+      setLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -168,6 +266,11 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
 
   const handleFileChange = ({ fileList: newFileList }: any) => {
     setFileList(newFileList);
+  };
+
+  const beforeUpload = (file: File) => {
+    // Prevent automatic upload - we handle it manually
+    return false;
   };
 
   const mappedTypeOptions = useMemo(() =>
@@ -248,8 +351,8 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
             data-testid="file-upload"
             fileList={fileList}
             onChange={handleFileChange}
-            beforeUpload={() => false}
-            multiple
+            beforeUpload={beforeUpload}
+            maxCount={1}
             className="gba:w-full"
           >
             <p className="gba:mb-2">
@@ -263,6 +366,7 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
             data-testid="cancel-button"
             onClick={handleCancel}
             className="gba:bg-gray-200 gba:text-gray-800"
+            disabled={loading}
           >
             {getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
           </Button>

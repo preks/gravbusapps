@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CalendarOutlined, CloudUploadOutlined } from '@ant-design/icons';
-import { Button, List, Avatar, Spin, Alert, Empty, Tag, message, Timeline, Typography } from 'antd';
+import { Button, List, Avatar, Spin, Alert, Empty, Tag, message, Timeline, Typography, Modal } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { NotesSection } from './NotesSection';
@@ -178,7 +178,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        if (event.detail?.resolution === 'success' && activeTab === 'activities') {
+        if (event.detail?.resolution === 'success') {
           loadActivities();
           loadDocuments();
           refreshNotes();
@@ -269,61 +269,79 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
     }
   };
 
-  const handleDeleteActivity = async (activity: ContactActivityData) => {
-    try {
-      await restClient.post('/customer-relations/saveSalesActivity', {
-        changeMode: "DELETE",
-        salesActivity: {
-          id: activity.id,
-          version: activity.version,
-          contact: contactId
+  const handleDeleteActivity = (activity: ContactActivityData) => {
+    Modal.confirm({
+      title: 'Confirm Deletion',
+      content: `Are you sure you want to delete the activity "${activity.title}"?`,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          await restClient.post('/customer-relations/saveSalesActivity', {
+            changeMode: "DELETE",
+            salesActivity: {
+              id: activity.id,
+              version: activity.version,
+              contact: contactId
+            }
+          }, {
+            headers: { Authorization: `Bearer ${context.accessToken}` }
+          });
+          
+          // Remove the activity from both states
+          setActivities(prevActivities => 
+            prevActivities.filter(a => a.id !== activity.id)
+          );
+          
+          // Also remove from original activities ref
+          originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== activity.id);
+          
+          message.success('Activity deleted successfully');
+        } catch (error) {
+          console.error('Error deleting activity:', error);
+          message.error('Failed to delete activity');
         }
-      }, {
-        headers: { Authorization: `Bearer ${context.accessToken}` }
-      });
-      
-      // Remove the activity from both states
-      setActivities(prevActivities => 
-        prevActivities.filter(a => a.id !== activity.id)
-      );
-      
-      // Also remove from original activities ref
-      originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== activity.id);
-      
-      message.success('Activity deleted successfully');
-    } catch (error) {
-      console.error('Error deleting activity:', error);
-      message.error('Failed to delete activity');
-    }
+      },
+    });
   };
 
   const handleLanguageChange = (languageCode: string) => {
     setSelectedLanguage(languageCode);
   };
 
-  const handleDeleteDocument = async (document: ContactDocumentData) => {
-    try {
-      await restClient.post('/customer-relations/saveCrmDocument', {
-        changeMode: "DELETE",
-        crmDocument: {
-          id: document.id,
-          version: document.version,
-          contact: contactId
+  const handleDeleteDocument = (document: ContactDocumentData) => {
+    Modal.confirm({
+      title: 'Confirm Deletion',
+      content: `Are you sure you want to delete the document "${document.name}"?`,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          await restClient.post('/customer-relations/saveCrmDocument', {
+            changeMode: "DELETE",
+            crmDocument: {
+              id: document.id,
+              version: document.version,
+              contact: contactId
+            }
+          }, {
+            headers: { Authorization: `Bearer ${context.accessToken}` }
+          });
+          
+          // Remove the document from local state
+          setDocuments(prevDocuments => 
+            prevDocuments.filter(d => d.id !== document.id)
+          );
+          
+          message.success('Document deleted successfully');
+        } catch (error) {
+          console.error('Error deleting document:', error);
+          message.error('Failed to delete document');
         }
-      }, {
-        headers: { Authorization: `Bearer ${context.accessToken}` }
-      });
-      
-      // Remove the document from local state
-      setDocuments(prevDocuments => 
-        prevDocuments.filter(d => d.id !== document.id)
-      );
-      
-      message.success('Document deleted successfully');
-    } catch (error) {
-      console.error('Error deleting document:', error);
-      message.error('Failed to delete document');
-    }
+      },
+    });
   };
 
   return (
@@ -591,7 +609,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                         </Text>
                       </div>
                       <div style={{ marginTop: '4px' }}>
-                        <Text type="secondary">Type: {document.documentType?.value || 'Unknown'}</Text>
+                        <Text type="secondary">Type: {document.mimeType || 'Unknown'}</Text>
                         {document.fileSize && (
                           <Text type="secondary" style={{ marginLeft: '16px' }}>
                             Size: {Math.floor(document.fileSize / 1024)} KB

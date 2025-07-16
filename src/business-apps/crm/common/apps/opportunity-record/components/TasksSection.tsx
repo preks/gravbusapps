@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Button, Timeline, Typography, message } from 'antd';
+import { Spin, Alert, Button, Timeline, Typography, message, Modal } from 'antd';
 import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -144,28 +144,37 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
     }
   };
 
-  const handleDeleteTask = async (task: SalesTaskData) => {
-    try {
-      await restClient.post('/customer-relations/saveSalesTask', {
-        changeMode: "DELETE",
-        salesTask: {
-          id: task.id,
-          version: task.version,
-          opportunity: opportunityId
+  const handleDeleteTask = (task: SalesTaskData) => {
+    Modal.confirm({
+      title: 'Confirm Deletion',
+      content: `Are you sure you want to delete the task "${task.name || 'Untitled Task'}"?`,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          await restClient.post('/customer-relations/saveSalesTask', {
+            changeMode: "DELETE",
+            salesTask: {
+              id: task.id,
+              version: task.version,
+              opportunity: opportunityId
+            }
+          }, {
+            headers: { Authorization: `Bearer ${context.accessToken}` }
+          });
+          
+          // Remove the task from the local state
+          setTasks(prevTasks => 
+            prevTasks.filter(t => t.id !== task.id)
+          );
+          message.success('Task deleted successfully');
+        } catch (error) {
+          console.error('Error deleting task:', error);
+          message.error('Failed to delete task');
         }
-      }, {
-        headers: { Authorization: `Bearer ${context.accessToken}` }
-      });
-      
-      // Remove the task from the local state
-      setTasks(prevTasks => 
-        prevTasks.filter(t => t.id !== task.id)
-      );
-      message.success('Task deleted successfully');
-    } catch (error) {
-      console.error('Error deleting task:', error);
-      message.error('Failed to delete task');
-    }
+      },
+    });
   };
 
   const getPriorityColor = (priority: string) => {

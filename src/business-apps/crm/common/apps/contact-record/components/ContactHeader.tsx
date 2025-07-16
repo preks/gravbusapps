@@ -45,7 +45,12 @@ export const ContactHeader: React.FC<ContactHeaderProps> = ({ contact, contactId
               {contact.phone && (
                 <>
                   <PhoneOutlined style={{ marginRight: '4px' }} />
-                  <span>{contact.phone}</span>
+                  <a 
+                    href={`tel:${contact.phone}`}
+                    style={{ color: '#3b82f6', textDecoration: 'none' }}
+                  >
+                    {contact.phone}
+                  </a>
                   <span style={{ margin: '0 8px' }}>•</span>
                 </>
               )}

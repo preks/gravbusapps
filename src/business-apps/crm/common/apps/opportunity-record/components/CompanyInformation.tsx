@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card } from 'antd';
 import { Opportunity } from '../types';
+import { formatCurrency } from '@/business-apps/crm/common/utils/currencyUtils';
 
 interface CompanyInformationProps {
   opportunity: Opportunity;
@@ -94,10 +95,7 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({ opportun
                 <div style={{ marginBottom: '12px' }}>
                   <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Opportunity Value</div>
                   <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                    {new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: opportunity.currency?.code || 'EUR'
-                    }).format(opportunity.value)}
+                    {formatCurrency(opportunity.value, opportunity.currency?.id || 'Currency:v1:EUR')}
                   </div>
                 </div>
               )}

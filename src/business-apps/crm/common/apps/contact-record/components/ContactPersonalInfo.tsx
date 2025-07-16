@@ -40,7 +40,16 @@ export const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contac
         
         <div style={{ marginBottom: '16px' }}>
           <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Phone Number</div>
-          <div style={{ fontSize: '16px', fontWeight: '500' }}>{contact?.phone || '-'}</div>
+          <div style={{ fontSize: '16px', fontWeight: '500' }}>
+            {contact?.phone ? (
+              <a 
+                href={`tel:${contact.phone}`}
+                style={{ color: '#3b82f6', textDecoration: 'none' }}
+              >
+                {contact.phone}
+              </a>
+            ) : '-'}
+          </div>
         </div>
         
         <div style={{ marginBottom: '16px' }}>

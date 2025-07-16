@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PlusCircleOutlined, UserOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
-import { Button, Spin, Alert, Empty, Timeline, Typography, message } from 'antd';
+import { Button, Spin, Alert, Empty, Timeline, Typography, message, Modal } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetContactNotes, ContactNoteData } from '../queries/ContactNoteQueries';
@@ -146,28 +146,37 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
     };
   }, [contactId]);
 
-  const handleDeleteNote = async (note: ContactNoteData) => {
-    try {
-      await restClient.post('/customer-relations/saveCrmNote', {
-        changeMode: "DELETE",
-        crmNote: {
-          id: note.id,
-          version: note.version,
-          contact: contactId
+  const handleDeleteNote = (note: ContactNoteData) => {
+    Modal.confirm({
+      title: 'Confirm Deletion',
+      content: `Are you sure you want to delete the note "${note.noteTitle}"?`,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          await restClient.post('/customer-relations/saveCrmNote', {
+            changeMode: "DELETE",
+            crmNote: {
+              id: note.id,
+              version: note.version,
+              contact: contactId
+            }
+          }, {
+            headers: { Authorization: `Bearer ${context.accessToken}` }
+          });
+          
+          // Remove the note from both states
+          setNotes(prevNotes => prevNotes.filter(n => n.id !== note.id));
+          originalNotesRef.current = originalNotesRef.current.filter(n => n.id !== note.id);
+          
+          message.success('Note deleted successfully');
+        } catch (error) {
+          console.error('Error deleting note:', error);
+          message.error('Failed to delete note');
         }
-      }, {
-        headers: { Authorization: `Bearer ${context.accessToken}` }
-      });
-      
-      // Remove the note from both states
-      setNotes(prevNotes => prevNotes.filter(n => n.id !== note.id));
-      originalNotesRef.current = originalNotesRef.current.filter(n => n.id !== note.id);
-      
-      message.success('Note deleted successfully');
-    } catch (error) {
-      console.error('Error deleting note:', error);
-      message.error('Failed to delete note');
-    }
+      },
+    });
   };
 
   const handleAddNote = () => {
