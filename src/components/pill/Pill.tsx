@@ -19,12 +19,22 @@ export interface PillProps {
    * Additional CSS class names
    */
   className?: string;
+  /**
+   * Test ID for the pill element
+   */
+  'data-testid'?: string;
 }
 
 /**
  * Pill component for displaying status indicators with consistent styling
  */
-const Pill: React.FC<PillProps> = ({ label, type, color, className = '' }) => {
+const Pill: React.FC<PillProps> = ({ 
+  label, 
+  type, 
+  color, 
+  className = '', 
+  'data-testid': dataTestId = 'pill' 
+}) => {
   // Define color mapping for different types
   const typeColorMap: Record<PillType, string> = {
     draft: '#797d82',
@@ -80,6 +90,7 @@ const Pill: React.FC<PillProps> = ({ label, type, color, className = '' }) => {
     <span 
       className={className}
       style={pillStyle}
+      data-testid={dataTestId}
     >
       {label}
     </span>

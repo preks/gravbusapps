@@ -852,20 +852,111 @@ const Demo: React.FC<DemoProps> = (props) => {
                 {selectedComponent === 'combobox' && (
                   <div>
                     <h3 className="text-lg font-medium mb-2">Combobox Component</h3>
-                    <div className="space-y-4">
-                      <Combobox
-                        options={[
-                          { value: 'react', label: 'React' },
-                          { value: 'vue', label: 'Vue.js' },
-                          { value: 'angular', label: 'Angular' },
-                          { value: 'svelte', label: 'Svelte' },
-                          { value: 'solid', label: 'Solid.js' }
-                        ]}
-                        placeholder="Select framework..."
-                        searchPlaceholder="Search framework..."
-                        emptyText="No framework found."
-                        className="w-[300px]"
-                      />
+                    <div className="space-y-6">
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Basic Combobox</h4>
+                        <Combobox
+                          options={[
+                            { value: 'react', label: 'React' },
+                            { value: 'vue', label: 'Vue.js' },
+                            { value: 'angular', label: 'Angular' },
+                            { value: 'svelte', label: 'Svelte' },
+                            { value: 'solid', label: 'Solid.js' }
+                          ]}
+                          placeholder="Select framework..."
+                          searchPlaceholder="Search framework..."
+                          emptyText="No framework found."
+                          className="w-[300px]"
+                        />
+                      </div>
+                      
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Combobox in Dialog</h4>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Combobox inside a modal dialog (uses modal={false} to prevent focus conflicts).
+                        </p>
+                        <Dialog modal={false}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline">Open Dialog with Combobox</Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>Select Technology Stack</DialogTitle>
+                              <DialogDescription>
+                                Choose your preferred technology stack for the new project.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                              <div className="space-y-2">
+                                <Label>Frontend Framework</Label>
+                                <Combobox
+                                  options={[
+                                    { value: 'react', label: 'React' },
+                                    { value: 'vue', label: 'Vue.js' },
+                                    { value: 'angular', label: 'Angular' },
+                                    { value: 'svelte', label: 'Svelte' },
+                                    { value: 'next', label: 'Next.js' },
+                                    { value: 'nuxt', label: 'Nuxt.js' },
+                                    { value: 'gatsby', label: 'Gatsby' },
+                                    { value: 'remix', label: 'Remix' }
+                                  ]}
+                                  placeholder="Select frontend framework..."
+                                  searchPlaceholder="Search frameworks..."
+                                  emptyText="No framework found."
+                                  className="w-full"
+                                />
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label>Backend Technology</Label>
+                                <Combobox
+                                  options={[
+                                    { value: 'nodejs', label: 'Node.js' },
+                                    { value: 'python', label: 'Python' },
+                                    { value: 'java', label: 'Java' },
+                                    { value: 'csharp', label: 'C#' },
+                                    { value: 'golang', label: 'Go' },
+                                    { value: 'rust', label: 'Rust' },
+                                    { value: 'php', label: 'PHP' },
+                                    { value: 'ruby', label: 'Ruby' }
+                                  ]}
+                                  placeholder="Select backend technology..."
+                                  searchPlaceholder="Search technologies..."
+                                  emptyText="No technology found."
+                                  className="w-full"
+                                />
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label>Database</Label>
+                                <Combobox
+                                  options={[
+                                    { value: 'postgresql', label: 'PostgreSQL' },
+                                    { value: 'mysql', label: 'MySQL' },
+                                    { value: 'mongodb', label: 'MongoDB' },
+                                    { value: 'sqlite', label: 'SQLite' },
+                                    { value: 'redis', label: 'Redis' },
+                                    { value: 'firebase', label: 'Firebase' },
+                                    { value: 'supabase', label: 'Supabase' }
+                                  ]}
+                                  placeholder="Select database..."
+                                  searchPlaceholder="Search databases..."
+                                  emptyText="No database found."
+                                  className="w-full"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex justify-end space-x-2">
+                              <Button variant="outline" onClick={() => toast("Configuration cancelled")}>
+                                Cancel
+                              </Button>
+                              <Button onClick={() => toast.success("Technology stack saved!")}>
+                                Save Configuration
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     </div>
                   </div>
                 )}

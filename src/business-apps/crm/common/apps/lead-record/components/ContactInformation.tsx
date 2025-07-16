@@ -39,7 +39,16 @@ export const ContactInformation: React.FC<ContactInformationProps> = ({ leadData
         
         <div style={{ marginBottom: '16px' }}>
           <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Phone Number</div>
-          <div style={{ fontSize: '16px', fontWeight: '500' }}>{leadData?.phoneNumber || '-'}</div>
+          <div style={{ fontSize: '16px', fontWeight: '500' }}>
+            {leadData?.phoneNumber ? (
+              <a 
+                href={`tel:${leadData.phoneNumber}`}
+                style={{ color: '#3b82f6', textDecoration: 'none' }}
+              >
+                {leadData.phoneNumber}
+              </a>
+            ) : '-'}
+          </div>
         </div>
         
         <div style={{ marginBottom: '16px' }}>

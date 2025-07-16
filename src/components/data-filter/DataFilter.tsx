@@ -150,13 +150,15 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
         "gba:flex gba:flex-row gba:items-start gba:w-[336px] gba:h-full gba:pr-6 gba:relative",
         className
       )}
+      data-testid="data-filter-sidebar"
     >
-      <div className="gba:flex gba:flex-row gba:justify-center gba:items-start gba:p-0 gba:w-[336px] gba:max-w-[336px] gba:h-full gba:grow gba:overflow-hidden">
+      <div className="gba:flex gba:flex-row gba:justify-center gba:items-start gba:p-0 gba:w-[336px] gba:max-w-[336px] gba:h-full gba:grow gba:overflow-hidden" data-testid="data-filter-container">
         <form
           className="gba:min-w-0 gba:w-full gba:flex gba:flex-col gba:items-start gba:p-0 gba:gap-4 gba:h-full gba:grow gba:z-0 gba:overflow-hidden"
           onSubmit={(e) => e.preventDefault()}
+          data-testid="data-filter-form"
         >
-          <div className="gba:min-w-0 gba:w-full gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-1 gba:gap-4">
+          <div className="gba:min-w-0 gba:w-full gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-1 gba:gap-4" data-testid="data-filter-header">
             <div className="gba:flex gba:items-center gba:gap-4">
               {!showSearchInput ? (
                 <>
@@ -166,6 +168,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                       type="button"
                       aria-label="Search filters"
                       onClick={handleSearchClick}
+                      data-testid="data-filter-search-toggle-button"
                     >
                       <PiMagnifyingGlass
                         size={20}
@@ -174,12 +177,12 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                       />
                     </button>
                   </div>
-                  <span className="gba:text-base gba:font-medium gba:text-gray-900">
+                  <span className="gba:text-base gba:font-medium gba:text-gray-900" data-testid="data-filter-title">
                     Filter
                   </span>
                 </>
               ) : (
-                <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:h-8 gba:!bg-black/[0.04] gba:rounded gba:px-2">
+                <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:h-8 gba:!bg-black/[0.04] gba:rounded gba:px-2" data-testid="data-filter-search-container">
                   <span className="gba:flex gba:items-center gba:justify-center gba:mr-2">
                     <PiMagnifyingGlass
                       size={20}
@@ -195,6 +198,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                     onChange={setSearchQuery}
                     ariaLabel="Search filter groups and filters"
                     debounceDelay={300}
+                    data-testid="data-filter-global-search-input"
                   />
                   {/* Close button for search */}
                   {searchQuery && (
@@ -206,6 +210,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                         if (!searchQuery) setShowSearchInput(false);
                       }}
                       aria-label="Clear search"
+                      data-testid="data-filter-clear-global-search-button"
                     >
                       <span aria-hidden="true">×</span>
                     </button>
@@ -215,7 +220,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
             </div>
           </div>
 
-          <div className="gba:flex gba:flex-col gba:w-full gba:gap-1 gba:overflow-y-auto gba:grow">
+          <div className="gba:flex gba:flex-col gba:w-full gba:gap-1 gba:overflow-y-auto gba:grow" data-testid="data-filter-groups-container">
             {filteredGroups.map((group) => {
               // Determine if this group uses backend-powered search
               const groupSearch = groupSearchQueries[group.id] || "";
@@ -250,11 +255,11 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
               let filterContent: React.ReactNode;
               if (loading) {
                 filterContent = (
-                  <div className="gba:p-2 gba:text-gray-400">Loading...</div>
+                  <div className="gba:p-2 gba:text-gray-400" data-testid={`data-filter-group-loading-${group.id}`}>Loading...</div>
                 );
               } else if (error) {
                 filterContent = (
-                  <div className="gba:p-2 gba:text-red-500">
+                  <div className="gba:p-2 gba:text-red-500" data-testid={`data-filter-group-error-${group.id}`}>
                     Error loading filters
                   </div>
                 );
@@ -272,6 +277,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                     }
                     type="button"
                     aria-pressed={filter.selected}
+                    data-testid={`data-filter-option-${filter.id}`}
                   >
                     <div className="gba:flex gba:items-center gba:justify-center gba:mr-2">
                       <Checkbox
@@ -281,6 +287,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                         }
                         onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         name={filter.id}
+                        data-testid={`data-filter-checkbox-${filter.id}`}
                       />
                     </div>
                     <Tooltip 
@@ -293,6 +300,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                           ? "gba:font-medium gba:text-primary-500"
                           : "gba:text-gray-700"
                       }`}
+                      data-testid={`data-filter-label-${filter.id}`}
                     >
                       {filter.label}
                       {typeof filter.count === "number"
@@ -304,14 +312,14 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                 ));
               } else {
                 filterContent = (
-                  <div className="gba:p-2 gba:text-gray-400 gba:text-sm">
+                  <div className="gba:p-2 gba:text-gray-400 gba:text-sm" data-testid={`data-filter-group-empty-${group.id}`}>
                     No filters found
                   </div>
                 );
               }
 
               return (
-                <div key={group.id} className="gba:w-full">
+                <div key={group.id} className="gba:w-full" data-testid={`data-filter-group-${group.id}`}>
                   <button
                     className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:w-full gba:pt-2 gba:!pl-2 gba:!pr-2 gba:!pb-[14px] gba:hover:bg-gray-100/50 gba:transition-colors gba:!border-b gba:!border-gray-200"
                     onClick={() => toggleGroup(group.id)}
@@ -321,8 +329,9 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                     aria-expanded={isExpanded}
                     aria-controls={groupId}
                     type="button"
+                    data-testid={`data-filter-group-toggle-${group.id}`}
                   >
-                    <span className="gba:text-sm gba:font-medium gba:text-gray-900">
+                    <span className="gba:text-sm gba:font-medium gba:text-gray-900" data-testid={`data-filter-group-title-${group.id}`}>
                       {group.title}
                     </span>
                     <div className="gba:flex gba:items-center">
@@ -330,6 +339,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                         <div
                           className="gba:flex gba:items-center gba:justify-center gba:min-w-[20px] gba:h-5 gba:bg-primary-500 gba:text-white gba:text-xs gba:font-medium gba:rounded-full gba:px-1.5 gba:mr-2"
                           aria-label={`${selectedCount} selected filters`}
+                          data-testid={`data-filter-group-count-${group.id}`}
                         >
                           <span>{selectedCount}</span>
                         </div>
@@ -354,17 +364,18 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                     <div
                       className="gba:flex gba:flex-col gba:w-full gba:pl-2"
                       id={groupId}
+                      data-testid={`data-filter-group-content-${group.id}`}
                     >
                       {/* Render custom component if provided */}
                       {group.customComponent ? (
-                        <div className="gba:w-full gba:mt-1">
+                        <div className="gba:w-full gba:mt-1" data-testid={`data-filter-group-custom-${group.id}`}>
                           {group.customComponent}
                         </div>
                       ) : (
                         <>
                           {/* Per-group search input with debounce - only show if not disabled */}
                           {!group.hideSearch && (
-                            <div className="gba:w-full gba:mb-2 gba:mt-1">
+                            <div className="gba:w-full gba:mb-2 gba:mt-1" data-testid={`data-filter-group-search-container-${group.id}`}>
                               <DebouncedInput
                                 className="gba:w-full gba:h-8 gba:px-2 gba:text-sm gba:bg-gray-100/40 gba:rounded gba:border-none gba:outline-none"
                                 placeholder={`Search in ${group.title}...`}
@@ -374,11 +385,14 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                                 }
                                 ariaLabel={`Search filters in ${group.title}`}
                                 debounceDelay={300}
+                                data-testid={`data-filter-group-search-input-${group.id}`}
                               />
                             </div>
                           )}
                           {/* Show loading, error, or filter options */}
-                          {filterContent}
+                          <div data-testid={`data-filter-group-options-${group.id}`}>
+                            {filterContent}
+                          </div>
                         </>
                       )}
                     </div>
@@ -391,7 +405,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
           {children}
         </form>
       </div>
-      <div className="gba:absolute gba:top-0 gba:right-0 gba:w-px gba:h-[calc(100%-1.5rem)] gba:bg-gray-100" />
+      <div className="gba:absolute gba:top-0 gba:right-0 gba:w-px gba:h-[calc(100%-1.5rem)] gba:bg-gray-100" data-testid="data-filter-divider" />
     </aside>
   );
 };

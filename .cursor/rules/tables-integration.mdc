@@ -1,8 +1,0 @@
----
-description: This rule should apply for all Table components in the project
-alwaysApply: false
----
-Pagination of Table components should **ALWAYS** trigger a graphql query. So the new data should be query based.
-Search functionality of Table components should **ALWAYS** trigger a graphql query. So the new data should be query based.
-Sorting of Table components should **ALWAYS** trigger a graphql query. So the new data should be query based.
-Filter functionality of Table components should **ALWAYS** trigger a graphql query. So the new data should be query based.

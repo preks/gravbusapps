@@ -57,7 +57,12 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       prefix: <FileTextOutlined />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 6 },
-      description: '+15% from last month'
+      description: 'Created expense plans',
+      trend: {
+        value: '+15%',
+        positive: true,
+        description: 'from last month'
+      }
     },
     {
       key: 'total-estimated',

@@ -7,13 +7,14 @@ import { DataContainer } from '@/components/layout/dataContainer';
 import { useLeadListData } from './hooks/useLeadListData';
 import { useLeadFilters } from './hooks/useLeadFilters';
 import { LeadTable } from './components/LeadTable';
-import LeadStatistics from './components/LeadStatistics';
-import { useLeadStatistics } from './hooks/useLeadStatistics';
+import { LeadStatisticsWithTrend } from './components/LeadStatistics';
+import { useLeadStatisticsWithTrend } from './hooks/useLeadStatisticsWithTrend';
 
 import { PiStar, PiUsersFour, PiFunnelSimple } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { startProcess } from '@/common/utils/start-process';
 import { Lead } from './types';
+import { useLeadStatisticsQueries } from './queries/LeadStatisticsQueries';
 
 export interface LeadListProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -171,11 +172,34 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
 
   // Get lead statistics (independent from search/filters)
   const {
-    statistics,
+    trendData,
     isLoading: statsLoading,
     error: statsError,
     refetch: refetchStats
-  } = useLeadStatistics({ ...props, sourceApp });
+  } = useLeadStatisticsWithTrend({ ...props, sourceApp });
+
+  // Also get the text-based statistics that don't have trend data
+  const { fetchMostCommonLeadSource, fetchMostCommonIndustry } = useLeadStatisticsQueries({ ...props, sourceApp });
+  const [textStatistics, setTextStatistics] = useState({ mostCommonLeadSource: 'N/A', mostCommonIndustry: 'N/A' });
+
+  // Fetch text statistics
+  useEffect(() => {
+    const fetchTextStats = async () => {
+      try {
+        const [leadSource, industry] = await Promise.all([
+          fetchMostCommonLeadSource(),
+          fetchMostCommonIndustry()
+        ]);
+        setTextStatistics({ mostCommonLeadSource: leadSource, mostCommonIndustry: industry });
+      } catch (error) {
+        console.error('Error fetching text statistics:', error);
+      }
+    };
+
+    if (props.accessToken) {
+      fetchTextStats();
+    }
+  }, [props.accessToken, fetchMostCommonLeadSource, fetchMostCommonIndustry]);
   
   // Trigger initial data loading when component mounts
   useEffect(() => {
@@ -183,7 +207,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
       initialLoadDone.current = true;
       loadPage(currentPage, pageSize);
     }
-  }, [loadPage, accessToken, currentPage, pageSize]);
+  }, [accessToken, currentPage, pageSize]);
 
   // Trigger search when search term changes
   useEffect(() => {
@@ -192,7 +216,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
       updateURLParams({ search, page: 1 });
       loadPage(1, pageSize); // Reset to first page when search changes
     }
-  }, [search, loadPage, pageSize, updateURLParams]);
+  }, [search, pageSize]);
 
   // Trigger reload when filters change
   useEffect(() => {
@@ -200,7 +224,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
       setCurrentPage(1);
       loadPage(1, pageSize);
     }
-  }, [selectedFilters, filterCreatedAfter, filterCreatedBefore, loadPage, pageSize]);
+  }, [JSON.stringify(selectedFilters), filterCreatedAfter, filterCreatedBefore, pageSize]);
 
   // Handle lead selection
   const handleSelectLead = useCallback((lead: Lead) => {
@@ -256,13 +280,19 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
 
   return (
     <div data-testid="lead-list-content">
-      <div data-testid="lead-statistics-section" className="gba:mb-6">
-        <LeadStatistics
-          statistics={statistics}
-          isLoading={statsLoading}
-          error={statsError}
-          onRetry={refetchStats}
-        />
+      <div className="gba:mb-6" data-testid="lead-statistics-section">
+        {trendData ? (
+          <LeadStatisticsWithTrend
+            trendData={trendData}
+            mostCommonLeadSource={textStatistics.mostCommonLeadSource}
+            mostCommonIndustry={textStatistics.mostCommonIndustry}
+            isLoading={statsLoading}
+            error={statsError}
+            onRetry={refetchStats}
+          />
+        ) : (
+          <div>Loading statistics...</div>
+        )}
       </div>
 
       <DataContainer

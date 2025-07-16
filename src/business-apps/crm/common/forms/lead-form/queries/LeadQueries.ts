@@ -8,6 +8,7 @@ export interface LeadQueryVariables {
 
 export interface LeadQueryResult {
   id: string;
+  name?: string;
   firstName?: string;
   lastName?: string;
   email?: string;
@@ -56,6 +57,7 @@ export const GET_LEAD_BY_ID = `
   query GetLeadById($id: uuid!) {
     LeadByPk(id: $id) {
       id
+      name
       firstName
       lastName
       email

@@ -62,7 +62,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
           data-testid="back-button"
         >
           <ArrowLeftOutlined className="gba:mr-2" />
-          <span>Back to Opportunities Overview</span>
+          <span>Back to Customer Relations</span>
         </button>
       </div>
 
@@ -121,7 +121,7 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = (props) => {
     if (props.onBack) {
       props.onBack();
     } else {
-      navigateTo('/platform/crm/opportunity-overview');
+      navigateTo('/platform/crm/customer-relations?view=opportunities');
     }
   };
 
@@ -135,7 +135,7 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = (props) => {
             onClick={handleBack}
             className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
           >
-            Back to Opportunities Overview
+            Back to Customer Relations
           </button>
         </div>
       </div>

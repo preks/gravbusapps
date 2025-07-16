@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Button, Timeline, Typography, message } from 'antd';
+import { Spin, Alert, Button, Timeline, Typography, message, Modal } from 'antd';
 import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -7,6 +7,7 @@ import { useGetSalesTasks, SalesTaskData } from '../queries/OpportunityTaskQueri
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
+import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 
 const { Text } = Typography;
 
@@ -21,6 +22,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
   const [error, setError] = useState<string | null>(null);
   const { fetchSalesTasks } = useGetSalesTasks(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 
   const loadTasks = async () => {
     if (!opportunityId) return;
@@ -142,28 +144,37 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
     }
   };
 
-  const handleDeleteTask = async (task: SalesTaskData) => {
-    try {
-      await restClient.post('/customer-relations/saveSalesTask', {
-        changeMode: "DELETE",
-        salesTask: {
-          id: task.id,
-          version: task.version,
-          opportunity: opportunityId
+  const handleDeleteTask = (task: SalesTaskData) => {
+    Modal.confirm({
+      title: 'Confirm Deletion',
+      content: `Are you sure you want to delete the task "${task.name || 'Untitled Task'}"?`,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          await restClient.post('/customer-relations/saveSalesTask', {
+            changeMode: "DELETE",
+            salesTask: {
+              id: task.id,
+              version: task.version,
+              opportunity: opportunityId
+            }
+          }, {
+            headers: { Authorization: `Bearer ${context.accessToken}` }
+          });
+          
+          // Remove the task from the local state
+          setTasks(prevTasks => 
+            prevTasks.filter(t => t.id !== task.id)
+          );
+          message.success('Task deleted successfully');
+        } catch (error) {
+          console.error('Error deleting task:', error);
+          message.error('Failed to delete task');
         }
-      }, {
-        headers: { Authorization: `Bearer ${context.accessToken}` }
-      });
-      
-      // Remove the task from the local state
-      setTasks(prevTasks => 
-        prevTasks.filter(t => t.id !== task.id)
-      );
-      message.success('Task deleted successfully');
-    } catch (error) {
-      console.error('Error deleting task:', error);
-      message.error('Failed to delete task');
-    }
+      },
+    });
   };
 
   const getPriorityColor = (priority: string) => {
@@ -255,7 +266,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
                   </div>
                   <div>
                     <Text type="secondary">
-                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')}
+                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(task.createdBy)}
                     </Text>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>

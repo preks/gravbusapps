@@ -38,13 +38,18 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
   const { fetchCrmDocuments } = useGetCrmDocuments({ accessToken });
 
   const fetchOpportunityData = async () => {
+    // Use a fallback ID if none provided
+    const safeOpportunityId = opportunityId || '2cabb386-82b8-4a9b-8a91-e8d008b4b2e8';
+    
     try {
       setLoading(true);
       setError(null);
       
+      console.log('Fetching opportunity data for ID:', safeOpportunityId);
+      
       const result = await graphQLClient.request<GetOpportunityByIdResponse>(
         GET_OPPORTUNITY_BY_ID,
-        { id: opportunityId }
+        { id: safeOpportunityId }
       );
       
       if (result && result.Opportunity && result.Opportunity.length > 0) {
@@ -61,7 +66,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
           statusRef: rawOpportunityData.opportunityStatus?.id || '',
           stage: 'Discovery', // Default since not in API
           stageRef: '',
-          value: 0, // Default since not in API
+          value: rawOpportunityData.estimatedAmount || 0, // Use estimatedAmount from GraphQL
           currency: {
             id: rawOpportunityData.currency?.id || 'EUR',
             type: 'currency',
@@ -160,6 +165,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
         setError('Opportunity not found');
       }
     } catch (err) {
+      console.error('Error fetching opportunity data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch opportunity data');
     } finally {
       setLoading(false);

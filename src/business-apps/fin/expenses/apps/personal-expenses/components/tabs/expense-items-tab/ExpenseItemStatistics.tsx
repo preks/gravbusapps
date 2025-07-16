@@ -53,7 +53,12 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
       color: '#3f8600',
       precision: 2,
       span: { xs: 24, sm: 12, md: 6 },
-      description: '+12.5% from last month'
+      description: 'Total reimbursable amount',
+      trend: {
+        value: '+12.5%',
+        positive: true,
+        description: 'from last month'
+      }
     },
     {
       key: 'pending-reimbursement',

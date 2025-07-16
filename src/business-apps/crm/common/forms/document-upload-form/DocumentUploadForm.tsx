@@ -79,8 +79,8 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
       const file = fileList[0].originFileObj;
       const pathParams = { accessScope: 'public' };
       
-      const entityType = additionalData?.leadId ? 'leads' : 'opportunities';
-      const entityId = additionalData?.leadId || additionalData?.opportunityId;
+      const entityType = additionalData?.leadId ? 'leads' : additionalData?.opportunityId ? 'opportunities' : 'contacts';
+      const entityId = additionalData?.leadId || additionalData?.opportunityId || additionalData?.contactId;
       
       const queryParams = {
         appName: 'crm',
@@ -94,12 +94,19 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
       );
       
       const payload = {
+        employeeId: additionalData?.employeeId,
+        managerId: additionalData?.managerId,
+        structureId: additionalData?.structureId,
+        locationId: additionalData?.locationId,
+        organizationalUnitId: additionalData?.organizationalUnitId,
+        ...(additionalData?.contactId && { contactId: additionalData.contactId }),
         changeMode: 'INSERT',
         crmDocument: {
           name: values.name || file.name,
           description: values.description || '',
           ...(additionalData?.leadId && { lead: additionalData.leadId }),
           ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
+          ...(additionalData?.contactId && { contact: additionalData.contactId }),
           version: 0,
           file: uploadResponse.fileInfo.fileId,
           fileSize: file.size,

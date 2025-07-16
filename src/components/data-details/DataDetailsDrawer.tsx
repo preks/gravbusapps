@@ -136,7 +136,7 @@ export const DataDetailsDrawer: React.FC<DataDetailsDrawerProps> = ({
   onClose,
   width = 500,
   placement = 'right',
-  dataTestId,
+  dataTestId = 'data-details-drawer',
   className = '',
   navigationLinks,
 }) => {
@@ -152,7 +152,10 @@ export const DataDetailsDrawer: React.FC<DataDetailsDrawerProps> = ({
       data-testid={dataTestId}
       title={null} // We'll provide our own title in the content
       footer={footer && (
-        <div className="gba:p-4 gba:border-t gba:border-gray-200 gba:bg-white">
+        <div 
+          className="gba:p-4 gba:border-t gba:border-gray-200 gba:bg-white"
+          data-testid={`${dataTestId}-footer`}
+        >
           {footer}
         </div>
       )}
@@ -165,18 +168,39 @@ export const DataDetailsDrawer: React.FC<DataDetailsDrawerProps> = ({
         }
       }}
     >
-      <div className="gba:flex gba:flex-col gba:h-full gba:bg-white">
+      <div 
+        className="gba:flex gba:flex-col gba:h-full gba:bg-white"
+        data-testid={`${dataTestId}-content-container`}
+      >
         {/* Header with title and close button */}
-        <div className="gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b gba:border-gray-200">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            {icon && <div className="gba:shrink-0">{icon}</div>}
-            <h2 className="gba:text-lg gba:font-semibold">{title}</h2>
+        <div 
+          className="gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b gba:border-gray-200"
+          data-testid={`${dataTestId}-header`}
+        >
+          <div 
+            className="gba:flex gba:items-center gba:gap-2"
+            data-testid={`${dataTestId}-title-section`}
+          >
+            {icon && (
+              <div 
+                className="gba:shrink-0"
+                data-testid={`${dataTestId}-icon`}
+              >
+                {icon}
+              </div>
+            )}
+            <h2 
+              className="gba:text-lg gba:font-semibold"
+              data-testid={`${dataTestId}-title`}
+            >
+              {title}
+            </h2>
           </div>
           <button
             onClick={onClose}
             className="gba:p-2 gba:rounded-full gba:hover:bg-gray-100 gba:transition-colors"
             aria-label="Close"
-            data-testid={dataTestId ? `${dataTestId}-close-button` : undefined}
+            data-testid={`${dataTestId}-close-button`}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -196,19 +220,30 @@ export const DataDetailsDrawer: React.FC<DataDetailsDrawerProps> = ({
         </div>
 
         {/* Scrollable content area */}
-        <div className="gba:flex-1 gba:overflow-auto gba:p-4 gba:flex gba:flex-col">
-          <div className="gba:flex-1">
+        <div 
+          className="gba:flex-1 gba:overflow-auto gba:p-4 gba:flex gba:flex-col"
+          data-testid={`${dataTestId}-scroll-area`}
+        >
+          <div 
+            className="gba:flex-1"
+            data-testid={`${dataTestId}-main-content`}
+          >
             {children}
           </div>
           
           {/* Navigation links section */}
           {navigationLinks && navigationLinks.length > 0 && (
-            <div className="gba:mt-6">
+            <div 
+              className="gba:mt-6"
+              data-testid={`${dataTestId}-navigation-section`}
+            >
               <div className="gba:mb-4">
                 <div className="gba:flex gba:items-center gba:mb-2">
                   <div className="gba:flex-grow gba:border-b gba:border-gray-300" />
-                  <h3 className="gba:text-base gba:font-medium gba:text-gray-700 gba:px-3 gba:flex gba:items-center gba:gap-2" 
-                    data-testid={dataTestId ? `${dataTestId}-navigation-title` : 'drawer-navigation-title'}>
+                  <h3 
+                    className="gba:text-base gba:font-medium gba:text-gray-700 gba:px-3 gba:flex gba:items-center gba:gap-2" 
+                    data-testid={`${dataTestId}-navigation-title`}
+                  >
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
@@ -218,7 +253,10 @@ export const DataDetailsDrawer: React.FC<DataDetailsDrawerProps> = ({
                   <div className="gba:flex-grow gba:border-b gba:border-gray-300" />
                 </div>
               </div>
-              <div className="gba:grid gba:grid-cols-1 gba:gap-4">
+              <div 
+                className="gba:grid gba:grid-cols-1 gba:gap-4"
+                data-testid={`${dataTestId}-navigation-links`}
+              >
                 {navigationLinks.map((link, index) => {
                   // Default to blue if no color specified
                   const colorTheme = link.color || 'blue';
@@ -253,16 +291,31 @@ export const DataDetailsDrawer: React.FC<DataDetailsDrawerProps> = ({
                         }}
                         target={link.url.startsWith('/') || link.url === '#' ? '_self' : '_blank'}
                         rel={link.url.startsWith('/') || link.url === '#' ? undefined : 'noopener noreferrer'}
+                        data-testid={`${dataTestId}-nav-link-anchor-${index}`}
                       >
                         {link.icon && (
-                          <div className={`gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full ${colors.bg}`}>
+                          <div 
+                            className={`gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full ${colors.bg}`}
+                            data-testid={`${dataTestId}-nav-link-icon-${index}`}
+                          >
                             <span className={`gba:text-lg ${colors.text}`}>{link.icon}</span>
                           </div>
                         )}
-                        <div className="gba:flex-grow">
-                          <div className="gba:font-medium">{link.label}</div>
+                        <div 
+                          className="gba:flex-grow"
+                          data-testid={`${dataTestId}-nav-link-content-${index}`}
+                        >
+                          <div 
+                            className="gba:font-medium"
+                            data-testid={`${dataTestId}-nav-link-label-${index}`}
+                          >
+                            {link.label}
+                          </div>
                           {link.description && (
-                            <div className="gba:text-xs gba:text-gray-500">
+                            <div 
+                              className="gba:text-xs gba:text-gray-500"
+                              data-testid={`${dataTestId}-nav-link-description-${index}`}
+                            >
                               {link.description}
                             </div>
                           )}
@@ -277,6 +330,7 @@ export const DataDetailsDrawer: React.FC<DataDetailsDrawerProps> = ({
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           className="gba:text-gray-400"
+                          data-testid={`${dataTestId}-nav-link-arrow-${index}`}
                         >
                           <path d="M9 18l6-6-6-6" />
                         </svg>

@@ -33,23 +33,23 @@ export const useContactFilters = (context: BusinessAppContextProps): ContactFilt
       id: 'contactType',
       title: 'Contact Type', // Changed from label to title
       filters: [
-        { id: 'type-executive', label: 'Executive', value: 'Executive', selected: false },
-        { id: 'type-technical', label: 'Technical', value: 'Technical', selected: false },
-        { id: 'type-financial', label: 'Financial', value: 'Financial', selected: false }
+        { id: 'type-executive', label: 'Executive', value: 'Executive', selected: selectedFilters.includes('type-executive') },
+        { id: 'type-technical', label: 'Technical', value: 'Technical', selected: selectedFilters.includes('type-technical') },
+        { id: 'type-financial', label: 'Financial', value: 'Financial', selected: selectedFilters.includes('type-financial') }
       ]
     },
     {
       id: 'jobTitle',
       title: 'Job Title', // Changed from label to title
       filters: [
-        { id: 'title-ceo', label: 'CEO', value: 'CEO', selected: false },
-        { id: 'title-cto', label: 'CTO', value: 'CTO', selected: false },
-        { id: 'title-manager', label: 'Manager', value: 'Manager', selected: false },
-        { id: 'title-director', label: 'Director', value: 'Director', selected: false },
-        { id: 'title-analyst', label: 'Analyst', value: 'Analyst', selected: false }
+        { id: 'title-ceo', label: 'CEO', value: 'CEO', selected: selectedFilters.includes('title-ceo') },
+        { id: 'title-cto', label: 'CTO', value: 'CTO', selected: selectedFilters.includes('title-cto') },
+        { id: 'title-manager', label: 'Manager', value: 'Manager', selected: selectedFilters.includes('title-manager') },
+        { id: 'title-director', label: 'Director', value: 'Director', selected: selectedFilters.includes('title-director') },
+        { id: 'title-analyst', label: 'Analyst', value: 'Analyst', selected: selectedFilters.includes('title-analyst') }
       ]
     }
-  ], []);
+  ], [selectedFilters]);
 
   const filterLabelMap: Record<string, string> = useMemo(() => {
     const map: Record<string, string> = {};
