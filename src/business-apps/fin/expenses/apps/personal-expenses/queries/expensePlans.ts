@@ -164,13 +164,31 @@ export const GET_EXPENSE_PLAN_BY_ID = `
   }
 `;
 
+// New query specifically for closed plans statistics
+export const GET_CLOSED_PLANS_STATISTICS = `
+  query GetClosedPlansStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!) {
+    ClosedPlans: ExpensePlanAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_eq: "CLOSED"},
+        planDate: {_gte: $startDate, _lte: $endDate}
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+  }
+`;
+
 export const GET_EXPENSE_PLAN_STATISTICS = `
-  query GetExpensePlanStatistics($employeeId: uuid!, $startDate: timestamptz!, $endDate: timestamptz!, $activeUserLocale: String!) {
+  query GetExpensePlanStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!, $activeUserLocale: String!) {
     ExpensePlanAggregate(
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
-        createdAt: {_gte: $startDate, _lte: $endDate}
+        planDate: {_gte: $startDate, _lte: $endDate}
       }
     ) {
       aggregate {
@@ -181,8 +199,8 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
-        createdAt: {_gte: $startDate, _lte: $endDate},
-        status: {_nin: ["DRAFT", "PAID", "CLOSED"]}
+        planDate: {_gte: $startDate, _lte: $endDate},
+        status: {_nin: ["DRAFT", "PAID", "CLOSED", "DISCARDED"]}
       }
     ) {
       aggregate {

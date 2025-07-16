@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
-import { GET_EXPENSE_PLAN_STATISTICS } from '../queries/expensePlans';
+import { GET_EXPENSE_PLAN_STATISTICS, GET_CLOSED_PLANS_STATISTICS } from '../queries/expensePlans';
 import { env } from '@/common/env/EnvUtils';
 
 export interface ExpensePlanStatisticsData {
@@ -11,6 +11,9 @@ export interface ExpensePlanStatisticsData {
   totalEstimated: number;
   pendingApproval: number;
   topDestination: string;
+  // Add closed plans data
+  currentMonthClosedPlans: number;
+  previousMonthClosedPlans: number;
 }
 
 export interface ExpensePlanStatisticsDataView {
@@ -23,7 +26,15 @@ export interface ExpensePlanStatisticsDataView {
 export const useGetExpensePlanStatistics = (context?: BusinessAppContextProps): ExpensePlanStatisticsDataView => {
   const accessToken = context?.accessToken;
   const employeeId = context?.userInfo?.employeeDetails?.employeeId;
-  const [statistics, setStatistics] = useState<ExpensePlanStatisticsData>({ currentMonthTotal: 0, previousMonthTotal: 0, totalEstimated: 0, pendingApproval: 0, topDestination: 'N/A' });
+  const [statistics, setStatistics] = useState<ExpensePlanStatisticsData>({ 
+    currentMonthTotal: 0, 
+    previousMonthTotal: 0, 
+    totalEstimated: 0, 
+    pendingApproval: 0, 
+    topDestination: 'N/A',
+    currentMonthClosedPlans: 0,
+    previousMonthClosedPlans: 0
+  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -39,10 +50,11 @@ export const useGetExpensePlanStatistics = (context?: BusinessAppContextProps): 
 
     try {
       const now = dayjs();
-      const currentMonthStart = now.startOf('month').toISOString();
-      const currentMonthEnd = now.endOf('month').toISOString();
-      const previousMonthStart = now.subtract(1, 'month').startOf('month').toISOString();
-      const previousMonthEnd = now.subtract(1, 'month').endOf('month').toISOString();
+      // Use timestamp format for planDate queries (no timezone)
+      const currentMonthStart = now.startOf('month').format('YYYY-MM-DD HH:mm:ss');
+      const currentMonthEnd = now.endOf('month').format('YYYY-MM-DD HH:mm:ss');
+      const previousMonthStart = now.subtract(1, 'month').startOf('month').format('YYYY-MM-DD HH:mm:ss');
+      const previousMonthEnd = now.subtract(1, 'month').endOf('month').format('YYYY-MM-DD HH:mm:ss');
 
       const fetchCount = async (startDate: string, endDate: string) => {
         const activeUserLocale = getCurrentActiveUserLocale();
@@ -90,9 +102,34 @@ export const useGetExpensePlanStatistics = (context?: BusinessAppContextProps): 
         return { count, totalEstimated, pendingApproval, topDestination };
       };
 
-      const [currentMonthData, previousMonthData] = await Promise.all([
+      const fetchClosedPlansCount = async (startDate: string, endDate: string) => {
+        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query: GET_CLOSED_PLANS_STATISTICS,
+            variables: { 
+              employeeId, 
+              startDate, 
+              endDate
+            },
+          }),
+        });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const result = await response.json();
+        if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(', '));
+        return result.data?.ClosedPlans?.aggregate?.count ?? 0;
+      };
+
+      // Fetch all statistics in parallel
+      const [currentMonthData, previousMonthData, currentMonthClosedPlans, previousMonthClosedPlans] = await Promise.all([
         fetchCount(currentMonthStart, currentMonthEnd),
         fetchCount(previousMonthStart, previousMonthEnd),
+        fetchClosedPlansCount(currentMonthStart, currentMonthEnd),
+        fetchClosedPlansCount(previousMonthStart, previousMonthEnd),
       ]);
 
       setStatistics({ 
@@ -100,11 +137,21 @@ export const useGetExpensePlanStatistics = (context?: BusinessAppContextProps): 
         previousMonthTotal: previousMonthData.count,
         totalEstimated: currentMonthData.totalEstimated,
         pendingApproval: currentMonthData.pendingApproval,
-        topDestination: currentMonthData.topDestination
+        topDestination: currentMonthData.topDestination,
+        currentMonthClosedPlans,
+        previousMonthClosedPlans
       });
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
-      setStatistics({ currentMonthTotal: 0, previousMonthTotal: 0, totalEstimated: 0, pendingApproval: 0, topDestination: 'N/A' });
+      setStatistics({ 
+        currentMonthTotal: 0, 
+        previousMonthTotal: 0, 
+        totalEstimated: 0, 
+        pendingApproval: 0, 
+        topDestination: 'N/A',
+        currentMonthClosedPlans: 0,
+        previousMonthClosedPlans: 0
+      });
     } finally {
       setIsLoading(false);
     }

@@ -32,6 +32,10 @@ export interface WidgetItem {
    * Optional click handler for the widget
    */
   onClick?: () => void;
+  /**
+   * Flag to indicate if the widget is currently active/selected
+   */
+  active?: boolean;
 }
 
 export interface WidgetGroupProps {
@@ -196,7 +200,13 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
             <Card
               size="small"
               hoverable={hoverable}
-              style={{ background: cardBackground, padding: '16px', height: '140px', cursor: widget.onClick || onWidgetClick ? 'pointer' : 'auto' }}
+              style={{ 
+                background: widget.active ? '#f0f8ff' : cardBackground, 
+                padding: '16px', 
+                height: '140px', 
+                cursor: widget.onClick || onWidgetClick ? 'pointer' : 'auto',
+                border: widget.active ? '2px solid #1677ff' : undefined
+              }}
               onClick={() => {
                 if (widget.onClick) {
                   widget.onClick();

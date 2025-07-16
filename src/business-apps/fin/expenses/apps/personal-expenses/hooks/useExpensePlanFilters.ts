@@ -1,6 +1,8 @@
-import { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { ExpenseStatus } from '../utils';
+import { DateRangeFilter } from '../components/tabs/expense-plans-tab/DateRangeFilter';
+import { EndDateRangeFilter } from '../components/tabs/expense-plans-tab/EndDateRangeFilter';
 
 export enum DataFilterType {
   CHECKBOX_GROUP = 'checkbox-group',
@@ -11,25 +13,31 @@ export enum DataFilterType {
 export const useExpensePlanFilters = () => {
   const [search, setSearch] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-  const [startDate, setStartDate] = useState<[Date | null, Date | null] | null>(null);
-  const [endDate, setEndDate] = useState<[Date | null, Date | null] | null>(null);
-  const [reimbursableAmount, setReimbursableAmount] = useState<[number | null, number | null] | null>(null);
-  const [paidAdvance, setPaidAdvance] = useState<[number | null, number | null] | null>(null);
-
+  const [startDateRange, setStartDateRange] = useState<[Date | null, Date | null] | null>(null);
+  const [endDateRange, setEndDateRange] = useState<[Date | null, Date | null] | null>(null);
+ 
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
     {
-      id: 'startDate',
+      id: 'startDateRange',
       title: 'Filter by Start Date',
       type: DataFilterType.DATE_RANGE,
-      value: startDate,
-      onChange: setStartDate,
+      customComponent: React.createElement(DateRangeFilter, {
+        startDateRange: startDateRange,
+        onDateRangeChange: setStartDateRange,
+        placeholder: ['Start date', 'End date']
+      }),
+      hideSearch: true,
     },
     {
-      id: 'endDate',
-      title: 'Filter by End Date',
+      id: 'endDateRange',
+      title: 'Filter by End Date Range',
       type: DataFilterType.DATE_RANGE,
-      value: endDate,
-      onChange: setEndDate,
+      customComponent: React.createElement(EndDateRangeFilter, {
+        endDateRange: endDateRange,
+        onDateRangeChange: setEndDateRange,
+        placeholder: ['Start date', 'End date']
+      }),
+      hideSearch: true,
     },
     {
       id: 'status',
@@ -49,21 +57,8 @@ export const useExpensePlanFilters = () => {
         { id: ExpenseStatus.TRANSFERRED, label: 'In Transit (Transferred)', selected: selectedFilters.includes(ExpenseStatus.TRANSFERRED) },
       ],
     },
-    {
-      id: 'reimbursableAmount',
-      title: 'Filter by Reimbursable Amount',
-      type: DataFilterType.NUMBER_RANGE,
-      value: reimbursableAmount,
-      onChange: setReimbursableAmount,
-    },
-    {
-      id: 'paidAdvance',
-      title: 'Filter by Paid Advance',
-      type: DataFilterType.NUMBER_RANGE,
-      value: paidAdvance,
-      onChange: setPaidAdvance,
-    },
-  ], [selectedFilters, startDate, endDate, reimbursableAmount, paidAdvance]);
+  
+  ], [selectedFilters, startDateRange, endDateRange]);
 
   /**
    * Returns the current filters as an object for API queries (GraphQL/REST)
@@ -80,43 +75,30 @@ export const useExpensePlanFilters = () => {
     if (selectedFilters.length > 0) {
       conditions.push({ status: { _in: selectedFilters } });
     }
-    if (startDate?.[0]) {
-      conditions.push({ startDate: { _gte: startDate[0] } });
+    if (startDateRange?.[0]) {
+      conditions.push({ startDate: { _gte: startDateRange[0] } });
     }
-    if (startDate?.[1]) {
-      conditions.push({ startDate: { _lte: startDate[1] } });
+    if (startDateRange?.[1]) {
+      conditions.push({ startDate: { _lte: startDateRange[1] } });
     }
-    if (endDate?.[0]) {
-      conditions.push({ endDate: { _gte: endDate[0] } });
+    if (endDateRange?.[0]) {
+      conditions.push({ endDate: { _gte: endDateRange[0] } });
     }
-    if (endDate?.[1]) {
-      conditions.push({ endDate: { _lte: endDate[1] } });
-    }
-    if (reimbursableAmount?.[0] !== null && reimbursableAmount?.[0] !== undefined) {
-      conditions.push({ reimbursableAmount: { _gte: reimbursableAmount[0] } });
-    }
-    if (reimbursableAmount?.[1] !== null && reimbursableAmount?.[1] !== undefined) {
-      conditions.push({ reimbursableAmount: { _lte: reimbursableAmount[1] } });
-    }
-    if (paidAdvance?.[0] !== null && paidAdvance?.[0] !== undefined) {
-      conditions.push({ advancePaymentPaidAmount: { _gte: paidAdvance[0] } });
-    }
-    if (paidAdvance?.[1] !== null && paidAdvance?.[1] !== undefined) {
-      conditions.push({ advancePaymentPaidAmount: { _lte: paidAdvance[1] } });
+    if (endDateRange?.[1]) {
+      conditions.push({ endDate: { _lte: endDateRange[1] } });
     }
 
     // Always exclude DISCARDED plans at backend level for correct pagination
     conditions.push({ status: { _neq: 'DISCARDED' } });
     return { _and: conditions.length > 0 ? conditions : [{}] };
 
-  }, [search, selectedFilters, startDate, endDate, reimbursableAmount, paidAdvance]);
+  }, [search, selectedFilters, startDateRange, endDateRange]);
 
   const clearFilters = useCallback(() => {
     setSelectedFilters([]);
-    setStartDate(null);
-    setEndDate(null);
-    setReimbursableAmount(null);
-    setPaidAdvance(null);
+    setStartDateRange(null);
+    setEndDateRange(null);
+    setSearch('');
   }, []);
 
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
@@ -134,5 +116,7 @@ export const useExpensePlanFilters = () => {
     handleFilterChange,
     clearFilters,
     getFilters,
+    setStartDateRange,
+    setEndDateRange,
   };
 };
