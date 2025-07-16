@@ -6,43 +6,22 @@ export interface UseLeadStatisticsQueriesProps extends BusinessAppContextProps {
   sourceApp?: string;
 }
 
-export interface LeadStatisticsData {
-  recentLeads: number;
-  hotLeads: number;
-  mostCommonLeadSource: string;
-  mostCommonIndustry: string;
-  convertedLeadsThisYear: number;
-  conversionRateThisYear: number;
-  totalLeadsThisYear: number;
+interface TrendData {
+  current: number;
+  previous: number;
+  change: number;
+  changePercent: number;
+  isPositive: boolean;
 }
 
-// Query to get recent leads count (past two weeks)
-export const GET_RECENT_LEADS_COUNT = `
-  query GetRecentLeadsCount($twoWeeksAgo: timestamptz!, $sourceApp: String) {
-    LeadAggregate(where: {
-      createdAt: {_gte: $twoWeeksAgo},
-      sourceApp: {_eq: $sourceApp}
-    }) {
-      aggregate {
-        count
-      }
-    }
-  }
-`;
+interface ConversionTrendData extends TrendData {
+  currentRate: number;
+  previousRate: number;
+  currentTotal: number;
+  previousTotal: number;
+}
 
-// Query to get hot leads count (HOT and WARM ratings)
-export const GET_HOT_LEADS_COUNT = `
-  query GetHotLeadsCount($sourceApp: String) {
-    LeadAggregate(where: {
-      leadRatingRef: {_in: ["SalesLeadRating:v1:HOT", "SalesLeadRating:v1:WARM"]},
-      sourceApp: {_eq: $sourceApp}
-    }) {
-      aggregate {
-        count
-      }
-    }
-  }
-`;
+// Text-based queries (keep these as they don't have trend versions)
 
 // Query to get most common lead source in recent leads
 export const GET_MOST_COMMON_LEAD_SOURCE = `
@@ -82,13 +61,26 @@ export const GET_MOST_COMMON_INDUSTRY = `
   }
 `;
 
-// Query to get converted leads count for this year
-export const GET_CONVERTED_LEADS_THIS_YEAR_COUNT = `
-  query GetConvertedLeadsThisYearCount($startOfYear: timestamptz!, $sourceApp: String) {
-    LeadAggregate(where: {
-      leadStatusRef: {_eq: "SalesLeadStatus:v1:CONVERTED"},
-      createdAt: {_gte: $startOfYear},
-      sourceApp: {_eq: $sourceApp}
+
+
+// Enhanced queries that fetch both current and previous period data for trend calculations
+
+// Query to get recent leads with trend (current 2 weeks vs previous 2 weeks)
+export const GET_RECENT_LEADS_WITH_TREND = `
+  query GetRecentLeadsWithTrend($currentStart: timestamptz!, $previousStart: timestamptz!, $previousEnd: timestamptz!, $sourceApp: String) {
+    current: LeadAggregate(where: {
+      createdAt: {_gte: $currentStart},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false}
+    }) {
+      aggregate {
+        count
+      }
+    }
+    previous: LeadAggregate(where: {
+      createdAt: {_gte: $previousStart, _lt: $previousEnd},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false}
     }) {
       aggregate {
         count
@@ -97,12 +89,23 @@ export const GET_CONVERTED_LEADS_THIS_YEAR_COUNT = `
   }
 `;
 
-// Query to get total leads count for this year (for conversion rate calculation)
-export const GET_TOTAL_LEADS_THIS_YEAR_COUNT = `
-  query GetTotalLeadsThisYearCount($startOfYear: timestamptz!, $sourceApp: String) {
-    LeadAggregate(where: {
-      createdAt: {_gte: $startOfYear},
-      sourceApp: {_eq: $sourceApp}
+// Query to get hot leads with trend (current vs last month)
+export const GET_HOT_LEADS_WITH_TREND = `
+  query GetHotLeadsWithTrend($lastMonth: timestamptz!, $sourceApp: String) {
+    current: LeadAggregate(where: {
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false},
+      leadRating: {code: {_eq: "HOT"}}
+    }) {
+      aggregate {
+        count
+      }
+    }
+    previous: LeadAggregate(where: {
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false},
+      leadRating: {code: {_eq: "HOT"}},
+      createdAt: {_lt: $lastMonth}
     }) {
       aggregate {
         count
@@ -110,37 +113,171 @@ export const GET_TOTAL_LEADS_THIS_YEAR_COUNT = `
     }
   }
 `;
+
+// Query to get conversion rate with trend (this year vs last year)
+export const GET_CONVERSION_RATE_WITH_TREND = `
+  query GetConversionRateWithTrend($thisYearStart: timestamptz!, $lastYearStart: timestamptz!, $lastYearEnd: timestamptz!, $sourceApp: String) {
+    currentTotal: LeadAggregate(where: {
+      createdAt: {_gte: $thisYearStart},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false}
+    }) {
+      aggregate {
+        count
+      }
+    }
+    currentConverted: LeadAggregate(where: {
+      createdAt: {_gte: $thisYearStart},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false},
+      leadStatus: {code: {_eq: "CONVERTED"}}
+    }) {
+      aggregate {
+        count
+      }
+    }
+    previousTotal: LeadAggregate(where: {
+      createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false}
+    }) {
+      aggregate {
+        count
+      }
+    }
+    previousConverted: LeadAggregate(where: {
+      createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false},
+      leadStatus: {code: {_eq: "CONVERTED"}}
+    }) {
+      aggregate {
+        count
+      }
+    }
+  }
+`;
+
+// Keep existing queries for backward compatibility
 
 export const useLeadStatisticsQueries = (context: UseLeadStatisticsQueriesProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
   const { sourceApp } = context;
 
-  const fetchRecentLeads = useCallback(async (): Promise<number> => {
+  const calculateTrend = (current: number, previous: number): TrendData => {
+    const change = current - previous;
+    const changePercent = previous > 0 ? (change / previous) * 100 : (current > 0 ? 100 : 0);
+    return {
+      current,
+      previous,
+      change,
+      changePercent,
+      isPositive: change >= 0
+    };
+  };
+
+  const calculateConversionTrend = (currentTotal: number, currentConverted: number, previousTotal: number, previousConverted: number): ConversionTrendData => {
+    const currentRate = currentTotal > 0 ? (currentConverted / currentTotal) * 100 : 0;
+    const previousRate = previousTotal > 0 ? (previousConverted / previousTotal) * 100 : 0;
+    const change = currentRate - previousRate;
+    const changePercent = previousRate > 0 ? (change / previousRate) * 100 : (currentRate > 0 ? 100 : 0);
+    
+    return {
+      current: currentConverted,
+      previous: previousConverted,
+      change: currentConverted - previousConverted,
+      changePercent,
+      isPositive: change >= 0,
+      currentRate,
+      previousRate,
+      currentTotal,
+      previousTotal
+    };
+  };
+
+  // Enhanced methods with trend data
+  const fetchRecentLeadsWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
       const now = new Date();
-      const twoWeeksAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)).toISOString();
+      const currentStart = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+      const previousEnd = currentStart;
+      const previousStart = new Date(currentStart.getTime() - (14 * 24 * 60 * 60 * 1000));
       
       const result = await graphqlClient.request<{
-        LeadAggregate: { aggregate: { count: number } }
-      }>(GET_RECENT_LEADS_COUNT, { twoWeeksAgo, sourceApp });
-      return result.LeadAggregate.aggregate.count;
+        current: { aggregate: { count: number } };
+        previous: { aggregate: { count: number } };
+      }>(GET_RECENT_LEADS_WITH_TREND, { 
+        currentStart: currentStart.toISOString(),
+        previousStart: previousStart.toISOString(),
+        previousEnd: previousEnd.toISOString(),
+        sourceApp 
+      });
+      
+      return calculateTrend(
+        result.current.aggregate.count,
+        result.previous.aggregate.count
+      );
     } catch (error) {
-      console.error('Error fetching recent leads count:', error);
+      console.error('Error fetching recent leads with trend:', error);
       throw error;
     }
   }, [graphqlClient, sourceApp]);
 
-  const fetchHotLeads = useCallback(async (): Promise<number> => {
+  const fetchHotLeadsWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
+      const now = new Date();
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      
       const result = await graphqlClient.request<{
-        LeadAggregate: { aggregate: { count: number } }
-      }>(GET_HOT_LEADS_COUNT, { sourceApp });
-      return result.LeadAggregate.aggregate.count;
+        current: { aggregate: { count: number } };
+        previous: { aggregate: { count: number } };
+      }>(GET_HOT_LEADS_WITH_TREND, { 
+        lastMonth: lastMonth.toISOString(),
+        sourceApp 
+      });
+      
+      return calculateTrend(
+        result.current.aggregate.count,
+        result.previous.aggregate.count
+      );
     } catch (error) {
-      console.error('Error fetching hot leads count:', error);
+      console.error('Error fetching hot leads with trend:', error);
       throw error;
     }
   }, [graphqlClient, sourceApp]);
+
+  const fetchConversionRateWithTrend = useCallback(async (): Promise<ConversionTrendData> => {
+    try {
+      const now = new Date();
+      const thisYearStart = new Date(now.getFullYear(), 0, 1);
+      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+      const lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      
+      const result = await graphqlClient.request<{
+        currentTotal: { aggregate: { count: number } };
+        currentConverted: { aggregate: { count: number } };
+        previousTotal: { aggregate: { count: number } };
+        previousConverted: { aggregate: { count: number } };
+      }>(GET_CONVERSION_RATE_WITH_TREND, { 
+        thisYearStart: thisYearStart.toISOString(),
+        lastYearStart: lastYearStart.toISOString(),
+        lastYearEnd: lastYearEnd.toISOString(),
+        sourceApp 
+      });
+      
+      return calculateConversionTrend(
+        result.currentTotal.aggregate.count,
+        result.currentConverted.aggregate.count,
+        result.previousTotal.aggregate.count,
+        result.previousConverted.aggregate.count
+      );
+    } catch (error) {
+      console.error('Error fetching conversion rate with trend:', error);
+      throw error;
+    }
+  }, [graphqlClient, sourceApp]);
+
+
 
   const fetchMostCommonLeadSource = useCallback(async (): Promise<string> => {
     try {
@@ -218,42 +355,15 @@ export const useLeadStatisticsQueries = (context: UseLeadStatisticsQueriesProps)
     }
   }, [graphqlClient, sourceApp]);
 
-  const fetchConvertedLeadsThisYear = useCallback(async (): Promise<number> => {
-    try {
-      const now = new Date();
-      const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
-      
-      const result = await graphqlClient.request<{
-        LeadAggregate: { aggregate: { count: number } }
-      }>(GET_CONVERTED_LEADS_THIS_YEAR_COUNT, { startOfYear, sourceApp });
-      return result.LeadAggregate.aggregate.count;
-    } catch (error) {
-      console.error('Error fetching converted leads this year count:', error);
-      throw error;
-    }
-  }, [graphqlClient, sourceApp]);
 
-  const fetchTotalLeadsThisYear = useCallback(async (): Promise<number> => {
-    try {
-      const now = new Date();
-      const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
-      
-      const result = await graphqlClient.request<{
-        LeadAggregate: { aggregate: { count: number } }
-      }>(GET_TOTAL_LEADS_THIS_YEAR_COUNT, { startOfYear, sourceApp });
-      return result.LeadAggregate.aggregate.count;
-    } catch (error) {
-      console.error('Error fetching total leads this year count:', error);
-      throw error;
-    }
-  }, [graphqlClient, sourceApp]);
 
   return {
-    fetchRecentLeads,
-    fetchHotLeads,
+    // Enhanced methods with trend data
+    fetchRecentLeadsWithTrend,
+    fetchHotLeadsWithTrend,
+    fetchConversionRateWithTrend,
+    // Text-based queries (no trend versions needed)
     fetchMostCommonLeadSource,
-    fetchMostCommonIndustry,
-    fetchConvertedLeadsThisYear,
-    fetchTotalLeadsThisYear
+    fetchMostCommonIndustry
   };
 }; 

@@ -6,8 +6,8 @@ import { DataContainer } from '@/components/layout/dataContainer';
 import { useAccountListData } from './hooks/useAccountListData';
 import { useAccountFilters } from './hooks/useAccountFilters';
 import { AccountTable } from './components/AccountTable';
-import AccountStatistics from './components/AccountStatistics';
-import { useAccountStatistics } from './hooks/useAccountStatistics';
+import { AccountStatisticsWithTrend } from './components/AccountStatistics';
+import { useAccountStatisticsWithTrend } from './hooks/useAccountStatisticsWithTrend';
 
 import { PiBuilding, PiBuildingOffice, PiFunnelSimple } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -175,11 +175,11 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
 
   // Get account statistics (independent from search/filters)
   const {
-    statistics,
+    trendData,
     isLoading: statsLoading,
     error: statsError,
     refetch: refetchStats
-  } = useAccountStatistics({ ...props, sourceApp });
+  } = useAccountStatisticsWithTrend({ ...props, sourceApp });
   
   // Trigger initial data loading when component mounts
   useEffect(() => {
@@ -258,13 +258,17 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
 
   return (
     <div data-testid="account-list-content">
-      <div data-testid="account-statistics-section" className="gba:mb-6">
-        <AccountStatistics
-          statistics={statistics}
-          isLoading={statsLoading}
-          error={statsError}
-          onRetry={refetchStats}
-        />
+      <div className="gba:mb-6" data-testid="account-statistics-section">
+        {trendData ? (
+          <AccountStatisticsWithTrend
+            trendData={trendData}
+            isLoading={statsLoading}
+            error={statsError}
+            onRetry={refetchStats}
+          />
+        ) : (
+          <div>Loading statistics...</div>
+        )}
       </div>
 
       <DataContainer

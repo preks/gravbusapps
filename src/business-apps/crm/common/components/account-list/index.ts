@@ -1,29 +1,7 @@
-// Main component
-export { AccountList } from './AccountList';
-export type { AccountListProps } from './AccountList';
-
-// Types
-export type { Account, AccountQueryVariables, AccountListResponse } from './types';
-
-// Components
+export { default as AccountList } from './AccountList';
 export { AccountTable } from './components/AccountTable';
-export type { AccountTableProps } from './components/AccountTable';
-
-// Hooks
+export { AccountStatisticsWithTrend } from './components/AccountStatistics';
 export { useAccountListData } from './hooks/useAccountListData';
-
-export { useAccountStatistics } from './hooks/useAccountStatistics';
-export type { 
-  UseAccountStatisticsProps
-} from './hooks/useAccountStatistics';
-
-// Queries
-export { useGetAccountsData } from './queries/AccountQueries';
-export { 
-  useAccountStatisticsQueries,
-  type AccountStatisticsData,
-  type UseAccountStatisticsQueriesProps
-} from './queries/AccountStatisticsQueries';
-
-// Default export
-export { AccountList as default } from './AccountList'; 
+export { useAccountStatisticsWithTrend } from './hooks/useAccountStatisticsWithTrend';
+export { useAccountFilters } from './hooks/useAccountFilters';
+export type { Account, UseAccountListDataReturn } from './types'; 

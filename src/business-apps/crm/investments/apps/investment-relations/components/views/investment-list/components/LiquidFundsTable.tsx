@@ -182,9 +182,8 @@ const LiquidFundsTable: React.FC<LiquidFundsTableProps> = ({
                 return (
                   <TableRow 
                     key={investment.id}
-                    className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer" 
+                    className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors" 
                     data-testid={`liquid-funds-row-${index + 1}`}
-                    onClick={() => onRowClick && onRowClick(investment.id)}
                   >
                     {/* Actions */}
                     <TableCell className="gba:py-4 gba:px-6">
@@ -206,7 +205,13 @@ const LiquidFundsTable: React.FC<LiquidFundsTableProps> = ({
                     </TableCell>
                     {/* Basic Investment Info */}
                     <TableCell className="gba:py-4 gba:px-6">
-                      <div>
+                      <div 
+                        className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRowClick && onRowClick(investment.id);
+                        }}
+                      >
                         <div className="gba:font-semibold gba:text-gray-900 gba:mb-1">{investmentData.name || 'N/A'}</div>
                         <div className="gba:text-sm gba:text-gray-600">{investment.subType}</div>
                       </div>

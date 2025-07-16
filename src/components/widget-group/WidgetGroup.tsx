@@ -1,8 +1,7 @@
 import React, { ReactNode } from 'react';
-import { Row, Col, Card, Skeleton, Alert, Button, Typography } from 'antd';
-import { ReloadOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-
-const { Text } = Typography;
+import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
+import { Button, Spinner } from '@newwork/nw-design-system';
+import { PiWarning, PiArrowClockwise } from 'react-icons/pi';
 
 export interface WidgetItem {
   key: string;
@@ -27,6 +26,14 @@ export interface WidgetItem {
    * Optional description text to show below the value
    */
   description?: string;
+  /**
+   * Optional trend data for showing trend indicators
+   */
+  trend?: {
+    value: string;
+    positive?: boolean;
+    description?: string;
+  };
   customContent?: ReactNode;
   /**
    * Optional click handler for the widget
@@ -103,6 +110,73 @@ export interface WidgetGroupProps {
 }
 
 /**
+ * Helper function to convert ReactNode to string for icons/prefixes
+ */
+const reactNodeToString = (node: ReactNode): string | undefined => {
+  if (typeof node === 'string') return node;
+  if (typeof node === 'number') return node.toString();
+  // For icon components, we can't easily convert them to strings
+  // Return undefined for now, could be enhanced to map common icons
+  return undefined;
+};
+
+/**
+ * Map Ant Design icon types to supported icon names in SectionKpiCards
+ */
+const mapAntIconToSupported = (iconElement: ReactNode): string | undefined => {
+  if (!iconElement || typeof iconElement !== 'object') return undefined;
+  
+  // Check if it's a React element with a type
+  const element = iconElement as any;
+  if (element.type && element.type.name) {
+    const iconName = element.type.name;
+    
+    // Map common Ant Design icons to supported ones
+    const iconMapping: Record<string, string> = {
+      'UserOutlined': 'users',
+      'ContactsOutlined': 'users', 
+      'MailOutlined': 'mail',
+      'PhoneOutlined': 'phone',
+      'CalendarOutlined': 'calendar',
+      'ClockCircleOutlined': 'calendar',
+      'FileTextOutlined': 'mail', // Using mail as closest alternative
+      'DollarOutlined': 'mail', // No direct currency icon, using mail as fallback
+      'TrophyOutlined': 'users', // Using users as fallback
+      'FireOutlined': 'users', // Using users as fallback
+      'ShopOutlined': 'users', // Using users as fallback  
+      'BankOutlined': 'users', // Using users as fallback
+      'RiseOutlined': 'users', // Using users as fallback
+      'TeamOutlined': 'users', // Using users as fallback
+      // Add more mappings as needed
+    };
+    
+    return iconMapping[iconName];
+  }
+  
+  return undefined;
+};
+
+/**
+ * Transform WidgetItem to KpiCardData
+ */
+const transformWidgetToKpiCard = (widget: WidgetItem, onWidgetClick?: (widgetKey: string) => void): KpiCardData => {
+  return {
+    id: widget.key,
+    title: widget.title,
+    value: widget.value ?? (widget.valueIsString ? '0' : 0),
+    prefix: reactNodeToString(widget.prefix),
+    suffix: reactNodeToString(widget.suffix),
+    decimalPlaces: widget.precision,
+    footer: widget.description,
+    icon: mapAntIconToSupported(widget.prefix),
+    iconColor: widget.color,
+    trend: widget.trend,
+    // Note: SectionKpiCards doesn't support onClick directly, 
+    // but we'll handle it in the component if needed
+  };
+};
+
+/**
  * A component that displays a group of widgets with consistent height
  */
 export const WidgetGroup: React.FC<WidgetGroupProps> = ({
@@ -121,24 +195,19 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
 }) => {
   // Handle loading state
   if (isLoading) {
+    // Create placeholder KPI cards for loading state
+    const placeholderCards: KpiCardData[] = [...Array(skeletonCount)].map((_, index) => ({
+      id: `loading-${index}`,
+      title: 'Loading...',
+      value: 0,
+    }));
+
     return (
       <div className={className}>
-        <Row gutter={gutter}>
-          {[...Array(skeletonCount)].map((_, index) => (
-            <Col 
-              key={`skeleton-${Math.random().toString(36).substring(2, 11)}-${index}`} 
-              xs={defaultSpan.xs} 
-              sm={defaultSpan.sm} 
-              md={defaultSpan.md} 
-              lg={defaultSpan.lg}
-              xl={defaultSpan.xl}
-            >
-              <Card size="small" style={{ background: cardBackground, padding: '16px', height: '140px' }}>
-                <Skeleton active paragraph={{ rows: 1 }} />
-              </Card>
-            </Col>
-          ))}
-        </Row>
+        <div className="gba:flex gba:justify-center gba:p-4">
+          <Spinner />
+        </div>
+        <SectionKpiCards cards={placeholderCards} className="gba:opacity-50" />
       </div>
     );
   }
@@ -148,20 +217,17 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
     const errorMessage = error instanceof Error ? error.message : error;
     return (
       <div className={className}>
-        <Alert
-          message="Error Loading Data"
-          description={errorMessage}
-          type="error"
-          showIcon
-          icon={<ExclamationCircleOutlined />}
-          action={
-            onRetry && (
-              <Button icon={<ReloadOutlined />} onClick={onRetry} size="small">
-                Retry
-              </Button>
-            )
-          }
-        />
+        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg">
+          <PiWarning className="gba:text-red-500 gba:text-4xl gba:mb-4" />
+          <h3 className="gba:text-lg gba:font-medium gba:text-red-900 gba:mb-2">Error Loading Data</h3>
+          <p className="gba:text-red-700 gba:mb-4">{errorMessage}</p>
+          {onRetry && (
+            <Button variant="outline" onClick={onRetry} className="gba:flex gba:items-center gba:gap-2">
+              <PiArrowClockwise />
+              Retry
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
@@ -169,10 +235,11 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   // Handle empty state
   if (!widgets || widgets.length === 0) {
     return (
-      <div className={`${className} gba:text-center`}>
-        <Text type="secondary">{emptyText}</Text>
+      <div className={`${className} gba:text-center gba:p-8`}>
+        <p className="gba:text-gray-500 gba:mb-4">{emptyText}</p>
         {onRetry && (
-          <Button icon={<ReloadOutlined />} onClick={onRetry} style={{ marginTop: 8 }} size="small">
+          <Button variant="outline" onClick={onRetry} className="gba:flex gba:items-center gba:gap-2 gba:mx-auto">
+            <PiArrowClockwise />
             Load Data
           </Button>
         )}
@@ -180,78 +247,13 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
     );
   }
 
-  // Display widgets
+  // Transform widgets to KPI cards
+  const kpiCards: KpiCardData[] = widgets.map(widget => transformWidgetToKpiCard(widget, onWidgetClick));
+
+  // Display widgets using SectionKpiCards
   return (
     <div className={className}>
-      <Row gutter={gutter}>
-        {widgets.map((widget) => (
-          <Col
-            key={widget.key}
-            xs={widget.span?.xs ?? defaultSpan.xs}
-            sm={widget.span?.sm ?? defaultSpan.sm}
-            md={widget.span?.md ?? defaultSpan.md}
-            lg={widget.span?.lg ?? defaultSpan.lg}
-            xl={widget.span?.xl ?? defaultSpan.xl}
-          >
-            <Card
-              size="small"
-              hoverable={hoverable}
-              style={{ background: cardBackground, padding: '16px', height: '140px', cursor: widget.onClick || onWidgetClick ? 'pointer' : 'auto' }}
-              onClick={() => {
-                if (widget.onClick) {
-                  widget.onClick();
-                }
-                if (onWidgetClick) {
-                  onWidgetClick(widget.key);
-                }
-              }}
-              className="gba:flex gba:flex-col gba:overflow-hidden" // Fixed height with overflow handling
-            >
-              {widget.customContent || (
-                <div className="gba:statistic-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div className="gba:statistic-title ant-statistic-title" style={{ fontSize: '14px', color: 'rgba(0, 0, 0, 0.45)' }}>{widget.title}</div>
-                  <div 
-                    className="gba:statistic-value ant-statistic-content" 
-                    style={{ color: widget.color ?? 'inherit' }}
-                  >
-                    {widget.prefix && (
-                      <span className="gba:statistic-prefix ant-statistic-content-prefix" style={{ marginRight: '8px', fontSize: '24px', display: 'inline-flex', alignItems: 'center' }}>
-                        {widget.prefix}
-                      </span>
-                    )}
-                    <span className="ant-statistic-content-value" style={{ fontSize: '24px', fontWeight: 600 }}>
-                      {widget.valueIsString ? (
-                        widget.value ?? '0,00'
-                      ) : typeof widget.value === 'number' && widget.precision !== undefined ? (
-                        <>
-                          <span className="ant-statistic-content-value-int">
-                            {Math.floor(widget.value).toString()}
-                          </span>
-                          <span className="ant-statistic-content-value-decimal">
-                            {`.${widget.value.toFixed(widget.precision).split('.')[1]}`}
-                          </span>
-                        </>
-                      ) : (
-                        widget.value ?? 0
-                      )}
-                    </span>
-                    {widget.suffix && (
-                      <span className="gba:statistic-suffix ant-statistic-content-suffix" style={{ marginLeft: '4px' }}>
-                        {widget.suffix}
-                      </span>
-                    )}
-                  </div>
-                  {widget.description && (
-                    <span className="ant-typography ant-typography-secondary" style={{ fontSize: '12px' }}>
-                      {widget.description}
-                    </span>
-                  )}
-                </div>
-              )}
-            </Card>
-          </Col>
-        ))}
-      </Row>
+      <SectionKpiCards cards={kpiCards} />
     </div>
   );
 };

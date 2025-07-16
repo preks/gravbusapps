@@ -6,18 +6,30 @@ export interface UseAccountStatisticsQueriesProps extends BusinessAppContextProp
   sourceApp?: string;
 }
 
-export interface AccountStatisticsData {
-  recentAccounts: number;
-  activeAccounts: number;
-  totalAccountsThisYear: number;
-  totalRevenue: number;
+interface TrendData {
+  current: number;
+  previous: number;
+  change: number;
+  changePercent: number;
+  isPositive: boolean;
 }
 
-// Query to get recent accounts count (past two weeks)
-export const GET_RECENT_ACCOUNTS_COUNT = `
-  query GetRecentAccountsCount($twoWeeksAgo: timestamptz!, $sourceApp: String) {
-    AccountAggregate(where: {
-      createdAt: {_gte: $twoWeeksAgo},
+// Enhanced queries that fetch both current and previous period data for trend calculations
+
+// Query to get recent accounts count (current 2 weeks vs previous 2 weeks)
+export const GET_RECENT_ACCOUNTS_WITH_TREND = `
+  query GetRecentAccountsWithTrend($currentStart: timestamptz!, $previousStart: timestamptz!, $previousEnd: timestamptz!, $sourceApp: String) {
+    current: AccountAggregate(where: {
+      createdAt: {_gte: $currentStart},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false}
+    }) {
+      aggregate {
+        count
+      }
+    }
+    previous: AccountAggregate(where: {
+      createdAt: {_gte: $previousStart, _lt: $previousEnd},
       sourceApp: {_eq: $sourceApp},
       isDeleted: {_eq: false}
     }) {
@@ -28,10 +40,10 @@ export const GET_RECENT_ACCOUNTS_COUNT = `
   }
 `;
 
-// Query to get active accounts count (accounts without liquidation date)
-export const GET_ACTIVE_ACCOUNTS_COUNT = `
-  query GetActiveAccountsCount($sourceApp: String) {
-    AccountAggregate(where: {
+// Query to get active accounts count (current vs last month)
+export const GET_ACTIVE_ACCOUNTS_WITH_TREND = `
+  query GetActiveAccountsWithTrend($lastMonth: timestamptz!, $sourceApp: String) {
+    current: AccountAggregate(where: {
       sourceApp: {_eq: $sourceApp},
       isDeleted: {_eq: false},
       liquidationDate: {_isNull: true}
@@ -40,18 +52,11 @@ export const GET_ACTIVE_ACCOUNTS_COUNT = `
         count
       }
     }
-  }
-`;
-
-
-
-// Query to get total accounts count for this year
-export const GET_TOTAL_ACCOUNTS_THIS_YEAR_COUNT = `
-  query GetTotalAccountsThisYearCount($startOfYear: timestamptz!, $sourceApp: String) {
-    AccountAggregate(where: {
-      createdAt: {_gte: $startOfYear},
+    previous: AccountAggregate(where: {
       sourceApp: {_eq: $sourceApp},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      liquidationDate: {_isNull: true},
+      createdAt: {_lt: $lastMonth}
     }) {
       aggregate {
         count
@@ -60,10 +65,10 @@ export const GET_TOTAL_ACCOUNTS_THIS_YEAR_COUNT = `
   }
 `;
 
-// Query to get total revenue estimates (this would be based on annual revenue data)
-export const GET_TOTAL_REVENUE_ESTIMATE = `
-  query GetTotalRevenueEstimate($sourceApp: String) {
-    Account(where: {
+// Query to get revenue estimates with trend (current vs last quarter)
+export const GET_REVENUE_WITH_TREND = `
+  query GetRevenueWithTrend($lastQuarter: timestamptz!, $sourceApp: String) {
+    current: Account(where: {
       sourceApp: {_eq: $sourceApp},
       isDeleted: {_eq: false},
       annualRevenueRef: {_isNull: false}
@@ -73,6 +78,41 @@ export const GET_TOTAL_REVENUE_ESTIMATE = `
         code
       }
     }
+    previous: Account(where: {
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false},
+      annualRevenueRef: {_isNull: false},
+      createdAt: {_lt: $lastQuarter}
+    }) {
+      annualRevenue {
+        value
+        code
+      }
+    }
+  }
+`;
+
+// Query to get accounts this year vs same period last year
+export const GET_ACCOUNTS_THIS_YEAR_WITH_TREND = `
+  query GetAccountsThisYearWithTrend($thisYearStart: timestamptz!, $lastYearStart: timestamptz!, $lastYearEnd: timestamptz!, $sourceApp: String) {
+    current: AccountAggregate(where: {
+      createdAt: {_gte: $thisYearStart},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false}
+    }) {
+      aggregate {
+        count
+      }
+    }
+    previous: AccountAggregate(where: {
+      createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false}
+    }) {
+      aggregate {
+        count
+      }
+    }
   }
 `;
 
@@ -80,77 +120,134 @@ export const useAccountStatisticsQueries = (context: UseAccountStatisticsQueries
   const graphqlClient = useGraphQLClient(context.accessToken);
   const { sourceApp } = context;
 
-  const fetchRecentAccounts = useCallback(async (): Promise<number> => {
+  const calculateTrend = (current: number, previous: number): TrendData => {
+    const change = current - previous;
+    const changePercent = previous > 0 ? (change / previous) * 100 : (current > 0 ? 100 : 0);
+    return {
+      current,
+      previous,
+      change,
+      changePercent,
+      isPositive: change >= 0
+    };
+  };
+
+  const calculateRevenue = (accounts: Array<{ annualRevenue: { value: string; code: string } | null }>): number => {
+    let totalRevenue = 0;
+    accounts.forEach(account => {
+      const revenueValue = account.annualRevenue?.value;
+      if (revenueValue && !isNaN(Number(revenueValue))) {
+        totalRevenue += Number(revenueValue);
+      }
+    });
+    return totalRevenue;
+  };
+
+  const fetchRecentAccountsWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
       const now = new Date();
-      const twoWeeksAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)).toISOString();
+      const currentStart = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+      const previousEnd = currentStart;
+      const previousStart = new Date(currentStart.getTime() - (14 * 24 * 60 * 60 * 1000));
       
       const result = await graphqlClient.request<{
-        AccountAggregate: { aggregate: { count: number } }
-      }>(GET_RECENT_ACCOUNTS_COUNT, { twoWeeksAgo, sourceApp });
-      return result.AccountAggregate.aggregate.count;
-    } catch (error) {
-      console.error('Error fetching recent accounts count:', error);
-      throw error;
-    }
-  }, [graphqlClient, sourceApp]);
-
-  const fetchActiveAccounts = useCallback(async (): Promise<number> => {
-    try {
-      const result = await graphqlClient.request<{
-        AccountAggregate: { aggregate: { count: number } }
-      }>(GET_ACTIVE_ACCOUNTS_COUNT, { sourceApp });
-      return result.AccountAggregate.aggregate.count;
-    } catch (error) {
-      console.error('Error fetching active accounts count:', error);
-      throw error;
-    }
-  }, [graphqlClient, sourceApp]);
-
-
-
-  const fetchTotalAccountsThisYear = useCallback(async (): Promise<number> => {
-    try {
-      const startOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString();
-      
-      const result = await graphqlClient.request<{
-        AccountAggregate: { aggregate: { count: number } }
-      }>(GET_TOTAL_ACCOUNTS_THIS_YEAR_COUNT, { startOfYear, sourceApp });
-      return result.AccountAggregate.aggregate.count;
-    } catch (error) {
-      console.error('Error fetching total accounts this year:', error);
-      throw error;
-    }
-  }, [graphqlClient, sourceApp]);
-
-  const fetchTotalRevenueEstimate = useCallback(async (): Promise<number> => {
-    try {
-      const result = await graphqlClient.request<{
-        Account: Array<{ 
-          annualRevenue: { value: string; code: string } | null;
-        }>
-      }>(GET_TOTAL_REVENUE_ESTIMATE, { sourceApp });
-
-      // Sum up all annual revenue values
-      let totalRevenue = 0;
-      result.Account.forEach(account => {
-        const revenueValue = account.annualRevenue?.value;
-        if (revenueValue && !isNaN(Number(revenueValue))) {
-          totalRevenue += Number(revenueValue);
-        }
+        current: { aggregate: { count: number } };
+        previous: { aggregate: { count: number } };
+      }>(GET_RECENT_ACCOUNTS_WITH_TREND, { 
+        currentStart: currentStart.toISOString(),
+        previousStart: previousStart.toISOString(),
+        previousEnd: previousEnd.toISOString(),
+        sourceApp 
       });
-
-      return totalRevenue;
+      
+      return calculateTrend(
+        result.current.aggregate.count,
+        result.previous.aggregate.count
+      );
     } catch (error) {
-      console.error('Error fetching total revenue estimate:', error);
-      return 0;
+      console.error('Error fetching recent accounts with trend:', error);
+      throw error;
+    }
+  }, [graphqlClient, sourceApp]);
+
+  const fetchActiveAccountsWithTrend = useCallback(async (): Promise<TrendData> => {
+    try {
+      const now = new Date();
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      
+      const result = await graphqlClient.request<{
+        current: { aggregate: { count: number } };
+        previous: { aggregate: { count: number } };
+      }>(GET_ACTIVE_ACCOUNTS_WITH_TREND, { 
+        lastMonth: lastMonth.toISOString(),
+        sourceApp 
+      });
+      
+      return calculateTrend(
+        result.current.aggregate.count,
+        result.previous.aggregate.count
+      );
+    } catch (error) {
+      console.error('Error fetching active accounts with trend:', error);
+      throw error;
+    }
+  }, [graphqlClient, sourceApp]);
+
+  const fetchRevenueWithTrend = useCallback(async (): Promise<TrendData> => {
+    try {
+      const now = new Date();
+      const lastQuarter = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+      
+      const result = await graphqlClient.request<{
+        current: Array<{ annualRevenue: { value: string; code: string } | null }>;
+        previous: Array<{ annualRevenue: { value: string; code: string } | null }>;
+      }>(GET_REVENUE_WITH_TREND, { 
+        lastQuarter: lastQuarter.toISOString(),
+        sourceApp 
+      });
+      
+      const currentRevenue = calculateRevenue(result.current);
+      const previousRevenue = calculateRevenue(result.previous);
+      
+      return calculateTrend(currentRevenue, previousRevenue);
+    } catch (error) {
+      console.error('Error fetching revenue with trend:', error);
+      throw error;
+    }
+  }, [graphqlClient, sourceApp]);
+
+  const fetchAccountsThisYearWithTrend = useCallback(async (): Promise<TrendData> => {
+    try {
+      const now = new Date();
+      const thisYearStart = new Date(now.getFullYear(), 0, 1);
+      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+      const lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      
+      const result = await graphqlClient.request<{
+        current: { aggregate: { count: number } };
+        previous: { aggregate: { count: number } };
+      }>(GET_ACCOUNTS_THIS_YEAR_WITH_TREND, { 
+        thisYearStart: thisYearStart.toISOString(),
+        lastYearStart: lastYearStart.toISOString(),
+        lastYearEnd: lastYearEnd.toISOString(),
+        sourceApp 
+      });
+      
+      return calculateTrend(
+        result.current.aggregate.count,
+        result.previous.aggregate.count
+      );
+    } catch (error) {
+      console.error('Error fetching accounts this year with trend:', error);
+      throw error;
     }
   }, [graphqlClient, sourceApp]);
 
   return {
-    fetchRecentAccounts,
-    fetchActiveAccounts,
-    fetchTotalAccountsThisYear,
-    fetchTotalRevenueEstimate
+    // Enhanced methods with trend data
+    fetchRecentAccountsWithTrend,
+    fetchActiveAccountsWithTrend,
+    fetchRevenueWithTrend,
+    fetchAccountsThisYearWithTrend
   };
 }; 
