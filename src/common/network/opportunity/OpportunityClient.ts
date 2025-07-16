@@ -42,7 +42,7 @@ export class OpportunityClient extends RestClient {
   private static instance: OpportunityClient;
 
   private constructor() {
-    super(env('NEXT_PUBLIC_CUSTOMER_RELATIONS_ENDPOINT') || '');
+    super(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') || '');
   }
 
   public static getInstance(): OpportunityClient {
@@ -88,7 +88,7 @@ export class OpportunityClient extends RestClient {
       throw new Error('Invalid access token for opportunity stage update');
     }
 
-    return this.post(`${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveOpportunity`, payload, {
+    return this.post('/customer-relations/saveOpportunity', payload, {
       headers: {
         'Authorization': setAccessTokenToAuthorizationHeader(accessToken)
       }

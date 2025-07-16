@@ -95,30 +95,35 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
   },
   
   moveOpportunity: async (opportunityId: string, targetStageId: string, accessToken: string) => {
-    try {
-      const opportunity = get().opportunities.find(opp => opp.id === opportunityId);
-      if (!opportunity) return;
-      
-      
-      await opportunityClient.updateOpportunityStage(
-        opportunityId,
-        targetStageId,
-        opportunity.version,
-        opportunity,
-        accessToken
-      );
-      
-      
+    const opportunity = get().opportunities.find(opp => opp.id === opportunityId);
+    if (!opportunity) return;
+    
+    const originalStageId = opportunity.stageId;
+    
+    set(state => ({
+      opportunities: state.opportunities.map(opp => 
+        opp.id === opportunityId 
+          ? { ...opp, stageId: targetStageId, version: opp.version + 1 } 
+          : opp
+      )
+    }));
+    
+    opportunityClient.updateOpportunityStage(
+      opportunityId,
+      targetStageId,
+      opportunity.version,
+      opportunity,
+      accessToken
+    ).catch(error => {
       set(state => ({
         opportunities: state.opportunities.map(opp => 
           opp.id === opportunityId 
-            ? { ...opp, stageId: targetStageId, version: opp.version + 1 } 
+            ? { ...opp, stageId: originalStageId, version: opportunity.version } 
             : opp
-        )
+        ),
+        error: error as Error
       }));
-    } catch (error) {
-      set({ error: error as Error });
-    }
+    });
   },
   
 
