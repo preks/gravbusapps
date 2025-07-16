@@ -10,6 +10,7 @@ import { Opportunity } from './types';
 import { Alert, Button } from 'antd';
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 import { PlusOutlined, DollarCircleOutlined } from '@ant-design/icons';
+import { startProcess } from '@/common/utils/start-process';
 
 interface OpportunityListProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -122,8 +123,12 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   }, [opportunityFilters]);
 
   const handleAddOpportunity = useCallback(() => {
-    // TODO: Open add opportunity modal
-    console.log('Add opportunity clicked');
+    startProcess({
+      domain: 'customer-relations',
+      processName: 'createOpportunity',
+      builderType: 'NATIVE_SCREEN',
+      payload: {}
+    });
   }, []);
 
   const handleRetryStatistics = useCallback(() => {

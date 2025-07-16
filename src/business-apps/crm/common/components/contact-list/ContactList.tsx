@@ -12,6 +12,7 @@ import { Contact } from './types';
 import { Alert, Button, Modal, Form, Input, Select, message } from 'antd';
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 import { PlusOutlined } from '@ant-design/icons';
+import { startProcess } from '@/common/utils/start-process';
 
 interface ContactListProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -132,7 +133,12 @@ const ContactList: React.FC<ContactListProps> = (context) => {
   }, [contactFilters, contactListData, pageSize]);
 
   const handleAddContact = useCallback(() => {
-    setIsAddModalVisible(true);
+    startProcess({
+      domain: 'customer-relations',
+      processName: 'createContact',
+      builderType: 'NATIVE_SCREEN',
+      payload: {}
+    });
   }, []);
 
   const handleRetryStatistics = useCallback(() => {
