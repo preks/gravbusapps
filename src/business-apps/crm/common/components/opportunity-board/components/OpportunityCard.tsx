@@ -1,4 +1,4 @@
-import { useDraggable } from "@dnd-kit/core";
+import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { formatCurrency } from "../lib/utils";
 import { CalendarOutlined, UserOutlined, HomeOutlined, TagOutlined, ClockCircleOutlined } from "@ant-design/icons";
@@ -13,7 +13,14 @@ interface OpportunityCardProps {
 
 export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardProps) {
   const { selectOpportunity } = useKanbanStore();
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { 
+    attributes, 
+    listeners, 
+    setNodeRef, 
+    transform, 
+    transition,
+    isDragging 
+  } = useSortable({
     id: opportunity.id,
     data: {
       type: 'opportunity',
@@ -21,11 +28,10 @@ export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardPro
     },
   });
 
-  const style = transform
-    ? {
-        transform: CSS.Translate.toString(transform),
-      }
-    : undefined;
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   let formattedDate = "";
   if (opportunity.closeDate) {
@@ -72,7 +78,7 @@ export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardPro
       style={style}
       onClick={handleClick}
       className={`gba:bg-white gba:dark:bg-gray-800 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-700 gba:flex gba:flex-col gba:cursor-pointer ${
-        isDragging ? 'opacity-50' : ''
+        isDragging ? 'gba:opacity-50' : ''
       }`}
     >
       <div className="gba:p-3 gba:space-y-2" data-testid={`opportunity-card-${opportunity.id}`}>
