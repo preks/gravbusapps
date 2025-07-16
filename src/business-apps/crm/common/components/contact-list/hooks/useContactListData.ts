@@ -25,7 +25,7 @@ const transformContactData = (apiContact: ContactData): Contact => {
     phone: apiContact.phone || '',
     jobTitle: apiContact.jobTitle || '',
     bio: apiContact.bio || '',
-    linkedinUrl: apiContact.linkedinUrl || '',
+    linkedinUrl: apiContact.linkedinUrl?.trim() || '',
     contactRole: apiContact.contactRole || '',
     contactType: apiContact.contactType || '',
     academicTitle: apiContact.academicTitle ? {
@@ -82,7 +82,7 @@ export const useContactListData = (params: UseContactListDataParams): UseContact
 
       // Add search functionality
       if (params.search?.trim()) {
-        const searchPattern = { _iregex: params.search.trim() };
+        const searchPattern = { _ilike: `%${params.search.trim()}%` };
         whereCondition._or = [
           { firstName: searchPattern },
           { lastName: searchPattern },
@@ -159,7 +159,7 @@ export const useContactListData = (params: UseContactListDataParams): UseContact
     } finally {
       setLoading(false);
     }
-  }, [fetchContactsData, params.search, params.sortField, params.sortOrder, params.contactTypes, params.jobTitles, params.createdAfter, params.createdBefore, params.context.accessToken]);
+  }, [fetchContactsData, params.search, params.sortField, params.sortOrder, JSON.stringify(params.contactTypes), JSON.stringify(params.jobTitles), params.createdAfter, params.createdBefore, params.context.accessToken]);
 
   const loadMore = useCallback(() => {
     console.log('Load more contacts requested');

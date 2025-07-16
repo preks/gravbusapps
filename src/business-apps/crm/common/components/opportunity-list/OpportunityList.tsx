@@ -31,7 +31,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   const opportunityFilters = useOpportunityFilters(context);
   const appliedFilters = opportunityFilters.getFilters();
   
-  // Data hooks
+  // Data hooks with all filter parameters
   const opportunityListData = useOpportunityListData({
     search: appliedFilters.search,
     sortField,
@@ -39,6 +39,8 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
     context: context,
     sourceApp,
     stages: appliedFilters.stages,
+    winningChanceRanges: appliedFilters.winningChanceRanges,
+    amountRanges: appliedFilters.amountRanges,
     createdAfter: appliedFilters.createdAfter,
     createdBefore: appliedFilters.createdBefore
   });
@@ -55,7 +57,30 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
       opportunityListData.loadPage(1, pageSize);
       opportunityStatistics.refetch();
     }
-  }, [context.accessToken, opportunityListData, opportunityStatistics, pageSize]);
+  }, [context.accessToken, pageSize]); // Removed opportunityListData and opportunityStatistics from dependencies
+
+  // Effect to reload data when filters change
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      setCurrentPage(1); // Reset to first page when filters change
+      opportunityListData.loadPage(1, pageSize);
+    }
+  }, [
+    appliedFilters.search,
+    JSON.stringify(appliedFilters.stages), // Use JSON.stringify for array
+    JSON.stringify(appliedFilters.winningChanceRanges), // Use JSON.stringify for array
+    JSON.stringify(appliedFilters.amountRanges), // Use JSON.stringify for array
+    appliedFilters.createdAfter,
+    appliedFilters.createdBefore,
+    pageSize
+  ]); // Removed opportunityListData from dependencies
+
+  // Effect to reload data when sort changes
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      opportunityListData.loadPage(currentPage, pageSize);
+    }
+  }, [sortField, sortOrder, currentPage, pageSize]); // Removed opportunityListData from dependencies
 
   // Handlers
   const handleOpportunityClick = useCallback((opportunity: Opportunity) => {
@@ -81,21 +106,20 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
       setSortOrder(order);
       setCurrentPage(1);
     }
-    opportunityListData.loadPage(1, pageSize);
-  }, [opportunityListData, pageSize]);
+  }, []);
 
   const handlePageChange = useCallback((page: number, size?: number) => {
     const newSize = size || pageSize;
     setCurrentPage(page);
     setPageSize(newSize);
     opportunityListData.loadPage(page, newSize);
-  }, [opportunityListData, pageSize]);
+  }, [pageSize]); // Removed opportunityListData from dependencies
 
   const handleSearch = useCallback((searchTerm: string) => {
     opportunityFilters.setSearch(searchTerm);
     setCurrentPage(1);
-    opportunityListData.loadPage(1, pageSize);
-  }, [opportunityFilters, opportunityListData, pageSize]);
+    // Data will reload automatically via useEffect
+  }, [opportunityFilters]);
 
   const handleAddOpportunity = useCallback(() => {
     // TODO: Open add opportunity modal
@@ -108,7 +132,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
 
   const handleRetryData = useCallback(() => {
     opportunityListData.loadPage(currentPage, pageSize);
-  }, [opportunityListData, currentPage, pageSize]);
+  }, [currentPage, pageSize]); // Removed opportunityListData from dependencies
 
   // If there's an error loading opportunities, show error state
   if (opportunityListData.error) {
@@ -119,7 +143,12 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
           description={opportunityListData.error instanceof Error ? opportunityListData.error.message : String(opportunityListData.error)}
           type="error"
           showIcon
-          data-testid="opportunity-list-error"
+          data-testid="opportunity-list-error-alert"
+          action={
+            <Button size="small" onClick={handleRetryData}>
+              Retry
+            </Button>
+          }
         />
       </div>
     );

@@ -31,20 +31,21 @@ export const useOpportunityFilters = (context: BusinessAppContextProps): Opportu
   const filterGroups: FilterGroup[] = useMemo(() => [
     {
       id: 'stage',
-      title: 'Stage', // Changed from label to title
+      title: 'Stage',
       filters: [
-        { id: 'stage-qualification', label: 'Qualification', value: 'Qualification', selected: false },
-        { id: 'stage-needs-analysis', label: 'Needs Analysis', value: 'Needs Analysis', selected: false },
-        { id: 'stage-proposal', label: 'Proposal', value: 'Proposal', selected: false },
-        { id: 'stage-negotiation', label: 'Negotiation', value: 'Negotiation', selected: false },
-        { id: 'stage-closed-won', label: 'Closed Won', value: 'Closed Won', selected: false },
-        { id: 'stage-closed-lost', label: 'Closed Lost', value: 'Closed Lost', selected: false }
+        { id: 'stage-new-opportunity', label: 'New Opportunity', value: 'NEW_OPPORTUNITY', selected: false },
+        { id: 'stage-qualification', label: 'Qualification', value: 'IN_QUALIFICATION', selected: false },
+        { id: 'stage-proposal', label: 'Proposal', value: 'PROPOSAL', selected: false },
+        { id: 'stage-proposal-progress', label: 'Proposal In Progress', value: 'PROPOSAL_IN_PROGRESS', selected: false },
+        { id: 'stage-negotiation', label: 'Negotiation', value: 'NEGOTIATION', selected: false },
+        { id: 'stage-closed-won', label: 'Closed Won', value: 'CLOSED_WON', selected: false },
+        { id: 'stage-closed-lost', label: 'Closed Lost', value: 'CLOSED_LOST', selected: false },
+        { id: 'stage-closed', label: 'Closed', value: 'CLOSED', selected: false }
       ]
     },
     {
       id: 'winningChance',
       title: 'Winning Chance',
-      label: 'Winning Chance',
       filters: [
         { id: 'chance-high', label: 'High (75-100%)', value: { min: 75, max: 100 }, selected: false },
         { id: 'chance-medium', label: 'Medium (50-74%)', value: { min: 50, max: 74 }, selected: false },
@@ -55,7 +56,6 @@ export const useOpportunityFilters = (context: BusinessAppContextProps): Opportu
     {
       id: 'estimatedAmount',
       title: 'Deal Size',
-      label: 'Deal Size',
       filters: [
         { id: 'amount-large', label: 'Large (>$100K)', value: { min: 100000 }, selected: false },
         { id: 'amount-medium', label: 'Medium ($50K-$100K)', value: { min: 50000, max: 100000 }, selected: false },
@@ -90,6 +90,8 @@ export const useOpportunityFilters = (context: BusinessAppContextProps): Opportu
 
   const clearAllFilters = useCallback(() => {
     setSelectedFilters([]);
+    setCreatedAfter(undefined);
+    setCreatedBefore(undefined);
   }, []);
 
   const handleDateRangeChange = useCallback((after?: string, before?: string) => {

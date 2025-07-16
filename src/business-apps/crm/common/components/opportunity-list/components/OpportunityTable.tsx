@@ -122,6 +122,16 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
     return null;
   };
 
+  const getOwnerName = (record: Opportunity) => {
+    if (record.ownerEmployee?.displayName) {
+      return record.ownerEmployee.displayName;
+    }
+    if (record.ownerEmployee?.firstName && record.ownerEmployee?.lastName) {
+      return `${record.ownerEmployee.firstName} ${record.ownerEmployee.lastName}`;
+    }
+    return 'Unassigned';
+  };
+
   return (
     <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
       {loading && (
@@ -134,10 +144,11 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
         <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
           <TableHeader>
             <TableRow>
-              <TableHead className="gba:w-[60px]"></TableHead>
+              <TableHead className="gba:w-[60px]" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}></TableHead>
               <TableHead 
                 className="gba:w-[25%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('name')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-opportunity-header`}
               >
                 Opportunity
                 {renderSortIcon('name')}
@@ -145,6 +156,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
               <TableHead 
                 className="gba:w-[15%] gba:cursor-pointer gba:hover:bg-gray-50 gba:text-right"
                 onClick={() => handleSort('estimatedAmount')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-value-header`}
               >
                 Value
                 {renderSortIcon('estimatedAmount')}
@@ -152,6 +164,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
               <TableHead 
                 className="gba:w-[12%] gba:cursor-pointer gba:hover:bg-gray-50 gba:text-center"
                 onClick={() => handleSort('winningChance')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-win-rate-header`}
               >
                 Win Rate
                 {renderSortIcon('winningChance')}
@@ -159,19 +172,21 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
               <TableHead 
                 className="gba:w-[15%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('stage')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-stage-header`}
               >
                 Stage
                 {renderSortIcon('stage')}
               </TableHead>
-              <TableHead className="gba:w-[15%]">Pipeline</TableHead>
+              <TableHead className="gba:w-[15%]" data-testid={`${DATA_TEST_ID_PREFIX}-pipeline-header`}>Pipeline</TableHead>
               <TableHead 
                 className="gba:w-[12%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('closeDate')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-close-date-header`}
               >
                 Close Date
                 {renderSortIcon('closeDate')}
               </TableHead>
-              <TableHead className="gba:w-[15%]">Owner</TableHead>
+              <TableHead className="gba:w-[15%]" data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}>Owner</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -179,8 +194,9 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
               <TableRow 
                 key={record.id}
                 className={`gba:hover:bg-gray-50 ${selectedOpportunityId === record.id ? 'gba:bg-blue-50' : ''}`}
+                data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
               >
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
                   <div className="gba:flex gba:justify-start gba:gap-2">
                     <AppActionButton
                       data-testid={`${DATA_TEST_ID_PREFIX}-update-opportunity-button-${record.id}`}
@@ -197,81 +213,70 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     />
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-opportunity-cell-${record.id}`}>
                   <div 
                     className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleRowClick(record);
                     }}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-opportunity-name-${record.id}`}
                   >
-                    <div className="gba:font-medium gba:text-sm gba:truncate" title={record.name}>
-                      {record.name}
-                    </div>
-                    {record.account && (
-                      <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-gray-500">
-                        <PiBuilding size={12} />
-                        <span className="gba:truncate" title={record.account.name}>
-                          {record.account.name}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+          <div className="gba:font-medium gba:text-sm gba:truncate" title={record.name}>
+            {record.name}
+          </div>
+          {record.account && (
+            <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-gray-500">
+              <PiBuilding size={12} />
+              <span className="gba:truncate" title={record.account.name}>
+                {record.account.name}
+              </span>
+            </div>
+          )}
+        </div>
                 </TableCell>
-                <TableCell className="gba:text-right">
-                  <div className="gba:text-sm gba:font-medium">
-                    {formatCurrency(record.estimatedAmount, record.currency?.code)}
-                  </div>
+                <TableCell className="gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-value-cell-${record.id}`}>
+        <div className="gba:text-sm gba:font-medium">
+          {formatCurrency(record.estimatedAmount, record.currency?.code)}
+        </div>
                 </TableCell>
-                <TableCell className="gba:text-center">
+                <TableCell className="gba:text-center" data-testid={`${DATA_TEST_ID_PREFIX}-win-rate-cell-${record.id}`}>
                   <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
-                    {record.winningChance ? `${record.winningChance}%` : '0%'}
+          {record.winningChance ? `${record.winningChance}%` : '0%'}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-stage-cell-${record.id}`}>
                   <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
                     {record.stage || 'Unknown Stage'}
                   </Badge>
                 </TableCell>
-                <TableCell>
-                  <div className="gba:text-sm gba:truncate" title={record.salesPipeline?.value}>
-                    {record.salesPipeline?.value || '-'}
-                  </div>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-pipeline-cell-${record.id}`}>
+        <div className="gba:text-sm gba:truncate" title={record.salesPipeline?.value}>
+          {record.salesPipeline?.value || '-'}
+        </div>
                 </TableCell>
-                <TableCell>
-                  <div className="gba:text-sm">
-                    {formatDate(record.closeDate)}
-                  </div>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-close-date-cell-${record.id}`}>
+        <div className="gba:text-sm">
+          {formatDate(record.closeDate)}
+        </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}>
                   <div className="gba:flex gba:items-center gba:gap-3">
                     <Avatar size="sm">
                       {record.ownerEmployee?.pictureThumbnail && (
                         <AvatarImage 
                           src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`} 
-                          alt={record.ownerEmployee?.displayName || 
-                               `${record.ownerEmployee?.firstName || ''} ${record.ownerEmployee?.lastName || ''}`.trim() || 
-                               'Unassigned'} 
+                          alt={getOwnerName(record)} 
                         />
                       )}
                       <AvatarFallback>
-                        {record.ownerEmployee?.displayName || record.ownerEmployee?.firstName || record.ownerEmployee?.lastName
-                          ? (record.ownerEmployee?.displayName || 
-                             `${record.ownerEmployee?.firstName || ''} ${record.ownerEmployee?.lastName || ''}`.trim())
-                             .split(' ').map(n => n[0]).join('').toUpperCase()
+                        {getOwnerName(record) !== '-' 
+                          ? getOwnerName(record).split(' ').map(n => n[0]).join('').toUpperCase()
                           : 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="gba:flex gba:flex-col">
-                      <span className="gba:font-medium gba:text-sm gba:truncate" title={
-                        record.ownerEmployee?.displayName || 
-                        `${record.ownerEmployee?.firstName || ''} ${record.ownerEmployee?.lastName || ''}`.trim() || 
-                        'Unassigned'
-                      }>
-                        {record.ownerEmployee?.displayName || 
-                         `${record.ownerEmployee?.firstName || ''} ${record.ownerEmployee?.lastName || ''}`.trim() || 
-                         'Unassigned'}
-                      </span>
+                      <span className="gba:font-medium gba:text-sm">{getOwnerName(record)}</span>
                     </div>
                   </div>
                 </TableCell>

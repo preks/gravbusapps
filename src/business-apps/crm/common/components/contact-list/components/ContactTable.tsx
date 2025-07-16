@@ -104,10 +104,11 @@ const ContactTable: React.FC<ContactTableProps> = ({
         <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
           <TableHeader>
             <TableRow>
-              <TableHead className="gba:w-[60px]"></TableHead>
+              <TableHead className="gba:w-[60px]" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}></TableHead>
               <TableHead 
                 className="gba:w-[30%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('firstName')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-contact-header`}
               >
                 Contact
                 {renderSortIcon('firstName')}
@@ -115,14 +116,16 @@ const ContactTable: React.FC<ContactTableProps> = ({
               <TableHead 
                 className="gba:w-[25%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('email')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-contact-info-header`}
               >
                 Contact Info
                 {renderSortIcon('email')}
               </TableHead>
-              <TableHead className="gba:w-[20%]">Account</TableHead>
+              <TableHead className="gba:w-[20%]" data-testid={`${DATA_TEST_ID_PREFIX}-account-header`}>Account</TableHead>
               <TableHead 
                 className="gba:w-[15%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('contactType')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-type-role-header`}
               >
                 Type & Role
                 {renderSortIcon('contactType')}
@@ -130,6 +133,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
               <TableHead 
                 className="gba:w-[15%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('ownerEmployeeId')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
               >
                 Owner
                 {renderSortIcon('ownerEmployeeId')}
@@ -141,8 +145,9 @@ const ContactTable: React.FC<ContactTableProps> = ({
               <TableRow 
                 key={record.id}
                 className={`gba:hover:bg-gray-50 ${selectedContactId === record.id ? 'gba:bg-blue-50' : ''}`}
+                data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
               >
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
                   <div className="gba:flex gba:justify-start gba:gap-2">
                     <AppActionButton
                       data-testid={`${DATA_TEST_ID_PREFIX}-update-contact-button-${record.id}`}
@@ -159,13 +164,14 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     />
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-contact-cell-${record.id}`}>
                   <div 
                     className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleRowClick(record);
                     }}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-contact-name-${record.id}`}
                   >
                     <Avatar size="sm">
                       <AvatarFallback>
@@ -186,7 +192,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-contact-info-cell-${record.id}`}>
                   <div className="gba:space-y-1">
                     {record.email && (
                       <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
@@ -216,7 +222,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     )}
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-account-cell-${record.id}`}>
                   {record.account ? (
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <PiBuilding className="gba:text-gray-400" />
@@ -226,7 +232,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     <span className="gba:text-gray-400 gba:text-sm">No account</span>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-type-role-cell-${record.id}`}>
                   <div className="gba:space-y-1">
                     {record.contactType && (
                       <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
@@ -240,7 +246,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     )}
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}>
                   {record.ownerEmployee ? (
                     <div className="gba:text-sm gba:font-medium">
                       {record.ownerEmployee.displayName ||
@@ -248,7 +254,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
                        'Unknown'}
                     </div>
                   ) : (
-                    <span className="gba:text-gray-400">Unassigned</span>
+                    <span className="gba:text-gray-400 gba:text-sm">No owner</span>
                   )}
                 </TableCell>
               </TableRow>

@@ -205,10 +205,11 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
           <TableHeader>
             <TableRow>
-              <TableHead className="gba:w-[60px]"></TableHead>
+              <TableHead className="gba:w-[60px]" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}></TableHead>
               <TableHead 
                 className="gba:w-[22%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('name')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-header`}
               >
                 {t('lead.name', 'Lead Contact')}
                 {renderSortIcon('name')}
@@ -216,6 +217,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               <TableHead 
                 className="gba:w-[20%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('companyName')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-header`}
               >
                 {t('lead.company', 'Lead Company')}
                 {renderSortIcon('companyName')}
@@ -223,6 +225,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               <TableHead 
                 className="gba:w-[15%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('createdAt')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
               >
                 {t('lead.created', 'Creation Date')}
                 {renderSortIcon('createdAt')}
@@ -230,6 +233,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               <TableHead 
                 className="gba:w-[20%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('ownerEmployeeId')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
               >
                 {t('lead.owner', 'Owner')}
                 {renderSortIcon('ownerEmployeeId')}
@@ -237,6 +241,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               <TableHead 
                 className="gba:w-[12%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('leadStatusRef')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
               >
                 {t('lead.status', 'Status')}
                 {renderSortIcon('leadStatusRef')}
@@ -244,6 +249,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               <TableHead 
                 className="gba:w-[13%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('leadRatingRef')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-rating-header`}
               >
                 {t('lead.rating', 'Rating')}
                 {renderSortIcon('leadRatingRef')}
@@ -255,8 +261,9 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               <TableRow 
                 key={record.id}
                 className={`gba:hover:bg-gray-50 ${selectedLeadId === record.id ? 'gba:bg-blue-50' : ''}`}
+                data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
               >
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
                   <div className="gba:flex gba:justify-start gba:gap-2">
                     <AppActionButton
                       data-testid={`${DATA_TEST_ID_PREFIX}-update-lead-button-${record.id}`}
@@ -273,13 +280,14 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     />
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-cell-${record.id}`}>
                   <div 
                     className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleRowClick(record);
                     }}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-name-${record.id}`}
                   >
                     <Avatar size="sm">
                       <AvatarFallback>
@@ -300,7 +308,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-cell-${record.id}`}>
                   <div className="gba:flex gba:flex-col gba:gap-1">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <PiBuilding size={14} className="gba:text-gray-400" />
@@ -319,7 +327,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     )}
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}>
                   {record.createdAt ? (
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <PiCalendar size={16} className="gba:text-gray-400" />
@@ -329,7 +337,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   ) : '-'}
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}>
                   <div className="gba:flex gba:items-center gba:gap-3">
                     <Avatar size="sm">
                       {record.ownerEmployee?.pictureThumbnail && (
@@ -349,12 +357,12 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
                   <Badge className={getStatusBadgeClass(record.leadStatus?.value)}>
                     {record.leadStatus?.value || '-'}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-rating-cell-${record.id}`}>
                   <Badge className={getRatingBadgeClass(record.leadRating?.value)}>
                     {record.leadRating?.value || '-'}
                   </Badge>
@@ -366,8 +374,8 @@ export const LeadTable: React.FC<LeadTableProps> = ({
       </div>
 
       {/* Pagination */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4">
-        <div className="gba:text-sm gba:text-muted-foreground">
+      <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
+        <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
           {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} leads`}
         </div>
         <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
@@ -377,6 +385,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               value={pageSize}
               onChange={(e) => onPaginationChange(1, Number(e.target.value))}
               className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+              data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
             >
               <option value={10}>10</option>
               <option value={20}>20</option>
@@ -384,7 +393,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               <option value={100}>100</option>
             </select>
           </div>
-          <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
+          <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
             Page {currentPage} of {Math.ceil(total / pageSize)}
           </div>
           <div className="gba:flex gba:items-center gba:space-x-2">
@@ -393,6 +402,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               className="gba:h-8 gba:w-8 gba:p-0"
               onClick={() => onPaginationChange(1)}
               disabled={currentPage === 1}
+              data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
             >
               <span className="gba:sr-only">Go to first page</span>
               ⟨⟨
@@ -402,6 +412,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               className="gba:h-8 gba:w-8 gba:p-0"
               onClick={() => onPaginationChange(currentPage - 1)}
               disabled={currentPage === 1}
+              data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
             >
               <span className="gba:sr-only">Go to previous page</span>
               ⟨
@@ -411,6 +422,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               className="gba:h-8 gba:w-8 gba:p-0"
               onClick={() => onPaginationChange(currentPage + 1)}
               disabled={currentPage >= Math.ceil(total / pageSize)}
+              data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
             >
               <span className="gba:sr-only">Go to next page</span>
               ⟩
@@ -420,6 +432,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               className="gba:h-8 gba:w-8 gba:p-0"
               onClick={() => onPaginationChange(Math.ceil(total / pageSize))}
               disabled={currentPage >= Math.ceil(total / pageSize)}
+              data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
             >
               <span className="gba:sr-only">Go to last page</span>
               ⟩⟩

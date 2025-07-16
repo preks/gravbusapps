@@ -207,7 +207,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
       initialLoadDone.current = true;
       loadPage(currentPage, pageSize);
     }
-  }, [loadPage, accessToken, currentPage, pageSize]);
+  }, [accessToken, currentPage, pageSize]);
 
   // Trigger search when search term changes
   useEffect(() => {
@@ -216,7 +216,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
       updateURLParams({ search, page: 1 });
       loadPage(1, pageSize); // Reset to first page when search changes
     }
-  }, [search, loadPage, pageSize, updateURLParams]);
+  }, [search, pageSize]);
 
   // Trigger reload when filters change
   useEffect(() => {
@@ -224,7 +224,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
       setCurrentPage(1);
       loadPage(1, pageSize);
     }
-  }, [selectedFilters, filterCreatedAfter, filterCreatedBefore, loadPage, pageSize]);
+  }, [JSON.stringify(selectedFilters), filterCreatedAfter, filterCreatedBefore, pageSize]);
 
   // Handle lead selection
   const handleSelectLead = useCallback((lead: Lead) => {

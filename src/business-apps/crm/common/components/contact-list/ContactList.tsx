@@ -59,7 +59,37 @@ const ContactList: React.FC<ContactListProps> = (context) => {
       contactListData.loadPage(1, pageSize);
       contactStatistics.refetch();
     }
-  }, [context.accessToken, contactListData, contactStatistics, pageSize]);
+  }, [context.accessToken, pageSize]);
+
+  // Auto-reload when filters change
+  useEffect(() => {
+    if (initialLoadDone.current && context.accessToken) {
+      setCurrentPage(1);
+      contactListData.loadPage(1, pageSize);
+    }
+  }, [
+    JSON.stringify(appliedFilters.contactTypes),
+    JSON.stringify(appliedFilters.jobTitles),
+    appliedFilters.createdAfter,
+    appliedFilters.createdBefore,
+    context.accessToken,
+    pageSize
+  ]);
+
+  // Auto-reload when search changes
+  useEffect(() => {
+    if (initialLoadDone.current && context.accessToken) {
+      setCurrentPage(1);
+      contactListData.loadPage(1, pageSize);
+    }
+  }, [appliedFilters.search, context.accessToken, pageSize]);
+
+  // Auto-reload when sort changes
+  useEffect(() => {
+    if (initialLoadDone.current && context.accessToken) {
+      contactListData.loadPage(currentPage, pageSize);
+    }
+  }, [sortField, sortOrder, context.accessToken, currentPage, pageSize]);
 
   // Handlers
   const handleContactClick = useCallback((contact: Contact) => {

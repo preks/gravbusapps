@@ -173,20 +173,22 @@ export const AccountTable: React.FC<AccountTableProps> = ({
         <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
           <TableHeader>
             <TableRow>
-              <TableHead className="gba:w-[60px]"></TableHead>
+              <TableHead className="gba:w-[60px]" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}></TableHead>
               <TableHead 
                 className="gba:w-[25%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('name')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-company-header`}
               >
                 {t('account.company', 'Company')}
                 {renderSortIcon('name')}
               </TableHead>
-              <TableHead className="gba:w-[20%]">
+              <TableHead className="gba:w-[20%]" data-testid={`${DATA_TEST_ID_PREFIX}-contact-header`}>
                 {t('account.contact', 'Contact Info')}
               </TableHead>
               <TableHead 
                 className="gba:w-[15%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('createdAt')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
               >
                 {t('account.created', 'Creation Date')}
                 {renderSortIcon('createdAt')}
@@ -194,6 +196,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
               <TableHead 
                 className="gba:w-[20%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('ownerEmployeeId')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
               >
                 {t('account.owner', 'Owner')}
                 {renderSortIcon('ownerEmployeeId')}
@@ -201,6 +204,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
               <TableHead 
                 className="gba:w-[12%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('typeRef')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-type-header`}
               >
                 {t('account.type', 'Type')}
                 {renderSortIcon('typeRef')}
@@ -208,6 +212,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
               <TableHead 
                 className="gba:w-[13%] gba:cursor-pointer gba:hover:bg-gray-50"
                 onClick={() => handleSort('industryRef')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-industry-header`}
               >
                 {t('account.industry', 'Industry')}
                 {renderSortIcon('industryRef')}
@@ -219,8 +224,9 @@ export const AccountTable: React.FC<AccountTableProps> = ({
               <TableRow 
                 key={record.id}
                 className={`gba:hover:bg-gray-50 ${selectedAccountId === record.id ? 'gba:bg-blue-50' : ''}`}
+                data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
               >
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
                   <div className="gba:flex gba:justify-start gba:gap-2">
                     <AppActionButton
                       data-testid={`${DATA_TEST_ID_PREFIX}-update-account-button-${record.id}`}
@@ -237,13 +243,14 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                     />
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-company-cell-${record.id}`}>
                   <div 
                     className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleRowClick(record);
                     }}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-company-name-${record.id}`}
                   >
                     <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:bg-blue-100 gba:rounded-full">
                       <PiBuilding size={20} className="gba:text-blue-600" />
@@ -256,7 +263,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-contact-cell-${record.id}`}>
                   <div className="gba:space-y-1">
                     {record.email && (
                       <div className="gba:flex gba:items-center gba:gap-2">
@@ -275,7 +282,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                     )}
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}>
                   {record.createdAt ? (
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <PiCalendar size={16} className="gba:text-gray-400" />
@@ -287,7 +294,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                     '-'
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}>
                   <div className="gba:flex gba:items-center gba:gap-3">
                     <Avatar size="sm">
                       {record.ownerEmployee?.pictureThumbnail && (
@@ -307,12 +314,12 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-type-cell-${record.id}`}>
                   <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center">
                     {record.type?.value || '-'}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-industry-cell-${record.id}`}>
                   <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center">
                     {record.industry?.value || '-'}
                   </Badge>
@@ -324,8 +331,8 @@ export const AccountTable: React.FC<AccountTableProps> = ({
       </div>
 
       {/* Pagination */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4">
-        <div className="gba:text-sm gba:text-muted-foreground">
+      <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
+        <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
           {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} accounts`}
         </div>
         <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
@@ -335,6 +342,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
               value={pageSize}
               onChange={(e) => onPaginationChange(1, Number(e.target.value))}
               className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+              data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
             >
               <option value={10}>10</option>
               <option value={20}>20</option>
@@ -342,7 +350,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
               <option value={100}>100</option>
             </select>
           </div>
-          <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
+          <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
             Page {currentPage} of {Math.ceil(total / pageSize)}
           </div>
           <div className="gba:flex gba:items-center gba:space-x-2">
@@ -351,6 +359,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
               className="gba:h-8 gba:w-8 gba:p-0"
               onClick={() => onPaginationChange(1)}
               disabled={currentPage === 1}
+              data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
             >
               <span className="gba:sr-only">Go to first page</span>
               ⟨⟨
@@ -360,6 +369,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
               className="gba:h-8 gba:w-8 gba:p-0"
               onClick={() => onPaginationChange(currentPage - 1)}
               disabled={currentPage === 1}
+              data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
             >
               <span className="gba:sr-only">Go to previous page</span>
               ⟨
@@ -369,6 +379,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
               className="gba:h-8 gba:w-8 gba:p-0"
               onClick={() => onPaginationChange(currentPage + 1)}
               disabled={currentPage >= Math.ceil(total / pageSize)}
+              data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
             >
               <span className="gba:sr-only">Go to next page</span>
               ⟩
@@ -378,6 +389,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
               className="gba:h-8 gba:w-8 gba:p-0"
               onClick={() => onPaginationChange(Math.ceil(total / pageSize))}
               disabled={currentPage >= Math.ceil(total / pageSize)}
+              data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
             >
               <span className="gba:sr-only">Go to last page</span>
               ⟩⟩
