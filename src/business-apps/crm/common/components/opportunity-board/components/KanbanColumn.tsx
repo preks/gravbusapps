@@ -31,7 +31,7 @@ export function KanbanColumn({ stage, opportunities, sourceApp }: KanbanColumnPr
   return (
     <div
       ref={setNodeRef}
-      className="gba:shrink-0 gba:w-72 gba:h-full gba:flex gba:flex-col gba:bg-gray-50 gba:dark:bg-gray-900 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-800 gba:max-h-full"
+      className="gba:shrink-0 gba:w-72 gba:h-[700px] gba:flex gba:flex-col gba:bg-gray-50 gba:dark:bg-gray-900 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-800"
     >
       <div className="gba:p-3 gba:pb-0 gba:border-b gba:border-gray-100 gba:dark:border-gray-800">
         <div className="gba:flex gba:items-center gba:justify-between">
@@ -50,7 +50,7 @@ export function KanbanColumn({ stage, opportunities, sourceApp }: KanbanColumnPr
           </div>
         </div>
       </div>
-      <div className="gba:flex-1 gba:overflow-y-auto gba:scroll-smooth gba:p-2 gba:max-h-[calc(100vh-200px)]">
+      <div className="gba:flex-1 gba:overflow-y-auto gba:scroll-smooth gba:p-2 gba:h-[600px]">
         <div className="gba:space-y-2">
           {opportunities.map((opportunity) => (
             <OpportunityCard key={opportunity.id} opportunity={opportunity} />
