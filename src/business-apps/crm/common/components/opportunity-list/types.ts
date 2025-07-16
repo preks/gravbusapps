@@ -48,13 +48,6 @@ export interface Opportunity {
   updatedAt?: string;
 }
 
-export interface OpportunityStatisticsData {
-  recentOpportunities: number;
-  totalOpportunityValue: number;
-  averageWinRate: number;
-  totalOpportunitiesThisYear: number;
-}
-
 export interface UseOpportunityListDataReturn {
   opportunities: Opportunity[];
   total: number;
@@ -64,11 +57,4 @@ export interface UseOpportunityListDataReturn {
   loadMore: () => void;
   loadPage: (page: number, pageSize?: number, additionalFilters?: any) => Promise<void>;
   retry: () => void;
-}
-
-export interface UseOpportunityStatisticsReturn {
-  statistics: OpportunityStatisticsData;
-  isLoading: boolean;
-  error: Error | null;
-  refetch: () => void;
 } 
