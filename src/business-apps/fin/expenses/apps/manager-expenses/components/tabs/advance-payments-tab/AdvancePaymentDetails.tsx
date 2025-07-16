@@ -1,12 +1,10 @@
 import React from 'react';
-import { Typography, Button, Descriptions } from 'antd';
-import { CheckOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Button, Card, CardContent, CardHeader, CardTitle, Separator } from '@newwork/nw-design-system';
+import { PiCheck, PiX } from 'react-icons/pi';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { formatDate } from '@/common/utils/windowUtils';
 import { formatAmount } from '../../../utils/currencyUtils';
-
-const { Title } = Typography;
 
 export interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
   payment: any;
@@ -63,68 +61,133 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
   const daysRemaining = calculateDaysRemaining();
 
   return (
-    <div className="gba:p-6">
-      <div className="gba:mb-6">
+    <div className="gba:p-6 gba:space-y-6">
+      {/* Status */}
+      <div>
         <Pill 
           type={getPillType(payment.status)}
           label={payment.status}
         />
       </div>
 
-      <Descriptions bordered column={1} size="small" className="gba:mb-6">
-        <Descriptions.Item label="Title">{payment.title}</Descriptions.Item>
-        <Descriptions.Item label="Employee">{payment.employee?.fullName}</Descriptions.Item>
-        <Descriptions.Item label="Department">{payment.employee?.department}</Descriptions.Item>
-        <Descriptions.Item label="Request Date">{payment.requestDate ? formatDate(payment.requestDate, 'date.short') : '-'}</Descriptions.Item>
-        <Descriptions.Item label="Due Date">{payment.dueDate ? formatDate(payment.dueDate, 'date.short') : '-'}</Descriptions.Item>
-        {daysRemaining !== null && (
-          <Descriptions.Item label="Days Remaining">
-            <Typography.Text type={getTextType(daysRemaining)}>
-              {getDaysRemainingText(daysRemaining)}
-            </Typography.Text>
-          </Descriptions.Item>
-        )}
-        <Descriptions.Item label="Amount">€{payment.amount ? formatAmount(payment.amount) : '0,00'}</Descriptions.Item>
-        <Descriptions.Item label="Purpose">{payment.purpose ?? 'No purpose provided'}</Descriptions.Item>
-        <Descriptions.Item label="Description">{payment.description ?? 'No description provided'}</Descriptions.Item>
-      </Descriptions>
+      {/* Basic Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="gba:text-lg">Basic Information</CardTitle>
+        </CardHeader>
+        <CardContent className="gba:space-y-4">
+          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+            <div>
+              <label className="gba:text-sm gba:font-medium gba:text-gray-600">Title</label>
+              <p className="gba:text-sm">{payment.title || 'N/A'}</p>
+            </div>
+            <div>
+              <label className="gba:text-sm gba:font-medium gba:text-gray-600">Employee</label>
+              <p className="gba:text-sm">{payment.employee?.fullName || 'N/A'}</p>
+            </div>
+            <div>
+              <label className="gba:text-sm gba:font-medium gba:text-gray-600">Department</label>
+              <p className="gba:text-sm">{payment.employee?.department || 'N/A'}</p>
+            </div>
+            <div>
+              <label className="gba:text-sm gba:font-medium gba:text-gray-600">Request Date</label>
+              <p className="gba:text-sm">{payment.requestDate ? formatDate(payment.requestDate, 'date.short') : 'N/A'}</p>
+            </div>
+            <div>
+              <label className="gba:text-sm gba:font-medium gba:text-gray-600">Due Date</label>
+              <p className="gba:text-sm">{payment.dueDate ? formatDate(payment.dueDate, 'date.short') : 'N/A'}</p>
+            </div>
+            {daysRemaining !== null && (
+              <div>
+                <label className="gba:text-sm gba:font-medium gba:text-gray-600">Days Remaining</label>
+                <p className={`gba:text-sm ${getTextType(daysRemaining) === 'danger' ? 'gba:text-red-600' : getTextType(daysRemaining) === 'warning' ? 'gba:text-yellow-600' : ''}`}>
+                  {getDaysRemainingText(daysRemaining)}
+                </p>
+              </div>
+            )}
+            <div>
+              <label className="gba:text-sm gba:font-medium gba:text-gray-600">Amount</label>
+              <p className="gba:text-sm gba:font-medium">€{payment.amount ? formatAmount(payment.amount) : '0,00'}</p>
+            </div>
+          </div>
+          
+          <div>
+            <label className="gba:text-sm gba:font-medium gba:text-gray-600">Purpose</label>
+            <p className="gba:text-sm">{payment.purpose || 'No purpose provided'}</p>
+          </div>
+          
+          <div>
+            <label className="gba:text-sm gba:font-medium gba:text-gray-600">Description</label>
+            <p className="gba:text-sm">{payment.description || 'No description provided'}</p>
+          </div>
+        </CardContent>
+      </Card>
 
+      {/* Approval Information */}
       {payment.status === 'APPROVED' && payment.approvedBy && (
-        <div className="gba:mb-6">
-          <Title level={5} className="gba:mb-2">Approval Information</Title>
-          <Descriptions bordered column={1} size="small">
-            <Descriptions.Item label="Approved By">{payment.approvedBy ?? 'Unknown'}</Descriptions.Item>
-            <Descriptions.Item label="Approved Date">{payment.approvedDate ? formatDate(payment.approvedDate, 'date.short') : '-'}</Descriptions.Item>
-            <Descriptions.Item label="Comments">{payment.approvalComments ?? 'No comments'}</Descriptions.Item>
-          </Descriptions>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="gba:text-lg">Approval Information</CardTitle>
+          </CardHeader>
+          <CardContent className="gba:space-y-4">
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <div>
+                <label className="gba:text-sm gba:font-medium gba:text-gray-600">Approved By</label>
+                <p className="gba:text-sm">{payment.approvedBy || 'Unknown'}</p>
+              </div>
+              <div>
+                <label className="gba:text-sm gba:font-medium gba:text-gray-600">Approved Date</label>
+                <p className="gba:text-sm">{payment.approvedDate ? formatDate(payment.approvedDate, 'date.short') : 'N/A'}</p>
+              </div>
+            </div>
+            <div>
+              <label className="gba:text-sm gba:font-medium gba:text-gray-600">Comments</label>
+              <p className="gba:text-sm">{payment.approvalComments || 'No comments'}</p>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
+      {/* Rejection Information */}
       {payment.status === 'REJECTED' && payment.rejectedBy && (
-        <div className="gba:mb-6">
-          <Title level={5} className="gba:mb-2">Rejection Information</Title>
-          <Descriptions bordered column={1} size="small">
-            <Descriptions.Item label="Rejected By">{payment.rejectedBy}</Descriptions.Item>
-            <Descriptions.Item label="Rejected Date">{payment.rejectedDate ? formatDate(payment.rejectedDate, 'date.short') : '-'}</Descriptions.Item>
-            <Descriptions.Item label="Rejection Reason">{payment.rejectionReason ?? 'No reason provided'}</Descriptions.Item>
-          </Descriptions>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="gba:text-lg">Rejection Information</CardTitle>
+          </CardHeader>
+          <CardContent className="gba:space-y-4">
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <div>
+                <label className="gba:text-sm gba:font-medium gba:text-gray-600">Rejected By</label>
+                <p className="gba:text-sm">{payment.rejectedBy}</p>
+              </div>
+              <div>
+                <label className="gba:text-sm gba:font-medium gba:text-gray-600">Rejected Date</label>
+                <p className="gba:text-sm">{payment.rejectedDate ? formatDate(payment.rejectedDate, 'date.short') : 'N/A'}</p>
+              </div>
+            </div>
+            <div>
+              <label className="gba:text-sm gba:font-medium gba:text-gray-600">Rejection Reason</label>
+              <p className="gba:text-sm">{payment.rejectionReason || 'No reason provided'}</p>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
+      {/* Action Buttons */}
       {payment.status === 'PENDING' && (
-        <div className="gba:mt-6 gba:flex gba:justify-end gba:gap-4">
+        <div className="gba:flex gba:justify-end gba:gap-4">
           <Button 
-            danger
-            icon={<CloseCircleOutlined />}
+            variant="destructive"
             onClick={handleReject}
           >
+            <PiX className="gba:h-4 gba:w-4 gba:mr-2" />
             Reject
           </Button>
           <Button 
-            type="primary"
-            icon={<CheckOutlined />}
+            variant="default"
             onClick={handleApprove}
           >
+            <PiCheck className="gba:h-4 gba:w-4 gba:mr-2" />
             Approve
           </Button>
         </div>
