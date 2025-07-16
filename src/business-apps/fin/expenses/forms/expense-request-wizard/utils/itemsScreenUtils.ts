@@ -10,6 +10,18 @@ export const noAllowanceItemsFunction = (arrayOfItems: any[]) => {
 };
 
 /**
+ * Function to get only allowance items from an array
+ * @param arrayOfItems - Array of expense items
+ * @returns Array containing only allowance items
+ */
+export const getAllowanceItemsFunction = (arrayOfItems: any[]) => {
+  return arrayOfItems.filter((element) => 
+    (element.expenseClassRef && element.expenseClassRef.toLowerCase().includes("allowance")) || 
+    (element.expenseGroupRef && element.expenseGroupRef.toLowerCase().includes("allowance"))
+  );
+};
+
+/**
  * Function to format array of items for display
  * @param arrayItems - Array of expense items
  * @returns Formatted array of items
@@ -77,6 +89,19 @@ export const createItemsScreenLogObject = (
   expenseRequestData: any,
   event: string
 ) => {
+  const expenseItemsArray = expenseItems.map(item => ({
+    id: item.id,
+    code: item.code || '',
+    title: item.title || '',
+    ruleId: item.expenseRuleId || '',
+    expenseRequest: initialRequest?.id || ''
+  })).concat(getAllowanceItemsFunction(expenseRequestData?.ExpenseItem || []).map(item => ({
+    id: item.id,
+    code: item.code || '',
+    title: item.title || '',
+    ruleId: item.expenseRuleId || '',
+    expenseRequest: initialRequest?.id || ''
+  })))
   return {
     stepKey: SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + event,
     event: event,
@@ -97,13 +122,7 @@ export const createItemsScreenLogObject = (
       currencyRef: initialRequest?.currency?.id || currentCurrency || ""
     },
     expenseRequestItems: {
-      expenseItems: expenseItems.map(item => ({
-        id: item.id,
-        code: item.code || '',
-        title: item.title || '',
-        ruleId: item.expenseRuleId || '',
-        expenseRequest: initialRequest?.id || ''
-      }))
+      expenseItems: expenseItemsArray
     },
     expenseRequestTrips: {
       expenseTrips: (expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip || [])
