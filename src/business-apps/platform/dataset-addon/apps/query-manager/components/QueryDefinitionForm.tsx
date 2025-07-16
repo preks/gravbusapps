@@ -33,7 +33,9 @@ import {
   QueryStatus, 
   ParameterType, 
   QueryParameter,
-  AdditionalColumn
+  AdditionalColumn,
+  Services,
+  getServiceLabel
 } from '@/common/network/dataset';
 
 const { Title, Text, Paragraph } = Typography;
@@ -82,6 +84,7 @@ interface QueryDefinitionFormProps {
   onCancel: () => void;
   isLoading: boolean;
   defaultQueryType?: QueryType;
+  currentService: Services;
 }
 
 export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
@@ -90,7 +93,8 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
   onSave,
   onCancel,
   isLoading,
-  defaultQueryType
+  defaultQueryType,
+  currentService
 }) => {
   const [form] = Form.useForm();
   const [parameters, setParameters] = useState<QueryParameter[]>([]);
@@ -347,6 +351,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
         <Space>
           <SaveOutlined />
           <span>{isEditing ? 'Edit Query Definition' : 'Create New Query Definition'}</span>
+          <Tag color="blue">{getServiceLabel(currentService)}</Tag>
         </Space>
       }
       open={visible}
@@ -356,6 +361,20 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
       data-testid="query-definition-modal"
     >
       <div className="gba:space-y-6">
+        {/* Service Information */}
+        <Alert
+          message={
+            <Space>
+              <Text strong>Target Service:</Text>
+              <Tag color="blue" icon={<InfoCircleOutlined />}>{getServiceLabel(currentService)}</Tag>
+            </Space>
+          }
+          description={`This query will be created for the ${getServiceLabel(currentService)} service. Make sure your SQL query references the correct database schema and tables for this service.`}
+          type="info"
+          showIcon
+          data-testid="service-info-alert"
+        />
+        
         {/* Mode Toggle */}
         <Card size="small">
           <Row justify="space-between" align="middle">

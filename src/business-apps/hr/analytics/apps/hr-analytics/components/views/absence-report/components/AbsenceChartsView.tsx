@@ -1,7 +1,21 @@
 import React from 'react';
 import { Card, Row, Col, Typography, Tag } from 'antd';
-import { Line, Bar, Pie } from '@ant-design/plots';
-import { AbsenceChartData } from '../types/absenceTypes';
+import { 
+  LineChart, 
+  Line, 
+  BarChart, 
+  Bar, 
+  PieChart, 
+  Pie, 
+  Cell,
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
+import { AbsenceChartData } from '../hooks/useAbsenceDataIntegration';
 
 const { Title, Text } = Typography;
 
@@ -16,134 +30,26 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
   isLoading,
   dataTestId
 }) => {
-  // Transform data for the multi-line chart
-  const transformedMonthlyData = chartData.monthlyUsageByGroup.flatMap(item => {
-    const entries = Object.entries(item).filter(([key]) => key !== 'month');
-    return entries.map(([type, days]) => ({
-      month: item.month,
-      days: days as number,
-      type: type.charAt(0).toUpperCase() + type.slice(1).replace(/([A-Z])/g, ' $1'),
-    }));
-  });
-
-  const monthlyLineConfig = {
-    data: transformedMonthlyData,
-    xField: 'month',
-    yField: 'days',
-    seriesField: 'type',
-    point: {
-      size: 4,
-      shape: 'diamond',
-    },
-    smooth: true,
-    height: 300,
-    legend: {
-      position: 'top-right' as const,
-    },
-    // Use dynamic colors based on data
-    color: (datum: any) => {
-      const colorMap: Record<string, string> = {
-        'Vacation': '#1890ff',
-        'Sick Leave': '#ff4d4f', 
-        'Special Leave': '#722ed1',
-        'Work Leave': '#52c41a',
-      };
-      return colorMap[datum.type] || '#13c2c2';
-    },
+  // Color schemes for charts
+  const colors = {
+    primary: '#1890ff',
+    success: '#52c41a', 
+    warning: '#faad14',
+    error: '#ff4d4f',
+    purple: '#722ed1',
+    cyan: '#13c2c2'
   };
 
-  const totalAbsenceBarConfig = {
-    data: chartData.totalAbsenceDays,
-    xField: 'month',
-    yField: 'days',
-    color: '#1890ff',
-    columnStyle: {
-      radius: [4, 4, 0, 0],
-    },
-    height: 300,
-    label: {
-      position: 'top' as const,
-      style: {
-        fill: '#666',
-        fontSize: 11,
-      },
-    },
-  };
+  const pieColors = [colors.primary, colors.error, colors.purple, colors.success, colors.warning, colors.cyan];
 
-  const absenceByGroupPieConfig = {
-    data: chartData.absenceByGroup,
-    angleField: 'days',
-    colorField: 'group',
-    radius: 0.8,
-    label: {
-      type: 'spider',
-      labelHeight: 28,
-      content: '{name}\n{percentage}%',
-    },
-    interactions: [
-      {
-        type: 'element-selected',
-      },
-      {
-        type: 'element-active',
-      },
-    ],
-    height: 300,
-    color: chartData.absenceByGroup.map(item => item.color),
-  };
-
-  const absenceByTypePieConfig = {
-    data: chartData.absenceByType.slice(0, 8), // Show top 8 types
-    angleField: 'days',
-    colorField: 'type',
-    radius: 0.8,
-    label: {
-      type: 'spider',
-      labelHeight: 28,
-      content: '{name}\n{percentage}%',
-    },
-    interactions: [
-      {
-        type: 'element-selected',
-      },
-      {
-        type: 'element-active',
-      },
-    ],
-    height: 300,
-  };
-
-  // Transform department data for stacked bar chart
-  const transformedDepartmentData = chartData.departmentBreakdown.flatMap(dept => {
-    const entries = Object.entries(dept).filter(([key]) => 
-      key !== 'department' && key !== 'total' && typeof dept[key as keyof typeof dept] === 'number'
-    );
-    return entries.map(([type, days]) => ({
-      department: dept.department,
-      days: days as number,
-      type: type.charAt(0).toUpperCase() + type.slice(1).replace(/([A-Z])/g, ' $1'),
-    }));
-  });
-
-  const departmentStackedBarConfig = {
-    data: transformedDepartmentData,
-    xField: 'department',
-    yField: 'days',
-    seriesField: 'type',
-    isStack: true,
-    height: 300,
-    color: ['#1890ff', '#ff4d4f', '#722ed1', '#52c41a'],
-    legend: {
-      position: 'top-right' as const,
-    },
-    label: {
-      position: 'middle' as const,
-      style: {
-        fill: '#fff',
-        fontSize: 10,
-      },
-    },
-  };
+  // Transform monthly data for multi-line chart
+  const transformedMonthlyData = chartData.monthlyUsageByGroup.map(item => ({
+    month: item.month,
+    Vacation: item.vacation || 0,
+    'Sick Leave': item.sickLeave || 0,
+    'Special Leave': item.specialLeave || 0,
+    Other: item.other || 0
+  }));
 
   return (
     <div data-testid={`${dataTestId}-charts-view`}>
@@ -161,7 +67,43 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
             loading={isLoading}
             data-testid={`${dataTestId}-monthly-usage-chart`}
           >
-            <Line {...monthlyLineConfig} />
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={transformedMonthlyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="Vacation" 
+                  stroke={colors.primary} 
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="Sick Leave" 
+                  stroke={colors.error} 
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="Special Leave" 
+                  stroke={colors.purple} 
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="Other" 
+                  stroke={colors.success} 
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </Card>
         </Col>
         <Col xs={24} lg={12}>
@@ -177,7 +119,15 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
             loading={isLoading}
             data-testid={`${dataTestId}-total-absence-chart`}
           >
-            <Bar {...totalAbsenceBarConfig} />
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chartData.totalAbsenceDays}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="days" fill={colors.primary} />
+              </BarChart>
+            </ResponsiveContainer>
           </Card>
         </Col>
       </Row>
@@ -196,7 +146,26 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
             loading={isLoading}
             data-testid={`${dataTestId}-absence-by-group-chart`}
           >
-            <Pie {...absenceByGroupPieConfig} />
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={chartData.absenceByGroup}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ group, percent }) => `${group} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="days"
+                  nameKey="group"
+                >
+                  {chartData.absenceByGroup.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color || pieColors[index % pieColors.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </Card>
         </Col>
         <Col xs={24} lg={12}>
@@ -212,7 +181,26 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
             loading={isLoading}
             data-testid={`${dataTestId}-absence-by-type-chart`}
           >
-            <Pie {...absenceByTypePieConfig} />
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={chartData.absenceByType.slice(0, 8)}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ type, percent }) => `${type} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="days"
+                  nameKey="type"
+                >
+                  {chartData.absenceByType.slice(0, 8).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </Card>
         </Col>
       </Row>
@@ -231,7 +219,16 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
             loading={isLoading}
             data-testid={`${dataTestId}-department-breakdown-chart`}
           >
-            <Bar {...departmentStackedBarConfig} />
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chartData.departmentBreakdown}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="department" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="days" fill={colors.primary} />
+              </BarChart>
+            </ResponsiveContainer>
           </Card>
         </Col>
       </Row>
@@ -243,7 +240,7 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12} md={6}>
                 <div style={{ textAlign: 'center', padding: '16px' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 600, color: '#1890ff' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 600, color: colors.primary }}>
                     {chartData.absenceByGroup.length}
                   </div>
                   <Text type="secondary">Active Groups</Text>
@@ -251,7 +248,7 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
               </Col>
               <Col xs={24} sm={12} md={6}>
                 <div style={{ textAlign: 'center', padding: '16px' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 600, color: '#ff4d4f' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 600, color: colors.error }}>
                     {chartData.absenceByType.length}
                   </div>
                   <Text type="secondary">Absence Types</Text>
@@ -259,7 +256,7 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
               </Col>
               <Col xs={24} sm={12} md={6}>
                 <div style={{ textAlign: 'center', padding: '16px' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 600, color: '#722ed1' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 600, color: colors.purple }}>
                     {chartData.departmentBreakdown.length}
                   </div>
                   <Text type="secondary">Departments</Text>
@@ -267,7 +264,7 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
               </Col>
               <Col xs={24} sm={12} md={6}>
                 <div style={{ textAlign: 'center', padding: '16px' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 600, color: '#52c41a' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 600, color: colors.success }}>
                     {chartData.totalAbsenceDays.reduce((sum, item) => sum + item.days, 0)}
                   </div>
                   <Text type="secondary">Total Days</Text>

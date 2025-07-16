@@ -6,7 +6,7 @@ import {
   TabKey,
 } from "./types/analyticsTypes";
 import Overview from "./components/tabs/Overview";
-import EmployeeDemographics from "./components/tabs/Employee.Demographics";
+
 import CompensationTab from "./components/tabs/Compensation";
 import Workforce from "./components/tabs/Workforce";
 import ForecastingTab from "./components/tabs/Forecasting";
@@ -130,16 +130,6 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
           departmentChartError={departmentError}
           accessToken={accessToken}
         />
-      ),
-    },
-    {
-      key: "demographics",
-      label: getTranslationFromI18nKeyAndLabel(
-        "hr_analytics_tab_demographics",
-        "Demographics"
-      ),
-      children: (
-        <EmployeeDemographics loading={loading} accessToken={accessToken} />
       ),
     },
     {

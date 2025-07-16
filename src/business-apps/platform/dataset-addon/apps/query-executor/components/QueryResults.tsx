@@ -18,7 +18,7 @@ import {
   DownloadOutlined, 
   CloseOutlined 
 } from '@ant-design/icons';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DatasetDTO } from '@/common/network/dataset';
 
 const { Title, Text } = Typography;
@@ -41,6 +41,19 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
 
   const { data, categories } = results;
 
+  // Detect if this is timeseries data
+  const isTimeseries = data.length > 0 && 'dateCategory' in data[0];
+
+  // Format date for display
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.getFullYear().toString();
+    } catch {
+      return dateStr;
+    }
+  };
+
   // Prepare table columns dynamically based on data
   const getTableColumns = () => {
     if (data.length === 0) return [];
@@ -53,6 +66,10 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
       render: (value: any) => {
         if (typeof value === 'number') {
           return new Intl.NumberFormat().format(value);
+        }
+        // Format dates in table
+        if (key === 'dateCategory' && typeof value === 'string') {
+          return formatDate(value);
         }
         return value;
       },
@@ -68,7 +85,11 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
   // Prepare chart data
   const chartData = data.map((item, index) => ({
     ...item,
-    id: index
+    id: index,
+    // Add formatted date for chart display
+    ...(isTimeseries && item.dateCategory && {
+      formattedDate: formatDate(item.dateCategory)
+    })
   }));
 
   const exportToCSV = () => {
@@ -176,26 +197,56 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
               tab={
                 <span>
                   <BarChartOutlined />
-                  Chart View
+                  {isTimeseries ? 'Timeseries Chart' : 'Dataset Chart'}
                 </span>
               } 
               key="chart"
             >
               <div className="gba:h-96">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="category" 
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                    />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="value" fill="#1890ff" name="Value" />
-                  </BarChart>
+                  {isTimeseries ? (
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="formattedDate" 
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis />
+                      <Tooltip 
+                        labelFormatter={(label) => `Year: ${label}`}
+                        formatter={(value, name) => [new Intl.NumberFormat().format(value as number), name]}
+                      />
+                      <Legend />
+                      {categories.map((category, index) => (
+                        <Line 
+                          key={category}
+                          type="monotone" 
+                          dataKey="value" 
+                          stroke={`hsl(${index * 137.5 % 360}, 70%, 50%)`}
+                          strokeWidth={2}
+                          name={category}
+                        />
+                      ))}
+                    </LineChart>
+                  ) : (
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="category" 
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis />
+                      <Tooltip 
+                        formatter={(value, name) => [new Intl.NumberFormat().format(value as number), name]}
+                      />
+                      <Legend />
+                      <Bar dataKey="value" fill="#1890ff" name="Value" />
+                    </BarChart>
+                  )}
                 </ResponsiveContainer>
               </div>
             </TabPane>

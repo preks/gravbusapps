@@ -18,7 +18,6 @@ import {
   DeleteOutlined, 
   PlayCircleOutlined, 
   PauseCircleOutlined,
-  PlusOutlined,
   SearchOutlined
 } from '@ant-design/icons';
 import { QueryDefinition, QueryType, QueryStatus } from '@/common/network/dataset';
@@ -40,7 +39,6 @@ interface QueryDefinitionListProps {
   onStatusChange: (id: string, status: QueryStatus) => void;
   onPageChange: (page: number, size: number) => void;
   onFilter: (filters: { queryType?: QueryType; status?: QueryStatus; search?: string }) => void;
-  onCreateNew: () => void;
 }
 
 export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
@@ -55,8 +53,7 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
   onDelete,
   onStatusChange,
   onPageChange,
-  onFilter,
-  onCreateNew
+  onFilter
 }) => {
   const [filters, setFilters] = useState<{
     queryType?: QueryType;
@@ -195,18 +192,10 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
   return (
     <Card data-testid="query-definition-list">
       {/* Header */}
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+      <div className="gba:mb-4">
         <Title level={4} className="gba:mb-0">
           Query Definitions ({totalQueries})
         </Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={onCreateNew}
-          data-testid="create-new-query-button"
-        >
-          Create New Query
-        </Button>
       </div>
 
       {/* Filters */}

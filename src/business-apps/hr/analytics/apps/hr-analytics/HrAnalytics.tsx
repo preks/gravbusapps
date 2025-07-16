@@ -3,12 +3,16 @@ import { Spin, Alert, Button } from 'antd';
 import { PageLayout } from '@newwork/nw-design-system';
 import {
   DashboardOutlined,
-  CalendarOutlined
+  CalendarOutlined,
+  UserOutlined,
+  TeamOutlined
 } from '@ant-design/icons';
 import { ChartPie } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import Dashboard from './components/views/dashboard/Dashboard';
 import AbsenceReport from './components/views/absence-report';
+import Demographics from './components/views/demographics';
+import Workforce from './components/views/workforce';
 
 export interface HrAnalyticsProps extends BusinessAppContextProps {}
 
@@ -18,6 +22,16 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
       key: 'dashboard',
       icon: <DashboardOutlined />,
       label: 'Dashboard'
+    },
+    {
+      key: 'demographics',
+      icon: <UserOutlined />,
+      label: 'Demographics'
+    },
+    {
+      key: 'workforce',
+      icon: <TeamOutlined />,
+      label: 'Workforce'
     },
     {
       key: 'absences',
@@ -136,6 +150,18 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
               accessToken={context.accessToken}
               userInfo={context.userInfo}
             />
+          </div>
+        );
+      case 'demographics':
+        return (
+          <div data-testid="demographics-tab-content">
+            <Demographics {...context} />
+          </div>
+        );
+      case 'workforce':
+        return (
+          <div data-testid="workforce-tab-content">
+            <Workforce {...context} />
           </div>
         );
       case 'absences':
