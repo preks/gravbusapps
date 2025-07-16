@@ -6,6 +6,7 @@ interface NavigationMapping {
 const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/crm/lead-list': 'LeadList',
   '/platform/crm/lead-record': 'LeadRecord',
+  '/platform/crm/contact-record': 'ContactRecord',
   '/platform/crm/opportunity-record': 'OpportunityRecord',
   '/platform/crm/contact-record': 'ContactRecord',
   '/platform/crm/account-record': 'AccountRecord',
