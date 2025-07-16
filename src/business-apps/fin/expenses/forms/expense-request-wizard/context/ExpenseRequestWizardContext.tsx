@@ -29,7 +29,6 @@ export interface ExpenseRequestWizardContextProps {
   currentCurrency: string | null;
   setCurrentCurrency: (currency: string | null) => void;
   submitActionTripData: (startLocation: LocationData, destinations: LocationData[], endLocation: LocationData, expenseRulesData: any,event:string) => boolean;
-  // New properties for ExpenseItem integration
   showExpenseItem: boolean;
   setShowExpenseItem: (show: boolean) => void;
   expenseItemParams: { expenseRequestId?: string; itemCurrency?: string };
@@ -37,6 +36,8 @@ export interface ExpenseRequestWizardContextProps {
   showCreateItem: () => void;
   hideExpenseItem: (shouldRefetch?: boolean) => void;
   refetchExpenseData: () => Promise<void>;
+  deletedItems: any[];
+  setDeletedItems: (items: any[]) => void;
 }
 
 /**
@@ -78,6 +79,8 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   // New state for ExpenseItem integration
   const [showExpenseItem, setShowExpenseItem] = useState<boolean>(false);
   const [expenseItemParams, setExpenseItemParams] = useState<{ expenseRequestId?: string; itemCurrency?: string }>({});
+  // State for deleted items that need to persist across navigation
+  const [deletedItems, setDeletedItems] = useState<any[]>([]);
   const graphqlClient = useGraphqlClient(accessToken);
 
   // Mock additionalData for testing
@@ -364,6 +367,9 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     showCreateItem,
     hideExpenseItem,
     refetchExpenseData: fetchExpenseData,
+    // Deleted items management
+    deletedItems,
+    setDeletedItems,
   };
 
   return (

@@ -28,16 +28,24 @@ interface ItemsScreenProps extends BusinessAppContextProps {
 
 const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const { accessToken, additionalData, userInfo } = props;
-  const { expenseRequestData, setExpenseRequestData, employeeRuleId, currentTitle, currentCurrency } = useExpenseRequestWizardContext();
+  const { 
+    expenseRequestData, 
+    setExpenseRequestData, 
+    employeeRuleId, 
+    currentTitle, 
+    currentCurrency,
+    deletedItems,
+    setDeletedItems 
+  } = useExpenseRequestWizardContext();
   const [showSelectItems, setShowSelectItems] = useState<boolean>(false);
   const [selectItemsList, setSelectItemsList] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [deletedItems, setDeletedItems] = useState<any[]>([]);
   const [selectedItemsToInitial, setSelectedItemsToInitial] = useState<any[]>([]);
   const [totalItems, setTotalItems] = useState<number>(0);
   const [selectedItemIdsForSelection, setSelectedItemIdsForSelection] = useState<string[]>([]);
   const [initialCurrentPage, setInitialCurrentPage] = useState<number>(1);
+  const [titleSearch, setTitleSearch] = useState<string>("");
   
   const employeeId = userInfo?.employeeDetails?.employeeId;
   const itemListLimit = 4;
@@ -64,7 +72,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       
       const currentItemIds = expenseRequestData.ExpenseItem?.map((item: any) => item.id) || [];
       
-      const excludedIds = [...currentItemIds, ...selectedItemsToInitial.map(item => item.id)];
+      const excludedIds = [...currentItemIds, ...selectedItemsToInitial.map((item: any) => item.id)];
       
       let itemCurrency = null;
       if (currentCurrency) {
@@ -88,7 +96,8 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       await graphQLClient.request(fetchEmployeeExpenseItems, {
         ...countVariables,
         limit: 1,
-        offset: 0
+        offset: 0,
+        titleSearch: titleSearch ? `%${titleSearch}%` : '%'
       });
       
       const offset = (currentPage - 1) * itemListLimit;
@@ -96,7 +105,8 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       const variables = {
         ...countVariables,
         limit: Number(itemListLimit),
-        offset: Math.max(0, Number(offset))
+        offset: Math.max(0, Number(offset)),
+        titleSearch: titleSearch ? `%${titleSearch}%` : '%%'
       };
             
       const response = await graphQLClient.request(fetchEmployeeExpenseItems, variables);
@@ -105,7 +115,15 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       
       const filteredApiItems = noAllowanceItemsFunction(items);
       
-      const filteredDeletedItems = deletedItems.filter(item => !excludedIds.includes(item.id));
+      const filteredDeletedItems = deletedItems.filter((item: any) => {
+        if (excludedIds.includes(item.id)) return false;
+        
+        if (titleSearch && item.title) {
+          return item.title.toLowerCase().includes(titleSearch.toLowerCase());
+        }
+        
+        return true;
+      });
       
       const apiItemsCount = response?.ExpenseItemAggregate?.aggregate?.count || 0;
       const totalItemsCount = apiItemsCount + filteredDeletedItems.length;
@@ -122,9 +140,9 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       setSelectItemsList(finalItems);
     } catch (error) {
       console.error('Error fetching expense items:', error);
-      const filteredDeletedItems = deletedItems.filter(item => 
+      const filteredDeletedItems = deletedItems.filter((item: any) => 
         !expenseRequestData.ExpenseItem?.map((i: any) => i.id).includes(item.id) &&
-        !selectedItemsToInitial.map(i => i.id).includes(item.id)
+        !selectedItemsToInitial.map((i: any) => i.id).includes(item.id)
       );
       
       setTotalItems(filteredDeletedItems.length);
@@ -132,7 +150,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, deletedItems, employeeId, expenseRequestData?.ExpenseItem, graphQLClient, itemListLimit, selectedItemsToInitial, currentCurrency]);
+  }, [currentPage, deletedItems, employeeId, expenseRequestData?.ExpenseItem, graphQLClient, itemListLimit, selectedItemsToInitial, currentCurrency, titleSearch]);
 
   const handleDeleteItem = (itemId: string) => {
     if (!expenseRequestData?.ExpenseItem) return;
@@ -140,7 +158,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     const deletedItem = expenseRequestData.ExpenseItem.find((item: any) => item.id === itemId);
     if (!deletedItem) return;
     
-    const isInSelectedItems = selectedItemsToInitial.some(item => item.id === itemId);
+    const isInSelectedItems = selectedItemsToInitial.some((item: any) => item.id === itemId);
     
     const updatedExpenseItems = expenseRequestData.ExpenseItem.filter((item: any) => item.id !== itemId);
     setExpenseRequestData({
@@ -149,13 +167,13 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     });
     
     if (isInSelectedItems) {
-      setSelectedItemsToInitial(prev => prev.filter(item => item.id !== itemId));
-    } else {
-      setDeletedItems(prev => [...prev, deletedItem]);
+      setSelectedItemsToInitial((prev: any[]) => prev.filter((item: any) => item.id !== itemId));
     }
     
+    setDeletedItems([...deletedItems, deletedItem]);
 
     if (showSelectItems) {
+      isPageChangeRef.current = true;
       fetchSelectItems();
     }
   };
@@ -185,9 +203,9 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   
   const handleConfirmSelection = useCallback(() => {
     if (selectedItemIdsForSelection.length > 0) {
-      const selectedItems = selectItemsList.filter(item => 
+      const selectedItems = selectItemsList.filter((item: any) => 
         selectedItemIdsForSelection.includes(item.id)
-      ).map(item => ({
+      ).map((item: any) => ({
         ...item,
         isManuallySelected: true
       }));
@@ -199,15 +217,18 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         ExpenseItem: updatedItems
       });
       
-      setSelectedItemsToInitial(prev => [...prev, ...selectedItems]);
+      setSelectedItemsToInitial((prev: any[]) => [...prev, ...selectedItems]);
       
-      setDeletedItems(prev => prev.filter(item => 
+      setDeletedItems(deletedItems.filter((item: any) => 
         !selectedItemIdsForSelection.includes(item.id)
       ));
       setSelectedItemIdsForSelection([]);
     }
     
+    setTitleSearch("");
+    setCurrentPage(1);
     setShowSelectItems(false);
+    
     const footerEvent = new CustomEvent('expense-wizard-update-footer', {
       detail: { showCustomFooter: false }
     });
@@ -216,6 +237,9 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
 
   const handleCancelSelection = useCallback(() => {
     setSelectedItemIdsForSelection([]);
+    
+    setTitleSearch("");
+    setCurrentPage(1);
     setShowSelectItems(false);
     
     const footerEvent = new CustomEvent('expense-wizard-update-footer', {
@@ -224,10 +248,12 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     document.dispatchEvent(footerEvent);
   }, []);
   
-  const handleSearch = (_value: string) => {
-  };
+  const handleSearch = (value: string) => {
+    setTitleSearch(value);
+ };
   
   const handlePageChange = useCallback((page: number) => {
+    isPageChangeRef.current = true;
     setCurrentPage(page);
   }, []);
   
@@ -236,12 +262,6 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     const endIndex = startIndex + itemListLimit;
     return expenseItems.slice(startIndex, endIndex);
   }, [expenseItems, initialCurrentPage, itemListLimit]);
-
-  useEffect(() => {
-    if (showSelectItems) {
-      fetchSelectItems();
-    }
-  }, [currentPage, fetchSelectItems, showSelectItems]);
 
   useEffect(() => {
     document.addEventListener('expense-items-cancel-selection', handleCancelSelection);
@@ -305,13 +325,28 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     }
   }, [selectedItemIdsForSelection, showSelectItems]);
   
+  const prevTitleSearchRef = React.useRef("");
+  const isPageChangeRef = React.useRef(false);
+  
+  useEffect(() => {
+    if (showSelectItems) {
+      if (titleSearch !== prevTitleSearchRef.current && !isPageChangeRef.current) {
+        setCurrentPage(1);
+      }
+      prevTitleSearchRef.current = titleSearch;
+      isPageChangeRef.current = false;
+      
+      fetchSelectItems();
+    }
+  }, [titleSearch, currentPage, showSelectItems]);
+  
   const toggleItemSelection = (itemId: string) => {
     if (selectedItemIdsForSelection.includes(itemId)) {
-      setSelectedItemIdsForSelection(prevSelected => 
-        prevSelected.filter(id => id !== itemId)
+      setSelectedItemIdsForSelection((prevSelected: string[]) => 
+        prevSelected.filter((id: string) => id !== itemId)
       );
     } else {
-      setSelectedItemIdsForSelection(prevSelected => 
+      setSelectedItemIdsForSelection((prevSelected: string[]) => 
         [...prevSelected, itemId]
       );
     }
