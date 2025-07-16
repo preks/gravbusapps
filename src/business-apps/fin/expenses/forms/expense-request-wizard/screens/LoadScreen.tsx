@@ -5,7 +5,14 @@ import { ICONS } from '../../../utils/icons';
 /**
  * LoadScreen component props
  */
-interface LoadScreenProps extends BusinessAppContextProps {}
+interface LoadScreenProps extends BusinessAppContextProps {
+  additionalData?: { 
+    mdi_modulePayload?: {
+      tripData?: any;
+    };
+    [key: string]: any;
+  };
+}
 
 /**
  * LoadScreen component for expense request wizard

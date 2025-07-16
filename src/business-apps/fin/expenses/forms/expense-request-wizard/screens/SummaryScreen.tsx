@@ -8,7 +8,14 @@ const { Title } = Typography;
 /**
  * SummaryScreen component props
  */
-interface SummaryScreenProps extends BusinessAppContextProps {}
+interface SummaryScreenProps extends BusinessAppContextProps {
+  additionalData?: { 
+    mdi_modulePayload?: {
+      tripData?: any;
+    };
+    [key: string]: any;
+  };
+}
 
 /**
  * SummaryScreen component for expense request wizard

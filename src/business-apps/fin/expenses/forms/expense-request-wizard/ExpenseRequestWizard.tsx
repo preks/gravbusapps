@@ -33,7 +33,7 @@ interface ExpenseRequestWizardContentProps extends BusinessAppContextProps {
  * @param props - Component props
  * @returns Expense Request Wizard Content component
  */
-const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = ({ onCancel, accessToken, userInfo }) => {
+const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = ({ onCancel, accessToken, userInfo,additionalData }) => {
   const { 
     loading, 
     expenseRuleError, 
@@ -51,6 +51,65 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   const [titleValue, setTitleValue] = useState<string>('');
   const [titleError, setTitleError] = useState<string>('');
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false);
+
+  const mockAdditionalData = {
+    psi_taskPayload: {
+      stepKey: "Tab3_pse_save",
+      initialParameters:{expenseItems:[{
+        itemId: "2eea7deb-a2b2-4a9f-a3ff-7265143ff15d",
+        currencyId: "Currency:v1:RON"
+    }]},
+      expenseRequest: {
+        id: "90c7cdc0-ccef-4c0a-b5ba-a57af67bd38d",
+        version: 4,
+        businessKey: "0a844413-9c9b-45b7-8fda-106ae1808f61",
+        additionalProperties: {
+          transportationMeans: []
+        },
+      }
+    },
+    nvi_navigationPayload: {},
+    psi_processMetadata: {
+      processMetadata: {
+        domain: "employee-expense",
+        name: "changeExpenseRequest"
+      },
+      processInstanceId: "eab911a1-1336-40b1-bde8-f4742166f6c9",
+      lastOpenedTask: {
+        id: "697018fc-c027-493f-a815-69fb061828dc",
+        name: "addItemsToRequest",
+        parameters: {
+          stepKey: "ItemsScreen_pse_next",
+          expenseRequest: {
+            id: "3c5b82b3-1487-4b57-8930-1d0d873a2226",
+            version: 3
+          }
+        },
+        screenKey: "frm_changeExpenseRequestAddItemsToRequest",
+        screen: {
+          id: "1e3d736b-29f8-4a7b-b461-a1e229a5afd4",
+          namespaceId: "31bb6427-8f98-11ef-b686-1e4781e89729",
+          namespaceCode: "nw_employee_expense",
+          screenKey: "frm_changeExpenseRequestAddItemsToRequest",
+          name: "Add Expense Items To Request",
+          namespaceDescription: "Employee Expense",
+          createdAt: "2024-11-01T14:41:47.644",
+          updatedAt: "2024-11-01T14:41:47.644",
+          isDeleted: false,
+          type: "FORM",
+          screenComponents: {
+            key: "frm_changeExpenseRequestAddItemsToRequest",
+            name: "Add Expense Items To Request",
+            builderType: "LOWCODER",
+            appId: "66cf3a923227892ac4685ffd",
+            appName: "flw_modifyExpenseRequest",
+            formDefinition: {},
+            release: "true"
+          }
+        }
+      }
+    }
+  };
 
   const isTrip = !expenseRequestData?.ExpenseRequestByPk?.requestTypeRef?.toLowerCase().includes('trip');
 
@@ -216,19 +275,19 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   const renderCurrentScreen = () => {    
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.ITEMS_TAB:
-        return <ItemsScreen accessToken={accessToken} userInfo={userInfo} />;
+        return <ItemsScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData||mockAdditionalData} />;
       case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
-        return <CreateItemScreen accessToken={accessToken} userInfo={userInfo} />;
+        return <CreateItemScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData||mockAdditionalData}/>;
       case SCREEN_NAMES_ENUM.TRIPS_TAB:
-        return <TripScreen accessToken={accessToken} userInfo={userInfo} />;
+        return <TripScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData||mockAdditionalData} />;
       case SCREEN_NAMES_ENUM.LOAD_TAB:
-        return <LoadScreen accessToken={accessToken} userInfo={userInfo} />;
+        return <LoadScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData||mockAdditionalData} />;
       case SCREEN_NAMES_ENUM.ALLOWANCE_TAB:
-        return <AllowanceScreen accessToken={accessToken} userInfo={userInfo} />;
+        return <AllowanceScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData||mockAdditionalData} />;
       case SCREEN_NAMES_ENUM.SUMMARY_TAB:
-        return <SummaryScreen accessToken={accessToken} userInfo={userInfo} />;
+        return <SummaryScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData||mockAdditionalData} />;
       default:
-        return <ItemsScreen accessToken={accessToken} userInfo={userInfo} />;
+        return <ItemsScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData||mockAdditionalData}/>;
     }
   };
   

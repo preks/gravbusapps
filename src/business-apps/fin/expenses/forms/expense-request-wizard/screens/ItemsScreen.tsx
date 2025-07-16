@@ -8,7 +8,7 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { ICONS } from '../../../utils/icons';
 import ExpenseItemCard from '../components/ExpenseItemCard/ExpenseItemCard';
 import { createItemsScreenLogObject, formatArrayOfItems, noAllowanceItemsFunction } from '../utils/itemsScreenUtils';
-import { fetchEmployeeExpenseItems } from '../ExpenseRequestWizardQueries';
+import { fetchEmployeeExpenseItems, fetchEmployeeExpenseItemsFromPayload } from '../ExpenseRequestWizardQueries';
 import { SearchBarWithLabel } from '../../../forms/expense-request/components';
 import { EVENTS } from '../../../utils/constants';
 
@@ -35,7 +35,11 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     currentTitle, 
     currentCurrency,
     deletedItems,
-    setDeletedItems 
+    setDeletedItems,
+    payloadItemsLoaded,
+    setPayloadItemsLoaded,
+    payloadItemIds,
+    setPayloadItemIds
   } = useExpenseRequestWizardContext();
   const [showSelectItems, setShowSelectItems] = useState<boolean>(false);
   const [selectItemsList, setSelectItemsList] = useState<any[]>([]);
@@ -60,12 +64,6 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     return noAllowanceItemsFunction(expenseRequestData.ExpenseItem);
   }, [expenseRequestData]);
 
-  const totalExpenses = useMemo(() => {
-    return expenseItems.reduce((total, item) => total + parseFloat(item.amount || '0'), 0);
-  }, [expenseItems]);
-  
-
-
   const fetchSelectItems = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -89,7 +87,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         employeeId,
         status: "CREATED",
         activeUserLocale: userLocale,
-        idsArray: excludedIds,
+        idsArray: [...excludedIds, ...payloadItemIds],
         itemCurrency: itemCurrency
       };
       
@@ -262,6 +260,74 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     const endIndex = startIndex + itemListLimit;
     return expenseItems.slice(startIndex, endIndex);
   }, [expenseItems, initialCurrentPage, itemListLimit]);
+
+  useEffect(() => {
+    const fetchItemsFromPayload = async () => {
+      if (payloadItemsLoaded) return;
+      if (additionalData && 
+          additionalData.psi_taskPayload && 
+          additionalData.psi_taskPayload.initialParameters && 
+          additionalData.psi_taskPayload.initialParameters.expenseItems && 
+          additionalData.psi_taskPayload.initialParameters.expenseItems.length > 0) {
+        
+        try {
+          setIsLoading(true);
+          const extractedPayloadItemIds = additionalData.psi_taskPayload.initialParameters.expenseItems
+            .filter((item: any) => item.itemId)
+            .map((item: any) => item.itemId);
+          
+          if (extractedPayloadItemIds.length === 0) return;
+          setPayloadItemIds(extractedPayloadItemIds);
+          const existingItemIds = expenseRequestData?.ExpenseItem?.map((item: any) => item.id) || [];
+          const newItemIds = extractedPayloadItemIds.filter((id: string) => !existingItemIds.includes(id));
+          
+          if (newItemIds.length === 0) return;
+          
+          let itemCurrency = currentCurrency || "";
+          if (expenseRequestData?.ExpenseRequestByPk?.currencyRef) {
+            itemCurrency = expenseRequestData.ExpenseRequestByPk.currencyRef;
+          } else if (expenseRequestData?.ExpenseItem && expenseRequestData.ExpenseItem.length > 0) {
+            itemCurrency = expenseRequestData.ExpenseItem[0].currencyRef;
+          }
+          
+          const userLocale = getCurrentActiveUserLocale();
+
+          const variables = {
+            employeeId,
+            status: "CREATED",
+            activeUserLocale: userLocale,
+            idsArray: newItemIds,
+            itemCurrency: itemCurrency
+          };
+          const response = await graphQLClient.request(fetchEmployeeExpenseItemsFromPayload, variables);
+          const payloadItems = response?.ExpenseItemEmployee || [];
+          
+          if (payloadItems.length > 0) {
+            const itemsToAdd = payloadItems.map((item: any) => ({
+              ...item
+            }));
+            
+            const currentItems = expenseRequestData?.ExpenseItem || [];
+            const updatedItems = [...currentItems, ...itemsToAdd];
+            
+            setExpenseRequestData({
+              ...expenseRequestData,
+              ExpenseItem: updatedItems
+            });
+            
+            setSelectedItemsToInitial((prev: any[]) => [...prev, ...itemsToAdd]);
+            setPayloadItemsLoaded(true);
+          }
+        } catch (error) {
+          console.error('Error fetching items from payload:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    fetchItemsFromPayload();
+  }, [additionalData, employeeId, graphQLClient, expenseRequestData, setExpenseRequestData, currentCurrency]);
 
   useEffect(() => {
     document.addEventListener('expense-items-cancel-selection', handleCancelSelection);

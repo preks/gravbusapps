@@ -8,7 +8,14 @@ const { Title } = Typography;
 /**
  * CreateItemScreen component props
  */
-interface CreateItemScreenProps extends BusinessAppContextProps {}
+interface CreateItemScreenProps extends BusinessAppContextProps {
+  additionalData?: { 
+    mdi_modulePayload?: {
+      tripData?: any;
+    };
+    [key: string]: any;
+  };
+}
 
 /**
  * CreateItemScreen component for expense request wizard

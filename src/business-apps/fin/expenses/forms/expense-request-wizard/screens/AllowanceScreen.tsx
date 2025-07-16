@@ -8,7 +8,15 @@ const { Title } = Typography;
 /**
  * AllowanceScreen component props
  */
-interface AllowanceScreenProps extends BusinessAppContextProps {}
+interface AllowanceScreenProps extends BusinessAppContextProps {
+  additionalData?: { 
+    mdi_modulePayload?: {
+      tripData?: any;
+    };
+    [key: string]: any;
+  };
+  
+}
 
 /**
  * AllowanceScreen component for expense request wizard

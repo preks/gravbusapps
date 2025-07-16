@@ -38,6 +38,10 @@ export interface ExpenseRequestWizardContextProps {
   refetchExpenseData: () => Promise<void>;
   deletedItems: any[];
   setDeletedItems: (items: any[]) => void;
+  payloadItemsLoaded: boolean;
+  setPayloadItemsLoaded: (loaded: boolean) => void;
+  payloadItemIds: string[];
+  setPayloadItemIds: (ids: string[]) => void;
 }
 
 /**
@@ -81,69 +85,12 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   const [expenseItemParams, setExpenseItemParams] = useState<{ expenseRequestId?: string; itemCurrency?: string }>({});
   // State for deleted items that need to persist across navigation
   const [deletedItems, setDeletedItems] = useState<any[]>([]);
+  // State to track if payload items have been loaded
+  const [payloadItemsLoaded, setPayloadItemsLoaded] = useState<boolean>(false);
+  // State to track payload item IDs for exclusion from queries
+  const [payloadItemIds, setPayloadItemIds] = useState<string[]>([]);
   const graphqlClient = useGraphqlClient(accessToken);
 
-  // Mock additionalData for testing
-  const mockAdditionalData = {
-    psi_taskPayload: {
-      stepKey: "Tab3_pse_save",
-      initialParameters:{expenseItems:[{
-        itemId: "3734da7b-d212-4d93-9217-f2ecb9034284",
-        currencyId: "Currency:v1:EUR"
-    }]},
-      expenseRequest: {
-        id: "90c7cdc0-ccef-4c0a-b5ba-a57af67bd38d",
-        version: 4,
-        businessKey: "0a844413-9c9b-45b7-8fda-106ae1808f61",
-        additionalProperties: {
-          transportationMeans: []
-        },
-      }
-    },
-    nvi_navigationPayload: {},
-    psi_processMetadata: {
-      processMetadata: {
-        domain: "employee-expense",
-        name: "changeExpenseRequest"
-      },
-      processInstanceId: "eab911a1-1336-40b1-bde8-f4742166f6c9",
-      lastOpenedTask: {
-        id: "697018fc-c027-493f-a815-69fb061828dc",
-        name: "addItemsToRequest",
-        parameters: {
-          stepKey: "ItemsScreen_pse_next",
-          expenseRequest: {
-            id: "3c5b82b3-1487-4b57-8930-1d0d873a2226",
-            version: 3
-          }
-        },
-        screenKey: "frm_changeExpenseRequestAddItemsToRequest",
-        screen: {
-          id: "1e3d736b-29f8-4a7b-b461-a1e229a5afd4",
-          namespaceId: "31bb6427-8f98-11ef-b686-1e4781e89729",
-          namespaceCode: "nw_employee_expense",
-          screenKey: "frm_changeExpenseRequestAddItemsToRequest",
-          name: "Add Expense Items To Request",
-          namespaceDescription: "Employee Expense",
-          createdAt: "2024-11-01T14:41:47.644",
-          updatedAt: "2024-11-01T14:41:47.644",
-          isDeleted: false,
-          type: "FORM",
-          screenComponents: {
-            key: "frm_changeExpenseRequestAddItemsToRequest",
-            name: "Add Expense Items To Request",
-            builderType: "LOWCODER",
-            appId: "66cf3a923227892ac4685ffd",
-            appName: "flw_modifyExpenseRequest",
-            formDefinition: {},
-            release: "true"
-          }
-        }
-      }
-    }
-  };
-
-  const actualAdditionalData = additionalData || mockAdditionalData;
 
   // Fetch expense data when employeeRuleId is available
   // Made public so it can be called after expense item creation
@@ -154,7 +101,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       setLoading(true);
 
       // Extract expenseId from additionalData
-      const expenseId = actualAdditionalData?.psi_taskPayload?.expenseRequest?.id;
+      const expenseId = additionalData?.psi_taskPayload?.expenseRequest?.id;
       if (!expenseId) {
         showToast(
           t("lowcoder:create_expense_request_wizard.missing_expense_id", "Missing expense ID"),
@@ -370,6 +317,11 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     // Deleted items management
     deletedItems,
     setDeletedItems,
+    // Payload items tracking
+    payloadItemsLoaded,
+    setPayloadItemsLoaded,
+    payloadItemIds,
+    setPayloadItemIds,
   };
 
   return (
