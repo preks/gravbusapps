@@ -24,11 +24,29 @@ const __dirname = dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 
+// Read package.json to get the version
+const packageJsonPath = path.resolve(__dirname, "..", "package.json");
+const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+const packageVersion = packageJson.version;
+
 const AZURE_STORAGE_ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT_PROD;
 const AZURE_STORAGE_SAS_TOKEN = process.env.AZURE_STORAGE_SAS_TOKEN_PROD;
 const AZURE_CONTAINER_NAME = process.env.AZURE_BLOB_CONTAINER_NAME_PROD;
 const BITBUCKET_BUILD_NUMBER = process.env.BITBUCKET_BUILD_NUMBER;
 const SCREEN_MANAGEMENT_SERVICE_API_PROD = process.env.SCREEN_MANAGEMENT_SERVICE_API_PROD;
+
+// Create combined version string: package.version-buildNumber (e.g., "0.0.0-1")
+const PUBLISH_VERSION = `${packageVersion}-${BITBUCKET_BUILD_NUMBER}`;
+
+console.log(`📦 Package version: ${packageVersion}`);
+console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`);
+console.log(`🎯 Publish version: ${PUBLISH_VERSION}`);
+
+// Production OAuth configuration
+const OAUTH_CLIENT_ID_PROD = process.env.OAUTH_CLIENT_ID_PROD;
+const OAUTH_CLIENT_SECRET_PROD = process.env.OAUTH_CLIENT_SECRET_PROD;
+const OAUTH_URL_PROD = process.env.OAUTH_URL_PROD;
+const OAUTH_REALM_PROD = process.env.OAUTH_REALM_PROD;
 
 // Validate required environment variables
 const requiredEnvVars = [
@@ -36,7 +54,9 @@ const requiredEnvVars = [
   { name: 'AZURE_STORAGE_SAS_TOKEN_PROD', value: AZURE_STORAGE_SAS_TOKEN },
   { name: 'AZURE_BLOB_CONTAINER_NAME_PROD', value: AZURE_CONTAINER_NAME },
   { name: 'BITBUCKET_BUILD_NUMBER', value: BITBUCKET_BUILD_NUMBER },
-  { name: 'SCREEN_MANAGEMENT_SERVICE_API_PROD', value: SCREEN_MANAGEMENT_SERVICE_API_PROD }
+  { name: 'SCREEN_MANAGEMENT_SERVICE_API_PROD', value: SCREEN_MANAGEMENT_SERVICE_API_PROD },
+  { name: 'OAUTH_CLIENT_ID', value: OAUTH_CLIENT_ID_PROD },
+  { name: 'OAUTH_CLIENT_SECRET', value: OAUTH_CLIENT_SECRET_PROD }
 ];
 
 const missingVars = requiredEnvVars.filter(envVar => !envVar.value);
@@ -69,6 +89,14 @@ function camelCaseToNaturalLanguageWithWhiteSpaces(camelCase) {
 async function handleScreenManagement(screenPath, azureDestinationPath) {
   console.log("📋 Registering screen in Screen Management system...");
   
+  // Create OAuth configuration for production
+  const oauthConfig = {
+    clientId: OAUTH_CLIENT_ID_PROD,
+    clientSecret: OAUTH_CLIENT_SECRET_PROD,
+    oauthUrl: OAUTH_URL_PROD,
+    realm: OAUTH_REALM_PROD
+  };
+  
   try {
     if (isFormScreen(screenPath)) {
       // For forms, register as landing screen (production deployment)
@@ -79,9 +107,10 @@ async function handleScreenManagement(screenPath, azureDestinationPath) {
       const formName = pathParts[pathParts.length - 1]; // Get the form name
       const processName = formName.replace(/-form$/, ""); // Remove "-form" suffix if present
       
-      const formId = await addFormAsLandingScreen(processName, azureDestinationPath, BITBUCKET_BUILD_NUMBER, SCREEN_MANAGEMENT_SERVICE_API_PROD);
+      const formId = await addFormAsLandingScreen(processName, azureDestinationPath, PUBLISH_VERSION, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
       if (formId) {
         console.log(`✅ Form screen registered successfully with ID: ${formId}`);
+        return { success: true, operation: 'add' };
       } else {
         console.log(`⚠️  Form screen registration failed or already exists, try updating the form`);
 
@@ -96,17 +125,19 @@ async function handleScreenManagement(screenPath, azureDestinationPath) {
               builderType: "NATIVE_SCREEN",
               formDefinition: {
                 componentPath: `/${azureDestinationPath}`,
-                version: BITBUCKET_BUILD_NUMBER,
+                version: PUBLISH_VERSION,
               },
-              release: BITBUCKET_BUILD_NUMBER,
+              release: PUBLISH_VERSION,
             },
           };
           
-          const updateSuccess = await updateScreenConfigInScreenManagement(formId, updateData, SCREEN_MANAGEMENT_SERVICE_API_PROD);
+          const updateSuccess = await updateScreenConfigInScreenManagement(formId, updateData, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
           if (updateSuccess) {
-            console.log(`✅ Form version updated to build ${BITBUCKET_BUILD_NUMBER}`);
+            console.log(`✅ Form version updated to ${PUBLISH_VERSION}`);
+            return { success: true, operation: 'update' };
           } else {
             console.error(`❌ Form version update failed`);
+            return { success: false, operation: 'update', error: 'Form version update failed' };
           }
       }
     } else {
@@ -120,12 +151,14 @@ async function handleScreenManagement(screenPath, azureDestinationPath) {
       const screenId = await addScreenConfigToScreenManagement(
         azureDestinationPath, 
         customUrlPath,
-        BITBUCKET_BUILD_NUMBER,
-        SCREEN_MANAGEMENT_SERVICE_API_PROD
+        PUBLISH_VERSION,
+        SCREEN_MANAGEMENT_SERVICE_API_PROD,
+        oauthConfig
       );
       
       if (screenId) {
         console.log(`✅ Screen registered successfully with ID: ${screenId}`);
+        return { success: true, operation: 'add' };
       } else {
         console.log(`⚠️  Screen registration failed or already exists, try updating the screen`);
 
@@ -140,23 +173,25 @@ async function handleScreenManagement(screenPath, azureDestinationPath) {
                 builderType: "NATIVE_SCREEN",
                 formDefinition: {
                 componentPath: `/${azureDestinationPath}`,
-                version: BITBUCKET_BUILD_NUMBER,
+                version: PUBLISH_VERSION,
                 },
-                release: BITBUCKET_BUILD_NUMBER,
+                release: PUBLISH_VERSION,
             },
         };
         
-        const updateSuccess = await updateScreenConfigInScreenManagement(screenId, updateData, SCREEN_MANAGEMENT_SERVICE_API_PROD);
+        const updateSuccess = await updateScreenConfigInScreenManagement(screenId, updateData, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
         if (updateSuccess) {
-            console.log(`✅ Screen version updated to build ${BITBUCKET_BUILD_NUMBER}`);
+            console.log(`✅ Screen version updated to ${PUBLISH_VERSION}`);
+            return { success: true, operation: 'update' };
         } else {
             console.error(`❌ Screen version update failed`);
+            return { success: false, operation: 'update', error: 'Screen version update failed' };
         }
       }
     }
   } catch (error) {
     console.error("❌ Error during screen management registration:", error.message);
-    // Don't fail the entire publish process for screen management errors
+    return { success: false, operation: 'error', error: error.message };
   }
 }
 
@@ -235,7 +270,7 @@ async function uploadDirectory(buildOutputDir, azureDestinationPath) {
 }
 
 async function publishScreen(screenPath) {
-  console.log(`🚀 Publishing screen: ${screenPath} (Build: ${BITBUCKET_BUILD_NUMBER})`);
+  console.log(`🚀 Publishing screen: ${screenPath} (Version: ${PUBLISH_VERSION})`);
 
   const projectRootDir = path.resolve(__dirname, "..");
   console.log(`   Project Root Dir: ${projectRootDir}`);
@@ -370,7 +405,7 @@ async function publishScreen(screenPath) {
       process.env.VITE_GIT_USER ||
       execSync("git config user.name").toString().trim(),
     VITE_PUBLISH_TIME: new Date().toISOString(),
-    VITE_BUILD_VERSION: BITBUCKET_BUILD_NUMBER,
+    VITE_BUILD_VERSION: PUBLISH_VERSION,
     TARGET_ENTRY_FILE: sourceEntryFile,
     TARGET_ENTRY_KEY: viteEntryKey,
     TEMP_INDEX_CSS: tempIndexCssPath.replace(/\\/g, "/"),
@@ -380,10 +415,11 @@ async function publishScreen(screenPath) {
     VITE_BUILD_NUMBER: BITBUCKET_BUILD_NUMBER,
   };
 
-  const viteBuildCommand = `vite build`;
+  const viteBuildCommand = `npx vite build`;
 
   console.log(`   Executing: ${viteBuildCommand} with production environment`);
-  console.log(`   Build version: ${BITBUCKET_BUILD_NUMBER}`);
+  console.log(`   Publish version: ${PUBLISH_VERSION}`);
+  console.log(`   Build number: ${BITBUCKET_BUILD_NUMBER}`);
   
   try {
     execSync(viteBuildCommand, {
@@ -403,36 +439,84 @@ async function publishScreen(screenPath) {
     process.exit(1);
   }
 
-  await renameFilesWithBuildNumber(buildOutputDir, BITBUCKET_BUILD_NUMBER);
+  await renameFilesWithBuildNumber(buildOutputDir, PUBLISH_VERSION);
   await uploadDirectory(buildOutputDir, azureDestinationPath);
   console.log("✅ Screen JS published successfully to Azure!");
 
-  // For single screen builds, CSS is output to the screen-specific directory, not global assets
-  console.log("🎨 Handling screen-specific CSS...");
+  // Handle CSS files - check both screen directory and global assets directory
+  console.log("🎨 Handling CSS files...");
+  
+  // Check for CSS in screen directory first
+  console.log(`   Checking screen directory: ${buildOutputDir}`);
   const screenCssFiles = await glob("**/*.css", {
     cwd: buildOutputDir,
     nodir: true,
   });
+  console.log(`   Found ${screenCssFiles.length} CSS file(s) in screen directory`);
   
+  // Check for CSS in global assets directory
+  const globalAssetsDir = path.join(projectRootDir, "dist", "assets");
+  let globalCssFiles = [];
+  if (fs.existsSync(globalAssetsDir)) {
+    globalCssFiles = await glob("**/*.css", {
+      cwd: globalAssetsDir,
+      nodir: true,
+    });
+    console.log(`   Checking global assets directory: ${globalAssetsDir}`);
+    console.log(`   Found ${globalCssFiles.length} CSS file(s) in global assets directory`);
+  } else {
+    console.log(`   Global assets directory does not exist: ${globalAssetsDir}`);
+  }
+  
+  // Handle screen-specific CSS
   if (screenCssFiles.length > 0) {
     console.log(`   Found ${screenCssFiles.length} CSS file(s) in screen directory:`);
     screenCssFiles.forEach(file => console.log(`     - ${file}`));
     
-    // Rename CSS files in the screen directory with build number
-    await renameCssFilesInDirectory(buildOutputDir, BITBUCKET_BUILD_NUMBER);
-    console.log("✅ Screen-specific CSS processed and ready for upload!");
-  } else {
-    console.log("   No CSS files found in screen directory");
+    await renameCssFilesInDirectory(buildOutputDir, PUBLISH_VERSION);
+    console.log("✅ Screen-specific CSS processed!");
+  }
+  
+  // Handle global CSS (main.css) by moving it to screen directory
+  if (globalCssFiles.length > 0) {
+    console.log(`   Found ${globalCssFiles.length} global CSS file(s):`);
+    globalCssFiles.forEach(file => console.log(`     - ${file}`));
+    
+    // Copy global CSS to screen directory and rename with publish version
+    for (const file of globalCssFiles) {
+      const globalCssPath = path.join(globalAssetsDir, file);
+      const parsedPath = path.parse(file);
+      const newName = `${parsedPath.name}-${PUBLISH_VERSION}${parsedPath.ext}`;
+      const targetPath = path.join(buildOutputDir, newName);
+      
+      console.log(`   Moving and renaming: ${file} → ${newName}`);
+      fs.copyFileSync(globalCssPath, targetPath);
+    }
+    
+    // Upload the CSS files
+    await uploadDirectory(buildOutputDir, azureDestinationPath);
+    console.log("✅ Global CSS moved to screen directory and uploaded!");
+  }
+  
+  if (screenCssFiles.length === 0 && globalCssFiles.length === 0) {
+    console.log("   No CSS files found");
   }
   
   // Register screen in Screen Management system with build number
-  await handleScreenManagement(screenPath, azureDestinationPath);
+  const registrationResult = await handleScreenManagement(screenPath, azureDestinationPath);
   
-  console.log(`🎉 Production publish completed for ${screenPath}`);
+  if (registrationResult.success) {
+    console.log(`✅ Screen Management registration successful for ${screenPath}`);
+    console.log(`🎉 Production publish completed successfully for ${screenPath}`);
+  } else {
+    console.error(`❌ Screen Management registration failed for ${screenPath}:`, registrationResult.error);
+    console.error(`⚠️  Production publish completed with errors for ${screenPath}`);
+    throw new Error(`Screen Management registration failed: ${registrationResult.error}`);
+  }
 }
 
-async function renameFilesWithBuildNumber(buildOutputDir, buildNumber) {
-  console.log(`🔄 Renaming JS files with build number: ${buildNumber}`);
+async function renameFilesWithBuildNumber(buildOutputDir, version) {
+  console.log(`🔄 Renaming JS files with version: ${version}`);
   const files = await glob("**/*", {
     cwd: buildOutputDir,
     nodir: true,
@@ -442,9 +526,9 @@ async function renameFilesWithBuildNumber(buildOutputDir, buildNumber) {
     const filePath = path.join(buildOutputDir, file);
     const parsedPath = path.parse(filePath);
     
-    // Rename index.js to index-{buildNumber}.js
+    // Rename index.js to index-{version}.js
     if (parsedPath.name === 'index' && parsedPath.ext === '.js') {
-      const newName = `index-${buildNumber}${parsedPath.ext}`;
+      const newName = `index-${version}${parsedPath.ext}`;
       const newPath = path.join(parsedPath.dir, newName);
       
       console.log(`   Renaming: ${file} → ${path.relative(buildOutputDir, newPath)}`);
@@ -453,8 +537,8 @@ async function renameFilesWithBuildNumber(buildOutputDir, buildNumber) {
   }
 }
 
-async function renameCssFilesInDirectory(targetDir, buildNumber) {
-  console.log(`🎨 Renaming CSS files in directory with build number: ${buildNumber}`);
+async function renameCssFilesInDirectory(targetDir, version) {
+  console.log(`🎨 Renaming CSS files in directory with version: ${version}`);
   const files = await glob("**/*.css", {
     cwd: targetDir,
     nodir: true,
@@ -464,8 +548,8 @@ async function renameCssFilesInDirectory(targetDir, buildNumber) {
     const filePath = path.join(targetDir, file);
     const parsedPath = path.parse(filePath);
     
-    // Rename any CSS file (main.css or others) to include build number
-    const newName = `${parsedPath.name}-${buildNumber}${parsedPath.ext}`;
+    // Rename any CSS file (main.css or others) to include version
+    const newName = `${parsedPath.name}-${version}${parsedPath.ext}`;
     const newPath = path.join(parsedPath.dir, newName);
     
     console.log(`   Renaming CSS: ${file} → ${path.relative(targetDir, newPath)}`);
@@ -475,7 +559,9 @@ async function renameCssFilesInDirectory(targetDir, buildNumber) {
 
 async function main() {
   console.log("🚀 Starting production screen publishing...");
-  console.log(`📦 Using build number: ${BITBUCKET_BUILD_NUMBER}`);
+  console.log(`📦 Package version: ${packageVersion}`);
+  console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`);
+  console.log(`🎯 Publish version: ${PUBLISH_VERSION}`);
   
   // First, run the detect script to find changed screens
   console.log("🔍 Detecting changed screens...");
@@ -520,7 +606,9 @@ async function main() {
   }
 
   console.log(`\n🎉 Production publishing completed!`);
-  console.log(`📊 Build version: ${BITBUCKET_BUILD_NUMBER}`);
+  console.log(`📦 Package version: ${packageVersion}`);
+  console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`);
+  console.log(`🎯 Publish version: ${PUBLISH_VERSION}`);
 }
 
 main().catch((error) => {

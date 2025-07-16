@@ -5,12 +5,12 @@ import { v4 as uuidv4 } from "uuid";
  * OAuth Client for handling authentication and token management
  */
 class OAuthClient {
-  constructor() {
-    this.clientId = process.env.OAUTH_CLIENT_ID || "";
-    this.clientSecret = process.env.OAUTH_CLIENT_SECRET || "";
+  constructor(config = {}) {
+    this.clientId = config.clientId || process.env.OAUTH_CLIENT_ID || "";
+    this.clientSecret = config.clientSecret || process.env.OAUTH_CLIENT_SECRET || "";
     const keycloakHost =
-      process.env.OAUTH_URL || "https://keycloak-dev.newwork.com";
-    const realm = process.env.OAUTH_REALM || "newwork";
+      config.oauthUrl || process.env.OAUTH_URL || "";
+    const realm = config.realm || process.env.OAUTH_REALM || "";
     this.tokenUrl = `${keycloakHost}/realms/${realm}/protocol/openid-connect/token`;
     this.accessToken = null;
     this.expiresAt = null; // epoch seconds
@@ -180,16 +180,18 @@ async function addCustomResourceUrl(customUrlPath) {
  * @param {string} customUrlPath - The custom URL path provided by user
  * @param {string} buildNumber - The build number to use as version (optional, defaults to empty string)
  * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
+ * @param {Object} oauthConfig - OAuth configuration for production (optional)
  * @returns {Promise<string|null>} The generated UUID if successful, null if failed
  */
 async function addScreenConfigToScreenManagement(
   azureDestinationPath,
   customUrlPath,
   buildNumber = "",
-  apiEndpoint = null
+  apiEndpoint = null,
+  oauthConfig = {}
 ) {
   try {
-    const oauthClient = new OAuthClient();
+    const oauthClient = new OAuthClient(oauthConfig);
     const accessToken = await oauthClient.getAccessToken();
     const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API;
 
@@ -253,11 +255,12 @@ async function addScreenConfigToScreenManagement(
  * @param {string} screenId - The ID of the screen to update
  * @param {Object} updateData - The screen data to update
  * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
+ * @param {Object} oauthConfig - OAuth configuration for production (optional)
  * @returns {Promise<boolean>} Whether the update was successful
  */
-async function updateScreenConfigInScreenManagement(screenId, updateData, apiEndpoint = null) {
+async function updateScreenConfigInScreenManagement(screenId, updateData, apiEndpoint = null, oauthConfig = {}) {
   try {
-    const oauthClient = new OAuthClient();
+    const oauthClient = new OAuthClient(oauthConfig);
     const accessToken = await oauthClient.getAccessToken();
     const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API;
 
@@ -334,11 +337,12 @@ function camelCaseToNaturalLanguageWithWhiteSpaces(camelCase) {
  * @param {string} azureDestinationPath - The path where the form is deployed
  * @param {string} buildNumber - The build number to use as version (optional, defaults to empty string)
  * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
+ * @param {Object} oauthConfig - OAuth configuration for production (optional)
  * @returns {Promise<string|null>} - The generated UUID if successful, null if failed
  */
-async function addFormAsLandingScreen(processName, azureDestinationPath, buildNumber = "", apiEndpoint = null) {
+async function addFormAsLandingScreen(processName, azureDestinationPath, buildNumber = "", apiEndpoint = null, oauthConfig = {}) {
   try {
-    const oauthClient = new OAuthClient();
+    const oauthClient = new OAuthClient(oauthConfig);
     const accessToken = await oauthClient.getAccessToken();
     const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API;
 
