@@ -2,9 +2,9 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useOpportunityListData } from './hooks/useOpportunityListData';
-import { useOpportunityStatistics } from './hooks/useOpportunityStatistics';
+import { useOpportunityStatisticsWithTrend } from './hooks/useOpportunityStatisticsWithTrend';
 import { useOpportunityFilters } from './hooks/useOpportunityFilters';
-import OpportunityStatistics from './components/OpportunityStatistics';
+import { OpportunityStatisticsWithTrend } from './components/OpportunityStatistics';
 import OpportunityTable from './components/OpportunityTable';
 import { Opportunity } from './types';
 import { Alert, Button } from 'antd';
@@ -43,7 +43,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
     createdBefore: appliedFilters.createdBefore
   });
   
-  const opportunityStatistics = useOpportunityStatistics({
+  const opportunityStatistics = useOpportunityStatisticsWithTrend({
     ...context,
     sourceApp
   });
@@ -110,18 +110,10 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
     opportunityListData.loadPage(currentPage, pageSize);
   }, [opportunityListData, currentPage, pageSize]);
 
-  if (opportunityListData.error && !opportunityListData.loading) {
+  // If there's an error loading opportunities, show error state
+  if (opportunityListData.error) {
     return (
-      <div data-testid="opportunity-list-content">
-        <div data-testid="opportunity-statistics-section" className="gba:mb-6">
-          <OpportunityStatistics
-            statistics={opportunityStatistics.statistics}
-            isLoading={opportunityStatistics.isLoading}
-            error={opportunityStatistics.error}
-            onRetry={handleRetryStatistics}
-          />
-        </div>
-        
+      <div data-testid="opportunity-list-error">
         <Alert
           message="Error Loading Opportunities"
           description={opportunityListData.error instanceof Error ? opportunityListData.error.message : String(opportunityListData.error)}
@@ -136,12 +128,16 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   return (
     <div data-testid="opportunity-list-content">
       <div data-testid="opportunity-statistics-section" className="gba:mb-6">
-        <OpportunityStatistics
-          statistics={opportunityStatistics.statistics}
-          isLoading={opportunityStatistics.isLoading}
-          error={opportunityStatistics.error}
-          onRetry={handleRetryStatistics}
-        />
+        {opportunityStatistics.trendData ? (
+          <OpportunityStatisticsWithTrend
+            trendData={opportunityStatistics.trendData}
+            isLoading={opportunityStatistics.isLoading}
+            error={opportunityStatistics.error}
+            onRetry={handleRetryStatistics}
+          />
+        ) : (
+          <div>Loading statistics...</div>
+        )}
       </div>
 
       <DataContainer

@@ -4,6 +4,18 @@ import { useGetOpportunitiesData, OpportunityData } from '../queries/Opportunity
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { enforceQueryLimit } from '../../../utils/queryLimits';
 
+const temporaryMapToStage = (stage: string) => {
+  return {
+    UNKNOWN_STAGE: 'Unknown Stage',
+    NEW_OPPORTUNITY: 'New Opportunity',
+    IN_QUALIFICATION: 'In Qualification',
+    PROPOSAL: 'Proposal',
+    PROPOSAL_IN_PROGRESS: 'Proposal In Progress',
+    NEGOTIATION: 'Negotiation',
+    CLOSED: 'Closed'
+  }[stage] || 'Unknown Stage';
+};
+
 interface UseOpportunityListDataParams {
   search?: string;
   sortField: string;
@@ -25,7 +37,7 @@ const transformOpportunityData = (apiOpportunity: OpportunityData): Opportunity 
     estimatedAmount: apiOpportunity.estimatedAmount || 0,
     winningChance: apiOpportunity.winningChance || 0,
     closeDate: apiOpportunity.closeDate || '',
-    stage: apiOpportunity.stage || apiOpportunity.salesPipelineStage?.value || '',
+    stage: apiOpportunity.salesPipelineStage?.value || temporaryMapToStage(apiOpportunity.stage) || '',
     salesPipeline: apiOpportunity.salesPipeline ? {
       id: apiOpportunity.salesPipeline.id,
       value: apiOpportunity.salesPipeline.value,
@@ -62,7 +74,7 @@ const transformOpportunityData = (apiOpportunity: OpportunityData): Opportunity 
       lastName: apiOpportunity.ownerEmployee.lastName || '',
       displayName: apiOpportunity.ownerEmployee.displayName || 
         `${apiOpportunity.ownerEmployee.firstName} ${apiOpportunity.ownerEmployee.lastName}`,
-      pictureThumbnail: undefined
+      pictureThumbnail: apiOpportunity.ownerEmployee.pictureThumbnail || ''
     } : undefined,
     sourceApp: '',
     createdAt: apiOpportunity.createdAt,

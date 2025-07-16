@@ -18,7 +18,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 
-const ORGCHART_BASE_URL = env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_ORGCHART')!;
+const ORGCHART_BASE_URL = env('NEXT_PUBLIC_REST_ENDPOINT_ORGCHART')!;
 
 export const useEntityData = (context: BusinessAppContextProps) => {
   const [entities, setEntities] = useState<Entity[]>([]);

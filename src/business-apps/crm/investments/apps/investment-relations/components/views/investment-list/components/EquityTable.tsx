@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@newwork/nw-design-system';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system';
 import { ChevronUp, ChevronDown } from 'lucide-react';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { EnhancedInvestment } from '../hooks';
 import { getStatusBadge } from '../utils/helpers';
 
@@ -15,6 +17,7 @@ interface EquityTableProps {
   pageSize?: number;
   total?: number;
   onPaginationChange?: (page: number, pageSize?: number) => void;
+  accessToken: string;
 }
 
 const EquityTable: React.FC<EquityTableProps> = ({ 
@@ -26,7 +29,8 @@ const EquityTable: React.FC<EquityTableProps> = ({
   currentPage = 1,
   pageSize = 20,
   total = 0,
-  onPaginationChange
+  onPaginationChange,
+  accessToken
 }) => {
   // Handle column sorting with 3 states: none -> ASC -> DESC -> none
   const handleSort = (fieldName: string) => {
@@ -124,6 +128,8 @@ const EquityTable: React.FC<EquityTableProps> = ({
           <Table>
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
+                {/* Actions */}
+                <Header className="gba:w-[60px]">ACTIONS</Header>
                 {/* Basic Investment Info */}
                 <SortableHeader field="name" className="gba:min-w-[200px]">INVESTMENT</SortableHeader>
                 <Header>BUSINESS KEY</Header>
@@ -175,13 +181,36 @@ const EquityTable: React.FC<EquityTableProps> = ({
                 return (
                   <TableRow 
                     key={investment.id}
-                    className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer" 
+                    className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors" 
                     data-testid={`equity-row-${index + 1}`}
-                    onClick={() => onRowClick(investment.id)}
                   >
+                    {/* Actions */}
+                    <TableCell className="gba:py-4 gba:px-6">
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          data-testid={`equity-update-investment-button-${investment.id}`}
+                          variant="secondary"
+                          contextsArray={[FlowContextName.equityInvestmentEntity]}
+                          externalContextData={{
+                            investmentId: investment.id
+                          }}
+                          prefixDataTestId={`equity-update-investment`}
+                          accessToken={accessToken}
+                          emptyStateBehavior="disable"
+                          deferMainContextRequestsUntilClick
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </TableCell>
                     {/* Basic Investment Info */}
                     <TableCell className="gba:py-4 gba:px-6">
-                      <div>
+                      <div 
+                        className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRowClick(investment.id);
+                        }}
+                      >
                         <div className="gba:font-semibold gba:text-gray-900 gba:mb-1">{investmentData.name || 'N/A'}</div>
                         <div className="gba:text-sm gba:text-gray-600">{investment.subType}</div>
                       </div>

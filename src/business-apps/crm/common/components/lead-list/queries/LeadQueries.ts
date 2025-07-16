@@ -7,6 +7,7 @@ export const GET_LEADS_QUERY = `
   query GetLeads($offset: Int, $limit: Int, $orderBy: [LeadOrderBy!], $where: LeadBoolExp) {
     Lead(offset: $offset, limit: $limit, orderBy: $orderBy, where: $where) {
       id
+      name
       firstName
       lastName
       email

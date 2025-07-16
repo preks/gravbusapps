@@ -9,7 +9,7 @@ import {
   DepartmentHierarchyState 
 } from '../types';
 
-const ORGCHART_BASE_URL = env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_ORGCHART')!;
+const ORGCHART_BASE_URL = env('NEXT_PUBLIC_REST_ENDPOINT_ORGCHART')!;
 
 export const useDepartments = (context: BusinessAppContextProps) => {
   const [rootDepartments, setRootDepartments] = useState<Department[]>([]);

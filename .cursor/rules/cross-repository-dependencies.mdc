@@ -1,0 +1,282 @@
+---
+description: Repository Dependencies and Component Library Integration
+globs: ["**/*.tsx", "**/*.ts", "**/*.jsx", "**/*.js"]
+alwaysApply: true
+---
+
+# Repository Dependencies and Component Library Integration
+
+## Dependency Overview
+This project (`gravity-business-apps`) depends on several published packages that are developed in sibling repositories within the same workspace:
+
+**✅ MIGRATION ENABLED**: `@newwork/nw-design-system` is installed in package.json - migration rules apply!
+
+### @newwork/gravity-ui-catalog (v7.10.4) - 🔄 MIGRATING AWAY
+- **Source Repository**: `../gravity-ui-catalog/` (relative to workspace root)
+- **Published Package**: `@newwork/gravity-ui-catalog` 
+- **Purpose**: Legacy UI components, being replaced by nw-design-system
+- **Import Pattern**: `import { ComponentName } from '@newwork/gravity-ui-catalog'`
+- **Current Status**: ⚠️ **LEGACY** - Being phased out in favor of nw-design-system
+- **Migration Target**: Components will be replaced with nw-design-system equivalents
+
+### @newwork/nw-design-system (v0.0.1-50) - ✅ NEW PRIMARY UI LIBRARY
+- **Source Repository**: `../nw-design-system/` (relative to workspace root)
+- **Published Package**: `@newwork/nw-design-system`
+- **Purpose**: Modern design system built with React, Tailwind CSS, and Shadcn UI components
+- **Import Patterns**: 
+  - Components: `import { Button, Card, Dialog } from '@newwork/nw-design-system'`
+  - Styles: `import '@newwork/nw-design-system/style'`
+  - Utils: `import { cn, debugLogger } from '@newwork/nw-design-system'`
+- **Current Status**: 🚀 **PRIMARY** - New standard for all UI components
+
+## Available Components and Exports
+
+### nw-design-system exports (PRIMARY - Use These):
+- **Shadcn UI Components**: `Button`, `Card`, `Dialog`, `Form`, `Input`, `Label`, `Select`, `Table`, `Tabs`, etc.
+- **Utilities**: `cn` (className utility), `debugLogger`
+- **Styles**: Main CSS bundle via `@newwork/nw-design-system/style`
+- **Tailwind Config**: Preset available at `@newwork/nw-design-system/tailwind.config.js`
+
+### gravity-ui-catalog exports (LEGACY - Being Migrated):
+- `UiCatalogProvider` - Context provider for the UI catalog (⚠️ Find nw-design-system alternative)
+- Types: `Field`, `Calendar` types (⚠️ Migrate to nw-design-system or create custom types)
+- `atoms/*` - Atomic UI components (✅ Replace with nw-design-system components)
+- `organisms/*` - Complex UI components (⚠️ Rebuild using nw-design-system components)
+- CSS styles via `@newwork/gravity-ui-catalog/dist/assets/style.css` (⚠️ Remove after migration)
+
+## Development Guidelines
+
+### Component Selection Hierarchy (Migration Strategy)
+When adding or updating UI components, follow this hierarchy:
+
+1. **Use nw-design-system ONLY** - Always prefer nw-design-system for ALL UI components
+2. **Avoid gravity-ui-catalog** - ⚠️ **DO NOT** add new gravity-ui-catalog dependencies
+3. **Migrate existing gravity-ui-catalog usage** - Replace with nw-design-system equivalents when modifying code
+4. **Create custom components** - Only if nw-design-system doesn't have what you need, build using nw-design-system primitives
+
+### Component Usage Patterns
+
+#### ✅ NEW PATTERN (nw-design-system - Use This)
+```typescript
+// ALL components should use nw-design-system
+import { Button, Card, Dialog, Form, Input } from '@newwork/nw-design-system';
+import { cn } from '@newwork/nw-design-system'; // Utility for className merging
+
+const MyForm: React.FC = () => {
+  return (
+    <Card className={cn("p-6", "shadow-lg")}>
+      <Form>
+        <Input placeholder="Enter text..." />
+        <Button variant="primary">Submit</Button>
+      </Form>
+    </Card>
+  );
+};
+```
+
+#### ⚠️ LEGACY PATTERN (gravity-ui-catalog - Migrate Away From This)
+```typescript
+// ❌ AVOID - Old pattern being phased out
+import { SomeBusinessComponent, SomeType } from '@newwork/gravity-ui-catalog';
+
+const MyBusinessComponent: React.FC<SomeType> = ({ ...props }) => {
+  return <SomeBusinessComponent {...props} />;
+};
+
+// ✅ MIGRATE TO - Rebuild using nw-design-system
+import { Card, Button } from '@newwork/nw-design-system';
+
+const MyBusinessComponent: React.FC = ({ ...props }) => {
+  return (
+    <Card>
+      <Button>Rebuilt with design system</Button>
+    </Card>
+  );
+};
+```
+
+### Local Development with Unpublished Changes
+
+#### For gravity-ui-catalog changes (LEGACY - Avoid if possible):
+1. In `gravity-ui-catalog`: Run `npm run publish-local` 
+2. In `gravity-business-apps`: Run `npm install` to get the latest local version
+3. **⚠️ Recommendation**: Instead of updating gravity-ui-catalog, migrate the affected components to nw-design-system
+
+#### For nw-design-system changes (PRIMARY):
+1. In `nw-design-system`: Run `npm run publish:tarball` or `npm run publish:tarball:auto`
+2. In `gravity-business-apps`: Run `npm install @newwork/nw-design-system@latest`
+3. **Note**: This is the main development dependency - prioritize these updates
+
+### Version Management
+
+#### nw-design-system (PRIMARY):
+- Current version: `^0.0.1-50` (check package.json for latest) 
+- Update with: `npm install @newwork/nw-design-system@latest`
+- **Note**: This package is auto-installed via postinstall script
+- **Priority**: Keep this updated and use for all new development
+
+#### gravity-ui-catalog (LEGACY - Being Removed):
+- Current version: `7.10.4` (FROZEN - do not update)
+- **Migration Status**: ⚠️ **DO NOT UPDATE** - Focus on migrating away from this dependency
+- **Target**: Remove this dependency entirely once migration is complete
+
+### Tailwind CSS Integration
+When using nw-design-system, ensure your `tailwind.config.js` extends the design system preset:
+```javascript
+module.exports = {
+  presets: [require('@newwork/nw-design-system/tailwind.config.js')],
+  content: [
+    './src/**/*.{js,ts,jsx,tsx}',
+    'node_modules/@newwork/nw-design-system/dist/**/*.{js,mjs}'
+  ]
+}
+```
+
+## Cross-Repository Source Code Access
+
+### Source Code Locations
+
+#### gravity-ui-catalog source:
+- **Repository**: `../gravity-ui-catalog/` (relative to this repository)
+- **Main exports**: `../gravity-ui-catalog/src/main.ts`
+- **Components**: `../gravity-ui-catalog/src/atoms/` and `../gravity-ui-catalog/src/organisms/`
+- **Types**: `../gravity-ui-catalog/src/types/`
+- **Documentation**: `../gravity-ui-catalog/README.md`
+
+#### nw-design-system source:
+- **Repository**: `../nw-design-system/` (relative to this repository)
+- **Main exports**: `../nw-design-system/src/index.ts`
+- **Shadcn Components**: `../nw-design-system/src/shadcn/components/ui/`
+- **Utilities**: `../nw-design-system/src/lib/`
+- **Styles**: `../nw-design-system/src/styles/`
+- **Tailwind Config**: `../nw-design-system/tailwind.config.js`
+- **Documentation**: `../nw-design-system/README.md`
+
+### When Source Code Access is Needed
+
+#### For Design System Components (nw-design-system):
+1. `../nw-design-system/src/shadcn/components/ui/` - For standard UI component implementations
+2. `../nw-design-system/src/lib/utils.ts` - For utility functions like `cn`
+3. `../nw-design-system/src/styles/` - For styling and theming
+4. `../nw-design-system/tailwind.config.js` - For Tailwind configuration
+
+#### For Business Components (gravity-ui-catalog):
+1. `../gravity-ui-catalog/src/atoms/` - For basic UI components
+2. `../gravity-ui-catalog/src/organisms/` - For complex composite components  
+3. `../gravity-ui-catalog/src/types/` - For TypeScript definitions
+
+### Context Limitations
+**Note**: When Cursor IDE is opened only in the `gravity-business-apps` folder:
+- The AI agent may have limited access to source code from both repositories
+- **Recommended**: Open Cursor at the workspace root (`/c/Work`) for full cross-repository context
+  
+## Migration Strategy from gravity-ui-catalog to nw-design-system
+
+### Phase 1: Setup and New Development (CURRENT)
+1. ✅ **Install nw-design-system**: Already installed and configured
+2. ✅ **Use for all new components**: All new UI components MUST use nw-design-system
+3. ⚠️ **Freeze gravity-ui-catalog**: No new gravity-ui-catalog components should be added
+
+### Phase 2: Active Migration (IN PROGRESS)
+1. **Component Mapping**: Create equivalents for commonly used gravity-ui-catalog components
+   ```typescript
+   // Migration examples:
+   // gravity-ui-catalog Button → nw-design-system Button
+   // gravity-ui-catalog Card → nw-design-system Card
+   // gravity-ui-catalog Form → nw-design-system Form
+   ```
+
+2. **File-by-file Migration**: When editing existing files:
+   - Replace gravity-ui-catalog imports with nw-design-system equivalents
+   - Update component props and styling to match nw-design-system API
+   - Test thoroughly after each component replacement
+
+3. **Priority Migration Order**:
+   - **High Priority**: Basic UI components (Button, Input, Card, Dialog)
+   - **Medium Priority**: Forms and data display components
+   - **Low Priority**: Complex organisms (rebuild using nw-design-system primitives)
+
+### Phase 3: Cleanup and Optimization (FUTURE)
+1. **Remove gravity-ui-catalog dependency**: Once all components are migrated
+2. **Update build configurations**: Remove gravity-ui-catalog CSS imports
+3. **Bundle optimization**: Reduce bundle size without gravity-ui-catalog
+
+### Migration Guidelines
+
+#### When Modifying Existing Code:
+1. **Always check**: If the file uses gravity-ui-catalog components
+2. **Migrate as you go**: Replace with nw-design-system equivalents
+3. **Test thoroughly**: Ensure visual and functional parity
+4. **Document changes**: Note any API differences in PR descriptions
+
+#### Common Migration Patterns:
+```typescript
+// BEFORE (gravity-ui-catalog):
+import { UiButton } from '@newwork/gravity-ui-catalog';
+<UiButton size="large" variant="primary" onClick={handleClick}>
+  Click me
+</UiButton>
+
+// AFTER (nw-design-system):
+import { Button } from '@newwork/nw-design-system';
+<Button size="lg" variant="default" onClick={handleClick}>
+  Click me
+</Button>
+```
+
+#### Complex Component Migration:
+```typescript
+// BEFORE: Complex gravity-ui-catalog organism
+import { ComplexOrganism } from '@newwork/gravity-ui-catalog';
+
+// AFTER: Rebuild using nw-design-system primitives
+import { Card, Button, Input, Form } from '@newwork/nw-design-system';
+import { cn } from '@newwork/nw-design-system';
+
+const RebuiltComponent = () => (
+  <Card className={cn("p-4", "border", "rounded-lg")}>
+    <Form>
+      <Input placeholder="Enter value" />
+      <Button type="submit">Submit</Button>
+    </Form>
+  </Card>
+);
+```
+
+## Package Relationship and Architecture (Target State)
+- **nw-design-system**: PRIMARY foundation layer providing all UI components and design tokens
+- **gravity-ui-catalog**: LEGACY (being removed) - No longer used
+- **gravity-business-apps**: Application layer using nw-design-system exclusively
+
+The target architecture simplifies to a single UI dependency with clear design system principles.
+
+## Troubleshooting Common Issues
+
+### Migration-Related Issues:
+1. **Component API differences**: When migrating from gravity-ui-catalog to nw-design-system, check component prop differences
+2. **Styling inconsistencies**: Some visual differences are expected - update to match nw-design-system design language
+3. **Missing component equivalents**: If no direct equivalent exists in nw-design-system, rebuild using primitives
+4. **Import path confusion**: Always use `@newwork/nw-design-system` for new imports, never `@newwork/gravity-ui-catalog`
+
+### nw-design-system Issues (PRIMARY):
+1. **Component not found**: Check if the component exists in `@newwork/nw-design-system` exports
+2. **Styling issues**: Ensure Tailwind CSS is configured with the design system preset
+3. **Missing styles**: Import styles: `import '@newwork/nw-design-system/style'`
+4. **Tailwind classes not working**: Verify your `tailwind.config.js` includes the design system preset and content paths
+5. **Component props differences**: Check nw-design-system documentation for correct prop names and types
+
+### gravity-ui-catalog Issues (LEGACY - Migration Priority):
+1. **Import errors**: ⚠️ Instead of fixing, migrate to nw-design-system equivalent
+2. **Type errors**: ⚠️ Instead of updating versions, migrate to nw-design-system
+3. **Styling issues**: ⚠️ Instead of fixing CSS imports, migrate component to nw-design-system
+4. **Component bugs**: ⚠️ Don't fix gravity-ui-catalog bugs - migrate the component instead
+
+### Version Conflicts:
+1. **Conflicting versions**: Prioritize nw-design-system compatibility over gravity-ui-catalog
+2. **Peer dependency issues**: Focus on React compatibility with nw-design-system
+3. **Bundle size issues**: Remove gravity-ui-catalog usage to reduce bundle size
+
+### Development Workflow:
+1. **Local changes not reflecting**: Prioritize nw-design-system publish scripts over gravity-ui-catalog
+2. **Cache issues**: Clear `node_modules` and reinstall, prioritize nw-design-system updates
+3. **Migration testing**: Test thoroughly when replacing gravity-ui-catalog components with nw-design-system equivalents
