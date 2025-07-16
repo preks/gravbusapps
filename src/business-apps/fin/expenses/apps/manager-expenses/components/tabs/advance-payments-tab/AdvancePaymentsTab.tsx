@@ -1,31 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useMainViewAdvancePayments } from '../../../hooks/useMainViewAdvancePayments';
 import AdvancePaymentStatistics from './AdvancePaymentStatistics';
 import AdvancePaymentsTable from './AdvancePaymentsTable';
 
-interface AdvancePaymentsTabProps extends BusinessAppContextProps {
-  onContentHeaderChange?: (header: React.ReactNode) => void;
-}
+interface AdvancePaymentsTabProps extends BusinessAppContextProps {}
 
 const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
-  const { onContentHeaderChange } = props;
-  
-  // Search term state for synchronization with table
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>('');
-  
-  // Debounce search term updates
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 300);
-    
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [searchTerm]);
-
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(() => ({
     accessToken: props.accessToken,
@@ -48,36 +29,27 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     fetchAdvancePaymentStatistics();
   }, [fetchAdvancePaymentStatistics]);
 
-  // Update the content header when statistics change
-  useEffect(() => {
-    if (onContentHeaderChange) {
-      const headerContent = (
+  return (
+    <div className="gba:h-full gba:flex gba:flex-col">
+      {/* Statistics Section - Now inside the tab content */}
+      <div className="gba:mb-6">
         <AdvancePaymentStatistics 
           advancePaymentStats={advancePaymentStats} 
           statsLoading={statsLoading} 
           statsError={statsError} 
           fetchAdvancePaymentStatistics={fetchAdvancePaymentStatistics} 
         />
-      );
-      onContentHeaderChange(headerContent);
-    }
-  }, [advancePaymentStats, statsLoading, statsError, onContentHeaderChange, fetchAdvancePaymentStatistics]);
-
-  // Handle search changes from the table
-  const handleSearchChange = (search: string) => {
-    setSearchTerm(search);
-  };
-
-
-
-
-
-  return (
-    <AdvancePaymentsTable
-      {...contextProps}
-      search={debouncedSearchTerm}
-      onSearchChange={handleSearchChange}
-    />
+      </div>
+      
+      {/* Table Container */}
+      <div className="gba:flex-1 gba:overflow-hidden">
+        <div data-testid="advance-payments-table-container">
+          <AdvancePaymentsTable
+            {...contextProps}
+          />
+        </div>
+      </div>
+    </div>
   );
 };
 

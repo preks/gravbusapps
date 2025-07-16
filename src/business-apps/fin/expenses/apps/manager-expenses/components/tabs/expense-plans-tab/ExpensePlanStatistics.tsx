@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { CalendarOutlined, FileOutlined, EuroOutlined } from '@ant-design/icons';
+import { PiCalendar, PiFileText, PiCurrencyEur } from 'react-icons/pi';
 import { ExpensePlanStatistics } from '../../../hooks/useGetExpensePlans'; // Assuming this type is exported from your hook
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { formatNumberFunction } from '@/common/utils/windowUtils';
@@ -56,7 +56,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         key: 'pending-approval',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_approval', 'Pending Approval'),
         value: planStats.pendingCount,
-        prefix: <CalendarOutlined />,
+        prefix: <PiCalendar />,
         color: activeFilter === ExpenseStatus.PENDING ? '#1890ff' : '#faad14',
         span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.requires_action', 'Requires action'),
@@ -66,7 +66,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         key: 'pending-amount',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_amount', 'Pending Amount'),
         value: planStats.pendingAmount ? formatNumberFunction(planStats.pendingAmount.toString(), "0.00[,]00") : '0,00',
-        prefix: <EuroOutlined />,
+        prefix: <PiCurrencyEur />,
         suffix: '€',
         color: '#faad14',
         valueIsString: true,
@@ -77,7 +77,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         key: 'total-plans',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.total_plans_submitted', 'Total Plans (Submitted)'),
         value: planStats.totalCount,
-        prefix: <FileOutlined />,
+        prefix: <PiFileText />,
         color: '#1890ff',
         span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.all_submitted_plans', 'All submitted plans')
@@ -86,7 +86,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         key: 'total-amount',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.total_amount_submitted', 'Total Amount (Submitted)'),
         value: planStats.sumTotalAmount ? formatNumberFunction(planStats.sumTotalAmount.toString(), "0.00[,]00") : '0,00',
-        prefix: <EuroOutlined />,
+        prefix: <PiCurrencyEur />,
         suffix: '€',
         color: '#3f8600',
         valueIsString: true,
@@ -109,6 +109,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         skeletonCount={4}
         emptyText= {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.no_expense_plan_statistics_available', 'No expense plan statistics available.')}
         cardBackground="transparent"
+        className="gba:py-0"
       />
   );
 

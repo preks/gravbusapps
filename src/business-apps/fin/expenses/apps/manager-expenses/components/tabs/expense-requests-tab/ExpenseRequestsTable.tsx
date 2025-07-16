@@ -14,13 +14,9 @@ import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/commo
 
 const { Text } = Typography;
 
-interface ExpenseRequestsTableProps extends BusinessAppContextProps {
-  search?: string;
-  onSearchChange?: (search: string) => void;
-}
+interface ExpenseRequestsTableProps extends BusinessAppContextProps {}
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
-  const { search, onSearchChange } = props;
   
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(() => ({
@@ -57,13 +53,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     getFilters
   } = useExpenseRequestFilters();
 
-  // Sync with parent search prop if provided
-  useEffect(() => {
-    if (search !== undefined && search !== searchText) {
-      setSearch(search);
-    }
-  }, [search, setSearch]);
-
   // Fetch requests when filters or pagination changes
   useEffect(() => {
     const filters = getFilters();
@@ -81,12 +70,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
     setCurrentPage(1);
-    
-    // Notify parent if callback exists
-    if (onSearchChange) {
-      onSearchChange(value);
-    }
-  }, [onSearchChange, setSearch]);
+  }, [setSearch]);
 
   const handleTableChange = (pagination: any, _filters: any, _sorter: any) => {
     setCurrentPage(pagination.current);
@@ -123,7 +107,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       // Refresh the list after approval
       const filters = getFilters();
       fetchRequests(
-        search,
+        searchText,
         currentPage,
         pageSize,
         undefined,
@@ -131,7 +115,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       );
       setSelectedRequest(null);
     }
-  }, [approveRequest, fetchRequests, search, currentPage, pageSize, getFilters]);
+  }, [approveRequest, fetchRequests, searchText, currentPage, pageSize, getFilters]);
   
   // Handle rejecting a request
   const handleRejectRequest = useCallback(async (requestId: string) => {
@@ -140,7 +124,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       // Refresh the list after rejection
       const filters = getFilters();
       fetchRequests(
-        search,
+        searchText,
         currentPage,
         pageSize,
         undefined,
@@ -148,7 +132,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       );
       setSelectedRequest(null);
     }
-  }, [rejectRequest, fetchRequests, search, currentPage, pageSize, getFilters]);
+  }, [rejectRequest, fetchRequests, searchText, currentPage, pageSize, getFilters]);
 
   // Define table columns
   const columns = [
@@ -160,7 +144,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         <div>
           <div className="gba:font-bold">{text ?? 'Untitled Request'}</div>
           {record.startDate && record.endDate && (
-            <div className="gba:text-xs gba:text-gray-400">
+            <div className="gba:text-xs gba:text-gray-500">
               {ensureShortDateFormat(record.startDate)} - {ensureShortDateFormat(record.endDate)}
             </div>
           )}
@@ -194,7 +178,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       key: 'totalAmount',
       align: 'right' as const,
       render: (amount: number) => (
-        <Text strong>
+        <Text strong className="gba:text-sm">
           {typeof amount === 'number' ? `€${formatNumberFunction(amount.toString())}` : 'N/A'}
         </Text>
       )
@@ -353,8 +337,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         },
         placeholder: 'Search by request title, code, employee...', 
         filterLabelMap,
-        listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests'),
-        listAmount: totalCount,
+        listTitle: (
+          <div className="gba:flex gba:items-center gba:gap-4">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span>{getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')}</span>
+              <span className="gba:text-gray-500">({totalCount})</span>
+            </div>
+          </div>
+        ),
         debounceDelay: 300,
       }}
       dataFilterProps={{ 

@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Typography, Alert, Space, Button, Tooltip } from 'antd';
-
-import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
-import { DataTable, Avatar } from '@newwork/gravity-ui-catalog';
+import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead, Button, Avatar, AvatarImage, AvatarFallback, Tooltip, TooltipTrigger, TooltipContent, Alert } from '@newwork/nw-design-system';
+import { PiCheck, PiX } from 'react-icons/pi';
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
@@ -12,15 +10,11 @@ import { getAdvancePaymentStatusDisplay } from '../../../utils';
 import { formatDate, formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters';
 
-const { Text } = Typography;
 
-interface AdvancePaymentsTableProps extends BusinessAppContextProps {
-  search?: string;
-  onSearchChange?: (search: string) => void;
-}
+
+interface AdvancePaymentsTableProps extends BusinessAppContextProps {}
 
 const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
-  const { search } = props;
   
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = React.useMemo(() => ({
@@ -45,19 +39,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Handle search changes from parent
-  useEffect(() => {
-    if (search !== undefined && search !== searchTerm) {
-      setSearchTerm(search);
-    }
-  }, [search]);
-  
-  // Notify parent of search changes
-  useEffect(() => {
-    if (props.onSearchChange && searchTerm !== search) {
-      props.onSearchChange(searchTerm);
-    }
-  }, [searchTerm, props.onSearchChange]);
+
 
   // Use the new main view hook for advance payments
   const {
@@ -72,7 +54,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   } = useMainViewAdvancePayments({
     ...contextProps,
     pageSize,
-    searchTerm: props.search || '',
+    searchTerm: searchTerm,
     currentStatusFilter: statusFilter || undefined,
   });
   
@@ -103,146 +85,143 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     }
   }, [rejectPayment]);
 
-  const columns = [
-    {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.advance_payments_tab.related_expense_plan', 'Related Expense Plan'),
-      dataIndex: 'title',
-      key: 'title',
-      render: (_: string, record: AdvancePaymentItem) => (
-        <div>
-          <Text strong>{record.expensePlan?.title ?? 'N/A'}</Text>
-          {record.expensePlan?.startDate && record.expensePlan?.endDate && (
-            <div style={{ fontSize: '12px', color: '#888' }}>
-              {formatDate(record.expensePlan.startDate, 'date.short')} - {formatDate(record.expensePlan.endDate, 'date.short')}
-            </div>
-          )}
-        </div>
-      )
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list.expense_table.employee', 'Employee'),
-      dataIndex: 'employeeDisplayName',
-      key: 'employeeDisplayName',
-      render: (_text: any, record: AdvancePaymentItem) => (
-        <Space>
-          <Avatar src={record.expensePlan?.employee?.pictureThumbnail ? `data:image/gif;base64,${record.expensePlan.employee.pictureThumbnail}` : undefined} alt={record.expensePlan?.employee?.fullName} />
-          <Text>{record.expensePlan?.employee?.displayName ?? record.expensePlan?.employee?.fullName ?? 'N/A'}</Text>
-        </Space>
-      ),
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:travel_region_rule.travel_region_rule_details_list.amount', 'Amount'),
-      dataIndex: 'amount',
-      key: 'amount',
-      align: 'right',
-      render: (amount: number | undefined) => (
-        <Text strong>
-          {typeof amount === 'number' ? `€${formatNumberFunction(amount.toString())}` : 'N/A'}
-        </Text>
-      ),
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.status', 'Status'),
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => {
-        const statusDisplay = getAdvancePaymentStatusDisplay(status);
-        return <Pill label={statusDisplay.label} type={statusDisplay.type as any} data-testid={`status-pill-${status.toLowerCase()}`} />;
-      },
-    },
-    {
-      title: '',
-      key: 'actions',
-      render: (_: any, record: AdvancePaymentItem) => (
-        <Space size="middle">
-          {(record.status?.toUpperCase() === 'PENDING') && (
-            <>
-              <Tooltip title="Approve Payment">
-                <Button
-                  type="primary"
-                  style={{ backgroundColor: 'green', borderColor: 'green' }}
-                  icon={<CheckOutlined />}
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    // Implementation of approval functionality using the new hook
-                    console.log(`Approving payment ${record.id}`);
-                    setCurrentActionPlanId(record.id);
-                    approvePayment(record.id, "");
-                    setSelectedPayment(null);
-                  }}
-                  loading={approving && record.id === currentActionPlanId}
-                  data-testid={`approve-payment-button-${record.id}`}
-                />
-              </Tooltip>
-              <Tooltip title="Reject Payment">
-                <Button
-                  type="primary"
-                  danger
-                  icon={<CloseOutlined />}
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    // Implementation of rejection functionality using the new hook
-                    console.log(`Rejecting payment ${record.id}`);
-                    setCurrentActionPlanId(record.id);
-                    rejectPayment(record.id, "Rejected by manager");
-                    setSelectedPayment(null);
-                  }}
-                  loading={rejecting && record.id === currentActionPlanId}
-                  data-testid={`reject-payment-button-${record.id}`}
-                />
-              </Tooltip>
-            </>
-          )}
-        </Space>
-      ),
-    },
-  ];
+
 
   // Render the table
   const renderDataBody = useCallback(() => {
     if (error) {
       return (
-        <Alert
-          message="Error loading advance payments"
-          description={error.message || 'An error occurred while loading advance payments.'}
-          type="error"
-          showIcon
-        />
+        <Alert variant="destructive">
+          <div className="gba:font-medium">Error loading advance payments</div>
+          <div className="gba:text-sm">{error.message || 'An error occurred while loading advance payments.'}</div>
+        </Alert>
       );
     }
 
     if (!isLoading && filteredPayments.length === 0) {
       return (
         <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
-          <Text type="secondary">No advance payments found</Text>
+          <span className="gba:text-gray-500">No advance payments found.</span>
         </div>
       );
     }
 
     return (
-      <DataTable
-        columns={columns}
-        dataSource={filteredPayments}
-        rowKey="id"
-        loading={isLoading}
-        pagination={{
-          current: currentPage,
-          pageSize: pageSize,
-          total: totalCount,
-          showSizeChanger: true,
-          pageSizeOptions: ['10', '20', '50', '100'],
-          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-        }}
-        onChange={handleTableChange}
-        scroll={{ x: 'max-content' }}
-        data-testid="advance-payments-table"
-      />
+      <Table data-testid="advance-payments-table">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="gba:w-[300px]">
+              Related Expense Plan
+            </TableHead>
+            <TableHead className="gba:w-[200px]">
+              Employee
+            </TableHead>
+            <TableHead className="gba:w-[150px] gba:text-right">
+              Amount
+            </TableHead>
+            <TableHead className="gba:w-[150px]">
+              Status
+            </TableHead>
+            <TableHead className="gba:w-[120px] gba:text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredPayments.map((record) => (
+            <TableRow 
+              key={record.id}
+              className="gba:cursor-pointer gba:hover:bg-gray-50"
+              onClick={() => setSelectedPayment(record)}
+            >
+              <TableCell className="gba:text-left">
+                <div>
+                  <div className="gba:font-medium gba:text-sm">{record.expensePlan?.title ?? 'N/A'}</div>
+                  {record.expensePlan?.startDate && record.expensePlan?.endDate && (
+                    <div className="gba:text-xs gba:text-gray-500">
+                      {new Date(record.expensePlan.startDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })} - {new Date(record.expensePlan.endDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}
+                    </div>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Avatar className="gba:h-6 gba:w-6">
+                    <AvatarImage 
+                      src={record.expensePlan?.employee?.pictureThumbnail ? `data:image/gif;base64,${record.expensePlan.employee.pictureThumbnail}` : undefined} 
+                      alt={record.expensePlan?.employee?.fullName} 
+                    />
+                    <AvatarFallback>
+                      {record.expensePlan?.employee?.displayName?.charAt(0) || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="gba:font-medium gba:text-sm">{record.expensePlan?.employee?.displayName ?? record.expensePlan?.employee?.fullName ?? 'N/A'}</span>
+                </div>
+              </TableCell>
+              <TableCell className="gba:text-right">
+                <span className="gba:font-medium gba:text-sm">
+                  {typeof record.amount === 'number' ? `€${formatNumberFunction(record.amount.toString())}` : 'N/A'}
+                </span>
+              </TableCell>
+              <TableCell>
+                <Pill label={getAdvancePaymentStatusDisplay(record.status).label} type={getAdvancePaymentStatusDisplay(record.status).type as any} data-testid={`status-pill-${record.status.toLowerCase()}`} />
+              </TableCell>
+              <TableCell className="gba:text-right">
+                <div className="gba:flex gba:gap-2 gba:justify-end">
+                  {record.status?.toUpperCase() === 'PENDING' && (
+                    <>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentActionPlanId(record.id);
+                              approvePayment(record.id, "");
+                              setSelectedPayment(null);
+                            }}
+                            disabled={approving && record.id === currentActionPlanId}
+                            data-testid={`approve-payment-button-${record.id}`}
+                          >
+                            <PiCheck className="gba:h-4 gba:w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Approve Payment</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentActionPlanId(record.id);
+                              rejectPayment(record.id, "Rejected by manager");
+                              setSelectedPayment(null);
+                            }}
+                            disabled={rejecting && record.id === currentActionPlanId}
+                            data-testid={`reject-payment-button-${record.id}`}
+                          >
+                            <PiX className="gba:h-4 gba:w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Reject Payment</TooltipContent>
+                      </Tooltip>
+                    </>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     );
-  }, [error, isLoading, filteredPayments, columns, currentPage, pageSize, totalCount, handleTableChange]);
+  }, [error, isLoading, filteredPayments, approvePayment, rejectPayment, approving, rejecting, currentActionPlanId]);
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col">
       <DataContainer
+        contentBackground="white"
+        floatingDetails={true}
         dataControllerProps={{
           search: searchTerm,
           setSearch: setSearchTerm,
@@ -252,8 +231,14 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             setStatusFilter(newFilters.length > 0 ? newFilters[0] : null);
           },
           filterLabelMap: filterLabelMap,
-          listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments'),
-          listAmount: totalCount ? `${totalCount}` : undefined,
+          listTitle: (
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <span>{getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments')}</span>
+                <span className="gba:text-gray-500">({totalCount})</span>
+              </div>
+            </div>
+          ),
         }}
         dataFilterProps={{
           filterGroups: filterGroups,

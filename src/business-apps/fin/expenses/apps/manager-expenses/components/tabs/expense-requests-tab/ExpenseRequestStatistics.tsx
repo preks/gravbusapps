@@ -70,10 +70,12 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     <WidgetGroup
       widgets={widgets}
       isLoading={requestStatsLoading}
-      error={requestStatsError}
+      error={requestStatsError ? 'Failed to load statistics' : undefined}
       onRetry={fetchRequestStatistics}
-      emptyText="No expense request statistics available."
       skeletonCount={4}
+      emptyText="No expense request statistics available."
+      cardBackground="transparent"
+      className="gba:py-0"
     />
   );
 };
