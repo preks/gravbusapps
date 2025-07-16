@@ -125,7 +125,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   const handleAddOpportunity = useCallback(() => {
     startProcess({
       domain: 'customer-relations',
-      processName: 'createOpportunity',
+      processName: 'saveOpportunity',
       builderType: 'NATIVE_SCREEN',
       payload: {}
     });
