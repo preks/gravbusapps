@@ -12,7 +12,11 @@ import { FORM_STEPS } from "./constants/constants";
 
 const { Title } = Typography;
 
-const ExpenseItemContent: React.FC = () => {
+interface ExpenseItemContentProps {
+  onClose?: (shouldRefetch?: boolean) => void;
+}
+
+const ExpenseItemContent: React.FC<ExpenseItemContentProps> = ({ onClose }) => {
   const { t } = useTranslation();
   
   const {
@@ -42,6 +46,31 @@ const ExpenseItemContent: React.FC = () => {
     currencies,
     isEditMode
   } = useExpenseItem();
+
+  // Modified handleCancel to use onClose callback if provided
+  // Do NOT refetch when cancelling to preserve selected items in the wizard
+  const handleCancelWithCallback = () => {
+    handleCancel();
+    if (onClose) {
+      onClose(false);
+    }
+  };
+
+  // Modified handleSubmit to use onClose callback if provided
+  // When successful, pass true to onClose to indicate we need to refetch expense request data
+  const handleSubmitWithCallback = async () => {
+    try {
+      await handleSubmit();
+      if (onClose) {
+        // Pass true to indicate we should refetch the expense request data
+        // This is needed because we've created a new expense item
+        // The hideExpenseItem function in ExpenseRequestWizardContext will handle the refetch
+        onClose(true);
+      }
+    } catch (error) {
+      console.error('Error submitting expense item:', error);
+    }
+  };
 
   return (
     <div className={`gba:mainContainer`} data-testid="expense-item-main-container">
@@ -99,8 +128,8 @@ const ExpenseItemContent: React.FC = () => {
           multiPosition={multiPosition}
           setCurrentSelectedDate={setCurrentSelectedDate}
           setMultiPosition={setMultiPosition}
-          handleSubmit={handleSubmit}
-          handleCancel={handleCancel}
+          handleSubmit={handleSubmitWithCallback}
+          handleCancel={handleCancelWithCallback}
           handleExpenseGroupChange={handleExpenseGroupChange}
           handleExpenseTypeChange={handleExpenseTypeChange}
           handleAddPosition={handleAddPosition}
@@ -113,10 +142,49 @@ const ExpenseItemContent: React.FC = () => {
   );
 };
 
-const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ accessToken, userInfo, additionalData }) => {
+const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ accessToken, userInfo, additionalData, onClose }) => {
+  // Get URL query parameters
+  const [localAdditionalData, setLocalAdditionalData] = React.useState(() => {
+    // Parse URL query parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const expenseRequestId = urlParams.get('expenseRequestId');
+    const itemCurrency = urlParams.get('itemCurrency');
+    
+    // Merge URL parameters with additionalData
+    return {
+      ...additionalData,
+      expenseRequestId: expenseRequestId || additionalData?.expenseRequestId,
+      itemCurrency: itemCurrency || additionalData?.itemCurrency
+    };
+  });
+  
+  // For backward compatibility, still listen for the custom event
+  React.useEffect(() => {
+    const handleShowExpenseItem = (event: CustomEvent) => {
+      if (event.detail) {
+        const { expenseRequestId, itemCurrency } = event.detail;
+        
+        // Update additionalData with the parameters from the event
+        setLocalAdditionalData((prevData: any) => ({
+          ...prevData,
+          expenseRequestId,
+          itemCurrency
+        }));
+      }
+    };
+    
+    // Add event listener
+    document.addEventListener('expense-item-show', handleShowExpenseItem as EventListener);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('expense-item-show', handleShowExpenseItem as EventListener);
+    };
+  }, []);
+  
   return (
-    <ExpenseItemProvider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}>
-      <ExpenseItemContent />
+    <ExpenseItemProvider accessToken={accessToken} userInfo={userInfo} additionalData={localAdditionalData}>
+      <ExpenseItemContent onClose={onClose} />
     </ExpenseItemProvider>
   );
 };

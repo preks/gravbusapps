@@ -1,6 +1,5 @@
 import { formatDate, getCatalogValue, getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import dayjs from "dayjs";
-import { EVENTS } from "../../../utils/constants";
 import { SCREEN_NAMES_ENUM } from "../constants/constants";
 
 export const noAllowanceItemsFunction = (arrayOfItems: any[]) => {

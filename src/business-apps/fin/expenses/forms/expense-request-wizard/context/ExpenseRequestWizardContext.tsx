@@ -29,6 +29,14 @@ export interface ExpenseRequestWizardContextProps {
   currentCurrency: string | null;
   setCurrentCurrency: (currency: string | null) => void;
   submitActionTripData: (startLocation: LocationData, destinations: LocationData[], endLocation: LocationData, expenseRulesData: any,event:string) => boolean;
+  // New properties for ExpenseItem integration
+  showExpenseItem: boolean;
+  setShowExpenseItem: (show: boolean) => void;
+  expenseItemParams: { expenseRequestId?: string; itemCurrency?: string };
+  setExpenseItemParams: (params: { expenseRequestId?: string; itemCurrency?: string }) => void;
+  showCreateItem: () => void;
+  hideExpenseItem: (shouldRefetch?: boolean) => void;
+  refetchExpenseData: () => Promise<void>;
 }
 
 /**
@@ -62,9 +70,14 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   const [loading, setLoading] = useState<boolean>(true);
   const [employeeRuleId, setEmployeeRuleId] = useState<string | null>(null);
   const [expenseRuleError, setExpenseRuleError] = useState<string | null>(null);
-  const [expenseRequestData, setExpenseRequestData] = useState<any | null>(null);
+  const [isTripFormValid, setIsTripFormValid] = useState<boolean>(false);
   const [currentTitle, setCurrentTitle] = useState<string>('');
   const [currentCurrency, setCurrentCurrency] = useState<string | null>(null);
+  const [expenseRequestData, setExpenseRequestData] = useState<any | null>(null);
+  
+  // New state for ExpenseItem integration
+  const [showExpenseItem, setShowExpenseItem] = useState<boolean>(false);
+  const [expenseItemParams, setExpenseItemParams] = useState<{ expenseRequestId?: string; itemCurrency?: string }>({});
   const graphqlClient = useGraphqlClient(accessToken);
 
   // Mock additionalData for testing
@@ -130,6 +143,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   const actualAdditionalData = additionalData || mockAdditionalData;
 
   // Fetch expense data when employeeRuleId is available
+  // Made public so it can be called after expense item creation
   const fetchExpenseData = async () => {
     try {
       if (!accessToken || !employeeRuleId || !userInfo) return;
@@ -170,6 +184,23 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
 
       // Execute query
       const response = await graphqlClient.request(fetchExpenseRequestAndItems, variables);
+      
+      // Preserve any manually selected items that aren't part of the fetched data
+      if (expenseRequestData?.ExpenseItem && Array.isArray(expenseRequestData.ExpenseItem)) {
+        // Get IDs of items from the API response
+        const fetchedItemIds = response.ExpenseItem?.map((item: any) => item.id) || [];
+        
+        // Find manually selected items that aren't in the API response
+        const manuallySelectedItems = expenseRequestData.ExpenseItem.filter(
+          (item: any) => !fetchedItemIds.includes(item.id) && item.isManuallySelected
+        );
+        
+        // Combine API items with manually selected items
+        if (manuallySelectedItems.length > 0) {
+          response.ExpenseItem = [...(response.ExpenseItem || []), ...manuallySelectedItems];
+        }
+      }
+      
       setExpenseRequestData(response);
     } catch (error) {
       showToast(
@@ -277,12 +308,34 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     );
   };
 
-  // Trip form validation state
-  const [isTripFormValid, setIsTripFormValid] = useState<boolean>(false);
-  
   // Function to update trip form validation state
   const updateTripFormValidation = (isValid: boolean) => {
     setIsTripFormValid(isValid);
+  };
+  
+  // Function to show expense item component with the necessary parameters
+  const showCreateItem = () => {
+    if (expenseRequestData?.ExpenseRequestByPk) {
+      // Set the parameters for the ExpenseItem component
+      setExpenseItemParams({
+        expenseRequestId: expenseRequestData.ExpenseRequestByPk.id,
+        itemCurrency: currentCurrency || (expenseRequestData.ExpenseItem?.[0]?.currencyRef || "")
+      });
+      
+      // Show the ExpenseItem component
+      setShowExpenseItem(true);
+    }
+  };
+  
+  // Function to hide expense item component and return to wizard
+  // Optional parameter to refetch expense request data when returning from successful submission
+  const hideExpenseItem = async (shouldRefetch: boolean = false) => {
+    setShowExpenseItem(false);
+    
+    // If shouldRefetch is true, refetch the expense request data
+    if (shouldRefetch) {
+      await fetchExpenseData();
+    }
   };
   
   // Context value
@@ -303,6 +356,14 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     currentCurrency,
     setCurrentCurrency,
     submitActionTripData,
+    // New properties for ExpenseItem integration
+    showExpenseItem,
+    setShowExpenseItem,
+    expenseItemParams,
+    setExpenseItemParams,
+    showCreateItem,
+    hideExpenseItem,
+    refetchExpenseData: fetchExpenseData,
   };
 
   return (

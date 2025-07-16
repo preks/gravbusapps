@@ -284,7 +284,8 @@ export const handleSubmit = async (
       uploadedFiles = await uploadDocuments(fileList, accessToken, employeeId, t);
     }
     
-    const hasExpenseRequest = additionalData?.psi_taskPayload?.initialParameters?.expenseRequest;
+    // Check if we have an expense request from either the wizard or task payload
+    const hasExpenseRequest = additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.initialParameters?.expenseRequest;
     
     let flowProcessId: string | null = null;
     let taskId: string | null = null;
@@ -366,7 +367,7 @@ export const handleSubmit = async (
         expenseClassRef: "ExpenseClass:v1:EXPENSE",
         status: DEFAULT_EXPENSE_STATUS,
         multiplePositions: multiPosition,
-        expenseRequest: values.expenseRequest || "",
+        expenseRequest: values.expenseRequest || additionalData?.expenseRequestId || "",
         employee: generalDataResponse?.data?.Employee?.[0]?.id || employeeId || "",
         expenseRule: employeeRuleId as string,
       },

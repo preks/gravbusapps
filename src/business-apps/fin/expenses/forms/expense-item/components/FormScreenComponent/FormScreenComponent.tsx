@@ -307,7 +307,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                   "lowcoder:create_expense_item.change_expense_item_container.current_currency_label",
                   "Currency"
                 )}
-                disabled={isProcessingFiles}
+                disabled={isProcessingFiles || !!form.getFieldValue('fixedCurrency')}
                 name="currency"
                 data-testid="total-currency-select"
                 isDataSorted={false}
@@ -333,36 +333,39 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         </Row>
       )}
       
-      <Form.Item
-        name="expenseRequestId"
-        rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_request_custom_rule', 'Please select a request') }]}
-        className={`gba:marginBottom16`}
-        data-testid="expense-request-container"
-      >
-        <SelectField
-          allowClear
+      {/* Only show expense request select if not embedded in ExpenseRequestWizard */}
+      {!form.getFieldValue('expenseRequestId') ? (
+        <Form.Item
           name="expenseRequestId"
-          data-testid="expense-request-select"
-          data={[
-            ...expenseRequests.map((request) => ({
-              id: request.id,
-              name: request.title || request.code,
-            })),
-          ]}
-          onChange={(value: any) => {
-            form.setFieldsValue({ expenseRequestId: value.value });
-          }}
-          label={t(
-            "lowcoder:create_expense_type_item.current_request",
-            "Add Expense Request"
-          )}
-          placeholder={t(
-            "lowcoder:create_expense_item.change_expense_item_container.current_request_placeholder",
-            "Select Request"
-          )}
-          disabled={isProcessingFiles}
-        />
-      </Form.Item>
+          rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_request_custom_rule', 'Please select a request') }]}
+          className={`gba:marginBottom16`}
+          data-testid="expense-request-container"
+        >
+          <SelectField
+            allowClear
+            name="expenseRequestId"
+            data-testid="expense-request-select"
+            data={[
+              ...expenseRequests.map((request) => ({
+                id: request.id,
+                name: request.title || request.code,
+              })),
+            ]}
+            onChange={(value: any) => {
+              form.setFieldsValue({ expenseRequestId: value.value });
+            }}
+            label={t(
+              "lowcoder:create_expense_type_item.current_request",
+              "Add Expense Request"
+            )}
+            placeholder={t(
+              "lowcoder:create_expense_item.change_expense_item_container.current_request_placeholder",
+              "Select Request"
+            )}
+            disabled={isProcessingFiles}
+          />
+        </Form.Item>
+      ) : null}
       
       {/* Spacer to push content to the bottom */}
       <div className="gba:flex-grow" data-testid="expense-item-spacer" />

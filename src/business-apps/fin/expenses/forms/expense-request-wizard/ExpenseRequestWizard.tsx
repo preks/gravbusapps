@@ -9,19 +9,17 @@ import { EVENTS } from '../../utils/constants';
 import { ICONS } from '../../utils/icons';
 import './ExpenseRequestWizard.css';
 
-// Import context and constants
 import { ExpenseRequestWizardProvider, useExpenseRequestWizardContext } from './context/ExpenseRequestWizardContext';
 import { SCREEN_NAMES_ENUM } from './constants/constants';
 
-// Import screen components
 import ItemsScreen from './screens/ItemsScreen';
 import CreateItemScreen from './screens/CreateItemScreen';
 import TripScreen from './screens/TripScreen';
 import LoadScreen from './screens/LoadScreen';
+import ExpenseItem from '../expense-item/ExpenseItem';
 import AllowanceScreen from './screens/AllowanceScreen';
 import SummaryScreen from './screens/SummaryScreen';
 
-// Import custom components
 import ProgressIndicator from './components/ProgressIndicator';
 
 const { Title } = Typography;
@@ -36,17 +34,26 @@ interface ExpenseRequestWizardContentProps extends BusinessAppContextProps {
  * @returns Expense Request Wizard Content component
  */
 const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = ({ onCancel, accessToken, userInfo }) => {
-  const { loading, expenseRuleError, expenseRequestData, currentTitle, setCurrentTitle, isTripFormValid, currentCurrency, setCurrentCurrency } = useExpenseRequestWizardContext();
+  const { 
+    loading, 
+    expenseRuleError, 
+    expenseRequestData, 
+    currentTitle, 
+    setCurrentTitle, 
+    isTripFormValid, 
+    setCurrentCurrency,
+    showExpenseItem,
+    expenseItemParams,
+    hideExpenseItem
+  } = useExpenseRequestWizardContext();
   const [currentScreen, setCurrentScreen] = useState<string>(SCREEN_NAMES_ENUM.ITEMS_TAB);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [titleValue, setTitleValue] = useState<string>('');
   const [titleError, setTitleError] = useState<string>('');
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false);
 
-  // Get request type (trip or expense)
   const isTrip = !expenseRequestData?.ExpenseRequestByPk?.requestTypeRef?.toLowerCase().includes('trip');
 
-  // Initialize title value when data is loaded
   useEffect(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {
       setCurrentTitle(expenseRequestData.ExpenseRequestByPk.title || '');
@@ -54,16 +61,12 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
     }
   }, [expenseRequestData, setCurrentTitle]);
 
-  // State for tracking selected items count for the footer
   const [selectedItemCount, setSelectedItemCount] = useState<number>(0);
   
-  // Update currency based on expense request or first item
   useEffect(() => {
     if (expenseRequestData?.ExpenseRequestByPk?.currencyRef) {
-      // Use the expense request currency if available
       setCurrentCurrency(expenseRequestData.ExpenseRequestByPk.currencyRef);
     } else if (expenseRequestData?.ExpenseItem && expenseRequestData.ExpenseItem.length > 0) {
-      // Otherwise use the first item's currency
       const firstItem = expenseRequestData.ExpenseItem[0];
       if (firstItem && firstItem.currencyRef) {
         setCurrentCurrency(firstItem.currencyRef);
@@ -71,12 +74,10 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
         setCurrentCurrency(null);
       }
     } else {
-      // If no items, set to null
       setCurrentCurrency(null);
     }
   }, [expenseRequestData?.ExpenseRequestByPk?.currencyRef, expenseRequestData?.ExpenseItem, setCurrentCurrency]);
   
-  // Listen for custom footer events
   useEffect(() => {
     const handleFooterUpdate = (event: any) => {
       if (event.detail) {
@@ -95,8 +96,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
       document.removeEventListener('expense-wizard-update-footer', handleFooterUpdate);
     };
   }, []);
-
-  // Title validation functions
+  
   const validateTitle = (value: string): string => {
     if (!value.trim()) {
       return getTranslationFromI18nKeyAndLabel(
@@ -129,7 +129,6 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
     setTitleError('');
   };
 
-  // Initialize current title when data is loaded
   useEffect(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {
       const initialTitle = expenseRequestData.ExpenseRequestByPk.title || getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.untitled', 'Untitled');
@@ -139,13 +138,10 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   }, [expenseRequestData, setCurrentTitle]);
 
   const saveTitle = () => {
-    // Here you would implement the API call to save the title
-    // For now, we'll just update the local state
     setCurrentTitle(titleValue);
     setIsEditingTitle(false);
   };
 
-  // Effect to set initial screen based on request type
   useEffect(() => {
     if (expenseRequestData) {
       if (isTrip) {
@@ -156,7 +152,6 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
     }
   }, [expenseRequestData, isTrip]);
   
-  // Navigate to next screen
   const navigateToNextScreen = () => {
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.ITEMS_TAB:
@@ -179,7 +174,6 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
     }
   };
   
-  // Navigate to previous screen
   const navigateToPreviousScreen = () => {
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
@@ -209,7 +203,6 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
     }
   };
   
-  // Determine if back button should be shown
   const shouldShowBackButton = () => {
     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && isTrip) {
       return false;
@@ -220,7 +213,6 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
     return true;
   };
   
-  // Render the current screen
   const renderCurrentScreen = () => {    
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.ITEMS_TAB:
@@ -240,7 +232,6 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
     }
   };
   
-  // If loading, show only the spinner instead of the form content
   if (loading) {
     return (
       <div 
@@ -254,6 +245,17 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
           data-testid="expense-request-wizard-spinner-icon" 
         />
       </div>
+    );
+  }
+  
+  if (showExpenseItem) {
+    return (
+      <ExpenseItem 
+        accessToken={accessToken} 
+        userInfo={userInfo} 
+        additionalData={expenseItemParams}
+        onClose={hideExpenseItem}
+      />
     );
   }
   
@@ -401,7 +403,6 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                 className="gba:cancelButton" 
                 data-testid="expense-request-wizard-cancel-selection-button"
                 onClick={() => {
-                  // Dispatch a custom event that ItemsScreen will listen for
                   const cancelEvent = new CustomEvent('expense-items-cancel-selection');
                   document.dispatchEvent(cancelEvent);
                 }}
@@ -415,7 +416,6 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                   data-testid="expense-request-wizard-confirm-selection-button"
                   disabled={selectedItemCount === 0}
                   onClick={() => {
-                    // Dispatch a custom event that ItemsScreen will listen for
                     const confirmEvent = new CustomEvent('expense-items-confirm-selection');
                     document.dispatchEvent(confirmEvent);
                   }}
@@ -440,18 +440,13 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                   className="gba:submitButton" 
                   data-testid="expense-request-wizard-save-button"
                   onClick={() => {
-                    // If we're on the trip screen, the TripScreen component will handle the save
-                    // through its own handleSave method which is connected to the context
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
-                      // Dispatch a custom event that TripScreen will listen for
                       const saveEvent = new CustomEvent('expense-request-save-trip');
                       document.dispatchEvent(saveEvent);
                     } else if (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB) {
-                      // Dispatch a custom event that ItemsScreen will listen for
                       const saveEvent = new CustomEvent('expense-request-save-items');
                       document.dispatchEvent(saveEvent);
                     } else {
-                      // Handle save click for current screen
                     }
                   }}
                 >
@@ -463,20 +458,15 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                   data-testid="expense-request-wizard-next-button"
                   disabled={currentScreen !== SCREEN_NAMES_ENUM.TRIPS_TAB ? false : (!isTripFormValid)}
                   onClick={() => {
-                    // If we're on the trip screen, the TripScreen component will handle the save
-                    // through its own handleSave method which is connected to the context
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
-                      // Dispatch a custom event that TripScreen will listen for
                       const nextEvent = new CustomEvent('expense-request-next-trip');
                       document.dispatchEvent(nextEvent);
                       navigateToNextScreen()
                     } else if (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB) {
-                      // Dispatch a custom event that ItemsScreen will listen for
                       const nextEvent = new CustomEvent('expense-request-next-items');
                       document.dispatchEvent(nextEvent);
                       navigateToNextScreen()
                     } else {
-                      // Handle save click for current screen
                       navigateToNextScreen()
                     }
                   }}

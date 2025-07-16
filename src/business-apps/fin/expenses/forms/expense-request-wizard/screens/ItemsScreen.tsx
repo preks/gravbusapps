@@ -187,7 +187,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     if (selectedItemIdsForSelection.length > 0) {
       const selectedItems = selectItemsList.filter(item => 
         selectedItemIdsForSelection.includes(item.id)
-      );
+      ).map(item => ({
+        ...item,
+        isManuallySelected: true
+      }));
       
       const currentItems = expenseRequestData?.ExpenseItem || [];
       const updatedItems = [...currentItems, ...selectedItems];
@@ -283,6 +286,12 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       console.log('Items Screen Save Event:', logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle, currentCurrency, expenseItems]);
+  
+  const { showCreateItem } = useExpenseRequestWizardContext();
+  
+  const handleCreateItem = useCallback(() => {
+    showCreateItem();
+  }, [showCreateItem]);
   
   useEffect(() => {
     if (showSelectItems) {
@@ -402,6 +411,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
             className="gba:flex gba:items-center gba:gap-1"
             style={{ backgroundColor: '#EFEFEF', borderRadius: '9999px', fontWeight:600 }}
             data-testid="create-item-button"
+            onClick={handleCreateItem}
           >
             {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.create_item', 'Create Item')}
           </Button>
