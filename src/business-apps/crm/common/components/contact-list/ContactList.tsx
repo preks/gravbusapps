@@ -4,9 +4,9 @@ import { DataContainer } from '@/components/layout/dataContainer';
 import { DataFilter } from '@/components/data-filter/DataFilter';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useContactListData } from './hooks/useContactListData';
-import { useContactStatistics } from './hooks/useContactStatistics';
+import { useContactStatisticsWithTrend } from './hooks/useContactStatisticsWithTrend';
 import { useContactFilters } from './hooks/useContactFilters';
-import ContactStatistics from './components/ContactStatistics';
+import { ContactStatisticsWithTrend } from './components/ContactStatistics';
 import ContactTable from './components/ContactTable';
 import { Contact } from './types';
 import { Alert, Button, Modal, Form, Input, Select, message } from 'antd';
@@ -47,7 +47,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     createdBefore: appliedFilters.createdBefore
   });
   
-  const contactStatistics = useContactStatistics({
+  const contactStatistics = useContactStatisticsWithTrend({
     ...context,
     sourceApp
   });
@@ -126,17 +126,10 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     onDateRangeChange: contactFilters.handleDateRangeChange
   };
 
-  if (contactListData.error && !contactListData.loading) {
+  // If there's an error loading contacts, show error state
+  if (contactListData.error) {
     return (
-      <div data-testid="contact-list-content">
-        <div data-testid="contact-statistics-section" className="gba:mb-6">
-          <ContactStatistics
-            statistics={contactStatistics.statistics}
-            isLoading={contactStatistics.isLoading}
-            error={contactStatistics.error}
-            onRetry={handleRetryStatistics}
-          />
-        </div>
+      <div data-testid="contact-list-error">
         
         <Alert
           message="Error Loading Contacts"
@@ -152,12 +145,16 @@ const ContactList: React.FC<ContactListProps> = (context) => {
   return (
     <div data-testid="contact-list-content">
       <div data-testid="contact-statistics-section" className="gba:mb-6">
-        <ContactStatistics
-          statistics={contactStatistics.statistics}
-          isLoading={contactStatistics.isLoading}
-          error={contactStatistics.error}
-          onRetry={handleRetryStatistics}
-        />
+        {contactStatistics.trendData ? (
+          <ContactStatisticsWithTrend
+            trendData={contactStatistics.trendData}
+            isLoading={contactStatistics.isLoading}
+            error={contactStatistics.error}
+            onRetry={handleRetryStatistics}
+          />
+        ) : (
+          <div>Loading statistics...</div>
+        )}
       </div>
 
       <DataContainer

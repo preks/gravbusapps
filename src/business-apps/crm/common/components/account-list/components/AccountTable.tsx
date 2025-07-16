@@ -2,8 +2,8 @@
 
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTable, Avatar, Button, Tag, Tooltip } from '@newwork/gravity-ui-catalog';
-import { PiUser, PiEnvelope, PiPhone, PiBuilding, PiCalendar, PiMapPin } from 'react-icons/pi';
+import { Avatar, AvatarImage, AvatarFallback, Button, Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner } from '@newwork/nw-design-system';
+import { PiUser, PiEnvelope, PiPhone, PiBuilding, PiCalendar, PiMapPin, PiCaretUp, PiCaretDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Account } from '../types';
@@ -103,53 +103,6 @@ export const AccountTable: React.FC<AccountTableProps> = ({
     }
   };
 
-  // Handle pagination change
-  const handleTableChange = (pagination: any, filters: any, sorter: any) => {
-    console.log('Table changed:', { 
-      pagination,
-      filters,
-      sorter
-    });
-    
-    const targetPage = pagination.current ?? 1;
-    const targetPageSize = pagination.pageSize ?? 20;
-    
-    // Handle pagination change
-    if (pagination.current !== currentPage || pagination.pageSize !== pageSize) {
-      onPaginationChange(targetPage, targetPageSize);
-    }
-  };
-
-  // Handle sorting change (using DataTable's specific onSorterChange prop)
-  const handleSorterChange = (sorter: any) => {
-    console.log('Sorter changed:', sorter);
-    
-    if (sorter.field && sorter.order) {
-      // Sort order is set (ASC or DESC)
-      const field = Array.isArray(sorter.field) ? sorter.field[0] : sorter.field;
-      const order = sorter.order === 'ascend' ? 'ASC' : 'DESC';
-      
-      if (field !== sortField || order !== sortOrder) {
-        onSortingChange(field, order);
-      }
-    } else {
-      // Sort order is null - clear sorting (3-state behavior)
-      if (sortField !== '' || sortOrder !== '') {
-        onSortingChange('', '');
-      }
-    }
-  };
-
-  // Helper function to determine if a column should show sorting indicator
-  const getSortOrder = (columnField: string) => {
-    // Show indicator only if this column is currently being sorted and we're not in the cleared state
-    if (sortField === columnField && sortOrder !== '') {
-      return sortOrder === 'ASC' ? 'ascend' : 'descend';
-    }
-    
-    return false;
-  };
-
   // Handle row click
   const handleRowClick = useCallback((record: Account) => {
     // Navigate to account record page
@@ -160,183 +113,29 @@ export const AccountTable: React.FC<AccountTableProps> = ({
     onSelectAccount?.(record);
   }, [onSelectAccount]);
 
-  // Define columns for the table
-  const columns: any[] = [
-    {
-      title: '',
-      key: 'actions',
-      render: (_: any, record: Account) => (
-        <div className="gba:flex gba:justify-start gba:gap-2">
-          <AppActionButton
-            data-testid={`${DATA_TEST_ID_PREFIX}-update-account-button-${record.id}`}
-            variant="secondary"
-            contextsArray={[FlowContextName.accountEntity]}
-            externalContextData={{
-              accountId: record.id
-            }}
-            prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-account`}
-            accessToken={accessToken}
-            emptyStateBehavior="disable"
-            deferMainContextRequestsUntilClick
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      ),
-      width: '60px',
-    },
-    {
-      title: t('account.company', 'Company'),
-      dataIndex: 'name',
-      key: 'name',
-      sorter: true,
-      sortOrder: getSortOrder('name'),
-      render: (_: any, record: Account) => {
-        return (
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:bg-blue-100 gba:rounded-full">
-              <PiBuilding size={20} className="gba:text-blue-600" />
-            </div>
-            <div className="gba:flex gba:flex-col">
-              <span className="gba:font-medium gba:text-sm">{record.name || '-'}</span>
-              {record.website && (
-                <span className="gba:text-xs gba:text-gray-500">{record.website}</span>
-              )}
-            </div>
-          </div>
-        );
-      },
-      width: '25%',
-    },
-    {
-      title: t('account.contact', 'Contact Info'),
-      dataIndex: 'email',
-      key: 'email',
-      render: (_: any, record: Account) => {
-        return (
-          <div className="gba:space-y-1">
-            {record.email && (
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <PiEnvelope size={14} className="gba:text-gray-400" />
-                <span className="gba:text-sm">{record.email}</span>
-              </div>
-            )}
-            {record.phone && (
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <PiPhone size={14} className="gba:text-gray-400" />
-                <span className="gba:text-sm">{record.phone}</span>
-              </div>
-            )}
-            {!record.email && !record.phone && (
-              <span className="gba:text-gray-400">-</span>
-            )}
-          </div>
-        );
-      },
-      width: '20%',
-    },
-    {
-      title: t('account.created', 'Creation Date'),
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      sorter: true,
-      sortOrder: getSortOrder('createdAt'),
-      render: (_: any, record: Account) => {
-        if (!record.createdAt) return '-';
-        return (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiCalendar size={16} className="gba:text-gray-400" />
-            <span className="gba:text-sm">
-              {dayjs(record.createdAt).format('MMM DD, YYYY')}
-            </span>
-          </div>
-        );
-      },
-      width: '15%',
-    },
-    {
-      title: t('account.owner', 'Owner'),
-      dataIndex: 'ownerEmployeeId',
-      key: 'ownerEmployeeId',
-      sorter: true,
-      sortOrder: getSortOrder('ownerEmployeeId'),
-      render: (_: any, record: Account) => {
-        const ownerName = getOwnerName(record);
-        const pictureThumbnail = record.ownerEmployee?.pictureThumbnail;
-        
-        const initialsValue = !pictureThumbnail
-          ? (ownerName !== '-' ? ownerName.split(' ').map(n => n[0]).join('').toUpperCase() : 'U')
-          : undefined;
+  // Helper function to handle column sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Cycle through: ASC -> DESC -> clear
+      if (sortOrder === 'ASC') {
+        onSortingChange(field, 'DESC');
+      } else if (sortOrder === 'DESC') {
+        onSortingChange('', '');
+      } else {
+        onSortingChange(field, 'ASC');
+      }
+    } else {
+      onSortingChange(field, 'ASC');
+    }
+  };
 
-        const avatarSrcValue = pictureThumbnail
-          ? `data:image/gif;base64,${pictureThumbnail}`
-          : undefined;
-
-        const avatarContentTypeValue = pictureThumbnail ? 'image' : 'initials';
-        
-        return (
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <Avatar
-              src={avatarSrcValue}
-              initials={initialsValue}
-              // @ts-ignore - Type issue in gravity-ui-catalog
-              contentType={avatarContentTypeValue}
-              alt={ownerName}
-              // @ts-ignore - Type issue in gravity-ui-catalog
-              size="sm"
-              // @ts-ignore - Type issue in gravity-ui-catalog
-              shape="circle"
-              // @ts-ignore - Type issue in gravity-ui-catalog
-              appearance="gradient"
-            />
-            <div className="gba:flex gba:flex-col">
-              <span className="gba:font-medium gba:text-sm">{ownerName}</span>
-            </div>
-          </div>
-        );
-      },
-      width: '20%',
-    },
-    {
-      title: t('account.type', 'Type'),
-      dataIndex: 'typeRef',
-      key: 'typeRef',
-      sorter: true,
-      sortOrder: getSortOrder('typeRef'),
-      render: (_: any, record: Account) => {
-        const type = record.type?.value || '-';
-        
-        return (
-          <Tag 
-            color={getTypeColor(type)}
-            className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center"
-          >
-            {type}
-          </Tag>
-        );
-      },
-      width: '12%',
-    },
-    {
-      title: t('account.industry', 'Industry'),
-      dataIndex: 'industryRef',
-      key: 'industryRef',
-      sorter: true,
-      sortOrder: getSortOrder('industryRef'),
-      render: (_: any, record: Account) => {
-        const industry = record.industry?.value || '-';
-        
-        return (
-          <Tag 
-            color={getIndustryColor(industry)}
-            className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center"
-          >
-            {industry}
-          </Tag>
-        );
-      },
-      width: '13%',
-    },
-  ];
+  // Helper function to render sort icon
+  const renderSortIcon = (field: string) => {
+    if (sortField !== field) return null;
+    if (sortOrder === 'ASC') return <PiCaretUp className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'DESC') return <PiCaretDown className="gba:inline gba:ml-1" size={12} />;
+    return null;
+  };
 
   // Show error state
   if (error) {
@@ -352,7 +151,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
           {error.message}
         </div>
         <Button
-          variant="primary"
+          variant="default"
           onClick={retry}
           data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
         >
@@ -364,41 +163,228 @@ export const AccountTable: React.FC<AccountTableProps> = ({
 
   return (
     <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-      <DataTable
-        columns={columns}
-        dataSource={accounts}
-        loading={loading}
-        pagination={{
-          current: currentPage,
-          pageSize: pageSize,
-          total: total,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => 
-            `${range[0]}-${range[1]} of ${total} accounts`,
-          pageSizeOptions: ['10', '20', '50', '100'],
-        }}
-        sorter={
-          // Only set sorter if we have an active sort field and order
-          sortField && sortOrder 
-            ? {
-                field: sortField,
-                order: sortOrder === 'ASC' ? 'ascend' : 'descend'
-              }
-            : undefined
-        }
-        onChange={handleTableChange}
-        onSorterChange={handleSorterChange}
-        rowKey="id"
-        onRow={(record) => ({
-          onClick: () => handleRowClick(record as Account),
-          className: selectedAccountId === (record as Account).id ? 'gba:bg-blue-50' : '',
-          style: { cursor: 'pointer' }
-        })}
-        scroll={{ x: 1200 }}
-        size="middle"
-        data-testid={`${DATA_TEST_ID_PREFIX}-table`}
-      />
+      {loading && (
+        <div className="gba:flex gba:justify-center gba:p-4">
+          <Spinner />
+        </div>
+      )}
+      
+      <div className="gba:overflow-x-auto">
+        <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="gba:w-[60px]"></TableHead>
+              <TableHead 
+                className="gba:w-[25%] gba:cursor-pointer gba:hover:bg-gray-50"
+                onClick={() => handleSort('name')}
+              >
+                {t('account.company', 'Company')}
+                {renderSortIcon('name')}
+              </TableHead>
+              <TableHead className="gba:w-[20%]">
+                {t('account.contact', 'Contact Info')}
+              </TableHead>
+              <TableHead 
+                className="gba:w-[15%] gba:cursor-pointer gba:hover:bg-gray-50"
+                onClick={() => handleSort('createdAt')}
+              >
+                {t('account.created', 'Creation Date')}
+                {renderSortIcon('createdAt')}
+              </TableHead>
+              <TableHead 
+                className="gba:w-[20%] gba:cursor-pointer gba:hover:bg-gray-50"
+                onClick={() => handleSort('ownerEmployeeId')}
+              >
+                {t('account.owner', 'Owner')}
+                {renderSortIcon('ownerEmployeeId')}
+              </TableHead>
+              <TableHead 
+                className="gba:w-[12%] gba:cursor-pointer gba:hover:bg-gray-50"
+                onClick={() => handleSort('typeRef')}
+              >
+                {t('account.type', 'Type')}
+                {renderSortIcon('typeRef')}
+              </TableHead>
+              <TableHead 
+                className="gba:w-[13%] gba:cursor-pointer gba:hover:bg-gray-50"
+                onClick={() => handleSort('industryRef')}
+              >
+                {t('account.industry', 'Industry')}
+                {renderSortIcon('industryRef')}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {accounts.map((record) => (
+              <TableRow 
+                key={record.id}
+                className={`gba:hover:bg-gray-50 ${selectedAccountId === record.id ? 'gba:bg-blue-50' : ''}`}
+              >
+                <TableCell>
+                  <div className="gba:flex gba:justify-start gba:gap-2">
+                    <AppActionButton
+                      data-testid={`${DATA_TEST_ID_PREFIX}-update-account-button-${record.id}`}
+                      variant="secondary"
+                      contextsArray={[FlowContextName.accountEntity]}
+                      externalContextData={{
+                        accountId: record.id
+                      }}
+                      prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-account`}
+                      accessToken={accessToken}
+                      emptyStateBehavior="disable"
+                      deferMainContextRequestsUntilClick
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div 
+                    className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRowClick(record);
+                    }}
+                  >
+                    <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:bg-blue-100 gba:rounded-full">
+                      <PiBuilding size={20} className="gba:text-blue-600" />
+                    </div>
+                    <div className="gba:flex gba:flex-col">
+                      <span className="gba:font-medium gba:text-sm">{record.name || '-'}</span>
+                      {record.website && (
+                        <span className="gba:text-xs gba:text-gray-500">{record.website}</span>
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="gba:space-y-1">
+                    {record.email && (
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiEnvelope size={14} className="gba:text-gray-400" />
+                        <span className="gba:text-sm">{record.email}</span>
+                      </div>
+                    )}
+                    {record.phone && (
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiPhone size={14} className="gba:text-gray-400" />
+                        <span className="gba:text-sm">{record.phone}</span>
+                      </div>
+                    )}
+                    {!record.email && !record.phone && (
+                      <span className="gba:text-gray-400">-</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {record.createdAt ? (
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <PiCalendar size={16} className="gba:text-gray-400" />
+                      <span className="gba:text-sm">
+                        {dayjs(record.createdAt).format('MMM DD, YYYY')}
+                      </span>
+                    </div>
+                  ) : (
+                    '-'
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    <Avatar size="sm">
+                      {record.ownerEmployee?.pictureThumbnail && (
+                        <AvatarImage 
+                          src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`} 
+                          alt={getOwnerName(record)} 
+                        />
+                      )}
+                      <AvatarFallback>
+                        {getOwnerName(record) !== '-' 
+                          ? getOwnerName(record).split(' ').map(n => n[0]).join('').toUpperCase()
+                          : 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="gba:flex gba:flex-col">
+                      <span className="gba:font-medium gba:text-sm">{getOwnerName(record)}</span>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center">
+                    {record.type?.value || '-'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center">
+                    {record.industry?.value || '-'}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination */}
+      <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4">
+        <div className="gba:text-sm gba:text-muted-foreground">
+          {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} accounts`}
+        </div>
+        <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+          <div className="gba:flex gba:items-center gba:space-x-2">
+            <p className="gba:text-sm gba:font-medium">Rows per page</p>
+            <select
+              value={pageSize}
+              onChange={(e) => onPaginationChange(1, Number(e.target.value))}
+              className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+          <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
+            Page {currentPage} of {Math.ceil(total / pageSize)}
+          </div>
+          <div className="gba:flex gba:items-center gba:space-x-2">
+            <Button
+              variant="outline"
+              className="gba:h-8 gba:w-8 gba:p-0"
+              onClick={() => onPaginationChange(1)}
+              disabled={currentPage === 1}
+            >
+              <span className="gba:sr-only">Go to first page</span>
+              ⟨⟨
+            </Button>
+            <Button
+              variant="outline"
+              className="gba:h-8 gba:w-8 gba:p-0"
+              onClick={() => onPaginationChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              <span className="gba:sr-only">Go to previous page</span>
+              ⟨
+            </Button>
+            <Button
+              variant="outline"
+              className="gba:h-8 gba:w-8 gba:p-0"
+              onClick={() => onPaginationChange(currentPage + 1)}
+              disabled={currentPage >= Math.ceil(total / pageSize)}
+            >
+              <span className="gba:sr-only">Go to next page</span>
+              ⟩
+            </Button>
+            <Button
+              variant="outline"
+              className="gba:h-8 gba:w-8 gba:p-0"
+              onClick={() => onPaginationChange(Math.ceil(total / pageSize))}
+              disabled={currentPage >= Math.ceil(total / pageSize)}
+            >
+              <span className="gba:sr-only">Go to last page</span>
+              ⟩⟩
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }; 

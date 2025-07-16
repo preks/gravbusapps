@@ -32,13 +32,6 @@ export interface Contact {
   updatedAt?: string;
 }
 
-export interface ContactStatisticsData {
-  recentContacts: number;
-  activeContacts: number;
-  totalEmailEngagements: number;
-  totalContactsThisYear: number;
-}
-
 export interface UseContactListDataReturn {
   contacts: Contact[];
   total: number;
@@ -48,11 +41,4 @@ export interface UseContactListDataReturn {
   loadMore: () => void;
   loadPage: (page: number, pageSize?: number, additionalFilters?: any) => Promise<void>;
   retry: () => void;
-}
-
-export interface UseContactStatisticsReturn {
-  statistics: ContactStatisticsData;
-  isLoading: boolean;
-  error: Error | null;
-  refetch: () => void;
 } 

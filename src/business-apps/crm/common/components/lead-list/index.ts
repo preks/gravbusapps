@@ -1,20 +1,7 @@
-// Main component
-export { default } from './LeadList';
-export { LeadList } from './LeadList';
-export type { LeadListProps } from './LeadList';
-
-// Table component
+export { default as LeadList } from './LeadList';
 export { LeadTable } from './components/LeadTable';
-
-// Hooks
+export { LeadStatisticsWithTrend } from './components/LeadStatistics';
 export { useLeadListData } from './hooks/useLeadListData';
-
-// Queries
-export { useGetLeadsData, GET_LEADS_QUERY } from './queries/LeadQueries';
-
-// Types
-export type { 
-  Lead, 
-  LeadQueryVariables, 
-  LeadListResponse 
-} from './types'; 
+export { useLeadStatisticsWithTrend } from './hooks/useLeadStatisticsWithTrend';
+export { useLeadFilters } from './hooks/useLeadFilters';
+export type { Lead } from './types'; 
