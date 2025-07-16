@@ -2,28 +2,11 @@
 // This query is specifically for the Expense Plans tab in the main view, not for analytics
 export const GET_MAIN_VIEW_EXPENSE_PLANS = `
   query GetMainViewExpensePlans(
-    $managerId: uuid!,
+    $where: ExpensePlanBoolExp,
     $limit: Int!,
-    $offset: Int!,
-    $searchTerm: String,
-    $status: String
+    $offset: Int!
   ) {
-    ExpensePlanAggregate(
-      where: {
-        employee: {
-          employeePosition: {
-            supervisorEmployeeId: {_eq: $managerId}
-          }
-        },
-        isDeleted: {_eq: false},
-        status: {_eq: $status},
-        _or: [
-          {code: {_ilike: $searchTerm}},
-          {title: {_ilike: $searchTerm}},
-          {employee: {fullName: {_ilike: $searchTerm}}}
-        ]
-      }
-    ) {
+    ExpensePlanAggregate(where: $where) {
       aggregate {
         count
       }
@@ -32,20 +15,7 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
       limit: $limit,
       offset: $offset,
       orderBy: {planDate: DESC},
-      where: {
-        employee: {
-          employeePosition: {
-            supervisorEmployeeId: {_eq: $managerId}
-          }
-        },
-        isDeleted: {_eq: false},
-        status: {_eq: $status},
-        _or: [
-          {code: {_ilike: $searchTerm}},
-          {title: {_ilike: $searchTerm}},
-          {employee: {fullName: {_ilike: $searchTerm}}}
-        ]
-      }
+      where: $where
     ) {
       id
       code
@@ -56,6 +26,7 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
       endDate
       planDate
       totalAmount
+      currencyRef
       createdAt
       updatedAt
       status

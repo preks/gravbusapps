@@ -32,12 +32,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   const { accessToken, userInfo } = props;
 
   // State for filter and search
-  const [activeFilter, setActiveFilter] = useState<ExpenseStatus | null>(null);
+  const [activeFilter, setActiveFilter] = useState<ExpenseStatus[] | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedPlan, setSelectedPlan] = useState<ExpensePlan | null>(null);
 
   // Handle filter change from child components
-  const handleFilterChange = useCallback((filter: ExpenseStatus | null) => {
+  const handleFilterChange = useCallback((filter: ExpenseStatus[] | null) => {
     console.log('Filter changed to:', filter);
     setActiveFilter(filter);
   }, []);
@@ -83,12 +83,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   const contextProps = useMemo(() => ({
     accessToken: props.accessToken,
     userInfo: props.userInfo,
-    activeFilter,
-    onFilterChange: handleFilterChange,
     search: searchTerm,
     onSearchChange: handleSearchChange,
     onClearFilters: clearAllFilters
-  }), [props.accessToken, props.userInfo, activeFilter, searchTerm, handleFilterChange, handleSearchChange, clearAllFilters]);
+  }), [props.accessToken, props.userInfo, searchTerm, handleSearchChange, clearAllFilters]);
 
   // Use the new main view hook for expense plans
   const {
@@ -129,21 +127,34 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       id: 'status',
       title: 'Status',
       filters: [
-        { id: 'PENDING', label: 'Pending', selected: activeFilter === ExpenseStatus.PENDING },
-        { id: 'APPROVED', label: 'Approved', selected: activeFilter === ExpenseStatus.APPROVED },
-        { id: 'REJECTED', label: 'Rejected', selected: activeFilter === ExpenseStatus.REJECTED },
-        { id: 'CREATED', label: 'Created', selected: activeFilter === ExpenseStatus.CREATED },
-        { id: 'CLOSED', label: 'Closed', selected: activeFilter === ExpenseStatus.CLOSED },
+        { id: 'CREATED', label: 'Draft', selected: activeFilter?.includes(ExpenseStatus.CREATED) || false },
+        { id: 'PENDING', label: 'Approval Required', selected: activeFilter?.includes(ExpenseStatus.PENDING) || false },
+        { id: 'REJECTED', label: 'Revision Required', selected: activeFilter?.includes(ExpenseStatus.REJECTED) || false },
+        { id: 'APPROVED', label: 'Approved', selected: activeFilter?.includes(ExpenseStatus.APPROVED) || false },
+        { id: 'ASSIGNED', label: 'Assigned', selected: activeFilter?.includes(ExpenseStatus.ASSIGNED) || false },
+        { id: 'BOOKED', label: 'In Transit (Booked)', selected: activeFilter?.includes(ExpenseStatus.BOOKED) || false },
+        { id: 'VERIFIED', label: 'In Transit (Verified)', selected: activeFilter?.includes(ExpenseStatus.VERIFIED) || false },
+        { id: 'CLOSED', label: 'Closed', selected: activeFilter?.includes(ExpenseStatus.CLOSED) || false },
       ]
     }
   ], [activeFilter]);
 
   // Handle filter changes from DataFilter
   const handleDataFilterChange = useCallback((filterId: string, selected: boolean) => {
+    if (filterId === 'all_statuses') {
+      setActiveFilter(selected ? [] : null);
+      return;
+    }
+
     if (selected) {
-      setActiveFilter(filterId as ExpenseStatus);
+      // Add the status to the filter array
+      setActiveFilter(prev => [...(prev || []), filterId as ExpenseStatus]);
     } else {
-      setActiveFilter(null);
+      // Remove the status from the filter array
+      setActiveFilter(prev => {
+        const newFilter = (prev || []).filter(status => status !== filterId);
+        return newFilter.length === 0 ? null : newFilter;
+      });
     }
   }, []);
 
@@ -177,9 +188,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
             search: searchTerm,
             setSearch: handleSearchChange,
             debounceDelay: 500,
-            filter: activeFilter ? [activeFilter] : [],
+            filter: activeFilter || [],
             setFilter: handleSetFilter,
-            filterLabelMap: { [activeFilter || '']: activeFilter || '' },
+            filterLabelMap: activeFilter ? activeFilter.reduce((acc, status) => ({ ...acc, [status]: status }), {}) : {},
             listTitle: (
               <div className="gba:flex gba:items-center gba:gap-4">
                 <div className="gba:flex gba:items-center gba:gap-2">

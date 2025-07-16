@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
   GET_EXPENSE_REQUESTS_BY_MANAGER, 
+  GET_MAIN_VIEW_EXPENSE_REQUESTS,
   APPROVE_EXPENSE_REQUEST,
   REJECT_EXPENSE_REQUEST,
-  GET_EXPENSE_REQUEST_STATISTICS
+  GET_EXPENSE_REQUEST_STATISTICS 
 } from '../queries/expenseRequests';
 import { env } from '@/common/env/EnvUtils';
 
@@ -18,9 +19,10 @@ export interface ExpenseRequest {
   title: string;
   description?: string;
   requestDate?: string;
-  startDate?: string;
-  endDate?: string;
+  startDate?: string | null;
+  endDate?: string | null;
   amount: number;
+  currency: string;
   status: string;
   attachments?: {
     fileUrl: string;
@@ -57,7 +59,7 @@ export interface ExpenseRequestsResult {
     page?: number, 
     pageSize?: number, 
     employeeId?: string,
-    status?: string,
+    status?: string[],
     requestDateStart?: string
   ) => Promise<void>;
   approveRequest: (requestId: string) => Promise<boolean>;
@@ -82,79 +84,56 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
   const [requestStatsLoading, setRequestStatsLoading] = useState<boolean>(false);
   const [requestStatsError, setRequestStatsError] = useState<string | null>(null);
 
-  // Use the real manager ID from userInfo with a fallback UUID for development
-  const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId || userInfo?.id || '00000000-0000-0000-0000-000000000000';
-
-  /**
-   * Helper function to build GraphQL variables for the query
-   */
-  const buildQueryVariables = (
-    managerId: string,
-    searchTerm: string,
-    page: number,
-    pageSize: number,
-    employeeId?: string,
-    status?: string,
-    requestDateStart?: string
-  ) => {
-    const offset = (page - 1) * pageSize;
-
-    const where: any = {
-      _and: [
-        { status: { _neq: 'DISCARDED' } },
-        { employee: { employeePosition: { supervisorEmployeeId: { _eq: managerId } } } },
-        { isDeleted: { _eq: false } },
-      ],
-    };
-
-    if (status && status.toUpperCase() !== 'ALL') {
-      where._and.push({ status: { _eq: status.toUpperCase() } });
-    }
-
-    if (requestDateStart) {
-      where._and.push({ requestDate: { _gte: requestDateStart } });
-    }
-
-    if (searchTerm) {
-      const formattedSearchTerm = `%${searchTerm}%`;
-      where._and.push({
-        _or: [
-          { code: { _ilike: formattedSearchTerm } },
-          { title: { _ilike: formattedSearchTerm } },
-          { employee: { fullName: { _ilike: formattedSearchTerm } } },
-        ],
-      });
-    }
-    
-    if (employeeId && employeeId !== 'all') {
-        where._and.push({ employee: { id: { _eq: employeeId } } });
-    }
-
-    return {
-      where,
-      limit: pageSize,
-      offset: offset,
-    };
-  };
+  // Get supervisor employee ID from user info
+  const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
+  
+  console.log('useGetExpenseRequests - supervisorEmployeeId:', supervisorEmployeeId);
+  console.log('useGetExpenseRequests - userInfo:', userInfo);
 
   /**
    * Helper function to map API response to ExpenseRequest objects
    */
   const mapResponseToRequests = (data: any): ExpenseRequest[] => {
     const fetchedRequests = data?.ExpenseRequest ?? [];
-    return fetchedRequests.map((request: any) => ({
-      id: request.id,
-      code: request.code,
-      title: request.title ?? 'Untitled Request',
-      description: request.description,
-      requestDate: request.requestDate ? new Date(request.requestDate).toISOString().split('T')[0] : 'N/A',
-      totalAmount: request.totalAmount ?? 0,
-      status: request.status ?? 'PENDING',
-      attachments: request.attachments,
-      employee: request.employee,
-      startDate: request.startDate,
-      endDate: request.endDate,
-    }));
+    console.log('Raw API data received:', data);
+    console.log('Number of requests:', fetchedRequests.length);
+    
+    return fetchedRequests.map((request: any, index: number) => {
+      console.log(`Request ${index + 1} raw data:`, {
+        id: request.id,
+        startDate: request.startDate,
+        endDate: request.endDate,
+        requestDate: request.requestDate,
+        startDateType: typeof request.startDate,
+        endDateType: typeof request.endDate,
+        requestDateType: typeof request.requestDate
+      });
+      
+      return {
+        id: request.id,
+        code: request.code,
+        title: request.title ?? 'Untitled Request',
+        description: request.description,
+        requestDate: request.requestDate,
+        amount: request.totalAmount ?? 0,
+        currency: request.currencyRef ? request.currencyRef.replace('Currency:v1:', '') : 'EUR',
+        status: request.status ?? 'PENDING',
+        attachments: request.employeeDocument ? [{
+          fileUrl: request.employeeDocument.file,
+          fileName: request.employeeDocument.name
+        }] : [],
+        employee: request.employee ? {
+          id: request.employee.id,
+          displayName: request.employee.displayName,
+          fullName: request.employee.fullName,
+          department: request.employee.employeePosition?.organizationalUnit?.name, // Extract department from nested structure
+          pictureThumbnail: request.employee.pictureThumbnail,
+          additionalProperties: request.employee.additionalProperties
+        } : undefined,
+        startDate: request.startDate,
+        endDate: request.endDate,
+      };
+    });
   };
   
   // Function to fetch requests with search, pagination, and filtering
@@ -163,7 +142,7 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     page: number = 1, 
     pageSize: number = 10, 
     employeeId: string = 'all', 
-    status: string = 'all',
+    status: string[] = [],
     requestDateStart?: string
   ) => {
     if (!accessToken) {
@@ -178,7 +157,8 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
       page,
       pageSize,
       employeeId,
-      status
+      status,
+      query: GET_EXPENSE_REQUESTS_BY_MANAGER.substring(0, 100) + '...' // Log first 100 chars of query
     });
     
 
@@ -186,8 +166,81 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     setError(null);
     
     try {
-      // Build query variables with helper function
-      const variables = buildQueryVariables(supervisorEmployeeId, searchTerm, page, pageSize, employeeId, status, requestDateStart);
+      const searchValue = searchTerm ? `%${searchTerm}%` : '%%'; 
+      const offset = (page - 1) * pageSize;
+      
+      // Build the where clause for filtering
+      const whereClause: any = {
+        employee: {
+          employeePosition: {
+            supervisorEmployeeId: { _eq: supervisorEmployeeId }
+          }
+        },
+        isDeleted: { _eq: false }
+      };
+
+      // Add search functionality
+      if (searchTerm && searchTerm.trim() !== '') {
+        whereClause._or = [
+          { code: { _ilike: searchValue } },
+          { title: { _ilike: searchValue } },
+          { employee: { fullName: { _ilike: searchValue } } }
+        ];
+      }
+
+      // Add status filter
+      if (status && status.length > 0) {
+        console.log('Hook received status array:', status);
+        
+        // Map filter values to actual database status values
+        const mappedStatuses = status.map(statusValue => {
+          let actualStatus = statusValue;
+          
+          // Map filter values to actual database status values for expense requests
+          if (statusValue === 'draft') {
+            actualStatus = 'CREATED';
+          } else if (statusValue === 'in_approval') {
+            actualStatus = 'PENDING';
+          } else if (statusValue === 'verification_required' || statusValue === 'approved') {
+            actualStatus = 'APPROVED';
+          } else if (statusValue === 'revision_required') {
+            actualStatus = 'REJECTED'; // Changed from RETURNED to REJECTED
+          } else if (statusValue === 'booking_required' || statusValue === 'verified') {
+            actualStatus = 'VERIFIED';
+          } else if (statusValue === 'transfer_required' || statusValue === 'booked') {
+            actualStatus = 'BOOKED';
+          } else if (statusValue === 'payment_required' || statusValue === 'transferred') {
+            actualStatus = 'TRANSFERRED';
+          } else if (statusValue === 'paid') {
+            actualStatus = 'PAID';
+          } else if (statusValue === 'closed') {
+            actualStatus = 'CLOSED';
+          }
+          
+          // If the status is already a valid ExpenseStatus enum value for expense requests, use it as is
+          const validStatuses = [
+            'CREATED', 'PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 
+            'TRANSFERRED', 'PAID', 'CLOSED', 'RETURNED', 'REJECTED'
+          ];
+          
+          if (validStatuses.includes(statusValue.toUpperCase())) {
+            actualStatus = statusValue.toUpperCase();
+          }
+          
+          return actualStatus;
+        });
+        
+        console.log('Mapped statuses:', mappedStatuses);
+        whereClause.status = { _in: mappedStatuses };
+      }
+
+      const variables = {
+        where: whereClause,
+        limit: pageSize,
+        offset
+      };
+      
+      console.log('GraphQL variables being sent:', variables);
       
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
@@ -212,10 +265,12 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
         throw new Error(result.errors.map((e: any) => e.message).join(', '));
       }
       
+      console.log('Full GraphQL response:', result);
+      console.log('GraphQL data:', result.data);
       console.log('Expense requests data received:', {
         requestsCount: result.data.ExpenseRequest?.length,
         totalCount: result.data.ExpenseRequestAggregate?.aggregate?.count,
-        variables: variables
+        fullResponse: result.data // Log the full response
       });
       
       // Get total count from aggregate query

@@ -4,6 +4,7 @@ import { ExpensePlanStatistics } from '../../../hooks/useGetExpensePlans'; // As
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { formatNumberFunction } from '@/common/utils/windowUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrency } from '../../../utils/currencyUtils';
 // Local definition of ExpenseStatus
 enum ExpenseStatus {
   PREPARED = "PREPARED",
@@ -65,9 +66,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'pending-amount',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_amount', 'Pending Amount'),
-        value: planStats.pendingAmount ? formatNumberFunction(planStats.pendingAmount.toString(), "0.00[,]00") : '0,00',
+        value: planStats.pendingAmount ? formatCurrency(planStats.pendingAmount, 'EUR') : 'EUR 0,00',
         prefix: <PiCurrencyEur />,
-        suffix: '€',
         color: '#faad14',
         valueIsString: true,
         span: { xs: 24, sm: 6 },
@@ -85,9 +85,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'total-amount',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.total_amount_submitted', 'Total Amount (Submitted)'),
-        value: planStats.sumTotalAmount ? formatNumberFunction(planStats.sumTotalAmount.toString(), "0.00[,]00") : '0,00',
+        value: planStats.sumTotalAmount ? formatCurrency(planStats.sumTotalAmount, 'EUR') : 'EUR 0,00',
         prefix: <PiCurrencyEur />,
-        suffix: '€',
         color: '#3f8600',
         valueIsString: true,
         span: { xs: 24, sm: 6 },

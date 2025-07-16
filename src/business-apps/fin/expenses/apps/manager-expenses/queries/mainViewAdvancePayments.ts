@@ -64,13 +64,16 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
       description
       status
       amount
+      currencyRef
       createdAt
       updatedAt
       expensePlan {
         id
+        code
         title
         startDate
         endDate
+        currencyRef
         employee {
           id
           displayName

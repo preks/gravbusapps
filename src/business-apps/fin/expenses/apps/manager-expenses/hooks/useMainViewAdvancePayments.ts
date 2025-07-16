@@ -13,13 +13,16 @@ export interface AdvancePayment {
   description: string | null;
   status: string;
   amount: number;
+  currency: string;
   createdAt: string;
   updatedAt: string;
   expensePlan: {
     id: string;
+    code: string;
     title: string;
     startDate: string;
     endDate: string;
+    currency: string;
     employee: {
       id: string;
       displayName?: string;
@@ -40,7 +43,10 @@ export interface AdvancePayment {
 }
 
 export interface AdvancePaymentResponse {
-  AdvancePayment: AdvancePayment[];
+  AdvancePayment: (AdvancePayment & { 
+    currencyRef?: string;
+    expensePlan: AdvancePayment['expensePlan'] & { currencyRef?: string };
+  })[];
   AdvancePaymentAggregate: {
     aggregate: {
       count: number;
@@ -163,6 +169,16 @@ export const useMainViewAdvancePayments = ({
       
       // Apply client-side filtering for employee if needed
       let filteredPayments = data.AdvancePayment;
+      
+      // Map currency information from currencyRef fields
+      filteredPayments = filteredPayments.map(payment => ({
+        ...payment,
+        currency: payment.currencyRef ? payment.currencyRef.replace('Currency:v1:', '') : 'EUR',
+        expensePlan: {
+          ...payment.expensePlan,
+          currency: payment.expensePlan.currencyRef ? payment.expensePlan.currencyRef.replace('Currency:v1:', '') : 'EUR'
+        }
+      }));
       
       // Filter by employee if specified
       if (employeeFilter) {

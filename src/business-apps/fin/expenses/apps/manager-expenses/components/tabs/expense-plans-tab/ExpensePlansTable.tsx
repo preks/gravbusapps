@@ -36,14 +36,16 @@ import { useMainViewExpensePlans, ExpensePlan } from '../../../hooks/useMainView
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters';
 import { getExpensePlanStatusDisplay, ExpenseStatus } from '../../../utils';
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatAmount } from '../../../utils/currencyUtils';
+import { formatAmount, formatCurrency } from '../../../utils/currencyUtils';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 interface ExpensePlansTableProps extends BusinessAppContextProps {
   search?: string;
   onSearchChange?: (search: string) => void;
   employeeId?: string;
-  activeFilter?: ExpenseStatus | null;
-  onFilterChange?: (filter: ExpenseStatus | null) => void;
+  activeFilter?: ExpenseStatus[] | null;
+  onFilterChange?: (filter: ExpenseStatus[] | null) => void;
   onClearFilters?: () => void;
   onViewDetails?: (plan: ExpensePlan) => void;
 }
@@ -71,17 +73,17 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     filterLabelMap,
   } = useExpensePlanFilters();
 
-  // Sync activeFilter prop with statusFilter state on initial load
+  // Sync activeFilter prop with statusFilter state
   useEffect(() => {
-    if (props.activeFilter !== undefined && statusFilter === null) {
-      console.log('Initial sync of statusFilter from props:', props.activeFilter);
-      setStatusFilter(props.activeFilter);
+    if (props.activeFilter !== undefined) {
+      console.log('Syncing statusFilter from props:', props.activeFilter);
+      setStatusFilter(props.activeFilter || []);
     }
   }, [props.activeFilter]);
 
   // Only update statusFilter when it's different from the prop and not a direct user action
   const isFilterControlled = props.activeFilter !== undefined;
-  const currentStatusFilter = isFilterControlled ? props.activeFilter : statusFilter;
+  const currentStatusFilter = isFilterControlled ? (props.activeFilter || []) : statusFilter;
   
   // Handle clearing all filters
   const handleClearFilters = useCallback(() => {
@@ -99,7 +101,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
         props.onFilterChange(null);
       }
     } else {
-      setStatusFilter(null);
+      setStatusFilter([]);
     }
     
     // Reset all filter states and ensure 'All Statuses' is checked
@@ -120,12 +122,28 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
 
   // Handle filter changes and notify parent
   const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
-    const newFilter = isSelected ? filterId as ExpenseStatus : null;
-    console.log('Filter changed:', { filterId, isSelected, newFilter });
+    console.log('Filter changed:', { filterId, isSelected, isFilterControlled });
+    
+    let newFilter: ExpenseStatus[] | null = null;
+    
+    if (filterId === 'all_statuses') {
+      newFilter = isSelected ? [] : null;
+    } else if (isSelected) {
+      // Add the status to the current filter array
+      const currentFilters = currentStatusFilter || [];
+      newFilter = [...currentFilters, filterId as ExpenseStatus];
+    } else {
+      // Remove the status from the current filter array
+      const currentFilters = currentStatusFilter || [];
+      newFilter = currentFilters.filter(status => status !== filterId);
+      if (newFilter.length === 0) {
+        newFilter = null;
+      }
+    }
     
     // Update local state if not controlled
     if (!isFilterControlled) {
-      setStatusFilter(newFilter);
+      setStatusFilter(newFilter || []);
     }
     
     // Always notify parent
@@ -137,11 +155,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     if (originalHandleDataFilterChange) {
       originalHandleDataFilterChange(filterId, isSelected);
     }
-  }, [originalHandleDataFilterChange, props.onFilterChange, isFilterControlled]);
+  }, [originalHandleDataFilterChange, props.onFilterChange, isFilterControlled, currentStatusFilter]);
   
   // Check if any filters are active
   const hasActiveFilters = useMemo(() => {
-    return searchTerm || currentStatusFilter !== null;
+    return searchTerm || (currentStatusFilter && currentStatusFilter.length > 0);
   }, [searchTerm, currentStatusFilter]);
 
   // Synchronize search from parent if provided
@@ -159,6 +177,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   const [isApproveModalVisible, setIsApproveModalVisible] = useState<boolean>(false);
   const [currentActionPlanId, setCurrentActionPlanId] = useState<string>('');
 
+  // Debug logging for currentStatusFilter
+  console.log('ExpensePlansTable - currentStatusFilter:', currentStatusFilter, 'statusFilter:', statusFilter, 'props.activeFilter:', props.activeFilter);
+
   // Get expense plans data and functions
   const {
     plans,
@@ -175,7 +196,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     ...contextProps,
     pageSize,
     searchTerm: debouncedSearchTerm,
-    currentStatusFilter: statusFilter,
+    currentStatusFilter: currentStatusFilter,
   });
 
   // Notify parent of search changes if callback exists
@@ -235,7 +256,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   }, [rejectPlan, currentActionPlanId, rejectReason]);
 
   const handleApprovePlan = useCallback((planId: string) => {
-    showApproveModal(planId);
+      showApproveModal(planId);
   }, [showApproveModal]);
 
   const handleRejectPlan = useCallback((planId: string) => {
@@ -254,7 +275,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
 
   // Show error state
   if (error) {
-    return (
+        return (
       <div 
         className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
         data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
@@ -265,20 +286,20 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
         <div className="gba:text-gray-600 gba:mb-4">
           {error.message}
         </div>
-        <Button
+          <Button
           variant="default"
           onClick={() => window.location.reload()}
           data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
         >
           Retry
         </Button>
-      </div>
+              </div>
     );
   }
 
   // Show loading state
   if (isLoading && !plans.length) {
-    return (
+        return (
       <div className="gba:flex gba:justify-center gba:p-8">
         <Spinner />
       </div>
@@ -306,11 +327,21 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
         <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
           <TableHeader>
             <TableRow>
-              <TableHead className="gba:w-[300px]">
+              <TableHead className="gba:w-[60px]"></TableHead>
+              <TableHead className="gba:w-[200px]">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.plan_info_pl', 'Plans')}
+              </TableHead>
+              <TableHead className="gba:w-[120px]">
+                Start Date
+              </TableHead>
+              <TableHead className="gba:w-[120px]">
+                End Date
               </TableHead>
               <TableHead className="gba:w-[200px]">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+              </TableHead>
+              <TableHead className="gba:w-[120px]">
+                Creation Date
               </TableHead>
               <TableHead className="gba:w-[150px] gba:text-right">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount')}
@@ -318,7 +349,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
               <TableHead className="gba:w-[150px]">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}
               </TableHead>
-              <TableHead className="gba:w-[120px] gba:text-right">Actions</TableHead>
+
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -331,15 +362,46 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   className="gba:cursor-pointer gba:hover:bg-gray-50"
                   onClick={() => handleViewDetails(plan)}
                 >
-                  <TableCell className="gba:text-left">
-                    <div>
-                      <div className="gba:font-medium gba:text-sm">{plan.title}</div>
-                      {plan.startDate && plan.endDate && (
-                        <div className="gba:text-xs gba:text-gray-500">
-                          {new Date(plan.startDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })} - {new Date(plan.endDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}
-                        </div>
-                      )}
+                  <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}>
+                    <div className="gba:flex gba:justify-start gba:gap-2">
+                      <AppActionButton
+                        data-testid={`${DATA_TEST_ID_PREFIX}-update-plan-button-${plan.id}`}
+                        variant="secondary"
+                        contextsArray={[FlowContextName.leadEntity]}
+                        externalContextData={{
+                          planId: plan.id
+                        }}
+                        prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-plan`}
+                        accessToken={props.accessToken}
+                        emptyStateBehavior="disable"
+                        deferMainContextRequestsUntilClick
+                        onClick={(e) => e.stopPropagation()}
+                      />
                     </div>
+                  </TableCell>
+                  <TableCell className="gba:text-left">
+                    <div className="gba:font-medium gba:text-sm">{plan.title}</div>
+                    <div className="gba:text-xs gba:text-gray-500">{plan.code}</div>
+                  </TableCell>
+                  <TableCell className="gba:text-sm">
+                    {plan.startDate ? (() => {
+                      try {
+                        const date = new Date(plan.startDate);
+                        return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+                      } catch (error) {
+                        return 'N/A';
+                      }
+                    })() : 'N/A'}
+                  </TableCell>
+                  <TableCell className="gba:text-sm">
+                    {plan.endDate ? (() => {
+                      try {
+                        const date = new Date(plan.endDate);
+                        return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+                      } catch (error) {
+                        return 'N/A';
+                      }
+                    })() : 'N/A'}
                   </TableCell>
                   <TableCell>
                     <div className="gba:flex gba:items-center gba:gap-2">
@@ -355,126 +417,23 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                       <span className="gba:font-medium gba:text-sm">{plan.employee?.displayName}</span>
                     </div>
                   </TableCell>
+                  <TableCell className="gba:text-sm">
+                    {plan.createdAt ? (() => {
+                      try {
+                        const date = new Date(plan.createdAt);
+                        return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+                      } catch (error) {
+                        return 'N/A';
+                      }
+                    })() : 'N/A'}
+                  </TableCell>
                   <TableCell className="gba:text-right">
                     <span className="gba:font-medium gba:text-sm">
-                      {typeof plan.totalAmount === 'number' ? `€${formatAmount(plan.totalAmount)}` : 'N/A'}
+                      {typeof plan.totalAmount === 'number' ? formatCurrency(plan.totalAmount, plan.currency || 'EUR') : 'N/A'}
                     </span>
                   </TableCell>
                   <TableCell>
                     <Pill type={display.type as any} label={display.label} />
-                  </TableCell>
-                  <TableCell className="gba:text-right">
-                    <div className="gba:flex gba:justify-end gba:gap-2">
-                      {plan.status === ExpenseStatus.PENDING && (
-                        <>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="default"
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        showApproveModal(plan.id);
-                                      }}
-                                      disabled={approving && currentActionPlanId === plan.id}
-                                      data-testid={`${DATA_TEST_ID_PREFIX}-approve-${plan.id}`}
-                                    >
-                                      <PiCheck className="gba:h-4 gba:w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Approve Expense Plan</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to approve this expense plan? This action cannot be undone.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <div className="gba:space-y-4">
-                                      <div>
-                                        <Label htmlFor="approval-comments">Comments (optional)</Label>
-                                        <Input
-                                          id="approval-comments"
-                                          placeholder="Add approval comments..."
-                                          value={approvalComments}
-                                          onChange={(e) => setApprovalComments(e.target.value)}
-                                        />
-                                      </div>
-                                    </div>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={handleApproveConfirm}>
-                                        Approve
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Approve Plan</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="destructive"
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        showRejectModal(plan.id);
-                                      }}
-                                      disabled={rejecting && currentActionPlanId === plan.id}
-                                      data-testid={`${DATA_TEST_ID_PREFIX}-reject-${plan.id}`}
-                                    >
-                                      <PiX className="gba:h-4 gba:w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Reject Expense Plan</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Please provide a reason for rejecting this expense plan.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <div className="gba:space-y-4">
-                                      <div>
-                                        <Label htmlFor="reject-reason">Reason *</Label>
-                                        <Input
-                                          id="reject-reason"
-                                          placeholder="Enter rejection reason..."
-                                          value={rejectReason}
-                                          onChange={(e) => setRejectReason(e.target.value)}
-                                          required
-                                        />
-                                      </div>
-                                    </div>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction 
-                                        onClick={handleRejectConfirm}
-                                        disabled={!rejectReason.trim()}
-                                      >
-                                        Reject
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Reject Plan</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </>
-                      )}
-                    </div>
                   </TableCell>
                 </TableRow>
               );
@@ -485,30 +444,74 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
 
       {/* Pagination */}
       {totalCount > pageSize && (
-        <div className="gba:flex gba:items-center gba:justify-between gba:mt-4">
-          <div className="gba:text-sm gba:text-gray-500">
-            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} items
+        <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
+          <div className="gba:text-sm gba:text-gray-600" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
+            {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} expense plans`}
           </div>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <span className="gba:text-sm gba:px-2">
+          <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <p className="gba:text-sm gba:font-medium">Rows per page</p>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  const newPageSize = Number(e.target.value);
+                  setPageSize(newPageSize);
+                  setCurrentPage(1);
+                }}
+                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
               Page {currentPage} of {Math.ceil(totalCount / pageSize)}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-            >
-              Next
-            </Button>
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <Button
+                variant="outline"
+                className="gba:h-8 gba:w-8 gba:p-0"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
+              >
+                <span className="gba:sr-only">Go to first page</span>
+                ⟨⟨
+              </Button>
+              <Button
+                variant="outline"
+                className="gba:h-8 gba:w-8 gba:p-0"
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
+              >
+                <span className="gba:sr-only">Go to previous page</span>
+                ⟨
+              </Button>
+              <Button
+                variant="outline"
+                className="gba:h-8 gba:w-8 gba:p-0"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
+              >
+                <span className="gba:sr-only">Go to next page</span>
+                ⟩
+              </Button>
+              <Button
+                variant="outline"
+                className="gba:h-8 gba:w-8 gba:p-0"
+                onClick={() => setCurrentPage(Math.ceil(totalCount / pageSize))}
+                disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
+              >
+                <span className="gba:sr-only">Go to last page</span>
+                ⟩⟩
+              </Button>
+            </div>
           </div>
         </div>
       )}

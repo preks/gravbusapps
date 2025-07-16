@@ -18,6 +18,7 @@ export interface ExpensePlan {
   endDate: string;
   planDate: string;
   totalAmount: number;
+  currency: string;
   createdAt: string;
   updatedAt: string;
   employee: {
@@ -39,7 +40,7 @@ export interface ExpensePlan {
 }
 
 export interface ExpensePlanResponse {
-  ExpensePlan: ExpensePlan[];
+  ExpensePlan: (ExpensePlan & { currencyRef?: string })[];
   ExpensePlanAggregate: {
     aggregate: {
       count: number;
@@ -76,7 +77,7 @@ interface ExpensePlanStatisticsResponse {
 interface UseMainViewExpensePlansProps extends BusinessAppContextProps {
   pageSize?: number;
   searchTerm?: string;
-  currentStatusFilter?: string | null;
+  currentStatusFilter?: string[] | null;
 }
 
 export const useMainViewExpensePlans = ({
@@ -127,6 +128,43 @@ export const useMainViewExpensePlans = ({
       const offset = (currentPage - 1) * pageSize;
       
       console.log('Fetching expense plans with managerId:', managerId);
+      console.log('Search term:', searchTerm);
+      console.log('Status filter:', currentStatusFilter);
+      
+      // Build the where clause for filtering
+      const whereClause: any = {
+        employee: {
+          employeePosition: {
+            supervisorEmployeeId: { _eq: managerId }
+          }
+        },
+        isDeleted: { _eq: false }
+      };
+
+      // Add search functionality
+      if (searchTerm && searchTerm.trim() !== '') {
+        whereClause._or = [
+          { code: { _ilike: searchValue } },
+          { title: { _ilike: searchValue } },
+          { employee: { fullName: { _ilike: searchValue } } }
+        ];
+      }
+
+      // Add status filter
+      if (currentStatusFilter && currentStatusFilter.length > 0) {
+        console.log('Applying status filter:', currentStatusFilter);
+        whereClause.status = { _in: currentStatusFilter };
+      } else {
+        console.log('No status filter applied, currentStatusFilter:', currentStatusFilter);
+      }
+
+      const variables = {
+        where: whereClause,
+        limit: pageSize,
+        offset
+      };
+      
+      console.log('GraphQL variables being sent:', variables);
       
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
@@ -136,13 +174,7 @@ export const useMainViewExpensePlans = ({
         },
         body: JSON.stringify({
           query: GET_MAIN_VIEW_EXPENSE_PLANS,
-          variables: {
-            managerId,
-            limit: pageSize,
-            offset,
-            searchTerm: searchValue,
-            status: currentStatusFilter === 'all' || !currentStatusFilter ? null : currentStatusFilter 
-          }
+          variables
         })
       });
 
@@ -162,6 +194,12 @@ export const useMainViewExpensePlans = ({
       
       // Apply client-side filtering for status and employee
       let filteredPlans = data.ExpensePlan;
+      
+      // Map currency information from currencyRef field
+      filteredPlans = filteredPlans.map(plan => ({
+        ...plan,
+        currency: plan.currencyRef ? plan.currencyRef.replace('Currency:v1:', '') : 'EUR'
+      }));
       
       // Filter by employee if specified
       if (employeeFilter) {

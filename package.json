@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm install && vite --port 3001 --strictPort",
+    "dev": "npm install && vite --port 5173 --strictPort",
     "build": "npm install && cross-env PROJECT_ROOT_DIR=$INIT_CWD vite build",
     "build:prod": "npm install && cross-env PROJECT_ROOT_DIR=$INIT_CWD VITE_BUILD_FOR_DEPLOYMENT=true vite build --mode production",
     "publish:screen": "node ./scripts/publish-dev-screen.js",
@@ -20,7 +20,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@newwork/gravity-ui-catalog": "7.10.4",
-    "@newwork/nw-design-system": "^0.0.1-54",
+    "@newwork/nw-design-system": "^0.0.1-57",
     "@remixicon/react": "^4.6.0",
     "antd": "^5.25.1",
     "clsx": "^2.1.1",

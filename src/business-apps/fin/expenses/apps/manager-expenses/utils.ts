@@ -36,31 +36,39 @@ export const getExpensePlanStatusDisplay = (
   status: string
 ): StatusDisplayConfig => {
   switch (status) {
-    /**
     case ExpenseStatus.CREATED:
       return {
         label: 'Draft',
         type: "draft"
       };
-    case ExpenseStatus.ASSIGNED:
-      return {
-        label: 'Assigned',
-        type: "waiting"
-      };
-    */
     case ExpenseStatus.PENDING:
       return {
         label: "Approval Required",
         type: "task",
+      };
+    case ExpenseStatus.REJECTED:
+      return {
+        label: "Revision Required",
+        type: "error"
       };
     case ExpenseStatus.APPROVED:
       return {
         label: "Approved",
         type: "completed",
       };
-    case ExpenseStatus.RETURNED:
+    case ExpenseStatus.ASSIGNED:
       return {
-        label: "In Revision",
+        label: "Assigned",
+        type: "waiting"
+      };
+    case ExpenseStatus.BOOKED:
+      return {
+        label: "In Transit",
+        type: "waiting",
+      };
+    case ExpenseStatus.VERIFIED:
+      return {
+        label: "In Transit",
         type: "waiting",
       };
     case ExpenseStatus.CLOSED:
@@ -68,13 +76,6 @@ export const getExpensePlanStatusDisplay = (
         label: "Closed",
         type: "completed",
       };
-    /**
-      case ExpenseStatus.REJECTED:
-      return {
-        label: 'Rejected',
-        type: "error"
-      };
-      */
     default:
       return {
         label: status,
@@ -103,11 +104,23 @@ export const getExpenseRequestStatusDisplay = (
         type: "task",
       };
     case ExpenseStatus.APPROVED:
+      return {
+        label: "Verification Required",
+        type: "waiting",
+      };
     case ExpenseStatus.VERIFIED:
+      return {
+        label: "Booking Required",
+        type: "waiting",
+      };
     case ExpenseStatus.BOOKED:
+      return {
+        label: "Transfer Required",
+        type: "waiting",
+      };
     case ExpenseStatus.TRANSFERRED:
       return {
-        label: "In Transit",
+        label: "Payment Required",
         type: "waiting",
       };
     case ExpenseStatus.PAID:
@@ -125,13 +138,11 @@ export const getExpenseRequestStatusDisplay = (
         label: "Closed",
         type: "completed",
       };
-
     case ExpenseStatus.REJECTED:
       return {
-        label: 'Rejected',
+        label: 'Revision Required',
         type: "error"
       };
-
     default:
       return {
         label: status,
