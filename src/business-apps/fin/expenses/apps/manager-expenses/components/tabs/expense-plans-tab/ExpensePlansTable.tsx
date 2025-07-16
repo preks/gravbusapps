@@ -1,9 +1,35 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Typography, Spin, Alert, Space, Button, Tooltip, Modal, Input } from 'antd';
-import { DataTable, Avatar } from '@newwork/gravity-ui-catalog';
-import { CheckOutlined, CloseOutlined, FileTextOutlined, ClearOutlined } from '@ant-design/icons';
+import { 
+  Badge, 
+  Avatar, 
+  AvatarImage, 
+  AvatarFallback, 
+  Button, 
+  Tooltip, 
+  TooltipContent, 
+  TooltipProvider, 
+  TooltipTrigger, 
+  Table, 
+  TableHeader, 
+  TableBody, 
+  TableHead, 
+  TableRow, 
+  TableCell, 
+  Spinner,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+  Input,
+  Label
+} from '@newwork/nw-design-system';
+import { PiCheck, PiX, PiFileText, PiCaretUp, PiCaretDown } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
 import ExpensePlanDetails from './ExpensePlanDetails';
 import { useMainViewExpensePlans, ExpensePlan } from '../../../hooks/useMainViewExpensePlans';
@@ -12,8 +38,6 @@ import { getExpensePlanStatusDisplay, ExpenseStatus } from '../../../utils';
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatAmount } from '../../../utils/currencyUtils';
 
-const { Text } = Typography;
-
 interface ExpensePlansTableProps extends BusinessAppContextProps {
   search?: string;
   onSearchChange?: (search: string) => void;
@@ -21,7 +45,10 @@ interface ExpensePlansTableProps extends BusinessAppContextProps {
   activeFilter?: ExpenseStatus | null;
   onFilterChange?: (filter: ExpenseStatus | null) => void;
   onClearFilters?: () => void;
+  onViewDetails?: (plan: ExpensePlan) => void;
 }
+
+const DATA_TEST_ID_PREFIX = 'ExpensePlansTable';
 
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   const { search } = props;
@@ -126,7 +153,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
 
   // Set up local state
   const [pageSize, setPageSize] = useState<number>(10);
-  const [selectedPlan, setSelectedPlan] = useState<ExpensePlan | null>(null);
   const [rejectReason, setRejectReason] = useState<string>('');
   const [approvalComments, setApprovalComments] = useState<string>('');
   const [isRejectModalVisible, setIsRejectModalVisible] = useState<boolean>(false);
@@ -162,8 +188,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
 
   // Handle viewing details for a plan
   const handleViewDetails = useCallback((plan: ExpensePlan) => {
-    setSelectedPlan(plan);
-  }, []);
+    if (props.onViewDetails) {
+      props.onViewDetails(plan);
+    }
+  }, [props.onViewDetails]);
 
   // Debug logging for approval and rejection actions
   useEffect(() => {
@@ -176,10 +204,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     }
   }, [approving, rejecting, currentActionPlanId]);
 
-  // Handle closing details panel
-  const handleCloseDetails = useCallback(() => {
-    setSelectedPlan(null);
-  }, []);
+
 
   // Modal management for approve/reject
   const showApproveModal = useCallback((planId: string) => {
@@ -197,10 +222,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     setIsApproveModalVisible(false);
     setApprovalComments('');
     setCurrentActionPlanId('');
-    if (selectedPlan?.id === currentActionPlanId) {
-      setSelectedPlan(null);
-    }
-  }, [approvePlan, currentActionPlanId, approvalComments, selectedPlan?.id]);
+  }, [approvePlan, currentActionPlanId, approvalComments]);
 
   const handleRejectConfirm = useCallback(async () => {
     if (!rejectReason.trim()) {
@@ -210,283 +232,286 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     setIsRejectModalVisible(false);
     setRejectReason('');
     setCurrentActionPlanId('');
-    if (selectedPlan?.id === currentActionPlanId) {
-      setSelectedPlan(null);
-    }
-  }, [rejectPlan, currentActionPlanId, rejectReason, selectedPlan?.id]);
+  }, [rejectPlan, currentActionPlanId, rejectReason]);
 
   const handleApprovePlan = useCallback((planId: string) => {
-    if (selectedPlan) {
-      approvePlan(planId);
-      setSelectedPlan(null);
-    } else {
-      showApproveModal(planId);
-    }
-  }, [selectedPlan, approvePlan, showApproveModal]);
+    showApproveModal(planId);
+  }, [showApproveModal]);
 
   const handleRejectPlan = useCallback((planId: string) => {
     showRejectModal(planId);
   }, [showRejectModal]);
 
-  // Handle pagination and sorting changes
-  const handleTableChange = useCallback((pagination: any, _tableFilters: any, _sorter: any) => {
-    setCurrentPage(pagination.current ?? 1);
-    setPageSize(pagination.pageSize ?? 10);
+  // Handle pagination changes
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
   }, [setCurrentPage]);
 
-  // Table columns definition
-  const columns = [
-    {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.plan_info_pl', 'Plans'),
-      dataIndex: 'title',
-      key: 'title',
-      render: (value: any, record: any) => {
-        return (
-          <Button
-            type="link"
-            onClick={() => handleViewDetails(record)}
-            style={{ padding: 0, height: 'auto', lineHeight: 'inherit', textAlign: 'left', display: 'block', whiteSpace: 'normal'}}
-            aria-label={`View details for plan ${value}`}
-            className="gba:plan-details-button"
-            data-testid={`plan-details-button-${record.id}`}
-          >
-            <Text strong>{value}</Text>
-            {record.startDate && record.endDate && (
-              <div style={{ fontSize: '12px', color: '#888', fontWeight: 'normal' }}>
-                {formatDate(record.startDate, 'date.short')} - {formatDate(record.endDate, 'date.short')}
-              </div>
-            )}
-          </Button>
-        );
-      },
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
-      dataIndex: 'employee',
-      key: 'employee',
-      render: (_text: any, record: any) => {
-        const employee = record.employee;
-        return (
-          <Space>
-            <Avatar src={employee?.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined} alt={employee?.fullName} />
-            <Text>{employee?.displayName}</Text>
-          </Space>
-        );
-      },
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount'),
-      dataIndex: 'totalAmount',
-      key: 'totalAmount',
-      align: 'right' as const,
-      render: (totalAmount: number) => {
-        return (
-          <Text>
-            {typeof totalAmount === 'number' ? `€${formatAmount(totalAmount)}` : 'N/A'}
-          </Text>
-        );
-      },
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => {
-        const display = getExpensePlanStatusDisplay(status as ExpenseStatus);
-        return <Pill type={display.type as any} label={display.label} />;
-      },
-    },
-    {
-      title: '',
-      key: 'actions',
-      align: 'right' as const,
-      render: (_text: any, record: any) => {
-        return (
-          <Space size="middle">
-            {record.status === ExpenseStatus.PENDING && (
-              <Tooltip title="Approve Plan">
-                <Button
-                  type="primary"
-                  style={{ backgroundColor: 'green', borderColor: 'green' }}
-                  icon={<CheckOutlined />}
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    handleApprovePlan(record.id);
-                  }}
-                  loading={approving && currentActionPlanId === record.id}
-                  data-testid={`approve-plan-button-${record.id}`}
-                />
-              </Tooltip>
-            )}
-            {record.status === ExpenseStatus.PENDING && (
-              <Tooltip title="Reject Plan">
-                <Button
-                  type="primary"
-                  danger
-                  icon={<CloseOutlined />}
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    handleRejectPlan(record.id);
-                  }}
-                  loading={rejecting && currentActionPlanId === record.id}
-                  data-testid={`reject-plan-button-${record.id}`}
-                />
-              </Tooltip>
-            )}
-          </Space>
-        );
-      },
-    },
-  ];
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page when changing page size
+  }, []);
 
-  // Render the data body with error handling and loading states
-  const renderDataBody = useCallback(() => {
-    // Add debugging info
-    const debugInfo = (
-      <div className="gba:mb-4" data-testid="expense-plans-debug-info">
-        {(() => { 
-          console.log('ExpensePlansTable - rendering with data:', { 
-            plansCount: plans.length, 
-            totalCount, 
-            currentPage, 
-            pageSize,
-            searchTerm: debouncedSearchTerm,
-            statusFilter 
-          });
-          return null;
-        })()}
+  // Show error state
+  if (error) {
+    return (
+      <div 
+        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
+        data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
+      >
+        <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
+          Error Loading Expense Plans
+        </div>
+        <div className="gba:text-gray-600 gba:mb-4">
+          {error.message}
+        </div>
+        <Button
+          variant="default"
+          onClick={() => window.location.reload()}
+          data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
+        >
+          Retry
+        </Button>
       </div>
     );
-    
-    if (isLoading && !plans.length) return <>
-      {debugInfo}
-      <Spin tip="Loading expense plans..." data-testid="expense-plans-loading" />
-    </>;
-    
-    if (error) return <>
-      {debugInfo}
-      <Alert message={`Error: ${error.message}`} type="error" showIcon data-testid="expense-plans-error" />
-    </>;
-    
-    if (!plans || plans.length === 0) return <>
-      {debugInfo}
-      <Alert message="No expense plans found matching your criteria." type="info" showIcon data-testid="expense-plans-empty" />
-    </>;
+  }
 
+  // Show loading state
+  if (isLoading && !plans.length) {
     return (
-      <>
-        {debugInfo}
-        <DataTable
-          columns={columns}
-          dataSource={plans}
-          rowKey="id"
-          loading={isLoading}
-          pagination={{
-            current: currentPage,
-            pageSize: pageSize,
-            total: totalCount,
-            showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50', '100'],
-            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-          }}
-          onChange={handleTableChange}
-          scroll={{ x: 'max-content' }}
-          data-testid="expense-plans-table"
-        />
-      </>
+      <div className="gba:flex gba:justify-center gba:p-8">
+        <Spinner />
+      </div>
     );
-  }, [plans, isLoading, error, currentPage, pageSize, totalCount, columns, handleTableChange]);
+  }
+
+  // Show empty state
+  if (!plans || plans.length === 0) {
+    return (
+      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
+        <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
+          No expense plans found
+        </div>
+        <div className="gba:text-gray-400 gba:mb-4">
+          No expense plans match your current criteria.
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col">
-      <DataContainer
-        contentBackground="white"
-        dataControllerProps={{
-          search: searchTerm,
-          setSearch: onSearchChange,
-          debounceDelay: 300,
-          filter: currentStatusFilter ? [currentStatusFilter] : [],
-          setFilter: (newFilters: string[]) => {
-            const newFilter = newFilters.length > 0 ? newFilters[0] as ExpenseStatus : null;
-            console.log('Setting status filter from DataTable:', newFilter);
-            
-            if (isFilterControlled) {
-              // If controlled, just notify parent
-              if (props.onFilterChange) {
-                props.onFilterChange(newFilter);
-              }
-            } else {
-              // If not controlled, update local state and notify parent
-              setStatusFilter(newFilter);
-              if (props.onFilterChange) {
-                props.onFilterChange(newFilter);
-              }
-            }
-          },
-          filterLabelMap: filterLabelMap,
-          listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans'),
-          listAmount: totalCount ? `${totalCount}` : undefined,
-          actions: [],
-        }}
-        dataFilterProps={{
-          filterGroups: filterGroups,
-          onFilterChange: handleDataFilterChange,
-        }}
-        hideFilter={false}
-        floatingDetails={true}
-        dataBody={renderDataBody()}
-        dataDetails={selectedPlan ? {
-          title: selectedPlan.title || 'Expense Plan Details',
-          icon: <FileTextOutlined />,
-          content: (
-            <ExpensePlanDetails
-              {...props}
-              plan={selectedPlan}
-              onApprove={handleApprovePlan}
-              onReject={handleRejectPlan}
-            />
-          ),
-          onClose: handleCloseDetails,
-          footer: null // Remove footer close button as it's now in the details component
-        } : undefined}
-      />
+    <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+      {/* Table */}
+      <div className="gba:overflow-x-auto">
+        <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="gba:w-[300px]">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.plan_info_pl', 'Plans')}
+              </TableHead>
+              <TableHead className="gba:w-[200px]">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+              </TableHead>
+              <TableHead className="gba:w-[150px] gba:text-right">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount')}
+              </TableHead>
+              <TableHead className="gba:w-[150px]">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}
+              </TableHead>
+              <TableHead className="gba:w-[120px] gba:text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {plans.map((plan) => {
+              const display = getExpensePlanStatusDisplay(plan.status as ExpenseStatus);
+              return (
+                <TableRow 
+                  key={plan.id} 
+                  data-testid={`${DATA_TEST_ID_PREFIX}-row-${plan.id}`}
+                  className="gba:cursor-pointer gba:hover:bg-gray-50"
+                  onClick={() => handleViewDetails(plan)}
+                >
+                  <TableCell className="gba:text-left">
+                    <div>
+                      <div className="gba:font-medium gba:text-sm">{plan.title}</div>
+                      {plan.startDate && plan.endDate && (
+                        <div className="gba:text-xs gba:text-gray-500">
+                          {new Date(plan.startDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })} - {new Date(plan.endDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Avatar className="gba:h-6 gba:w-6">
+                        <AvatarImage 
+                          src={plan.employee?.pictureThumbnail ? `data:image/gif;base64,${plan.employee.pictureThumbnail}` : undefined} 
+                          alt={plan.employee?.fullName} 
+                        />
+                        <AvatarFallback>
+                          {plan.employee?.displayName?.charAt(0) || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="gba:font-medium gba:text-sm">{plan.employee?.displayName}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="gba:text-right">
+                    <span className="gba:font-medium gba:text-sm">
+                      {typeof plan.totalAmount === 'number' ? `€${formatAmount(plan.totalAmount)}` : 'N/A'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Pill type={display.type as any} label={display.label} />
+                  </TableCell>
+                  <TableCell className="gba:text-right">
+                    <div className="gba:flex gba:justify-end gba:gap-2">
+                      {plan.status === ExpenseStatus.PENDING && (
+                        <>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        showApproveModal(plan.id);
+                                      }}
+                                      disabled={approving && currentActionPlanId === plan.id}
+                                      data-testid={`${DATA_TEST_ID_PREFIX}-approve-${plan.id}`}
+                                    >
+                                      <PiCheck className="gba:h-4 gba:w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Approve Expense Plan</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to approve this expense plan? This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <div className="gba:space-y-4">
+                                      <div>
+                                        <Label htmlFor="approval-comments">Comments (optional)</Label>
+                                        <Input
+                                          id="approval-comments"
+                                          placeholder="Add approval comments..."
+                                          value={approvalComments}
+                                          onChange={(e) => setApprovalComments(e.target.value)}
+                                        />
+                                      </div>
+                                    </div>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={handleApproveConfirm}>
+                                        Approve
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Approve Plan</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
 
-      <Modal
-        title="Approve Expense Plan"
-        open={isApproveModalVisible}
-        onOk={handleApproveConfirm}
-        onCancel={() => setIsApproveModalVisible(false)}
-        confirmLoading={approving}
-        data-testid="approve-plan-modal"
-      >
-        <Input.TextArea
-          rows={4}
-          placeholder="Optional: Add approval comments..."
-          value={approvalComments}
-          onChange={(e) => setApprovalComments(e.target.value)}
-          data-testid="approval-comments-input"
-        />
-      </Modal>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        showRejectModal(plan.id);
+                                      }}
+                                      disabled={rejecting && currentActionPlanId === plan.id}
+                                      data-testid={`${DATA_TEST_ID_PREFIX}-reject-${plan.id}`}
+                                    >
+                                      <PiX className="gba:h-4 gba:w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Reject Expense Plan</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Please provide a reason for rejecting this expense plan.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <div className="gba:space-y-4">
+                                      <div>
+                                        <Label htmlFor="reject-reason">Reason *</Label>
+                                        <Input
+                                          id="reject-reason"
+                                          placeholder="Enter rejection reason..."
+                                          value={rejectReason}
+                                          onChange={(e) => setRejectReason(e.target.value)}
+                                          required
+                                        />
+                                      </div>
+                                    </div>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        onClick={handleRejectConfirm}
+                                        disabled={!rejectReason.trim()}
+                                      >
+                                        Reject
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Reject Plan</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
 
-      <Modal
-        title="Reject Expense Plan"
-        open={isRejectModalVisible}
-        onOk={handleRejectConfirm}
-        onCancel={() => setIsRejectModalVisible(false)}
-        confirmLoading={rejecting}
-        okButtonProps={{ disabled: !rejectReason.trim() }}
-        data-testid="reject-plan-modal"
-      >
-        <p>Please provide a reason for rejecting this expense plan:</p>
-        <Input.TextArea
-          placeholder="Rejection reason"
-          value={rejectReason}
-          onChange={(e) => setRejectReason(e.target.value)}
-          rows={4}
-          required
-          data-testid="rejection-reason-input"
-        />
-      </Modal>
+      {/* Pagination */}
+      {totalCount > pageSize && (
+        <div className="gba:flex gba:items-center gba:justify-between gba:mt-4">
+          <div className="gba:text-sm gba:text-gray-500">
+            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} items
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="gba:text-sm gba:px-2">
+              Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

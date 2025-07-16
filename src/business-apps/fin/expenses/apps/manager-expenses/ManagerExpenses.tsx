@@ -1,7 +1,6 @@
-import React, { useEffect, useState, ReactNode } from 'react';
-import { Tabs, ActionButton } from '@newwork/gravity-ui-catalog';
+import React, { useEffect, useState, useCallback } from 'react';
+import { PageLayout } from '@newwork/nw-design-system';
 import { PiGauge, PiPath, PiHandCoins, PiMoney, PiCalendarBlank, PiWalletDuotone } from 'react-icons/pi';
-import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
@@ -16,86 +15,45 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 export interface ManagerExpensesProps extends BusinessAppContextProps {}
 
 const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
-  const [contentHeader, setContentHeader] = useState<ReactNode | null>(null);
-
-  const tabItems = [
+  const viewOptions = [
     {
       key: 'dashboard',
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiGauge style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.dashboard_btn', 'Dashboard')}</span>
-        </div>
-      ),
-      children: <ExpenseDashboardTab {...props} />,
-      renderContentHeader: () => null,
+      icon: <PiGauge className="w-5 h-5" />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.dashboard_btn', 'Dashboard')
     },
     {
       key: 'expense-plans',
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiPath style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')}</span>
-        </div>
-      ),
-      children: <ExpensePlansTab 
-        {...props} 
-        onContentHeaderChange={(header: ReactNode) => setContentHeader(header)}
-      />,
-      renderContentHeader: () => contentHeader,
+      icon: <PiPath className="w-5 h-5" />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')
     },
     {
       key: 'advance-payments',
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiHandCoins style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>{getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments')}</span>
-        </div>
-      ),
-      children: <AdvancePaymentsTab 
-        {...props} 
-        onContentHeaderChange={(header: ReactNode) => setContentHeader(header)}
-      />,
-      renderContentHeader: () => contentHeader,
+      icon: <PiHandCoins className="w-5 h-5" />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments')
     },
     {
       key: 'expense-requests',
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiMoney style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Expense Requests')}</span>
-        </div>
-      ),
-      children: <ExpenseRequestsTab 
-        {...props} 
-        onContentHeaderChange={(header: ReactNode) => setContentHeader(header)}
-      />,
-      renderContentHeader: () => contentHeader,
+      icon: <PiMoney className="w-5 h-5" />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Expense Requests')
     },
     {
       key: 'expense-calendar',
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiCalendarBlank style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_calendar', 'Expense Calendar')}</span>
-        </div>
-      ),
-      children: <ExpenseCalendarTab {...props} />,
-      renderContentHeader: () => null, // ExpenseCalendarTab manages its own header/controls
-    },
+      icon: <PiCalendarBlank className="w-5 h-5" />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_calendar', 'Expense Calendar')
+    }
   ];
 
   // Get tab from URL query parameter or use first tab as default
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabFromUrl = urlParams.get('tab');
-    const validTabs = tabItems.map(item => item.key);
+    const validTabs = viewOptions.map(item => item.key);
     
     if (validTabs.includes(tabFromUrl ?? '')) {
       return tabFromUrl!;
     } else {
       // No valid tab in URL, set default tab in URL
-      const defaultTab = tabItems[0].key;
+      const defaultTab = viewOptions[0].key;
       const url = new URL(window.location.href);
       url.searchParams.set('tab', defaultTab);
       window.history.replaceState({}, '', url.toString());
@@ -118,8 +76,8 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const tabFromUrl = urlParams.get('tab');
-      const validTabs = tabItems.map(item => item.key);
-      const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : tabItems[0].key;
+      const validTabs = viewOptions.map(item => item.key);
+      const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : viewOptions[0].key;
       setActiveTab(newTab);
     };
 
@@ -127,53 +85,51 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const activeTabItem = tabItems.find(item => item.key === activeTab);
-  const activeTabContent = activeTabItem?.children;
-  const activeTabContentHeader = activeTabItem?.renderContentHeader();
+  const renderTabContent = () => {
+    const tabProps = {
+      ...props
+    };
+
+    switch (activeTab) {
+      case 'dashboard':
+        return <ExpenseDashboardTab {...tabProps} />;
+      case 'expense-plans':
+        return <ExpensePlansTab {...tabProps} />;
+      case 'advance-payments':
+        return <AdvancePaymentsTab {...tabProps} />;
+      case 'expense-requests':
+        return <ExpenseRequestsTab {...tabProps} />;
+      case 'expense-calendar':
+        return <ExpenseCalendarTab {...tabProps} />;
+      default:
+        return null;
+    }
+  };
+
+
 
   return (
-    <PageLayout
-      headerIcon={<PiWalletDuotone color="#a3519aff"/>}
-      headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.team_expenses_title', 'Team Expenses')}
-      pageHeaderRight={
-        <ActionButton
-          variant="primary"
-          flowData={[
-            {
-              category: 'Actions',
-              key: 'export',
-              label: 'Export Data',
-              onClick: () => console.log('Export data clicked'),
-            },
-            {
-              category: 'Navigations',
-              key: 'settings',
-              label: 'Settings',
-              onClick: () => console.log('Settings clicked'),
-            },
-            {
-              category: 'Actions',
-              key: 'help',
-              label: 'Help',
-              onClick: () => console.log('Help clicked'),
-            },
-          ]}
-          portalContainer={document.body}
-        >
-          Actions
-        </ActionButton>
-      }
-      pageController={
-          <Tabs
-            activeKey={activeTab}
-            onChange={handleTabChange}
-            items={tabItems.map(item => ({ key: item.key, label: item.label }))}
-            className="w-full"
-          />
-      }
-      contentHeader={activeTabContentHeader}
-      contentContainer={activeTabContent}
-    />
+    <div data-testid="manager-expenses-container">
+      <PageLayout
+        headerIcon={<PiWalletDuotone className="w-6 h-6 text-purple-600" />}
+        headerTitle="Team Expenses"
+        headerDescription="Manage team expenses, track expense plans, advance payments, and expense requests"
+        headerSubViews={{
+          value: activeTab,
+          onValueChange: handleTabChange,
+          items: viewOptions.map((option) => ({
+            value: option.key,
+            label: option.label,
+            icon: option.icon
+          }))
+        }}
+        className="gba:min-h-screen"
+      >
+        <div className="gba:h-full gba:overflow-auto">
+          {renderTabContent()}
+        </div>
+      </PageLayout>
+    </div>
   );
 };
 
