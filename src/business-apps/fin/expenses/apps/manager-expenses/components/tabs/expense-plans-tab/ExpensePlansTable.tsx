@@ -146,6 +146,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     currentStatusFilter: currentStatusFilter,
   });
 
+  // Reset page to 1 when filter changes (fixes pagination issue when switching filters)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [currentStatusFilter, setCurrentPage]);
+
   // Notify parent of search changes if callback exists
   const onSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
