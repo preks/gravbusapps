@@ -107,7 +107,7 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({
   if (error) {
     return (
       <div className="gba:px-6 gba:pt-6 gba:pb-4">
-        <Card className="gba:bg-gradient-to-r gba:from-orange-50 gba:to-yellow-50 gba:border-orange-200">
+        <Card>
           <CardContent className="gba:p-6">
             <div className="gba:flex gba:items-start gba:gap-3">
               <AlertCircle className="gba:h-5 gba:w-5 gba:text-orange-600 gba:mt-0.5 gba:flex-shrink-0" />

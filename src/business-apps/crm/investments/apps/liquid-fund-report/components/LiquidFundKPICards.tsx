@@ -1,11 +1,11 @@
 import React from 'react';
-import { Card, Typography } from 'antd';
-import { BankOutlined, PercentageOutlined, CalendarOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
+import { Building, Percent, Calendar, CheckCircle } from 'lucide-react';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { formatCurrency, formatNumber, formatPercentage } from '../utils/formatters';
 import { LiquidFundInvestmentKPIs } from '../types';
 
-const { Text } = Typography;
+// Typography no longer needed with design system
 
 interface LiquidFundKPICardsProps {
   kpis: LiquidFundInvestmentKPIs;
@@ -17,106 +17,53 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
   prefixDataTestId = 'LiquidFundKPICards' 
 }) => {
   return (
-    <div style={{ 
-      display: 'grid', 
-      gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
-      gap: '16px',
-      marginBottom: '24px'
-    }}>
-      <Card
-        data-testid={formatDataTestId(prefixDataTestId, 'KPICard-TotalFundValue')}
-        style={{ borderRadius: '8px' }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            backgroundColor: '#1890ff', 
-            borderRadius: '8px', 
-            padding: '12px',
-            color: 'white'
-          }}>
-            <BankOutlined style={{ fontSize: '24px' }} />
+    <div className="gba:grid gba:grid-cols-1 gba:md:gba:grid-cols-2 gba:lg:gba:grid-cols-4 gba:gap-4 gba:mb-6">
+      <Card data-testid={formatDataTestId(prefixDataTestId, 'KPICard-TotalFundValue')}>
+        <CardContent className="gba:flex gba:items-center gba:gap-3 gba:p-6">
+          <div className="gba:p-3 gba:rounded-lg">
+            <Building className="gba:h-6 gba:w-6" />
           </div>
           <div>
-            <Text type="secondary" style={{ fontSize: '14px' }}>
-              Total Fund Value
-            </Text>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
-              {formatCurrency(kpis.totalFundValue)}
-            </div>
+            <p className="gba:text-sm gba:text-muted-foreground">Total Fund Value</p>
+            <p className="gba:text-2xl gba:font-bold">{formatCurrency(kpis.totalFundValue)}</p>
           </div>
-        </div>
+        </CardContent>
       </Card>
 
-      <Card
-        data-testid={formatDataTestId(prefixDataTestId, 'KPICard-AverageInterestRate')}
-        style={{ borderRadius: '8px' }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            backgroundColor: '#52c41a', 
-            borderRadius: '8px', 
-            padding: '12px',
-            color: 'white'
-          }}>
-            <PercentageOutlined style={{ fontSize: '24px' }} />
+      <Card data-testid={formatDataTestId(prefixDataTestId, 'KPICard-AverageInterestRate')}>
+        <CardContent className="gba:flex gba:items-center gba:gap-3 gba:p-6">
+          <div className="gba:p-3 gba:rounded-lg">
+            <Percent className="gba:h-6 gba:w-6" />
           </div>
           <div>
-            <Text type="secondary" style={{ fontSize: '14px' }}>
-              Average Interest Rate
-            </Text>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
-              {formatPercentage(kpis.averageInterestRate)}
-            </div>
+            <p className="gba:text-sm gba:text-muted-foreground">Average Interest Rate</p>
+            <p className="gba:text-2xl gba:font-bold">{formatPercentage(kpis.averageInterestRate)}</p>
           </div>
-        </div>
+        </CardContent>
       </Card>
 
-      <Card
-        data-testid={formatDataTestId(prefixDataTestId, 'KPICard-MaturingSoon')}
-        style={{ borderRadius: '8px' }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            backgroundColor: '#faad14', 
-            borderRadius: '8px', 
-            padding: '12px',
-            color: 'white'
-          }}>
-            <CalendarOutlined style={{ fontSize: '24px' }} />
+      <Card data-testid={formatDataTestId(prefixDataTestId, 'KPICard-MaturingSoon')}>
+        <CardContent className="gba:flex gba:items-center gba:gap-3 gba:p-6">
+          <div className="gba:p-3 gba:rounded-lg">
+            <Calendar className="gba:h-6 gba:w-6" />
           </div>
           <div>
-            <Text type="secondary" style={{ fontSize: '14px' }}>
-              Maturing Soon
-            </Text>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
-              {formatNumber(kpis.maturingSoon)}
-            </div>
+            <p className="gba:text-sm gba:text-muted-foreground">Maturing Soon</p>
+            <p className="gba:text-2xl gba:font-bold">{formatNumber(kpis.maturingSoon)}</p>
           </div>
-        </div>
+        </CardContent>
       </Card>
 
-      <Card
-        data-testid={formatDataTestId(prefixDataTestId, 'KPICard-EarlyTerminationAllowed')}
-        style={{ borderRadius: '8px' }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            backgroundColor: '#722ed1', 
-            borderRadius: '8px', 
-            padding: '12px',
-            color: 'white'
-          }}>
-            <CheckCircleOutlined style={{ fontSize: '24px' }} />
+      <Card data-testid={formatDataTestId(prefixDataTestId, 'KPICard-EarlyTerminationAllowed')}>
+        <CardContent className="gba:flex gba:items-center gba:gap-3 gba:p-6">
+          <div className="gba:p-3 gba:rounded-lg">
+            <CheckCircle className="gba:h-6 gba:w-6" />
           </div>
           <div>
-            <Text type="secondary" style={{ fontSize: '14px' }}>
-              Early Termination Allowed
-            </Text>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
-              {formatNumber(kpis.earlyTerminationAllowed)}
-            </div>
+            <p className="gba:text-sm gba:text-muted-foreground">Early Termination Allowed</p>
+            <p className="gba:text-2xl gba:font-bold">{formatNumber(kpis.earlyTerminationAllowed)}</p>
           </div>
-        </div>
+        </CardContent>
       </Card>
     </div>
   );

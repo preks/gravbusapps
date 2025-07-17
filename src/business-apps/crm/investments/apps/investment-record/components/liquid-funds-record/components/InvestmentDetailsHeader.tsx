@@ -27,7 +27,7 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({ data 
 
   return (
     <div className="gba:px-6 gba:pt-6 gba:pb-4">
-      <Card className="gba:bg-gradient-to-r gba:from-teal-50 gba:to-cyan-50 gba:border-teal-200">
+      <Card>
         <CardHeader className="gba:pb-3">
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <div className="gba:p-2 gba:bg-teal-100 gba:rounded-md">

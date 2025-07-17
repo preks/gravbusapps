@@ -14,7 +14,11 @@ const AnalyticsInsights = () => {
       title: "Strong Equity Performance",
       description: "Equity investments are outperforming targets by 2.5%, driven by TechCorp and Biotech acquisitions.",
       recommendation: "Consider increasing equity allocation by 5-10% in Q2 2024.",
-      priority: "Medium"
+      priority: "Medium",
+      gradientFrom: "gba:from-green-50",
+      gradientTo: "gba:to-emerald-50",
+      iconBg: "gba:bg-green-100",
+      iconColor: "gba:text-green-600"
     },
     {
       type: "warning", 
@@ -22,7 +26,11 @@ const AnalyticsInsights = () => {
       title: "Real Estate Concentration Risk",
       description: "45.8% of portfolio is in real estate, above recommended 40% threshold for diversification.",
       recommendation: "Reduce real estate exposure or increase other asset classes to rebalance.",
-      priority: "High"
+      priority: "High",
+      gradientFrom: "gba:from-amber-50",
+      gradientTo: "gba:to-yellow-50",
+      iconBg: "gba:bg-amber-100",
+      iconColor: "gba:text-amber-600"
     },
     {
       type: "info",
@@ -30,7 +38,11 @@ const AnalyticsInsights = () => {
       title: "Private Equity Opportunity",
       description: "Private equity showing consistent 22% ROI with low correlation to other assets.",
       recommendation: "Explore additional private equity opportunities in healthcare and technology sectors.",
-      priority: "Low"
+      priority: "Low",
+      gradientFrom: "gba:from-blue-50",
+      gradientTo: "gba:to-indigo-50",
+      iconBg: "gba:bg-blue-100",
+      iconColor: "gba:text-blue-600"
     },
     {
       type: "info",
@@ -38,43 +50,23 @@ const AnalyticsInsights = () => {
       title: "Liquidity Management",
       description: "Current liquidity ratio of 12.5% provides good flexibility for new opportunities.",
       recommendation: "Maintain current liquidity levels while monitoring market conditions.",
-      priority: "Low"
+      priority: "Low",
+      gradientFrom: "gba:from-slate-50",
+      gradientTo: "gba:to-gray-50",
+      iconBg: "gba:bg-slate-100",
+      iconColor: "gba:text-slate-600"
     }
   ];
-
-  const getInsightStyles = (type: string) => {
-    switch (type) {
-      case "success":
-        return {
-          border: "gba:border-green-200",
-          bg: "gba:bg-green-50",
-          iconColor: "gba:text-green-600"
-        };
-      case "warning":
-        return {
-          border: "gba:border-yellow-200", 
-          bg: "gba:bg-yellow-50",
-          iconColor: "gba:text-yellow-600"
-        };
-      case "info":
-      default:
-        return {
-          border: "gba:border-blue-200",
-          bg: "gba:bg-blue-50", 
-          iconColor: "gba:text-blue-600"
-        };
-    }
-  };
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case "High":
-        return <Badge className="gba:bg-red-100 gba:text-red-700 gba:border-red-200">High Priority</Badge>;
+        return <Badge variant="destructive">High Priority</Badge>;
       case "Medium":
-        return <Badge className="gba:bg-yellow-100 gba:text-yellow-700 gba:border-yellow-200">Medium Priority</Badge>;
+        return <Badge variant="secondary">Medium Priority</Badge>;
       case "Low":
       default:
-        return <Badge className="gba:bg-blue-100 gba:text-blue-700 gba:border-blue-200">Low Priority</Badge>;
+        return <Badge variant="outline">Low Priority</Badge>;
     }
   };
 
@@ -88,22 +80,25 @@ const AnalyticsInsights = () => {
       <div className="gba:grid gba:gap-4 gba:grid-cols-1 gba:lg:grid-cols-2">
         {insights.map((insight, index) => {
           const IconComponent = insight.icon;
-          const styles = getInsightStyles(insight.type);
           
           return (
-            <Card key={index} className={`${styles.border} ${styles.bg} gba:border`}>
-              <CardHeader className="gba:pb-3">
-                <div className="gba:flex gba:items-start gba:justify-between">
+            <Card key={index} className="gba:h-full">
+              <CardHeader>
+                <div className="gba:flex gba:items-center gba:justify-between">
                   <div className="gba:flex gba:items-center gba:gap-3">
-                    <IconComponent className={`gba:h-5 gba:w-5 ${styles.iconColor}`} />
-                    <CardTitle className="gba:text-base gba:font-semibold gba:text-gray-900">
-                      {insight.title}
-                    </CardTitle>
+                    <div className={`gba:p-2 ${insight.iconBg} gba:rounded-lg`}>
+                      <IconComponent className={`gba:h-5 gba:w-5 ${insight.iconColor}`} />
+                    </div>
+                    <div>
+                      <CardTitle>
+                        {insight.title}
+                      </CardTitle>
+                    </div>
                   </div>
                   {getPriorityBadge(insight.priority)}
                 </div>
               </CardHeader>
-              <CardContent className="gba:pt-0">
+              <CardContent className="gba:p-6">
                 <div className="gba:space-y-3">
                   <p className="gba:text-sm gba:text-gray-700 gba:leading-relaxed">
                     {insight.description}

@@ -195,7 +195,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                   data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('lead.company', 'Company & Industry')}
+                    {t('lead.company', 'Lead Company')}
                     {renderSortIcon('accountName')}
                   </div>
                 </TableHead>

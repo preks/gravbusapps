@@ -57,7 +57,7 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
       {/* Overview Comparison */}
       <Row gutter={[16, 16]} style={{ marginBottom: '20px' }}>
         <Col xs={24} sm={12}>
-          <Card size="small" style={{ textAlign: 'center', background: '#f0f9ff' }}>
+          <Card>
             <div data-testid={`activity-7days-${pipelineId}`}>
               <Text type="secondary" style={{ fontSize: '12px' }}>Last 7 Days</Text>
               <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1890ff', margin: '4px 0' }}>
@@ -73,7 +73,7 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
           </Card>
         </Col>
         <Col xs={24} sm={12}>
-          <Card size="small" style={{ textAlign: 'center', background: '#f6ffed' }}>
+          <Card>
             <div data-testid={`activity-30days-${pipelineId}`}>
               <Text type="secondary" style={{ fontSize: '12px' }}>Last 30 Days</Text>
               <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a', margin: '4px 0' }}>

@@ -14,10 +14,6 @@ const DashboardHeader: React.FC = () => {
             Investment Portfolio
           </h1>
         </div>
-        
-        <Button variant="outline" size="sm" data-testid="settings-button">
-          <Settings className="gba:h-4 gba:w-4" />
-        </Button>
       </div>
     </div>
   );

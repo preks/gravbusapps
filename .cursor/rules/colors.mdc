@@ -1,0 +1,86 @@
+---
+alwaysApply: true
+---
+
+# Color Usage Guidelines
+
+## 🚫 CRITICAL: NEVER APPLY COLORS DIRECTLY
+
+**ABSOLUTE RULE: Agents must NEVER apply colors in any form.**
+
+### ❌ FORBIDDEN
+```tsx
+// ❌ NO direct colors, Tailwind color classes, or CSS colors
+style={{ color: '#FF0000' }}
+className="gba:text-red-500 gba:bg-blue-100"
+<div style={{ backgroundColor: 'white' }}>
+```
+
+### ✅ CORRECT: Use @newwork/nw-design-system Only
+
+**ALL colors MUST come from design system component variants:**
+
+```tsx
+// ✅ Use semantic component variants
+<Button type="primary">Primary</Button>
+<Button danger>Danger</Button>
+<Alert type="success" message="Success" />
+<Alert type="error" message="Error" />
+<Badge status="success" text="Active" />
+<Tag color="success">Success</Tag>
+```
+
+### ✅ Layout & Spacing Only
+```tsx
+// ✅ You MAY use non-color Tailwind classes
+className="gba:flex gba:items-center gba:p-4 gba:rounded-lg"
+```
+
+### 🚨 Enforcement
+- **NO** hex codes, color names, or Tailwind color classes
+- **YES** to design system component types/variants only
+- When in doubt, use default variants
+
+The `@newwork/nw-design-system` handles all colors - let it do its job!
+
+# Color Usage Guidelines
+
+## 🚫 CRITICAL: NEVER APPLY COLORS DIRECTLY
+
+**ABSOLUTE RULE: Agents must NEVER apply colors in any form.**
+
+### ❌ FORBIDDEN
+```tsx
+// ❌ NO direct colors, Tailwind color classes, or CSS colors
+style={{ color: '#FF0000' }}
+className="gba:text-red-500 gba:bg-blue-100"
+<div style={{ backgroundColor: 'white' }}>
+```
+
+### ✅ CORRECT: Use @newwork/nw-design-system Only
+
+**ALL colors MUST come from design system component variants:**
+
+```tsx
+// ✅ Use semantic component variants
+<Button type="primary">Primary</Button>
+<Button danger>Danger</Button>
+<Alert type="success" message="Success" />
+<Alert type="error" message="Error" />
+<Badge status="success" text="Active" />
+<Tag color="success">Success</Tag>
+```
+
+### ✅ Layout & Spacing Only
+```tsx
+// ✅ You MAY use non-color Tailwind classes
+className="gba:flex gba:items-center gba:p-4 gba:rounded-lg"
+```
+
+### 🚨 Enforcement
+- **NO** hex codes, color names, or Tailwind color classes
+- **YES** to design system component types/variants only
+- When in doubt, use default variants
+
+The `@newwork/nw-design-system` handles all colors - let it do its job!
+

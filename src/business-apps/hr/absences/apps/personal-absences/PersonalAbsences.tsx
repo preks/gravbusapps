@@ -13,13 +13,13 @@ import type {
   StatItem,
   AbsenceListCardAbsence,
 } from "./types/absenceTypes";
-import AbsenceCalendar from "../AbsenceCalendar";
+import AbsenceCalendar from "./components/absence-calendar/AbsenceCalendar";
 import EntitlementCard from "./components/EntitlementCard";
 import StatisticsTab from "./components/StatisticsTab";
 import type { Entitlement } from "./types/entitlementTypes";
-import { BusinessAppContextProps } from "../../../../../common/BusinessAppContext";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useState, useEffect } from "react";
-import { useGraphqlClient } from "../../../../../common/network/graphql/useGraphQLClient";
+import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
 import {
   GET_EMPLOYEE_ABSENCES,
   GET_EMPLOYEE_ENTITLEMENTS,
@@ -36,7 +36,7 @@ import {
 import { PiCalendarBlank } from "react-icons/pi";
 import { startProcess } from "@/common/utils/start-process";
 
-export const AbsenceHub = (props: BusinessAppContextProps) => {
+export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const [activeTab, setActiveTab] = useState("calendar");
   const [activeFilter, setActiveFilter] = useState("All");
   const [absenceList, setAbsenceList] = useState<AbsenceListCardAbsence[]>([]);
@@ -243,11 +243,11 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
   };
   
   return (
-    <div className="gba:absence-container" data-testid="absencehub-container">
-      <div className="gba:absence-header" data-testid="absencehub-header">
+    <div className="gba:absence-container" data-testid="personal-absences-container">
+      <div className="gba:absence-header" data-testid="personal-absences-header">
         <div
           className="gba:font-bold gba:text-2xl gba:flex gba:items-center gba:gap-x-2"
-          data-testid="absencehub-title"
+          data-testid="personal-absences-title"
         >
           <PiCalendarBlank color="#a3519aff" />
           <span>
@@ -259,10 +259,10 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
         </div>
       </div>
 
-      <div data-testid="absencehub-tabs-container">
+      <div data-testid="personal-absences-tabs-container">
         <Tabs
           activeKey={activeTab}
-          data-testid="absencehub-tabs"
+          data-testid="personal-absences-tabs"
           items={[
             {
               key: "calendar",
@@ -317,9 +317,9 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
         />
       </div>
 
-      <div className="gba:content" data-testid="absencehub-content">
+      <div className="gba:content" data-testid="personal-absences-content">
         {loading && (
-          <div className="gba:loading" data-testid="absencehub-loading">
+          <div className="gba:loading" data-testid="personal-absences-loading">
             {getTranslationFromI18nKeyAndLabel(
               "lowcoder:absence_hub.loading",
               "Loading..."
@@ -327,7 +327,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
           </div>
         )}
         {error && (
-          <div className="gba:error" data-testid="absencehub-error">
+          <div className="gba:error" data-testid="personal-absences-error">
             {getTranslationFromI18nKeyAndLabel(
               "lowcoder:absence_hub.error_loading",
               "Failed to load absence data."
@@ -343,7 +343,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
               <>
                 <div
                   className="gba:calendarContainer"
-                  data-testid="absencehub-calendar-container"
+                  data-testid="personal-absences-calendar-container"
                 >
                   {activeTab === "calendar" && (
                     <>
@@ -398,7 +398,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                   {activeTab === "absence-list" && (
                     <div
                       className="gba:absenceList"
-                      data-testid="absencehub-absence-list"
+                      data-testid="personal-absences-absence-list"
                     >
                       <div
                         className="gba:flex gba:items-center gba:justify-between gba:mb-4"
@@ -436,7 +436,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                       </div>
                       <h3
                         className="gba:absenceListTitle"
-                        data-testid="absencehub-absence-history-title"
+                        data-testid="personal-absences-absence-history-title"
                       >
                         {getTranslationFromI18nKeyAndLabel(
                           "lowcoder:absence_hub.absence_history",
@@ -445,7 +445,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                       </h3>
                       <div
                         className="gba:absenceListCards"
-                        data-testid="absencehub-absence-list-cards"
+                        data-testid="personal-absences-absence-list-cards"
                       >
                         {filteredAbsenceList.length > 0 ? (
                           paginatedAbsenceList.map((absence, idx) => (
@@ -457,7 +457,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                         ) : (
                           <div
                             className="gba:absenceListEmpty"
-                            data-testid="absencehub-absence-list-empty"
+                            data-testid="personal-absences-absence-list-empty"
                           >
                             {getTranslationFromI18nKeyAndLabel(
                               "lowcoder:absence_hub.no_absences_found",
@@ -469,7 +469,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                       {filteredAbsenceList.length > pageSize && (
                         <div
                           className="gba:absenceListPagination"
-                          data-testid="absencehub-absence-list-pagination"
+                          data-testid="personal-absences-absence-list-pagination"
                           style={{
                             marginTop: 24,
                             display: "flex",
@@ -504,7 +504,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                   {activeTab === "entitlements" && (
                     <div
                       className="gba:entitlementsList"
-                      data-testid="absencehub-entitlements-list"
+                      data-testid="personal-absences-entitlements-list"
                     >
                       {entitlements.map((ent, idx) => (
                         <EntitlementCard key={idx} entitlement={ent} />
@@ -513,15 +513,15 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                   )}
                 </div>
                 {activeTab !== "entitlements" && (
-                  <div className="gba:sidebar" data-testid="absencehub-sidebar">
+                  <div className="gba:sidebar" data-testid="personal-absences-sidebar">
                     <div
                       className="gba:cardsContainer"
-                      data-testid="absencehub-cards-container"
+                      data-testid="personal-absences-cards-container"
                     >
                       <div className="gba:timeOffBalanceCard">
                         <h3
                           className="gba:cardTitle"
-                          data-testid="absencehub-timeoff-balance-title"
+                          data-testid="personal-absences-timeoff-balance-title"
                         >
                           {getTranslationFromI18nKeyAndLabel(
                             "lowcoder:absence_hub.time_off_balance",
@@ -530,7 +530,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                         </h3>
                         <div
                           className="gba:statsGrid"
-                          data-testid="absencehub-stats-grid"
+                          data-testid="personal-absences-stats-grid"
                         >
                           {filteredStats.map((stat, index) => (
                             <StatsCard key={index} stat={stat} />
@@ -540,7 +540,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                       <div className="gba:timeOffBalanceCard">
                         <h3
                           className="gba:cardTitle"
-                          data-testid="absencehub-upcoming-title"
+                          data-testid="personal-absences-upcoming-title"
                         >
                           {getTranslationFromI18nKeyAndLabel(
                             "lowcoder:absence_hub.upcoming_time_off",
@@ -549,7 +549,7 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
                         </h3>
                         <div
                           className="gba:upcomingList"
-                          data-testid="absencehub-upcoming-list"
+                          data-testid="personal-absences-upcoming-list"
                         >
                           {filteredUpcomingAbsences.length > 0 ? (
                             filteredUpcomingAbsences
@@ -585,4 +585,4 @@ export const AbsenceHub = (props: BusinessAppContextProps) => {
   );
 };
 
-export default AbsenceHub;
+export default PersonalAbsences;
