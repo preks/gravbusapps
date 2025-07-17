@@ -177,7 +177,7 @@ export const GET_CLOSED_PLANS_STATISTICS = `
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
-        status: {_eq: "CLOSED"},
+        status: {_in: ["CLOSED", "PAID"]},
         planDate: {_gte: $startDate, _lte: $endDate}
       }
     ) {

@@ -53,6 +53,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
 
   // Use closed plans data for total plans widget
   const totalPlans = useMemo(() => currentMonthClosedPlans, [currentMonthClosedPlans]);
+  console.log('totalPlans', currentMonthClosedPlans);
 
   const percentageChange = useMemo(() => {
     if (previousMonthClosedPlans === 0) {

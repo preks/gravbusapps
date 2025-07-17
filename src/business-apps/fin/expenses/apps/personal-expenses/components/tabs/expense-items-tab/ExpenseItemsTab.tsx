@@ -32,7 +32,9 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     filterGroups,
     filterLabelMap,
     getFilters,
-    setFilters
+    setFilters,
+    setExpenseDateRange,
+    expenseDateRange
   } = useExpenseFilters();
 
   const [activeCard, setActiveCard] = useState<string | null>(null);
@@ -41,7 +43,8 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   const handleClearAllFilters = useCallback((filters: string[]) => {
     setFilters(filters);
     setActiveCard(null);
-  }, [setFilters]);
+    setExpenseDateRange(null);
+  }, [setFilters, setExpenseDateRange]);
   
   // State for storing all items for statistics
   const [allItems, setAllItems] = useState<any[]>([]);
@@ -130,6 +133,17 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   const handleWidgetClick = useCallback((widgetKey: string) => {
     setActiveCard(prev => (prev === widgetKey ? null : widgetKey));
   }, []);
+
+
+
+  // Handle status filter changes
+  const handleStatusFilterChange = useCallback((status: string, selected: boolean) => {
+    if (selected) {
+      addFilter(status.toLowerCase());
+    } else {
+      removeFilter(status.toLowerCase());
+    }
+  }, [addFilter, removeFilter]);
 
   // Handle clicking on missing receipts card
   const handleMissingReceiptsClick = useCallback(() => {
@@ -229,6 +243,11 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   // Combine UI and card filters using the dedicated hook
   const finalFilters = useExpenseItemsTabFilters(selectedFilters, activeCard);
 
+  // Create a custom getFilters function that includes date range parameters
+  const getFiltersWithDateRange = useCallback((filtersToApply?: string[]) => {
+    return getFilters(filtersToApply, null, null, expenseDateRange);
+  }, [getFilters, expenseDateRange]);
+
   // Fetch pending reimbursement total
   useEffect(() => {
     const fetchPendingItems = async () => {
@@ -254,23 +273,28 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   // Use allItems for statistics instead of filtered items
   const contentHeader = useMemo(() => {
     const isNoReceiptFilterActive = selectedFilters.includes('noreceiptfilter');
+
     return (
-      <ExpenseItemStatistics 
-        items={allItems ?? []} 
-        totalExpenses={totalExpenses}
-        previousMonthTotalExpenses={previousMonthTotalExpenses}
-        pendingReimbursementTotal={pendingReimbursementTotal}
-        pendingItemCountFromApi={pendingItemCountFromApi}
-        onMissingReceiptsClick={handleMissingReceiptsClick} 
-        isNoReceiptFilterActive={isNoReceiptFilterActive}
-        statsLoading={statsLoading ?? !hasLoadedAllItems}
-        statsError={statsError}
-        fetchItemStatistics={fetchItemStatistics}
-        onWidgetClick={handleWidgetClick}
-        activeWidgetKey={activeCard ?? undefined}
-      />
+      <div>
+        <ExpenseItemStatistics 
+          items={allItems ?? []} 
+          totalExpenses={totalExpenses}
+          previousMonthTotalExpenses={previousMonthTotalExpenses}
+          pendingReimbursementTotal={pendingReimbursementTotal}
+          pendingItemCountFromApi={pendingItemCountFromApi}
+          onMissingReceiptsClick={handleMissingReceiptsClick} 
+          isNoReceiptFilterActive={isNoReceiptFilterActive}
+          statsLoading={statsLoading ?? !hasLoadedAllItems}
+          statsError={statsError}
+          fetchItemStatistics={fetchItemStatistics}
+          onWidgetClick={handleWidgetClick}
+          activeWidgetKey={activeCard ?? undefined}
+          onExpenseDateRangeFilterChange={setExpenseDateRange}
+          onStatusFilterChange={handleStatusFilterChange}
+        />
+      </div>
     );
-  }, [allItems, totalExpenses, previousMonthTotalExpenses, selectedFilters, handleMissingReceiptsClick, statsLoading, statsError, fetchItemStatistics, hasLoadedAllItems, handleWidgetClick, activeCard, pendingReimbursementTotal]);
+  }, [allItems, totalExpenses, previousMonthTotalExpenses, selectedFilters, handleMissingReceiptsClick, statsLoading, statsError, fetchItemStatistics, hasLoadedAllItems, handleWidgetClick, activeCard, pendingReimbursementTotal, expenseDateRange, handleStatusFilterChange]);
 
   // Update the content header only when it changes and when allItems is loaded
   const onContentHeaderChange = props.onContentHeaderChange;
@@ -403,7 +427,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       clearFilters={clearFilters}
       filterGroups={filterGroups}
       filterLabelMap={filterLabelMap}
-      getFilters={getFilters}
+      getFilters={getFiltersWithDateRange}
       setFilters={handleClearAllFilters}
       availableStatuses={availableStatuses}
     />

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useDebounce } from "@/common/hooks/useDebounce";
 import {
   PiFunnelSimple,
@@ -107,12 +107,11 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   hideFilter = false,
   dateRange,
 }) => {
+  const [localSearch, setLocalSearch] = useState(search);
   const [showSearchInput, setShowSearchInput] = useState(false);
-  const inputRef = React.useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   
   // Local state for immediate UI feedback
-  const [localSearch, setLocalSearch] = useState<string>(search || "");
-  
   // Keep local search in sync with external changes to search prop
   useEffect(() => {
     setLocalSearch(search || "");
@@ -172,6 +171,12 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
     }
     return '';
   }, []);
+
+  // Helper function to format text with only first letter uppercase
+  const formatFilterText = (text: string): string => {
+    if (!text) return text;
+    return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+  };
 
   // Check if date range filter is active
   const hasDateRangeFilter = dateRange && (dateRange.createdAfter || dateRange.createdBefore);
@@ -323,23 +328,26 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
           )}
           
           {/* Regular filter pills */}
-          {filter && filter.length > 0 && setFilter && filter.map((val) => (
-            <div
-              key={val}
-              className="gba:flex gba:h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-gray-100"
-            >
-              <span>{filterLabelMap?.[val] ?? val}</span>
-              <button
-                className="gba:ml-0.5 gba:bg-transparent gba:border-none gba:text-gray-800 gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:p-0 gba:cursor-pointer gba:rounded-full gba:hover:bg-gray-200 gba:transition-colors"
-                onClick={() => setFilter(filter.filter((f) => f !== val))}
-                aria-label={`Remove filter ${filterLabelMap?.[val] ?? val}`}
-                tabIndex={0}
-                type="button"
+          {filter && filter.length > 0 && setFilter && filter.map((val) => {
+            const displayText = filterLabelMap?.[val] ?? formatFilterText(val);
+            return (
+              <div
+                key={val}
+                className="gba:flex gba:h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-gray-100"
               >
-                <PiX size={12} />
-              </button>
-            </div>
-          ))}
+                <span>{displayText}</span>
+                <button
+                  className="gba:ml-0.5 gba:bg-transparent gba:border-none gba:text-gray-800 gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:p-0 gba:cursor-pointer gba:rounded-full gba:hover:bg-gray-200 gba:transition-colors"
+                  onClick={() => setFilter(filter.filter((f) => f !== val))}
+                  aria-label={`Remove filter ${displayText}`}
+                  tabIndex={0}
+                  type="button"
+                >
+                  <PiX size={12} />
+                </button>
+              </div>
+            );
+          })}
           
           {/* Clear all filters button */}
           <button

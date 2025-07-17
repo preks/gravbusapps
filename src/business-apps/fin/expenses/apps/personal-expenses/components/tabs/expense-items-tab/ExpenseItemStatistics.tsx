@@ -1,5 +1,5 @@
 import { formatNumberFunction } from '@/common/utils/windowUtils';
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { EuroOutlined, WalletOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -17,6 +17,10 @@ interface ExpenseItemStatisticsProps {
   statsLoading?: boolean;
   statsError?: string | null;
   fetchItemStatistics?: () => Promise<void>;
+  // Add expense date range filter callback
+  onExpenseDateRangeFilterChange?: (expenseDateRange: [Date | null, Date | null] | null) => void;
+  // Add status filter callback
+  onStatusFilterChange?: (status: string, selected: boolean) => void;
 }
 
 const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({ 
@@ -31,7 +35,9 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   activeWidgetKey,
   statsLoading = false,
   statsError = null,
-  fetchItemStatistics = () => Promise.resolve()
+  fetchItemStatistics = () => Promise.resolve(),
+  onExpenseDateRangeFilterChange,
+  onStatusFilterChange
 }) => {
   const currentMonthName = dayjs().format('MMMM');
   
@@ -71,6 +77,57 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     const sign = percentageChange > 0 ? '+' : '';
     return `${sign}${percentageChange.toFixed(1)}% from ${previousMonthName}`;
   }, [totalExpenses, previousMonthTotalExpenses]);
+
+  // Handle widget clicks with immediate visual feedback
+  const handleWidgetClick = useCallback((widgetKey: string) => {
+    // Provide immediate visual feedback
+    if (onWidgetClick) {
+      onWidgetClick(widgetKey);
+    }
+    
+    // Set expense date range filters when total-expenses widget is clicked
+    if (widgetKey === 'total-expenses') {
+      const today = dayjs();
+      const currentMonthStart = today.startOf('month').toDate();
+      const currentMonthEnd = today.endOf('month').toDate();
+      
+      // Set expense date range to current month
+      if (onExpenseDateRangeFilterChange) {
+        onExpenseDateRangeFilterChange([currentMonthStart, currentMonthEnd]);
+      }
+      
+      // Set status filters to only show PAID and CLOSED items
+      if (onStatusFilterChange) {
+        // First, clear any existing status filters
+        const allStatuses = ['CREATED', 'ASSIGNED', 'PREPARED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'];
+        allStatuses.forEach(status => {
+          onStatusFilterChange(status, false);
+        });
+        // Then add only PAID and CLOSED statuses
+        onStatusFilterChange('PAID', true);
+        onStatusFilterChange('CLOSED', true);
+      }
+    }
+    
+    // Set filters when pending-reimbursement widget is clicked
+    if (widgetKey === 'pending-reimbursement') {
+      // Clear any existing expense date range filters
+      if (onExpenseDateRangeFilterChange) {
+        onExpenseDateRangeFilterChange(null);
+      }
+      
+      // Set status filter to only show PENDING items
+      if (onStatusFilterChange) {
+        // Clear all existing status filters first
+        const allStatuses = ['CREATED', 'ASSIGNED', 'PREPARED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'CLOSED', 'TRANSFERRED'];
+        allStatuses.forEach(status => {
+          onStatusFilterChange(status, false);
+        });
+        // Then add only PENDING status
+        onStatusFilterChange('PENDING', true);
+      }
+    }
+  }, [onWidgetClick, onExpenseDateRangeFilterChange, onStatusFilterChange]);
 
   // Transform the stats data into widgets format
   const widgets: WidgetItem[] = useMemo(() => [
@@ -115,16 +172,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     //   span: { xs: 24, sm: 12, md: 8, lg: 8 },
     //   description: 'Across all expenses'
     // }
-  ], [totalExpenses, previousMonthTotalExpenses, pendingReimbursement, pendingItemCount, activeWidgetKey, comparisonDescription]);
-
-  const handleWidgetClick = (widgetKey: string) => {
-    if (onWidgetClick) {
-      onWidgetClick(widgetKey);
-    }
-    if (widgetKey === 'missing-receipts' && onMissingReceiptsClick) {
-      onMissingReceiptsClick();
-    }
-  };
+  ], [currentMonthName, totalExpenses, previousMonthTotalExpenses, pendingReimbursement, pendingItemCount, activeWidgetKey, comparisonDescription]);
 
   return (
     <div data-testid="expense-item-statistics-container" className="gba:w-full">

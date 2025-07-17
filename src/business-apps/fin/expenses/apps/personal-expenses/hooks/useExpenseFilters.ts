@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { ExpenseFilter } from './useGetExpenseItems';
 import { ExpenseStatus, getExpenseItemStatusDisplay } from '../utils';
+import { ExpenseDateRangeFilter } from '../components/tabs/expense-items-tab/ExpenseDateRangeFilter';
 
 // Define these as constants for stable references outside the hook
 const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
@@ -18,8 +19,16 @@ export interface UseExpenseFiltersReturn {
   addFilter: (filterId: string) => void;
   removeFilter: (filterId: string) => void;
   clearFilters: () => void;
-  getFilters: (filtersToApply?: string[]) => ExpenseFilter;
+  getFilters: (filtersToApply?: string[], startDateRange?: [Date | null, Date | null] | null, endDateRange?: [Date | null, Date | null] | null, expenseDateRange?: [Date | null, Date | null] | null) => ExpenseFilter;
   setFilters: (filters: string[]) => void;
+  setExpenseDateRange: (expenseDateRange: [Date | null, Date | null] | null) => void;
+  expenseDateRange: [Date | null, Date | null] | null;
+}
+
+export enum DataFilterType {
+  CHECKBOX_GROUP = 'checkbox-group',
+  DATE_RANGE = 'date-range',
+  NUMBER_RANGE = 'number-range',
 }
 
 /**
@@ -29,6 +38,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
   // State for search and selected filters
   const [search, setSearch] = useState<string>('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [expenseDateRange, setExpenseDateRange] = useState<[Date | null, Date | null] | null>(null);
 
   // Helper function to format status display names
   const formatStatusName = (status: string): string => {
@@ -37,6 +47,17 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
 
   // Define filter groups - memoized so they don't cause re-renders
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
+    {
+      id: 'expenseDateRange',
+      title: 'Filter by Expense Date',
+      type: DataFilterType.DATE_RANGE,
+      customComponent: React.createElement(ExpenseDateRangeFilter, {
+        expenseDateRange: expenseDateRange,
+        onDateRangeChange: setExpenseDateRange,
+        placeholder: ['Start date', 'End date']
+      }),
+      hideSearch: true,
+    },
     {
       id: 'timePeriod',
       title: 'Time Period',
@@ -77,7 +98,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
         { id: 'noreceiptfilter', label: 'No receipt', selected: selectedFilters.includes('noreceiptfilter') },
       ]
     }
-  ], [selectedFilters]);
+  ], [selectedFilters, expenseDateRange]);
 
   // Build the filter label map dynamically
   const filterLabelMap = useMemo(() => {
@@ -126,6 +147,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
 
   const clearFilters = useCallback(() => {
     setSelectedFilters([]);
+    setExpenseDateRange(null);
   }, []);
 
   // Atomic setter for filters
@@ -134,7 +156,12 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
   }, []);
 
   // Convert UI filters to API filter format
-  const getFilters = useCallback((filtersToApply: string[] = selectedFilters): ExpenseFilter => {
+  const getFilters = useCallback((
+    filtersToApply: string[] = selectedFilters,
+    startDateRange?: [Date | null, Date | null] | null,
+    endDateRange?: [Date | null, Date | null] | null,
+    expenseDateRange?: [Date | null, Date | null] | null
+  ): ExpenseFilter => {
     console.log('Getting filters from selected filters:', filtersToApply);
 
     // Map UI filter format to the expected API filter format
@@ -163,8 +190,20 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
       console.log('Applying status filters:', filter.status);
     }
 
-    // Process time period filters
-    if (timePeriod) {
+    // Process expense date range filters (priority over time period filters)
+    if (expenseDateRange && expenseDateRange[0] && expenseDateRange[1]) {
+      filter.expenseDateStart = expenseDateRange[0].toISOString().split('T')[0];
+      filter.expenseDateEnd = expenseDateRange[1].toISOString().split('T')[0];
+      console.log('Applying expense date range filters:', filter.expenseDateStart, 'to', filter.expenseDateEnd);
+    }
+    // Process date range filters (priority over time period filters)
+    else if (startDateRange && startDateRange[0] && endDateRange && endDateRange[1]) {
+      filter.expenseDateStart = startDateRange[0].toISOString().split('T')[0];
+      filter.expenseDateEnd = endDateRange[1].toISOString().split('T')[0];
+      console.log('Applying date range filters:', filter.expenseDateStart, 'to', filter.expenseDateEnd);
+    }
+    // Process time period filters (only if no date range is specified)
+    else if (timePeriod) {
       const today = new Date();
       const endDate = new Date(today).toISOString().split('T')[0];
 
@@ -215,5 +254,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     clearFilters,
     getFilters,
     setFilters,
+    setExpenseDateRange,
+    expenseDateRange,
   };
 };

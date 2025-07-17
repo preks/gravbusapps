@@ -4,7 +4,7 @@ import { Typography, Spin, Alert, message } from 'antd';
 import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
 import { PlusSquareIcon } from '@/components/dataController/DataController';
 import { FileTextOutlined, FileImageOutlined } from '@ant-design/icons';
-import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems';
+import { useGetExpenseItems, ExpenseFilter, ExpenseItem } from '../../../hooks/useGetExpenseItems';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import Pill from '@/components/pill/Pill';
@@ -13,8 +13,48 @@ import { getExpenseItemStatusDisplay } from '../../../utils';
 import ExpenseItemDetails from './ExpenseItemDetails';
 import { startProcess } from '@/common/utils/start-process';
 
-
 const { Text } = Typography;
+
+// Sorting utilities following SOLID principles
+interface SortableField<T> {
+  key: keyof T;
+  type: 'string' | 'number' | 'date';
+  nullable?: boolean;
+}
+
+class SortingService {
+  static createSorter<T>(field: SortableField<T>) {
+    return (a: T, b: T) => {
+      const aValue = a[field.key];
+      const bValue = b[field.key];
+      
+      // Handle nullable values
+      const aSafe = field.nullable ? (aValue ?? 0) : aValue;
+      const bSafe = field.nullable ? (bValue ?? 0) : bValue;
+      
+      switch (field.type) {
+        case 'string':
+          return String(aSafe).localeCompare(String(bSafe));
+        case 'number':
+          return Number(aSafe) - Number(bSafe);
+        case 'date':
+          const aDate = aSafe ? new Date(String(aSafe)).getTime() : 0;
+          const bDate = bSafe ? new Date(String(bSafe)).getTime() : 0;
+          return aDate - bDate;
+        default:
+          return 0;
+      }
+    };
+  }
+}
+
+// Column configuration following SRP
+const EXPENSE_ITEM_COLUMNS = {
+  title: { key: 'title' as keyof ExpenseItem, type: 'string' as const },
+  expenseDate: { key: 'expenseDate' as keyof ExpenseItem, type: 'date' as const, nullable: true },
+  status: { key: 'status' as keyof ExpenseItem, type: 'string' as const },
+  reimbursableAmount: { key: 'reimbursableAmount' as keyof ExpenseItem, type: 'number' as const, nullable: true },
+} as const;
 
 export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   onAddExpenseItem: () => void;
@@ -154,6 +194,20 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     });
   }, [selectedRowKeys, items, contextProps.userInfo]);
 
+  // Column factory following OCP
+  const createColumn = useCallback((key: keyof typeof EXPENSE_ITEM_COLUMNS, title: string, render?: (value: any, record: ExpenseItem) => React.ReactNode, additionalProps?: any) => {
+    const field = EXPENSE_ITEM_COLUMNS[key];
+    return {
+      title,
+      dataIndex: field.key,
+      key: field.key,
+      sorter: SortingService.createSorter(field),
+      sortOrder: sortField === field.key ? sortOrder : null,
+      render,
+      ...additionalProps,
+    };
+  }, [sortField, sortOrder]);
+
   const renderDataBody = useCallback(() => {
     if (isLoading && !items?.length) {
       return <div style={{ padding: 24, textAlign: 'center' }}><Spin size="large" /></div>;
@@ -263,39 +317,19 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
               />
             )
           },
-          {
-            title: 'Title',
-            dataIndex: 'title',
-            key: 'title',
-            sorter: (a: any, b: any) => a.title.localeCompare(b.title),
-            sortOrder: sortField === 'title' ? sortOrder : null,
-            render: (text: string) => <div style={{ fontWeight: 'bold' }} data-testid="expense-title-cell">{text}</div>
-          },
-          {
-            title: getTranslationFromI18nKeyAndLabel('gba.expenseItems.expenseDate', 'Expense Date'),
-            dataIndex: 'expenseDate',
-            key: 'expenseDate',
-            sorter: (a: any, b: any) => new Date(a.expenseDate).getTime() - new Date(b.expenseDate).getTime(),
-            sortOrder: sortField === 'expenseDate' ? sortOrder : null,
-            render: (date: string) => {
-              const formattedDate = date
-                ? formatDate(date, 'date.long')
-                : getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_creation_date', 'No creation date');
-              return <div style={{ fontSize: '12px', color: '#666' }} data-testid="expense-expense-date-cell">{formattedDate}</div>;
-            },
-            width: 140,
-          },
-          {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            sorter: (a: any, b: any) => a.status.localeCompare(b.status),
-            sortOrder: sortField === 'status' ? sortOrder : null,
-            render: (status: string) => {
-              const { label, type } = getExpenseItemStatusDisplay(status);
-              return <Pill label={label} type={type} className="gba:text-center" data-testid="expense-status-cell" />;
-            }
-          },
+          createColumn('title', 'Title', (text: string) => (
+            <div style={{ fontWeight: 'bold' }} data-testid="expense-title-cell">{text}</div>
+          )),
+          createColumn('expenseDate', getTranslationFromI18nKeyAndLabel('gba.expenseItems.expenseDate', 'Expense Date'), (date: string) => {
+            const formattedDate = date
+              ? formatDate(date, 'date.long')
+              : getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_creation_date', 'No creation date');
+            return <div style={{ fontSize: '12px', color: '#666' }} data-testid="expense-expense-date-cell">{formattedDate}</div>;
+          }, { width: 140 }),
+          createColumn('status', 'Status', (status: string) => {
+            const { label, type } = getExpenseItemStatusDisplay(status);
+            return <Pill label={label} type={type} className="gba:text-center" data-testid="expense-status-cell" />;
+          }),
           {
             title: 'Attachment',
             dataIndex: 'expenseItemFile',
@@ -314,27 +348,18 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
               )
             )
           },
-          {
-            title: 'Reimbursable Amount',
-            dataIndex: 'reimbursableAmount',
-            key: 'reimbursableAmount',
-            sorter: (a: any, b: any) => (a.reimbursableAmount ?? 0) - (b.reimbursableAmount ?? 0),
-            sortOrder: sortField === 'reimbursableAmount' ? sortOrder : null,
-            onCell: () => ({ className: 'gba:text-right' }),
-            render: (amount: number, record: any) => {
-  // Only use currency.code from the nested currency object from the query result
-  const currency = record.currency?.code || '';
-  return (
-    <span data-testid="expense-amount-cell">
-      {formatNumberFunction(String(amount ?? '0'))} {currency}
-    </span>
-  );
-}
-          }
+          createColumn('reimbursableAmount', 'Reimbursable Amount', (amount: number, record: any) => {
+            const currency = record.currency?.code || '';
+            return (
+              <span data-testid="expense-amount-cell">
+                {formatNumberFunction(String(amount ?? '0'))} {currency}
+              </span>
+            );
+          }, { onCell: () => ({ className: 'gba:text-right' }) }),
         ] as any}
       />
     );
-  }, [items, isLoading, error, totalCount, currentPage, pageSize, handleTableChange, selectedRowKeys, handleRowSelectionChange, handleSelectItem]);
+  }, [items, isLoading, error, totalCount, currentPage, pageSize, handleTableChange, selectedRowKeys, handleRowSelectionChange, handleSelectItem, createColumn, contextProps.userInfo]);
 
   const renderExpenseDetails = useMemo(() => {
     if (!selectedItem) return null;
