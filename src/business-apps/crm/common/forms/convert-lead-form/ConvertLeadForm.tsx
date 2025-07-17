@@ -634,7 +634,7 @@ export const ConvertLeadForm: React.FC<
         </Title>
 
         {/* Lead Information Display */}
-        <Card className="gba:mb-6 gba:border-none gba:bg-gray-50" data-testid="lead-info-card">
+        <Card className="gba:mb-6" data-testid="lead-info-card">
           <Title level={4} className="gba:!mb-4">
             {getTranslationFromI18nKeyAndLabel(
               "crm:convertLead.leadInfo",
@@ -672,7 +672,7 @@ export const ConvertLeadForm: React.FC<
         <Divider className="gba:my-6" />
 
         {/* Account Section */}
-        <Card className="gba:mb-6 gba:border-none gba:bg-gray-50" data-testid="account-section">
+        <Card className="gba:mb-6" data-testid="account-section">
           <Title level={4} className="gba:!mb-4">
             {getTranslationFromI18nKeyAndLabel("crm:convertLead.account", "Account")}
           </Title>
@@ -840,7 +840,7 @@ export const ConvertLeadForm: React.FC<
         <Divider className="gba:my-6" />
 
         {/* Contact Section */}
-        <Card className="gba:mb-6 gba:border-none gba:bg-gray-50" data-testid="contact-section">
+        <Card className="gba:mb-6" data-testid="contact-section">
           <Title level={4} className="gba:!mb-4">
             {getTranslationFromI18nKeyAndLabel("crm:convertLead.contact", "Contact")}
           </Title>
@@ -1074,7 +1074,7 @@ export const ConvertLeadForm: React.FC<
         <Divider className="gba:my-6" />
 
         {/* Opportunity Section */}
-        <Card className="gba:mb-6 gba:border-none gba:bg-gray-50" data-testid="opportunity-section">
+        <Card className="gba:mb-6" data-testid="opportunity-section">
           <Form.Item className="gba:mb-4">
             <Checkbox
               checked={createOpportunity}
