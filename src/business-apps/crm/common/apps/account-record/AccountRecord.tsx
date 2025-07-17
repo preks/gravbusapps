@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button, Spinner } from '@newwork/nw-design-system';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { useAccountData } from "./hooks/useAccountData";
@@ -94,15 +94,14 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     <div className="gba:contact-details-container" data-testid="contact-opportunity-investment-detail" style={{ backgroundColor: 'white', padding: '16px' }}>
       {/* Back navigation */}
       <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
-        <Button
+        <button
           onClick={onBack}
-          variant="ghost"
           className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
           data-testid="back-button"
         >
-          <ArrowLeft className="gba:mr-2 gba:w-4 gba:h-4" />
+          <ArrowLeftOutlined className="gba:mr-2" />
           <span>{getBackButtonText()}</span>
-        </Button>
+        </button>
       </div>
 
       {/* Account header */}
@@ -183,7 +182,7 @@ const AccountRecord: React.FC<AccountRecordProps> = (props) => {
           break;
         case 'customer-relations':
         default:
-          navigateTo('/platform/crm/customer-relations?view=accounts');
+      navigateTo('/platform/crm/customer-relations?view=accounts');
           break;
       }
     }

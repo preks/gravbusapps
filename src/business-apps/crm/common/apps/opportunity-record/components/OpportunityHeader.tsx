@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from 'antd';
-import { DollarOutlined, StarOutlined, UserOutlined, CalendarOutlined, TrophyOutlined, PercentageOutlined } from '@ant-design/icons';
+import { DollarOutlined, StarOutlined, UserOutlined, CalendarOutlined, TrophyOutlined } from '@ant-design/icons';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Opportunity } from '../types';
@@ -68,21 +68,16 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
               <span>Status: {opportunityData?.opportunityStatus?.value || opportunity.status}</span>
               <span style={{ margin: '0 8px' }}>•</span>
               <span>Currency: {opportunityData?.currency?.code || extractCurrencyCode(opportunity?.currency?.id || 'Currency:v1:EUR')}</span>
-              <DollarOutlined style={{ marginRight: '4px' }} />
+              <span style={{ margin: '0 8px' }}>•</span>
               <span>Estimated Amount: {
                 opportunity.value ? 
                   formatCurrency(opportunity.value, opportunity.currency.id) : 
                   'Not set'
               }</span>
-              <span style={{ margin: '0 8px' }}>•</span>
-              <PercentageOutlined style={{ marginRight: '4px' }} />
-              <span>Winning Chance: {opportunity.probability ? `${opportunity.probability}%` : 'Not set'}</span>
+
             </div>
 
             <div style={{ color: '#8c8c8c', fontSize: '14px', marginBottom: '8px' }}>
-              <CalendarOutlined style={{ marginRight: '4px' }} />
-              <span>Close Date: {formatDate(opportunity.expectedCloseDate)}</span>
-              <span style={{ margin: '0 8px' }}>•</span>
               <UserOutlined style={{ marginRight: '4px' }} />
               <span>Owner: {opportunity.ownerEmployee ? `${opportunity.ownerEmployee.firstName} ${opportunity.ownerEmployee.lastName}` : 'Not assigned'}</span>
               {opportunityData?.createdAt && (

@@ -138,7 +138,11 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
 
           {/* Contacts - 1/4 width */}
           <Col span={6} style={{ display: 'flex' }}>
-            <ContactInformation leadData={leadData} />
+            <ContactInformation 
+              leadData={leadData} 
+              leadId={leadId}
+              context={props}
+            />
           </Col>
         </Row>
 

@@ -83,7 +83,11 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
           </Col>
 
           <Col span={6} style={{ display: 'flex' }}>
-            <ContactInformation opportunityData={opportunityData} />
+            <ContactInformation 
+              opportunityData={opportunityData} 
+              opportunityId={opportunityId}
+              context={props}
+            />
           </Col>
         </Row>
 

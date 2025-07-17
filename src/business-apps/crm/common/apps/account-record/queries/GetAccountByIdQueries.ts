@@ -24,6 +24,13 @@ export interface GetAccountByIdResponse {
       lastName: string;
     };
     createdAt: string;
+    contact?: Array<{
+      firstName: string;
+      lastName: string;
+      phone: string;
+      createdAt: string;
+      jobTitle: string;
+    }>;
     legalForm?: {
       id: string;
       value: string;
@@ -71,15 +78,6 @@ export const GET_ACCOUNT_BY_ID = `
       }
       createdAt
 
-      #Contact Details
-      contact {
-        firstName
-        lastName
-        phone
-        createdAt
-        jobTitle
-      }
-      
       #Company Details
       legalForm {
         id
