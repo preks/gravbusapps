@@ -42,7 +42,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
       </div>
       
       {/* Table Container */}
-      <div className="gba:flex-1 gba:overflow-hidden">
+      <div className="gba:flex-1">
         <div data-testid="advance-payments-table-container">
           <AdvancePaymentsTable
             {...contextProps}

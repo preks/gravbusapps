@@ -59,6 +59,23 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
     return tripType ?? 'Business Travel';
   };
 
+  // Helper function to get department safely
+  const getDepartment = () => {
+    // Check the nested organizational unit structure first (from API response)
+    if (plan.employee?.employeePosition?.organizationalUnit?.name) {
+      return plan.employee.employeePosition.organizationalUnit.name;
+    }
+    // Fallback to direct department field
+    if (plan.employee?.department) {
+      return plan.employee.department;
+    }
+    // Fallback to additional properties
+    if (plan.employee?.additionalProperties?.department) {
+      return plan.employee.additionalProperties.department;
+    }
+    return 'Not specified';
+  };
+
   const handleApprove = () => {
     onApprove(plan.id);
   };
@@ -147,6 +164,13 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             <div className="gba:flex gba:justify-between">
               <span className="gba:font-medium">{getTranslationFromI18nKeyAndLabel('expense.plan.requester', 'Requester')}</span>
               <span>{plan.employee.fullName}</span>
+            </div>
+          )}
+          
+          {plan.employee && (
+            <div className="gba:flex gba:justify-between">
+              <span className="gba:font-medium">{getTranslationFromI18nKeyAndLabel('expense.plan.department', 'Department')}</span>
+              <span>{getDepartment()}</span>
             </div>
           )}
           
