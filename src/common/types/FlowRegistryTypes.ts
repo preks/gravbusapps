@@ -34,7 +34,8 @@ export enum FlowContextName {
     updateEmployeePicture = "updateEmployeePicture",
     updateEmployeeSkill = "updateEmployeeSkill",
     updateEmployeeWorkingCondition = "updateEmployeeWorkingCondition",
-    updateEmployeeWorkingHours = "updateEmployeeWorkingHours"
+    updateEmployeeWorkingHours = "updateEmployeeWorkingHours",
+    updateAccount = "updateAccount"
 }
 
 export type ContextData = {

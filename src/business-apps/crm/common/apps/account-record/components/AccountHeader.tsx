@@ -84,7 +84,7 @@ export const AccountHeader: React.FC<AccountHeaderProps> = ({
               data-testid="account-record-action-button"
               variant="primary"
               size="md"
-              contextsArray={[FlowContextName.leadEntity]}
+              contextsArray={[FlowContextName.updateAccount]}
               externalContextData={{
                 accountId: accountId
               }}

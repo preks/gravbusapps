@@ -65,7 +65,7 @@ export const ContactHeader: React.FC<ContactHeaderProps> = ({ contact, contactId
               data-testid="contact-record-action-button"
               variant="primary"
               size="md"
-              contextsArray={[FlowContextName.employeeEntity]}
+              contextsArray={[FlowContextName.contactEntity]}
               externalContextData={{
                 contactId: contactId
               }}
