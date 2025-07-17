@@ -31,11 +31,13 @@ export const GET_LEADS_QUERY = `
         id
         code
         value
+        objectValue
       }
       leadRating {
         id
         code
         value
+        objectValue
       }
       ownerEmployeeId
       ownerEmployee {

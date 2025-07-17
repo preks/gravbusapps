@@ -167,7 +167,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
     sortOrder: sortOrder,
     context: props,
     sourceApp: sourceApp,
-    accountTypes: filters.accountTypes || [],
+    // accountTypes: filters.accountTypes || [], // REMOVED: field does not exist in GraphQL schema
     industries: filters.industries || [],
     createdAfter: filterCreatedAfter,
     createdBefore: filterCreatedBefore

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '@newwork/nw-design-system';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { EnhancedInvestment } from '../hooks';
@@ -58,11 +58,11 @@ const RealEstateTable: React.FC<RealEstateTableProps> = ({
       return null;
     }
     
-    if (sortOrder === 'ASC') {
-      return <ChevronUp className="gba:h-4 gba:w-4 gba:ml-1" />;
-    } else if (sortOrder === 'DESC') {
-      return <ChevronDown className="gba:h-4 gba:w-4 gba:ml-1" />;
-    }
+          if (sortOrder === 'ASC') {
+        return <PiArrowUp className="gba:h-4 gba:w-4 gba:ml-1" />;
+      } else if (sortOrder === 'DESC') {
+        return <PiArrowDown className="gba:h-4 gba:w-4 gba:ml-1" />;
+      }
     
     return null;
   };

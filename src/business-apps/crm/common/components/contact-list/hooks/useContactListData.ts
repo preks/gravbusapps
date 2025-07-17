@@ -26,11 +26,11 @@ const transformContactData = (apiContact: ContactData): Contact => {
     jobTitle: apiContact.jobTitle || '',
     bio: apiContact.bio || '',
     linkedinUrl: apiContact.linkedinUrl?.trim() || '',
-    contactRole: apiContact.contactRole || '',
-    contactType: apiContact.contactType || '',
+
     academicTitle: apiContact.academicTitle ? {
       id: apiContact.academicTitle.id,
-      value: apiContact.academicTitle.value
+      value: apiContact.academicTitle.value,
+      objectValue: apiContact.academicTitle.objectValue
     } : undefined,
     account: apiContact.account ? {
       id: apiContact.account.id || '',
@@ -89,9 +89,14 @@ export const useContactListData = (params: UseContactListDataParams): UseContact
           { email: searchPattern },
           { phone: searchPattern },
           { jobTitle: searchPattern },
+          { linkedinUrl: searchPattern }, // Added: displayed in contact info
+          { contactType: searchPattern }, // Added: displayed in type & role
+          { contactRole: searchPattern }, // Added: displayed in type & role
+          { academicTitle: { value: searchPattern } }, // Added: displayed in contact name
           { account: { name: searchPattern } },
           { ownerEmployee: { firstName: searchPattern } },
-          { ownerEmployee: { lastName: searchPattern } }
+          { ownerEmployee: { lastName: searchPattern } },
+          { ownerEmployee: { displayName: searchPattern } } // Added: displayed in owner
         ];
       }
 

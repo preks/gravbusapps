@@ -28,11 +28,13 @@ export interface Lead {
     id: string;
     code: string;
     value: string;
+    objectValue?: any;
   };
   leadRating?: {
     id: string;
     code: string;
     value: string;
+    objectValue?: any;
   };
   ownerEmployeeId?: string;
   ownerEmployee?: {

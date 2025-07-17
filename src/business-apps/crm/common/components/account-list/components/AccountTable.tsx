@@ -3,12 +3,13 @@
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Avatar, AvatarImage, AvatarFallback, Button, Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Card, CardContent } from '@newwork/nw-design-system';
-import { PiUser, PiEnvelope, PiPhone, PiBuilding, PiCalendar, PiMapPin, PiCaretUp, PiCaretDown } from 'react-icons/pi';
+import { PiUser, PiEnvelope, PiPhone, PiBuilding, PiCalendar, PiMapPin, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Account } from '../types';
 import dayjs from 'dayjs';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { getAccountTypeBadgeVariant, getIndustryBadgeVariant } from '@/common/utils/badgeUtils';
 
 interface AccountTableProps {
   accounts: Account[];
@@ -67,41 +68,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
     return '-';
   };
 
-  // Get account type color
-  const getTypeColor = (type?: string) => {
-    if (!type) return 'gray';
-    switch (type.toLowerCase()) {
-      case 'customer':
-        return 'green';
-      case 'prospect':
-        return 'blue';
-      case 'partner':
-        return 'purple';
-      case 'competitor':
-        return 'red';
-      default:
-        return 'gray';
-    }
-  };
 
-  // Get industry color
-  const getIndustryColor = (industry?: string) => {
-    if (!industry) return 'gray';
-    switch (industry.toLowerCase()) {
-      case 'technology':
-        return 'blue';
-      case 'finance':
-        return 'green';
-      case 'healthcare':
-        return 'red';
-      case 'manufacturing':
-        return 'orange';
-      case 'retail':
-        return 'purple';
-      default:
-        return 'gray';
-    }
-  };
 
   // Handle row click
   const handleRowClick = useCallback((record: Account) => {
@@ -132,8 +99,8 @@ export const AccountTable: React.FC<AccountTableProps> = ({
   // Helper function to render sort icon
   const renderSortIcon = (field: string) => {
     if (sortField !== field) return null;
-    if (sortOrder === 'ASC') return <PiCaretUp className="gba:inline gba:ml-1" size={12} />;
-    if (sortOrder === 'DESC') return <PiCaretDown className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
     return null;
   };
 
@@ -326,12 +293,12 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                     </div>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-type-cell-${record.id}`}>
-                    <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center">
+                    <Badge variant={getAccountTypeBadgeVariant(record.type)}>
                       {record.type?.value || '-'}
                     </Badge>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-industry-cell-${record.id}`}>
-                    <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center">
+                    <Badge variant={getIndustryBadgeVariant(record.industry)}>
                       {record.industry?.value || '-'}
                     </Badge>
                   </TableCell>

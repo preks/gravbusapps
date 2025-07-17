@@ -9,11 +9,11 @@ export interface Contact {
   linkedinUrl?: string;
   xingUrl?: string;
   birthDate?: string;
-  contactRole?: string;
-  contactType?: string;
+
   academicTitle?: {
     id: string;
     value: string;
+    objectValue?: any;
   };
   account?: {
     id: string;

@@ -3,12 +3,13 @@
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Avatar, AvatarImage, AvatarFallback, Button, Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Card, CardContent } from '@newwork/nw-design-system';
-import { PiUser, PiEnvelope, PiPhone, PiBuilding, PiCalendar, PiMapPin, PiCaretUp, PiCaretDown } from 'react-icons/pi';
+import { PiUser, PiEnvelope, PiPhone, PiBuilding, PiCalendar, PiMapPin, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Lead } from '../types';
 import dayjs from 'dayjs';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { getLeadStatusBadgeVariant, getLeadRatingBadgeVariant } from '@/common/utils/badgeUtils';
 
 interface LeadTableProps {
   leads: Lead[];
@@ -98,42 +99,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
     }
   };
 
-  // Get rating badge styling based on value
-  const getRatingBadgeClass = (rating?: string) => {
-    const baseClasses = 'gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]';
-    if (!rating) return `${baseClasses} gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200`;
-    switch (rating.toLowerCase()) {
-      case 'cold':
-        return `${baseClasses} gba:!bg-blue-100 gba:!text-blue-700 gba:!border-blue-200`;
-      case 'warm':
-        return `${baseClasses} gba:!bg-orange-100 gba:!text-orange-700 gba:!border-orange-200`;
-      case 'hot':
-        return `${baseClasses} gba:!bg-red-100 gba:!text-red-700 gba:!border-red-200`;
-      default:
-        return `${baseClasses} gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200`;
-    }
-  };
 
-  // Get lead status badge styling
-  const getStatusBadgeClass = (status?: string) => {
-    const baseClasses = 'gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]';
-    if (!status) return `${baseClasses} gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200`;
-    switch (status.toLowerCase()) {
-      case 'new':
-      case 'open':
-        return `${baseClasses} gba:!bg-blue-100 gba:!text-blue-700 gba:!border-blue-200`;
-      case 'qualified':
-      case 'contacted':
-        return `${baseClasses} gba:!bg-green-100 gba:!text-green-700 gba:!border-green-200`;
-      case 'unqualified':
-      case 'lost':
-        return `${baseClasses} gba:!bg-red-100 gba:!text-red-700 gba:!border-red-200`;
-      case 'converted':
-        return `${baseClasses} gba:!bg-green-100 gba:!text-green-700 gba:!border-green-200`;
-      default:
-        return `${baseClasses} gba:!bg-gray-100 gba:!text-gray-700 gba:!border-gray-200`;
-    }
-  };
 
   // Handle row click
   const handleRowClick = useCallback((record: Lead) => {
@@ -188,8 +154,8 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   // Helper function to render sort icon
   const renderSortIcon = (field: string) => {
     if (sortField !== field) return null;
-    if (sortOrder === 'ASC') return <PiCaretUp className="gba:inline gba:ml-1" size={12} />;
-    if (sortOrder === 'DESC') return <PiCaretDown className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
     return null;
   };
 
@@ -371,12 +337,12 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
-                    <Badge className={getStatusBadgeClass(record.leadStatus?.value)}>
+                    <Badge variant={getLeadStatusBadgeVariant(record.leadStatus)}>
                       {record.leadStatus?.value || '-'}
                     </Badge>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-rating-cell-${record.id}`}>
-                    <Badge className={getRatingBadgeClass(record.leadRating?.value)}>
+                    <Badge variant={getLeadRatingBadgeVariant(record.leadRating)}>
                       {record.leadRating?.value || '-'}
                     </Badge>
                   </TableCell>
