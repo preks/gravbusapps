@@ -33,4 +33,5 @@ export interface Opportunity {
   tags?: string[];
   version: number;
   sourceApp?: string;
+  position?: number; // For ordering within a stage
 } 

@@ -71,15 +71,16 @@ export const DataDetails: React.FC<DataDetailsProps> = ({
       data-testid="data-details-container"
     >
       {/* Header with title and close button */}
-      <div className="gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b gba:border-gray-200">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          {icon && <div className="gba:shrink-0">{icon}</div>}
-          <h2 className="gba:text-lg gba:font-bold">{title}</h2>
+      <div className="gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b gba:border-gray-200" data-testid="data-details-header">
+        <div className="gba:flex gba:items-center gba:gap-2" data-testid="data-details-title-section">
+          {icon && <div className="gba:shrink-0" data-testid="data-details-icon">{icon}</div>}
+          <h2 className="gba:text-lg gba:font-bold" data-testid="data-details-title">{title}</h2>
         </div>
         <button
           onClick={onClose}
           className="gba:p-2 gba:rounded-full gba:hover:bg-gray-100 gba:transition-colors"
           aria-label="Close"
+          data-testid="data-details-close-button"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -99,13 +100,13 @@ export const DataDetails: React.FC<DataDetailsProps> = ({
       </div>
 
       {/* Scrollable content area */}
-      <div className="gba:flex-1 gba:overflow-auto gba:p-4">
+      <div className="gba:flex-1 gba:overflow-auto gba:p-4" data-testid="data-details-content">
         {children}
       </div>
 
       {/* Optional footer with action buttons */}
       {footer && (
-        <div className="gba:p-4 gba:border-t gba:border-gray-200 gba:bg-white">
+        <div className="gba:p-4 gba:border-t gba:border-gray-200 gba:bg-white" data-testid="data-details-footer">
           {footer}
         </div>
       )}

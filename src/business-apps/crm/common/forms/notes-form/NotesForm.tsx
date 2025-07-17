@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Button, Form, Input, DatePicker } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Button, Form, Input, DatePicker, message } from 'antd';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -20,23 +20,66 @@ export const NotesForm: React.FC<NotesFormProps> = (props) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const handleProcessComplete = () => {
+      setLoading(false);
+      message.success('Note saved successfully!');
+    };
+
+    const handleProcessError = () => {
+      setLoading(false);
+      message.error('Failed to save note. Please try again.');
+    };
+
+    // Listen for process completion events
+    window.addEventListener('kogito-process-task-completed', handleProcessComplete);
+    window.addEventListener('kogito-process-error', handleProcessError);
+
+    return () => {
+      window.removeEventListener('kogito-process-task-completed', handleProcessComplete);
+      window.removeEventListener('kogito-process-error', handleProcessError);
+    };
+  }, []);
+
   const handleSubmit = async (values: any) => {
     setLoading(true);
-    const payload = {
-      changeMode: 'INSERT',
-      crmNote: {
-        noteTitle: values.noteTitle,
-        noteText: values.noteText,
-        reminderDate: values.reminderDate ? dayjs(values.reminderDate).toISOString() : null,
-        lastEditDate: new Date().toISOString(),
-        authorEmployee: additionalData?.employeeId,
-        ...(additionalData?.leadId && { lead: additionalData.leadId }),
-        ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId })
-      },
-    };
     
-    dispatchProcessContinueEvent('pse_submit', payload);
-    setLoading(false);
+    try {
+      // Debug: Check what's in additionalData
+      console.log('=== NotesForm Debug ===');
+      console.log('additionalData:', additionalData);
+      console.log('contactId found:', additionalData?.contactId);
+      console.log('=======================');
+      
+      const payload = {
+        employeeId: additionalData?.employeeId,
+        managerId: additionalData?.managerId,
+        structureId: additionalData?.structureId,
+        locationId: additionalData?.locationId,
+        organizationalUnitId: additionalData?.organizationalUnitId,
+        ...(additionalData?.contactId && { contactId: additionalData.contactId }),
+        changeMode: 'INSERT',
+        crmNote: {
+          noteTitle: values.noteTitle,
+          noteText: values.noteText,
+          reminderDate: values.reminderDate ? dayjs(values.reminderDate).toISOString() : null,
+          lastEditDate: new Date().toISOString(),
+          authorEmployee: additionalData?.employeeId,
+          ...(additionalData?.leadId && { lead: additionalData.leadId }),
+          ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
+          ...(additionalData?.contactId && { contact: additionalData.contactId })
+        },
+      };
+      
+      console.log('NotesForm final payload:', payload);
+      
+      dispatchProcessContinueEvent('pse_submit', payload);
+      // Note: loading state will be cleared by event listeners
+    } catch (error) {
+      setLoading(false);
+      message.error('Failed to save note. Please try again.');
+      console.error('Error submitting note:', error);
+    }
   };
 
   const handleCancel = () => {

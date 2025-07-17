@@ -119,11 +119,17 @@ export const useLeadListData = ({
         companySizes.forEach(sizeId => {
           switch (sizeId) {
             case 'startup':
-              // 1-10 employees - this could map to specific catalog values or use text matching
+              // 1-10 employees - use _or with _ilike patterns for better matching
               sizeConditions.push({ 
                 account: { 
                   numberOfEmployees: { 
-                    value: { _iregex: "1-10|startup|micro" } 
+                    value: { 
+                      _or: [
+                        { _ilike: "%1-10%" },
+                        { _ilike: "%startup%" },
+                        { _ilike: "%micro%" }
+                      ]
+                    } 
                   } 
                 } 
               });
@@ -133,7 +139,12 @@ export const useLeadListData = ({
               sizeConditions.push({ 
                 account: { 
                   numberOfEmployees: { 
-                    value: { _iregex: "11-50|small|1[1-9]|[2-4][0-9]|50" } 
+                    value: { 
+                      _or: [
+                        { _ilike: "%11-50%" },
+                        { _ilike: "%small%" }
+                      ]
+                    } 
                   } 
                 } 
               });
@@ -143,7 +154,12 @@ export const useLeadListData = ({
               sizeConditions.push({ 
                 account: { 
                   numberOfEmployees: { 
-                    value: { _iregex: "51-200|medium|[5-9][0-9]|1[0-9][0-9]|200" } 
+                    value: { 
+                      _or: [
+                        { _ilike: "%51-200%" },
+                        { _ilike: "%medium%" }
+                      ]
+                    } 
                   } 
                 } 
               });
@@ -153,7 +169,12 @@ export const useLeadListData = ({
               sizeConditions.push({ 
                 account: { 
                   numberOfEmployees: { 
-                    value: { _iregex: "201-1000|large|[2-9][0-9][0-9]|1000" } 
+                    value: { 
+                      _or: [
+                        { _ilike: "%201-1000%" },
+                        { _ilike: "%large%" }
+                      ]
+                    } 
                   } 
                 } 
               });
@@ -163,7 +184,12 @@ export const useLeadListData = ({
               sizeConditions.push({ 
                 account: { 
                   numberOfEmployees: { 
-                    value: { _iregex: "1000\\+|enterprise|[1-9][0-9]{3,}" } 
+                    value: { 
+                      _or: [
+                        { _ilike: "%1000+%" },
+                        { _ilike: "%enterprise%" }
+                      ]
+                    } 
                   } 
                 } 
               });

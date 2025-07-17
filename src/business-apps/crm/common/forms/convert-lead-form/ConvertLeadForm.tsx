@@ -14,7 +14,8 @@ import {
   Card,
   Row,
   Col,
-  Switch
+  Switch,
+  message
 } from "antd";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
@@ -174,6 +175,7 @@ export const ConvertLeadForm: React.FC<
   const [form] = Form.useForm();
   const [leadData, setLeadData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [accountOption, setAccountOption] = useState("match");
   const [contactOption, setContactOption] = useState("match");
   const [opportunityOption, setOpportunityOption] = useState("new");
@@ -210,6 +212,29 @@ export const ConvertLeadForm: React.FC<
       catalogManagerClient.setAccessToken(accessToken);
     }
   }, [accessToken]);
+
+  // Add process completion listener
+  useEffect(() => {
+    const handler = async (event: any) => {
+      try {
+        const response = event.detail?.response;
+        if (response) {
+          message.success('Lead converted successfully');
+          setSubmitting(false);
+        }
+      } catch (err: any) {
+        console.error('Error in process completion:', err);
+        message.error(err?.message || 'Failed to convert lead');
+        setSubmitting(false);
+      }
+    };
+    
+    window.addEventListener('com.newwork.process.taskCompletion', handler as EventListener);
+    
+    return () => {
+      window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener);
+    };
+  }, []);
 
   // Load catalogs
   useEffect(() => {
@@ -413,9 +438,12 @@ export const ConvertLeadForm: React.FC<
   };
 
   const handleSubmit = (values: any) => {
-    const payload: any = {
-      leadId: additionalData?.leadId
-    };
+    setSubmitting(true);
+    
+    try {
+      const payload: any = {
+        leadId: additionalData?.leadId
+      };
 
     // Handle Account
     if (accountOption === "match" && selectedAccount) {
@@ -486,8 +514,13 @@ export const ConvertLeadForm: React.FC<
       }
     }
 
-    console.log("Submitting payload:", payload);
-    dispatchProcessContinueEvent("pse_submit", payload);
+      console.log("Submitting payload:", payload);
+      dispatchProcessContinueEvent("pse_submit", payload);
+    } catch (error) {
+      console.error('Error submitting convert lead form:', error);
+      message.error('Failed to submit form');
+      setSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
@@ -1321,6 +1354,7 @@ export const ConvertLeadForm: React.FC<
             size="large"
             className="gba:min-w-[120px]"
             data-testid="cancel-button"
+            disabled={submitting}
           >
             {getTranslationFromI18nKeyAndLabel("common:cancel", "Cancel")}
           </Button>
@@ -1330,6 +1364,7 @@ export const ConvertLeadForm: React.FC<
             size="large"
             className="gba:min-w-[120px]"
             data-testid="submit-button"
+            loading={submitting}
           >
             {getTranslationFromI18nKeyAndLabel(
               "crm:convertLead.submit",

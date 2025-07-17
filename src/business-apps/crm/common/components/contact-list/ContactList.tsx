@@ -12,6 +12,7 @@ import { Contact } from './types';
 import { Alert, Button, Modal, Form, Input, Select, message } from 'antd';
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 import { PlusOutlined } from '@ant-design/icons';
+import { startProcess } from '@/common/utils/start-process';
 
 interface ContactListProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -59,7 +60,37 @@ const ContactList: React.FC<ContactListProps> = (context) => {
       contactListData.loadPage(1, pageSize);
       contactStatistics.refetch();
     }
-  }, [context.accessToken, contactListData, contactStatistics, pageSize]);
+  }, [context.accessToken, pageSize]);
+
+  // Auto-reload when filters change
+  useEffect(() => {
+    if (initialLoadDone.current && context.accessToken) {
+      setCurrentPage(1);
+      contactListData.loadPage(1, pageSize);
+    }
+  }, [
+    JSON.stringify(appliedFilters.contactTypes),
+    JSON.stringify(appliedFilters.jobTitles),
+    appliedFilters.createdAfter,
+    appliedFilters.createdBefore,
+    context.accessToken,
+    pageSize
+  ]);
+
+  // Auto-reload when search changes
+  useEffect(() => {
+    if (initialLoadDone.current && context.accessToken) {
+      setCurrentPage(1);
+      contactListData.loadPage(1, pageSize);
+    }
+  }, [appliedFilters.search, context.accessToken, pageSize]);
+
+  // Auto-reload when sort changes
+  useEffect(() => {
+    if (initialLoadDone.current && context.accessToken) {
+      contactListData.loadPage(currentPage, pageSize);
+    }
+  }, [sortField, sortOrder, context.accessToken, currentPage, pageSize]);
 
   // Handlers
   const handleContactClick = useCallback((contact: Contact) => {
@@ -102,7 +133,12 @@ const ContactList: React.FC<ContactListProps> = (context) => {
   }, [contactFilters, contactListData, pageSize]);
 
   const handleAddContact = useCallback(() => {
-    setIsAddModalVisible(true);
+    startProcess({
+      domain: 'customer-relations',
+      processName: 'createContact',
+      builderType: 'NATIVE_SCREEN',
+      payload: {}
+    });
   }, []);
 
   const handleRetryStatistics = useCallback(() => {

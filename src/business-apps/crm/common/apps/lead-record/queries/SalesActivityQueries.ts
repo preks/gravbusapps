@@ -12,9 +12,7 @@ export interface SalesActivityData {
   description: string;
   createdAt: string;
   completedAt?: string | null;
-  ownerEmployee: {
-    fullName: string;
-  };
+  createdBy: string;
 }
 
 export interface SalesActivityResponse {
@@ -31,9 +29,7 @@ export const GET_SALES_ACTIVITIES = (variables: SalesActivityQueryVariables): st
         description
         createdAt
         completedAt
-        ownerEmployee {
-          fullName
-        }
+        createdBy
       }
     }
   `;

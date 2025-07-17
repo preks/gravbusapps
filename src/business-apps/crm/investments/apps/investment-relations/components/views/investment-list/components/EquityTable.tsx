@@ -122,55 +122,55 @@ const EquityTable: React.FC<EquityTableProps> = ({
   const equityInvestments = investments.filter(inv => inv.type === 'Equity');
 
   return (
-    <Card>
+    <Card data-testid="equity-table-container">
       <CardContent className="gba:p-0">
         <div className="gba:overflow-x-auto">
-          <Table>
+          <Table data-testid="equity-table">
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
                 {/* Actions */}
-                <Header className="gba:w-[60px]">ACTIONS</Header>
+                <Header className="gba:w-[60px]" data-testid="equity-actions-header">ACTIONS</Header>
                 {/* Basic Investment Info */}
-                <SortableHeader field="name" className="gba:min-w-[200px]">INVESTMENT</SortableHeader>
-                <Header>BUSINESS KEY</Header>
+                <SortableHeader field="name" className="gba:min-w-[200px]" data-testid="equity-investment-header">INVESTMENT</SortableHeader>
+                <Header data-testid="equity-business-key-header">BUSINESS KEY</Header>
                 
                 {/* Financial Info */}
-                <SortableHeader field="initialInvestmentAmount">INITIAL AMOUNT</SortableHeader>
-                <SortableHeader field="bookValue">BOOK VALUE</SortableHeader>
-                <SortableHeader field="marketValue">MARKET VALUE</SortableHeader>
-                <SortableHeader field="totalInvestmentAmount">TOTAL INVESTMENT</SortableHeader>
-                <Header>CURRENCY</Header>
-                <Header>EXPECTED ROI</Header>
+                <SortableHeader field="initialInvestmentAmount" data-testid="equity-initial-amount-header">INITIAL AMOUNT</SortableHeader>
+                <SortableHeader field="bookValue" data-testid="equity-book-value-header">BOOK VALUE</SortableHeader>
+                <SortableHeader field="marketValue" data-testid="equity-market-value-header">MARKET VALUE</SortableHeader>
+                <SortableHeader field="totalInvestmentAmount" data-testid="equity-total-investment-header">TOTAL INVESTMENT</SortableHeader>
+                <Header data-testid="equity-currency-header">CURRENCY</Header>
+                <Header data-testid="equity-expected-roi-header">EXPECTED ROI</Header>
                 
                 {/* Equity Specific */}
-                <SortableHeader field="investmentRoleRef">INVESTMENT ROLE</SortableHeader>
-                <SortableHeader field="currentCompanyValuation">COMPANY VALUATION</SortableHeader>
-                <SortableHeader field="lastReportedEbitda">LAST EBITDA</SortableHeader>
-                <SortableHeader field="lastReportedTurnover">LAST TURNOVER</SortableHeader>
+                <SortableHeader field="investmentRoleRef" data-testid="equity-investment-role-header">INVESTMENT ROLE</SortableHeader>
+                <SortableHeader field="currentCompanyValuation" data-testid="equity-company-valuation-header">COMPANY VALUATION</SortableHeader>
+                <SortableHeader field="lastReportedEbitda" data-testid="equity-last-ebitda-header">LAST EBITDA</SortableHeader>
+                <SortableHeader field="lastReportedTurnover" data-testid="equity-last-turnover-header">LAST TURNOVER</SortableHeader>
                 
                 {/* Investment Details */}
-                <SortableHeader field="stakePercent">STAKE %</SortableHeader>
-                <SortableHeader field="leverageRatio">LEVERAGE RATIO</SortableHeader>
-                <SortableHeader field="debtFinancing">DEBT FINANCING</SortableHeader>
-                <Header>INVESTMENT GROUP</Header>
-                <Header>INVESTMENT PHASE</Header>
-                <Header>RISK LEVEL</Header>
-                <Header>STATUS</Header>
+                <SortableHeader field="stakePercent" data-testid="equity-stake-percent-header">STAKE %</SortableHeader>
+                <SortableHeader field="leverageRatio" data-testid="equity-leverage-ratio-header">LEVERAGE RATIO</SortableHeader>
+                <SortableHeader field="debtFinancing" data-testid="equity-debt-financing-header">DEBT FINANCING</SortableHeader>
+                <Header data-testid="equity-investment-group-header">INVESTMENT GROUP</Header>
+                <Header data-testid="equity-investment-phase-header">INVESTMENT PHASE</Header>
+                <Header data-testid="equity-risk-level-header">RISK LEVEL</Header>
+                <Header data-testid="equity-status-header">STATUS</Header>
                 
                 {/* Dates */}
-                <SortableHeader field="acquisitionDate">ACQUISITION DATE</SortableHeader>
-                <SortableHeader field="plannedExitDate">PLANNED EXIT</SortableHeader>
-                <SortableHeader field="exitDate">EXIT DATE</SortableHeader>
+                <SortableHeader field="acquisitionDate" data-testid="equity-acquisition-date-header">ACQUISITION DATE</SortableHeader>
+                <SortableHeader field="plannedExitDate" data-testid="equity-planned-exit-header">PLANNED EXIT</SortableHeader>
+                <SortableHeader field="exitDate" data-testid="equity-exit-date-header">EXIT DATE</SortableHeader>
                 
                 {/* Relationships */}
-                <Header>ACCOUNT</Header>
-                <Header>OPPORTUNITY</Header>
-                <Header>OWNER</Header>
+                <Header data-testid="equity-account-header">ACCOUNT</Header>
+                <Header data-testid="equity-opportunity-header">OPPORTUNITY</Header>
+                <Header data-testid="equity-owner-header">OWNER</Header>
                 
                 {/* System Fields */}
-                <SortableHeader field="createdAt">CREATED AT</SortableHeader>
-                <SortableHeader field="updatedAt">UPDATED AT</SortableHeader>
-                <Header>NOTES</Header>
+                <SortableHeader field="createdAt" data-testid="equity-created-at-header">CREATED AT</SortableHeader>
+                <SortableHeader field="updatedAt" data-testid="equity-updated-at-header">UPDATED AT</SortableHeader>
+                <Header data-testid="equity-notes-header">NOTES</Header>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -182,10 +182,10 @@ const EquityTable: React.FC<EquityTableProps> = ({
                   <TableRow 
                     key={investment.id}
                     className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors" 
-                    data-testid={`equity-row-${index + 1}`}
+                    data-testid={`equity-row-${investment.id}`}
                   >
                     {/* Actions */}
-                    <TableCell className="gba:py-4 gba:px-6">
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`equity-actions-cell-${investment.id}`}>
                       <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
                           data-testid={`equity-update-investment-button-${investment.id}`}
@@ -203,13 +203,14 @@ const EquityTable: React.FC<EquityTableProps> = ({
                       </div>
                     </TableCell>
                     {/* Basic Investment Info */}
-                    <TableCell className="gba:py-4 gba:px-6">
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`equity-investment-cell-${investment.id}`}>
                       <div 
                         className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
                           onRowClick(investment.id);
                         }}
+                        data-testid={`equity-investment-name-${investment.id}`}
                       >
                         <div className="gba:font-semibold gba:text-gray-900 gba:mb-1">{investmentData.name || 'N/A'}</div>
                         <div className="gba:text-sm gba:text-gray-600">{investment.subType}</div>
