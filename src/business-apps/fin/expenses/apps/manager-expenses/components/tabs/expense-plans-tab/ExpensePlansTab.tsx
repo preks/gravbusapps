@@ -25,6 +25,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   const {
     searchTerm,
     setSearchTerm,
+    debouncedSearchTerm,
     statusFilter,
     setStatusFilter,
     filterGroups,
@@ -91,6 +92,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     handleDataFilterChange(filterId, selected);
   }, [handleDataFilterChange]);
 
+  // Handle clearing all filters
+  const clearAllFilters = useCallback(() => {
+    setSearchTerm('');
+    setStatusFilter([]);
+  }, [setSearchTerm, setStatusFilter]);
+
   return (
     <div className="gba:h-full gba:flex gba:flex-col">
       {/* Statistics Section */}
@@ -145,8 +152,11 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
             <div data-testid="expense-plans-table-container">
               <ExpensePlansTable
                 {...contextProps}
-                search={searchTerm}
+                search={debouncedSearchTerm}
+                onSearchChange={handleSearchChange}
                 activeFilter={statusFilter}
+                onFilterChange={(filter) => setStatusFilter(filter || [])}
+                onClearFilters={clearAllFilters}
                 employeeId={props.employeeId}
                 onViewDetails={handleViewDetails}
               />
