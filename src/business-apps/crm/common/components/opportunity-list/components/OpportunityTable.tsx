@@ -1,10 +1,11 @@
 import React, { useCallback } from 'react';
 import { Avatar, AvatarImage, AvatarFallback, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Button, Card, CardContent } from '@newwork/nw-design-system';
-import { PiUser, PiCurrencyDollar, PiTarget, PiFunnel, PiCalendar, PiBuilding, PiCaretUp, PiCaretDown } from 'react-icons/pi';
+import { PiUser, PiCurrencyDollar, PiTarget, PiFunnel, PiCalendar, PiBuilding, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Opportunity } from '../types';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { getWinningChanceBadgeVariant, getSalesPipelineStageBadgeVariant } from '@/common/utils/badgeUtils';
 
 export interface OpportunityTableProps {
   data: Opportunity[];
@@ -117,8 +118,8 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
   // Helper function to render sort icon
   const renderSortIcon = (field: string) => {
     if (sortField !== field) return null;
-    if (sortOrder === 'ASC') return <PiCaretUp className="gba:inline gba:ml-1" size={12} />;
-    if (sortOrder === 'DESC') return <PiCaretDown className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
     return null;
   };
 
@@ -256,12 +257,12 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
         </div>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-win-rate-cell-${record.id}`}>
-                    <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
+                    <Badge variant={getWinningChanceBadgeVariant(record.winningChance)}>
             {record.winningChance ? `${record.winningChance}%` : '0%'}
                     </Badge>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-stage-cell-${record.id}`}>
-                    <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
+                    <Badge variant={getSalesPipelineStageBadgeVariant(record.salesPipelineStage)}>
                       {record.stage || 'Unknown Stage'}
                     </Badge>
                   </TableCell>

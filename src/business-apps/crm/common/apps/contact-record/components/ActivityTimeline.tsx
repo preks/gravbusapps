@@ -310,6 +310,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
     setSelectedLanguage(languageCode);
   };
 
+  const getActivityTypeValue = (activityType: any): string => {
+    if (!activityType) return '';
+    if (typeof activityType === 'string') return activityType;
+    if (activityType.value) return activityType.value;
+    return '';
+  };
+
   const handleDeleteDocument = (document: ContactDocumentData) => {
     Modal.confirm({
       title: 'Confirm Deletion',
@@ -500,6 +507,20 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                           {dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(activity.createdBy)}
                         </Text>
                       </div>
+                      {getActivityTypeValue(activity.activityType) && (
+                        <div style={{ marginTop: '4px', marginBottom: '4px' }}>
+                          <span style={{ 
+                            backgroundColor: '#f0f0f0', 
+                            color: '#333', 
+                            padding: '2px 8px', 
+                            borderRadius: '4px', 
+                            fontSize: '12px',
+                            fontWeight: '500'
+                          }}>
+                            {getActivityTypeValue(activity.activityType)}
+                          </span>
+                        </div>
+                      )}
                       <div style={{ marginTop: '4px' }}>
                         <div>{activity.translatedDescription || activity.description}</div>
                       </div>

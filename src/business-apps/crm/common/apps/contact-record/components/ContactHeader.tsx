@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from 'antd';
 import { MailOutlined, PhoneOutlined, UserOutlined } from '@ant-design/icons';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -66,7 +65,7 @@ export const ContactHeader: React.FC<ContactHeaderProps> = ({ contact, contactId
               data-testid="contact-record-action-button"
               variant="primary"
               size="md"
-              contextsArray={[FlowContextName.employeeEntity]}
+              contextsArray={[FlowContextName.contactEntity]}
               externalContextData={{
                 contactId: contactId
               }}

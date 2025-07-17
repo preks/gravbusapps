@@ -21,11 +21,13 @@ export interface OpportunityData {
     id: string;
     value: string;
     code: string;
+    objectValue?: any;
   } | null;
   salesPipelineStage: {
     id: string;
     value: string;
     code: string;
+    objectValue?: any;
   } | null;
   account: {
     id: string;
@@ -42,6 +44,7 @@ export interface OpportunityData {
     id: string;
     value: string;
     code: string;
+    objectValue?: any;
   } | null;
   createdAt: string;
   updatedAt: string;
@@ -80,11 +83,13 @@ export const GET_OPPORTUNITIES_DATA = `
         id
         value
         code
+        objectValue
       }
       salesPipelineStage {
         id
         value
         code
+        objectValue
       }
       account {
         id
@@ -101,6 +106,7 @@ export const GET_OPPORTUNITIES_DATA = `
         id
         value
         code
+        objectValue
       }
       createdAt
       updatedAt

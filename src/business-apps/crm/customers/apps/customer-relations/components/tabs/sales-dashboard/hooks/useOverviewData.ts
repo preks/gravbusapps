@@ -214,7 +214,7 @@ export const useOverviewData = (
       const sourceGroups = new Map<string, number>();
 
       openLeads.forEach((lead: any) => {
-        const source = lead.leadSource?.value || 'Unknown Source';
+        const source = lead.leadSource?.value || 'NETWORK';
         sourceGroups.set(source, (sourceGroups.get(source) || 0) + 1);
       });
 

@@ -10,7 +10,7 @@ interface UseAccountListDataParams {
   sortOrder: 'ASC' | 'DESC';
   context: BusinessAppContextProps;
   sourceApp?: string;
-  accountTypes?: string[];
+  // accountTypes?: string[]; // REMOVED: field does not exist in GraphQL schema
   industries?: string[];
   createdAfter?: string;
   createdBefore?: string;
@@ -36,11 +36,13 @@ const transformAccountData = (apiAccount: AccountData): Account => {
     email: apiAccount.contact?.[0]?.email || '',
     industry: {
       id: apiAccount.industry?.id || '',
-      value: apiAccount.industry?.value || ''
+      value: apiAccount.industry?.value || '',
+      objectValue: apiAccount.industry?.objectValue
     },
     type: {
       id: apiAccount.legalForm?.id || '',
-      value: apiAccount.legalForm?.value || ''
+      value: apiAccount.legalForm?.value || '',
+      objectValue: apiAccount.legalForm?.objectValue
     },
     ownerEmployee: {
       id: apiAccount.ownerEmployee?.id || '',
@@ -106,6 +108,8 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
       if (params.industries && params.industries.length > 0) {
         whereCondition.industry = { value: { _in: params.industries } };
       }
+
+      // Note: accountType field does not exist in GraphQL schema - removed filter
 
       // Add date filtering
       if (params.createdAfter) {

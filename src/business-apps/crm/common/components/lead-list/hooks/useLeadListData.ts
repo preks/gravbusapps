@@ -80,6 +80,12 @@ export const useLeadListData = ({
           { email: { _ilike: `%${search}%` } },
           { companyName: { _ilike: `%${search}%` } },
           { position: { _ilike: `%${search}%` } },
+          { companyEmail: { _ilike: `%${search}%` } }, // Added: displayed in company info
+          { companyWebsite: { _ilike: `%${search}%` } }, // Added: displayed in company info
+          { academicTitle: { value: { _ilike: `%${search}%` } } }, // Added: displayed in contact name
+          { leadStatus: { value: { _ilike: `%${search}%` } } }, // Added: displayed in status
+          { leadRating: { value: { _ilike: `%${search}%` } } }, // Added: displayed in rating
+          { leadSource: { value: { _ilike: `%${search}%` } } }, // Added: displayed in source
           { ownerEmployee: { firstName: { _ilike: `%${search}%` } } },
           { ownerEmployee: { lastName: { _ilike: `%${search}%` } } },
           { ownerEmployee: { fullName: { _ilike: `%${search}%` } } },

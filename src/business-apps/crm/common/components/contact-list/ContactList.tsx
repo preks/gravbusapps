@@ -135,7 +135,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
   const handleAddContact = useCallback(() => {
     startProcess({
       domain: 'customer-relations',
-      processName: 'createContact',
+      processName: 'saveContact',
       builderType: 'NATIVE_SCREEN',
       payload: {}
     });

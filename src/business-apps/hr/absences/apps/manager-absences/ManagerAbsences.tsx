@@ -1,35 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { Tabs, ActionButton } from '@newwork/gravity-ui-catalog';
-import { PiGauge, PiCalendar, PiListBullets, PiChartBar, PiCalendarBlank } from 'react-icons/pi';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Tabs } from '@newwork/gravity-ui-catalog';
+import { PiGauge, PiCalendarBlank, PiListBullets, PiChartBar } from 'react-icons/pi';
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
-import { AbsenceOverview } from '../components/AbsenceOverview/AbsenceOverview';
-import { AbsenceReports } from '../components/AbsenceReports/AbsenceReports';
-import { AbsenceList } from '../components/AbsenceList/AbsenceList';
-import CalendarList from '../components/CalendarList/CalendarList';
-import AbsenceTrends from '../components/AbsenceTrends/AbsenceTrends';
-import KPISection from '../components/KPISection/KPISection';
+import { AbsenceOverview } from './components/AbsenceOverview/AbsenceOverview';
+import { AbsenceList } from './components/AbsenceList/AbsenceList';
+import KPISection from './components/KPISection/KPISection';
+import { AbsenceReports } from './components/AbsenceReports/AbsenceReports';
+import CalendarList from './components/CalendarList/CalendarList';
 
-export interface DashboardProps extends BusinessAppContextProps {}
+interface ManagerAbsencesProps extends BusinessAppContextProps {}
 
-const Dashboard: React.FC<DashboardProps> = ({ accessToken, userInfo }) => {
-  const [contentHeader, setContentHeader] = useState<React.ReactNode>(null);
-  const [activeTab, setActiveTab] = useState('dashboard');
+export const ManagerAbsences: React.FC<ManagerAbsencesProps> = (props) => {
+  const { accessToken, userInfo } = props;
 
-  useEffect(() => {
+
+  const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabFromUrl = urlParams.get('tab');
-    const validTabs = ['dashboard', 'absence-list', 'calendar', 'reports'];
+    const validTabs = ['dashboard', 'absence-list', 'team-calendar', 'reports'];
     
     if (tabFromUrl && validTabs.includes(tabFromUrl)) {
-      setActiveTab(tabFromUrl);
+      return tabFromUrl;
     } else {
+
+      const defaultTab = 'dashboard';
       const url = new URL(window.location.href);
-      url.searchParams.set('tab', 'dashboard');
+      url.searchParams.set('tab', defaultTab);
       window.history.replaceState({}, '', url.toString());
+      return defaultTab;
     }
-  }, []);
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab());
+
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
@@ -38,11 +43,12 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken, userInfo }) => {
     window.history.pushState({}, '', url.toString());
   };
 
+
   useEffect(() => {
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const tabFromUrl = urlParams.get('tab');
-      const validTabs = ['dashboard', 'absence-list', 'calendar', 'reports'];
+      const validTabs = ['dashboard', 'absence-list', 'team-calendar', 'reports'];
       const newTab = tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : 'dashboard';
       setActiveTab(newTab);
     };
@@ -51,7 +57,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken, userInfo }) => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const tabItems = [
+  const getTabItems = (accessToken: string, userInfo: any) => [
     {
       key: 'dashboard',
       label: (
@@ -61,12 +67,14 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken, userInfo }) => {
         </div>
       ),
       children: (
-        <div className="gba:space-y-8">
+        <>
           <AbsenceOverview accessToken={accessToken} userInfo={userInfo} />
-          <AbsenceTrends accessToken={accessToken} />
-          <KPISection accessToken={accessToken} />
-        </div>
+          <div className="gba:mt-8">
+            <KPISection accessToken={accessToken} userInfo={userInfo} />
+          </div>
+        </>
       ),
+      renderContentHeader: () => null,
     },
     {
       key: 'absence-list',
@@ -76,53 +84,59 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken, userInfo }) => {
           <span className="gba:inline-block gba:align-middle">Absence List</span>
         </div>
       ),
-      children: <AbsenceList accessToken={accessToken} />,
+      children: <AbsenceList accessToken={accessToken} userInfo={userInfo} />,
+      renderContentHeader: () => null,
     },
     {
-      key: 'calendar',
+      key: 'team-calendar',
       label: (
         <div className="gba:flex gba:items-center gba:gap-2">
-          <PiCalendar className="gba:text-xl gba:inline-block gba:align-middle" />
+          <PiCalendarBlank className="gba:text-xl gba:inline-block gba:align-middle" />
           <span className="gba:inline-block gba:align-middle">Team Calendar</span>
         </div>
       ),
       children: <CalendarList accessToken={accessToken} userInfo={userInfo} />,
+      renderContentHeader: () => null,
     },
     {
       key: 'reports',
       label: (
         <div className="gba:flex gba:items-center gba:gap-2">
           <PiChartBar className="gba:text-xl gba:inline-block gba:align-middle" />
-          <span className="gba:inline-block gba:align-middle">Absence Reports</span>
+          <span className="gba:inline-block gba:align-middle">Reports</span>
         </div>
       ),
       children: <AbsenceReports accessToken={accessToken} userInfo={userInfo} />,
+      renderContentHeader: () => null,
     },
   ];
 
-  const activeTabItem = tabItems.find(item => item.key === activeTab) || tabItems[0];
+  const tabItems = useMemo(
+    () => getTabItems(accessToken, userInfo),
+    [accessToken, userInfo]
+  );
+
+  const activeTabItem = useMemo(() => tabItems.find((item: { key: string }) => item.key === activeTab) || tabItems[0], [tabItems, activeTab]);
+  const activeTabContent = activeTabItem?.children;
+  const activeTabContentHeader = activeTabItem?.renderContentHeader?.();
 
   return (
     <PageLayout
-      headerIcon={<PiCalendarBlank color="#a3519a" />}
-      headerLabel="Absence Management Hub (Backoffice)"
+      headerIcon={<PiCalendarBlank color="#a3519aff"/>}
+      headerLabel="Absence Management Hub (Manager)"
       headerLabelClassName="gba:font-medium gba:self-center gba:text-2xl gba:mb-1"
       pageController={
         <Tabs
           activeKey={activeTab}
           onChange={handleTabChange}
-          items={tabItems.map(item => ({ key: item.key, label: item.label }))}
+          items={tabItems.map((item: { key: string; label: React.ReactNode }) => ({ key: item.key, label: item.label }))}
           className="w-full"
         />
       }
-      contentHeader={contentHeader}
-      contentContainer={
-        <div className="gba:p-6">
-          {activeTabItem.children}
-        </div>
-      }
+      contentHeader={activeTabContentHeader}
+      contentContainer={activeTabContent}
     />
   );
 };
 
-export default Dashboard;
+export default ManagerAbsences;
