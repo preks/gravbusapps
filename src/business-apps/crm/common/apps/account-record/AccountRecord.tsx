@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button, Spinner } from '@newwork/nw-design-system';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { useAccountData } from "./hooks/useAccountData";
@@ -21,6 +21,15 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
   const [error, setError] = useState<string | null>(null);
 
   const { account: accountData, loading: dataLoading, error: dataError, refetchAccountData } = useAccountData(accountId, props.accessToken);
+
+  // Get source from URL parameters to determine back navigation text
+  const source = useMemo(() => {
+    return new URLSearchParams(window.location.search).get('source');
+  }, []);
+
+  const getBackButtonText = () => {
+    return 'Back to Accounts';
+  };
 
   useEffect(() => {
     const fetchAccountData = async () => {
@@ -74,7 +83,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
             className="gba:mt-4"
             variant="default"
           >
-            Back to Customer Relations
+            {getBackButtonText()}
           </Button>
         </div>
       </div>
@@ -85,15 +94,14 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     <div className="gba:contact-details-container" data-testid="contact-opportunity-investment-detail" style={{ backgroundColor: 'white', padding: '16px' }}>
       {/* Back navigation */}
       <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
-        <Button
+        <button
           onClick={onBack}
-          variant="ghost"
           className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
           data-testid="back-button"
         >
-          <ArrowLeft className="gba:mr-2 gba:w-4 gba:h-4" />
-          <span>Back to Customer Relations</span>
-        </Button>
+          <ArrowLeftOutlined className="gba:mr-2" />
+          <span>{getBackButtonText()}</span>
+        </button>
       </div>
 
       {/* Account header */}
@@ -150,6 +158,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
 
 interface AccountRecordProps extends BusinessAppContextProps {
   accountId?: string;
+  source?: string;
   onBack?: () => void;
 }
 
@@ -157,13 +166,25 @@ const AccountRecord: React.FC<AccountRecordProps> = (props) => {
   const accountId = useMemo(() => {
     return props.accountId || new URLSearchParams(window.location.search).get('accountId');
   }, [props.accountId]);
+
+  const source = useMemo(() => {
+    return props.source || new URLSearchParams(window.location.search).get('source');
+  }, [props.source]);
   
   const handleBack = () => {
     if (props.onBack) {
       props.onBack();
     } else {
-      // Navigate back to customer relations
+      // Navigate back based on source
+      switch (source) {
+        case 'investments':
+          navigateTo('/platform/irm/investment-relations?view=accounts');
+          break;
+        case 'customer-relations':
+        default:
       navigateTo('/platform/crm/customer-relations?view=accounts');
+          break;
+      }
     }
   };
 

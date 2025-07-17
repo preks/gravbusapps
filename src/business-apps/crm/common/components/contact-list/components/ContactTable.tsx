@@ -25,6 +25,7 @@ interface ContactTableProps extends BusinessAppContextProps {
   onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void;
   selectedContactId?: string;
   onEdit?: (contact: Contact) => void;
+  sourceApp?: string;
 }
 
 const DATA_TEST_ID_PREFIX = 'ContactTable';
@@ -47,7 +48,8 @@ const ContactTable: React.FC<ContactTableProps> = ({
   onSortingChange,
   selectedContactId,
   onEdit,
-  accessToken
+  accessToken,
+  sourceApp
 }) => {
   // Get contact display name
   const getContactName = (contact: Contact) => {
@@ -60,13 +62,19 @@ const ContactTable: React.FC<ContactTableProps> = ({
 
   // Handle row click
   const handleRowClick = useCallback((record: Contact) => {
+    // Determine source based on sourceApp
+    const source = (sourceApp === 'investment-relations' || sourceApp === 'IRM') ? 'investments' : 'customer-relations';
+    
     // Navigate to contact record page
-    const url = buildPlatformUrl('/platform/crm/contact-record', { contactId: record.id });
+    const url = buildPlatformUrl('/platform/crm/contact-record', { 
+      contactId: record.id, 
+      source: source 
+    });
     navigateTo(url);
     
     // Also call the selection callback if provided
     onSelectContact?.(record);
-  }, [onSelectContact]);
+  }, [onSelectContact, sourceApp]);
 
   // Helper function to handle column sorting
   const handleSort = (field: string) => {

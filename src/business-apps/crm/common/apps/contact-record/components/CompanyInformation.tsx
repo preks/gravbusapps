@@ -26,13 +26,6 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({ contact 
               </div>
               
               <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Account ID</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {contact?.accountId || '-'}
-                </div>
-              </div>
-              
-              <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Contact Role</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {contact?.contactRole || '-'}
@@ -98,19 +91,7 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({ contact 
                 </div>
               </div>
               
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Last Updated</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {contact?.updatedAt || '-'}
-                </div>
-              </div>
-              
-              <div>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Version</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {contact?.version || '-'}
-                </div>
-              </div>
+
             </div>
           </div>
         </div>

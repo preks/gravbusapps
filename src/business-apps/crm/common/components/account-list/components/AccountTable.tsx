@@ -29,6 +29,7 @@ interface AccountTableProps {
   onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void;
   selectedAccountId?: string;
   accessToken: string;
+  sourceApp?: string;
 }
 
 const DATA_TEST_ID_PREFIX = 'AccountTable';
@@ -38,6 +39,7 @@ const DATA_TEST_ID_PREFIX = 'AccountTable';
  */
 export const AccountTable: React.FC<AccountTableProps> = ({
   accounts,
+  sourceApp,
   loading,
   error,
   hasMore,
@@ -72,8 +74,14 @@ export const AccountTable: React.FC<AccountTableProps> = ({
 
   // Handle row click
   const handleRowClick = useCallback((record: Account) => {
+    // Determine source based on sourceApp
+    const source = (sourceApp === 'investment-relations' || sourceApp === 'IRM') ? 'investments' : 'customer-relations';
+    
     // Navigate to account record page
-    const url = buildPlatformUrl('/platform/crm/account-record', { accountId: record.id });
+    const url = buildPlatformUrl('/platform/crm/account-record', { 
+      accountId: record.id, 
+      source: source 
+    });
     navigateTo(url);
     
     // Also call the selection callback if provided
