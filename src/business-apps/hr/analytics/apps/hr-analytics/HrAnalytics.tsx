@@ -5,7 +5,8 @@ import {
   DashboardOutlined,
   CalendarOutlined,
   UserOutlined,
-  TeamOutlined
+  TeamOutlined,
+  ApartmentOutlined
 } from '@ant-design/icons';
 import { ChartPie } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -13,6 +14,7 @@ import Dashboard from './components/views/dashboard/Dashboard';
 import AbsenceReport from './components/views/absence-report';
 import Demographics from './components/views/demographics';
 import Workforce from './components/views/workforce';
+import StructuralAnalysisReport from './components/views/structural-analysis/StructuralAnalysisReport';
 
 export interface HrAnalyticsProps extends BusinessAppContextProps {}
 
@@ -32,6 +34,11 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
       key: 'workforce',
       icon: <TeamOutlined />,
       label: 'Workforce'
+    },
+    {
+      key: 'structural-analysis',
+      icon: <ApartmentOutlined />,
+      label: 'Structural Analysis'
     },
     {
       key: 'absences',
@@ -162,6 +169,12 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
         return (
           <div data-testid="workforce-tab-content">
             <Workforce {...context} />
+          </div>
+        );
+      case 'structural-analysis':
+        return (
+          <div data-testid="structural-analysis-tab-content">
+            <StructuralAnalysisReport {...context} />
           </div>
         );
       case 'absences':
