@@ -44,7 +44,7 @@ const TurnoverRateChart: React.FC<TurnoverRateChartProps> = ({
   }
 
   return (
-    <div data-testid={dataTestId} className="gba:w-full gba:h-full">
+    <div data-testid={dataTestId} className="gba:h-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData}

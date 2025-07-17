@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system';
+import { Typography } from 'antd';
 import { PiFileText, PiFilePdf } from 'react-icons/pi';
 import { 
   PieChart, 
@@ -9,7 +10,10 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { DemographicsData } from '../hooks/useDemographicsDataIntegration';
+
+const { Title, Text } = Typography;
 
 interface DemographicsChartsViewProps {
   demographicsData: DemographicsData;
@@ -101,8 +105,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({
       colors: colors.primary,
       testId: 'gender-chart',
       tag: `${genderData.length} categories`,
-      icon: '👤',
-      description: 'Employee distribution by gender identity'
+      description: 'Employee distribution by gender identity showing workforce gender composition'
     },
     {
       title: 'Age Distribution',
@@ -111,8 +114,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({
       colors: colors.warm,
       testId: 'age-chart',
       tag: `${ageData.length} age groups`,
-      icon: '📅',
-      description: 'Employee distribution by age groups'
+      description: 'Employee distribution across age groups showing generational workforce makeup'
     },
     {
       title: 'Nationality Distribution',
@@ -121,8 +123,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({
       colors: colors.cool,
       testId: 'nationality-chart',
       tag: `Top 8 of ${nationalityData.length} nationalities`,
-      icon: '🌍',
-      description: 'Employee distribution by nationality'
+      description: 'Employee distribution by nationality showing international workforce diversity'
     }
   ];
 
@@ -165,7 +166,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({
             <Card 
               key={config.testId}
               data-testid={`${dataTestId}-${config.testId}`}
-              className={`gba:cursor-pointer gba:transition-all gba:duration-200 ${
+              className={`gba:cursor-pointer gba:transition-all gba:duration-200 gba:shadow-sm ${
                 isSelected 
                   ? 'gba:ring-2 gba:ring-blue-500 gba:shadow-lg' 
                   : 'gba:hover:shadow-lg'
@@ -175,20 +176,23 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({
               <CardHeader className="gba:border-b">
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <div className="gba:flex gba:items-center gba:gap-2">
-                    <span>{config.icon}</span>
-                    <CardTitle className="gba:text-sm">{config.title}</CardTitle>
+                    <Title level={4} className="gba:m-0 gba:text-gray-800">{config.title}</Title>
                   </div>
                   <Badge variant="outline" className="gba:text-xs">
                     {config.tag}
                   </Badge>
                 </div>
+                <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">
+                  {config.description}
+                </Text>
                 {isSelected && (
                   <p className="gba:text-xs gba:text-blue-600 gba:mt-1">
                     ✓ Selected - Table shown below
                   </p>
                 )}
               </CardHeader>
-              <CardContent className="gba:p-4">
+              
+              <CardContent>
                 <div className="gba:h-64">
                   {config.data.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
@@ -237,13 +241,12 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({
         })}
       </div>
 
-      {/* Selected Chart Table - Full Width */}
+      {/* Selected Chart Data Table */}
       {selectedConfig && (
         <Card data-testid={`${dataTestId}-${selectedConfig.testId}-table`}>
           <CardHeader>
             <div className="gba:flex gba:justify-between gba:items-center">
               <div className="gba:flex gba:items-center gba:gap-2">
-                <span>{selectedConfig.icon}</span>
                 <CardTitle className="gba:text-xl">Data Table: {selectedConfig.title}</CardTitle>
                 <Badge variant="outline" className="gba:bg-green-50 gba:text-green-700">
                   {selectedConfig.tableData.length} entries
@@ -264,6 +267,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({
                   <PiFileText className="gba:w-3 gba:h-3" />
                   Export Excel
                 </Button>
+                
                 <Button
                   size="sm"
                   variant="outline"
@@ -284,6 +288,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({
               {selectedConfig.description}
             </p>
           </CardHeader>
+          
           <CardContent>
             <div className="gba:max-h-96 gba:overflow-y-auto">
               <Table>

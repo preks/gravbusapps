@@ -6,7 +6,7 @@ import {
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { YearlyHireData } from '../../hooks/useHiresPerYear';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 interface HiresPerYearChartProps {
   data: YearlyHireData[];
@@ -59,20 +59,26 @@ const HiresPerYearChart: React.FC<HiresPerYearChartProps> = ({ data, loading, er
 
   return (
     <Card 
-      className="gba:h-full gba:shadow-sm" 
+      className="gba:w-full gba:mb-6 gba:shadow-sm" 
       data-testid="hires-per-year-chart"
-      title={
-        <Title level={4} className="gba:m-0" data-testid="hires-per-year-chart-title">
+    >
+      {/* Header */}
+      <div className="gba:mb-4">
+        <Title level={4} className="gba:m-0 gba:text-gray-800">
           {getTranslationFromI18nKeyAndLabel('hr_analytics_hires_per_year', 'Hires Per Year')}
         </Title>
-      }
-    >
+        <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">
+          {getTranslationFromI18nKeyAndLabel('hr_analytics_hires_per_year_description', 'Annual hiring trends with smoothed trend line showing recruitment patterns over time')}
+        </Text>
+      </div>
+
+      {/* Chart Content */}
       {loading ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-12" data-testid="hires-chart-loading">
+        <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="hires-chart-loading">
           <Spin size="large" />
         </div>
       ) : error ? (
-        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-72" data-testid="hires-chart-error">
+        <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="hires-chart-error">
           <Result
             status="warning"
             title={getTranslationFromI18nKeyAndLabel('hr_analytics_data_error', 'Could not load data')}
@@ -80,7 +86,7 @@ const HiresPerYearChart: React.FC<HiresPerYearChartProps> = ({ data, loading, er
           />
         </div>
       ) : chartData.length === 0 ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-12" data-testid="hires-chart-empty">
+        <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="hires-chart-empty">
           <Empty description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')} />
         </div>
       ) : (

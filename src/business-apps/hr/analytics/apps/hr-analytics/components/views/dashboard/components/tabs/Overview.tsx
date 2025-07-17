@@ -37,10 +37,10 @@ const Overview: React.FC<OverviewTabProps> = ({
   accessToken
 }) => {
   const {
-    totalEmployees,
+    employeeCount,
     newHires,
     turnoverRate,
-    avgSalary
+    averageSalary
   } = analyticsData;
 
   return (
@@ -55,23 +55,15 @@ const Overview: React.FC<OverviewTabProps> = ({
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
               <UserOutlined className="gba:text-gray-600" />
               <Text className="gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_total_employees', 'Total Employees')}
+                {employeeCount.label}
               </Text>
             </div>
             <Title level={2} className="gba:m-0 gba:mb-1" data-testid="total-employees-value">
-              {totalEmployees.value.toLocaleString()}
+              {employeeCount.value.toLocaleString()}
             </Title>
-            <div className="gba:flex gba:items-center gba:gap-1">
-              <ArrowUpOutlined 
-                className={`${totalEmployees.changeType === 'increase' ? 'gba:text-green-500' : 'gba:text-red-500'}`}
-              />
-              <Text 
-                className={`${totalEmployees.changeType === 'increase' ? 'gba:text-green-500' : 'gba:text-red-500'}`}
-                data-testid="total-employees-change"
-              >
-                {`${totalEmployees.change > 0 ? '+' : ''}${totalEmployees.change}% ${getTranslationFromI18nKeyAndLabel('hr_analytics_from', 'from')} ${totalEmployees.period}`}
-              </Text>
-            </div>
+            <Text className="gba:text-gray-500">
+              {getTranslationFromI18nKeyAndLabel('hr_analytics_active_employees', 'Active employees')}
+            </Text>
           </div>
         </Card>
 
@@ -84,14 +76,14 @@ const Overview: React.FC<OverviewTabProps> = ({
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
               <UserOutlined className="gba:text-gray-600" />
               <Text className="gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_new_hires', 'New Hires')}
+                {newHires.label}
               </Text>
             </div>
             <Title level={2} className="gba:m-0 gba:mb-1" data-testid="new-hires-value">
               {newHires.value}
             </Title>
             <Text className="gba:text-gray-500" data-testid="new-hires-period">
-              {getTranslationFromI18nKeyAndLabel('hr_analytics_this_month', 'This month')}
+              {getTranslationFromI18nKeyAndLabel('hr_analytics_this_year', 'This year')}
             </Text>
           </div>
         </Card>
@@ -105,21 +97,23 @@ const Overview: React.FC<OverviewTabProps> = ({
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
               <UserOutlined className="gba:text-gray-600" />
               <Text className="gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_turnover_rate', 'Turnover Rate')}
+                {turnoverRate.label}
               </Text>
             </div>
             <Title level={2} className="gba:m-0 gba:mb-1" data-testid="turnover-rate-value">
-              {`${turnoverRate.value}%`}
+              {`${turnoverRate.value.toFixed(1)}%`}
             </Title>
             <div className="gba:flex gba:items-center gba:gap-1">
-              <ArrowDownOutlined 
-                className={`${turnoverRate.changeType === 'decrease' ? 'gba:text-green-500' : 'gba:text-red-500'}`}
-              />
+              {turnoverRate.change < 0 ? (
+                <ArrowDownOutlined className="gba:text-green-500" />
+              ) : (
+                <ArrowUpOutlined className="gba:text-red-500" />
+              )}
               <Text 
-                className={`${turnoverRate.changeType === 'decrease' ? 'gba:text-green-500' : 'gba:text-red-500'}`}
+                className={`${turnoverRate.change < 0 ? 'gba:text-green-500' : 'gba:text-red-500'}`}
                 data-testid="turnover-rate-change"
               >
-                {`${turnoverRate.change > 0 ? '+' : ''}${turnoverRate.change}% ${getTranslationFromI18nKeyAndLabel('hr_analytics_from', 'from')} ${turnoverRate.period}`}
+                {`${turnoverRate.change > 0 ? '+' : ''}${turnoverRate.change.toFixed(1)}% ${getTranslationFromI18nKeyAndLabel('hr_analytics_vs_last_month', 'vs last month')}`}
               </Text>
             </div>
           </div>
@@ -134,18 +128,17 @@ const Overview: React.FC<OverviewTabProps> = ({
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
               <DollarOutlined className="gba:text-gray-600" />
               <Text className="gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_avg_salary', 'Avg Salary')}
+                {averageSalary.label}
               </Text>
             </div>
             <Title level={2} className="gba:m-0 gba:mb-1" data-testid="avg-salary-value">
-              {`$${avgSalary.value.toLocaleString()}`}
+              {`$${averageSalary.value}K`}
             </Title>
             <Text className="gba:text-gray-500" data-testid="avg-salary-period">
               {getTranslationFromI18nKeyAndLabel('hr_analytics_annual_average', 'Annual average')}
             </Text>
           </div>
         </Card>
-
 
       </div>
       

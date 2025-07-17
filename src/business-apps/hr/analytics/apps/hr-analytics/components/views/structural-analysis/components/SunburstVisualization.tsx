@@ -3,84 +3,48 @@ import { Card, Typography } from 'antd';
 import { SunburstChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { SunburstNode } from '../types/structuralTypes';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 interface SunburstVisualizationProps {
   data: SunburstNode;
   prefixDataTestId?: string;
 }
 
-interface SunburstTooltipProps {
-  active?: boolean;
-  payload?: any[];
-}
-
-// Transform our SunburstNode data to match the working example format
-const transformToSunburstFormat = (node: SunburstNode): any => {
-  const transformed: any = {
-    name: node.name,
-    value: node.value,
-    fill: node.color || node.fill || '#666' // Use the color set in utils, fallback to gray
-  };
-
-  if (node.children && node.children.length > 0) {
-    transformed.children = node.children.map((child) => 
-      transformToSunburstFormat(child)
-    );
-  }
-
-  return transformed;
-};
-
-const SunburstTooltip: React.FC<SunburstTooltipProps> = ({ active, payload }) => {
+// Custom tooltip component for sunburst
+const SunburstTooltip: React.FC<any> = ({ active, payload }) => {
   if (active && payload && payload.length > 0) {
-    const data = payload[0]?.payload;
-    if (!data) return null;
-    
+    const data = payload[0].payload;
     return (
-      <div
-        style={{
-          backgroundColor: '#fff',
-          border: '1px solid #ccc',
-          borderRadius: '8px',
-          padding: '12px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          fontSize: '12px',
-          maxWidth: '250px'
+      <div 
+        style={{ 
+          backgroundColor: 'white', 
+          border: '1px solid #ccc', 
+          borderRadius: '4px', 
+          padding: '8px' 
         }}
       >
-        <p style={{ margin: 0, fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>
-          {data.name}
+        <p style={{ margin: 0, fontWeight: 'bold' }}>{data.name}</p>
+        <p style={{ margin: 0, color: '#666' }}>
+          Employees: {data.value}
         </p>
-        <p style={{ margin: 0, color: '#666', marginBottom: '4px' }}>
-          <strong>Level:</strong> {data.level >= 0 ? data.level : 'Root'}
-        </p>
-        <p style={{ margin: 0, color: '#666', marginBottom: '4px' }}>
-          <strong>Total Employees:</strong> {data.value}
-        </p>
-        {data.employees && data.employees.length > 0 && (
-          <div style={{ marginTop: '8px' }}>
-            <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12px', marginBottom: '4px' }}>
-              Direct Employees ({data.employees.length}):
-            </p>
-            <div style={{ maxHeight: '100px', overflowY: 'auto' }}>
-              {data.employees.slice(0, 10).map((emp: string, idx: number) => (
-                <p key={idx} style={{ margin: 0, fontSize: '11px', color: '#666' }}>
-                  • {emp || 'Unknown'}
-                </p>
-              ))}
-              {data.employees.length > 10 && (
-                <p style={{ margin: 0, fontSize: '11px', color: '#999', fontStyle: 'italic' }}>
-                  ... and {data.employees.length - 10} more
-                </p>
-              )}
-            </div>
-          </div>
+        {data.companyName && (
+          <p style={{ margin: 0, color: '#666' }}>
+            Company: {data.companyName}
+          </p>
         )}
       </div>
     );
   }
   return null;
+};
+
+// Transform hierarchical data to sunburst format
+const transformToSunburstFormat = (node: SunburstNode): any => {
+  return {
+    name: node.name,
+    value: node.value,
+    children: node.children?.map(transformToSunburstFormat) || []
+  };
 };
 
 export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
@@ -95,49 +59,48 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
   return (
     <Card
       data-testid={`${prefixDataTestId}-SunburstVisualization`}
-      title={
-        <Title level={5} style={{ margin: 0, color: '#1f2937' }}>
-          Organizational Hierarchy Sunburst
-        </Title>
-      }
       style={{ height: '600px' }}
     >
-      {hasData && sunburstData ? (
-        <ResponsiveContainer height={450} width="100%">
-          <SunburstChart
-            data={sunburstData}
-            startAngle={0}
-            endAngle={360}
-            fill=""
-            innerRadius={10}
-            ringPadding={1}
-            stroke=""
-            textOptions={{}}
+      <div className="gba:p-4 gba:border-b">
+        <Title level={4} className="gba:m-0 gba:text-gray-800">
+          Organizational Hierarchy Sunburst
+        </Title>
+        <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">
+          Interactive hierarchical visualization showing organizational depth and structure distribution across different levels
+        </Text>
+      </div>
+      
+      <div className="gba:p-4">
+        {hasData && sunburstData ? (
+          <ResponsiveContainer height={450} width="100%">
+            <SunburstChart
+              data={sunburstData}
+              startAngle={0}
+              endAngle={360}
+              fill=""
+              innerRadius={10}
+              ringPadding={1}
+              stroke=""
+              textOptions={{}}
+            >
+              <Tooltip content={<SunburstTooltip />} />
+            </SunburstChart>
+          </ResponsiveContainer>
+        ) : (
+          <div 
+            className="gba:flex gba:flex-col gba:justify-center gba:items-center gba:h-96 gba:text-gray-500"
           >
-            <Tooltip content={<SunburstTooltip />} />
-          </SunburstChart>
-        </ResponsiveContainer>
-      ) : (
-        <div 
-          style={{ 
-            display: 'flex', 
-            flexDirection: 'column',
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '450px',
-            color: '#666'
-          }}
-        >
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏢</div>
-          <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
-            No Organizational Hierarchy Data
+            <div className="gba:text-4xl gba:mb-4 gba:text-gray-400">📊</div>
+            <div className="gba:text-lg gba:font-semibold gba:mb-2 gba:text-gray-700">
+              No Organizational Hierarchy Data
+            </div>
+            <div className="gba:text-sm gba:text-center gba:leading-6 gba:text-gray-600">
+              The organizational hierarchy data is either empty or still loading.<br/>
+              Please ensure your structure has organizational units with relationships.
+            </div>
           </div>
-          <div style={{ fontSize: '14px', textAlign: 'center', lineHeight: '1.5' }}>
-            The organizational hierarchy data is either empty or still loading.<br/>
-            Please ensure your structure has organizational units with relationships.
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </Card>
   );
 }; 

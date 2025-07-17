@@ -6,10 +6,7 @@ import {
   TabKey,
 } from "./types/analyticsTypes";
 import Overview from "./components/tabs/Overview";
-
-import CompensationTab from "./components/tabs/Compensation";
 import Workforce from "./components/tabs/Workforce";
-import ForecastingTab from "./components/tabs/Forecasting";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { useEmployeeCount } from "./hooks/useEmployeeCount";
 import { useNewHiresCount } from "./hooks/useNewHiresCount";
@@ -56,47 +53,41 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
     error: departmentError,
   } = useEmployeesByOrgUnit(accessToken);
 
-  // Combine loading states
+  // Combine loading states for simplicity
   const loading =
     employeeLoading ||
     hiresLoading ||
     turnoverLoading ||
-    salaryLoading ||
-    hiresYearlyLoading ||
-    employeesYearlyLoading ||
-    departmentLoading;
+    salaryLoading;
 
-  // Analytics data with real counts from API
+  // Format analytics KPI data
   const analyticsData: AnalyticsKpiData = useMemo(
     () => ({
-      totalEmployees: {
+      employeeCount: {
         value: employeeCount,
-        change: 2.1,
-        changeType: "increase",
-        period: getTranslationFromI18nKeyAndLabel(
-          "hr_analytics_last_month",
-          "last month"
+        label: getTranslationFromI18nKeyAndLabel(
+          "hr_analytics_total_employees",
+          "Total employees"
         ),
       },
       newHires: {
         value: newHiresCount,
-        period: getTranslationFromI18nKeyAndLabel(
-          "hr_analytics_this_month",
-          "This month"
+        label: getTranslationFromI18nKeyAndLabel(
+          "hr_analytics_new_hires",
+          "New hires this year"
         ),
       },
       turnoverRate: {
         value: turnoverRate,
-        change: Math.abs(turnoverChange),
-        changeType: turnoverChange < 0 ? "decrease" : "increase",
-        period: getTranslationFromI18nKeyAndLabel(
-          "hr_analytics_last_month",
-          "last month"
+        change: turnoverChange,
+        label: getTranslationFromI18nKeyAndLabel(
+          "hr_analytics_turnover_rate",
+          "Turnover rate"
         ),
       },
-      avgSalary: {
-        value: averageSalary,
-        period: getTranslationFromI18nKeyAndLabel(
+      averageSalary: {
+        value: Math.round(averageSalary / 1000), // Convert to thousands
+        label: getTranslationFromI18nKeyAndLabel(
           "hr_analytics_annual_average",
           "Annual average"
         ),
@@ -139,22 +130,6 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
         "Workforce"
       ),
       children: <Workforce loading={loading} accessToken={accessToken} />,
-    },
-    {
-      key: "compensation",
-      label: getTranslationFromI18nKeyAndLabel(
-        "hr_analytics_tab_compensation",
-        "Compensation"
-      ),
-      children: <CompensationTab accessToken={accessToken} />,
-    },
-    {
-      key: "forecasting",
-      label: getTranslationFromI18nKeyAndLabel(
-        "hr_analytics_tab_forecasting",
-        "Forecasting"
-      ),
-      children: <ForecastingTab accessToken={accessToken} />,
     },
   ];
 

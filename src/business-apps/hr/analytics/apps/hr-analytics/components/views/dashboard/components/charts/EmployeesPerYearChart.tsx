@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
-import { Card, Empty, Result, Spin, Typography } from 'antd';
+import { Card, Typography, Spin, Empty, Result } from 'antd';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { YearlyEmployeeData } from '../../hooks/useEmployeesPerYear';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 interface EmployeesPerYearChartProps {
   data: YearlyEmployeeData[];
@@ -21,7 +21,7 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
   // Ensure data is properly formatted and not empty
   const chartData = useMemo(() => {
     return data?.map(item => ({
-      year: String(item.year),  // Convert to string for x-axis
+      year: String(item.year),
       employees: item.count
     })) || [];
   }, [data]);
@@ -59,20 +59,26 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
 
   return (
     <Card 
-      className="gba:h-full gba:shadow-sm" 
+      className="gba:w-full gba:mb-6 gba:shadow-sm" 
       data-testid="employees-per-year-chart"
-      title={
-        <Title level={4} className="gba:m-0" data-testid="employees-per-year-chart-title">
+    >
+      {/* Header */}
+      <div className="gba:mb-4">
+        <Title level={4} className="gba:m-0 gba:text-gray-800">
           {getTranslationFromI18nKeyAndLabel('hr_analytics_employees_per_year', 'Total Employees Per Year')}
         </Title>
-      }
-    >
+        <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">
+          {getTranslationFromI18nKeyAndLabel('hr_analytics_employees_per_year_description', 'Company workforce growth trends with smoothed trend line showing organizational expansion over time')}
+        </Text>
+      </div>
+
+      {/* Chart Content */}
       {loading ? (
-        <div className="gba:flex gba:items-center gba:justify-center gba:h-72" data-testid="employees-per-year-chart-loading">
+        <div className="gba:flex gba:items-center gba:justify-center gba:h-64" data-testid="employees-per-year-chart-loading">
           <Spin size="large" />
         </div>
       ) : error ? (
-        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-72" data-testid="employees-per-year-chart-error">
+        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-64" data-testid="employees-per-year-chart-error">
           <Result
             status="warning"
             title={getTranslationFromI18nKeyAndLabel('hr_analytics_data_error', 'Could not load data')}
@@ -80,7 +86,7 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
           />
         </div>
       ) : chartData.length === 0 ? (
-        <div className="gba:flex gba:items-center gba:justify-center gba:h-72" data-testid="employees-per-year-chart-empty">
+        <div className="gba:flex gba:items-center gba:justify-center gba:h-64" data-testid="employees-per-year-chart-empty">
           <Empty description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')} />
         </div>
       ) : (
@@ -110,12 +116,12 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
                 axisLine={{ stroke: '#e0e0e0' }}
                 tickLine={false}
                 tick={{ fill: '#666666', fontSize: 12 }}
-                width={50}
+                width={60}
                 label={{ 
                   value: getTranslationFromI18nKeyAndLabel('hr_analytics_chart_employees', 'Employees'),
                   angle: -90,
                   position: 'insideLeft',
-                  dy: 40,
+                  dy: 50,
                   fill: '#666666',
                   fontSize: 12
                 }}
@@ -145,8 +151,8 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
               />
               <Bar 
                 dataKey="employees" 
-                name={getTranslationFromI18nKeyAndLabel('hr_analytics_chart_employees', 'Total Employees')} 
-                fill="#36cfc9"
+                name={getTranslationFromI18nKeyAndLabel('hr_analytics_chart_employees', 'Employees')} 
+                fill="#52c41a"
                 radius={[4, 4, 0, 0]}
                 animationDuration={1500}
                 animationEasing="ease"

@@ -1,28 +1,25 @@
-import { BusinessAppContextProps } from '@/business-apps/types';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 export interface DashboardProps extends BusinessAppContextProps {}
 
 export interface AnalyticsKpiData {
-  totalEmployees: {
+  employeeCount: {
     value: number;
-    change: number;
-    changeType: 'increase' | 'decrease';
-    period: string;
+    label: string;
   };
   newHires: {
     value: number;
-    period: string;
+    label: string;
   };
   turnoverRate: {
     value: number;
     change: number;
-    changeType: 'increase' | 'decrease';
-    period: string;
+    label: string;
   };
-  avgSalary: {
+  averageSalary: {
     value: number;
-    period: string;
+    label: string;
   };
 }
 
-export type TabKey = 'overview' | 'demographics' | 'recruitment' | 'performance' | 'retention' | 'compensation' | 'training' | 'engagement';
+export type TabKey = 'overview' | 'workforce';

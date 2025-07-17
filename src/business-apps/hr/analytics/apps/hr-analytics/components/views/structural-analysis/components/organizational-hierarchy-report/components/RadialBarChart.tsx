@@ -302,7 +302,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        marginBottom: '24px'
+        marginBottom: '16px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <Title level={3} style={{ margin: 0, color: '#1f2937' }}>
@@ -350,6 +350,18 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             </Radio.Button>
           </Radio.Group>
         </Space>
+      </div>
+
+      {/* Description */}
+      <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        <Text className="gba:text-gray-700">
+          Interactive radial bar chart visualization showing organizational hierarchy distribution across different levels. 
+          Each ring represents an organizational level with segments showing distribution by {
+            viewMode === 'company' ? 'company affiliations' : 
+            viewMode === 'costcenter' ? 'cost center assignments' : 
+            'geographic locations'
+          }. Use the view mode buttons above to switch between different organizational perspectives.
+        </Text>
       </div>
 
       {/* Statistics Row */}

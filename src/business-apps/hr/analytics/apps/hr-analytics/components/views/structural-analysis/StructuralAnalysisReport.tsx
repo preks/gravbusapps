@@ -14,7 +14,7 @@ import { SunburstVisualization } from './components/SunburstVisualization';
 import { SpanOfControlChart } from './components/SpanOfControlChart';
 import { ReportingChainAnalysis } from './components/ReportingChainAnalysis';
 import { AnalysisTab } from './types/structuralTypes';
-import OrganizationalHierarchyReport from '../organizational-hierarchy-report/OrganizationalHierarchyReport';
+import OrganizationalHierarchyReport from './components/organizational-hierarchy-report/OrganizationalHierarchyReport';
 
 const { Title, Text } = Typography;
 
