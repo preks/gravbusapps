@@ -5,8 +5,7 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
     $managerId: uuid!,
     $limit: Int!,
     $offset: Int!,
-    $searchTerm: String,
-    $status: String
+    $where: AdvancePaymentBoolExp!
   ) {
     AdvancePaymentAggregate(
       where: {
@@ -21,12 +20,11 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
                     }
                   },
                   isDeleted: {_eq: false}
-                },
-                {title: {_ilike: $searchTerm}}
+                }
               ]
             }
           },
-          {status: {_eq: $status}}
+          $where
         ]
       }
     ) {
@@ -50,12 +48,11 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
                     }
                   },
                   isDeleted: {_eq: false}
-                },
-                {title: {_ilike: $searchTerm}}
+                }
               ]
             }
           },
-          {status: {_eq: $status}}
+          $where
         ]
       }
     ) {

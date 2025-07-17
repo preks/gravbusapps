@@ -58,6 +58,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     pageSize,
     searchTerm: searchTerm,
     currentStatusFilter: statusFilter || undefined,
+    currentPage,
   });
   
   // Filter payments based on search and status (already handled by the hook)
@@ -308,9 +309,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
           search: searchTerm,
           setSearch: setSearchTerm,
           debounceDelay: 300,
-          filter: statusFilter ? [statusFilter] : [],
+          filter: statusFilter || [],
           setFilter: (newFilters: string[]) => {
-            setStatusFilter(newFilters.length > 0 ? newFilters[0] : null);
+            setStatusFilter(newFilters.length > 0 ? newFilters : null);
           },
           filterLabelMap: filterLabelMap,
           listTitle: (

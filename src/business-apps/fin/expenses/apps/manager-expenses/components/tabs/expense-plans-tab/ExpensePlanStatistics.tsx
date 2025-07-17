@@ -27,8 +27,8 @@ interface ExpensePlanStatisticsProps {
   statsLoading: boolean;
   statsError: Error | null;
   fetchPlanStatistics: () => void;
-  activeFilter: ExpenseStatus | null;
-  onFilterChange: (filter: ExpenseStatus | null) => void;
+  activeFilter: ExpenseStatus[] | null;
+  onFilterChange: (filter: ExpenseStatus[] | null) => void;
 }
 
 const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
@@ -41,10 +41,16 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
 }) => {
   // Handle card click
   const handleCardClick = useCallback((filterKey: ExpenseStatus | null) => {
-    if (activeFilter === filterKey) {
-      onFilterChange(null); // Toggle off if already active
+    if (filterKey === null) {
+      onFilterChange(null); // Clear all filters
     } else {
-      onFilterChange(filterKey);
+      // Check if this status is currently active
+      const isActive = activeFilter?.includes(filterKey) || false;
+      if (isActive) {
+        onFilterChange(null); // Clear all filters if clicking active status
+      } else {
+        onFilterChange([filterKey]); // Set single filter
+      }
     }
   }, [activeFilter, onFilterChange]);
 
@@ -58,7 +64,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_approval', 'Pending Approval'),
         value: planStats.pendingCount,
         prefix: <PiCalendar />,
-        color: activeFilter === ExpenseStatus.PENDING ? '#1890ff' : '#faad14',
+        color: activeFilter?.includes(ExpenseStatus.PENDING) ? '#1890ff' : '#faad14',
         span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.requires_action', 'Requires action'),
         onClick: () => handleCardClick(ExpenseStatus.PENDING)

@@ -160,24 +160,19 @@ export const getAdvancePaymentStatusDisplay = (
   status: string
 ): StatusDisplayConfig => {
   switch (status) {
-    /**
-        case ExpenseStatus.CREATED:
-          return {
-            label: 'Draft',
-            type: "draft"
-          };
-          */
-    case ExpenseStatus.PENDING:
+    case ExpenseStatus.PREPARED:
       return {
-        label: "Approval Required",
-        type: "task",
+        label: "Prepared",
+        type: "draft",
       };
     case ExpenseStatus.APPROVED:
-    case ExpenseStatus.VERIFIED:
-    case ExpenseStatus.BOOKED:
-    case ExpenseStatus.TRANSFERRED:
       return {
-        label: "In Transit",
+        label: "Approved",
+        type: "completed",
+      };
+    case ExpenseStatus.BOOKED:
+      return {
+        label: "In Transit (Booked)",
         type: "waiting",
       };
     case ExpenseStatus.PAID:
@@ -185,23 +180,26 @@ export const getAdvancePaymentStatusDisplay = (
         label: "Paid",
         type: "completed",
       };
-    case ExpenseStatus.RETURNED:
+    case ExpenseStatus.PENDING:
       return {
-        label: "In Revision",
-        type: "waiting",
+        label: "Approval Required",
+        type: "task",
       };
-    case ExpenseStatus.CLOSED:
+    case ExpenseStatus.REJECTED:
       return {
-        label: "Closed",
+        label: "Revision Required",
+        type: "error",
+      };
+    case ExpenseStatus.TRANSFERRED:
+      return {
+        label: "Transferred",
         type: "completed",
       };
-    /*
-        case ExpenseStatus.REJECTED:
-          return {
-            label: 'Rejected',
-            type: "error"
-          };
-          */
+    case ExpenseStatus.VERIFIED:
+      return {
+        label: "In Transit (Verified)",
+        type: "waiting",
+      };
     default:
       return {
         label: status,

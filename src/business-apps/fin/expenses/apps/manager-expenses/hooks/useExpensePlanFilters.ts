@@ -14,57 +14,42 @@ export interface UseExpensePlanFiltersReturn {
   filterLabelMap: Record<string, string>; 
 }
 
+// Move outside component to prevent re-creation on every render
+const availableFilterStatuses: ExpenseStatus[] = [
+  ExpenseStatus.CREATED,
+  ExpenseStatus.PENDING,
+  ExpenseStatus.REJECTED,
+  ExpenseStatus.APPROVED,
+  ExpenseStatus.ASSIGNED,
+  ExpenseStatus.BOOKED,
+  ExpenseStatus.VERIFIED,
+  ExpenseStatus.CLOSED,
+];
+
 export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<ExpenseStatus[]>([]);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const handleStatusFilterChange = useCallback((newStatus: string | null) => {
-    if (newStatus === null || newStatus === 'all_statuses') {
-      setStatusFilter([]);
-    } else if (Object.values(ExpenseStatus).includes(newStatus as ExpenseStatus)) {
-      setStatusFilter([newStatus as ExpenseStatus]);
-    } else {
-      // Unknown status, default to empty array (all statuses) and log a warning.
-      setStatusFilter([]);
-      console.warn(`Unknown status filter applied: ${newStatus}. Defaulting to all statuses.`);
-    }
-  }, [setStatusFilter]);
-
   const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
-    if (filterId === 'all_statuses') {
+    setStatusFilter(prevFilter => {
       if (isSelected) {
-        setStatusFilter([]);
+        // Add the status if it's not already in the array
+        if (!prevFilter.includes(filterId as ExpenseStatus)) {
+          return [...prevFilter, filterId as ExpenseStatus];
+        }
+        return prevFilter;
+      } else {
+        // Remove the status from the array
+        return prevFilter.filter(status => status !== filterId);
       }
-      return;
-    }
-
-    if (isSelected) {
-      // Add the status to the filter array
-      setStatusFilter(prev => [...prev, filterId as ExpenseStatus]);
-    } else {
-      // Remove the status from the filter array
-      setStatusFilter(prev => prev.filter(status => status !== filterId));
-    }
+    });
   }, []);
 
-  // Define the statuses that have explicit mappings and should be used for filtering
-  const availableFilterStatuses: ExpenseStatus[] = [
-    ExpenseStatus.CREATED,
-    ExpenseStatus.PENDING,
-    ExpenseStatus.REJECTED,
-    ExpenseStatus.APPROVED,
-    ExpenseStatus.ASSIGNED,
-    ExpenseStatus.BOOKED,
-    ExpenseStatus.VERIFIED,
-    ExpenseStatus.CLOSED,
-  ];
-
+  // Memoize filterLabelMap with stable dependencies
   const filterLabelMap: Record<string, string> = useMemo(() => {
-    const map: Record<string, string> = {
-      all_statuses: 'All Statuses', // Hardcoded string
-    };
+    const map: Record<string, string> = {};
     availableFilterStatuses.forEach((status) => {
       // Use custom labels for BOOKED and VERIFIED to distinguish them
       if (status === ExpenseStatus.BOOKED) {
@@ -76,7 +61,7 @@ export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
       }
     });
     return map;
-  }, [availableFilterStatuses]); // Added dependency
+  }, []); // Empty dependency array since availableFilterStatuses is now stable
 
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
     const statusItems: DataFilter[] = availableFilterStatuses.map(
@@ -84,22 +69,19 @@ export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
         id: status,
         label: filterLabelMap[status],
         selected: statusFilter.includes(status),
-        group: 'statusGroup', // Added group property
+        group: 'statusGroup',
       })
     );
 
     return [
       {
         id: 'statusGroup',
-        title: 'Status', // Hardcoded string
-        filters: [
-          { id: 'all_statuses', label: filterLabelMap.all_statuses, selected: statusFilter.length === 0, group: 'statusGroup' },
-          ...statusItems,
-        ],
+        title: 'Status',
+        filters: statusItems,
         selectionMode: 'multiple',
       },
     ];
-  }, [filterLabelMap, statusFilter, availableFilterStatuses]); // Added availableFilterStatuses dependency
+  }, [filterLabelMap, statusFilter]); // Removed availableFilterStatuses dependency
 
   return {
     searchTerm,

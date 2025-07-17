@@ -33,7 +33,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import Pill from '@/components/pill/Pill';
 import ExpensePlanDetails from './ExpensePlanDetails';
 import { useMainViewExpensePlans, ExpensePlan } from '../../../hooks/useMainViewExpensePlans';
-import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters';
+
 import { getExpensePlanStatusDisplay, ExpenseStatus } from '../../../utils';
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatAmount, formatCurrency } from '../../../utils/currencyUtils';
@@ -61,33 +61,32 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
-  // Use the expense plan filters hook for filter management
-  const {
-    searchTerm,
-    setSearchTerm,
-    debouncedSearchTerm,
-    statusFilter,
-    setStatusFilter,
-    filterGroups,
-    handleDataFilterChange: originalHandleDataFilterChange,
-    filterLabelMap,
-  } = useExpensePlanFilters();
-
-  // Sync activeFilter prop with statusFilter state
-  useEffect(() => {
-    if (props.activeFilter !== undefined) {
-      console.log('Syncing statusFilter from props:', props.activeFilter);
-      setStatusFilter(props.activeFilter || []);
-    }
-  }, [props.activeFilter]);
-
-  // Only update statusFilter when it's different from the prop and not a direct user action
-  const isFilterControlled = props.activeFilter !== undefined;
-  const currentStatusFilter = isFilterControlled ? (props.activeFilter || []) : statusFilter;
+  // Local search state only - parent controls filters
+  const [searchTerm, setSearchTerm] = useState<string>(props.search || '');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>(searchTerm);
   
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Sync search from parent
+  useEffect(() => {
+    if (props.search !== undefined) {
+      setSearchTerm(props.search);
+    }
+  }, [props.search]);
+
+    // Use parent's filter state directly
+  const currentStatusFilter = props.activeFilter || [];
+  
+
+   
   // Handle clearing all filters
   const handleClearFilters = useCallback(() => {
-    console.log('Clearing all filters from table');
     
     // Reset search term
     setSearchTerm('');
@@ -95,79 +94,23 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       props.onSearchChange('');
     }
     
-    // Reset status filter based on control mode
-    if (isFilterControlled) {
-      if (props.onFilterChange) {
-        props.onFilterChange(null);
-      }
-    } else {
-      setStatusFilter([]);
-    }
-    
-    // Reset all filter states and ensure 'All Statuses' is checked
-    if (originalHandleDataFilterChange) {
-      // First clear all filters
-      originalHandleDataFilterChange('all_statuses', false);
-      // Then explicitly check 'All Statuses'
-      setTimeout(() => {
-        originalHandleDataFilterChange('all_statuses', true);
-      }, 0);
+    // Reset status filter 
+    if (props.onFilterChange) {
+      props.onFilterChange(null);
     }
     
     // If parent provided a clear all function, use it
     if (props.onClearFilters) {
       props.onClearFilters();
     }
-  }, [props.onSearchChange, props.onFilterChange, props.onClearFilters, originalHandleDataFilterChange, isFilterControlled]);
+  }, [props.onSearchChange, props.onFilterChange, props.onClearFilters]);
 
-  // Handle filter changes and notify parent
-  const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
-    console.log('Filter changed:', { filterId, isSelected, isFilterControlled });
-    
-    let newFilter: ExpenseStatus[] | null = null;
-    
-    if (filterId === 'all_statuses') {
-      newFilter = isSelected ? [] : null;
-    } else if (isSelected) {
-      // Add the status to the current filter array
-      const currentFilters = currentStatusFilter || [];
-      newFilter = [...currentFilters, filterId as ExpenseStatus];
-    } else {
-      // Remove the status from the current filter array
-      const currentFilters = currentStatusFilter || [];
-      newFilter = currentFilters.filter(status => status !== filterId);
-      if (newFilter.length === 0) {
-        newFilter = null;
-      }
-    }
-    
-    // Update local state if not controlled
-    if (!isFilterControlled) {
-      setStatusFilter(newFilter || []);
-    }
-    
-    // Always notify parent
-    if (props.onFilterChange) {
-      props.onFilterChange(newFilter);
-    }
-    
-    // Call original handler if it exists
-    if (originalHandleDataFilterChange) {
-      originalHandleDataFilterChange(filterId, isSelected);
-    }
-  }, [originalHandleDataFilterChange, props.onFilterChange, isFilterControlled, currentStatusFilter]);
+
   
   // Check if any filters are active
   const hasActiveFilters = useMemo(() => {
     return searchTerm || (currentStatusFilter && currentStatusFilter.length > 0);
   }, [searchTerm, currentStatusFilter]);
-
-  // Synchronize search from parent if provided
-  useEffect(() => {
-    if (search !== undefined) {
-      setSearchTerm(search);
-    }
-  }, [search]);
 
   // Set up local state
   const [pageSize, setPageSize] = useState<number>(10);
@@ -177,10 +120,14 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   const [isApproveModalVisible, setIsApproveModalVisible] = useState<boolean>(false);
   const [currentActionPlanId, setCurrentActionPlanId] = useState<string>('');
 
-  // Debug logging for currentStatusFilter
-  console.log('ExpensePlansTable - currentStatusFilter:', currentStatusFilter, 'statusFilter:', statusFilter, 'props.activeFilter:', props.activeFilter);
 
-  // Get expense plans data and functions
+
+  // Get expense plans data and functions - only log when activeFilter actually changes
+  const filterChanged = JSON.stringify(props.activeFilter) !== JSON.stringify(currentStatusFilter);
+  if (filterChanged) {
+    console.log('🔥 Filter changed in table:', { from: currentStatusFilter, to: props.activeFilter });
+  }
+  
   const {
     plans,
     loading: isLoading,
@@ -214,16 +161,33 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     }
   }, [props.onViewDetails]);
 
-  // Debug logging for approval and rejection actions
-  useEffect(() => {
-    if (approving || rejecting) {
-      console.log('ExpensePlansTable - Action in progress:', { 
-        approving, 
-        rejecting, 
-        currentActionPlanId 
-      });
+  // Handle filter changes and notify parent
+  const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
+    
+    // Reset to first page when filters change
+    setCurrentPage(1);
+    
+    if (props.onFilterChange) {
+      let newFilter: ExpenseStatus[] | null = null;
+      
+      if (isSelected) {
+        // Add the status to the current filter array
+        const currentFilters = currentStatusFilter || [];
+        newFilter = [...currentFilters, filterId as ExpenseStatus];
+      } else {
+        // Remove the status from the current filter array
+        const currentFilters = currentStatusFilter || [];
+        newFilter = currentFilters.filter(status => status !== filterId);
+        if (newFilter.length === 0) {
+          newFilter = null;
+        }
+      }
+      
+      props.onFilterChange(newFilter);
     }
-  }, [approving, rejecting, currentActionPlanId]);
+  }, [currentStatusFilter]);
+
+
 
 
 
@@ -519,4 +483,5 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   );
 };
 
-export default ExpensePlansTable;
+// Memoize component to prevent unnecessary re-renders
+export default React.memo(ExpensePlansTable);

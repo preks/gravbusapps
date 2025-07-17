@@ -87,27 +87,16 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
   // Get supervisor employee ID from user info
   const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
   
-  console.log('useGetExpenseRequests - supervisorEmployeeId:', supervisorEmployeeId);
-  console.log('useGetExpenseRequests - userInfo:', userInfo);
+
 
   /**
    * Helper function to map API response to ExpenseRequest objects
    */
   const mapResponseToRequests = (data: any): ExpenseRequest[] => {
     const fetchedRequests = data?.ExpenseRequest ?? [];
-    console.log('Raw API data received:', data);
-    console.log('Number of requests:', fetchedRequests.length);
     
-    return fetchedRequests.map((request: any, index: number) => {
-      console.log(`Request ${index + 1} raw data:`, {
-        id: request.id,
-        startDate: request.startDate,
-        endDate: request.endDate,
-        requestDate: request.requestDate,
-        startDateType: typeof request.startDate,
-        endDateType: typeof request.endDate,
-        requestDateType: typeof request.requestDate
-      });
+    
+      return fetchedRequests.map((request: any, index: number) => {
       
       return {
         id: request.id,
@@ -190,7 +179,7 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
 
       // Add status filter
       if (status && status.length > 0) {
-        console.log('Hook received status array:', status);
+  
         
         // Map filter values to actual database status values
         const mappedStatuses = status.map(statusValue => {
