@@ -25,7 +25,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   const {
     searchTerm,
     setSearchTerm,
-    debouncedSearchTerm,
     statusFilter,
     setStatusFilter,
     filterGroups,
@@ -58,13 +57,13 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   }, []);
 
   // Handle approve plan
-  const handleApprovePlan = useCallback((planId: string) => {
+  const handleApprovePlan = useCallback((_planId: string) => {
     // TODO: Implement approve functionality
     setSelectedPlan(null);
   }, []);
 
   // Handle reject plan
-  const handleRejectPlan = useCallback((planId: string) => {
+  const handleRejectPlan = useCallback((_planId: string) => {
     // TODO: Implement reject functionality
     setSelectedPlan(null);
   }, []);
@@ -79,12 +78,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     console.log('🔥 Filter clicked:', { filterId, selected }); // Only log on actual clicks
     handleDataFilterChange(filterId, selected);
   }, [handleDataFilterChange]);
-
-  // Clear all filters
-  const clearAllFilters = useCallback(() => {
-    setStatusFilter([]);
-    setSearchTerm('');
-  }, [setStatusFilter, setSearchTerm]);
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col">
