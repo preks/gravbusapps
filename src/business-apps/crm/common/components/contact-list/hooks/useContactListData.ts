@@ -25,12 +25,12 @@ const transformContactData = (apiContact: ContactData): Contact => {
     phone: apiContact.phone || '',
     jobTitle: apiContact.jobTitle || '',
     bio: apiContact.bio || '',
-    linkedinUrl: apiContact.linkedinUrl || '',
-    contactRole: apiContact.contactRole || '',
-    contactType: apiContact.contactType || '',
+    linkedinUrl: apiContact.linkedinUrl?.trim() || '',
+
     academicTitle: apiContact.academicTitle ? {
       id: apiContact.academicTitle.id,
-      value: apiContact.academicTitle.value
+      value: apiContact.academicTitle.value,
+      objectValue: apiContact.academicTitle.objectValue
     } : undefined,
     account: apiContact.account ? {
       id: apiContact.account.id || '',
@@ -82,16 +82,21 @@ export const useContactListData = (params: UseContactListDataParams): UseContact
 
       // Add search functionality
       if (params.search?.trim()) {
-        const searchPattern = { _iregex: params.search.trim() };
+        const searchPattern = { _ilike: `%${params.search.trim()}%` };
         whereCondition._or = [
           { firstName: searchPattern },
           { lastName: searchPattern },
           { email: searchPattern },
           { phone: searchPattern },
           { jobTitle: searchPattern },
+          { linkedinUrl: searchPattern }, // Added: displayed in contact info
+          { contactType: searchPattern }, // Added: displayed in type & role
+          { contactRole: searchPattern }, // Added: displayed in type & role
+          { academicTitle: { value: searchPattern } }, // Added: displayed in contact name
           { account: { name: searchPattern } },
           { ownerEmployee: { firstName: searchPattern } },
-          { ownerEmployee: { lastName: searchPattern } }
+          { ownerEmployee: { lastName: searchPattern } },
+          { ownerEmployee: { displayName: searchPattern } } // Added: displayed in owner
         ];
       }
 
@@ -159,7 +164,7 @@ export const useContactListData = (params: UseContactListDataParams): UseContact
     } finally {
       setLoading(false);
     }
-  }, [fetchContactsData, params.search, params.sortField, params.sortOrder, params.contactTypes, params.jobTitles, params.createdAfter, params.createdBefore, params.context.accessToken]);
+  }, [fetchContactsData, params.search, params.sortField, params.sortOrder, JSON.stringify(params.contactTypes), JSON.stringify(params.jobTitles), params.createdAfter, params.createdBefore, params.context.accessToken]);
 
   const loadMore = useCallback(() => {
     console.log('Load more contacts requested');

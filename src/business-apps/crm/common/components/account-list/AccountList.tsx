@@ -167,7 +167,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
     sortOrder: sortOrder,
     context: props,
     sourceApp: sourceApp,
-    accountTypes: filters.accountTypes || [],
+    // accountTypes: filters.accountTypes || [], // REMOVED: field does not exist in GraphQL schema
     industries: filters.industries || [],
     createdAfter: filterCreatedAfter,
     createdBefore: filterCreatedBefore
@@ -196,7 +196,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
       updateURLParams({ search, page: 1 });
       loadPage(1, pageSize); // Reset to first page when search changes
     }
-  }, [search, pageSize, updateURLParams]);
+  }, [search, pageSize]);
 
   // Trigger reload when filters change
   useEffect(() => {
@@ -204,7 +204,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
       setCurrentPage(1);
       loadPage(1, pageSize);
     }
-  }, [selectedFilters, filterCreatedAfter, filterCreatedBefore, pageSize]);
+  }, [JSON.stringify(selectedFilters), filterCreatedAfter, filterCreatedBefore, pageSize]);
 
   // Handle account selection
   const handleSelectAccount = useCallback((account: Account) => {

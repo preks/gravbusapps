@@ -19,11 +19,11 @@ export interface ContactData {
   linkedinUrl?: string;
   xingUrl?: string;
   bio?: string;
-  contactRole?: string;
-  contactType?: string;
+
   academicTitle?: {
     id: string;
     value: string;
+    objectValue?: any;
   };
   updatedAt?: string;
   createdAt?: string;
@@ -77,11 +77,10 @@ export const GET_CONTACTS_DATA = `
       linkedinUrl
       xingUrl
       bio
-      contactRole
-      contactType
       academicTitle {
         id
         value
+        objectValue
       }
       updatedAt
       createdAt

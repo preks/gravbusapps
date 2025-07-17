@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
-import { Avatar, AvatarFallback, Button, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner } from '@newwork/nw-design-system';
-import { PiUser, PiEnvelope, PiPhone, PiLinkedinLogo, PiBuilding, PiCaretUp, PiCaretDown } from 'react-icons/pi';
+import { Avatar, AvatarFallback, Button, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Card, CardContent } from '@newwork/nw-design-system';
+import { PiUser, PiEnvelope, PiPhone, PiLinkedinLogo, PiBuilding, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -87,175 +87,170 @@ const ContactTable: React.FC<ContactTableProps> = ({
   // Helper function to render sort icon
   const renderSortIcon = (field: string) => {
     if (sortField !== field) return null;
-    if (sortOrder === 'ASC') return <PiCaretUp className="gba:inline gba:ml-1" size={12} />;
-    if (sortOrder === 'DESC') return <PiCaretDown className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
     return null;
   };
 
   return (
-    <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-      {loading && (
-        <div className="gba:flex gba:justify-center gba:p-4">
-          <Spinner />
-        </div>
-      )}
-      
-      <div className="gba:overflow-x-auto">
-        <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="gba:w-[60px]"></TableHead>
-              <TableHead 
-                className="gba:w-[30%] gba:cursor-pointer gba:hover:bg-gray-50"
-                onClick={() => handleSort('firstName')}
-              >
-                Contact
-                {renderSortIcon('firstName')}
-              </TableHead>
-              <TableHead 
-                className="gba:w-[25%] gba:cursor-pointer gba:hover:bg-gray-50"
-                onClick={() => handleSort('email')}
-              >
-                Contact Info
-                {renderSortIcon('email')}
-              </TableHead>
-              <TableHead className="gba:w-[20%]">Account</TableHead>
-              <TableHead 
-                className="gba:w-[15%] gba:cursor-pointer gba:hover:bg-gray-50"
-                onClick={() => handleSort('contactType')}
-              >
-                Type & Role
-                {renderSortIcon('contactType')}
-              </TableHead>
-              <TableHead 
-                className="gba:w-[15%] gba:cursor-pointer gba:hover:bg-gray-50"
-                onClick={() => handleSort('ownerEmployeeId')}
-              >
-                Owner
-                {renderSortIcon('ownerEmployeeId')}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {contacts.map((record) => (
-              <TableRow 
-                key={record.id}
-                className={`gba:hover:bg-gray-50 ${selectedContactId === record.id ? 'gba:bg-blue-50' : ''}`}
-              >
-                <TableCell>
-                  <div className="gba:flex gba:justify-start gba:gap-2">
-                    <AppActionButton
-                      data-testid={`${DATA_TEST_ID_PREFIX}-update-contact-button-${record.id}`}
-                      variant="secondary"
-                      contextsArray={[FlowContextName.contactEntity]}
-                      externalContextData={{
-                        contactId: record.id
-                      }}
-                      prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-contact`}
-                      accessToken={accessToken}
-                      emptyStateBehavior="disable"
-                      deferMainContextRequestsUntilClick
-                      onClick={(e) => e.stopPropagation()}
-                    />
+    <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+      <CardContent className="gba:p-0">
+        {loading && (
+          <div className="gba:flex gba:justify-center gba:p-4">
+            <Spinner />
+          </div>
+        )}
+        
+        <div className="gba:overflow-x-auto">
+          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
+            <TableHeader>
+              <TableRow className="gba:border-b gba:bg-gray-50">
+                <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}>ACTIONS</TableHead>
+                                <TableHead 
+                  className="gba:w-[30%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort('firstName')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-contact-header`}
+                >
+                  <div className="gba:flex gba:items-center">
+                    Contact
+                    {renderSortIcon('firstName')}
                   </div>
-                </TableCell>
-                <TableCell>
-                  <div 
-                    className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRowClick(record);
-                    }}
-                  >
-                    <Avatar size="sm">
-                      <AvatarFallback>
-                        {getContactName(record) !== '-' 
-                          ? getContactName(record).split(' ').map(n => n[0]).join('').toUpperCase()
-                          : 'C'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="gba:font-medium gba:text-sm">
-                        {getContactName(record)}
+                </TableHead>
+                <TableHead className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-contact-info-header`}>
+                  Contact Info
+                </TableHead>
+                <TableHead 
+                  className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort('accountId')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-account-header`}
+                >
+                  <div className="gba:flex gba:items-center">
+                    Account
+                    {renderSortIcon('accountId')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort('ownerEmployeeId')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
+                >
+                  <div className="gba:flex gba:items-center">
+                    Owner
+                    {renderSortIcon('ownerEmployeeId')}
+                  </div>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {contacts.map((record) => (
+                <TableRow 
+                  key={record.id}
+                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${selectedContactId === record.id ? 'gba:bg-blue-50' : ''}`}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
+                >
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
+                    <div className="gba:flex gba:justify-start gba:gap-2">
+                      <AppActionButton
+                        data-testid={`${DATA_TEST_ID_PREFIX}-update-contact-button-${record.id}`}
+                        variant="secondary"
+                        contextsArray={[FlowContextName.contactEntity]}
+                        externalContextData={{
+                          contactId: record.id
+                        }}
+                        prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-contact`}
+                        accessToken={accessToken}
+                        emptyStateBehavior="disable"
+                        deferMainContextRequestsUntilClick
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-contact-cell-${record.id}`}>
+                    <div 
+                      className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRowClick(record);
+                      }}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-contact-name-${record.id}`}
+                    >
+                      <Avatar size="sm">
+                        <AvatarFallback>
+                          {getContactName(record) !== '-' 
+                            ? getContactName(record).split(' ').map(n => n[0]).join('').toUpperCase()
+                            : 'C'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="gba:font-medium gba:text-sm">
+                          {getContactName(record)}
+                        </div>
+                        {record.jobTitle && (
+                          <div className="gba:text-xs gba:text-gray-500">
+                            {record.jobTitle}
+                          </div>
+                        )}
                       </div>
-                      {record.jobTitle && (
-                        <div className="gba:text-xs gba:text-gray-500">
-                          {record.jobTitle}
+                    </div>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-contact-info-cell-${record.id}`}>
+                    <div className="gba:space-y-1">
+                      {record.email && (
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
+                          <PiEnvelope className="gba:text-gray-400" />
+                          <span className="gba:truncate" title={record.email}>{record.email}</span>
+                        </div>
+                      )}
+                      {record.phone && (
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
+                          <PiPhone className="gba:text-gray-400" />
+                          <span>{record.phone}</span>
+                        </div>
+                      )}
+                      {record.linkedinUrl && (
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
+                          <PiLinkedinLogo className="gba:text-blue-600" />
+                          <a 
+                            href={record.linkedinUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="gba:text-blue-600 hover:gba:underline gba:truncate"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            LinkedIn
+                          </a>
                         </div>
                       )}
                     </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="gba:space-y-1">
-                    {record.email && (
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
-                        <PiEnvelope className="gba:text-gray-400" />
-                        <span className="gba:truncate" title={record.email}>{record.email}</span>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-account-cell-${record.id}`}>
+                    {record.account ? (
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiBuilding className="gba:text-gray-400" />
+                        <div className="gba:text-sm gba:font-medium">{record.account.name}</div>
                       </div>
+                    ) : (
+                      <span className="gba:text-gray-400 gba:text-sm">No account</span>
                     )}
-                    {record.phone && (
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
-                        <PiPhone className="gba:text-gray-400" />
-                        <span>{record.phone}</span>
+                  </TableCell>
+
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}>
+                    {record.ownerEmployee ? (
+                      <div className="gba:text-sm gba:font-medium">
+                        {record.ownerEmployee.displayName ||
+                         `${record.ownerEmployee.firstName} ${record.ownerEmployee.lastName}` ||
+                         'Unknown'}
                       </div>
+                    ) : (
+                      <span className="gba:text-gray-400 gba:text-sm">No owner</span>
                     )}
-                    {record.linkedinUrl && (
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
-                        <PiLinkedinLogo className="gba:text-blue-600" />
-                        <a 
-                          href={record.linkedinUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="gba:text-blue-600 hover:gba:underline gba:truncate"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          LinkedIn
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {record.account ? (
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <PiBuilding className="gba:text-gray-400" />
-                      <div className="gba:text-sm gba:font-medium">{record.account.name}</div>
-                    </div>
-                  ) : (
-                    <span className="gba:text-gray-400 gba:text-sm">No account</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="gba:space-y-1">
-                    {record.contactType && (
-                      <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
-                        {record.contactType}
-                      </Badge>
-                    )}
-                    {record.contactRole && (
-                      <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
-                        {record.contactRole}
-                      </Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {record.ownerEmployee ? (
-                    <div className="gba:text-sm gba:font-medium">
-                      {record.ownerEmployee.displayName ||
-                       `${record.ownerEmployee.firstName} ${record.ownerEmployee.lastName}` ||
-                       'Unknown'}
-                    </div>
-                  ) : (
-                    <span className="gba:text-gray-400">Unassigned</span>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
 
       {/* Pagination */}
       <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4">
@@ -319,7 +314,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 };
 

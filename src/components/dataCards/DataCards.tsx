@@ -130,6 +130,7 @@ export function DataCards<T>({
     <div 
       ref={scrollContainerRef} 
       className={`w-full h-full overflow-y-auto gba:m-4 ${className}`.trim()}
+      data-testid="data-cards-container"
     >
       <div 
         className="gba:p-4 gba:grid gba:justify-center" 
@@ -138,14 +139,22 @@ export function DataCards<T>({
           gridAutoRows: 'min-content',
           gap: `${gap}px`
         }}
+        data-testid="data-cards-grid"
       >
         {items.length === 0 && !loading ? (
-          <div className="gba:col-span-full gba:text-center gba:text-gray-400 gba:py-12">
+          <div 
+            className="gba:col-span-full gba:text-center gba:text-gray-400 gba:py-12"
+            data-testid="data-cards-empty-state"
+          >
             {emptyMessage}
           </div>
         ) : (
           items.map(item => (
-            <div key={getKey(item)} className="gba:shrink-0 gba:transition-transform gba:duration-200 gba:ease-in-out hover:-translate-y-0.5 gba:mb-3">
+            <div 
+              key={getKey(item)} 
+              className="gba:shrink-0 gba:transition-transform gba:duration-200 gba:ease-in-out hover:-translate-y-0.5 gba:mb-3"
+              data-testid={`data-cards-item-${getKey(item)}`}
+            >
               {renderItem(item)}
             </div>
           ))
@@ -155,21 +164,29 @@ export function DataCards<T>({
       <div 
         ref={loaderRef} 
         className="gba:flex gba:justify-center gba:items-center gba:py-6 gba:min-h-[32px]"
+        data-testid="data-cards-loader-container"
       >
         {loading && (
-          <div className="gba:flex gba:justify-center gba:items-center">
+          <div 
+            className="gba:flex gba:justify-center gba:items-center"
+            data-testid="data-cards-loading-spinner"
+          >
             <div className="gba:w-6 gba:h-6 gba:border-3 gba:border-gray-200 gba:border-t-blue-500 gba:rounded-full gba:animate-spin"></div>
           </div>
         )}
       </div>
       
       {error && (
-        <div className="gba:text-red-500 gba:mt-4 gba:flex gba:flex-col gba:items-center gba:text-center">
-          <span>{error}</span>
+        <div 
+          className="gba:text-red-500 gba:mt-4 gba:flex gba:flex-col gba:items-center gba:text-center"
+          data-testid="data-cards-error-container"
+        >
+          <span data-testid="data-cards-error-message">{error}</span>
           {onRetry && (
             <button 
               className="gba:mt-2 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded gba:hover:bg-blue-600 gba:transition-colors gba:duration-200" 
               onClick={onRetry}
+              data-testid="data-cards-retry-button"
             >
               Retry
             </button>

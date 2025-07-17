@@ -7,10 +7,12 @@ export interface Account {
   industry?: {
     id: string;
     value: string;
+    objectValue?: any;
   };
   type?: {
     id: string;
     value: string;
+    objectValue?: any;
   };
   ownerEmployee?: {
     id: string;

@@ -107,6 +107,11 @@ export interface WidgetGroupProps {
    * Background for each card
    */
   cardBackground?: string;
+  
+  /**
+   * Test ID for the widget group container
+   */
+  'data-testid'?: string;
 }
 
 /**
@@ -192,6 +197,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   skeletonCount = 4,
   emptyText = 'No data available',
   cardBackground = 'white',
+  'data-testid': dataTestId = 'widget-group',
 }) => {
   // Handle loading state
   if (isLoading) {
@@ -203,11 +209,18 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
     }));
 
     return (
-      <div className={className}>
-        <div className="gba:flex gba:justify-center gba:p-4">
-          <Spinner />
+      <div className={className} data-testid={`${dataTestId}-loading`}>
+        <div 
+          className="gba:flex gba:justify-center gba:p-4"
+          data-testid={`${dataTestId}-loading-spinner-container`}
+        >
+          <Spinner data-testid={`${dataTestId}-loading-spinner`} />
         </div>
-        <SectionKpiCards cards={placeholderCards} className="gba:opacity-50" />
+        <SectionKpiCards 
+          cards={placeholderCards} 
+          className="gba:opacity-50" 
+          data-testid={`${dataTestId}-loading-cards`}
+        />
       </div>
     );
   }
@@ -216,13 +229,34 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   if (error) {
     const errorMessage = error instanceof Error ? error.message : error;
     return (
-      <div className={className}>
-        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg">
-          <PiWarning className="gba:text-red-500 gba:text-4xl gba:mb-4" />
-          <h3 className="gba:text-lg gba:font-medium gba:text-red-900 gba:mb-2">Error Loading Data</h3>
-          <p className="gba:text-red-700 gba:mb-4">{errorMessage}</p>
+      <div className={className} data-testid={`${dataTestId}-error`}>
+        <div 
+          className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg"
+          data-testid={`${dataTestId}-error-container`}
+        >
+          <PiWarning 
+            className="gba:text-red-500 gba:text-4xl gba:mb-4" 
+            data-testid={`${dataTestId}-error-icon`}
+          />
+          <h3 
+            className="gba:text-lg gba:font-medium gba:text-red-900 gba:mb-2"
+            data-testid={`${dataTestId}-error-title`}
+          >
+            Error Loading Data
+          </h3>
+          <p 
+            className="gba:text-red-700 gba:mb-4"
+            data-testid={`${dataTestId}-error-message`}
+          >
+            {errorMessage}
+          </p>
           {onRetry && (
-            <Button variant="outline" onClick={onRetry} className="gba:flex gba:items-center gba:gap-2">
+            <Button 
+              variant="outline" 
+              onClick={onRetry} 
+              className="gba:flex gba:items-center gba:gap-2"
+              data-testid={`${dataTestId}-error-retry-button`}
+            >
               <PiArrowClockwise />
               Retry
             </Button>
@@ -235,10 +269,23 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   // Handle empty state
   if (!widgets || widgets.length === 0) {
     return (
-      <div className={`${className} gba:text-center gba:p-8`}>
-        <p className="gba:text-gray-500 gba:mb-4">{emptyText}</p>
+      <div 
+        className={`${className} gba:text-center gba:p-8`}
+        data-testid={`${dataTestId}-empty`}
+      >
+        <p 
+          className="gba:text-gray-500 gba:mb-4"
+          data-testid={`${dataTestId}-empty-message`}
+        >
+          {emptyText}
+        </p>
         {onRetry && (
-          <Button variant="outline" onClick={onRetry} className="gba:flex gba:items-center gba:gap-2 gba:mx-auto">
+          <Button 
+            variant="outline" 
+            onClick={onRetry} 
+            className="gba:flex gba:items-center gba:gap-2 gba:mx-auto"
+            data-testid={`${dataTestId}-empty-load-button`}
+          >
             <PiArrowClockwise />
             Load Data
           </Button>
@@ -252,8 +299,11 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
 
   // Display widgets using SectionKpiCards
   return (
-    <div className={className}>
-      <SectionKpiCards cards={kpiCards} />
+    <div className={className} data-testid={dataTestId}>
+      <SectionKpiCards 
+        cards={kpiCards} 
+        data-testid={`${dataTestId}-cards`}
+      />
     </div>
   );
 };
