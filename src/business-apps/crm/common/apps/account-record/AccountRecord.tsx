@@ -22,6 +22,17 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
 
   const { account: accountData, loading: dataLoading, error: dataError, refetchAccountData } = useAccountData(accountId, props.accessToken);
 
+  // Get source from URL parameters to determine back navigation text
+  const source = useMemo(() => {
+    const urlSource = new URLSearchParams(window.location.search).get('source');
+    console.log('AccountRecord: detected source from URL =', urlSource);
+    return urlSource;
+  }, []);
+
+  const getBackButtonText = () => {
+    return 'Back to Accounts';
+  };
+
   useEffect(() => {
     const fetchAccountData = async () => {
       if (!accountId) {
@@ -74,7 +85,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
             className="gba:mt-4"
             variant="default"
           >
-            Back to Customer Relations
+            {getBackButtonText()}
           </Button>
         </div>
       </div>
@@ -92,7 +103,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           data-testid="back-button"
         >
           <ArrowLeft className="gba:mr-2 gba:w-4 gba:h-4" />
-          <span>Back to Customer Relations</span>
+          <span>{getBackButtonText()}</span>
         </Button>
       </div>
 
@@ -150,6 +161,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
 
 interface AccountRecordProps extends BusinessAppContextProps {
   accountId?: string;
+  source?: string;
   onBack?: () => void;
 }
 
@@ -157,13 +169,27 @@ const AccountRecord: React.FC<AccountRecordProps> = (props) => {
   const accountId = useMemo(() => {
     return props.accountId || new URLSearchParams(window.location.search).get('accountId');
   }, [props.accountId]);
+
+  const source = useMemo(() => {
+    return props.source || new URLSearchParams(window.location.search).get('source');
+  }, [props.source]);
   
   const handleBack = () => {
     if (props.onBack) {
       props.onBack();
     } else {
-      // Navigate back to customer relations
-      navigateTo('/platform/crm/customer-relations?view=accounts');
+      // Navigate back based on source
+      switch (source) {
+        case 'investments':
+          console.log('AccountRecord: navigating back to investments URL');
+          navigateTo('/platform/irm/investment-relations?view=accounts');
+          break;
+        case 'customer-relations':
+        default:
+          console.log('AccountRecord: navigating back to customer-relations URL');
+          navigateTo('/platform/crm/customer-relations?view=accounts');
+          break;
+      }
     }
   };
 
