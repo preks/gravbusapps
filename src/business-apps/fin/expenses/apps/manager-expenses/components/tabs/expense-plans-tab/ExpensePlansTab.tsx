@@ -37,7 +37,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     planStats,
     statsLoading,
     statsError,
-    fetchPlanStatistics
+    fetchPlanStatistics,
+    approvePlan,
+    rejectPlan
   } = useMainViewExpensePlans({
     ...contextProps,
     statisticsOnly: true // This prevents race conditions with the table data
@@ -57,16 +59,26 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   }, []);
 
   // Handle approve plan
-  const handleApprovePlan = useCallback((_planId: string) => {
-    // TODO: Implement approve functionality
-    setSelectedPlan(null);
-  }, []);
+  const handleApprovePlan = useCallback(async (planId: string) => {
+    try {
+      await approvePlan(planId, ''); // Default empty comments - could be enhanced with modal later
+      setSelectedPlan(null); // Close details panel after successful approval
+    } catch (error) {
+      // Error handling is done inside approvePlan function
+      console.error('Failed to approve plan:', error);
+    }
+  }, [approvePlan]);
 
   // Handle reject plan
-  const handleRejectPlan = useCallback((_planId: string) => {
-    // TODO: Implement reject functionality
-    setSelectedPlan(null);
-  }, []);
+  const handleRejectPlan = useCallback(async (planId: string) => {
+    try {
+      await rejectPlan(planId, 'Rejected via details panel'); // Default reason - could be enhanced with modal later
+      setSelectedPlan(null); // Close details panel after successful rejection
+    } catch (error) {
+      // Error handling is done inside rejectPlan function
+      console.error('Failed to reject plan:', error);
+    }
+  }, [rejectPlan]);
 
   // Handle search term changes
   const handleSearchChange = useCallback((search: string) => {
