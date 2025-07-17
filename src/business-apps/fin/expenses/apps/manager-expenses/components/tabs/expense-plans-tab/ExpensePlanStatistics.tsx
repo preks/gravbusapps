@@ -62,9 +62,10 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'pending-approval',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_approval', 'Pending Approval'),
-        value: planStats.pendingCount,
+        value: formatNumberFunction(planStats.pendingCount.toString(), "0.00[,]00"),
         prefix: <PiCalendar />,
         color: activeFilter?.includes(ExpenseStatus.PENDING) ? '#1890ff' : '#faad14',
+        valueIsString: true,
         span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.requires_action', 'Requires action'),
         onClick: () => handleCardClick(ExpenseStatus.PENDING)
@@ -82,9 +83,10 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'total-plans',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.total_plans_submitted', 'Total Plans (Submitted)'),
-        value: planStats.totalCount,
+        value: formatNumberFunction(planStats.totalCount.toString(), "0.00[,]00"),
         prefix: <PiFileText />,
         color: '#1890ff',
+        valueIsString: true,
         span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.all_submitted_plans', 'All submitted plans')
       },
@@ -114,7 +116,6 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         skeletonCount={4}
         emptyText= {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.no_expense_plan_statistics_available', 'No expense plan statistics available.')}
         cardBackground="transparent"
-        background="transparent"
         className="gba:py-0 gba:bg-transparent"
       />
   );
