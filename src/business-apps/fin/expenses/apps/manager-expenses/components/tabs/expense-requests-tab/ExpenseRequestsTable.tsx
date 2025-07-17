@@ -175,33 +175,35 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
 
     return (
       <div>
-        <Table data-testid="expense-requests-table">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="gba:w-[60px]"></TableHead>
-              <TableHead className="gba:w-[200px]">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.request_info_pl', 'Requests')}
-              </TableHead>
-              <TableHead className="gba:w-[120px]">
-                Start Date
-              </TableHead>
-              <TableHead className="gba:w-[120px]">
-                End Date
-              </TableHead>
-              <TableHead className="gba:w-[200px]">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
-              </TableHead>
-              <TableHead className="gba:w-[120px]">
-                Creation Date
-              </TableHead>
-              <TableHead className="gba:w-[150px] gba:text-right">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount')}
-              </TableHead>
-              <TableHead className="gba:w-[150px]">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_table.status', 'Status')}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
+        {/* Table with horizontal scrolling */}
+        <div className="gba:overflow-x-auto">
+          <Table data-testid="expense-requests-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="gba:w-[8%]"></TableHead>
+                <TableHead className="gba:w-[25%]">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.request_info_pl', 'Requests')}
+                </TableHead>
+                <TableHead className="gba:w-[15%]">
+                  Start Date
+                </TableHead>
+                <TableHead className="gba:w-[15%]">
+                  End Date
+                </TableHead>
+                <TableHead className="gba:w-[20%]">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+                </TableHead>
+                <TableHead className="gba:w-[15%]">
+                  Creation Date
+                </TableHead>
+                <TableHead className="gba:w-[18%] gba:text-right">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount')}
+                </TableHead>
+                <TableHead className="gba:w-[18%]">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_table.status', 'Status')}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
           <TableBody>
             {requests.map((record, index) => {
               console.log(`Rendering record ${index + 1}:`, {
@@ -303,6 +305,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
             })}
           </TableBody>
         </Table>
+        </div>
         
         {/* Pagination */}
         {totalCount > pageSize && (

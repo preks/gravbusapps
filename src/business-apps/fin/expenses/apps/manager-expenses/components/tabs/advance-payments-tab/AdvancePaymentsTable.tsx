@@ -111,33 +111,35 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
 
     return (
       <div>
-        <Table data-testid="advance-payments-table">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="gba:w-[60px]"></TableHead>
-              <TableHead className="gba:w-[200px]">
-                Expense Plan
-              </TableHead>
-              <TableHead className="gba:w-[120px]">
-                Start Date
-              </TableHead>
-              <TableHead className="gba:w-[120px]">
-                End Date
-              </TableHead>
-              <TableHead className="gba:w-[200px]">
-                Employee
-              </TableHead>
-              <TableHead className="gba:w-[120px]">
-                Creation Date
-              </TableHead>
-              <TableHead className="gba:w-[150px] gba:text-right">
-                Amount
-              </TableHead>
-              <TableHead className="gba:w-[150px]">
-                Status
-              </TableHead>
-            </TableRow>
-          </TableHeader>
+        {/* Table with horizontal scrolling */}
+        <div className="gba:overflow-x-auto">
+          <Table data-testid="advance-payments-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="gba:w-[8%]"></TableHead>
+                <TableHead className="gba:w-[25%]">
+                  Expense Plan
+                </TableHead>
+                <TableHead className="gba:w-[15%]">
+                  Start Date
+                </TableHead>
+                <TableHead className="gba:w-[15%]">
+                  End Date
+                </TableHead>
+                <TableHead className="gba:w-[20%]">
+                  Employee
+                </TableHead>
+                <TableHead className="gba:w-[15%]">
+                  Creation Date
+                </TableHead>
+                <TableHead className="gba:w-[18%] gba:text-right">
+                  Amount
+                </TableHead>
+                <TableHead className="gba:w-[18%]">
+                  Status
+                </TableHead>
+              </TableRow>
+            </TableHeader>
           <TableBody>
             {filteredPayments.map((record) => (
               <TableRow 
@@ -222,6 +224,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             ))}
           </TableBody>
         </Table>
+        </div>
         
         {/* Pagination */}
         {totalCount > pageSize && (
