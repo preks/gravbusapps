@@ -56,7 +56,7 @@ export const useCalendarExpensePlans = ({
   const managerId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
   
   // Log the managerId to help with debugging
-  console.log('useCalendarExpensePlans - managerId:', managerId);
+
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [plans, setPlans] = useState<ExpensePlan[]>([]);

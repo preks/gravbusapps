@@ -2,7 +2,7 @@ import React from 'react';
 import { ClockCircleOutlined, FileOutlined, DollarOutlined } from '@ant-design/icons';
 import { ExpenseRequestStatisticsData } from '../../../hooks/useGetExpenseRequests';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { formatAmount } from '../../../utils/currencyUtils';
+import { formatAmount, formatCurrency } from '../../../utils/currencyUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpenseRequestStatisticsProps {
@@ -36,10 +36,9 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     {
       key: 'pending-amount',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_amount', 'Pending Amount'),
-      value: requestStats.pendingAmount ? formatAmount(requestStats.pendingAmount) : '0,00',
+      value: requestStats.pendingAmount ? formatCurrency(requestStats.pendingAmount, 'EUR') : 'EUR 0,00',
       color: '#faad14',
       prefix: <DollarOutlined />,
-      suffix: '€',
       valueIsString: true,
       span: { xs: 24, sm: 12, md: 6, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.total_pending_funds', 'Total pending funds')
@@ -56,10 +55,9 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     {
       key: 'total-submitted-amount',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.total_submitted_amount', 'Total Submitted Amount'),
-      value: requestStats.totalSubmittedAmount ? formatAmount(requestStats.totalSubmittedAmount) : '0,00',
+      value: requestStats.totalSubmittedAmount ? formatCurrency(requestStats.totalSubmittedAmount, 'EUR') : 'EUR 0,00',
       color: '#3f8600',
       prefix: <DollarOutlined />,
-      suffix: '€',
       valueIsString: true,
       span: { xs: 24, sm: 12, md: 6, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.all_expense_requests', 'All expense requests')

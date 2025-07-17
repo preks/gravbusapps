@@ -39,7 +39,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       </div>
       
       {/* Table Container */}
-      <div className="gba:flex-1 gba:overflow-hidden">
+      <div className="gba:flex-1">
         <div data-testid="expense-requests-table-container">
           <ExpenseRequestsTable
             {...contextProps}

@@ -38,6 +38,23 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
     }
   };
 
+  // Helper function to get department safely
+  const getDepartment = () => {
+    // Check the nested organizational unit structure first (from API response)
+    if (payment.employee?.employeePosition?.organizationalUnit?.name) {
+      return payment.employee.employeePosition.organizationalUnit.name;
+    }
+    // Fallback to direct department field
+    if (payment.employee?.department) {
+      return payment.employee.department;
+    }
+    // Fallback to additional properties
+    if (payment.employee?.additionalProperties?.department) {
+      return payment.employee.additionalProperties.department;
+    }
+    return 'Not specified';
+  };
+
   const handleApprove = () => {
     onApprove(payment.id);
   };
@@ -87,7 +104,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
             </div>
             <div>
               <label className="gba:text-sm gba:font-medium gba:text-gray-600">Department</label>
-              <p className="gba:text-sm">{payment.employee?.department || 'N/A'}</p>
+              <p className="gba:text-sm">{getDepartment()}</p>
             </div>
             <div>
               <label className="gba:text-sm gba:font-medium gba:text-gray-600">Request Date</label>
