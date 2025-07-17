@@ -61,24 +61,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
-  // Local search state only - parent controls filters
-  const [searchTerm, setSearchTerm] = useState<string>(props.search || '');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>(searchTerm);
-  
-  // Debounce search term
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  // Sync search from parent
-  useEffect(() => {
-    if (props.search !== undefined) {
-      setSearchTerm(props.search);
-    }
-  }, [props.search]);
+  // Use search term from parent (DataContainer handles debouncing)
+  const searchTerm = props.search || '';
 
     // Use parent's filter state directly
   const currentStatusFilter = props.activeFilter || [];
@@ -87,9 +71,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
    
   // Handle clearing all filters
   const handleClearFilters = useCallback(() => {
-    
-    // Reset search term
-    setSearchTerm('');
+    // Reset search term via parent callback
     if (props.onSearchChange) {
       props.onSearchChange('');
     }
@@ -142,7 +124,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   } = useMainViewExpensePlans({
     ...contextProps,
     pageSize,
-    searchTerm: debouncedSearchTerm,
+    searchTerm: searchTerm,
     currentStatusFilter: currentStatusFilter,
   });
 
@@ -164,11 +146,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
 
   // Notify parent of search changes if callback exists
   const onSearchChange = useCallback((value: string) => {
-    setSearchTerm(value);
     if (props.onSearchChange) {
       props.onSearchChange(value);
     }
-  }, [props]);
+  }, [props.onSearchChange]);
 
   // Handle viewing details for a plan
   const handleViewDetails = useCallback((plan: ExpensePlan) => {

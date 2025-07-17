@@ -25,7 +25,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   const {
     searchTerm,
     setSearchTerm,
-    debouncedSearchTerm,
     statusFilter,
     setStatusFilter,
     filterGroups,
@@ -143,6 +142,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
                 </div>
               </div>
             ),
+            debounceDelay: 300,
           }}
           dataFilterProps={{
             filterGroups,
@@ -152,7 +152,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
             <div data-testid="expense-plans-table-container">
               <ExpensePlansTable
                 {...contextProps}
-                search={debouncedSearchTerm}
+                search={searchTerm}
                 onSearchChange={handleSearchChange}
                 activeFilter={statusFilter}
                 onFilterChange={(filter) => setStatusFilter(filter || [])}
