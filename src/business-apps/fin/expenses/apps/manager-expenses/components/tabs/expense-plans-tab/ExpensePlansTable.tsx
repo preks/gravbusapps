@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   Badge, 
   Avatar, 
@@ -147,8 +147,19 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   });
 
   // Reset page to 1 when filter changes (fixes pagination issue when switching filters)
+  const prevFilterRef = useRef<ExpenseStatus[] | null>(null);
   useEffect(() => {
-    setCurrentPage(1);
+    const currentFilterStr = JSON.stringify(currentStatusFilter);
+    const prevFilterStr = JSON.stringify(prevFilterRef.current);
+    
+    // Only reset page if filter actually changed (not on initial render)
+    if (prevFilterRef.current !== null && currentFilterStr !== prevFilterStr) {
+      console.log('🔄 Filter changed, resetting to page 1:', { from: prevFilterRef.current, to: currentStatusFilter });
+      setCurrentPage(1);
+    }
+    
+    // Update the ref with current filter
+    prevFilterRef.current = currentStatusFilter;
   }, [currentStatusFilter, setCurrentPage]);
 
   // Notify parent of search changes if callback exists
