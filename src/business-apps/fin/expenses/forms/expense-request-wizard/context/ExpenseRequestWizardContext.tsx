@@ -16,7 +16,7 @@ export interface ExpenseRequestWizardContextProps {
   loading: boolean;
   employeeRuleId: string | null;
   setEmployeeRuleId: (id: string) => void;
-  isTripFormValid: boolean;
+  isFormValid: boolean;
   updateTripFormValidation: (isValid: boolean) => void;
   expenseRuleError: string | null;
   setExpenseRuleError: (error: string | null) => void;
@@ -75,7 +75,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   const [loading, setLoading] = useState<boolean>(true);
   const [employeeRuleId, setEmployeeRuleId] = useState<string | null>(null);
   const [expenseRuleError, setExpenseRuleError] = useState<string | null>(null);
-  const [isTripFormValid, setIsTripFormValid] = useState<boolean>(false);
+  const [isFormValid, setisFormValid] = useState<boolean>(false);
   const [currentTitle, setCurrentTitle] = useState<string>('');
   const [currentCurrency, setCurrentCurrency] = useState<string | null>(null);
   const [expenseRequestData, setExpenseRequestData] = useState<any | null>(null);
@@ -99,6 +99,11 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       if (!accessToken || !employeeRuleId || !userInfo) return;
 
       setLoading(true);
+      
+      if (!additionalData) {
+        setLoading(false);
+        return;
+      }
 
       // Extract expenseId from additionalData
       const expenseId = additionalData?.psi_taskPayload?.expenseRequest?.id;
@@ -260,7 +265,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
 
   // Function to update trip form validation state
   const updateTripFormValidation = (isValid: boolean) => {
-    setIsTripFormValid(isValid);
+    setisFormValid(isValid);
   };
   
   // Function to show expense item component with the necessary parameters
@@ -293,7 +298,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     loading,
     employeeRuleId,
     setEmployeeRuleId,
-    isTripFormValid,
+    isFormValid,
     updateTripFormValidation,
     expenseRuleError,
     setExpenseRuleError,

@@ -10,7 +10,7 @@ import { ICONS } from '../../utils/icons';
 import './ExpenseRequestWizard.css';
 
 import { ExpenseRequestWizardProvider, useExpenseRequestWizardContext } from './context/ExpenseRequestWizardContext';
-import { SCREEN_NAMES_ENUM } from './constants/constants';
+import { mockAdditionalData, SCREEN_NAMES_ENUM } from './constants/constants';
 
 import ItemsScreen from './screens/ItemsScreen';
 import CreateItemScreen from './screens/CreateItemScreen';
@@ -40,78 +40,21 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
     expenseRequestData, 
     currentTitle, 
     setCurrentTitle, 
-    isTripFormValid, 
+    isFormValid, 
     setCurrentCurrency,
     showExpenseItem,
     expenseItemParams,
     hideExpenseItem
   } = useExpenseRequestWizardContext();
-  const [currentScreen, setCurrentScreen] = useState<string>(SCREEN_NAMES_ENUM.ITEMS_TAB);
+  const [currentScreen, setCurrentScreen] = useState<string>(SCREEN_NAMES_ENUM.LOAD_TAB);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [titleValue, setTitleValue] = useState<string>('');
   const [titleError, setTitleError] = useState<string>('');
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false);
 
-  const mockAdditionalData = {
-    psi_taskPayload: {
-      stepKey: "Tab3_pse_save",
-      initialParameters:{expenseItems:[{
-        itemId: "2eea7deb-a2b2-4a9f-a3ff-7265143ff15d",
-        currencyId: "Currency:v1:RON"
-    }]},
-      expenseRequest: {
-        id: "90c7cdc0-ccef-4c0a-b5ba-a57af67bd38d",
-        version: 4,
-        businessKey: "0a844413-9c9b-45b7-8fda-106ae1808f61",
-        additionalProperties: {
-          transportationMeans: []
-        },
-      }
-    },
-    nvi_navigationPayload: {},
-    psi_processMetadata: {
-      processMetadata: {
-        domain: "employee-expense",
-        name: "changeExpenseRequest"
-      },
-      processInstanceId: "eab911a1-1336-40b1-bde8-f4742166f6c9",
-      lastOpenedTask: {
-        id: "697018fc-c027-493f-a815-69fb061828dc",
-        name: "addItemsToRequest",
-        parameters: {
-          stepKey: "ItemsScreen_pse_next",
-          expenseRequest: {
-            id: "3c5b82b3-1487-4b57-8930-1d0d873a2226",
-            version: 3
-          }
-        },
-        screenKey: "frm_changeExpenseRequestAddItemsToRequest",
-        screen: {
-          id: "1e3d736b-29f8-4a7b-b461-a1e229a5afd4",
-          namespaceId: "31bb6427-8f98-11ef-b686-1e4781e89729",
-          namespaceCode: "nw_employee_expense",
-          screenKey: "frm_changeExpenseRequestAddItemsToRequest",
-          name: "Add Expense Items To Request",
-          namespaceDescription: "Employee Expense",
-          createdAt: "2024-11-01T14:41:47.644",
-          updatedAt: "2024-11-01T14:41:47.644",
-          isDeleted: false,
-          type: "FORM",
-          screenComponents: {
-            key: "frm_changeExpenseRequestAddItemsToRequest",
-            name: "Add Expense Items To Request",
-            builderType: "LOWCODER",
-            appId: "66cf3a923227892ac4685ffd",
-            appName: "flw_modifyExpenseRequest",
-            formDefinition: {},
-            release: "true"
-          }
-        }
-      }
-    }
-  };
+ 
 
-  const isTrip = !expenseRequestData?.ExpenseRequestByPk?.requestTypeRef?.toLowerCase().includes('trip');
+  const isTrip = expenseRequestData?.ExpenseRequestByPk?.requestTypeRef?.toLowerCase().includes('trip');
 
   useEffect(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {
@@ -204,7 +147,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   useEffect(() => {
     if (expenseRequestData) {
       if (isTrip) {
-        setCurrentScreen(SCREEN_NAMES_ENUM.TRIPS_TAB);
+        setCurrentScreen(SCREEN_NAMES_ENUM.ALLOWANCE_TAB);
       } else {
         setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
       }
@@ -505,7 +448,11 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                     } else if (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB) {
                       const saveEvent = new CustomEvent('expense-request-save-items');
                       document.dispatchEvent(saveEvent);
+                    } else if (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB) {
+                      const saveEvent = new CustomEvent('expense-request-save-allowance');
+                      document.dispatchEvent(saveEvent);
                     } else {
+                      // Default save action for other screens
                     }
                   }}
                 >
@@ -515,7 +462,10 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                   variant="primary" 
                   className="gba:submitButton" 
                   data-testid="expense-request-wizard-next-button"
-                  disabled={currentScreen !== SCREEN_NAMES_ENUM.TRIPS_TAB ? false : (!isTripFormValid)}
+                  disabled={
+                    (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
+                    (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB && !isFormValid)
+                  }
                   onClick={() => {
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
                       const nextEvent = new CustomEvent('expense-request-next-trip');
@@ -523,6 +473,10 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                       navigateToNextScreen()
                     } else if (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB) {
                       const nextEvent = new CustomEvent('expense-request-next-items');
+                      document.dispatchEvent(nextEvent);
+                      navigateToNextScreen()
+                    } else if (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB) {
+                      const nextEvent = new CustomEvent('expense-request-next-allowance');
                       document.dispatchEvent(nextEvent);
                       navigateToNextScreen()
                     } else {
@@ -550,7 +504,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
  * @returns Expense Request Wizard component
  */
 const ExpenseRequestWizard: React.FC<BusinessAppContextProps> = (props) => {
-  const { accessToken, userInfo } = props;
+  const { accessToken, userInfo, additionalData } = props;
   
   const handleCancel = () => {
     try {
@@ -567,6 +521,7 @@ const ExpenseRequestWizard: React.FC<BusinessAppContextProps> = (props) => {
     <ExpenseRequestWizardProvider 
       accessToken={accessToken} 
       userInfo={userInfo}
+      additionalData={additionalData || mockAdditionalData}
     >
       <div className="gba:expenseRequestWizardWrapper" data-testid="expense-request-wizard-wrapper">
         <ExpenseRequestWizardContent 

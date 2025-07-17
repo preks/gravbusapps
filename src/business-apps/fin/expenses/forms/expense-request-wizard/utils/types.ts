@@ -101,3 +101,13 @@ export interface LocationFormLabels{
   dateFieldLabel?:string;
   timeFieldLabel?:string
 }
+
+/**
+ * CostCenter interface
+ */
+export interface CostCenter {
+  id: string;
+  name: string;
+  structureId: string;
+}
+

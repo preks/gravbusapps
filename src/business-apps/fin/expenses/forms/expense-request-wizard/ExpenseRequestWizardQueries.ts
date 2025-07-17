@@ -590,3 +590,57 @@ export const getRequestsAbsences = `query MyQuery($employeeId: uuid, $requestId:
   }
 }
 `
+export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId: uuid!,$employeeId: uuid,$activeUserLocale: String) {
+  AllowanceRegionRuleDetail(where: {allowanceRegionRule: {expenseRuleAllowanceCode: {expenseRuleId: {_eq: $expenseRuleId}}},isDeleted: {_eq: false}}, distinctOn: travelRegionRef) {
+    id
+    travelRegionRef
+    home
+    countryRef
+     amount
+    currency {
+      code
+      value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
+    }
+    travelRegion {
+      value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
+    }
+  }
+    EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
+    structureId
+    costCenterId
+  }
+}`
+
+export const getUserCostCenters =`query MyQuery($structureId: uuid!) {
+  userCostCenters: CostCenter(where: {structureId: {_eq: $structureId}, isDeleted: {_eq: false}}) {
+    id
+    name
+    structureId
+  }
+}
+`
+
+export const getUserProjects =`query MyQuery($structureIdArray: [uuid!]) {
+  Project(where: {structureId: {_in: $structureIdArray},isDeleted:{_eq:false}}) {
+    id
+    name
+    structureId
+    validFrom
+    validTo
+  }
+}
+`

@@ -24,7 +24,7 @@ export const ICONS = {
   EDIT_ICON: `${ICONS_ENDPOINT}/remixicons/edit-line.svg`,
   CHECK_ICON:`${ICONS_ENDPOINT}/remixicons/check-line.svg`,
   X_ICON:`${ICONS_ENDPOINT}/remixicons/close-line.svg`,
-  
+  CALENDAR_ICON:`${ICONS_ENDPOINT}/remixicons/calendar-line.svg`,
   // Status icons
   SPINNER_ICON: `${ICONS_ENDPOINT}/newwork/spinner.svg`,
 
