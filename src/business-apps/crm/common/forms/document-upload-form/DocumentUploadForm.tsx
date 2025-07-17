@@ -43,6 +43,8 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
             type: 'CRM_DOCUMENT_UPLOADED', 
             leadId: additionalData?.leadId,
             opportunityId: additionalData?.opportunityId,
+            contactId: additionalData?.contactId,
+            accountId: additionalData?.accountId,
             document: crmDocument 
           }, '*');
         }
@@ -79,8 +81,8 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
       const file = fileList[0].originFileObj;
       const pathParams = { accessScope: 'public' };
       
-      const entityType = additionalData?.leadId ? 'leads' : additionalData?.opportunityId ? 'opportunities' : 'contacts';
-      const entityId = additionalData?.leadId || additionalData?.opportunityId || additionalData?.contactId;
+      const entityType = additionalData?.leadId ? 'leads' : additionalData?.opportunityId ? 'opportunities' : additionalData?.contactId ? 'contacts' : 'accounts';
+      const entityId = additionalData?.leadId || additionalData?.opportunityId || additionalData?.contactId || additionalData?.accountId;
       
       const queryParams = {
         appName: 'crm',
@@ -100,6 +102,7 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
         locationId: additionalData?.locationId,
         organizationalUnitId: additionalData?.organizationalUnitId,
         ...(additionalData?.contactId && { contactId: additionalData.contactId }),
+        ...(additionalData?.accountId && { accountId: additionalData.accountId }),
         changeMode: 'INSERT',
         crmDocument: {
           name: values.name || file.name,
@@ -107,6 +110,7 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
           ...(additionalData?.leadId && { lead: additionalData.leadId }),
           ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
           ...(additionalData?.contactId && { contact: additionalData.contactId }),
+          ...(additionalData?.accountId && { account: additionalData.accountId }),
           version: 0,
           file: uploadResponse.fileInfo.fileId,
           fileSize: file.size,

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Button } from 'antd';
-import { TagsOutlined, BankOutlined, UserOutlined, EditOutlined } from '@ant-design/icons';
+import { Button } from '@newwork/nw-design-system';
+import { Tags, User, Edit } from 'lucide-react';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -56,36 +56,24 @@ export const AccountHeader: React.FC<AccountHeaderProps> = ({
             </div>
             
             {/* Account-specific fields */}
-            <div style={{ color: '#8c8c8c', fontSize: '14px', marginBottom: '8px' }}>
-              <TagsOutlined style={{ marginRight: '4px' }} />
-              <span>Industry: {accountData?.industry?.value || account.industry || 'Unknown'}</span>
-              <span style={{ margin: '0 8px' }}>•</span>
-              <UserOutlined style={{ marginRight: '4px' }} />
+            <div style={{ 
+              color: '#8c8c8c', 
+              fontSize: '14px', 
+              marginBottom: '8px',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              flexWrap: 'nowrap'
+            }}>
+              {(accountData?.industry?.value || account.industry) && (
+                <>
+                  <Tags className="gba:inline gba:w-4 gba:h-4 gba:mr-1" />
+                  <span>Industry: {accountData?.industry?.value || account.industry}</span>
+                  <span style={{ margin: '0 8px' }}>•</span>
+                </>
+              )}
+              <User className="gba:inline gba:w-4 gba:h-4 gba:mr-1" />
               <span>Owner: {accountData?.ownerEmployee ? `${accountData.ownerEmployee.firstName} ${accountData.ownerEmployee.lastName}` : account.accountOwner?.name || 'Unknown'}</span>
-            </div>
-            
-            {/* Links */}
-            <div style={{ marginTop: '8px' }}>
-              {account.website && (
-                <a 
-                  href={account.website} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  style={{ fontSize: '14px', marginRight: '16px' }}
-                >
-                  Website
-                </a>
-              )}
-              {account.linkedin && (
-                <a 
-                  href={account.linkedin} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  style={{ fontSize: '14px' }}
-                >
-                  LinkedIn
-                </a>
-              )}
             </div>
           </div>
         </div>

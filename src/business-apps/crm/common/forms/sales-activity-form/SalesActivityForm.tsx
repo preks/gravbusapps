@@ -124,8 +124,8 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
             const pathParams = { accessScope: 'public' };
             
             // Use entity folder path for consistency with document-upload-form
-            const entityType = additionalData?.leadId ? 'leads' : additionalData?.opportunityId ? 'opportunities' : 'contacts';
-            const entityId = additionalData?.leadId || additionalData?.opportunityId || additionalData?.contactId;
+            const entityType = additionalData?.leadId ? 'leads' : additionalData?.opportunityId ? 'opportunities' : additionalData?.contactId ? 'contacts' : 'accounts';
+            const entityId = additionalData?.leadId || additionalData?.opportunityId || additionalData?.contactId || additionalData?.accountId;
             
             const queryParams = {
               appName: 'crm',
@@ -157,6 +157,7 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
                 ...(additionalData?.leadId && { lead: additionalData.leadId }),
                 ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
                 ...(additionalData?.contactId && { contact: additionalData.contactId }),
+                ...(additionalData?.accountId && { account: additionalData.accountId }),
                 version: 0,
               },
             };
@@ -172,6 +173,7 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
                 leadId: additionalData?.leadId,
                 opportunityId: additionalData?.opportunityId,
                 contactId: additionalData?.contactId,
+                accountId: additionalData?.accountId,
                 document: crmDocumentPayload.crmDocument 
               }, '*');
             }
@@ -247,6 +249,7 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
           ...(additionalData?.leadId && { lead: additionalData.leadId }),
           ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
           ...(additionalData?.contactId && { contact: additionalData.contactId }),
+          ...(additionalData?.accountId && { account: additionalData.accountId }),
           description: values.description || '',
           ownerEmployee: additionalData?.employeeId
         },
