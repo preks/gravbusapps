@@ -1,11 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { GET_COMPANY_BY_ID, GetCompanyByIdResponse } from '../queries/company-queries';
+
+export interface ReferenceData {
+  id: string;
+  code: string;
+  value: string;
+  alternativeCode?: string;
+}
 
 export interface Account {
   id: string;
   name: string;
   version: string;
+  status?: string;
   industry?: string;
   website?: string;
   linkedin?: string;
@@ -38,8 +47,11 @@ export const useAccountData = (accountId: string, accessToken: string) => {
   const [accountData, setAccountData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [accountStatuses, setAccountStatuses] = useState<ReferenceData[]>([]);
+  const [loadingStatuses, setLoadingStatuses] = useState(false);
 
   const graphQLClient = useGraphQLClient(accessToken);
+  const catalogClient = useCatalogManagerClient(accessToken);
 
   const fetchAccountData = async () => {
     try {
@@ -60,6 +72,7 @@ export const useAccountData = (accountId: string, accessToken: string) => {
           id: rawAccountData.id,
           name: rawAccountData.name || 'Unknown Account',
           version: rawAccountData.version?.toString() || '1',
+          status: 'Active', // Default status as Account API doesn't expose status field yet
           industry: rawAccountData.industry?.value || '',
           website: rawAccountData.website || '',
           linkedin: '', // Not available in current API
@@ -89,9 +102,42 @@ export const useAccountData = (accountId: string, accessToken: string) => {
     }
   };
 
+  const fetchAccountStatuses = async () => {
+    try {
+      setLoadingStatuses(true);
+      const response = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: 'AccountStatus', version: 'v1' },
+        { limit: 100, offset: 0, returnTotalRecords: true }
+      );
+      
+      if (response && response.data) {
+        const statusData = response.data.map((entry: any) => ({
+          id: entry.id,
+          code: entry.code,
+          value: entry.value,
+          alternativeCode: entry.alternativeCode,
+        }));
+        
+        // Sort by alternativeCode in ascending order (1, 2, 3, etc.)
+        const sortedStatuses = statusData.sort((a, b) => {
+          const aCode = parseInt(a.alternativeCode || '999');
+          const bCode = parseInt(b.alternativeCode || '999');
+          return aCode - bCode;
+        });
+        
+        setAccountStatuses(sortedStatuses);
+      }
+    } catch (err) {
+      console.error('Error fetching account statuses:', err);
+    } finally {
+      setLoadingStatuses(false);
+    }
+  };
+
   useEffect(() => {
     if (accountId && accessToken) {
       fetchAccountData();
+      fetchAccountStatuses();
     }
   }, [accountId, accessToken]);
 
@@ -100,6 +146,8 @@ export const useAccountData = (accountId: string, accessToken: string) => {
     accountData,
     loading,
     error,
+    accountStatuses,
+    loadingStatuses,
     refetchAccountData: fetchAccountData
   };
 }; 

@@ -45,12 +45,6 @@ export const NotesForm: React.FC<NotesFormProps> = (props) => {
     setLoading(true);
     
     try {
-      // Debug: Check what's in additionalData
-      console.log('=== NotesForm Debug ===');
-      console.log('additionalData:', additionalData);
-      console.log('contactId found:', additionalData?.contactId);
-      console.log('=======================');
-      
       const payload = {
         employeeId: additionalData?.employeeId,
         managerId: additionalData?.managerId,
@@ -67,7 +61,8 @@ export const NotesForm: React.FC<NotesFormProps> = (props) => {
           authorEmployee: additionalData?.employeeId,
           ...(additionalData?.leadId && { lead: additionalData.leadId }),
           ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
-          ...(additionalData?.contactId && { contact: additionalData.contactId })
+          ...(additionalData?.contactId && { contact: additionalData.contactId }),
+          ...(additionalData?.accountId && { account: additionalData.accountId }),
         },
       };
       

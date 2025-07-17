@@ -13,6 +13,12 @@ export interface ContactActivityData {
   createdAt: string;
   completedAt?: string | null;
   createdBy: string;
+  activityType?: {
+    code: string;
+    id: string;
+    type: string;
+    value: string;
+  };
 }
 
 export interface ContactActivityResponse {
@@ -30,6 +36,12 @@ export const GET_CONTACT_ACTIVITIES = (variables: ContactActivityQueryVariables)
         createdAt
         completedAt
         createdBy
+        activityType {
+          code
+          id
+          type
+          value
+        }
       }
     }
   `;
