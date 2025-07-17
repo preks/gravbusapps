@@ -173,17 +173,13 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     activeStructureId,
     employeeIdToShow // Use the determined employeeId directly
   );
-  console.log("🚀 ~ employee:", employee)
   
   // Add event listener to refresh data after process completion (e.g., when using AppActionButtons)
   useEffect(() => {
-    console.log('inside useEffect')
     // Define the event handler
     const handleProcessCompletion = (event: Event) => {
-      console.log("🚀 ~ handleProcessCompletion ~ handleProcessCompletion:", handleProcessCompletion)
       const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>
       const resolution = customEvent.detail.resolution
-      console.log("🚀 ~ handleProcessCompletion ~ resolution:", resolution)
       if (resolution === 'success') {
         refetch();
       }
