@@ -91,7 +91,7 @@ export const useOverviewData = (
           pipelineRef: pipeline.ref,
           startDate: dateRange.startDate.toISOString(),
           endDate: dateRange.endDate.toISOString(),
-          limit: 1000
+          limit: 50
         })
       );
 
@@ -110,7 +110,7 @@ export const useOverviewData = (
         fetchOpenLeadsForRevenueSource({
           startDate: dateRange.startDate.toISOString(),
           endDate: dateRange.endDate.toISOString(),
-          limit: 1000
+          limit: 50
         })
       ]);
 
@@ -214,7 +214,7 @@ export const useOverviewData = (
       const sourceGroups = new Map<string, number>();
 
       openLeads.forEach((lead: any) => {
-        const source = lead.leadSource?.value || 'Unknown Source';
+        const source = lead.leadSource?.value || 'NETWORK';
         sourceGroups.set(source, (sourceGroups.get(source) || 0) + 1);
       });
 

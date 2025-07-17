@@ -44,7 +44,12 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       prefix: <FileTextOutlined />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 6 },
-      description: '+8% from last month'
+      description: 'Submitted expense requests',
+      trend: {
+        value: '+8%',
+        positive: true,
+        description: 'from last month'
+      }
     },
     {
       key: 'total-amount',

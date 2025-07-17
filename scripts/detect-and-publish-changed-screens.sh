@@ -20,6 +20,6 @@ while IFS= read -r app_dir; do
   
   echo "Publishing: $publish_path"
 
-  # Publish the screen
-  yarn publish:screen -- "$publish_path"
+  # Publish the screen (with no-interaction flag for pipeline usage)
+  yarn publish:screen -- "$publish_path" --no-interaction
 done < changed-tsx.txt

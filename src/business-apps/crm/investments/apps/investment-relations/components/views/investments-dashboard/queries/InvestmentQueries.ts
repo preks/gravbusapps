@@ -1,5 +1,6 @@
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits';
 
 export interface InvestmentQueryVariables {
   id?: string;
@@ -582,9 +583,13 @@ export const useGetInvestments = (context: BusinessAppContextProps) => {
 
   const fetchInvestments = async (variables: InvestmentQueryVariables = {}) => {
     try {
+      const safeVariables = {
+        ...variables,
+        limit: enforceQueryLimit(variables.limit || 50)
+      };
       const result = await graphqlClient.request<{ Investment: InvestmentResponse[] }>(
         GET_INVESTMENTS_QUERY,
-        variables
+        safeVariables
       );
       return result.Investment || [];
     } catch (error) {
@@ -602,9 +607,13 @@ export const useGetLiquidFundInvestments = (context: BusinessAppContextProps) =>
 
   const fetchLiquidFundInvestments = async (variables: InvestmentQueryVariables = {}) => {
     try {
+      const safeVariables = {
+        ...variables,
+        limit: enforceQueryLimit(variables.limit || 50)
+      };
       const result = await graphqlClient.request<{ LiquidFundInvestment: LiquidFundInvestmentResponse[] }>(
         GET_LIQUID_FUND_INVESTMENTS_QUERY,
-        variables
+        safeVariables
       );
       return result.LiquidFundInvestment || [];
     } catch (error) {
@@ -622,9 +631,13 @@ export const useGetEquityInvestments = (context: BusinessAppContextProps) => {
 
   const fetchEquityInvestments = async (variables: InvestmentQueryVariables = {}) => {
     try {
+      const safeVariables = {
+        ...variables,
+        limit: enforceQueryLimit(variables.limit || 50)
+      };
       const result = await graphqlClient.request<{ EquityInvestment: EquityInvestmentResponse[] }>(
         GET_EQUITY_INVESTMENTS_QUERY,
-        variables
+        safeVariables
       );
       return result.EquityInvestment || [];
     } catch (error) {
@@ -642,9 +655,13 @@ export const useGetRealEstateInvestments = (context: BusinessAppContextProps) =>
 
   const fetchRealEstateInvestments = async (variables: InvestmentQueryVariables = {}) => {
     try {
+      const safeVariables = {
+        ...variables,
+        limit: enforceQueryLimit(variables.limit || 50)
+      };
       const result = await graphqlClient.request<{ RealEstateInvestment: RealEstateInvestmentResponse[] }>(
         GET_REAL_ESTATE_INVESTMENTS_QUERY,
-        variables
+        safeVariables
       );
       return result.RealEstateInvestment || [];
     } catch (error) {
@@ -662,9 +679,13 @@ export const useGetPrivateEquityInvestments = (context: BusinessAppContextProps)
 
   const fetchPrivateEquityInvestments = async (variables: InvestmentQueryVariables = {}) => {
     try {
+      const safeVariables = {
+        ...variables,
+        limit: enforceQueryLimit(variables.limit || 50)
+      };
       const result = await graphqlClient.request<{ PrivateEquityInvestment: PrivateEquityInvestmentResponse[] }>(
         GET_PRIVATE_EQUITY_INVESTMENTS_QUERY,
-        variables
+        safeVariables
       );
       return result.PrivateEquityInvestment || [];
     } catch (error) {

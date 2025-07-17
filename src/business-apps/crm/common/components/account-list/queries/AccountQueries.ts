@@ -18,6 +18,7 @@ export interface AccountData {
     value: string;
     code: string;
     id: string;
+    objectValue?: any;
   };
   numberOfEmployees: {
     value: string;
@@ -46,6 +47,7 @@ export interface AccountData {
     id: string;
     code: string;
     value: string;
+    objectValue?: any;
   };
   ownerEmployee: {
     id: string;
@@ -86,6 +88,7 @@ export const GET_ACCOUNTS_DATA = `
         value
         code
         id
+        objectValue
       }
       numberOfEmployees {
         value
@@ -114,11 +117,13 @@ export const GET_ACCOUNTS_DATA = `
         id
         code
         value
+        objectValue
       }
       ownerEmployee {
         id
         lastName
         firstName
+        pictureThumbnail
       }
       createdAt
       updatedAt

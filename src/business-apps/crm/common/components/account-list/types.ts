@@ -7,10 +7,12 @@ export interface Account {
   industry?: {
     id: string;
     value: string;
+    objectValue?: any;
   };
   type?: {
     id: string;
     value: string;
+    objectValue?: any;
   };
   ownerEmployee?: {
     id: string;
@@ -31,15 +33,6 @@ export interface Account {
   updatedAt?: string;
 }
 
-export interface AccountStatisticsData {
-  recentAccounts: number;
-  activeAccounts: number;
-  totalRevenue: number;
-  totalAccountsThisYear: number;
-  mostCommonIndustry: string;
-  mostCommonLegalForm: string;
-}
-
 export interface UseAccountListDataReturn {
   accounts: Account[];
   total: number;
@@ -49,13 +42,6 @@ export interface UseAccountListDataReturn {
   loadMore: () => void;
   loadPage: (page: number, pageSize?: number, additionalFilters?: any) => Promise<void>;
   retry: () => void;
-}
-
-export interface UseAccountStatisticsReturn {
-  statistics: AccountStatisticsData;
-  isLoading: boolean;
-  error: Error | null;
-  refetch: () => void;
 }
 
 export interface AccountQueryVariables {

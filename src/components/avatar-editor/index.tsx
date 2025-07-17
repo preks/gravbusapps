@@ -11,17 +11,17 @@ export const AvatarEditor = ({
   className?: string;
 }) => {
   return (
-    <div className={`avatar-editor ${className}`} {...props}>
-      <div className="avatar-preview">
+    <div className={`avatar-editor ${className}`} {...props} data-testid="avatar-editor-container">
+      <div className="avatar-preview" data-testid="avatar-editor-preview">
         {image ? (
-          <img src={image} alt="Avatar preview" />
+          <img src={image} alt="Avatar preview" data-testid="avatar-editor-image" />
         ) : (
-          <div className="default-avatar">+</div>
+          <div className="default-avatar" data-testid="avatar-editor-default">+</div>
         )}
       </div>
-      <div className="controls">
-        <button onClick={() => onImageChange?.('mock-image-url')}>Upload</button>
-        <button onClick={() => onImageChange?.('mock-image-url')}>Crop</button>
+      <div className="controls" data-testid="avatar-editor-controls">
+        <button onClick={() => onImageChange?.('mock-image-url')} data-testid="avatar-editor-upload-button">Upload</button>
+        <button onClick={() => onImageChange?.('mock-image-url')} data-testid="avatar-editor-crop-button">Crop</button>
       </div>
     </div>
   );

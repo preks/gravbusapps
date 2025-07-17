@@ -62,7 +62,7 @@ export const usePipelineData = (
           pipelineRef: pipeline.ref,
           startDate,
           endDate,
-          limit: 1000
+          limit: 50
         }),
         fetchSalesActivities({
           startDate,

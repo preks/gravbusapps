@@ -21,3 +21,7 @@ trigger: always_on
   - `npm run publish:screen -- /<module>/<sub-module>/apps/<app-folder>` for apps
   - `npm run publish:screen -- /<module>/<sub-module>/forms/<form-folder>` for forms
 - Optional Resource URL mode: `--resource` or `-r` - enables prompts for creating resource URLs (by default, direct publishing without prompts)
+
+### Publishing Scripts
+
+- all app and form publish scripts must support the no-interaction flag to suppress user interaction in build pipelines

@@ -257,9 +257,6 @@ if (globalThis.__APP_BUILD_INFO__) {
     },
   };
 
-  // Get all possible entries using our flexible pattern finder
-  const allPossibleEntries = getDynamicEntries(projectRootDir);
-
   if (isBuildCommand && isSingleBuild) {
     // Single build mode - use only the specified entry
     dynamicEntries[targetEntryKey] = resolve(projectRootDir, targetEntryFile);
@@ -267,7 +264,7 @@ if (globalThis.__APP_BUILD_INFO__) {
       `[vite.config.ts] Single build: Targeting entry: ${targetEntryKey}`
     );
   } else if (command === "serve") {
-    // Development server mode
+    // Development server mode - optimize for speed
     if (targetEntryKey && targetEntryFile) {
       // If a specific entry is requested, use only that one
       dynamicEntries[targetEntryKey] = resolve(projectRootDir, targetEntryFile);
@@ -275,13 +272,14 @@ if (globalThis.__APP_BUILD_INFO__) {
         `[vite.config.ts] Dev server targeting specific entry: ${targetEntryKey}`
       );
     } else {
-      // Otherwise, use all discovered entries for development
-      dynamicEntries = allPossibleEntries;
-      console.log("[vite.config.ts] Dev server using all discovered entries:");
-      console.log(dynamicEntries);
+      // In dev mode without specific target, use minimal entries to speed up startup
+      // Only discover entries when actually needed (lazy loading approach)
+      console.log("[vite.config.ts] Dev server: Using minimal entry discovery for faster startup");
+      dynamicEntries = {}; // Start with empty, will be populated on-demand
     }
   } else {
     // Multi-build mode (default build) - use all discovered entries
+    const allPossibleEntries = getDynamicEntries(projectRootDir);
     dynamicEntries = allPossibleEntries;
     console.log("[vite.config.ts] Multi-build: Generating all entries.");
     console.log(
@@ -399,7 +397,6 @@ export default wrapWithUiCatalog(OriginalComponent);
 
     // Write the wrapper file
     fs.writeFileSync(wrappedEntryPath, wrapperContent, "utf8");
-    console.log(`[UiCatalogWrapper] Created wrapper for: ${entryKey}`);
 
     // Replace the original entry with our wrapped version
     wrappedEntries[entryKey] = wrappedEntryPath;
@@ -420,6 +417,7 @@ export default wrapWithUiCatalog(OriginalComponent);
         : []),
       ...extraPlugins,
     ].filter(Boolean),
+
     define: {
       // This replaces process.env.NODE_ENV with the current mode in the build output
       "process.env.NODE_ENV": JSON.stringify(mode),
@@ -490,22 +488,8 @@ export default wrapWithUiCatalog(OriginalComponent);
           "tailwind-merge",
           "@newwork/gravity-ui-catalog",
           "@remixicon/react",
-          "@radix-ui/react-dropdown-menu",
-          "@radix-ui/react-select",
-          "@radix-ui/react-separator",
-          "@radix-ui/react-switch",
-          "@radix-ui/react-toast",
-          "@radix-ui/react-tooltip",
           "class-variance-authority",
           "lucide-react",
-          "@radix-ui/react-avatar",
-          "@radix-ui/react-checkbox",
-          "@radix-ui/react-dialog",
-          "@radix-ui/react-label",
-          "@radix-ui/react-progress",
-          "@radix-ui/react-slot",
-          "@radix-ui/react-tabs",
-          "@tanstack/react-table",
           "react-router-dom",
         ],
         output: {
@@ -525,22 +509,8 @@ export default wrapWithUiCatalog(OriginalComponent);
             zustand: "zustand",
             "@newwork/gravity-ui-catalog": "GravityUICatalog",
             "@remixicon/react": "remixIconReact",
-            "@radix-ui/react-dropdown-menu": "RadixDropdownMenu",
-            "@radix-ui/react-select": "RadixSelect",
-            "@radix-ui/react-separator": "RadixSeparator",
-            "@radix-ui/react-switch": "RadixSwitch",
-            "@radix-ui/react-toast": "RadixToast",
-            "@radix-ui/react-tooltip": "RadixTooltip",
             "class-variance-authority": "classVarianceAuthority",
             "lucide-react": "lucideReact",
-            "@radix-ui/react-avatar": "RadixAvatar",
-            "@radix-ui/react-checkbox": "RadixCheckbox",
-            "@radix-ui/react-dialog": "RadixDialog",
-            "@radix-ui/react-label": "RadixLabel",
-            "@radix-ui/react-progress": "RadixProgress",
-            "@radix-ui/react-slot": "RadixSlot",
-            "@radix-ui/react-tabs": "RadixTabs",
-            "@tanstack/react-table": "TanstackTable",
             "react-router-dom": "reactRouterDom",
           },
           // entryFileNames will now always output a predictable name;

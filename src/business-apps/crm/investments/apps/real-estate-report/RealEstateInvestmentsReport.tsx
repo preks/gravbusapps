@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tag, Button, Space, Alert, Spin, Typography } from 'antd';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
@@ -86,14 +86,6 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
           </Tag>
         </div>
         <Space>
-          <Button
-            data-testid={formatDataTestId(prefixDataTestId, 'RefreshButton')}
-            type="default"
-            icon={<ReloadOutlined />}
-            onClick={() => refetch()}
-          >
-            {getTranslationFromI18nKeyAndLabel('button.refresh', 'Refresh')}
-          </Button>
           <Button
             data-testid={formatDataTestId(prefixDataTestId, 'AddButton')}
             type="primary"

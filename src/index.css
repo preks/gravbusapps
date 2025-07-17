@@ -15,7 +15,6 @@
 @import "tailwindcss" prefix(gba);
 @config "../tailwind.config.js";
 @import "tw-animate-css";
-@import "./business-apps/irm/kanban-board/KanbanBoard/kanban-styles.css";
 @import "./business-apps/hr/absence/apps/AbsenceCalendar/styles/AbsenceCalendar.css";
 @import "./business-apps/fin/expenses/forms/expense-item/ExpenseItem.css";
 @import "./business-apps/fin/expenses/forms/expense-request/ExpenseRequest.css";
@@ -28,7 +27,7 @@
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/statisticsTab.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/upcomingAbsenceCard.css";
 @import "./business-apps/hr/absence/apps/AbsenceHub/styles/statsCard.css";
-@import "@newwork/nw-design-system/dist/index.css";
+@import "@newwork/nw-design-system/index.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -103,7 +102,6 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.705 0.015 286.067);
-
 }
 
 .dark {

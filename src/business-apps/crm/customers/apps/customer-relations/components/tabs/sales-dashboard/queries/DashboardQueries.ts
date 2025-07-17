@@ -2,6 +2,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCallback } from 'react';
 import { DateRange, PipelineData } from '../types/dashboardTypes';
+import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits';
 
 export interface DashboardQueryVariables {
   pipelineRef?: string;
@@ -474,9 +475,13 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
 
   const fetchPipelineOpportunities = useCallback(async (variables: DashboardQueryVariables) => {
     try {
+      const safeVariables = {
+        ...variables,
+        limit: enforceQueryLimit(variables.limit || 50)
+      };
       const result = await graphqlClient.request<{
         opportunities: any[];
-      }>(GET_PIPELINE_OPPORTUNITIES, variables);
+      }>(GET_PIPELINE_OPPORTUNITIES, safeVariables);
       return result.opportunities;
     } catch (error) {
       console.error('Error fetching opportunities:', error);
@@ -486,9 +491,10 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
 
   const fetchRecentLeads = useCallback(async (startDate: string, limit: number = 5) => {
     try {
+      const safeLimit = enforceQueryLimit(limit);
       const result = await graphqlClient.request<{
         leads: any[];
-      }>(GET_RECENT_LEADS, { startDate, limit });
+      }>(GET_RECENT_LEADS, { startDate, limit: safeLimit });
       return result.leads;
     } catch (error) {
       console.error('Error fetching recent leads:', error);
@@ -597,9 +603,13 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
     limit?: number;
   }) => {
     try {
+      const safeVariables = {
+        ...variables,
+        limit: enforceQueryLimit(variables.limit || 50)
+      };
       const result = await graphqlClient.request<{
         leads: any[];
-      }>(GET_OPEN_LEADS_FOR_REVENUE_SOURCE, variables);
+      }>(GET_OPEN_LEADS_FOR_REVENUE_SOURCE, safeVariables);
       return result.leads;
     } catch (error) {
       console.error('Error fetching open leads for revenue source:', error);

@@ -2,6 +2,19 @@ import { useState, useCallback } from 'react';
 import { Opportunity, UseOpportunityListDataReturn } from '../types';
 import { useGetOpportunitiesData, OpportunityData } from '../queries/OpportunityQueries';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { enforceQueryLimit } from '../../../utils/queryLimits';
+
+const temporaryMapToStage = (stage: string) => {
+  return {
+    UNKNOWN_STAGE: 'Unknown Stage',
+    NEW_OPPORTUNITY: 'New Opportunity',
+    IN_QUALIFICATION: 'In Qualification',
+    PROPOSAL: 'Proposal',
+    PROPOSAL_IN_PROGRESS: 'Proposal In Progress',
+    NEGOTIATION: 'Negotiation',
+    CLOSED: 'Closed'
+  }[stage] || 'Unknown Stage';
+};
 
 interface UseOpportunityListDataParams {
   search?: string;
@@ -20,48 +33,43 @@ const transformOpportunityData = (apiOpportunity: OpportunityData): Opportunity 
   return {
     id: apiOpportunity.id,
     name: apiOpportunity.name || '',
-    description: apiOpportunity.description || '',
+    description: '', // Field doesn't exist in API, set empty string
     estimatedAmount: apiOpportunity.estimatedAmount || 0,
     winningChance: apiOpportunity.winningChance || 0,
     closeDate: apiOpportunity.closeDate || '',
-    stage: apiOpportunity.stage || apiOpportunity.salesPipelineStage?.value || '',
+    stage: apiOpportunity.salesPipelineStage?.value || temporaryMapToStage(apiOpportunity.stage) || '',
     salesPipeline: apiOpportunity.salesPipeline ? {
       id: apiOpportunity.salesPipeline.id,
       value: apiOpportunity.salesPipeline.value,
-      code: apiOpportunity.salesPipeline.code
-    } : { id: '', value: '', code: '' },
+      code: apiOpportunity.salesPipeline.code,
+      objectValue: apiOpportunity.salesPipeline.objectValue
+    } : { id: '', value: '', code: '', objectValue: undefined },
     salesPipelineStage: apiOpportunity.salesPipelineStage ? {
       id: apiOpportunity.salesPipelineStage.id,
       value: apiOpportunity.salesPipelineStage.value,
-      code: apiOpportunity.salesPipelineStage.code
-    } : { id: '', value: '', code: '' },
-    salesOpportunityStatus: apiOpportunity.salesOpportunityStatus ? {
-      id: apiOpportunity.salesOpportunityStatus.id,
-      value: apiOpportunity.salesOpportunityStatus.value,
-      code: apiOpportunity.salesOpportunityStatus.code
-    } : { id: '', value: '', code: '' },
-    salesLeadSource: apiOpportunity.salesLeadSource ? {
-      id: apiOpportunity.salesLeadSource.id,
-      value: apiOpportunity.salesLeadSource.value,
-      code: apiOpportunity.salesLeadSource.code
-    } : { id: '', value: '', code: '' },
+      code: apiOpportunity.salesPipelineStage.code,
+      objectValue: apiOpportunity.salesPipelineStage.objectValue
+    } : { id: '', value: '', code: '', objectValue: undefined },
+    salesOpportunityStatus: { id: '', value: '', code: '' }, // Field doesn't exist in API
+    salesLeadSource: { id: '', value: '', code: '' }, // Field doesn't exist in API
     currency: apiOpportunity.currency ? {
       id: apiOpportunity.currency.id,
       value: apiOpportunity.currency.value,
-      code: apiOpportunity.currency.code
-    } : { id: '', value: 'USD', code: 'USD' },
+      code: apiOpportunity.currency.code,
+      objectValue: apiOpportunity.currency.objectValue
+    } : { id: '', value: 'USD', code: 'USD', objectValue: undefined },
     account: apiOpportunity.account ? {
-      id: '', // Account ID not available in this structure
+      id: apiOpportunity.account.id,
       name: apiOpportunity.account.name
     } : undefined,
-    accountId: '', // Not available in this structure
+    accountId: apiOpportunity.accountId || '',
     ownerEmployee: apiOpportunity.ownerEmployee ? {
       id: apiOpportunity.ownerEmployee.id,
       firstName: apiOpportunity.ownerEmployee.firstName || '',
       lastName: apiOpportunity.ownerEmployee.lastName || '',
       displayName: apiOpportunity.ownerEmployee.displayName || 
         `${apiOpportunity.ownerEmployee.firstName} ${apiOpportunity.ownerEmployee.lastName}`,
-      pictureThumbnail: undefined
+      pictureThumbnail: apiOpportunity.ownerEmployee.pictureThumbnail || ''
     } : undefined,
     sourceApp: '',
     createdAt: apiOpportunity.createdAt,
@@ -88,26 +96,53 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
     setError(null);
 
     try {
-      const offset = (page - 1) * pageSize;
+      // Enforce query limit to ensure optimal performance
+      const safePageSize = enforceQueryLimit(pageSize);
+      const offset = (page - 1) * safePageSize;
       
-      // Build where conditions
-      const whereCondition: any = {
-        isDeleted: { _eq: false }
-      };
+      // Build where conditions - start with base condition
+      const whereConditions: any[] = [
+        { isDeleted: { _eq: false } }
+      ];
 
-      // Add search functionality
+      // Add search functionality - only search name and related fields that exist
       if (params.search?.trim()) {
-        const searchPattern = { _iregex: params.search.trim() };
+        const searchTerm = `%${params.search.trim()}%`;
         const isNumber = !isNaN(Number(params.search));
         
         const searchConditions: any[] = [
-          { name: searchPattern },
-          { description: searchPattern },
-          { account: { name: searchPattern } },
-          { ownerEmployee: { firstName: searchPattern } },
-          { ownerEmployee: { lastName: searchPattern } },
-          { ownerEmployee: { displayName: searchPattern } }
+          { name: { _ilike: searchTerm } }
         ];
+        
+        // Add account name search
+        searchConditions.push({ 
+          account: { 
+            name: { _ilike: searchTerm } 
+          } 
+        });
+        
+        // Add owner employee search
+        searchConditions.push({ 
+          ownerEmployee: { 
+            firstName: { _ilike: searchTerm } 
+          } 
+        });
+        searchConditions.push({ 
+          ownerEmployee: { 
+            lastName: { _ilike: searchTerm } 
+          } 
+        });
+        searchConditions.push({ 
+          ownerEmployee: { 
+            displayName: { _ilike: searchTerm } 
+          } 
+        });
+
+        // Add stage and pipeline search
+        searchConditions.push({ stage: { _ilike: searchTerm } }); // Added: displayed in stage
+        searchConditions.push({ salesPipelineStage: { value: { _ilike: searchTerm } } }); // Added: displayed in stage
+        searchConditions.push({ pipeline: { value: { _ilike: searchTerm } } }); // Added: displayed in pipeline
+        searchConditions.push({ salesPipeline: { value: { _ilike: searchTerm } } }); // Added: displayed in pipeline
         
         // Add number-specific conditions if the search term can be parsed as a number
         if (isNumber) {
@@ -116,14 +151,16 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
           searchConditions.push({ winningChance: { _eq: numericValue } });
         }
         
-        whereCondition._or = searchConditions;
+        whereConditions.push({ _or: searchConditions });
       }
 
       // Add stage filtering
       if (params.stages && params.stages.length > 0) {
-        whereCondition._or = whereCondition._or || [];
-        whereCondition._or.push({ stage: { _in: params.stages } });
-        whereCondition._or.push({ salesPipelineStage: { value: { _in: params.stages } } });
+        const stageConditions: any[] = [
+          { stage: { _in: params.stages } },
+          { salesPipelineStage: { value: { _in: params.stages } } }
+        ];
+        whereConditions.push({ _or: stageConditions });
       }
 
       // Add winning chance filtering
@@ -138,8 +175,7 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
           }
           return { winningChance: condition };
         });
-        whereCondition._and = whereCondition._and || [];
-        whereCondition._and.push({ _or: winningChanceConditions });
+        whereConditions.push({ _or: winningChanceConditions });
       }
 
       // Add amount filtering
@@ -154,45 +190,62 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
           }
           return { estimatedAmount: condition };
         });
-        whereCondition._and = whereCondition._and || [];
-        whereCondition._and.push({ _or: amountConditions });
+        whereConditions.push({ _or: amountConditions });
       }
 
       // Add date filtering
-      if (params.createdAfter) {
-        whereCondition.createdAt = { _gte: params.createdAfter };
-      }
-      if (params.createdBefore) {
-        if (whereCondition.createdAt) {
-          whereCondition.createdAt._lte = params.createdBefore;
-        } else {
-          whereCondition.createdAt = { _lte: params.createdBefore };
+      if (params.createdAfter || params.createdBefore) {
+        const dateCondition: any = {};
+        if (params.createdAfter) {
+          dateCondition._gte = params.createdAfter;
         }
+        if (params.createdBefore) {
+          dateCondition._lte = params.createdBefore;
+        }
+        whereConditions.push({ createdAt: dateCondition });
       }
 
+      // Combine all where conditions with _and
+      const whereCondition = whereConditions.length > 1 
+        ? { _and: whereConditions }
+        : whereConditions[0] || {};
+
       // Build order by condition
-      const orderBy: any = {};
-      if (params.sortField && params.sortOrder) {
+      let orderBy: any[] = [];
+      if (params.sortField && params.sortField !== '' && params.sortOrder) {
+        const sortCondition: any = {};
+        
         if (params.sortField === 'name') {
-          orderBy.name = params.sortOrder;
+          sortCondition.name = params.sortOrder;
         } else if (params.sortField === 'estimatedAmount') {
-          orderBy.estimatedAmount = params.sortOrder;
+          sortCondition.estimatedAmount = params.sortOrder;
         } else if (params.sortField === 'winningChance') {
-          orderBy.winningChance = params.sortOrder;
+          sortCondition.winningChance = params.sortOrder;
         } else if (params.sortField === 'closeDate') {
-          orderBy.closeDate = params.sortOrder;
+          sortCondition.closeDate = params.sortOrder;
         } else if (params.sortField === 'createdAt') {
-          orderBy.createdAt = params.sortOrder;
+          sortCondition.createdAt = params.sortOrder;
+        } else if (params.sortField === 'ownerEmployeeId') {
+          sortCondition.ownerEmployee = { lastName: params.sortOrder };
+        } else if (params.sortField === 'stage') {
+          sortCondition.stage = params.sortOrder;
         }
-      } else {
-        orderBy.createdAt = 'DESC';
+        
+        if (Object.keys(sortCondition).length > 0) {
+          orderBy = [sortCondition];
+        }
+      }
+      
+      // Default sorting if no specific sort is provided
+      if (orderBy.length === 0) {
+        orderBy = [{ createdAt: 'DESC' }];
       }
 
       const result = await fetchOpportunitiesData({
         offset,
-        limit: pageSize,
+        limit: safePageSize,
         where: whereCondition,
-        orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ createdAt: 'DESC' }]
+        orderBy
       });
 
       if (result?.Opportunity) {
@@ -201,7 +254,7 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
         
         const totalCount = result.OpportunityAggregate?.aggregate?.count || 0;
         setTotal(totalCount);
-        setHasMore(offset + pageSize < totalCount);
+        setHasMore(offset + safePageSize < totalCount);
       }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load opportunities'));
@@ -209,7 +262,18 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
     } finally {
       setLoading(false);
     }
-  }, [fetchOpportunitiesData, params.search, params.sortField, params.sortOrder, params.stages, params.winningChanceRanges, params.amountRanges, params.createdAfter, params.createdBefore, params.context.accessToken]);
+  }, [
+    fetchOpportunitiesData, 
+    params.search, 
+    params.sortField, 
+    params.sortOrder, 
+    JSON.stringify(params.stages), // Use JSON.stringify for array
+    JSON.stringify(params.winningChanceRanges), // Use JSON.stringify for array
+    JSON.stringify(params.amountRanges), // Use JSON.stringify for array
+    params.createdAfter, 
+    params.createdBefore, 
+    params.context.accessToken
+  ]);
 
   const loadMore = useCallback(() => {
     console.log('Load more opportunities requested');

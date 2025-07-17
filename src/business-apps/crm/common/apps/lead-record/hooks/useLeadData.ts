@@ -39,10 +39,10 @@ export const useLeadData = (leadId: string, accessToken: string) => {
           version: rawLeadData.version ?? '1',
           statusRef: rawLeadData.leadStatus?.value || '',
           source: {
-            id: rawLeadData.leadSource?.value || 'website',
+            id: rawLeadData.leadSource?.value || 'NETWORK',
             type: 'leadSource',
-            value: rawLeadData.leadSource?.value || 'Website',
-            code: rawLeadData.leadSource?.value || 'website'
+            value: rawLeadData.leadSource?.value || 'Network',
+            code: rawLeadData.leadSource?.value || 'NETWORK'
           },
           sourceRef: rawLeadData.leadSource?.value || '',
           rating: rawLeadData.leadRating?.value || 'Hot',
@@ -139,8 +139,17 @@ export const useLeadData = (leadId: string, accessToken: string) => {
           id: entry.id,
           code: entry.code,
           value: entry.value,
+          alternativeCode: entry.alternativeCode,
         }));
-        setLeadStatuses(statusData);
+        
+        // Sort by alternativeCode in ascending order (1, 2, 3, etc.)
+        const sortedStatuses = statusData.sort((a, b) => {
+          const aCode = parseInt(a.alternativeCode || '999');
+          const bCode = parseInt(b.alternativeCode || '999');
+          return aCode - bCode;
+        });
+        
+        setLeadStatuses(sortedStatuses);
       }
     } catch (err) {
       console.error('Error fetching lead statuses:', err);

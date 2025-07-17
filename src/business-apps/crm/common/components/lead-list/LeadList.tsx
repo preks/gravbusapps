@@ -7,13 +7,14 @@ import { DataContainer } from '@/components/layout/dataContainer';
 import { useLeadListData } from './hooks/useLeadListData';
 import { useLeadFilters } from './hooks/useLeadFilters';
 import { LeadTable } from './components/LeadTable';
-import LeadStatistics from './components/LeadStatistics';
-import { useLeadStatistics } from './hooks/useLeadStatistics';
+import { LeadStatisticsWithTrend } from './components/LeadStatistics';
+import { useLeadStatisticsWithTrend } from './hooks/useLeadStatisticsWithTrend';
 
 import { PiStar, PiUsersFour, PiFunnelSimple } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { startProcess } from '@/common/utils/start-process';
 import { Lead } from './types';
+import { useLeadStatisticsQueries } from './queries/LeadStatisticsQueries';
 
 export interface LeadListProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -36,6 +37,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     filterLabelMap,
     addFilter,
     removeFilter,
+    resetFilters,
     getFilters,
     createdAfter: filterCreatedAfter,
     createdBefore: filterCreatedBefore,
@@ -49,7 +51,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
       search: urlParams.get('search') || '',
       page: parseInt(urlParams.get('page') || '1', 10),
       pageSize: parseInt(urlParams.get('pageSize') || '20', 10),
-      sortField: urlParams.get('sortField') || 'createdAt',
+      sortField: urlParams.get('sortField') || '',
       sortOrder: urlParams.get('sortOrder') || 'DESC'
     };
   });
@@ -103,7 +105,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     }
     
     if (params.sortField !== undefined) {
-      if (params.sortField !== 'createdAt') {
+      if (params.sortField !== 'createdAt' && params.sortField !== '') {
         newSearchParams.set('sortField', params.sortField);
       } else {
         newSearchParams.delete('sortField');
@@ -139,9 +141,16 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
 
   // Function for DataController setFilter requirement
   const handleSetFilter = useCallback((filters: string[]) => {
-    // This is called by DataController but we manage filters through addFilter/removeFilter
-    // so we can implement this as a no-op or sync with selectedFilters if needed
-  }, []);
+    // This is called by DataController's "Clear all filters" button or individual filter removal
+    if (filters.length === 0) {
+      // Clear all filters
+      resetFilters();
+    } else {
+      // Handle individual filter removal - find which filters were removed and remove them
+      const removedFilters = selectedFilters.filter(f => !filters.includes(f));
+      removedFilters.forEach(filterId => removeFilter(filterId));
+    }
+  }, [resetFilters, selectedFilters, removeFilter]);
 
   // Get lead data with search, sorting, and filters
   const { 
@@ -163,11 +172,34 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
 
   // Get lead statistics (independent from search/filters)
   const {
-    statistics,
+    trendData,
     isLoading: statsLoading,
     error: statsError,
     refetch: refetchStats
-  } = useLeadStatistics({ ...props, sourceApp });
+  } = useLeadStatisticsWithTrend({ ...props, sourceApp });
+
+  // Also get the text-based statistics that don't have trend data
+  const { fetchMostCommonLeadSource, fetchMostCommonIndustry } = useLeadStatisticsQueries({ ...props, sourceApp });
+  const [textStatistics, setTextStatistics] = useState({ mostCommonLeadSource: 'N/A', mostCommonIndustry: 'N/A' });
+
+  // Fetch text statistics
+  useEffect(() => {
+    const fetchTextStats = async () => {
+      try {
+        const [leadSource, industry] = await Promise.all([
+          fetchMostCommonLeadSource(),
+          fetchMostCommonIndustry()
+        ]);
+        setTextStatistics({ mostCommonLeadSource: leadSource, mostCommonIndustry: industry });
+      } catch (error) {
+        console.error('Error fetching text statistics:', error);
+      }
+    };
+
+    if (props.accessToken) {
+      fetchTextStats();
+    }
+  }, [props.accessToken, fetchMostCommonLeadSource, fetchMostCommonIndustry]);
   
   // Trigger initial data loading when component mounts
   useEffect(() => {
@@ -175,7 +207,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
       initialLoadDone.current = true;
       loadPage(currentPage, pageSize);
     }
-  }, [loadPage, accessToken, currentPage, pageSize]);
+  }, [accessToken, currentPage, pageSize]);
 
   // Trigger search when search term changes
   useEffect(() => {
@@ -184,7 +216,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
       updateURLParams({ search, page: 1 });
       loadPage(1, pageSize); // Reset to first page when search changes
     }
-  }, [search, loadPage, pageSize, updateURLParams]);
+  }, [search, pageSize]);
 
   // Trigger reload when filters change
   useEffect(() => {
@@ -192,7 +224,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
       setCurrentPage(1);
       loadPage(1, pageSize);
     }
-  }, [selectedFilters, filterCreatedAfter, filterCreatedBefore, loadPage, pageSize]);
+  }, [JSON.stringify(selectedFilters), filterCreatedAfter, filterCreatedBefore, pageSize]);
 
   // Handle lead selection
   const handleSelectLead = useCallback((lead: Lead) => {
@@ -219,11 +251,28 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
   }, [pageSize, updateURLParams, loadPage]);
 
   // Handle sorting change
-  const handleSortingChange = useCallback((field: string, order: 'ASC' | 'DESC') => {
-    setSortField(field);
-    setSortOrder(order);
-    setCurrentPage(1);
-    updateURLParams({ sortField: field, sortOrder: order, page: 1 });
+  const handleSortingChange = useCallback((field: string, order: 'ASC' | 'DESC' | '') => {
+    // When order is empty, clear sorting completely
+    if (order === '') {
+      setSortField('');
+      setSortOrder('DESC'); // Keep DESC as default for state type, but field will be empty
+      setCurrentPage(1);
+      updateURLParams({ 
+        sortField: '', 
+        sortOrder: 'DESC',
+        page: 1 
+      });
+    } else {
+      setSortField(field);
+      setSortOrder(order);
+      setCurrentPage(1);
+      updateURLParams({ 
+        sortField: field, 
+        sortOrder: order,
+        page: 1 
+      });
+    }
+    
     loadPage(1, pageSize);
   }, [pageSize, updateURLParams, loadPage]);
 
@@ -231,13 +280,19 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
 
   return (
     <div data-testid="lead-list-content">
-      <div data-testid="lead-statistics-section" className="gba:mb-6">
-        <LeadStatistics
-          statistics={statistics}
-          isLoading={statsLoading}
-          error={statsError}
-          onRetry={refetchStats}
-        />
+      <div className="gba:mb-6" data-testid="lead-statistics-section">
+        {trendData ? (
+          <LeadStatisticsWithTrend
+            trendData={trendData}
+            mostCommonLeadSource={textStatistics.mostCommonLeadSource}
+            mostCommonIndustry={textStatistics.mostCommonIndustry}
+            isLoading={statsLoading}
+            error={statsError}
+            onRetry={refetchStats}
+          />
+        ) : (
+          <div>Loading statistics...</div>
+        )}
       </div>
 
       <DataContainer
@@ -263,7 +318,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
           ),
           addButton: {
             onClick: handleAddLead,
-            label: 'Add Lead',
+            label: 'Add',
             'data-testid': 'add-lead-button'
           },
         }}

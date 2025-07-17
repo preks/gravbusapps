@@ -1,28 +1,97 @@
 import React from 'react';
 import { Card, CardContent } from '@newwork/nw-design-system';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system';
+import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { EnhancedInvestment } from '../hooks';
 import { getStatusBadge } from '../utils/helpers';
 
 interface PrivateEquityTableProps {
   investments: EnhancedInvestment[];
   onRowClick?: (privateEquityId: string) => void;
+  sortField?: string;
+  sortOrder?: 'ASC' | 'DESC' | '';
+  onSortChange?: (field: string, order: 'ASC' | 'DESC' | '') => void;
+  currentPage?: number;
+  pageSize?: number;
+  total?: number;
+  onPaginationChange?: (page: number, pageSize?: number) => void;
+  accessToken: string;
 }
 
-const PrivateEquityTable: React.FC<PrivateEquityTableProps> = ({ investments, onRowClick }) => {
-  const privateEquityInvestments = investments.filter(investment => investment.type === 'Private Equity');
+const PrivateEquityTable: React.FC<PrivateEquityTableProps> = ({ 
+  investments, 
+  onRowClick,
+  sortField = '', 
+  sortOrder = '', 
+  onSortChange,
+  currentPage = 1,
+  pageSize = 20,
+  total = 0,
+  onPaginationChange,
+  accessToken
+}) => {
+  // Handle column sorting with 3 states: none -> ASC -> DESC -> none
+  const handleSort = (fieldName: string) => {
+    if (!onSortChange) return;
 
-  if (privateEquityInvestments.length === 0) {
-    return (
-      <div className="gba:text-center gba:py-8 gba:text-gray-500" data-testid="no-private-equity">
-        No private equity investments found.
+    if (sortField !== fieldName) {
+      // New field, start with ASC
+      onSortChange(fieldName, 'ASC');
+    } else {
+      // Same field, cycle through states
+      if (sortOrder === '') {
+        onSortChange(fieldName, 'ASC');
+      } else if (sortOrder === 'ASC') {
+        onSortChange(fieldName, 'DESC');
+      } else {
+        // DESC -> reset to no sorting
+        onSortChange('', '');
+      }
+    }
+  };
+
+  // Get sort icon for column header
+  const getSortIcon = (fieldName: string) => {
+    if (sortField !== fieldName) {
+      return null;
+    }
+    
+          if (sortOrder === 'ASC') {
+        return <PiArrowUp className="gba:h-4 gba:w-4 gba:ml-1" />;
+      } else if (sortOrder === 'DESC') {
+        return <PiArrowDown className="gba:h-4 gba:w-4 gba:ml-1" />;
+      }
+    
+    return null;
+  };
+
+  // Create sortable header component
+  const SortableHeader = ({ field, children, className = "" }: { field: string; children: React.ReactNode; className?: string }) => (
+    <TableHead 
+      className={`gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100 ${className}`}
+      onClick={() => handleSort(field)}
+      data-testid={`sort-header-${field}`}
+    >
+      <div className="gba:flex gba:items-center">
+        {children}
+        {getSortIcon(field)}
       </div>
-    );
-  }
+    </TableHead>
+  );
+
+  // Create non-sortable header component
+  const Header = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+    <TableHead className={`gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 ${className}`}>
+      {children}
+    </TableHead>
+  );
 
   const formatCurrency = (amount: number | null, currencyId?: string): string => {
-    if (!amount && amount !== 0) return 'N/A';
-    const currency = currencyId?.split(':').pop() || 'EUR';
+    if (amount === null || amount === undefined) return 'N/A';
+    
+    const currency = currencyId ? currencyId.split(':').pop() || 'EUR' : 'EUR';
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
       currency: currency,
@@ -46,9 +115,11 @@ const PrivateEquityTable: React.FC<PrivateEquityTableProps> = ({ investments, on
   };
 
   const formatPercentage = (value: number | null): string => {
-    if (!value && value !== 0) return 'N/A';
+    if (value === null || value === undefined) return 'N/A';
     return `${value.toFixed(2)}%`;
   };
+
+  const privateEquityInvestments = investments.filter(inv => inv.type === 'Private Equity');
 
   return (
     <Card>
@@ -57,44 +128,46 @@ const PrivateEquityTable: React.FC<PrivateEquityTableProps> = ({ investments, on
           <Table>
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
+                {/* Actions */}
+                <Header className="gba:w-[60px]">ACTIONS</Header>
                 {/* Basic Investment Info */}
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:min-w-[200px]">INVESTMENT</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">ID</TableHead>
+                <SortableHeader field="name" className="gba:min-w-[200px]">INVESTMENT</SortableHeader>
+                <Header>ID</Header>
                 
                 {/* Financial Info */}
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">INITIAL AMOUNT</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">BOOK VALUE</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">MARKET VALUE</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">TOTAL INVESTMENT</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">CURRENCY</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">EXPECTED ROI</TableHead>
+                <SortableHeader field="initialInvestmentAmount">INITIAL AMOUNT</SortableHeader>
+                <SortableHeader field="bookValue">BOOK VALUE</SortableHeader>
+                <SortableHeader field="marketValue">MARKET VALUE</SortableHeader>
+                <SortableHeader field="totalInvestmentAmount">TOTAL INVESTMENT</SortableHeader>
+                <Header>CURRENCY</Header>
+                <Header>EXPECTED ROI</Header>
                 
                 {/* Private Equity Specific */}
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">INVESTMENT ROLE</TableHead>
+                <SortableHeader field="investmentRoleRef">INVESTMENT ROLE</SortableHeader>
                 
                 {/* Investment Details */}
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">STAKE %</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">LEVERAGE RATIO</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">DEBT FINANCING</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">INVESTMENT GROUP</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">INVESTMENT PHASE</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">RISK LEVEL</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">STATUS</TableHead>
+                <SortableHeader field="stakePercent">STAKE %</SortableHeader>
+                <SortableHeader field="leverageRatio">LEVERAGE RATIO</SortableHeader>
+                <SortableHeader field="debtFinancing">DEBT FINANCING</SortableHeader>
+                <Header>INVESTMENT GROUP</Header>
+                <Header>INVESTMENT PHASE</Header>
+                <Header>RISK LEVEL</Header>
+                <Header>STATUS</Header>
                 
                 {/* Dates */}
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">ACQUISITION DATE</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">PLANNED EXIT</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">EXIT DATE</TableHead>
+                <SortableHeader field="acquisitionDate">ACQUISITION DATE</SortableHeader>
+                <SortableHeader field="plannedExitDate">PLANNED EXIT</SortableHeader>
+                <SortableHeader field="exitDate">EXIT DATE</SortableHeader>
                 
                 {/* Relationships */}
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">ACCOUNT</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">OPPORTUNITY</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">OWNER</TableHead>
+                <Header>ACCOUNT</Header>
+                <Header>OPPORTUNITY</Header>
+                <Header>OWNER</Header>
                 
                 {/* System Fields */}
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">CREATED AT</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">UPDATED AT</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">NOTES</TableHead>
+                <SortableHeader field="createdAt">CREATED AT</SortableHeader>
+                <SortableHeader field="updatedAt">UPDATED AT</SortableHeader>
+                <Header>NOTES</Header>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -105,13 +178,36 @@ const PrivateEquityTable: React.FC<PrivateEquityTableProps> = ({ investments, on
                 return (
                   <TableRow 
                     key={investment.id}
-                    className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer" 
+                    className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors" 
                     data-testid={`private-equity-row-${index + 1}`}
-                    onClick={() => onRowClick && onRowClick(investment.id)}
                   >
+                    {/* Actions */}
+                    <TableCell className="gba:py-4 gba:px-6">
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          data-testid={`private-equity-update-investment-button-${investment.id}`}
+                          variant="secondary"
+                          contextsArray={[FlowContextName.privateEquityInvestmentEntity]}
+                          externalContextData={{
+                            investmentId: investment.id
+                          }}
+                          prefixDataTestId={`private-equity-update-investment`}
+                          accessToken={accessToken}
+                          emptyStateBehavior="disable"
+                          deferMainContextRequestsUntilClick
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </TableCell>
                     {/* Basic Investment Info */}
                     <TableCell className="gba:py-4 gba:px-6">
-                      <div>
+                      <div 
+                        className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRowClick && onRowClick(investment.id);
+                        }}
+                      >
                         <div className="gba:font-semibold gba:text-gray-900 gba:mb-1">{investmentData.name || 'N/A'}</div>
                         <div className="gba:text-sm gba:text-gray-600">{investment.subType}</div>
                       </div>
@@ -234,6 +330,36 @@ const PrivateEquityTable: React.FC<PrivateEquityTableProps> = ({ investments, on
             </TableBody>
           </Table>
         </div>
+        {onPaginationChange && (
+          <div className="gba:px-6 gba:py-4 gba:border-t gba:border-gray-200 gba:bg-gray-50">
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <div className="gba:text-sm gba:text-gray-600">
+                Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, total)} of {total} entries
+              </div>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <button
+                  onClick={() => onPaginationChange(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  className="gba:px-3 gba:py-1 gba:border gba:border-gray-300 gba:rounded gba:text-sm gba:bg-white gba:hover:bg-gray-50 gba:disabled:opacity-50 gba:disabled:cursor-not-allowed"
+                  data-testid="private-equity-table-prev-page"
+                >
+                  Previous
+                </button>
+                <span className="gba:text-sm gba:text-gray-600">
+                  Page {currentPage} of {Math.ceil(total / pageSize)}
+                </span>
+                <button
+                  onClick={() => onPaginationChange(currentPage + 1)}
+                  disabled={currentPage >= Math.ceil(total / pageSize)}
+                  className="gba:px-3 gba:py-1 gba:border gba:border-gray-300 gba:rounded gba:text-sm gba:bg-white gba:hover:bg-gray-50 gba:disabled:opacity-50 gba:disabled:cursor-not-allowed"
+                  data-testid="private-equity-table-next-page"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

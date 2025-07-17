@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Account, UseAccountListDataReturn } from '../types';
 import { useGetAccountsData, AccountData } from '../queries/AccountQueries';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { enforceQueryLimit } from '../../../utils/queryLimits';
 
 interface UseAccountListDataParams {
   search?: string;
@@ -9,7 +10,7 @@ interface UseAccountListDataParams {
   sortOrder: 'ASC' | 'DESC';
   context: BusinessAppContextProps;
   sourceApp?: string;
-  accountTypes?: string[];
+  // accountTypes?: string[]; // REMOVED: field does not exist in GraphQL schema
   industries?: string[];
   createdAfter?: string;
   createdBefore?: string;
@@ -35,11 +36,13 @@ const transformAccountData = (apiAccount: AccountData): Account => {
     email: apiAccount.contact?.[0]?.email || '',
     industry: {
       id: apiAccount.industry?.id || '',
-      value: apiAccount.industry?.value || ''
+      value: apiAccount.industry?.value || '',
+      objectValue: apiAccount.industry?.objectValue
     },
     type: {
       id: apiAccount.legalForm?.id || '',
-      value: apiAccount.legalForm?.value || ''
+      value: apiAccount.legalForm?.value || '',
+      objectValue: apiAccount.legalForm?.objectValue
     },
     ownerEmployee: {
       id: apiAccount.ownerEmployee?.id || '',
@@ -77,7 +80,9 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
     setError(null);
 
     try {
-      const offset = (page - 1) * pageSize;
+      // Enforce query limit to ensure optimal performance
+      const safePageSize = enforceQueryLimit(pageSize);
+      const offset = (page - 1) * safePageSize;
       
       // Build where conditions
       const whereCondition: any = {
@@ -86,7 +91,7 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
 
       // Add search functionality
       if (params.search?.trim()) {
-        const searchPattern = { _iregex: params.search.trim() };
+        const searchPattern = { _ilike: `%${params.search.trim()}%` };
         whereCondition._or = [
           { name: searchPattern },
           { website: searchPattern },
@@ -103,6 +108,8 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
       if (params.industries && params.industries.length > 0) {
         whereCondition.industry = { value: { _in: params.industries } };
       }
+
+      // Note: accountType field does not exist in GraphQL schema - removed filter
 
       // Add date filtering
       if (params.createdAfter) {
@@ -125,14 +132,21 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
           orderBy.website = params.sortOrder;
         } else if (params.sortField === 'createdAt') {
           orderBy.createdAt = params.sortOrder;
+        } else if (params.sortField === 'ownerEmployeeId') {
+          orderBy.ownerEmployee = { lastName: params.sortOrder };
+        } else if (params.sortField === 'typeRef') {
+          orderBy.legalForm = { value: params.sortOrder };
+        } else if (params.sortField === 'industryRef') {
+          orderBy.industry = { value: params.sortOrder };
         }
       } else {
-        orderBy.createdAt = 'DESC';
+        // No sorting - use natural order (by ID)
+        orderBy.id = 'ASC';
       }
 
       const result = await fetchAccountsData({
         offset,
-        limit: pageSize,
+        limit: safePageSize,
         where: whereCondition,
         orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ createdAt: 'DESC' }]
       });
@@ -143,7 +157,7 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
         
         const totalCount = result.AccountAggregate?.aggregate?.count || 0;
         setTotal(totalCount);
-        setHasMore(offset + pageSize < totalCount);
+        setHasMore(offset + safePageSize < totalCount);
       }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load accounts'));
@@ -151,7 +165,7 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
     } finally {
       setLoading(false);
     }
-  }, [fetchAccountsData, params.search, params.sortField, params.sortOrder, params.industries, params.createdAfter, params.createdBefore, params.context.accessToken]);
+  }, [fetchAccountsData, params.search, params.sortField, params.sortOrder, JSON.stringify(params.industries), params.createdAfter, params.createdBefore, params.context.accessToken]);
 
   const loadMore = useCallback(() => {
     console.log('Load more accounts requested');

@@ -177,10 +177,10 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   const hasDateRangeFilter = dateRange && (dateRange.createdAfter || dateRange.createdBefore);
 
   return (
-    <div className="gba:w-full gba:bg-white">
-      <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:gap-2">
+    <div className="gba:w-full gba:bg-white gba:px-2 gba:pt-4" data-testid="data-controller-container">
+      <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:gap-2" data-testid="data-controller-main-bar">
         {/* Left: Filter and Search */}
-        <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:shrink-0">
+        <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:shrink-0" data-testid="data-controller-left-section">
           {!hideFilter && (
             <button
               className={`gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:flex-none gba:order-0 gba:grow-0 ${
@@ -193,6 +193,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
               }
               onClick={onToggleDataFilter}
               type="button"
+              data-testid="data-controller-filter-toggle-button"
             >
               <div className="gba:w-5 gba:h-5 gba:flex-none order-0 gba:grow-0">
                 {showDataFilter ? (
@@ -209,13 +210,14 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
               aria-label="Open search"
               onClick={() => setShowSearchInput(true)}
               type="button"
+              data-testid="data-controller-search-toggle-button"
             >
               <div className="gba:w-5 gba:h-5 gba:flex-none gba:order-0 gba:grow-0">
                 <PiMagnifyingGlass size={20} />
               </div>
             </button>
           ) : (
-            <div className="gba:flex gba:items-center gba:bg-black/[0.04] gba:rounded gba:px-2 gba:h-8 gba:w-[240px]">
+            <div className="gba:flex gba:items-center gba:bg-black/[0.04] gba:rounded gba:px-2 gba:h-8 gba:w-[240px]" data-testid="data-controller-search-container">
               <span className="gba:text-gray-500 gba:mr-2">
                 <PiMagnifyingGlass size={20} />
               </span>
@@ -229,21 +231,22 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                 onBlur={(e) => {
                   if (!e.target.value) setShowSearchInput(false);
                 }}
+                data-testid="data-controller-search-input"
               />
             </div>
           )}
           {/* Center: List Title */}
           {listTitle && (
-            <div className="gba:flex-1 gba:ml-4 gba:font-semibold gba:text-base gba:text-black gba:truncate">
+            <div className="gba:flex-1 gba:ml-4 gba:font-semibold gba:text-base gba:text-black gba:truncate" data-testid="data-controller-list-title">
               {listTitle}
             </div>
           )}
           {/* Optional: Icon and Amount */}
           {(listIcon || listAmount) && (
-            <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:ml-2">
-              {listIcon && <span>{listIcon}</span>}
+            <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:ml-2" data-testid="data-controller-list-info">
+              {listIcon && <span data-testid="data-controller-list-icon">{listIcon}</span>}
               {listAmount && (
-                <span className="gba:font-semibold gba:text-base gba:text-gray-700">
+                <span className="gba:font-semibold gba:text-base gba:text-gray-700" data-testid="data-controller-list-amount">
                   {listAmount}
                 </span>
               )}
@@ -254,19 +257,19 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
         {/* Right: Actions */}
         {(addButton || actions) && (
           // All actions including Add are right-aligned (ml-auto)
-          <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:w-full gba:justify-end">
+          <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:w-full gba:justify-end" data-testid="data-controller-actions-section">
             {/* Add Button: match design, no frame, no background, icon left, label right */}
             {addButton && (
               <button
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:bg-black/[0.04] gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
+                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
                 onClick={addButton.onClick}
-                data-testid={addButton["data-testid"]}
+                data-testid={addButton["data-testid"] || "data-controller-add-button"}
                 type="button"
               >
                 <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
                   {addButton.icon ?? <PlusSquareIcon />}
                 </span>
-                <span className="gba:w-[25px] gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
+                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
                   {addButton.label}
                 </span>
               </button>
@@ -286,13 +289,14 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                     <div
                       key={key}
                       className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:bg-black/[0.04] gba:gap-1"
+                      data-testid={`data-controller-action-${idx}`}
                     >
                       {action}
                     </div>
                   );
                 })
               ) : (
-                <div className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:bg-black/[0.04] gba:gap-1">
+                <div className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:bg-black/[0.04] gba:gap-1" data-testid="data-controller-single-action">
                   {actions}
                 </div>
               ))}
@@ -301,11 +305,12 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
       </div>
       {/* Filter pills row: always below the bar group, left-aligned */}
       {((filter && filter.length > 0) || hasDateRangeFilter) && (
-        <div className="gba:flex gba:items-center gba:gap-2 gba:self-start gba:mt-4">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:self-start gba:mt-4" data-testid="data-controller-filters-section">
           {/* Date range filter pill */}
           {hasDateRangeFilter && (
             <div
               className="gba:flex gba:h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-blue-100"
+              data-testid="data-controller-date-range-filter"
             >
               <span className="gba:text-blue-800">
                 {formatDateRangeLabel(dateRange?.createdAfter, dateRange?.createdBefore)}
@@ -316,6 +321,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                 aria-label="Remove date range filter"
                 tabIndex={0}
                 type="button"
+                data-testid="data-controller-date-range-clear-button"
               >
                 <PiX size={12} />
               </button>
@@ -327,6 +333,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
             <div
               key={val}
               className="gba:flex gba:h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-gray-100"
+              data-testid={`data-controller-filter-pill-${val}`}
             >
               <span>{filterLabelMap?.[val] ?? val}</span>
               <button
@@ -335,6 +342,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                 aria-label={`Remove filter ${filterLabelMap?.[val] ?? val}`}
                 tabIndex={0}
                 type="button"
+                data-testid={`data-controller-filter-remove-button-${val}`}
               >
                 <PiX size={12} />
               </button>
@@ -349,6 +357,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
               if (dateRange?.onClear) dateRange.onClear();
             }}
             type="button"
+            data-testid="data-controller-clear-all-filters-button"
           >
             <span>Clear all filters</span>
             <span className="gba:flex gba:items-center gba:justify-center">

@@ -15,6 +15,7 @@ export interface OpportunityFilters {
   filterLabelMap: Record<string, string>;
   addFilter: (filterId: string) => void;
   removeFilter: (filterId: string) => void;
+  clearAllFilters: () => void;
   getFilters: () => any;
   createdAfter?: string;
   createdBefore?: string;
@@ -30,39 +31,39 @@ export const useOpportunityFilters = (context: BusinessAppContextProps): Opportu
   const filterGroups: FilterGroup[] = useMemo(() => [
     {
       id: 'stage',
-      title: 'Stage', // Changed from label to title
+      title: 'Stage',
       filters: [
-        { id: 'stage-qualification', label: 'Qualification', value: 'Qualification', selected: false },
-        { id: 'stage-needs-analysis', label: 'Needs Analysis', value: 'Needs Analysis', selected: false },
-        { id: 'stage-proposal', label: 'Proposal', value: 'Proposal', selected: false },
-        { id: 'stage-negotiation', label: 'Negotiation', value: 'Negotiation', selected: false },
-        { id: 'stage-closed-won', label: 'Closed Won', value: 'Closed Won', selected: false },
-        { id: 'stage-closed-lost', label: 'Closed Lost', value: 'Closed Lost', selected: false }
+        { id: 'stage-new-opportunity', label: 'New Opportunity', value: 'NEW_OPPORTUNITY', selected: selectedFilters.includes('stage-new-opportunity') },
+        { id: 'stage-qualification', label: 'Qualification', value: 'IN_QUALIFICATION', selected: selectedFilters.includes('stage-qualification') },
+        { id: 'stage-proposal', label: 'Proposal', value: 'PROPOSAL', selected: selectedFilters.includes('stage-proposal') },
+        { id: 'stage-proposal-progress', label: 'Proposal In Progress', value: 'PROPOSAL_IN_PROGRESS', selected: selectedFilters.includes('stage-proposal-progress') },
+        { id: 'stage-negotiation', label: 'Negotiation', value: 'NEGOTIATION', selected: selectedFilters.includes('stage-negotiation') },
+        { id: 'stage-closed-won', label: 'Closed Won', value: 'CLOSED_WON', selected: selectedFilters.includes('stage-closed-won') },
+        { id: 'stage-closed-lost', label: 'Closed Lost', value: 'CLOSED_LOST', selected: selectedFilters.includes('stage-closed-lost') },
+        { id: 'stage-closed', label: 'Closed', value: 'CLOSED', selected: selectedFilters.includes('stage-closed') }
       ]
     },
     {
       id: 'winningChance',
       title: 'Winning Chance',
-      label: 'Winning Chance',
       filters: [
-        { id: 'chance-high', label: 'High (75-100%)', value: { min: 75, max: 100 }, selected: false },
-        { id: 'chance-medium', label: 'Medium (50-74%)', value: { min: 50, max: 74 }, selected: false },
-        { id: 'chance-low', label: 'Low (25-49%)', value: { min: 25, max: 49 }, selected: false },
-        { id: 'chance-very-low', label: 'Very Low (0-24%)', value: { min: 0, max: 24 }, selected: false }
+        { id: 'chance-high', label: 'High (75-100%)', value: { min: 75, max: 100 }, selected: selectedFilters.includes('chance-high') },
+        { id: 'chance-medium', label: 'Medium (50-74%)', value: { min: 50, max: 74 }, selected: selectedFilters.includes('chance-medium') },
+        { id: 'chance-low', label: 'Low (25-49%)', value: { min: 25, max: 49 }, selected: selectedFilters.includes('chance-low') },
+        { id: 'chance-very-low', label: 'Very Low (0-24%)', value: { min: 0, max: 24 }, selected: selectedFilters.includes('chance-very-low') }
       ]
     },
     {
       id: 'estimatedAmount',
       title: 'Deal Size',
-      label: 'Deal Size',
       filters: [
-        { id: 'amount-large', label: 'Large (>$100K)', value: { min: 100000 }, selected: false },
-        { id: 'amount-medium', label: 'Medium ($50K-$100K)', value: { min: 50000, max: 100000 }, selected: false },
-        { id: 'amount-small', label: 'Small ($10K-$50K)', value: { min: 10000, max: 50000 }, selected: false },
-        { id: 'amount-micro', label: 'Micro (<$10K)', value: { max: 10000 }, selected: false }
+        { id: 'amount-large', label: 'Large (>$100K)', value: { min: 100000 }, selected: selectedFilters.includes('amount-large') },
+        { id: 'amount-medium', label: 'Medium ($50K-$100K)', value: { min: 50000, max: 100000 }, selected: selectedFilters.includes('amount-medium') },
+        { id: 'amount-small', label: 'Small ($10K-$50K)', value: { min: 10000, max: 50000 }, selected: selectedFilters.includes('amount-small') },
+        { id: 'amount-micro', label: 'Micro (<$10K)', value: { max: 10000 }, selected: selectedFilters.includes('amount-micro') }
       ]
     }
-  ], []);
+  ], [selectedFilters]);
 
   const filterLabelMap: Record<string, string> = useMemo(() => {
     const map: Record<string, string> = {};
@@ -85,6 +86,12 @@ export const useOpportunityFilters = (context: BusinessAppContextProps): Opportu
 
   const removeFilter = useCallback((filterId: string) => {
     setSelectedFilters(prev => prev.filter(id => id !== filterId));
+  }, []);
+
+  const clearAllFilters = useCallback(() => {
+    setSelectedFilters([]);
+    setCreatedAfter(undefined);
+    setCreatedBefore(undefined);
   }, []);
 
   const handleDateRangeChange = useCallback((after?: string, before?: string) => {
@@ -138,6 +145,7 @@ export const useOpportunityFilters = (context: BusinessAppContextProps): Opportu
     filterLabelMap,
     addFilter,
     removeFilter,
+    clearAllFilters,
     getFilters,
     createdAfter,
     createdBefore,

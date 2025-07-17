@@ -6,8 +6,8 @@ import { DataContainer } from '@/components/layout/dataContainer';
 import { useAccountListData } from './hooks/useAccountListData';
 import { useAccountFilters } from './hooks/useAccountFilters';
 import { AccountTable } from './components/AccountTable';
-import AccountStatistics from './components/AccountStatistics';
-import { useAccountStatistics } from './hooks/useAccountStatistics';
+import { AccountStatisticsWithTrend } from './components/AccountStatistics';
+import { useAccountStatisticsWithTrend } from './hooks/useAccountStatisticsWithTrend';
 
 import { PiBuilding, PiBuildingOffice, PiFunnelSimple } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -35,6 +35,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
     filterLabelMap,
     addFilter,
     removeFilter,
+    clearAllFilters,
     getFilters,
     createdAfter: filterCreatedAfter,
     createdBefore: filterCreatedBefore,
@@ -48,7 +49,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
       search: urlParams.get('search') || '',
       page: parseInt(urlParams.get('page') || '1', 10),
       pageSize: parseInt(urlParams.get('pageSize') || '20', 10),
-      sortField: urlParams.get('sortField') || 'createdAt',
+      sortField: urlParams.get('sortField') || '',
       sortOrder: urlParams.get('sortOrder') || 'DESC'
     };
   });
@@ -102,7 +103,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
     }
     
     if (params.sortField !== undefined) {
-      if (params.sortField !== 'createdAt') {
+      if (params.sortField !== 'createdAt' && params.sortField !== '') {
         newSearchParams.set('sortField', params.sortField);
       } else {
         newSearchParams.delete('sortField');
@@ -138,9 +139,16 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
 
   // Function for DataController setFilter requirement
   const handleSetFilter = useCallback((filters: string[]) => {
-    // This is called by DataController but we manage filters through addFilter/removeFilter
-    // so we can implement this as a no-op or sync with selectedFilters if needed
-  }, []);
+    // This is called by DataController's "Clear all filters" button or individual filter removal
+    if (filters.length === 0) {
+      // Clear all filters
+      clearAllFilters();
+    } else {
+      // Handle individual filter removal - find which filters were removed and remove them
+      const removedFilters = selectedFilters.filter(f => !filters.includes(f));
+      removedFilters.forEach(filterId => removeFilter(filterId));
+    }
+  }, [clearAllFilters, selectedFilters, removeFilter]);
 
   // Get account data with search, sorting, and filters
   const filters = getFilters();
@@ -159,7 +167,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
     sortOrder: sortOrder,
     context: props,
     sourceApp: sourceApp,
-    accountTypes: filters.accountTypes || [],
+    // accountTypes: filters.accountTypes || [], // REMOVED: field does not exist in GraphQL schema
     industries: filters.industries || [],
     createdAfter: filterCreatedAfter,
     createdBefore: filterCreatedBefore
@@ -167,11 +175,11 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
 
   // Get account statistics (independent from search/filters)
   const {
-    statistics,
+    trendData,
     isLoading: statsLoading,
     error: statsError,
     refetch: refetchStats
-  } = useAccountStatistics({ ...props, sourceApp });
+  } = useAccountStatisticsWithTrend({ ...props, sourceApp });
   
   // Trigger initial data loading when component mounts
   useEffect(() => {
@@ -188,7 +196,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
       updateURLParams({ search, page: 1 });
       loadPage(1, pageSize); // Reset to first page when search changes
     }
-  }, [search, pageSize, updateURLParams]);
+  }, [search, pageSize]);
 
   // Trigger reload when filters change
   useEffect(() => {
@@ -196,7 +204,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
       setCurrentPage(1);
       loadPage(1, pageSize);
     }
-  }, [selectedFilters, filterCreatedAfter, filterCreatedBefore, pageSize]);
+  }, [JSON.stringify(selectedFilters), filterCreatedAfter, filterCreatedBefore, pageSize]);
 
   // Handle account selection
   const handleSelectAccount = useCallback((account: Account) => {
@@ -223,23 +231,44 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
   }, [pageSize, updateURLParams, loadPage]);
 
   // Handle sorting change
-  const handleSortingChange = useCallback((field: string, order: 'ASC' | 'DESC') => {
-    setSortField(field);
-    setSortOrder(order);
-    setCurrentPage(1);
-    updateURLParams({ sortField: field, sortOrder: order, page: 1 });
+  const handleSortingChange = useCallback((field: string, order: 'ASC' | 'DESC' | '') => {
+    // When order is empty, clear sorting completely
+    if (order === '') {
+      setSortField('');
+      setSortOrder('DESC'); // Keep DESC as default for state type, but field will be empty
+      setCurrentPage(1);
+      updateURLParams({ 
+        sortField: '', 
+        sortOrder: 'DESC',
+        page: 1 
+      });
+    } else {
+      setSortField(field);
+      setSortOrder(order);
+      setCurrentPage(1);
+      updateURLParams({ 
+        sortField: field, 
+        sortOrder: order,
+        page: 1 
+      });
+    }
+    
     loadPage(1, pageSize);
   }, [pageSize, updateURLParams, loadPage]);
 
   return (
     <div data-testid="account-list-content">
-      <div data-testid="account-statistics-section" className="gba:mb-6">
-        <AccountStatistics
-          statistics={statistics}
-          isLoading={statsLoading}
-          error={statsError}
-          onRetry={refetchStats}
-        />
+      <div className="gba:mb-6" data-testid="account-statistics-section">
+        {trendData ? (
+          <AccountStatisticsWithTrend
+            trendData={trendData}
+            isLoading={statsLoading}
+            error={statsError}
+            onRetry={refetchStats}
+          />
+        ) : (
+          <div>Loading statistics...</div>
+        )}
       </div>
 
       <DataContainer
@@ -265,7 +294,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
           ),
           addButton: {
             onClick: handleAddAccount,
-            label: 'Add Account',
+            label: 'Add',
             'data-testid': 'add-account-button'
           },
         }}

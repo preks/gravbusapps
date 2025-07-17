@@ -12,10 +12,7 @@ export const getActivityByLeadId = `
       leadId
       opportunityId
       ownerEmployeeId
-      ownerEmployee {
-        firstName
-        lastName
-      }
+      createdBy
       createdAt
       description
       activityType {

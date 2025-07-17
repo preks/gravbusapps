@@ -3,23 +3,33 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { useCallback } from 'react';
 
 export interface UseOpportunityStatisticsQueriesProps extends BusinessAppContextProps {
-  sourceApp?: string;
+  sourceApp: string;
 }
 
-export interface OpportunityStatisticsData {
-  recentOpportunities: number;
-  totalOpportunityValue: number;
-  averageWinRate: number;
-  totalOpportunitiesThisYear: number;
-  mostCommonStage: string;
-  mostCommonPipeline: string;
+interface TrendData {
+  current: number;
+  previous: number;
+  change: number;
+  changePercent: number;
+  isPositive: boolean;
 }
 
-// Query to get recent opportunities count (past two weeks)
-export const GET_RECENT_OPPORTUNITIES_COUNT = `
-  query GetRecentOpportunitiesCount($twoWeeksAgo: timestamptz!, $sourceApp: String) {
-    OpportunityAggregate(where: {
-      createdAt: {_gte: $twoWeeksAgo},
+// Enhanced queries that fetch both current and previous period data for trend calculations
+
+// Query to get recent opportunities count (current 2 weeks vs previous 2 weeks)
+export const GET_RECENT_OPPORTUNITIES_WITH_TREND = `
+  query GetRecentOpportunitiesWithTrend($currentStart: timestamptz!, $previousStart: timestamptz!, $previousEnd: timestamptz!, $sourceApp: String) {
+    current: OpportunityAggregate(where: {
+      createdAt: {_gte: $currentStart},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false}
+    }) {
+      aggregate {
+        count
+      }
+    }
+    previous: OpportunityAggregate(where: {
+      createdAt: {_gte: $previousStart, _lt: $previousEnd},
       sourceApp: {_eq: $sourceApp},
       isDeleted: {_eq: false}
     }) {
@@ -30,10 +40,10 @@ export const GET_RECENT_OPPORTUNITIES_COUNT = `
   }
 `;
 
-// Query to get total opportunity value
-export const GET_TOTAL_OPPORTUNITY_VALUE = `
-  query GetTotalOpportunityValue($sourceApp: String) {
-    OpportunityAggregate(where: {
+// Query to get total opportunity value with trend (current vs last quarter)
+export const GET_OPPORTUNITY_VALUE_WITH_TREND = `
+  query GetOpportunityValueWithTrend($lastQuarter: timestamptz!, $sourceApp: String) {
+    current: OpportunityAggregate(where: {
       sourceApp: {_eq: $sourceApp},
       isDeleted: {_eq: false},
       estimatedAmount: {_isNull: false}
@@ -44,13 +54,25 @@ export const GET_TOTAL_OPPORTUNITY_VALUE = `
         }
       }
     }
+    previous: OpportunityAggregate(where: {
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false},
+      estimatedAmount: {_isNull: false},
+      createdAt: {_lt: $lastQuarter}
+    }) {
+      aggregate {
+        sum {
+          estimatedAmount
+        }
+      }
+    }
   }
 `;
 
-// Query to get average win rate
-export const GET_AVERAGE_WIN_RATE = `
-  query GetAverageWinRate($sourceApp: String) {
-    OpportunityAggregate(where: {
+// Query to get average win rate with trend (current vs last quarter)
+export const GET_WIN_RATE_WITH_TREND = `
+  query GetWinRateWithTrend($lastQuarter: timestamptz!, $sourceApp: String) {
+    current: OpportunityAggregate(where: {
       sourceApp: {_eq: $sourceApp},
       isDeleted: {_eq: false},
       winningChance: {_isNull: false}
@@ -61,50 +83,35 @@ export const GET_AVERAGE_WIN_RATE = `
         }
       }
     }
-  }
-`;
-
-// Query to get most common stage in recent opportunities
-export const GET_MOST_COMMON_STAGE = `
-  query GetMostCommonStage($twoWeeksAgo: timestamptz!, $sourceApp: String) {
-    Opportunity(
-      where: {
-        createdAt: {_gte: $twoWeeksAgo}, 
-        stage: {_isNull: false},
-        sourceApp: {_eq: $sourceApp},
-        isDeleted: {_eq: false}
-      }
-    ) {
-      stage
-    }
-  }
-`;
-
-// Query to get most common pipeline in recent opportunities
-export const GET_MOST_COMMON_PIPELINE = `
-  query GetMostCommonPipeline($twoWeeksAgo: timestamptz!, $sourceApp: String) {
-    Opportunity(
-      where: {
-        createdAt: {_gte: $twoWeeksAgo}, 
-        salesPipeline: {_isNull: false},
-        sourceApp: {_eq: $sourceApp},
-        isDeleted: {_eq: false}
-      }
-    ) {
-      salesPipeline {
-        id
-        value
-        code
+    previous: OpportunityAggregate(where: {
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false},
+      winningChance: {_isNull: false},
+      createdAt: {_lt: $lastQuarter}
+    }) {
+      aggregate {
+        avg {
+          winningChance
+        }
       }
     }
   }
 `;
 
-// Query to get total opportunities count for this year
-export const GET_TOTAL_OPPORTUNITIES_THIS_YEAR_COUNT = `
-  query GetTotalOpportunitiesThisYearCount($startOfYear: timestamptz!, $sourceApp: String) {
-    OpportunityAggregate(where: {
-      createdAt: {_gte: $startOfYear},
+// Query to get opportunities this year vs same period last year
+export const GET_OPPORTUNITIES_THIS_YEAR_WITH_TREND = `
+  query GetOpportunitiesThisYearWithTrend($thisYearStart: timestamptz!, $lastYearStart: timestamptz!, $lastYearEnd: timestamptz!, $sourceApp: String) {
+    current: OpportunityAggregate(where: {
+      createdAt: {_gte: $thisYearStart},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false}
+    }) {
+      aggregate {
+        count
+      }
+    }
+    previous: OpportunityAggregate(where: {
+      createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
       sourceApp: {_eq: $sourceApp},
       isDeleted: {_eq: false}
     }) {
@@ -119,137 +126,123 @@ export const useOpportunityStatisticsQueries = (context: UseOpportunityStatistic
   const graphqlClient = useGraphQLClient(context.accessToken);
   const { sourceApp } = context;
 
-  const fetchRecentOpportunities = useCallback(async (): Promise<number> => {
+  const calculateTrend = (current: number, previous: number): TrendData => {
+    const change = current - previous;
+    const changePercent = previous > 0 ? (change / previous) * 100 : (current > 0 ? 100 : 0);
+    return {
+      current,
+      previous,
+      change,
+      changePercent,
+      isPositive: change >= 0
+    };
+  };
+
+  const fetchRecentOpportunitiesWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
       const now = new Date();
-      const twoWeeksAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)).toISOString();
+      const currentStart = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+      const previousEnd = currentStart;
+      const previousStart = new Date(currentStart.getTime() - (14 * 24 * 60 * 60 * 1000));
       
       const result = await graphqlClient.request<{
-        OpportunityAggregate: { aggregate: { count: number } }
-      }>(GET_RECENT_OPPORTUNITIES_COUNT, { twoWeeksAgo, sourceApp });
-      return result.OpportunityAggregate.aggregate.count;
+        current: { aggregate: { count: number } };
+        previous: { aggregate: { count: number } };
+      }>(GET_RECENT_OPPORTUNITIES_WITH_TREND, { 
+        currentStart: currentStart.toISOString(),
+        previousStart: previousStart.toISOString(),
+        previousEnd: previousEnd.toISOString(),
+        sourceApp 
+      });
+      
+      return calculateTrend(
+        result.current.aggregate.count,
+        result.previous.aggregate.count
+      );
     } catch (error) {
-      console.error('Error fetching recent opportunities count:', error);
+      console.error('Error fetching recent opportunities with trend:', error);
       throw error;
     }
   }, [graphqlClient, sourceApp]);
 
-  const fetchTotalOpportunityValue = useCallback(async (): Promise<number> => {
-    try {
-      const result = await graphqlClient.request<{
-        OpportunityAggregate: { aggregate: { sum: { estimatedAmount: number } } }
-      }>(GET_TOTAL_OPPORTUNITY_VALUE, { sourceApp });
-      return result.OpportunityAggregate.aggregate.sum?.estimatedAmount || 0;
-    } catch (error) {
-      console.error('Error fetching total opportunity value:', error);
-      return 0;
-    }
-  }, [graphqlClient, sourceApp]);
-
-  const fetchAverageWinRate = useCallback(async (): Promise<number> => {
-    try {
-      const result = await graphqlClient.request<{
-        OpportunityAggregate: { aggregate: { avg: { winningChance: number } } }
-      }>(GET_AVERAGE_WIN_RATE, { sourceApp });
-      return Math.round(result.OpportunityAggregate.aggregate.avg?.winningChance || 0);
-    } catch (error) {
-      console.error('Error fetching average win rate:', error);
-      return 0;
-    }
-  }, [graphqlClient, sourceApp]);
-
-  const fetchMostCommonStage = useCallback(async (): Promise<string> => {
+  const fetchOpportunityValueWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
       const now = new Date();
-      const twoWeeksAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)).toISOString();
+      const lastQuarter = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
       
       const result = await graphqlClient.request<{
-        Opportunity: Array<{ stage: string | null }>
-      }>(GET_MOST_COMMON_STAGE, { twoWeeksAgo, sourceApp });
-
-      // Count occurrences of each stage
-      const stageCounts: Record<string, number> = {};
-      result.Opportunity.forEach(opportunity => {
-        const stage = opportunity.stage;
-        if (stage) {
-          stageCounts[stage] = (stageCounts[stage] || 0) + 1;
-        }
+        current: { aggregate: { sum: { estimatedAmount: number } } };
+        previous: { aggregate: { sum: { estimatedAmount: number } } };
+      }>(GET_OPPORTUNITY_VALUE_WITH_TREND, { 
+        lastQuarter: lastQuarter.toISOString(),
+        sourceApp 
       });
-
-      // Find the most common stage
-      let mostCommon = 'N/A';
-      let maxCount = 0;
-      Object.entries(stageCounts).forEach(([stage, count]) => {
-        if (count > maxCount) {
-          maxCount = count;
-          mostCommon = stage;
-        }
-      });
-
-      return mostCommon;
+      
+      const currentValue = result.current.aggregate.sum?.estimatedAmount || 0;
+      const previousValue = result.previous.aggregate.sum?.estimatedAmount || 0;
+      
+      return calculateTrend(currentValue, previousValue);
     } catch (error) {
-      console.error('Error fetching most common stage:', error);
-      return 'N/A';
+      console.error('Error fetching opportunity value with trend:', error);
+      throw error;
     }
   }, [graphqlClient, sourceApp]);
 
-  const fetchMostCommonPipeline = useCallback(async (): Promise<string> => {
+  const fetchWinRateWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
       const now = new Date();
-      const twoWeeksAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)).toISOString();
+      const lastQuarter = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
       
       const result = await graphqlClient.request<{
-        Opportunity: Array<{ 
-          salesPipeline: { value: string; code: string } | null;
-        }>
-      }>(GET_MOST_COMMON_PIPELINE, { twoWeeksAgo, sourceApp });
-
-      // Count occurrences of each pipeline
-      const pipelineCounts: Record<string, number> = {};
-      result.Opportunity.forEach(opportunity => {
-        const pipeline = opportunity.salesPipeline;
-        if (pipeline && pipeline.value) {
-          pipelineCounts[pipeline.value] = (pipelineCounts[pipeline.value] || 0) + 1;
-        }
+        current: { aggregate: { avg: { winningChance: number } } };
+        previous: { aggregate: { avg: { winningChance: number } } };
+      }>(GET_WIN_RATE_WITH_TREND, { 
+        lastQuarter: lastQuarter.toISOString(),
+        sourceApp 
       });
-
-      // Find the most common pipeline
-      let mostCommon = 'N/A';
-      let maxCount = 0;
-      Object.entries(pipelineCounts).forEach(([pipeline, count]) => {
-        if (count > maxCount) {
-          maxCount = count;
-          mostCommon = pipeline;
-        }
-      });
-
-      return mostCommon;
+      
+      const currentRate = Math.round(result.current.aggregate.avg?.winningChance || 0);
+      const previousRate = Math.round(result.previous.aggregate.avg?.winningChance || 0);
+      
+      return calculateTrend(currentRate, previousRate);
     } catch (error) {
-      console.error('Error fetching most common pipeline:', error);
-      return 'N/A';
+      console.error('Error fetching win rate with trend:', error);
+      throw error;
     }
   }, [graphqlClient, sourceApp]);
 
-  const fetchTotalOpportunitiesThisYear = useCallback(async (): Promise<number> => {
+  const fetchOpportunitiesThisYearWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
-      const startOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString();
+      const now = new Date();
+      const thisYearStart = new Date(now.getFullYear(), 0, 1);
+      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+      const lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
       
       const result = await graphqlClient.request<{
-        OpportunityAggregate: { aggregate: { count: number } }
-      }>(GET_TOTAL_OPPORTUNITIES_THIS_YEAR_COUNT, { startOfYear, sourceApp });
-      return result.OpportunityAggregate.aggregate.count;
+        current: { aggregate: { count: number } };
+        previous: { aggregate: { count: number } };
+      }>(GET_OPPORTUNITIES_THIS_YEAR_WITH_TREND, { 
+        thisYearStart: thisYearStart.toISOString(),
+        lastYearStart: lastYearStart.toISOString(),
+        lastYearEnd: lastYearEnd.toISOString(),
+        sourceApp 
+      });
+      
+      return calculateTrend(
+        result.current.aggregate.count,
+        result.previous.aggregate.count
+      );
     } catch (error) {
-      console.error('Error fetching total opportunities this year:', error);
+      console.error('Error fetching opportunities this year with trend:', error);
       throw error;
     }
   }, [graphqlClient, sourceApp]);
 
   return {
-    fetchRecentOpportunities,
-    fetchTotalOpportunityValue,
-    fetchAverageWinRate,
-    fetchMostCommonStage,
-    fetchMostCommonPipeline,
-    fetchTotalOpportunitiesThisYear
+    // Enhanced methods with trend data
+    fetchRecentOpportunitiesWithTrend,
+    fetchOpportunityValueWithTrend,
+    fetchWinRateWithTrend,
+    fetchOpportunitiesThisYearWithTrend
   };
 }; 

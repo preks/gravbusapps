@@ -15,6 +15,7 @@ export interface AccountFilters {
   filterLabelMap: Record<string, string>;
   addFilter: (filterId: string) => void;
   removeFilter: (filterId: string) => void;
+  clearAllFilters: () => void;
   getFilters: () => any;
   createdAfter?: string;
   createdBefore?: string;
@@ -28,28 +29,29 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
   const [createdBefore, setCreatedBefore] = useState<string | undefined>();
 
   const filterGroups: FilterGroup[] = useMemo(() => [
-    {
-      id: 'accountType',
-      title: 'Account Type', // Changed from label to title
-      filters: [
-        { id: 'type-customer', label: 'Customer', value: 'Customer', selected: false },
-        { id: 'type-prospect', label: 'Prospect', value: 'Prospect', selected: false },
-        { id: 'type-partner', label: 'Partner', value: 'Partner', selected: false },
-        { id: 'type-competitor', label: 'Competitor', value: 'Competitor', selected: false }
-      ]
-    },
+    // REMOVED: accountType filter - field does not exist in GraphQL schema
+    // {
+    //   id: 'accountType',
+    //   title: 'Account Type',
+    //   filters: [
+    //     { id: 'type-customer', label: 'Customer', value: 'Customer', selected: selectedFilters.includes('type-customer') },
+    //     { id: 'type-prospect', label: 'Prospect', value: 'Prospect', selected: selectedFilters.includes('type-prospect') },
+    //     { id: 'type-partner', label: 'Partner', value: 'Partner', selected: selectedFilters.includes('type-partner') },
+    //     { id: 'type-competitor', label: 'Competitor', value: 'Competitor', selected: selectedFilters.includes('type-competitor') }
+    //   ]
+    // },
     {
       id: 'industry',
       title: 'Industry', // Changed from label to title
       filters: [
-        { id: 'industry-technology', label: 'Technology', value: 'Technology', selected: false },
-        { id: 'industry-finance', label: 'Finance', value: 'Finance', selected: false },
-        { id: 'industry-healthcare', label: 'Healthcare', value: 'Healthcare', selected: false },
-        { id: 'industry-manufacturing', label: 'Manufacturing', value: 'Manufacturing', selected: false },
-        { id: 'industry-retail', label: 'Retail', value: 'Retail', selected: false }
+        { id: 'industry-technology', label: 'Technology', value: 'Technology', selected: selectedFilters.includes('industry-technology') },
+        { id: 'industry-finance', label: 'Finance', value: 'Finance', selected: selectedFilters.includes('industry-finance') },
+        { id: 'industry-healthcare', label: 'Healthcare', value: 'Healthcare', selected: selectedFilters.includes('industry-healthcare') },
+        { id: 'industry-manufacturing', label: 'Manufacturing', value: 'Manufacturing', selected: selectedFilters.includes('industry-manufacturing') },
+        { id: 'industry-retail', label: 'Retail', value: 'Retail', selected: selectedFilters.includes('industry-retail') }
       ]
     }
-  ], []);
+  ], [selectedFilters]);
 
   const filterLabelMap: Record<string, string> = useMemo(() => {
     const map: Record<string, string> = {};
@@ -72,6 +74,10 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
 
   const removeFilter = useCallback((filterId: string) => {
     setSelectedFilters(prev => prev.filter(id => id !== filterId));
+  }, []);
+
+  const clearAllFilters = useCallback(() => {
+    setSelectedFilters([]);
   }, []);
 
   const handleDateRangeChange = useCallback((after?: string, before?: string) => {
@@ -99,10 +105,8 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
       for (const group of filterGroups) {
         const filter = group.filters.find(f => f.id === filterId);
         if (filter) {
-          if (group.id === 'accountType') {
-            if (!filters.accountTypes) filters.accountTypes = [];
-            filters.accountTypes.push(filter.value);
-          } else if (group.id === 'industry') {
+          // REMOVED: accountType processing - field does not exist in GraphQL schema
+          if (group.id === 'industry') {
             if (!filters.industries) filters.industries = [];
             filters.industries.push(filter.value);
           }
@@ -122,6 +126,7 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
     filterLabelMap,
     addFilter,
     removeFilter,
+    clearAllFilters,
     getFilters,
     createdAfter,
     createdBefore,

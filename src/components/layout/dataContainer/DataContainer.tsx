@@ -132,11 +132,11 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
   }, [dataDetails, onDetailsPanelClose]);
 
   return (
-    <div className={cn("gba:flex gba:flex-row gba:h-full gba:w-full gba:bg-gray-100 gba:relative", className
-    )}>
+    <div className={cn("gba:flex gba:flex-row gba:h-full gba:w-full gba:relative", className
+    )} data-testid="data-container">
       {/* Filter Sidebar - left column, visible if open */}
       {showDataFilter && (
-        <div className="gba:flex gba:flex-col gba:w-[336px] gba:min-h-0 gba:border-r gba:border-gray-100 gba:bg-white gba:z-0">
+        <div className="gba:flex gba:flex-col gba:w-[336px] gba:min-h-0 gba:border-r gba:border-gray-100 gba:bg-white gba:z-0" data-testid="data-container-filter-sidebar">
           <DataFilter
             show={showDataFilter}
             onClose={handleCloseDataFilter}
@@ -145,13 +145,14 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
         </div>
       )}
       {/* Main Content - center column */}
-      <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:bg-white">
+      <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:bg-white" data-testid="data-container-main-content">
           {CustomDataController ? (
             <CustomDataController
               showDataFilter={showDataFilter}
               onToggleDataFilter={handleToggleDataFilter}
               hideFilter={hideFilter}
               {...(dataControllerProps as any)}
+              data-testid="data-container-custom-controller"
             />
           ) : (
             <DataController
@@ -164,7 +165,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
         <div className={cn("gba:flex-1 gba:min-h-0 gba:overflow-auto gba:my-4", {
           'gba:bg-gray-50': contentBackground === 'gray',
           'gba:bg-white': contentBackground === 'white'
-        })}>
+        })} data-testid="data-container-body">
           {dataBody}
         </div>
       </div>
@@ -179,6 +180,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
           }
         )}
           onClick={(e) => e.stopPropagation()}
+          data-testid={floatingDetails ? "data-container-details-floating" : "data-container-details-sidebar"}
         >
           <DataDetails
             title={dataDetails.title}

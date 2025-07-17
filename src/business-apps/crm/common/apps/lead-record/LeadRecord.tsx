@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Row, Col, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -20,6 +20,55 @@ interface LeadRecordContentProps extends BusinessAppContextProps {
 const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, ...props }) => {
   const { lead, leadData, loading, error, leadStatuses, loadingStatuses, refetchLeadData } = useLeadData(leadId, props.accessToken);
 
+  // Listen for process completion events to refresh lead data (including status updates)
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        console.log('LeadRecord: Process completion event received:', event);
+        
+        // Check for successful completion
+        if (event.detail?.resolution === 'success') {
+          console.log('LeadRecord: Refreshing lead data...');
+          refetchLeadData();
+          return;
+        }
+        
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === 'success' || response?.lead) {
+          console.log('LeadRecord: Refreshing lead data from response...');
+          refetchLeadData();
+        }
+      } catch (err) {
+        console.error('Error handling process completion in LeadRecord:', err);
+      }
+    };
+
+    // Listen to multiple possible event names for lead updates
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
+
+    return () => {
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
+    };
+  }, [leadId, refetchLeadData]);
+
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
@@ -37,7 +86,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
             onClick={onBack}
             className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
           >
-            Back to Leads Overview
+            Back to Customer Relations
           </button>
         </div>
       </div>
@@ -54,12 +103,12 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
           data-testid="back-button"
         >
           <ArrowLeftOutlined className="gba:mr-2" />
-          <span>Back to Leads Overview</span>
+          <span>Back to Customer Relations</span>
         </button>
       </div>
 
       {/* Lead header */}
-      <LeadHeader lead={lead} leadData={leadData} leadId={leadId} additionalData={props} accessToken={props.accessToken} />
+      <LeadHeader lead={lead} leadData={leadData} leadId={leadId} additionalData={props} accessToken={props.accessToken} onStatusUpdate={refetchLeadData} />
 
       {/* Status Progression */}
       {!loadingStatuses && leadStatuses.length > 0 && lead && (
@@ -118,8 +167,8 @@ const LeadRecord: React.FC<LeadRecordProps> = (props) => {
     if (props.onBack) {
       props.onBack();
     } else {
-      // Navigate back to leads overview
-      navigateTo('/platform/crm/leads-overview');
+      // Navigate back to customer relations
+      navigateTo('/platform/crm/customer-relations?view=leads');
     }
   };
 

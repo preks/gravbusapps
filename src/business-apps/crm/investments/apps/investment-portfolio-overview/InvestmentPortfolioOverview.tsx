@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Tag, Button, Space, Alert, Spin, Typography, Tabs } from 'antd';
-import { PlusOutlined, ReloadOutlined, PieChartOutlined, FundOutlined, BarChartOutlined, RiseOutlined } from '@ant-design/icons';
+import { PlusOutlined, PieChartOutlined, FundOutlined, BarChartOutlined, RiseOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -81,14 +81,6 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
           <Tag color="blue">{investments.length} {getTranslationFromI18nKeyAndLabel('investment.portfolio.items', 'investments')}</Tag>
         </div>
         <Space>
-          <Button
-            data-testid={formatDataTestId(prefixDataTestId, 'RefreshButton')}
-            type="default"
-            icon={<ReloadOutlined />}
-            onClick={() => refetch()}
-          >
-            {getTranslationFromI18nKeyAndLabel('button.refresh', 'Refresh')}
-          </Button>
           <Button
             data-testid={formatDataTestId(prefixDataTestId, 'AddButton')}
             type="primary"

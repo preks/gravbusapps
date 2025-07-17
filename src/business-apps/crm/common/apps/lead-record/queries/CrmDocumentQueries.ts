@@ -16,6 +16,7 @@ export interface CrmDocumentData {
   file?: string;
   mimeType?: string;
   fileSize?: number;
+  createdBy: string;
 }
 
 export interface CrmDocumentResponse {
@@ -36,6 +37,7 @@ export const GET_CRM_DOCUMENTS = (variables: CrmDocumentQueryVariables): string 
         file
         mimeType
         fileSize
+        createdBy
       }
     }
   `;

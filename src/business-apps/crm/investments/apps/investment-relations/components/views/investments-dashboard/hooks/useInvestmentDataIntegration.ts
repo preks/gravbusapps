@@ -304,7 +304,17 @@ const calculateTypeMetrics = (investments: EnhancedInvestment[]): InvestmentType
   });
 };
 
-export const useInvestmentDataIntegration = (context: BusinessAppContextProps) => {
+export interface InvestmentDataIntegrationOptions {
+  searchTerm?: string;
+  filters?: Record<string, any>;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export const useInvestmentDataIntegration = (
+  context: BusinessAppContextProps,
+  options: InvestmentDataIntegrationOptions = {}
+) => {
   const [investments, setInvestments] = useState<EnhancedInvestment[]>([]);
   const [metrics, setMetrics] = useState<InvestmentMetrics | null>(null);
   const [typeMetrics, setTypeMetrics] = useState<InvestmentTypeMetrics[]>([]);
@@ -326,6 +336,21 @@ export const useInvestmentDataIntegration = (context: BusinessAppContextProps) =
       setError(null);
 
       try {
+        // Build query variables with search and filters
+        const queryVariables = {
+          limit: 50,
+          ...(options.searchTerm && {
+            where: {
+              _or: [
+                { name: { _ilike: `%${options.searchTerm}%` } },
+                { notesSummary: { _ilike: `%${options.searchTerm}%` } },
+                { account: { name: { _ilike: `%${options.searchTerm}%` } } }
+              ]
+            }
+          }),
+          ...options.filters
+        };
+
         // Fetch all investment types in parallel
         const [
           allInvestments,
@@ -334,11 +359,11 @@ export const useInvestmentDataIntegration = (context: BusinessAppContextProps) =
           realEstateInvestments,
           privateEquityInvestments
         ] = await Promise.all([
-          fetchInvestments({ limit: 100 }),
-          fetchLiquidFundInvestments({ limit: 100 }),
-          fetchEquityInvestments({ limit: 100 }),
-          fetchRealEstateInvestments({ limit: 100 }),
-          fetchPrivateEquityInvestments({ limit: 100 })
+          fetchInvestments(queryVariables),
+          fetchLiquidFundInvestments(queryVariables),
+          fetchEquityInvestments(queryVariables),
+          fetchRealEstateInvestments(queryVariables),
+          fetchPrivateEquityInvestments(queryVariables)
         ]);
 
         // Transform data into enhanced format
@@ -365,7 +390,7 @@ export const useInvestmentDataIntegration = (context: BusinessAppContextProps) =
     };
 
     loadData();
-  }, [context.accessToken, refetchTrigger]);
+  }, [context.accessToken, refetchTrigger, options.searchTerm, options.filters]);
 
   const refetch = useCallback(() => {
     setRefetchTrigger(prev => prev + 1);

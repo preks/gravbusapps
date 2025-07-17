@@ -3,6 +3,7 @@ import { Lead, LeadQueryVariables } from '../types';
 import { useGetLeadsData } from '../queries/LeadQueries';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { LeadFilters } from './useLeadFilters';
+import { enforceQueryLimit, createQueryVariables } from '../../../utils/queryLimits';
 
 interface UseLeadListDataProps extends LeadFilters {
   sortField?: string;
@@ -58,7 +59,9 @@ export const useLeadListData = ({
     setError(null);
     
     try {
-      const offset = (targetPage - 1) * newPageSize;
+      // Enforce query limit to ensure optimal performance
+      const safePageSize = enforceQueryLimit(newPageSize);
+      const offset = (targetPage - 1) * safePageSize;
       
       // Build where clause directly (similar to employee hook pattern)
       const baseWhere = { isDeleted: { _eq: false } };
@@ -77,6 +80,12 @@ export const useLeadListData = ({
           { email: { _ilike: `%${search}%` } },
           { companyName: { _ilike: `%${search}%` } },
           { position: { _ilike: `%${search}%` } },
+          { companyEmail: { _ilike: `%${search}%` } }, // Added: displayed in company info
+          { companyWebsite: { _ilike: `%${search}%` } }, // Added: displayed in company info
+          { academicTitle: { value: { _ilike: `%${search}%` } } }, // Added: displayed in contact name
+          { leadStatus: { value: { _ilike: `%${search}%` } } }, // Added: displayed in status
+          { leadRating: { value: { _ilike: `%${search}%` } } }, // Added: displayed in rating
+          { leadSource: { value: { _ilike: `%${search}%` } } }, // Added: displayed in source
           { ownerEmployee: { firstName: { _ilike: `%${search}%` } } },
           { ownerEmployee: { lastName: { _ilike: `%${search}%` } } },
           { ownerEmployee: { fullName: { _ilike: `%${search}%` } } },
@@ -116,11 +125,17 @@ export const useLeadListData = ({
         companySizes.forEach(sizeId => {
           switch (sizeId) {
             case 'startup':
-              // 1-10 employees - this could map to specific catalog values or use text matching
+              // 1-10 employees - use _or with _ilike patterns for better matching
               sizeConditions.push({ 
                 account: { 
                   numberOfEmployees: { 
-                    value: { _iregex: "1-10|startup|micro" } 
+                    value: { 
+                      _or: [
+                        { _ilike: "%1-10%" },
+                        { _ilike: "%startup%" },
+                        { _ilike: "%micro%" }
+                      ]
+                    } 
                   } 
                 } 
               });
@@ -130,7 +145,12 @@ export const useLeadListData = ({
               sizeConditions.push({ 
                 account: { 
                   numberOfEmployees: { 
-                    value: { _iregex: "11-50|small|1[1-9]|[2-4][0-9]|50" } 
+                    value: { 
+                      _or: [
+                        { _ilike: "%11-50%" },
+                        { _ilike: "%small%" }
+                      ]
+                    } 
                   } 
                 } 
               });
@@ -140,7 +160,12 @@ export const useLeadListData = ({
               sizeConditions.push({ 
                 account: { 
                   numberOfEmployees: { 
-                    value: { _iregex: "51-200|medium|[5-9][0-9]|1[0-9][0-9]|200" } 
+                    value: { 
+                      _or: [
+                        { _ilike: "%51-200%" },
+                        { _ilike: "%medium%" }
+                      ]
+                    } 
                   } 
                 } 
               });
@@ -150,7 +175,12 @@ export const useLeadListData = ({
               sizeConditions.push({ 
                 account: { 
                   numberOfEmployees: { 
-                    value: { _iregex: "201-1000|large|[2-9][0-9][0-9]|1000" } 
+                    value: { 
+                      _or: [
+                        { _ilike: "%201-1000%" },
+                        { _ilike: "%large%" }
+                      ]
+                    } 
                   } 
                 } 
               });
@@ -160,7 +190,12 @@ export const useLeadListData = ({
               sizeConditions.push({ 
                 account: { 
                   numberOfEmployees: { 
-                    value: { _iregex: "1000\\+|enterprise|[1-9][0-9]{3,}" } 
+                    value: { 
+                      _or: [
+                        { _ilike: "%1000+%" },
+                        { _ilike: "%enterprise%" }
+                      ]
+                    } 
                   } 
                 } 
               });
@@ -194,11 +229,16 @@ export const useLeadListData = ({
       
       // Build orderBy based on sortField and sortOrder
       const orderBy: any = {};
-      orderBy[sortField] = sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST';
+      if (sortField && sortField !== '') {
+        orderBy[sortField] = sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST';
+      } else {
+        // No sorting - use natural order (by ID)
+        orderBy.id = 'ASC_NULLS_LAST';
+      }
       
       const variables: LeadQueryVariables = {
         offset,
-        limit: newPageSize,
+        limit: safePageSize,
         orderBy: [orderBy],
         where
       };
@@ -208,8 +248,8 @@ export const useLeadListData = ({
       setLeads(result.Lead || []);
       setTotal(result.LeadAggregate?.aggregate?.count || 0);
       setCurrentPage(targetPage);
-      setPageSize(newPageSize);
-      setHasMore((result.Lead || []).length === newPageSize);
+      setPageSize(safePageSize);
+      setHasMore((result.Lead || []).length === safePageSize);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load leads'));
       setLeads([]);

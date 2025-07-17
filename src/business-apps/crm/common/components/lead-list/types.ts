@@ -1,5 +1,6 @@
 export interface Lead {
   id: string;
+  name?: string;
   firstName?: string;
   lastName?: string;
   email?: string;
@@ -27,11 +28,13 @@ export interface Lead {
     id: string;
     code: string;
     value: string;
+    objectValue?: any;
   };
   leadRating?: {
     id: string;
     code: string;
     value: string;
+    objectValue?: any;
   };
   ownerEmployeeId?: string;
   ownerEmployee?: {
