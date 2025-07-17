@@ -36,7 +36,13 @@ export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
       createdAt
       employeeDocumentId
       advancePaymentPaidAmount
-      advancePaymentInTransitAmount  
+      advancePaymentInTransitAmount 
+      expenseRequest {
+        id
+        code
+        status
+        totalAmount
+     } 
       employeeDocument {
         file
         fileSize

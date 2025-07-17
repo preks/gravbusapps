@@ -44,13 +44,19 @@ export interface ExpensePlan {
   expensePlanItem: any[];
   advancePayment: any[] | null;
   expenseRequestTrip: any[] | null;
-  expenseRequest: any[] | null;
+  // expenseRequest: any[] | null;
   employee: {
     id: string;
     code: string;
     firstName: string;
     lastName: string;
     employeePosition: any;
+  };
+  expenseRequest: {
+    id: string;
+    code: string;
+    status: string;
+    totalAmount: number;
   };
 }
 
