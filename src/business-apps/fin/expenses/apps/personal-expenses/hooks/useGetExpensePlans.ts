@@ -79,8 +79,12 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
   const [error, setError] = useState<Error | null>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
 
-  // Function to fetch items with search and pagination
-  const fetchItems = useCallback(async (filters: ExpensePlanFilter = {}, page: number = 1, pageSize: number = 10) => {
+  // Function to fetch items with search and pagination (client-side sorting)
+  const fetchItems = useCallback(async (
+    filters: ExpensePlanFilter = {}, 
+    page: number = 1, 
+    pageSize: number = 10
+  ) => {
     if (!employeeId) {
       setError(new Error('Employee ID not found. Cannot fetch expense plans.'));
       setItems([]);
@@ -103,6 +107,9 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
     try {
       const offset = (page - 1) * pageSize;
       
+      // Use default sorting by creation date (newest first) on server
+      const orderBy = [{ createdAt: 'DESC' }];
+      
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
@@ -115,7 +122,8 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
             employeeId,
             filters,
             limit: pageSize,
-            offset: offset
+            offset: offset,
+            orderBy: orderBy
           },
         }),
       });

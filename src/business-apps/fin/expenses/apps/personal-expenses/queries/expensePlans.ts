@@ -1,6 +1,6 @@
-// GraphQL query to get expense plans filtered by employee ID with pagination and search
+// GraphQL query to get expense plans filtered by employee ID with pagination, search, and dynamic sorting
 export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
-  query GetExpensePlansByEmployee($employeeId: uuid!, $limit: Int, $offset: Int, $filters: ExpensePlanBoolExp!, $activeUserLocale: String = "en") {
+  query GetExpensePlansByEmployee($employeeId: uuid!, $limit: Int, $offset: Int, $filters: ExpensePlanBoolExp!, $activeUserLocale: String = "en", $orderBy: [ExpensePlanOrderBy!]) {
     ExpensePlanAggregate(
       where: {
         employeeId: {_eq: $employeeId}, 
@@ -15,7 +15,7 @@ export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
     ExpensePlan(
       limit: $limit,
       offset: $offset,
-      orderBy: {createdAt: DESC},
+      orderBy: $orderBy,
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},

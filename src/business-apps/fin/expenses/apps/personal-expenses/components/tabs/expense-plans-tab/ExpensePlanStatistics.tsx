@@ -112,7 +112,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       if (onStatusFilterChange) {
         // First, clear any existing status filters
         // Then add all statuses except CREATED (Draft) and PAID
-        const allStatuses = ['PREPARED', 'ASSIGNED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'CLOSED', 'TRANSFERRED'];
+        const allStatuses = ['PREPARED', 'ASSIGNED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'];
         allStatuses.forEach(status => {
           onStatusFilterChange(status, true);
         });

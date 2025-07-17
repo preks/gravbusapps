@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { ExpensePlan } from '../../../hooks/useGetExpensePlans';
 import { getExpensePlanStatusDisplay } from '../../../utils';
@@ -16,7 +16,49 @@ import { useExpensePlanFileService } from '../../../utils/expensePlanFileService
 
 const { Text } = Typography;
 
+// Sorting utilities following SOLID principles
+interface SortableField<T> {
+  key: keyof T;
+  type: 'string' | 'number' | 'date';
+  nullable?: boolean;
+}
 
+class SortingService {
+  static createSorter<T>(field: SortableField<T>) {
+    return (a: T, b: T) => {
+      const aValue = a[field.key];
+      const bValue = b[field.key];
+      
+      // Handle nullable values
+      const aSafe = field.nullable ? (aValue ?? 0) : aValue;
+      const bSafe = field.nullable ? (bValue ?? 0) : bValue;
+      
+      switch (field.type) {
+        case 'string':
+          return String(aSafe).localeCompare(String(bSafe));
+        case 'number':
+          return Number(aSafe) - Number(bSafe);
+        case 'date':
+          const aDate = aSafe ? new Date(String(aSafe)).getTime() : 0;
+          const bDate = bSafe ? new Date(String(bSafe)).getTime() : 0;
+          return aDate - bDate;
+        default:
+          return 0;
+      }
+    };
+  }
+}
+
+// Column configuration following SRP
+const EXPENSE_PLAN_COLUMNS = {
+  code: { key: 'code' as keyof ExpensePlan, type: 'string' as const },
+  title: { key: 'title' as keyof ExpensePlan, type: 'string' as const },
+  startDate: { key: 'startDate' as keyof ExpensePlan, type: 'date' as const, nullable: true },
+  endDate: { key: 'endDate' as keyof ExpensePlan, type: 'date' as const, nullable: true },
+  status: { key: 'status' as keyof ExpensePlan, type: 'string' as const },
+  reimbursableAmount: { key: 'reimbursableAmount' as keyof ExpensePlan, type: 'number' as const, nullable: true },
+  advancePaymentPaidAmount: { key: 'advancePaymentPaidAmount' as keyof ExpensePlan, type: 'number' as const, nullable: true },
+} as const;
 
 export interface ExpensePlansTableProps extends BusinessAppContextProps {
   items: ExpensePlan[] | undefined;
@@ -25,7 +67,7 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   totalCount: number;
   currentPage: number;
   pageSize: number;
-  onTableChange: (pagination: any) => void;
+  onTableChange: (pagination: any, filters: any, sorter: any) => void;
   search: string;
   onSearchChange: (search: string) => void;
   selectedFilters: string[];
@@ -35,7 +77,7 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   clearFilters: () => void;
 }
 
-const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
+const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) => {
   const {
     items: plans,
     isLoading,
@@ -46,6 +88,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     onTableChange,
     ...contextProps
   } = props;
+
+  // Internal sorting state - managed locally like expense items table
+  const [sortField, setSortField] = useState<string>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
 
   const [selectedItem, setSelectedItem] = useState<ExpensePlan | null>(null);
   const [selectedExpenseRequest, setSelectedExpenseRequest] = useState<any>(null);
@@ -104,6 +150,35 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     }
   }, []);
 
+  // Enhanced table change handler for sorting - manages state internally
+  const handleEnhancedTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
+    // Handle pagination
+    onTableChange(pagination, _filters, sorter);
+    
+    // Handle sorting - update internal state only
+    if (sorter && sorter.field) {
+      setSortField(sorter.field);
+      setSortOrder(sorter.order);
+    } else {
+      // Reset to default sorting (creation date descending)
+      setSortField('createdAt');
+      setSortOrder('descend');
+    }
+  }, [onTableChange]);
+
+  // Column factory following OCP
+  const createColumn = useCallback((key: keyof typeof EXPENSE_PLAN_COLUMNS, title: string, render?: (value: any, record: ExpensePlan) => React.ReactNode) => {
+    const field = EXPENSE_PLAN_COLUMNS[key];
+    return {
+      title,
+      dataIndex: field.key,
+      key: field.key,
+      sorter: SortingService.createSorter(field),
+      sortOrder: sortField === field.key ? sortOrder : null,
+      render,
+    };
+  }, [sortField, sortOrder]);
+
   const renderDataBody = useMemo(() => {
     if (isLoading) {
       return <div style={{ padding: 24, textAlign: 'center' }}><Spin size="large" /></div>;
@@ -138,7 +213,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
           pageSizeOptions: ['10', '20', '50', '100'],
           showTotal: (total: number, range: [number, number]) => `${range[0]}-${range[1]} of ${total} items`,
         }}
-        onChange={onTableChange}
+        onChange={handleEnhancedTableChange}
         data-testid="expense-plans-data-table"
         columns={[
           {
@@ -233,61 +308,26 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
               />
             ),
           },
-          {
-            title: 'Plan Number',
-            dataIndex: 'code',
-            key: 'code',
-          },
-          {
-            title: 'Title',
-            dataIndex: 'title',
-            key: 'title',
-          },
-          {
-            title: 'Start Date',
-            dataIndex: 'startDate',
-            key: 'startDate',
-            render: (date: string) => (date ? formatDate(date, 'date.long') : '-'),
-          },
-          {
-            title: 'End Date',
-            dataIndex: 'endDate',
-            key: 'endDate',
-            render: (date: string) => (date ? formatDate(date, 'date.long') : '-'),
-          },
-          {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            render: (status: string) => {
-              const statusConfig = getExpensePlanStatusDisplay(status);
-              return <Pill type={statusConfig.type} label={statusConfig.label} />;
-            },
-          },
-          {
-            title: 'Reimbursable Amount',
-            dataIndex: 'reimbursableAmount',
-            key: 'reimbursableAmount',
-            align: 'right',
-            render: (amount: number, record: ExpensePlan) => {
-              const currencyCode = record.currency?.code || '';
-              return `${formatNumberFunction(String(amount ?? '0'))} ${currencyCode}`;
-            },
-          },
-          {
-            title: 'Paid Advance',
-            dataIndex: 'advancePaymentPaidAmount',
-            key: 'advancePaymentPaidAmount',
-            align: 'right',
-            render: (amount: number, record: ExpensePlan) => {
-              const currencyCode = record.currency?.code || '';
-              return `${formatNumberFunction(String(amount ?? '0'))} ${currencyCode}`;
-            },
-          },
+          createColumn('code', 'Plan Number'),
+          createColumn('title', 'Title'),
+          createColumn('startDate', 'Start Date', (date: string) => (date ? formatDate(date, 'date.long') : '-')),
+          createColumn('endDate', 'End Date', (date: string) => (date ? formatDate(date, 'date.long') : '-')),
+          createColumn('status', 'Status', (status: string) => {
+            const statusConfig = getExpensePlanStatusDisplay(status);
+            return <Pill type={statusConfig.type} label={statusConfig.label} />;
+          }),
+          createColumn('reimbursableAmount', 'Reimbursable Amount', (amount: number, record: ExpensePlan) => {
+            const currencyCode = record.currency?.code || '';
+            return `${formatNumberFunction(String(amount ?? '0'))} ${currencyCode}`;
+          }),
+          createColumn('advancePaymentPaidAmount', 'Paid Advance', (amount: number, record: ExpensePlan) => {
+            const currencyCode = record.currency?.code || '';
+            return `${formatNumberFunction(String(amount ?? '0'))} ${currencyCode}`;
+          }),
         ] as any}
       />
     );
-  }, [plans, isLoading, error, currentPage, pageSize, totalCount, onTableChange, handleSelectItem]);
+  }, [plans, isLoading, error, currentPage, pageSize, totalCount, handleEnhancedTableChange, handleSelectItem, createColumn, contextProps.userInfo, handlePrintPlan, handleViewExpenseRequestDetails]);
 
   const renderExpensePlanDetails = useMemo(() => {
     if (!selectedItem) return null;
@@ -384,6 +424,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       </Modal>
     </div>
   );
-};
+});
 
 export default ExpensePlansTable;

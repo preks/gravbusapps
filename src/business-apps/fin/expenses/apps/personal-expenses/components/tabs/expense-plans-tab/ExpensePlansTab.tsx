@@ -150,7 +150,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     return baseFilters;
   }, [getFilters, activeWidget, statistics.topDestination]);
 
-  // Only fetch when filters, page, or pageSize change - not on every activeWidget change
+  // Only fetch when filters, page, or pageSize change
   useEffect(() => {
     fetchItems(
       memoizedFilters,
@@ -190,7 +190,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     }
   }, [props.onContentHeaderChange, contentHeader]);
 
-  const handleTableChange = useCallback((pagination: any) => {
+  const handleTableChange = useCallback((pagination: any, filters: any, sorter: any) => {
     setCurrentPage(pagination.current);
     setPageSize(pagination.pageSize);
   }, []);
