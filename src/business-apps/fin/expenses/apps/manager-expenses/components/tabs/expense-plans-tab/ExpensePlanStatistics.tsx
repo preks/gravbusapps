@@ -114,7 +114,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         skeletonCount={4}
         emptyText= {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.no_expense_plan_statistics_available', 'No expense plan statistics available.')}
         cardBackground="transparent"
-        className="gba:py-0"
+        background="transparent"
+        className="gba:py-0 gba:bg-transparent"
       />
   );
 

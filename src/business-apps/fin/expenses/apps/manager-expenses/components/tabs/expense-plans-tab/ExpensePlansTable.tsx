@@ -302,34 +302,33 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
 
   return (
     <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-      {/* Table */}
+      {/* Table with horizontal scrolling */}
       <div className="gba:overflow-x-auto">
         <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
           <TableHeader>
             <TableRow>
-              <TableHead className="gba:w-[60px]"></TableHead>
-              <TableHead className="gba:w-[200px]">
+              <TableHead className="gba:w-[8%]" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}></TableHead>
+              <TableHead className="gba:w-[25%]">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.plan_info_pl', 'Plans')}
               </TableHead>
-              <TableHead className="gba:w-[120px]">
+              <TableHead className="gba:w-[15%]">
                 Start Date
               </TableHead>
-              <TableHead className="gba:w-[120px]">
+              <TableHead className="gba:w-[15%]">
                 End Date
               </TableHead>
-              <TableHead className="gba:w-[200px]">
+              <TableHead className="gba:w-[20%]">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
               </TableHead>
-              <TableHead className="gba:w-[120px]">
+              <TableHead className="gba:w-[15%]">
                 Creation Date
               </TableHead>
-              <TableHead className="gba:w-[150px] gba:text-right">
+              <TableHead className="gba:w-[18%] gba:text-right">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount')}
               </TableHead>
-              <TableHead className="gba:w-[150px]">
+              <TableHead className="gba:w-[18%]">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}
               </TableHead>
-
             </TableRow>
           </TableHeader>
           <TableBody>

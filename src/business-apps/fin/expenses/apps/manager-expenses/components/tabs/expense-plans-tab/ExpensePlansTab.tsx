@@ -3,7 +3,7 @@ import { PiFileText } from 'react-icons/pi';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DataContainer } from '@/components/layout/dataContainer';
-import { ExpensePlan } from '../../../hooks/useMainViewExpensePlans';
+import { ExpensePlan, useMainViewExpensePlans } from '../../../hooks/useMainViewExpensePlans';
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters';
 import { ExpenseStatus } from '../../../utils';
 import ExpensePlanStatisticsDisplay from './ExpensePlanStatistics';
@@ -32,6 +32,17 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     handleDataFilterChange,
     filterLabelMap,
   } = useExpensePlanFilters();
+
+  // Use the statistics-only hook to get KPI data without interfering with table data
+  const {
+    planStats,
+    statsLoading,
+    statsError,
+    fetchPlanStatistics
+  } = useMainViewExpensePlans({
+    ...contextProps,
+    statisticsOnly: true // This prevents race conditions with the table data
+  });
 
   // State for selected plan details
   const [selectedPlan, setSelectedPlan] = useState<ExpensePlan | null>(null);
@@ -75,12 +86,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     setSearchTerm('');
   }, [setStatusFilter, setSearchTerm]);
 
-  // Temporary placeholder values for statistics (will be replaced with proper implementation)
-  const planStats = null;
-  const statsLoading = false;
-  const statsError = null;
-  const fetchPlanStatistics = () => {};
-
   return (
     <div className="gba:h-full gba:flex gba:flex-col">
       {/* Statistics Section */}
@@ -96,9 +101,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       </div>
       
       {/* Data Container with persistent sidebar */}
-      <div className="gba:flex-1 gba:overflow-hidden">
-        <DataContainer
-          dataControllerProps={{
+      <DataContainer
+        contentBackground="white"
+        dataControllerProps={{
             search: searchTerm,
             filter: statusFilter,
             setSearch: handleSearchChange,
@@ -157,7 +162,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
             footer: null
           } : undefined}
         />
-      </div>
     </div>
   );
 };
