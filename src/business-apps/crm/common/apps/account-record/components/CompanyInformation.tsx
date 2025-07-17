@@ -103,12 +103,7 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
                 </div>
               </div>
               
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Country</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {accountData?.country?.value || '-'}
-                </div>
-              </div>
+
               
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Industry</div>
@@ -120,20 +115,7 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
               <div>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Address</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {(() => {
-                    const address = accountData?.addresses?.[0] || account?.addresses?.[0];
-                    if (!address) return '-';
-                    
-                    const parts = [
-                      address.addressLine,
-                      address.city,
-                      address.postalCode,
-                      address.region?.value,
-                      address.country?.value
-                    ].filter(Boolean);
-                    
-                    return parts.length > 0 ? parts.join(', ') : '-';
-                  })()}
+                  {accountData?.addressLine || '-'}
                 </div>
               </div>
             </div>
@@ -166,13 +148,14 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Phone</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {(() => {
-                    const phone = accountData?.phone || accountData?.phoneNumber;
+                    const phone = accountData?.phone || account?.phone;
                     if (!phone) return '-';
                     
                     return (
                       <a 
                         href={`tel:${phone}`} 
                         style={{ color: '#3b82f6', textDecoration: 'none' }}
+                        data-testid="account-phone-link"
                       >
                         {phone}
                       </a>
@@ -190,7 +173,7 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
               
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Revenue</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }} data-testid="account-revenue-value">
                   {accountData?.annualRevenue?.value || account?.annualRevenue?.value || account?.revenue || '-'}
                 </div>
               </div>

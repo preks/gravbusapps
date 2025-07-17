@@ -11,31 +11,14 @@ export interface GetAccountByIdResponse {
     version: string;
     name: string;
     email: string;
-    phoneNumber: string;
+    phone: string;
     website: string;
-    accountType?: {
-      value: string;
-    };
-    accountStatus?: {
-      value: string;
-    };
     ownerEmployee?: {
       firstName: string;
       lastName: string;
     };
     createdAt: string;
-    contact?: Array<{
-      firstName: string;
-      lastName: string;
-      phone: string;
-      createdAt: string;
-      jobTitle: string;
-    }>;
     legalForm?: {
-      id: string;
-      value: string;
-    };
-    country?: {
       id: string;
       value: string;
     };
@@ -52,38 +35,24 @@ export interface GetAccountByIdResponse {
       id: string;
       value: string;
     };
-    description?: string;
   }>;
 }
 
 export const GET_ACCOUNT_BY_ID = `
   query GetAccountById($id: uuid!) {
     Account(where: { id: { _eq: $id }, isDeleted: { _eq: false } }) {
-      #Core Account Data
       id
       version
       name
       email
-      phoneNumber
+      phone
       website
-      accountType {
-        value
-      }
-      accountStatus {
-        value
-      }
       ownerEmployee {
         firstName
         lastName
       }
       createdAt
-
-      #Company Details
       legalForm {
-        id
-        value
-      }
-      country {
         id
         value
       }
@@ -100,7 +69,6 @@ export const GET_ACCOUNT_BY_ID = `
         id
         value
       }
-      description
     }
   }
 `;

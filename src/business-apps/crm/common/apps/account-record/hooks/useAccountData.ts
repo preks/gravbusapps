@@ -13,6 +13,8 @@ export interface ReferenceData {
 export interface Account {
   id: string;
   name: string;
+  email?: string;
+  phone?: string;
   version: string;
   status?: string;
   industry?: string;
@@ -71,6 +73,8 @@ export const useAccountData = (accountId: string, accessToken: string) => {
         const transformedAccount: Account = {
           id: rawAccountData.id,
           name: rawAccountData.name || 'Unknown Account',
+          email: rawAccountData.email || '',
+          phone: rawAccountData.phone || '',
           version: rawAccountData.version?.toString() || '1',
           status: 'Active', // Default status as Account API doesn't expose status field yet
           industry: rawAccountData.industry?.value || '',
@@ -80,7 +84,7 @@ export const useAccountData = (accountId: string, accessToken: string) => {
           size: rawAccountData.numberOfEmployees?.value || '',
           founded: rawAccountData.foundationDate || '',
           legalForm: rawAccountData.legalForm?.value || '',
-          revenue: '', // TODO: Map from actual API field
+          revenue: rawAccountData.annualRevenue?.value || '',
           accountOwner: {
             name: rawAccountData.ownerEmployee ? 
               `${rawAccountData.ownerEmployee.firstName || ''} ${rawAccountData.ownerEmployee.lastName || ''}`.trim() : 
@@ -88,6 +92,7 @@ export const useAccountData = (accountId: string, accessToken: string) => {
           },
           numberOfEmployees: rawAccountData.numberOfEmployees,
           addresses: rawAccountData.addresses,
+          annualRevenue: rawAccountData.annualRevenue,
           foundationDate: rawAccountData.foundationDate
         };
         
