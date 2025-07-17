@@ -4,6 +4,7 @@ import { SelectField } from '@newwork/gravity-ui-catalog';
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { CostCenter } from '../../utils/types';
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons';
+import { getDayName } from '../../utils/allowanceScreenUtils';
 
 /**
  * Props for the AllowanceContainer component
@@ -19,22 +20,6 @@ interface AllowanceContainerProps {
   projects: any[];
   onProjectChange: (index: number, value: string) => void;
 }
-
-/**
- * Helper function to get the day name from an ISO date string
- */
-const getDayName = (isoDate: string): string => {
-  const days = [
-    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.sunday', 'Sunday'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.monday', 'Monday'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.tuesday', 'Tuesday'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.wednesday', 'Wednesday'), 
-    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.thursday', 'Thursday'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.friday', 'Friday'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.saturday', 'Saturday')
-  ];
-  return days[new Date(isoDate).getDay()];
-};
 
 /**
  * AllowanceContainer component for collapsible allowance sections

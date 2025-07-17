@@ -1,6 +1,7 @@
 import { SCREEN_NAMES_ENUM } from "../constants/constants";
 import dayjs from "dayjs";
 import { noAllowanceItemsFunction } from "./itemsScreenUtils";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 interface ExpenseItem {
   id: any;
@@ -81,4 +82,20 @@ export const createAllowanceScreenLogObject = (
       expenseTrips: (expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip || [])
     }
   };
+};
+
+/**
+ * Helper function to get the day name from an ISO date string
+ */
+export const getDayName = (isoDate: string): string => {
+  const days = [
+    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.sunday', 'Sunday'),
+    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.monday', 'Monday'),
+    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.tuesday', 'Tuesday'),
+    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.wednesday', 'Wednesday'), 
+    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.thursday', 'Thursday'),
+    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.friday', 'Friday'),
+    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.saturday', 'Saturday')
+  ];
+  return days[new Date(isoDate).getDay()];
 };
