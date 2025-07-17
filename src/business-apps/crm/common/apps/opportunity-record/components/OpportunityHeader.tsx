@@ -114,15 +114,6 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
               Actions
             </AppActionButton>
           )}
-          
-          <Button 
-            type="default"
-            data-testid="edit-opportunity-button"
-            onClick={() => {
-            }}
-          >
-            Edit Opportunity
-          </Button>
         </div>
       </div>
     </div>

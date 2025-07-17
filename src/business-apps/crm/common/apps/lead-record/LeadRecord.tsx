@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Row, Col, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -19,6 +19,10 @@ interface LeadRecordContentProps extends BusinessAppContextProps {
 
 const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, ...props }) => {
   const { lead, leadData, loading, error, leadStatuses, loadingStatuses, refetchLeadData } = useLeadData(leadId, props.accessToken);
+
+  const getBackButtonText = () => {
+    return 'Back to Leads';
+  };
 
   // Listen for process completion events to refresh lead data (including status updates)
   useEffect(() => {
@@ -86,7 +90,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
             onClick={onBack}
             className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
           >
-            Back to Customer Relations
+            {getBackButtonText()}
           </button>
         </div>
       </div>
@@ -103,7 +107,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
           data-testid="back-button"
         >
           <ArrowLeftOutlined className="gba:mr-2" />
-          <span>Back to Customer Relations</span>
+          <span>{getBackButtonText()}</span>
         </button>
       </div>
 
@@ -157,18 +161,31 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
 
 interface LeadRecordProps extends BusinessAppContextProps {
   leadId?: string;
+  source?: string;
   onBack?: () => void;
 }
 
 const LeadRecord: React.FC<LeadRecordProps> = (props) => {
   const leadId = props.leadId || new URLSearchParams(window.location.search).get('leadId');
+
+  const source = useMemo(() => {
+    return props.source || new URLSearchParams(window.location.search).get('source');
+  }, [props.source]);
   
   const handleBack = () => {
     if (props.onBack) {
       props.onBack();
     } else {
-      // Navigate back to customer relations
-      navigateTo('/platform/crm/customer-relations?view=leads');
+      // Navigate back based on source
+      switch (source) {
+        case 'investments':
+          navigateTo('/platform/irm/investment-relations?view=leads');
+          break;
+        case 'customer-relations':
+        default:
+          navigateTo('/platform/crm/customer-relations?view=leads');
+          break;
+      }
     }
   };
 

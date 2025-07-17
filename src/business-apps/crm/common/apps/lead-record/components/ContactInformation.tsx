@@ -20,7 +20,11 @@ export const ContactInformation: React.FC<ContactInformationProps> = ({ leadData
         
         <div style={{ marginBottom: '16px' }}>
           <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Last Name</div>
-          <div style={{ fontSize: '16px', fontWeight: '500' }}>{leadData?.lastName || '-'}</div>
+          <div style={{ fontSize: '16px', fontWeight: '500' }}>
+            {leadData?.lastName && typeof leadData.lastName === 'string' && !leadData.lastName.includes('AcademicTitle') 
+              ? leadData.lastName 
+              : '-'}
+          </div>
         </div>
         
         <div style={{ marginBottom: '16px' }}>

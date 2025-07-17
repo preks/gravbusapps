@@ -28,7 +28,17 @@ interface TranslatedActivity extends SalesActivityData {
 }
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, context }) => {
-  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'documents'>('activities');
+  // Read initial tab from URL parameters
+  const getInitialTab = (): 'activities' | 'notes' | 'documents' => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam === 'activities' || tabParam === 'notes' || tabParam === 'documents') {
+      return tabParam;
+    }
+    return 'activities';
+  };
+
+  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'documents'>(getInitialTab);
   const [activities, setActivities] = useState<TranslatedActivity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
@@ -45,6 +55,16 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const fileClient = useFileClient(context);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
+
+  // Function to update tab and URL
+  const updateActiveTab = (newTab: 'activities' | 'notes' | 'documents') => {
+    setActiveTab(newTab);
+    
+    // Update URL parameter
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', newTab);
+    window.history.replaceState({}, '', url.toString());
+  };
 
   const loadActivities = async () => {
     if (!leadId) return;
@@ -156,6 +176,21 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     }
   }, [leadId, activeTab]);
 
+  // Listen for URL parameter changes (back/forward navigation)
+  useEffect(() => {
+    const handlePopState = () => {
+      const newTab = getInitialTab();
+      if (newTab !== activeTab) {
+        setActiveTab(newTab);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [activeTab]);
+
   // Add focus event listener to refresh data when user returns to the tab
   useEffect(() => {
     const handleFocus = () => {
@@ -262,11 +297,16 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
 
   const handleAddActivity = () => {
     if (leadId) {
+      // Store current tab to preserve state
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('tab', 'activities');
+      
       startProcess({
         domain: 'customer-relations',
         processName: 'saveSalesActivity',
         payload: {
           leadId,
+          returnUrl: currentUrl.toString()
         },
         builderType: 'NATIVE_SCREEN',
       });
@@ -275,12 +315,16 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
 
   const handleAddDocument = () => {
     if (leadId) {
-      // Open document upload form in a new window/modal
+      // Store current tab to preserve state
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('tab', 'documents');
+      
       startProcess({
         domain: 'customer-relations',
         processName: 'saveCrmDocument',
         payload: {
           leadId,
+          returnUrl: currentUrl.toString()
         },
         builderType: 'NATIVE_SCREEN',
       });
@@ -399,7 +443,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             textAlign: 'center',
             cursor: 'pointer'
           }}
-          onClick={() => setActiveTab('activities')}
+          onClick={() => updateActiveTab('activities')}
         >
           Activities
         </div>
@@ -415,7 +459,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             textAlign: 'center',
             cursor: 'pointer'
           }}
-          onClick={() => setActiveTab('notes')}
+          onClick={() => updateActiveTab('notes')}
         >
           Notes
         </div>
@@ -431,7 +475,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             textAlign: 'center',
             cursor: 'pointer'
           }}
-          onClick={() => setActiveTab('documents')}
+          onClick={() => updateActiveTab('documents')}
         >
           Documents
         </div>

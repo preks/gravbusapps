@@ -77,14 +77,11 @@ export const AccountTable: React.FC<AccountTableProps> = ({
     // Determine source based on sourceApp
     const source = (sourceApp === 'investment-relations' || sourceApp === 'IRM') ? 'investments' : 'customer-relations';
     
-    console.log('AccountTable: sourceApp =', sourceApp, ', determined source =', source);
-    
     // Navigate to account record page
     const url = buildPlatformUrl('/platform/crm/account-record', { 
       accountId: record.id, 
       source: source 
     });
-    console.log('AccountTable: navigating to URL =', url);
     navigateTo(url);
     
     // Also call the selection callback if provided

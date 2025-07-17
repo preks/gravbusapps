@@ -24,9 +24,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
 
   // Get source from URL parameters to determine back navigation text
   const source = useMemo(() => {
-    const urlSource = new URLSearchParams(window.location.search).get('source');
-    console.log('AccountRecord: detected source from URL =', urlSource);
-    return urlSource;
+    return new URLSearchParams(window.location.search).get('source');
   }, []);
 
   const getBackButtonText = () => {
@@ -181,12 +179,10 @@ const AccountRecord: React.FC<AccountRecordProps> = (props) => {
       // Navigate back based on source
       switch (source) {
         case 'investments':
-          console.log('AccountRecord: navigating back to investments URL');
           navigateTo('/platform/irm/investment-relations?view=accounts');
           break;
         case 'customer-relations':
         default:
-          console.log('AccountRecord: navigating back to customer-relations URL');
           navigateTo('/platform/crm/customer-relations?view=accounts');
           break;
       }

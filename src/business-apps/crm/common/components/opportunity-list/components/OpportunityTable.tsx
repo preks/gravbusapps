@@ -25,6 +25,7 @@ export interface OpportunityTableProps {
   onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void;
   selectedOpportunityId?: string;
   accessToken: string;
+  sourceApp?: string;
 }
 
 const DATA_TEST_ID_PREFIX = 'OpportunityTable';
@@ -46,7 +47,8 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
   onPaginationChange,
   onSortingChange,
   selectedOpportunityId,
-  accessToken
+  accessToken,
+  sourceApp
 }) => {
   const formatCurrency = (amount: number | undefined, currency?: string): string => {
     if (!amount) return '$0';
@@ -91,13 +93,19 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
 
   // Handle row click
   const handleRowClick = useCallback((record: Opportunity) => {
+    // Determine source based on sourceApp
+    const source = (sourceApp === 'investment-relations' || sourceApp === 'IRM') ? 'investments' : 'customer-relations';
+    
     // Navigate to opportunity record page
-    const url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: record.id });
+    const url = buildPlatformUrl('/platform/crm/opportunity-record', { 
+      opportunityId: record.id, 
+      source: source 
+    });
     navigateTo(url);
     
     // Also call the selection callback if provided
     onSelectOpportunity?.(record);
-  }, [onSelectOpportunity]);
+  }, [onSelectOpportunity, sourceApp]);
 
   // Helper function to handle column sorting
   const handleSort = (field: string) => {
