@@ -10,7 +10,6 @@ import { getTravelRegionsAndUser, getUserCostCenters, getUserProjects } from '..
 import { getAllowanceItemsFunction } from '../utils/itemsScreenUtils';
 import { createAllowanceScreenLogObject } from '../utils/allowanceScreenUtils';
 import { EVENTS } from '../../../utils/constants';
-import './AllowanceScreen.css';
 
 const { Title } = Typography;
 
