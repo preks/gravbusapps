@@ -422,8 +422,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
         </Table>
       </div>
 
-      {/* Pagination */}
-      {totalCount > pageSize && (
+      {/* Pagination - Always show when there are records */}
+      {totalCount > 0 && (
         <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
           <div className="gba:text-sm gba:text-gray-600" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
             {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} expense plans`}
