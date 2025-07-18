@@ -2,48 +2,69 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { 
-  Form, 
-  Input, 
-  Select, 
-  DatePicker, 
   Button, 
-  Space, 
-  Alert, 
-  Typography, 
   Card,
-  Row,
-  Col,
-  Spin,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Label,
   Table,
-  InputNumber,
-  Popconfirm
-} from 'antd';
-import { ColumnsType } from 'antd/es/table';
-import { PiFloppyDisk, PiX, PiWarning, PiPlus, PiTrash } from 'react-icons/pi';
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Alert,
+  AlertDescription,
+  Spinner,
+  Checkbox
+} from '@newwork/nw-design-system';
+import { PiFloppyDisk, PiX, PiWarning, PiPlus, PiTrash, PiCheck } from 'react-icons/pi';
 import dayjs from 'dayjs';
 
-const { Title } = Typography;
-const { TextArea } = Input;
-const { Option } = Select;
+// Available travel regions (common categories)
+const TRAVEL_REGIONS = [
+  { id: 'western-europe', name: 'Western Europe' },
+  { id: 'eastern-europe', name: 'Eastern Europe' },
+  { id: 'north-america', name: 'North America' },
+  { id: 'south-america', name: 'South America' },
+  { id: 'asia-pacific', name: 'Asia Pacific' },
+  { id: 'middle-east', name: 'Middle East' },
+  { id: 'africa', name: 'Africa' },
+  { id: 'oceania', name: 'Oceania' },
+  { id: 'domestic', name: 'Domestic' },
+  { id: 'international', name: 'International' }
+];
 
-export interface TravelRegionRuleDetailFormData {
+export interface AllowanceRegionDetailFormData {
   id?: string;
-  amount: number;
-  countryRef?: string;
-  currencyRef?: string;
-  activeFrom?: string;
+  countryRef: string;
+  travelRegion: string;
+  travelRegionRef?: string;
+  currencyRef: string;
+  home: boolean;
+  activeFrom: string;
   activeTo?: string;
+  amounts: number[]; // Array of amounts for multiple columns
 }
 
 export interface TravelRegionRuleFormData {
   id?: string;
   code: string;
   name: string;
-  ruleOrder: number;
   activeFrom?: string;
   activeTo?: string;
-  businessKey?: string;
-  details: TravelRegionRuleDetailFormData[];
+  details: AllowanceRegionDetailFormData[];
 }
 
 interface TravelRegionRuleFormProps extends BusinessAppContextProps {
@@ -60,6 +81,20 @@ interface CatalogOption {
   code?: string;
 }
 
+interface SmartColumnGroup {
+  key: string;
+  countryRef: string;
+  countryName: string;
+  travelRegion: string;
+  currencyRef: string;
+  currencyCode: string;
+  homeFlag: boolean;
+  validFrom: string;
+  validTo?: string;
+  amounts: number[];
+  detailIds: string[];
+}
+
 const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   initialData,
   isEditing = false,
@@ -69,14 +104,21 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   accessToken,
   ...context
 }) => {
-  const [form] = Form.useForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [details, setDetails] = useState<TravelRegionRuleDetailFormData[]>([]);
+  const [showValidation, setShowValidation] = useState(false);
+  const [formData, setFormData] = useState<TravelRegionRuleFormData>({
+    code: '',
+    name: '',
+    activeFrom: dayjs().format('YYYY-MM-DD'),
+    activeTo: '',
+    details: []
+  });
   
   // Catalog data
   const [countries, setCountries] = useState<CatalogOption[]>([]);
   const [currencies, setCurrencies] = useState<CatalogOption[]>([]);
+  const [travelRegions, setTravelRegions] = useState<CatalogOption[]>([]);
   const [catalogsLoading, setCatalogsLoading] = useState(true);
 
   const catalogClient = useCatalogManagerClient(accessToken);
@@ -85,13 +127,17 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   const loadCatalogData = useCallback(async () => {
     setCatalogsLoading(true);
     try {
-      const [countriesRes, currenciesRes] = await Promise.all([
+      const [countriesRes, currenciesRes, travelRegionsRes] = await Promise.all([
         catalogClient.getCatalogEntriesList(
           { catalogIdentifier: 'Country', version: 'v1' },
           { limit: 200, offset: 0, returnTotalRecords: true }
         ),
         catalogClient.getCatalogEntriesList(
           { catalogIdentifier: 'Currency', version: 'v1' },
+          { limit: 100, offset: 0, returnTotalRecords: true }
+        ),
+        catalogClient.getCatalogEntriesList(
+          { catalogIdentifier: 'TravelRegion', version: 'v1' },
           { limit: 100, offset: 0, returnTotalRecords: true }
         )
       ]);
@@ -107,9 +153,31 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         value: item.value,
         code: item.code
       })));
+
+      // Set travel regions from catalog
+      if (travelRegionsRes.data && travelRegionsRes.data.length > 0) {
+        setTravelRegions(travelRegionsRes.data.map((item: any) => ({
+          id: item.id,
+          value: item.value,
+          code: item.code
+        })));
+      } else {
+        // Use hardcoded travel regions as fallback
+        setTravelRegions(TRAVEL_REGIONS.map(region => ({
+          id: region.id,
+          value: region.name,
+          code: region.id
+        })));
+      }
     } catch (err) {
       console.error('Error loading catalog data:', err);
       setError('Failed to load catalog data');
+      // Use hardcoded travel regions as fallback
+      setTravelRegions(TRAVEL_REGIONS.map(region => ({
+        id: region.id,
+        value: region.name,
+        code: region.id
+      })));
     } finally {
       setCatalogsLoading(false);
     }
@@ -124,377 +192,558 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   // Initialize form with data
   useEffect(() => {
     if (initialData) {
-      form.setFieldsValue({
-        ...initialData,
-        activeFrom: initialData.activeFrom ? dayjs(initialData.activeFrom) : null,
-        activeTo: initialData.activeTo ? dayjs(initialData.activeTo) : null,
-      });
-      setDetails(initialData.details || []);
-    } else {
-      // Set default values for new rule
-      form.setFieldsValue({
-        ruleOrder: 1,
-        activeFrom: dayjs(),
-      });
-      setDetails([]);
-    }
-  }, [initialData, form]);
+      // Transform the initial data to ensure amounts are in the correct format
+      const transformedDetails = initialData.details?.map(detail => {
+        const anyDetail = detail as any; // Type assertion for backward compatibility
+        return {
+          ...detail,
+          // Ensure amounts is always an array
+          amounts: Array.isArray(detail.amounts) 
+            ? detail.amounts 
+            : detail.amounts 
+              ? [detail.amounts] 
+              : [0],
+          // Map field names from API to form
+          home: detail.home !== undefined ? detail.home : anyDetail.homeFlag || false,
+          activeFrom: detail.activeFrom || anyDetail.validFrom || dayjs().format('YYYY-MM-DD'),
+          activeTo: detail.activeTo || anyDetail.validTo,
+          // Set travelRegion ID for select (use travelRegionRef for ID, fallback to travelRegion if it's an ID)
+          travelRegion: detail.travelRegionRef || (detail.travelRegion && detail.travelRegion.startsWith('TravelRegion:') ? detail.travelRegion : '') || ''
+        };
+      }) || [];
 
-  const handleSubmit = async (values: any) => {
+      setFormData({
+        ...initialData,
+        activeFrom: initialData.activeFrom ? dayjs(initialData.activeFrom).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+        activeTo: initialData.activeTo ? dayjs(initialData.activeTo).format('YYYY-MM-DD') : '',
+        details: transformedDetails
+      });
+    }
+  }, [initialData]);
+
+  // Group details into smart columns
+  const groupedDetails = useCallback((): SmartColumnGroup[] => {
+    const groups: { [key: string]: SmartColumnGroup } = {};
+    
+    formData.details.forEach((detail, index) => {
+      const groupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`;
+      
+      if (!groups[groupKey]) {
+        const country = countries.find(c => c.id === detail.countryRef);
+        const currency = currencies.find(c => c.id === detail.currencyRef);
+        const region = travelRegions.find(r => r.id === detail.travelRegion);
+        
+        groups[groupKey] = {
+          key: groupKey,
+          countryRef: detail.countryRef,
+          countryName: country?.value || 'Unknown',
+          travelRegion: detail.travelRegion,
+          currencyRef: detail.currencyRef,
+          currencyCode: currency?.code || 'USD',
+          homeFlag: detail.home,
+          validFrom: detail.activeFrom,
+          validTo: detail.activeTo,
+          amounts: [],
+          detailIds: []
+        };
+      }
+      
+      // Add amounts to the group - handle both array and single amount
+      if (detail.amounts && Array.isArray(detail.amounts) && detail.amounts.length > 0) {
+        // If detail has multiple amounts, add them all
+        detail.amounts.forEach((amount, amountIndex) => {
+          if (groups[groupKey].amounts[amountIndex] === undefined) {
+            groups[groupKey].amounts[amountIndex] = amount;
+          }
+        });
+      } else if (detail.amounts && !Array.isArray(detail.amounts)) {
+        // If it's a single amount, convert to array
+        if (groups[groupKey].amounts.length === 0) {
+          groups[groupKey].amounts.push(detail.amounts);
+        }
+      } else {
+        // If no amounts or empty array, add a default 0
+        if (groups[groupKey].amounts.length === 0) {
+          groups[groupKey].amounts.push(0);
+        }
+      }
+      
+      groups[groupKey].detailIds.push(detail.id || `temp-${index}`);
+    });
+    
+    // Ensure each group has at least one amount
+    Object.values(groups).forEach(group => {
+      if (group.amounts.length === 0) {
+        group.amounts.push(0);
+      }
+    });
+    
+    const result = Object.values(groups);
+    return result;
+  }, [formData.details, countries, currencies, travelRegions]);
+
+  // Add new column group
+  const addColumnGroup = () => {
+    const newDetail: AllowanceRegionDetailFormData = {
+      countryRef: '',
+      travelRegion: '',
+      currencyRef: '',
+      home: false,
+      activeFrom: dayjs().format('YYYY-MM-DD'),
+      activeTo: '',
+      amounts: [0]
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      details: [...prev.details, newDetail]
+    }));
+  };
+
+  // Add amount column to a group
+  const addAmountColumn = (groupKey: string) => {
+    setFormData(prev => ({
+      ...prev,
+      details: prev.details.map(detail => {
+        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`;
+        if (detailGroupKey === groupKey) {
+          return {
+            ...detail,
+            amounts: [...(detail.amounts || []), 0]
+          };
+        }
+        return detail;
+      })
+    }));
+  };
+
+  // Update group details
+  const updateGroupDetail = (groupKey: string, field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      details: prev.details.map(detail => {
+        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`;
+        if (detailGroupKey === groupKey) {
+          return { ...detail, [field]: value };
+        }
+        return detail;
+      })
+    }));
+  };
+
+  // Update amount in group
+  const updateAmount = (groupKey: string, amountIndex: number, value: number) => {
+    setFormData(prev => ({
+      ...prev,
+      details: prev.details.map(detail => {
+        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`;
+        if (detailGroupKey === groupKey) {
+          const newAmounts = [...(detail.amounts || [])];
+          newAmounts[amountIndex] = value;
+          return { ...detail, amounts: newAmounts };
+        }
+        return detail;
+      })
+    }));
+  };
+
+  // Remove group
+  const removeGroup = (groupKey: string) => {
+    setFormData(prev => ({
+      ...prev,
+      details: prev.details.filter(detail => {
+        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`;
+        return detailGroupKey !== groupKey;
+      })
+    }));
+  };
+
+  // Remove amount from a group
+  const removeAmount = (groupKey: string, amountIndex: number) => {
+    setFormData(prev => ({
+      ...prev,
+      details: prev.details.map(detail => {
+        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`;
+        if (detailGroupKey === groupKey) {
+          const newAmounts = [...(detail.amounts || [])];
+          newAmounts.splice(amountIndex, 1);
+          return { ...detail, amounts: newAmounts };
+        }
+        return detail;
+      })
+    }));
+  };
+
+  // Validation
+  const validateForm = (): string[] => {
+    const errors: string[] = [];
+    
+    if (!formData.code.trim()) {
+      errors.push('Rule code is required');
+    }
+    
+    if (!formData.name.trim()) {
+      errors.push('Rule name is required');
+    }
+    
+    if (formData.details.length === 0) {
+      errors.push('At least one allowance detail is required');
+    }
+    
+    formData.details.forEach((detail, index) => {
+      if (!detail.countryRef) {
+        errors.push(`Detail ${index + 1}: Country is required`);
+      }
+      if (!detail.travelRegion) {
+        errors.push(`Detail ${index + 1}: Travel region is required`);
+      }
+      if (!detail.currencyRef) {
+        errors.push(`Detail ${index + 1}: Currency is required`);
+      }
+      if (!detail.activeFrom) {
+        errors.push(`Detail ${index + 1}: Valid from date is required`);
+      }
+      if (!detail.amounts || detail.amounts.length === 0 || detail.amounts.every(a => a <= 0)) {
+        errors.push(`Detail ${index + 1}: At least one amount greater than 0 is required`);
+      }
+    });
+    
+    return errors;
+  };
+
+  // Handle save
+  const handleSave = async () => {
+    const errors = validateForm();
+    
+    if (errors.length > 0) {
+      setShowValidation(true);
+      setError(errors.join(', '));
+      return;
+    }
+    
     setIsSubmitting(true);
     setError(null);
-
+    
     try {
-      if (details.length === 0) {
-        setError('At least one allowance detail is required');
-        return;
-      }
-
-      const formData: TravelRegionRuleFormData = {
-        ...values,
-        activeFrom: values.activeFrom?.toISOString(),
-        activeTo: values.activeTo?.toISOString(),
-        details: details,
-        id: initialData?.id
+      // Transform grouped data back to individual details for API
+      const expandedDetails: AllowanceRegionDetailFormData[] = [];
+      
+      groupedDetails().forEach(group => {
+        // Create one detail record per group with all amounts
+        if (group.amounts.length > 0 && group.amounts.some(amount => amount > 0)) {
+          expandedDetails.push({
+            id: group.detailIds[0] || undefined, // Use the first detail ID if available
+            countryRef: group.countryRef,
+            travelRegion: group.travelRegion, // This should be the display value
+            travelRegionRef: group.travelRegion, // This should be the ID for API
+            currencyRef: group.currencyRef,
+            home: group.homeFlag,
+            activeFrom: group.validFrom,
+            activeTo: group.validTo,
+            amounts: group.amounts.filter(amount => amount > 0) // Only include non-zero amounts
+          });
+        }
+      });
+      
+      const submitData: TravelRegionRuleFormData = {
+        ...formData,
+        details: expandedDetails
       };
-
-      await onSave(formData);
+      
+      await onSave(submitData);
+      // Note: Removed message.success as it's not available in nw-design-system
+      // You might want to use a toast notification or handle success in parent component
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save travel region rule');
+      console.error('Error saving allowance region rule:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save allowance region rule');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleCancel = () => {
-    form.resetFields();
-    setDetails([]);
-    onCancel();
-  };
-
-  // Detail management functions
-  const addDetail = () => {
-    const newDetail: TravelRegionRuleDetailFormData = {
-      amount: 0,
-      activeFrom: dayjs().toISOString(),
-    };
-    setDetails([...details, newDetail]);
-  };
-
-  const updateDetail = (index: number, field: keyof TravelRegionRuleDetailFormData, value: any) => {
-    const updatedDetails = [...details];
-    updatedDetails[index] = { ...updatedDetails[index], [field]: value };
-    setDetails(updatedDetails);
-  };
-
-  const removeDetail = (index: number) => {
-    const updatedDetails = details.filter((_, i) => i !== index);
-    setDetails(updatedDetails);
-  };
-
-  // Table columns for details
-  const detailColumns: ColumnsType<TravelRegionRuleDetailFormData> = [
-    {
-      title: 'Amount',
-      dataIndex: 'amount',
-      key: 'amount',
-      width: 120,
-      render: (value: number, record: TravelRegionRuleDetailFormData, index: number) => (
-        <InputNumber
-          min={0}
-          step={0.01}
-          value={value}
-          onChange={(val) => updateDetail(index, 'amount', val || 0)}
-          size="small"
-          placeholder="0.00"
-          data-testid={`travel-region-detail-amount-${index}`}
-        />
-      ),
-    },
-    {
-      title: 'Country',
-      dataIndex: 'countryRef',
-      key: 'countryRef',
-      width: 200,
-      render: (value: string, record: TravelRegionRuleDetailFormData, index: number) => (
-        <Select
-          value={value}
-          onChange={(val) => updateDetail(index, 'countryRef', val)}
-          placeholder="Select country"
-          showSearch
-          allowClear
-          optionFilterProp="children"
-          size="small"
-          style={{ width: '100%' }}
-          data-testid={`travel-region-detail-country-${index}`}
-        >
-          {countries.map(country => (
-            <Option key={country.id} value={country.id}>
-              {country.value} {country.code && `(${country.code})`}
-            </Option>
-          ))}
-        </Select>
-      ),
-    },
-    {
-      title: 'Currency',
-      dataIndex: 'currencyRef',
-      key: 'currencyRef',
-      width: 150,
-      render: (value: string, record: TravelRegionRuleDetailFormData, index: number) => (
-        <Select
-          value={value}
-          onChange={(val) => updateDetail(index, 'currencyRef', val)}
-          placeholder="Select currency"
-          showSearch
-          allowClear
-          optionFilterProp="children"
-          size="small"
-          style={{ width: '100%' }}
-          data-testid={`travel-region-detail-currency-${index}`}
-        >
-          {currencies.map(currency => (
-            <Option key={currency.id} value={currency.id}>
-              {currency.value} {currency.code && `(${currency.code})`}
-            </Option>
-          ))}
-        </Select>
-      ),
-    },
-    {
-      title: 'Active From',
-      dataIndex: 'activeFrom',
-      key: 'activeFrom',
-      width: 150,
-      render: (value: string, record: TravelRegionRuleDetailFormData, index: number) => (
-        <DatePicker
-          value={value ? dayjs(value) : null}
-          onChange={(date) => updateDetail(index, 'activeFrom', date?.toISOString())}
-          size="small"
-          format="YYYY-MM-DD"
-          data-testid={`travel-region-detail-active-from-${index}`}
-        />
-      ),
-    },
-    {
-      title: 'Active To',
-      dataIndex: 'activeTo',
-      key: 'activeTo',
-      width: 150,
-      render: (value: string, record: TravelRegionRuleDetailFormData, index: number) => (
-        <DatePicker
-          value={value ? dayjs(value) : null}
-          onChange={(date) => updateDetail(index, 'activeTo', date?.toISOString())}
-          size="small"
-          format="YYYY-MM-DD"
-          allowClear
-          data-testid={`travel-region-detail-active-to-${index}`}
-        />
-      ),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 80,
-      render: (_, record: TravelRegionRuleDetailFormData, index: number) => (
-        <Popconfirm
-          title="Delete Detail"
-          description="Are you sure you want to delete this allowance detail?"
-          onConfirm={() => removeDetail(index)}
-          okText="Yes"
-          cancelText="No"
-        >
-          <Button
-            type="text"
-            danger
-            icon={<PiTrash />}
-            size="small"
-            data-testid={`travel-region-detail-delete-${index}`}
-          />
-        </Popconfirm>
-      ),
-    },
-  ];
-
   if (catalogsLoading) {
     return (
-      <div 
-        data-testid="travel-region-rule-form-loading"
-        className="gba:flex gba:justify-center gba:items-center gba:min-h-96"
-      >
-        <Spin size="large" />
+      <div className="gba:flex gba:justify-center gba:py-8">
+        <Spinner size="lg" />
       </div>
     );
   }
 
+  const groups = groupedDetails();
+  const maxAmounts = Math.max(...groups.map(g => g.amounts.length), 1);
+
   return (
-    <div data-testid="travel-region-rule-form-container">
-      <Card
-        title={
-          <Title level={4} style={{ margin: 0 }}>
-            {isEditing ? 'Edit Travel Region Rule' : 'Create New Travel Region Rule'}
-          </Title>
-        }
-        data-testid="travel-region-rule-form-card"
-      >
-        {error && (
-          <Alert
-            message="Error"
-            description={error}
-            type="error"
-            showIcon
-            icon={<PiWarning />}
-            style={{ marginBottom: 16 }}
-            data-testid="travel-region-rule-form-error"
-          />
-        )}
+    <div className="gba:p-6 gba:space-y-6">
+      <h3 className="gba:text-2xl gba:font-semibold">
+        {isEditing ? 'Edit Allowance Region Rule' : 'Create Allowance Region Rule'}
+      </h3>
 
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          data-testid="travel-region-rule-form"
-        >
-          <Row gutter={16}>
-            <Col xs={24} md={8}>
-              <Form.Item
-                name="code"
-                label="Rule Code"
-                rules={[
-                  { required: true, message: 'Rule code is required' },
-                  { max: 50, message: 'Rule code cannot exceed 50 characters' }
-                ]}
-              >
-                <Input 
-                  placeholder="Enter rule code (e.g., TR_001)"
-                  data-testid="travel-region-rule-form-code-input"
-                />
-              </Form.Item>
-            </Col>
+      {error && showValidation && (
+        <Alert variant="destructive">
+          <PiWarning className="gba:h-4 gba:w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-            <Col xs={24} md={8}>
-              <Form.Item
-                name="name"
-                label="Rule Name"
-                rules={[
-                  { required: true, message: 'Rule name is required' },
-                  { max: 100, message: 'Rule name cannot exceed 100 characters' }
-                ]}
-              >
-                <Input 
-                  placeholder="Enter rule name"
-                  data-testid="travel-region-rule-form-name-input"
-                />
-              </Form.Item>
-            </Col>
-
-            <Col xs={24} md={8}>
-              <Form.Item
-                name="ruleOrder"
-                label="Rule Order"
-                rules={[
-                  { required: true, message: 'Rule order is required' }
-                ]}
-              >
-                <InputNumber 
-                  min={1}
-                  placeholder="Enter order"
-                  style={{ width: '100%' }}
-                  data-testid="travel-region-rule-form-rule-order-input"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="activeFrom"
-                label="Active From"
-              >
-                <DatePicker 
-                  style={{ width: '100%' }}
-                  placeholder="Select start date (optional)"
-                  data-testid="travel-region-rule-form-active-from-picker"
-                />
-              </Form.Item>
-            </Col>
-
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="activeTo"
-                label="Active To"
-              >
-                <DatePicker 
-                  style={{ width: '100%' }}
-                  placeholder="Select end date (optional)"
-                  data-testid="travel-region-rule-form-active-to-picker"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            name="businessKey"
-            label="Business Key"
-          >
-            <Input 
-              placeholder="Enter business key (optional)"
-              data-testid="travel-region-rule-form-business-key-input"
-            />
-          </Form.Item>
-
-          {/* Allowance Details Section */}
-          <Card
-            title="Allowance Region Details"
-            size="small"
-            style={{ marginTop: 16 }}
-            extra={
-              <Button
-                type="primary"
-                icon={<PiPlus />}
-                size="small"
-                onClick={addDetail}
-                data-testid="travel-region-rule-form-add-detail-button"
-              >
-                Add Detail
-              </Button>
-            }
-          >
-            <Table
-              columns={detailColumns}
-              dataSource={details}
-              rowKey={(record, index) => `detail-${index}`}
-              pagination={false}
-              size="small"
-              locale={{ emptyText: 'No allowance details added yet' }}
-              scroll={{ x: 800 }}
-              data-testid="travel-region-rule-form-details-table"
-            />
-          </Card>
-
-          <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
-            <Space>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={isSubmitting}
-                icon={<PiFloppyDisk />}
-                data-testid="travel-region-rule-form-save-button"
-              >
-                {isEditing ? 'Update Rule' : 'Create Rule'}
-              </Button>
-              <Button
-                onClick={handleCancel}
-                icon={<PiX />}
-                data-testid="travel-region-rule-form-cancel-button"
-              >
-                Cancel
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
+      {/* Basic Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Basic Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+            <div className="gba:space-y-2">
+              <Label htmlFor="rule-code">Rule Code *</Label>
+              <Input
+                id="rule-code"
+                value={formData.code}
+                onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
+                placeholder="Enter rule code"
+              />
+            </div>
+            <div className="gba:space-y-2">
+              <Label htmlFor="rule-name">Rule Name *</Label>
+              <Input
+                id="rule-name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter rule name"
+              />
+            </div>
+            <div className="gba:space-y-2">
+              <Label htmlFor="active-from">Active From</Label>
+              <Input
+                id="active-from"
+                type="date"
+                value={formData.activeFrom || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, activeFrom: e.target.value }))}
+              />
+            </div>
+            <div className="gba:space-y-2">
+              <Label htmlFor="active-to">Active To</Label>
+              <Input
+                id="active-to"
+                type="date"
+                value={formData.activeTo || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, activeTo: e.target.value }))}
+              />
+            </div>
+          </div>
+        </CardContent>
       </Card>
+
+      {/* Allowance Region Details */}
+      <Card>
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <CardTitle>Allowance Region Details</CardTitle>
+            <Button onClick={addColumnGroup} className="gba:flex gba:items-center gba:gap-2">
+              <PiPlus className="gba:h-4 gba:w-4" />
+              Add Group
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {groups.length > 0 ? (
+            <div className="gba:space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="gba:w-40">Country</TableHead>
+                    <TableHead className="gba:w-40">Travel Region</TableHead>
+                    <TableHead className="gba:w-32">Currency</TableHead>
+                    <TableHead className="gba:w-20">Home</TableHead>
+                    <TableHead className="gba:w-36">Valid From</TableHead>
+                    <TableHead className="gba:w-36">Valid To</TableHead>
+                    <TableHead className="gba:w-32">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {groups.map((group, groupIndex) => (
+                    <React.Fragment key={group.key}>
+                      {/* Group Label Row */}
+                      <TableRow>
+                        <TableCell colSpan={7} className="gba:bg-blue-50 gba:py-2 gba:px-4 gba:border-b-0">
+                          <Label className="gba:font-semibold gba:text-base gba:text-blue-800">
+                            Group {groupIndex + 1}
+                          </Label>
+                        </TableCell>
+                      </TableRow>
+
+                      {/* Main Group Row */}
+                      <TableRow>
+                        <TableCell>
+                          <Select value={group.countryRef} onValueChange={(value) => updateGroupDetail(group.key, 'countryRef', value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select country" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {countries.map(country => (
+                                <SelectItem key={country.id} value={country.id}>
+                                  {country.value}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Select value={group.travelRegion} onValueChange={(value) => updateGroupDetail(group.key, 'travelRegion', value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select region" />
+                            </SelectTrigger>
+                                                      <SelectContent>
+                            {travelRegions.map(region => (
+                              <SelectItem key={region.id} value={region.id}>
+                                {region.value}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Select value={group.currencyRef} onValueChange={(value) => updateGroupDetail(group.key, 'currencyRef', value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {currencies.map(currency => (
+                                <SelectItem key={currency.id} value={currency.id}>
+                                  {currency.code} - {currency.value}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Checkbox
+                            checked={group.homeFlag}
+                            onCheckedChange={(checked) => updateGroupDetail(group.key, 'home', checked)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="date"
+                            value={group.validFrom}
+                            onChange={(e) => updateGroupDetail(group.key, 'activeFrom', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="date"
+                            value={group.validTo || ''}
+                            onChange={(e) => updateGroupDetail(group.key, 'activeTo', e.target.value || undefined)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="gba:flex gba:gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => addAmountColumn(group.key)}
+                              title="Add Amount"
+                            >
+                              <PiPlus className="gba:h-4 gba:w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeGroup(group.key)}
+                              title="Remove Group"
+                              className="gba:text-red-600 hover:gba:text-red-700"
+                            >
+                              <PiTrash className="gba:h-4 gba:w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+
+                      {/* Amounts Row - spans all columns */}
+                      <TableRow>
+                        <TableCell colSpan={7} className="gba:bg-gray-50 gba:p-4">
+                          <div className="gba:flex gba:flex-wrap gba:gap-3 gba:items-end">
+                            {group.amounts.map((amount, amountIndex) => (
+                              <div key={`${group.key}-amount-${amountIndex}`} className="gba:flex gba:items-center gba:gap-2">
+                                <div className="gba:space-y-1">
+                                  <Label className="gba:text-xs gba:text-gray-600">
+                                    Amount {amountIndex + 1}
+                                  </Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={amount?.toFixed(2) || '0.00'}
+                                    onChange={(e) => updateAmount(group.key, amountIndex, parseFloat(e.target.value) || 0)}
+                                    placeholder="0.00"
+                                    className="gba:text-sm gba:w-24"
+                                  />
+                                </div>
+                                {group.amounts.length > 1 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeAmount(group.key, amountIndex)}
+                                    className="gba:text-red-600 hover:gba:text-red-700 gba:p-1 gba:h-6 gba:w-6 gba:mt-4"
+                                    title="Remove this amount"
+                                  >
+                                    <PiTrash className="gba:h-3 gba:w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                            
+                            {/* Add Amount button positioned inline with amounts */}
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <div className="gba:space-y-1">
+                                <Label className="gba:text-xs gba:text-transparent">
+                                  Add
+                                </Label>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => addAmountColumn(group.key)}
+                                  className="gba:flex gba:items-center gba:gap-2 gba:h-10"
+                                  title="Add new amount"
+                                >
+                                  <PiPlus className="gba:h-4 gba:w-4" />
+                                  Add Amount
+                                </Button>
+                              </div>
+                            </div>
+                            
+                            {group.amounts.length === 0 && (
+                              <div className="gba:text-center gba:py-3 gba:text-gray-500 gba:text-sm gba:italic gba:w-full">
+                                No amounts added yet. Click "Add Amount" to start.
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </React.Fragment>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="gba:text-center gba:py-8 gba:text-gray-500">
+              No allowance details added yet. Click "Add Group" to start.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Form Actions */}
+      <div className="gba:flex gba:justify-end gba:gap-4">
+        <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button onClick={handleSave} disabled={isSubmitting} className="gba:flex gba:items-center gba:gap-2">
+          {isSubmitting ? (
+            <Spinner size="sm" />
+          ) : (
+            <PiFloppyDisk className="gba:h-4 gba:w-4" />
+          )}
+          {isEditing ? 'Update Rule' : 'Create Rule'}
+        </Button>
+      </div>
     </div>
   );
 };

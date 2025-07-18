@@ -77,6 +77,7 @@ export const GET_EXPENSE_RULE_ASSIGNMENTS = (variables: ExpenseRuleAssignmentQue
         applicants
         activeFrom
         activeTo
+        version
         expenseRuleId
         employeeId
         companyId
@@ -88,6 +89,7 @@ export const GET_EXPENSE_RULE_ASSIGNMENTS = (variables: ExpenseRuleAssignmentQue
           activeFrom
           activeTo
           deductionLimit
+          version
           calculationType {
             id
             code
@@ -108,7 +110,6 @@ export const GET_EXPENSE_RULE_ASSIGNMENTS = (variables: ExpenseRuleAssignmentQue
           id
           firstName
           lastName
-          businessKey
         }
         company {
           id
@@ -191,6 +192,7 @@ export const GET_EXPENSE_RULES = (variables: ExpenseRuleQueryVariables): string 
         activeTo
         deductionLimit
         advancePaymentCode
+        version
         calculationType {
           id
           code
@@ -205,6 +207,42 @@ export const GET_EXPENSE_RULES = (variables: ExpenseRuleQueryVariables): string 
           id
           code
           value
+        }
+        expenseRuleAllowanceCode(where: { isDeleted: { _eq: false } }, orderBy: { codeOrder: ASC }) {
+          id
+          code
+          amount
+          abroad
+          calculation
+          codeOrder
+          activeFrom
+          activeTo
+          version
+          isDeleted
+        }
+        expenseRuleDeduction(where: { isDeleted: { _eq: false } }, orderBy: { deductionOrder: ASC }) {
+          id
+          deductBreakfast
+          deductLunch
+          deductDinner
+          deductionDay
+          deductionOrder
+          overnightAllowance
+          activeFrom
+          activeTo
+          version
+          isDeleted
+        }
+        expenseRuleMileage(where: { isDeleted: { _eq: false } }, orderBy: { mileageOrder: ASC }) {
+          id
+          code
+          mileageOrder
+          unitPrice
+          taxValue
+          activeFrom
+          activeTo
+          version
+          isDeleted
         }
       }
       ExpenseRuleAggregate(${whereCondition}) {
@@ -237,9 +275,10 @@ export const GET_MILEAGE_RULES = (): string => {
         rateType
         rateAmount
         currency
-        vehicleType
+
         activeFrom
         activeTo
+        version
         isDeleted
         
         mileageRuleDetails {
@@ -250,6 +289,7 @@ export const GET_MILEAGE_RULES = (): string => {
           minDistance
           maxDistance
           conditions
+          version
         }
       }
     }
@@ -279,6 +319,7 @@ export const GET_ALLOWANCE_REGION_RULES = (): string => {
         cityName
         activeFrom
         activeTo
+        version
         isDeleted
         
         allowanceRegionRuleDetails {
@@ -288,6 +329,7 @@ export const GET_ALLOWANCE_REGION_RULES = (): string => {
           amount
           currency
           conditions
+          version
         }
       }
     }

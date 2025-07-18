@@ -36,12 +36,12 @@ export interface UseExpenseSettingsIntegrationResult {
   
   // Mileage rules
   createMileageRule: (data: MileageRuleFormData) => Promise<any>;
-  updateMileageRule: (id: string, data: MileageRuleFormData) => Promise<any>;
+  updateMileageRule: (id: string, data: MileageRuleFormData, version?: number) => Promise<any>;
   deleteMileageRule: (id: string) => Promise<any>;
   
   // Travel region rules
   createTravelRegionRule: (data: AllowanceRegionRuleFormData) => Promise<any>;
-  updateTravelRegionRule: (id: string, data: AllowanceRegionRuleFormData) => Promise<any>;
+  updateTravelRegionRule: (id: string, data: AllowanceRegionRuleFormData, version?: number) => Promise<any>;
   deleteTravelRegionRule: (id: string) => Promise<any>;
   
   // Validation
@@ -215,7 +215,15 @@ export const useExpenseSettingsIntegration = (context: BusinessAppContextProps):
   
   const updateAssignment = useCallback(async (id: string, data: SaveExpenseRuleAssignmentInput) => {
     try {
-      const result = await expenseSettingsClient.updateExpenseRuleAssignment(id, data);
+      // Include id in the data for update operation
+      const updateData = {
+        ...data,
+        expenseRuleAssignment: {
+          ...data.expenseRuleAssignment,
+          id
+        }
+      };
+      const result = await expenseSettingsClient.saveExpenseRuleAssignment(updateData);
       await loadData(); // Refresh data
       return result;
     } catch (error) {
@@ -247,9 +255,15 @@ export const useExpenseSettingsIntegration = (context: BusinessAppContextProps):
     }
   }, [loadData]);
   
-  const updateMileageRule = useCallback(async (id: string, data: MileageRuleFormData) => {
+  const updateMileageRule = useCallback(async (id: string, data: MileageRuleFormData, version?: number) => {
     try {
-      const result = await expenseSettingsClient.updateMileageRule(id, data);
+      // Include id and version in the data for update operation
+      const updateData = {
+        ...data,
+        id,
+        ...(version !== undefined && { version })
+      };
+      const result = await expenseSettingsClient.saveMileageRule(updateData);
       await loadData(); // Refresh data
       return result;
     } catch (error) {
@@ -281,9 +295,15 @@ export const useExpenseSettingsIntegration = (context: BusinessAppContextProps):
     }
   }, [loadData]);
   
-  const updateTravelRegionRule = useCallback(async (id: string, data: AllowanceRegionRuleFormData) => {
+  const updateTravelRegionRule = useCallback(async (id: string, data: AllowanceRegionRuleFormData, version?: number) => {
     try {
-      const result = await expenseSettingsClient.updateAllowanceRegionRule(id, data);
+      // Include id and version in the data for update operation
+      const updateData = {
+        ...data,
+        id,
+        ...(version !== undefined && { version })
+      };
+      const result = await expenseSettingsClient.saveAllowanceRegionRule(updateData);
       await loadData(); // Refresh data
       return result;
     } catch (error) {

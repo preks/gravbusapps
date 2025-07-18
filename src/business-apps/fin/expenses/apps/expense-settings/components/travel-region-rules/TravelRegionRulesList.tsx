@@ -1,53 +1,53 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  Table, 
-  Spin, 
-  Alert, 
-  Button, 
-  Input, 
-  Tag, 
-  Typography,
-  Space,
-  Tooltip,
-  Modal,
-  message
-} from 'antd';
-import { Badge } from '@newwork/nw-design-system';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Button,
+  Badge,
+  Alert,
+  AlertDescription,
+  Spinner,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
+import { DataDetails } from '@/components/data-details';
 import { useTravelRegionRulesIntegration, EnhancedTravelRegionRule } from '../../hooks/useTravelRegionRulesIntegration';
 import { TravelRegionRuleForm, TravelRegionRuleFormData } from '../../forms/travel-region-rule-form';
 import { 
   PiPlus, 
-  PiMagnifyingGlass, 
   PiArrowClockwise,
-  PiGlobe,
   PiMapPin,
   PiCurrencyCircleDollar,
   PiCalendar,
-  PiBuildings,
-  PiPencil
+  PiPencil,
+  PiGlobe
 } from 'react-icons/pi';
-
-const { Title } = Typography;
-const { Search } = Input;
 
 // Re-export the enhanced interface for external use
 export type { EnhancedTravelRegionRule as TravelRegionRule };
 
 export interface TravelRegionRulesListProps extends BusinessAppContextProps {
-  viewType: 'allowances' | 'regions';
   prefixDataTestId?: string;
 }
 
 const TravelRegionRulesList: React.FC<TravelRegionRulesListProps> = ({
-  viewType,
   prefixDataTestId = '',
   accessToken,
   ...context
 }) => {
+
+
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRule, setSelectedRule] = useState<EnhancedTravelRegionRule | null>(null);
   
   // Modal state management
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
@@ -67,25 +67,23 @@ const TravelRegionRulesList: React.FC<TravelRegionRulesListProps> = ({
   };
   const handleCreateSubmit = async (formData: TravelRegionRuleFormData) => {
     try {
-      console.log('Creating travel region rule:', formData);
-      message.success('Travel region rule created successfully');
+      // TODO: Implement actual API call using expense settings integration
+      // await createTravelRegionRule(formData);
       setIsCreateModalVisible(false);
       refetch();
     } catch (error) {
       console.error('Error creating rule:', error);
-      message.error('Failed to create rule');
     }
   };
   const handleEditSubmit = async (formData: TravelRegionRuleFormData) => {
     try {
-      console.log('Updating travel region rule:', formData);
-      message.success('Travel region rule updated successfully');
+      // TODO: Implement actual API call using expense settings integration
+      // await updateTravelRegionRule(editingRule.id, formData);
       setIsEditModalVisible(false);
       setEditingRule(null);
       refetch();
     } catch (error) {
       console.error('Error updating rule:', error);
-      message.error('Failed to update rule');
     }
   };
 
@@ -116,210 +114,13 @@ const TravelRegionRulesList: React.FC<TravelRegionRulesListProps> = ({
   const filteredData = useMemo(() => {
     return travelRegionRules.filter(rule =>
       rule.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rule.region.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rule.country.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rule.allowanceType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rule.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      rule.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      rule.details.some(detail => 
+        detail.country.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        detail.travelRegion.toLowerCase().includes(searchTerm.toLowerCase())
+      )
     );
   }, [travelRegionRules, searchTerm]);
-
-  // Get allowance type color
-  const getAllowanceTypeColor = (type: string) => {
-    switch (type) {
-      case 'daily': return 'blue';
-      case 'hourly': return 'green';
-      case 'meal': return 'orange';
-      case 'accommodation': return 'purple';
-      default: return 'default';
-    }
-  };
-
-  // Get allowance type icon
-  const getAllowanceTypeIcon = (type: string) => {
-    switch (type) {
-      case 'daily': return <PiCalendar className="gba:text-blue-500" />;
-      case 'hourly': return <PiCurrencyCircleDollar className="gba:text-green-500" />;
-      case 'meal': return <PiBuildings className="gba:text-orange-500" />;
-      case 'accommodation': return <PiGlobe className="gba:text-purple-500" />;
-      default: return <PiMapPin />;
-    }
-  };
-
-  // Column definitions for allowances view
-  const allowancesColumns = [
-    {
-      title: '',
-      key: 'actions',
-      width: '60px',
-      render: (_: any, record: EnhancedTravelRegionRule) => (
-        <div className="gba:flex gba:justify-start gba:gap-2">
-          <Button
-            type="text"
-            size="small"
-            icon={<PiPencil />}
-            data-testid={`${prefixDataTestId}-edit-travel-allowance-button-${record.id}`}
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-              handleEditRule(record);
-            }}
-            title="Edit Travel Region Rule"
-          />
-        </div>
-      ),
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.columns.name', 'Allowance Name'),
-      dataIndex: 'name',
-      key: 'name',
-      sorter: (a: EnhancedTravelRegionRule, b: EnhancedTravelRegionRule) => a.name.localeCompare(b.name),
-      render: (text: string, record: EnhancedTravelRegionRule) => (
-        <div className="gba:flex gba:flex-col">
-          <span className="gba:font-medium">{text}</span>
-          {record.description && (
-            <span className="gba:text-sm gba:text-gray-500">{record.description}</span>
-          )}
-        </div>
-      )
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.columns.location', 'Location'),
-      key: 'location',
-      sorter: (a: EnhancedTravelRegionRule, b: EnhancedTravelRegionRule) => a.country.localeCompare(b.country),
-      render: (record: EnhancedTravelRegionRule) => (
-        <div className="gba:flex gba:flex-col">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiMapPin className="gba:text-blue-500" />
-            <span className="gba:font-medium">{record.country}</span>
-          </div>
-          <span className="gba:text-sm gba:text-gray-500">{record.region}</span>
-        </div>
-      )
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.columns.allowanceType', 'Type'),
-      dataIndex: 'allowanceType',
-      key: 'allowanceType',
-      sorter: (a: EnhancedTravelRegionRule, b: EnhancedTravelRegionRule) => a.allowanceType.localeCompare(b.allowanceType),
-      render: (type: string) => (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          {getAllowanceTypeIcon(type)}
-          <Tag color={getAllowanceTypeColor(type)}>
-            {type.charAt(0).toUpperCase() + type.slice(1)}
-          </Tag>
-        </div>
-      )
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.columns.amount', 'Amount'),
-      dataIndex: 'amount',
-      key: 'amount',
-      sorter: (a: EnhancedTravelRegionRule, b: EnhancedTravelRegionRule) => a.amount - b.amount,
-      render: (amount: number, record: EnhancedTravelRegionRule) => (
-        <div className="gba:flex gba:items-center gba:gap-1">
-          <PiCurrencyCircleDollar className="gba:text-green-500" />
-          <span className="gba:font-mono">{amount.toFixed(2)} {record.currency}</span>
-        </div>
-      )
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.columns.effectivePeriod', 'Effective Period'),
-      key: 'effectivePeriod',
-      render: (record: EnhancedTravelRegionRule) => (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <PiCalendar className="gba:text-purple-500" />
-          <span>
-            {record.effectiveFrom}
-            {record.effectiveTo ? ` - ${record.effectiveTo}` : ' - ongoing'}
-          </span>
-        </div>
-      )
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.columns.status', 'Status'),
-      dataIndex: 'isActive',
-      key: 'status',
-      sorter: (a: EnhancedTravelRegionRule, b: EnhancedTravelRegionRule) => Number(a.isActive) - Number(b.isActive),
-      render: (isActive: boolean) => (
-        <Badge variant={isActive ? 'default' : 'secondary'}>
-          {isActive ? 'Active' : 'Inactive'}
-        </Badge>
-      )
-    }
-  ];
-
-  // Regions columns (simplified view focusing on geographic regions)
-  const regionsColumns = [
-    {
-      title: '',
-      key: 'actions',
-      width: '60px',
-      render: (_: any, record: EnhancedTravelRegionRule) => (
-        <div className="gba:flex gba:justify-start gba:gap-2">
-          <Button
-            type="text"
-            size="small"
-            icon={<PiPencil />}
-            data-testid={`${prefixDataTestId}-edit-travel-region-button-${record.id}`}
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-              handleEditRule(record);
-            }}
-            title="Edit Travel Region Rule"
-          />
-        </div>
-      ),
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.columns.region', 'Region'),
-      dataIndex: 'region',
-      key: 'region',
-      sorter: (a: EnhancedTravelRegionRule, b: EnhancedTravelRegionRule) => a.region.localeCompare(b.region),
-      render: (region: string, record: EnhancedTravelRegionRule) => (
-        <div className="gba:flex gba:flex-col">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiGlobe className="gba:text-blue-500" />
-            <span className="gba:font-medium">{region}</span>
-          </div>
-          <span className="gba:text-sm gba:text-gray-500">{record.country}</span>
-        </div>
-      )
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.columns.countries', 'Countries'),
-      dataIndex: 'country',
-      key: 'country',
-      render: (country: string) => (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <PiMapPin className="gba:text-green-500" />
-          <span>{country}</span>
-        </div>
-      )
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.columns.allowanceTypes', 'Allowance Types'),
-      key: 'allowanceTypes',
-      render: (record: EnhancedTravelRegionRule) => (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          {getAllowanceTypeIcon(record.allowanceType)}
-          <Tag color={getAllowanceTypeColor(record.allowanceType)}>
-            {record.allowanceType.charAt(0).toUpperCase() + record.allowanceType.slice(1)}
-          </Tag>
-        </div>
-      )
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.columns.status', 'Status'),
-      dataIndex: 'isActive',
-      key: 'status',
-      render: (isActive: boolean) => (
-        <Badge variant={isActive ? 'default' : 'secondary'}>
-          {isActive ? 'Active' : 'Inactive'}
-        </Badge>
-      )
-    }
-  ];
-
-  const columns = viewType === 'allowances' ? allowancesColumns : regionsColumns;
 
   const handleRefresh = () => {
     refetch();
@@ -329,137 +130,386 @@ const TravelRegionRulesList: React.FC<TravelRegionRulesListProps> = ({
     handleCreateRule();
   };
 
+  const handleRowClick = (rule: EnhancedTravelRegionRule) => {
+    setSelectedRule(rule);
+  };
+
+  const handleCloseDetails = () => {
+    setSelectedRule(null);
+  };
+
   if (error) {
     return (
-      <Alert
-        message="Error Loading Travel Region Rules"
-        description={error}
-        type="error"
-        showIcon
-        action={
-          <Button size="small" onClick={handleRefresh}>
-            Retry
-          </Button>
-        }
-      />
+      <Alert variant="destructive">
+        <AlertDescription>
+          Error Loading Allowance Region Rules: {error}
+        </AlertDescription>
+        <Button size="sm" onClick={handleRefresh} className="gba:mt-2">
+          Retry
+        </Button>
+      </Alert>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:py-8">
+        <Spinner size="lg" />
+      </div>
     );
   }
 
   return (
-    <div data-testid={`${prefixDataTestId}-travel-region-rules-list`}>
-      {/* Header */}
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-        <div className="gba:flex gba:items-center gba:gap-4">
-          <Title level={4} className="gba:m-0 gba:text-gray-900">
-            {viewType === 'allowances' 
-              ? getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.allowances.title', 'Travel Allowances')
-              : getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.regions.title', 'Travel Regions')
-            }
-          </Title>
-          <Tag color="blue">{filteredData.length} items</Tag>
+    <div className="gba:flex gba:h-full">
+      {/* Main Content */}
+      <div className={`gba:transition-all gba:duration-300 ${selectedRule ? 'gba:w-2/3' : 'gba:w-full'}`}>
+        <div data-testid={`${prefixDataTestId}-allowance-region-rules-list`} className="gba:space-y-6 gba:p-6">
+          {/* Header */}
+          <div className="gba:flex gba:justify-between gba:items-center">
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <h4 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:m-0">
+                {getTranslationFromI18nKeyAndLabel('expenseSettings.allowanceRegionRules.title', 'Allowance Region Rules')}
+              </h4>
+              <Badge variant="secondary">
+                {filteredData.length} items
+              </Badge>
+            </div>
+            <div className="gba:flex gba:gap-2">
+              <Button 
+                variant="outline"
+                onClick={handleRefresh}
+                disabled={isLoading}
+                data-testid={`${prefixDataTestId}-refresh-button`}
+                className="gba:flex gba:items-center gba:gap-2"
+              >
+                <PiArrowClockwise className="gba:h-4 gba:w-4" />
+                {getTranslationFromI18nKeyAndLabel('common.refresh', 'Refresh')}
+              </Button>
+              <Button 
+                onClick={handleAdd}
+                data-testid={`${prefixDataTestId}-add-button`}
+                className="gba:flex gba:items-center gba:gap-2"
+              >
+                <PiPlus className="gba:h-4 gba:w-4" />
+                {getTranslationFromI18nKeyAndLabel('expenseSettings.allowanceRegionRules.addRule', 'Add Allowance Rule')}
+              </Button>
+            </div>
+          </div>
+
+          {/* Search */}
+          <div>
+            <DebouncedInput
+              placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.allowanceRegionRules.searchPlaceholder', 'Search allowance region rules...')}
+              value={searchTerm}
+              onChange={setSearchTerm}
+              className="gba:max-w-md"
+              data-testid={`${prefixDataTestId}-search-input`}
+            />
+          </div>
+
+          {/* Table */}
+          <div className="gba:border gba:rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="gba:w-16">Actions</TableHead>
+                  <TableHead>Rule Code</TableHead>
+                  <TableHead>Rule Name</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Details Count</TableHead>
+                  <TableHead>Effective Period</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredData.map((rule) => (
+                  <TableRow 
+                    key={rule.id}
+                    onClick={() => handleRowClick(rule)}
+                    className={`gba:cursor-pointer hover:gba:bg-gray-100 ${
+                      selectedRule?.id === rule.id ? 'gba:bg-blue-50 gba:border-l-4 gba:border-l-blue-500' : ''
+                    }`}
+                  >
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        data-testid={`${prefixDataTestId}-edit-allowance-region-rule-button-${rule.id}`}
+                        onClick={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          handleEditRule(rule);
+                        }}
+                        title="Edit Allowance Region Rule"
+                      >
+                        <PiPencil className="gba:h-4 gba:w-4" />
+                      </Button>
+                    </TableCell>
+                    <TableCell>
+                      <strong>{rule.code}</strong>
+                    </TableCell>
+                    <TableCell>
+                      <span className="gba:font-medium">{rule.name}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="gba:flex gba:flex-col gba:gap-1">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <PiMapPin className="gba:text-blue-500 gba:h-4 gba:w-4" />
+                          <span className="gba:font-medium">
+                            {rule.details.length === 1 
+                              ? rule.details[0].country 
+                              : `${rule.details.length} countries`
+                            }
+                          </span>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <PiGlobe className="gba:text-green-500 gba:h-4 gba:w-4" />
+                          <span className="gba:text-sm gba:text-gray-500">
+                            {rule.details.length === 1 
+                              ? rule.details[0].travelRegion 
+                              : `${new Set(rule.details.map(d => d.travelRegion)).size} regions`
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {rule.details.length} detail{rule.details.length !== 1 ? 's' : ''}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiCalendar className="gba:text-purple-500 gba:h-4 gba:w-4" />
+                        <span className="gba:text-sm">
+                          {rule.effectiveFrom}
+                          {rule.effectiveTo ? ` - ${rule.effectiveTo}` : ' - ongoing'}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={rule.isActive ? 'default' : 'secondary'}>
+                        {rule.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {filteredData.length === 0 && !isLoading && (
+            <div className="gba:text-center gba:py-8 gba:text-gray-500">
+              No allowance region rules found. Click "Add Allowance Rule" to create one.
+            </div>
+          )}
         </div>
-        <Space>
-          <Button 
-            icon={<PiArrowClockwise />} 
-            onClick={handleRefresh}
-            loading={isLoading}
-            data-testid={`${prefixDataTestId}-refresh-button`}
-          >
-            {getTranslationFromI18nKeyAndLabel('common.refresh', 'Refresh')}
-          </Button>
-          <Button 
-            type="primary" 
-            icon={<PiPlus />} 
-            onClick={handleAdd}
-            data-testid={`${prefixDataTestId}-add-button`}
-          >
-            {viewType === 'allowances' 
-              ? getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.addAllowance', 'Add Allowance')
-              : getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.addRegion', 'Add Region')
-            }
-          </Button>
-        </Space>
       </div>
 
-      {/* Search */}
-      <div className="gba:mb-4">
-        <DebouncedInput
-          placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.travelRegionRules.searchPlaceholder', 'Search rules...')}
-          value={searchTerm}
-          onChange={setSearchTerm}
-          className="gba:max-w-md"
-          data-testid={`${prefixDataTestId}-search-input`}
-        />
-      </div>
+      {/* Details Bar */}
+      {selectedRule && (
+        <div className="gba:w-1/3 gba:border-l gba:border-gray-200 gba:bg-white">
+          <DataDetails
+            title={selectedRule.name}
+            onClose={handleCloseDetails}
+            data-testid={`${prefixDataTestId}-allowance-region-rule-details`}
+          >
+            <div className="gba:space-y-6">
+              {/* Basic Information */}
+              <div className="gba:space-y-4">
+                <h6 className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:uppercase gba:tracking-wider">
+                  Basic Information
+                </h6>
+                <div className="gba:grid gba:grid-cols-1 gba:gap-3">
+                  <div>
+                    <label className="gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
+                      Rule Code
+                    </label>
+                    <p className="gba:text-sm gba:font-medium gba:text-gray-900">{selectedRule.code}</p>
+                  </div>
+                  <div>
+                    <label className="gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
+                      Rule Name
+                    </label>
+                    <p className="gba:text-sm gba:text-gray-900">{selectedRule.name}</p>
+                  </div>
+                  <div>
+                    <label className="gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
+                      Status
+                    </label>
+                    <div className="gba:mt-1">
+                      <Badge variant={selectedRule.isActive ? 'default' : 'secondary'}>
+                        {selectedRule.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-      {/* Table */}
-      <Table
-        columns={columns}
-        dataSource={filteredData}
-        rowKey="id"
-        loading={isLoading}
-        pagination={{
-          pageSize: 20,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => 
-            `${range[0]}-${range[1]} of ${total} items`,
-        }}
-        scroll={{ x: 'max-content' }}
-        data-testid={`${prefixDataTestId}-table`}
-      />
+              {/* Coverage Summary */}
+              <div className="gba:space-y-4">
+                <h6 className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:uppercase gba:tracking-wider">
+                  Coverage Summary
+                </h6>
+                <div className="gba:grid gba:grid-cols-1 gba:gap-3">
+                  <div>
+                    <label className="gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
+                      Countries Covered
+                    </label>
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:mt-1">
+                      <PiMapPin className="gba:text-blue-500 gba:h-4 gba:w-4" />
+                      <span className="gba:text-sm gba:font-medium gba:text-gray-900">
+                        {new Set(selectedRule.details.map(d => d.country)).size} countries
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
+                      Travel Regions
+                    </label>
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:mt-1">
+                      <PiGlobe className="gba:text-green-500 gba:h-4 gba:w-4" />
+                      <span className="gba:text-sm gba:text-gray-900">
+                        {new Set(selectedRule.details.map(d => d.travelRegion)).size} regions
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-      {/* Create Travel Region Rule Modal */}
-      <Modal
-        title={getTranslationFromI18nKeyAndLabel('expenseSettings.modals.createTravelRegionRule.title', 'Create Travel Region Rule')}
-        open={isCreateModalVisible}
-        onCancel={handleModalCancel}
-        footer={null}
-        width={1000}
-        destroyOnClose
-        data-testid={`${prefixDataTestId}-create-travel-region-rule-modal`}
-      >
-        <TravelRegionRuleForm
-          accessToken={accessToken}
-          onSave={handleCreateSubmit}
-          onCancel={handleModalCancel}
-          isEditing={false}
-        />
-      </Modal>
+              {/* Effective Period */}
+              <div className="gba:space-y-4">
+                <h6 className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:uppercase gba:tracking-wider">
+                  Effective Period
+                </h6>
+                <div className="gba:grid gba:grid-cols-1 gba:gap-3">
+                  <div>
+                    <label className="gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
+                      From - To
+                    </label>
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:mt-1">
+                      <PiCalendar className="gba:text-purple-500 gba:h-4 gba:w-4" />
+                      <span className="gba:text-sm gba:text-gray-900">
+                        {selectedRule.effectiveFrom}
+                        {selectedRule.effectiveTo ? ` - ${selectedRule.effectiveTo}` : ' - ongoing'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-      {/* Edit Travel Region Rule Modal */}
-      <Modal
-        title={getTranslationFromI18nKeyAndLabel('expenseSettings.modals.editTravelRegionRule.title', 'Edit Travel Region Rule')}
-        open={isEditModalVisible}
-        onCancel={handleModalCancel}
-        footer={null}
-        width={1000}
-        destroyOnClose
-        data-testid={`${prefixDataTestId}-edit-travel-region-rule-modal`}
-      >
-        {editingRule && (
-          <TravelRegionRuleForm
-            accessToken={accessToken}
-            initialData={{
-              id: editingRule.id,
-              code: editingRule.code,
-              name: editingRule.name,
-              ruleOrder: editingRule.ruleOrder || 1,
-              activeFrom: editingRule.effectiveFrom,
-              activeTo: editingRule.effectiveTo,
-              details: editingRule.details.map(detail => ({
-                id: detail.id,
-                amount: detail.amount,
-                countryRef: detail.countryRef,
-                currencyRef: detail.currencyRef
-              }))
-            }}
-            onSave={handleEditSubmit}
-            onCancel={handleModalCancel}
-            isEditing={true}
-          />
-        )}
-      </Modal>
+              {/* Rule Details */}
+              <div className="gba:space-y-4">
+                <h6 className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:uppercase gba:tracking-wider">
+                  Rule Details ({selectedRule.details.length})
+                </h6>
+                <div className="gba:space-y-3">
+                  {selectedRule.details.map((detail, index) => (
+                    <div 
+                      key={detail.id || index} 
+                      className="gba:p-3 gba:bg-gray-50 gba:rounded-lg gba:border"
+                    >
+                      <div className="gba:grid gba:grid-cols-1 gba:gap-2">
+                        <div className="gba:flex gba:items-center gba:justify-between">
+                          <span className="gba:text-xs gba:font-medium gba:text-gray-500">
+                            Detail {index + 1}
+                          </span>
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <PiCurrencyCircleDollar className="gba:text-green-500 gba:h-4 gba:w-4" />
+                            <span className="gba:text-sm gba:font-medium gba:text-gray-900">
+                              {new Intl.NumberFormat('en-US', {
+                                style: 'currency',
+                                currency: detail.currency || 'EUR'
+                              }).format(detail.amount)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="gba:text-xs gba:text-gray-600">
+                          <div>{detail.country}</div>
+                          <div>{detail.currency}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </DataDetails>
+        </div>
+      )}
+
+      {/* Create Allowance Region Rule Dialog */}
+      <Dialog open={isCreateModalVisible} onOpenChange={setIsCreateModalVisible}>
+        <DialogContent style={{ 
+          width: 'min(95vw, 1200px)', 
+          maxWidth: '1200px', 
+          minWidth: '600px',
+          maxHeight: '90vh',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel('expenseSettings.modals.createAllowanceRegionRule.title', 'Create Allowance Region Rule')}
+            </DialogTitle>
+          </DialogHeader>
+          <div style={{ overflow: 'auto', flex: 1 }}>
+            <TravelRegionRuleForm
+              accessToken={accessToken}
+              onSave={handleCreateSubmit}
+              onCancel={handleModalCancel}
+              isEditing={false}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Allowance Region Rule Dialog */}
+      <Dialog open={isEditModalVisible} onOpenChange={setIsEditModalVisible}>
+        <DialogContent style={{ 
+          width: 'min(95vw, 1200px)', 
+          maxWidth: '1200px', 
+          minWidth: '600px',
+          maxHeight: '90vh',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel('expenseSettings.modals.editAllowanceRegionRule.title', 'Edit Allowance Region Rule')}
+            </DialogTitle>
+          </DialogHeader>
+          <div style={{ overflow: 'auto', flex: 1 }}>
+            {editingRule && (
+              <TravelRegionRuleForm
+                accessToken={accessToken}
+                initialData={{
+                  id: editingRule.id,
+                  code: editingRule.code,
+                  name: editingRule.name,
+                  activeFrom: editingRule.effectiveFrom,
+                  activeTo: editingRule.effectiveTo,
+                  details: editingRule.details.map(detail => ({
+                    id: detail.id,
+                    countryRef: detail.countryRef || '',
+                    currencyRef: detail.currencyRef || '',
+                    travelRegion: detail.travelRegionRef || '',  // Use ID for form select
+                    travelRegionRef: detail.travelRegionRef || '',
+                    home: detail.home || false,
+                    activeFrom: detail.activeFrom || editingRule.effectiveFrom,
+                    activeTo: detail.activeTo || editingRule.effectiveTo,
+                    amounts: [detail.amount]
+                  }))
+                }}
+                onSave={handleEditSubmit}
+                onCancel={handleModalCancel}
+                isEditing={true}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

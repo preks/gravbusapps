@@ -72,29 +72,17 @@ const CalculationRulesView: React.FC<CalculationRulesViewProps> = (context) => {
 
   // Handle navigation to calculation rule record
   const handleNavigateToRule = (ruleId: string, page?: string) => {
-    // TODO: Replace with actual navigation logic based on your routing system
-    // This is a placeholder to demonstrate the URL structure with query parameters
     const urlParams = new URLSearchParams(window.location.search);
     urlParams.set('ruleId', ruleId);
     if (page) {
       urlParams.set('page', page);
     }
     
-    // Example URL would be: /expense-settings/calculation-rule-record?ruleId=123&page=Rules
-    const navigationUrl = `/expense-settings/calculation-rule-record?${urlParams.toString()}`;
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    window.history.pushState({}, '', newUrl);
     
-    console.log('Navigate to rule record:', {
-      ruleId,
-      page,
-      url: navigationUrl
-    });
-    
-    // Placeholder for actual navigation - replace with your navigation method
-    // Examples:
-    // - React Router: navigate(navigationUrl)
-    // - Next.js: router.push(navigationUrl)
-    // - Custom navigation: onNavigate?.(navigationUrl)
-    // window.location.href = navigationUrl; // Direct navigation (not recommended for SPAs)
+    // Trigger a popstate event to notify the parent component of the URL change
+    window.dispatchEvent(new PopStateEvent('popstate'));
   };
 
   return (

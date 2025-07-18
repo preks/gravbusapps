@@ -13,6 +13,7 @@ import { Gear } from '@phosphor-icons/react';
 // Tab components
 import ExpenseSettingsDashboard from './components/dashboard/ExpenseSettingsDashboard';
 import CalculationRulesView from './components/calculation-rules/CalculationRulesView';
+import CalculationRuleRecord from './components/calculation-rule-record/CalculationRuleRecord';
 import MileageRulesView from './components/mileage-rules/MileageRulesView';
 import TravelRegionRulesView from './components/travel-region-rules/TravelRegionRulesView';
 
@@ -63,11 +64,28 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = (context) => {
   };
 
   const [activeView, setActiveView] = useState<string>(getInitialView());
+  
+  // Get calculation rule record parameters from URL
+  const getCalculationRuleRecordParams = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return {
+      ruleId: urlParams.get('ruleId'),
+      page: urlParams.get('page')
+    };
+  };
+
+  const [ruleRecordParams, setRuleRecordParams] = useState(getCalculationRuleRecordParams());
 
   // Update URL when view changes
-  const updateUrl = (view: string) => {
+  const updateUrl = (view: string, clearRuleRecord = false) => {
     const urlParams = new URLSearchParams(window.location.search);
     urlParams.set('view', view);
+    
+    // Clear rule record parameters if requested
+    if (clearRuleRecord) {
+      urlParams.delete('ruleId');
+      urlParams.delete('page');
+    }
 
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
     window.history.replaceState({}, '', newUrl);
@@ -75,7 +93,14 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = (context) => {
 
   const handleViewChange = (view: string) => {
     setActiveView(view);
-    updateUrl(view);
+    setRuleRecordParams({ ruleId: null, page: null });
+    updateUrl(view, true);
+  };
+
+  // Handle navigation back from calculation rule record
+  const handleNavigateBackFromRuleRecord = () => {
+    setRuleRecordParams({ ruleId: null, page: null });
+    updateUrl(activeView, true);
   };
 
   // Ensure URL always has view parameter on initial load
@@ -90,15 +115,30 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = (context) => {
   useEffect(() => {
     const handlePopState = () => {
       const newView = getInitialView();
+      const newRuleRecordParams = getCalculationRuleRecordParams();
       setActiveView(newView);
+      setRuleRecordParams(newRuleRecordParams);
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Render content based on active view
+  // Render content based on active view and rule record parameters
   const renderViewContent = () => {
+    // If we have a ruleId, show the calculation rule record regardless of active view
+    if (ruleRecordParams.ruleId) {
+      return (
+        <CalculationRuleRecord
+          {...context}
+          ruleId={ruleRecordParams.ruleId}
+          page={ruleRecordParams.page || undefined}
+          onNavigateBack={handleNavigateBackFromRuleRecord}
+        />
+      );
+    }
+
+    // Otherwise, render the normal view content
     switch (activeView) {
       case 'dashboard':
         return (

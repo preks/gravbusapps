@@ -22,10 +22,18 @@ export interface AllowanceRegionRuleDetail {
     value: string;
     code: string;
   };
+  travelRegion?: {
+    id: string;
+    value: string;
+    code: string;
+  };
   countryRef?: string;
   currencyRef?: string;
+  travelRegionRef?: string;
   activeFrom?: string;
   activeTo?: string;
+  home?: boolean;
+  version?: number;
   isDeleted: boolean;
 }
 
@@ -33,9 +41,9 @@ export interface TravelRegionRuleData {
   id: string;
   code: string;
   name: string;
-  ruleOrder: number;
   activeFrom?: string;
   activeTo?: string;
+  version?: number;
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -69,7 +77,7 @@ export const GET_TRAVEL_REGION_RULES = (variables: TravelRegionRuleQueryVariable
   whereClause += ' }';
 
   // Build order by conditions
-  let orderByClause = '[{ ruleOrder: ASC }, { name: ASC }]';
+  let orderByClause = '[{ name: ASC }]';
   if (orderBy.length > 0) {
     orderByClause = JSON.stringify(orderBy).replace(/"/g, '');
   }
@@ -85,9 +93,9 @@ export const GET_TRAVEL_REGION_RULES = (variables: TravelRegionRuleQueryVariable
         id
         code
         name
-        ruleOrder
         activeFrom
         activeTo
+        version
         isDeleted
         createdAt
         updatedAt
@@ -98,6 +106,8 @@ export const GET_TRAVEL_REGION_RULES = (variables: TravelRegionRuleQueryVariable
           amount
           countryRef
           currencyRef
+          travelRegionRef
+          home
           country {
             id
             value
@@ -108,8 +118,14 @@ export const GET_TRAVEL_REGION_RULES = (variables: TravelRegionRuleQueryVariable
             value
             code
           }
+          travelRegion {
+            id
+            value
+            code
+          }
           activeFrom
           activeTo
+          version
           isDeleted
         }
       }

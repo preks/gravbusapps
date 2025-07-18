@@ -14,7 +14,8 @@ import {
   Card,
   Row,
   Col,
-  Spin
+  Spin,
+  InputNumber
 } from 'antd';
 import { PiFloppyDisk, PiX, PiWarning, PiUser, PiBuilding, PiTree, PiMapPin } from 'react-icons/pi';
 import dayjs, { Dayjs } from 'dayjs';
@@ -155,6 +156,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
       const saveData: SaveExpenseRuleAssignmentInput = {
         expenseRuleAssignment: {
           ...(isEditing && initialData?.id ? { id: initialData.id } : {}),
+          ...(initialData?.version ? { version: initialData.version } : {}),
           assignmentOrder: values.assignmentOrder,
           cascading: values.cascading || false,
           applicants: values.applicants || false,
@@ -187,199 +189,162 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     );
   }
 
+  if (catalogError) {
+    return (
+      <Alert
+        message="Error Loading Data"
+        description={catalogError}
+        type="error"
+        showIcon
+        icon={<PiWarning />}
+        action={
+          <Button size="small" onClick={loadCatalogs}>
+            Retry
+          </Button>
+        }
+        data-testid="assignment-form-catalog-error"
+      />
+    );
+  }
+
   return (
     <div data-testid="assignment-form-container">
-      {catalogError && (
-        <Alert
-          message={getTranslationFromI18nKeyAndLabel('common.error', 'Error')}
-          description={catalogError}
-          type="error"
-          showIcon
-          action={
-            <Button size="small" onClick={loadCatalogs}>
-              {getTranslationFromI18nKeyAndLabel('common.retry', 'Retry')}
-            </Button>
-          }
-          style={{ marginBottom: 16 }}
-          data-testid="assignment-form-error"
-        />
-      )}
-
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSubmit}
-        data-testid="assignment-form"
-      >
-        <Row gutter={16}>
+      <Card>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          autoComplete="off"
+          data-testid="assignment-form"
+        >
           {/* Rule Selection */}
-          <Col span={24}>
-            <Card 
-              title={
-                <Space>
-                  <PiTree />
-                  {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.ruleDetails', 'Rule Details')}
-                </Space>
-              }
-              style={{ marginBottom: 16 }}
-            >
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="expenseRuleId"
-                    label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.expenseRule', 'Expense Rule')}
-                    rules={[
-                      { required: true, message: getTranslationFromI18nKeyAndLabel('validation.required', 'This field is required') }
-                    ]}
+          <Card 
+            title={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.ruleSelection', 'Rule Selection')}
+            size="small"
+            style={{ marginBottom: 16 }}
+          >
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="expenseRuleId"
+                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.expenseRule', 'Expense Rule')}
+                  rules={[
+                    { required: true, message: 'Please select an expense rule' }
+                  ]}
+                >
+                  <Select
+                    placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectRule', 'Select expense rule')}
+                    showSearch
+                    optionFilterProp="children"
+                    data-testid="assignment-form-rule-select"
                   >
-                    <Select
-                      placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectRule', 'Select expense rule')}
-                      data-testid="assignment-form-expense-rule-select"
-                      disabled={isEditing} // Don't allow changing rule in edit mode
-                    >
-                      {availableRules.map(rule => (
-                        <Option key={rule.id} value={rule.id}>
-                          {rule.code} - {rule.calculationType?.value || 'No Type'}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="assignmentOrder"
-                    label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.order', 'Assignment Order')}
-                    rules={[
-                      { required: true, message: getTranslationFromI18nKeyAndLabel('validation.required', 'This field is required') },
-                      { type: 'number', min: 1, message: getTranslationFromI18nKeyAndLabel('validation.minOrder', 'Order must be at least 1') }
-                    ]}
-                  >
-                    <Input
-                      type="number"
-                      min={1}
-                      placeholder="1"
-                      data-testid="assignment-form-order-input"
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Card>
-          </Col>
+                    {availableRules.map(rule => (
+                      <Option key={rule.id} value={rule.id}>
+                        {rule.code} {rule.name && ` - ${rule.name}`}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              
+              <Col span={12}>
+                <Form.Item
+                  name="assignmentOrder"
+                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.order', 'Assignment Order')}
+                  rules={[
+                    { required: true, message: 'Please enter assignment order' },
+                    { type: 'number', min: 1, message: 'Order must be at least 1' }
+                  ]}
+                >
+                  <InputNumber
+                    min={1}
+                    style={{ width: '100%' }}
+                    placeholder="1"
+                    data-testid="assignment-form-order-input"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Card>
 
-          {/* Assignment Target */}
-          <Col span={24}>
-            <Card 
-              title={
-                <Space>
-                  <PiUser />
-                  {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.target', 'Assignment Target')}
-                </Space>
-              }
-              style={{ marginBottom: 16 }}
-            >
-              <Alert
-                message={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.targetInfo', 'Target Information')}
-                description={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.targetDescription', 'Leave all fields empty for a general assignment that applies to everyone. Fill specific fields to target particular employees, companies, or organizational units.')}
-                type="info"
-                showIcon
-                style={{ marginBottom: 16 }}
-              />
+          {/* Assignment Targets */}
+          <Card 
+            title={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.targets', 'Assignment Targets')}
+            size="small"
+            style={{ marginBottom: 16 }}
+          >
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="employeeId"
+                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.employee', 'Employee')}
+                >
+                  <Select
+                    placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectEmployee', 'Select employee')}
+                    allowClear
+                    showSearch
+                    optionFilterProp="children"
+                    data-testid="assignment-form-employee-select"
+                  >
+                    {/* TODO: Load employee options from API */}
+                  </Select>
+                </Form.Item>
+              </Col>
               
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="employeeId"
-                    label={
-                      <Space>
-                        <PiUser />
-                        {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.employee', 'Employee')}
-                      </Space>
-                    }
+              <Col span={12}>
+                <Form.Item
+                  name="companyId"
+                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.company', 'Company')}
+                >
+                  <Select
+                    placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectCompany', 'Select company')}
+                    allowClear
+                    showSearch
+                    optionFilterProp="children"
+                    data-testid="assignment-form-company-select"
                   >
-                    <Select
-                      placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectEmployee', 'Select employee')}
-                      allowClear
-                      data-testid="assignment-form-employee-select"
-                    >
-                      {/* TODO: Load actual employees */}
-                      <Option value="">
-                        {getTranslationFromI18nKeyAndLabel('common.all', 'All Employees')}
-                      </Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="companyId"
-                    label={
-                      <Space>
-                        <PiBuilding />
-                        {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.company', 'Company')}
-                      </Space>
-                    }
+                    {/* TODO: Load company options from API */}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+            
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="organizationalUnitId"
+                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.organizationalUnit', 'Organizational Unit')}
+                >
+                  <Select
+                    placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectOrgUnit', 'Select organizational unit')}
+                    allowClear
+                    showSearch
+                    optionFilterProp="children"
+                    data-testid="assignment-form-org-unit-select"
                   >
-                    <Select
-                      placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectCompany', 'Select company')}
-                      allowClear
-                      data-testid="assignment-form-company-select"
-                    >
-                      {/* TODO: Load actual companies */}
-                      <Option value="">
-                        {getTranslationFromI18nKeyAndLabel('common.all', 'All Companies')}
-                      </Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
+                    {/* TODO: Load organizational unit options from API */}
+                  </Select>
+                </Form.Item>
+              </Col>
               
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="organizationalUnitId"
-                    label={
-                      <Space>
-                        <PiTree />
-                        {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.organizationalUnit', 'Organizational Unit')}
-                      </Space>
-                    }
+              <Col span={12}>
+                <Form.Item
+                  name="siteLocationId"
+                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.siteLocation', 'Site Location')}
+                >
+                  <Select
+                    placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectLocation', 'Select site location')}
+                    allowClear
+                    showSearch
+                    optionFilterProp="children"
+                    data-testid="assignment-form-location-select"
                   >
-                    <Select
-                      placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectOrgUnit', 'Select organizational unit')}
-                      allowClear
-                      data-testid="assignment-form-org-unit-select"
-                    >
-                      {/* TODO: Load actual organizational units */}
-                      <Option value="">
-                        {getTranslationFromI18nKeyAndLabel('common.all', 'All Units')}
-                      </Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="siteLocationId"
-                    label={
-                      <Space>
-                        <PiMapPin />
-                        {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.siteLocation', 'Site Location')}
-                      </Space>
-                    }
-                  >
-                    <Select
-                      placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectLocation', 'Select site location')}
-                      allowClear
-                      data-testid="assignment-form-location-select"
-                    >
-                      {/* TODO: Load actual site locations */}
-                      <Option value="">
-                        {getTranslationFromI18nKeyAndLabel('common.all', 'All Locations')}
-                      </Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Card>
-          </Col>
+                    {/* TODO: Load site location options from API */}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          </Card>
 
           {/* Employment Details */}
           <Col span={24}>
@@ -429,110 +394,114 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
           </Col>
 
           {/* Settings and Period */}
-          <Col span={24}>
-            <Card 
-              title={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.settings', 'Settings & Effective Period')}
-              style={{ marginBottom: 16 }}
-            >
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="activeFrom"
-                    label={getTranslationFromI18nKeyAndLabel('common.activeFrom', 'Active From')}
-                    rules={[
-                      { required: true, message: getTranslationFromI18nKeyAndLabel('validation.required', 'This field is required') }
-                    ]}
-                  >
-                    <DatePicker
-                      style={{ width: '100%' }}
-                      data-testid="assignment-form-active-from-picker"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="activeTo"
-                    label={getTranslationFromI18nKeyAndLabel('common.activeTo', 'Active To')}
-                    rules={[
-                      { required: true, message: getTranslationFromI18nKeyAndLabel('validation.required', 'This field is required') },
-                      ({ getFieldValue }) => ({
-                        validator(_, value) {
-                          if (!value || getFieldValue('activeFrom') < value) {
-                            return Promise.resolve();
-                          }
-                          return Promise.reject(new Error(getTranslationFromI18nKeyAndLabel('validation.dateRange', 'End date must be after start date')));
-                        },
-                      }),
-                    ]}
-                  >
-                    <DatePicker
-                      style={{ width: '100%' }}
-                      data-testid="assignment-form-active-to-picker"
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
+          <Card 
+            title={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.settings', 'Assignment Settings')}
+            size="small"
+            style={{ marginBottom: 16 }}
+          >
+            <Row gutter={16}>
+              <Col span={8}>
+                <Form.Item
+                  name="cascading"
+                  valuePropName="checked"
+                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.cascading', 'Cascading')}
+                >
+                  <Switch 
+                    checkedChildren="Yes"
+                    unCheckedChildren="No"
+                    data-testid="assignment-form-cascading-switch"
+                  />
+                </Form.Item>
+              </Col>
               
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="cascading"
-                    valuePropName="checked"
-                  >
-                    <Switch
-                      checkedChildren={getTranslationFromI18nKeyAndLabel('common.yes', 'Yes')}
-                      unCheckedChildren={getTranslationFromI18nKeyAndLabel('common.no', 'No')}
-                      data-testid="assignment-form-cascading-switch"
-                    />
-                    <span style={{ marginLeft: 8 }}>
-                      {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.cascading', 'Cascading Assignment')}
-                    </span>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="applicants"
-                    valuePropName="checked"
-                  >
-                    <Switch
-                      checkedChildren={getTranslationFromI18nKeyAndLabel('common.yes', 'Yes')}
-                      unCheckedChildren={getTranslationFromI18nKeyAndLabel('common.no', 'No')}
-                      data-testid="assignment-form-applicants-switch"
-                    />
-                    <span style={{ marginLeft: 8 }}>
-                      {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.applicants', 'Include Applicants')}
-                    </span>
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Card>
-          </Col>
-        </Row>
+              <Col span={8}>
+                <Form.Item
+                  name="applicants"
+                  valuePropName="checked"
+                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.applicants', 'For Applicants')}
+                >
+                  <Switch 
+                    checkedChildren="Yes"
+                    unCheckedChildren="No"
+                    data-testid="assignment-form-applicants-switch"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="activeFrom"
+                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.activeFrom', 'Active From')}
+                  rules={[
+                    { required: true, message: 'Please select start date' }
+                  ]}
+                >
+                  <DatePicker
+                    style={{ width: '100%' }}
+                    format="YYYY-MM-DD"
+                    data-testid="assignment-form-active-from-picker"
+                  />
+                </Form.Item>
+              </Col>
+              
+              <Col span={12}>
+                <Form.Item
+                  name="activeTo"
+                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.activeTo', 'Active To')}
+                  rules={[
+                    { required: true, message: 'Please select end date' },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        const activeFrom = getFieldValue('activeFrom');
+                        if (!value || !activeFrom) {
+                          return Promise.resolve();
+                        }
+                        if (value.isAfter(activeFrom)) {
+                          return Promise.resolve();
+                        }
+                        return Promise.reject(new Error('End date must be after start date'));
+                      },
+                    }),
+                  ]}
+                >
+                  <DatePicker
+                    style={{ width: '100%' }}
+                    format="YYYY-MM-DD"
+                    data-testid="assignment-form-active-to-picker"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Card>
 
-        {/* Form Actions */}
-        <div className="gba:flex gba:justify-end gba:gap-2 gba:mt-6">
-          <Button
-            onClick={onCancel}
-            disabled={isSubmitting || loading}
-            data-testid="assignment-form-cancel-button"
-          >
-            <PiX className="gba:w-4 gba:h-4" />
-            {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
-          </Button>
-          <Button
-            type="primary"
-            htmlType="submit"
-            loading={isSubmitting || loading}
-            data-testid="assignment-form-save-button"
-          >
-            <PiFloppyDisk className="gba:w-4 gba:h-4" />
-            {isEditing 
-              ? getTranslationFromI18nKeyAndLabel('common.update', 'Update Assignment')
-              : getTranslationFromI18nKeyAndLabel('common.create', 'Create Assignment')
-            }
-          </Button>
-        </div>
-      </Form>
+          {/* Form Actions */}
+          <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
+            <Space>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={isSubmitting || loading}
+                icon={<PiFloppyDisk />}
+                data-testid="assignment-form-save-button"
+              >
+                {isEditing ? 
+                  getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.updateAssignment', 'Update Assignment') : 
+                  getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.createAssignment', 'Create Assignment')
+                }
+              </Button>
+              <Button
+                onClick={onCancel}
+                icon={<PiX />}
+                data-testid="assignment-form-cancel-button"
+              >
+                {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.cancel', 'Cancel')}
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Card>
     </div>
   );
 };

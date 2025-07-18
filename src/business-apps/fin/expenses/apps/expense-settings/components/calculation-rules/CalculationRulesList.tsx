@@ -28,10 +28,13 @@ import {
   PiPencil, 
   PiFloppyDisk, 
   PiX, 
-  PiDotsSixVertical 
+  PiDotsSixVertical,
+  PiWarning 
 } from 'react-icons/pi';
 import { CalculationRuleForm, CalculationRuleFormData } from '../../forms/calculation-rule-form';
 import { AssignmentForm } from '../../forms/assignment-form';
+import HoverAddButton from './HoverAddButton';
+import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient';
 import { 
   DndContext, 
   closestCenter, 
@@ -78,78 +81,14 @@ export interface CalculationRulesListProps extends BusinessAppContextProps {
   onNavigateToRule?: (ruleId: string, page?: string) => void;
 }
 
-// Hover Add Button Component - appears between rows on hover
-interface HoverAddButtonProps {
-  afterOrder: number;
-  onAdd: (afterOrder: number) => void;
+// Batch change tracking interfaces
+interface PendingAssignmentChange {
+  id?: string; // undefined for new assignments
+  assignmentOrder: number;
+  assignmentData: SaveExpenseRuleAssignmentInput;
+  changeType: 'update' | 'create';
+  originalOrder?: number;
 }
-
-interface HoverAddButtonProps {
-  afterOrder: number;
-  onAdd: (afterOrder: number) => void;
-  isEditMode: boolean;
-}
-
-const HoverAddButton: React.FC<HoverAddButtonProps> = ({ afterOrder, onAdd, isEditMode }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  
-  // Calculate column span based on edit mode (drag handle + order + actions + 4 content columns)
-  const colSpan = isEditMode ? 7 : 6;
-
-  return (
-    <tr 
-      className="gba:hover-add-row"
-      style={{
-        height: '20px', // Increased height for better hover target
-        position: 'relative',
-        transition: 'all 0.2s ease-in-out',
-        backgroundColor: isHovered ? '#f0f9ff' : 'transparent',
-        borderTop: isHovered ? '2px dashed #3b82f6' : '1px solid transparent',
-        borderBottom: isHovered ? '2px dashed #3b82f6' : '1px solid transparent',
-        cursor: 'pointer'
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <td 
-        colSpan={colSpan} 
-        style={{ 
-          padding: '4px 0',
-          position: 'relative',
-          textAlign: 'center',
-          height: '20px'
-        }}
-      >
-        {isHovered && (
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onAdd(afterOrder);
-            }}
-            className="gba:flex gba:items-center gba:gap-1"
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 10,
-              minWidth: '100px',
-              height: '28px',
-              fontSize: '12px',
-              borderRadius: '14px',
-              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
-              animation: 'fadeInScale 0.2s ease-out forwards'
-            }}
-            title={`Add assignment after position ${afterOrder}`}
-          >
-            <PiPlus className="gba:w-4 gba:h-4" />
-            Add Here
-          </Button>
-        )}
-      </td>
-    </tr>
-  );
-};
 
 // Sortable row component for drag and drop
 interface SortableRowProps {
@@ -305,6 +244,11 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
   const [inlineCreationRow, setInlineCreationRow] = useState<number | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
   
+  // Batch changes state
+  const [pendingChanges, setPendingChanges] = useState<PendingAssignmentChange[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [tempAssignmentCounter, setTempAssignmentCounter] = useState(0);
+  
   // Modal state management
   const [isCreateRuleModalVisible, setIsCreateRuleModalVisible] = useState(false);
   const [isEditRuleModalVisible, setIsEditRuleModalVisible] = useState(false);
@@ -328,7 +272,6 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
   const handleCreateRuleSubmit = async (formData: CalculationRuleFormData) => {
     try {
       // TODO: Implement actual create API call
-      console.log('Creating rule:', formData);
       message.success('Rule created successfully');
       setIsCreateRuleModalVisible(false);
       onRefresh();
@@ -341,7 +284,6 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
   const handleEditRuleSubmit = async (formData: CalculationRuleFormData) => {
     try {
       // TODO: Implement actual update API call
-      console.log('Updating rule:', formData);
       message.success('Rule updated successfully');
       setIsEditRuleModalVisible(false);
       setEditingRule(null);
@@ -462,8 +404,6 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
     if (showRules && onNavigateToRule && 'code' in record) {
       const currentPage = showRules ? 'Rules' : 'Assignments';
       onNavigateToRule(record.id, currentPage);
-    } else {
-      console.log('Row clicked:', record);
     }
   };
 
@@ -476,7 +416,7 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
     setInlineCreationRow(null);
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
     if (!over || active.id === over.id) return;
@@ -490,45 +430,104 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
     const newOrder = arrayMove(displayedAssignments, oldIndex, newIndex);
     setDisplayedAssignments(newOrder);
 
-    // Update assignment orders
-    try {
-      const updates = newOrder.map((assignment, index) => ({
-        id: assignment.id,
-        assignmentOrder: index + 1
-      }));
-
-      // TODO: Implement batch update API call
-      for (const update of updates) {
-        const originalAssignment = assignments.find(a => a.id === update.id)!;
-        await onUpdate(update.id, {
-          expenseRuleAssignment: {
-            id: update.id,
-            assignmentOrder: update.assignmentOrder,
-            cascading: originalAssignment.cascading,
-            applicants: originalAssignment.applicants || false,
-            activeFrom: originalAssignment.activeFrom,
-            activeTo: originalAssignment.activeTo,
-            expenseRule: originalAssignment.expenseRuleId,
-            company: originalAssignment.companyId,
-            organizationalUnit: originalAssignment.organizationalUnitId,
-            siteLocation: originalAssignment.siteLocationId,
-            employee: originalAssignment.employeeId,
-            employmentTypeRef: originalAssignment.employmentTypeName,
-            contractTypeRef: originalAssignment.contractTypeName,
-          },
-          changeMode: 'UPDATE'
-        });
+    // Track changes for batch update
+    const newPendingChanges = newOrder.map((assignment, index) => {
+      const originalAssignment = assignments.find(a => a.id === assignment.id);
+      const newAssignmentOrder = index + 1;
+      
+      // Only track if order actually changed
+      if (originalAssignment && originalAssignment.assignmentOrder !== newAssignmentOrder) {
+        return {
+          id: assignment.id,
+          assignmentOrder: newAssignmentOrder,
+          originalOrder: originalAssignment.assignmentOrder,
+          changeType: 'update' as const,
+          assignmentData: {
+            expenseRuleAssignment: {
+              id: assignment.id,
+              assignmentOrder: newAssignmentOrder,
+              cascading: originalAssignment.cascading,
+              applicants: originalAssignment.applicants || false,
+              activeFrom: originalAssignment.activeFrom,
+              activeTo: originalAssignment.activeTo,
+              expenseRule: originalAssignment.expenseRuleId,
+              company: originalAssignment.companyId,
+              organizationalUnit: originalAssignment.organizationalUnitId,
+              siteLocation: originalAssignment.siteLocationId,
+              employee: originalAssignment.employeeId,
+              employmentTypeRef: originalAssignment.employmentType?.id,
+              contractTypeRef: originalAssignment.contractType?.id,
+              ...(originalAssignment.version !== undefined && { version: originalAssignment.version })
+            },
+            changeMode: 'UPDATE'
+          }
+        };
       }
+      return null;
+    }).filter(Boolean) as PendingAssignmentChange[];
 
-      // Refresh after all updates
-      setTimeout(() => {
-        onRefresh();
-      }, 1000);
-    } catch (error) {
-      console.error('Failed to update assignment orders:', error);
-      // Revert on error
-      setDisplayedAssignments(displayedAssignments);
+    // Merge with existing pending changes
+    setPendingChanges(prev => {
+      const merged = [...prev];
+      newPendingChanges.forEach(newChange => {
+        const existingIndex = merged.findIndex(existing => existing.id === newChange.id);
+        if (existingIndex >= 0) {
+          merged[existingIndex] = newChange;
+        } else {
+          merged.push(newChange);
+        }
+      });
+      return merged;
+    });
+  };
+
+  // Batch save functionality
+  const handleSaveBatchChanges = async () => {
+    if (pendingChanges.length === 0) {
+      message.warning('No changes to save');
+      return;
     }
+
+    setIsSaving(true);
+    try {
+      // Prepare assignments for bulk API
+      const assignmentsToSave = pendingChanges.map(change => change.assignmentData);
+      
+      // Set access token on client
+      expenseSettingsClient.setAccessToken(accessToken);
+      
+      // Call bulk save endpoint
+      await expenseSettingsClient.saveBulkExpenseRuleAssignment(assignmentsToSave);
+      
+      message.success(`Successfully saved ${pendingChanges.length} changes`);
+      
+      // Clear pending changes
+      setPendingChanges([]);
+      
+      // Exit edit mode and refresh data
+      setIsEditMode(false);
+      setInlineCreationRow(null);
+      onRefresh();
+      
+    } catch (error) {
+      console.error('Failed to save batch changes:', error);
+      message.error('Failed to save changes. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelChanges = () => {
+    // Revert to original assignments
+    const sorted = [...assignments].sort((a, b) => a.assignmentOrder - b.assignmentOrder);
+    setDisplayedAssignments(sorted.slice(0, ITEMS_PER_PAGE));
+    
+    // Clear pending changes
+    setPendingChanges([]);
+    
+    // Exit edit mode
+    setIsEditMode(false);
+    setInlineCreationRow(null);
   };
 
   const handleInlineCreate = (afterOrder: number) => {
@@ -537,14 +536,85 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
 
   const handleInlineSave = async (data: SaveExpenseRuleAssignmentInput) => {
     try {
-      await onCreate(data);
+      // Generate temporary ID for new assignment
+      const tempId = `temp-${Date.now()}-${tempAssignmentCounter}`;
+      setTempAssignmentCounter(prev => prev + 1);
+      
+      // Create new assignment with updated order
+      const newAssignment: EnhancedExpenseRuleAssignment = {
+        id: tempId,
+        assignmentOrder: data.expenseRuleAssignment.assignmentOrder,
+        cascading: data.expenseRuleAssignment.cascading,
+        applicants: data.expenseRuleAssignment.applicants,
+        activeFrom: data.expenseRuleAssignment.activeFrom,
+        activeTo: data.expenseRuleAssignment.activeTo,
+        expenseRuleId: data.expenseRuleAssignment.expenseRule,
+        companyId: data.expenseRuleAssignment.company,
+        organizationalUnitId: data.expenseRuleAssignment.organizationalUnit,
+        siteLocationId: data.expenseRuleAssignment.siteLocation,
+        employeeId: data.expenseRuleAssignment.employee,
+        employmentType: data.expenseRuleAssignment.employmentTypeRef ? { id: data.expenseRuleAssignment.employmentTypeRef, value: '' } : undefined,
+        contractType: data.expenseRuleAssignment.contractTypeRef ? { id: data.expenseRuleAssignment.contractTypeRef, value: '' } : undefined,
+        ruleName: rules.find(r => r.id === data.expenseRuleAssignment.expenseRule)?.name || '',
+        ruleCode: rules.find(r => r.id === data.expenseRuleAssignment.expenseRule)?.code || '',
+        displayName: rules.find(r => r.id === data.expenseRuleAssignment.expenseRule)?.name || '',
+        companyName: '',
+        orgUnitName: '',
+        locationName: '',
+        employeeName: '',
+        contractTypeName: '',
+        employmentTypeName: '',
+        effectivePeriod: `${data.expenseRuleAssignment.activeFrom} - ${data.expenseRuleAssignment.activeTo}`,
+        isDeleted: false
+      };
+      
+      // Update displayed assignments with new one in correct position
+      const updatedAssignments = [...displayedAssignments];
+      const insertIndex = updatedAssignments.findIndex(a => a.assignmentOrder > data.expenseRuleAssignment.assignmentOrder);
+      if (insertIndex >= 0) {
+        updatedAssignments.splice(insertIndex, 0, newAssignment);
+      } else {
+        updatedAssignments.push(newAssignment);
+      }
+      
+      // Reorder all assignments
+      const reorderedAssignments = updatedAssignments.map((assignment, index) => ({
+        ...assignment,
+        assignmentOrder: index + 1
+      }));
+      
+      setDisplayedAssignments(reorderedAssignments);
+      
+      // Add to pending changes (without id and version for new assignment)
+      const pendingChange: PendingAssignmentChange = {
+        assignmentOrder: data.expenseRuleAssignment.assignmentOrder,
+        changeType: 'create',
+        assignmentData: {
+          expenseRuleAssignment: {
+            // Omit id and version for new assignments
+            assignmentOrder: data.expenseRuleAssignment.assignmentOrder,
+            cascading: data.expenseRuleAssignment.cascading,
+            applicants: data.expenseRuleAssignment.applicants,
+            activeFrom: data.expenseRuleAssignment.activeFrom,
+            activeTo: data.expenseRuleAssignment.activeTo,
+            expenseRule: data.expenseRuleAssignment.expenseRule,
+            company: data.expenseRuleAssignment.company,
+            organizationalUnit: data.expenseRuleAssignment.organizationalUnit,
+            siteLocation: data.expenseRuleAssignment.siteLocation,
+            employee: data.expenseRuleAssignment.employee,
+            employmentTypeRef: data.expenseRuleAssignment.employmentTypeRef,
+            contractTypeRef: data.expenseRuleAssignment.contractTypeRef,
+          },
+          changeMode: 'INSERT'
+        }
+      };
+      
+      setPendingChanges(prev => [...prev, pendingChange]);
       setInlineCreationRow(null);
-      // Refresh to get updated order
-      setTimeout(() => {
-        onRefresh();
-      }, 500);
+      
     } catch (error) {
       console.error('Failed to create assignment:', error);
+      message.error('Failed to add assignment');
     }
   };
 
@@ -636,37 +706,7 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
     return <div>{targets}</div>;
   };
 
-  // Create enhanced dataSource with hover zones for edit mode
-  const createEnhancedDataSource = () => {
-    if (!isEditMode) {
-      return displayedAssignments;
-    }
 
-    const enhanced: (EnhancedExpenseRuleAssignment | { isHoverZone: true; afterOrder: number; id: string })[] = [];
-    
-    // Add hover zone before first item
-    enhanced.push({
-      isHoverZone: true,
-      afterOrder: 0,
-      id: 'hover-0'
-    });
-
-    // Add assignments with hover zones after each
-    displayedAssignments.forEach((assignment) => {
-      enhanced.push(assignment);
-      
-      // Add hover zone after this assignment
-      enhanced.push({
-        isHoverZone: true,
-        afterOrder: assignment.assignmentOrder,
-        id: `hover-${assignment.assignmentOrder}`
-      });
-    });
-
-    return enhanced;
-  };
-
-  const enhancedDataSource = createEnhancedDataSource();
 
   // Define columns for assignments table
   const assignmentColumns: ColumnsType<any> = [
@@ -929,30 +969,55 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
           )}
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {!showRules && (
+          {!showRules && !isEditMode && (
             <Button 
-              type={isEditMode ? "default" : "dashed"}
-              icon={isEditMode ? <PiFloppyDisk /> : <PiPencil />}
+              type="dashed"
+              icon={<PiPencil />}
               onClick={handleEditMode}
               data-testid="calculation-rules-edit-mode-button"
             >
-              {isEditMode 
-                ? getTranslationFromI18nKeyAndLabel('common.save_exit', 'Save & Exit')
-                : getTranslationFromI18nKeyAndLabel('common.edit_order', 'Edit Order')
+              {getTranslationFromI18nKeyAndLabel('common.edit_order', 'Edit Order')}
+            </Button>
+          )}
+          
+          {!showRules && isEditMode && (
+            <>
+              <Button 
+                type="primary"
+                icon={<PiFloppyDisk />}
+                onClick={handleSaveBatchChanges}
+                loading={isSaving}
+                disabled={pendingChanges.length === 0}
+                data-testid="calculation-rules-save-changes-button"
+              >
+                {getTranslationFromI18nKeyAndLabel('common.save_changes', 'Save Changes')}
+                {pendingChanges.length > 0 && ` (${pendingChanges.length})`}
+              </Button>
+              <Button 
+                icon={<PiX />}
+                onClick={handleCancelChanges}
+                disabled={isSaving}
+                data-testid="calculation-rules-cancel-changes-button"
+              >
+                {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+              </Button>
+            </>
+          )}
+          
+          {!isEditMode && (
+            <Button 
+              type="primary" 
+              icon={<PiPlus />} 
+              onClick={showRules ? handleCreateRule : handleCreateAssignment}
+              data-testid={`calculation-rules-create-${showRules ? 'rule' : 'assignment'}-button`}
+            >
+              {showRules 
+                ? getTranslationFromI18nKeyAndLabel('expenseSettings.actions.createRule', 'Create Rule')
+                : getTranslationFromI18nKeyAndLabel('expenseSettings.actions.createAssignment', 'Create Assignment')
               }
             </Button>
           )}
-          <Button 
-            type="primary" 
-            icon={<PiPlus />} 
-            onClick={showRules ? handleCreateRule : handleCreateAssignment}
-            data-testid={`calculation-rules-create-${showRules ? 'rule' : 'assignment'}-button`}
-          >
-            {showRules 
-              ? getTranslationFromI18nKeyAndLabel('expenseSettings.actions.createRule', 'Create Rule')
-              : getTranslationFromI18nKeyAndLabel('expenseSettings.actions.createAssignment', 'Create Assignment')
-            }
-          </Button>
+          
           <Button 
             icon={<PiArrowClockwise />} 
             onClick={onRefresh}
@@ -987,13 +1052,29 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
         </Button>
       </div>
 
+      {/* Pending Changes Warning */}
+      {isEditMode && pendingChanges.length > 0 && (
+        <Alert
+          message={getTranslationFromI18nKeyAndLabel('expenseSettings.pendingChanges.title', 'Pending Changes')}
+          description={getTranslationFromI18nKeyAndLabel(
+            'expenseSettings.pendingChanges.description', 
+            `You have ${pendingChanges.length} unsaved change${pendingChanges.length !== 1 ? 's' : ''}. Click "Save Changes" to apply them or "Cancel" to discard.`
+          )}
+          type="warning"
+          icon={<PiWarning />}
+          showIcon
+          style={{ marginBottom: '16px' }}
+          data-testid="calculation-rules-pending-changes-alert"
+        />
+      )}
+
       {/* Description */}
       <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '6px' }}>
         <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
           {showRules 
             ? getTranslationFromI18nKeyAndLabel('expenseSettings.calculationRules.rules.description', 'Manage calculation rules that define how expenses are processed and validated.')
             : isEditMode
-            ? getTranslationFromI18nKeyAndLabel('expenseSettings.calculationRules.assignments.editDescription', 'Drag and drop to reorder assignments. Click + to add assignments between existing ones. Sorting and filtering are disabled in edit mode.')
+            ? getTranslationFromI18nKeyAndLabel('expenseSettings.calculationRules.assignments.editDescription', 'Drag and drop to reorder assignments. Hover between rows to add new assignments. Changes are saved in batch when you click "Save Changes".')
             : getTranslationFromI18nKeyAndLabel('expenseSettings.calculationRules.assignments.description', 'Manage rule assignments that determine which rules apply to specific employees, companies, or organizational units.')
           }
         </p>
@@ -1038,67 +1119,80 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
               strategy={verticalListSortingStrategy}
               disabled={!isEditMode}
             >
-              <Table<any> // Changed type to any to accommodate hover zones
-                columns={assignmentColumns}
-                dataSource={enhancedDataSource}
-                rowKey="id"
-                loading={isLoading}
-                pagination={isEditMode ? false : {
-                  hideOnSinglePage: true,
-                  showSizeChanger: false,
-                  showQuickJumper: false,
-                  position: ['bottomCenter'],
-                  simple: true,
-                  showTotal: () => `${displayedAssignments.length} of ${assignments.length} loaded`
-                }}
-                scroll={{ x: 'max-content' }}
-                data-testid="calculation-rules-assignments-table"
-                components={isEditMode ? {
-                  body: {
-                    row: ({ children, ...props }: { children: React.ReactNode; [key: string]: any }) => {
-                      const record = enhancedDataSource.find(item => item.id === props['data-row-key']);
-                      if (!record) return <tr {...props}>{children}</tr>;
-                      
-                      // Handle hover zone rows
-                      if ('isHoverZone' in record && record.isHoverZone) {
+              <div>
+                {/* Add button before first assignment in edit mode */}
+                {isEditMode && displayedAssignments.length > 0 && (
+                  <HoverAddButton
+                    afterOrder={0}
+                    onAdd={handleInlineCreate}
+                    isEditMode={isEditMode}
+                  />
+                )}
+                
+                <Table<EnhancedExpenseRuleAssignment>
+                  columns={assignmentColumns}
+                  dataSource={displayedAssignments}
+                  rowKey="id"
+                  loading={isLoading}
+                  pagination={isEditMode ? false : {
+                    hideOnSinglePage: true,
+                    showSizeChanger: false,
+                    showQuickJumper: false,
+                    position: ['bottomCenter'],
+                    simple: true,
+                    showTotal: () => `${displayedAssignments.length} of ${assignments.length} loaded`
+                  }}
+                  scroll={{ x: 'max-content' }}
+                  data-testid="calculation-rules-assignments-table"
+                  components={isEditMode ? {
+                    body: {
+                      row: ({ children, ...props }: { children: React.ReactNode; [key: string]: any }) => {
+                        const record = displayedAssignments.find(item => item.id === props['data-row-key']);
+                        if (!record) return <tr {...props}>{children}</tr>;
+                        
                         return (
-                          <HoverAddButton
-                            afterOrder={record.afterOrder}
-                            onAdd={handleInlineCreate}
-                            isEditMode={isEditMode}
-                          />
+                          <>
+                            <SortableRow 
+                              id={record.id} 
+                              isEditMode={isEditMode}
+                            >
+                              {children}
+                            </SortableRow>
+                            
+                            {/* Add hover button after each row in edit mode */}
+                            {isEditMode && (
+                              <tr>
+                                <td colSpan={7} style={{ padding: 0, border: 'none' }}>
+                                  <HoverAddButton
+                                    afterOrder={record.assignmentOrder}
+                                    onAdd={handleInlineCreate}
+                                    isEditMode={isEditMode}
+                                  />
+                                </td>
+                              </tr>
+                            )}
+                            
+                            {/* Inline creation form */}
+                            {inlineCreationRow === record.assignmentOrder && (
+                              <InlineCreationForm
+                                rules={rules}
+                                onSave={handleInlineSave}
+                                onCancel={handleInlineCancel}
+                                insertAfterOrder={record.assignmentOrder}
+                              />
+                            )}
+                          </>
                         );
                       }
-                      
-                      // Handle regular assignment rows
-                      const assignmentRecord = record as EnhancedExpenseRuleAssignment;
-                      return (
-                        <>
-                          <SortableRow 
-                            id={assignmentRecord.id} 
-                            isEditMode={isEditMode}
-                          >
-                            {children}
-                          </SortableRow>
-                          {inlineCreationRow === assignmentRecord.assignmentOrder && (
-                            <InlineCreationForm
-                              rules={rules}
-                              onSave={handleInlineSave}
-                              onCancel={handleInlineCancel}
-                              insertAfterOrder={assignmentRecord.assignmentOrder}
-                            />
-                          )}
-                        </>
-                      );
                     }
-                  }
-                } : undefined}
+                  } : undefined}
                 onRow={(record) => ({
                   onClick: () => handleRowClick(record),
                   style: { cursor: isEditMode ? 'move' : 'pointer' },
                   'data-row-key': record.id
                 })}
               />
+            </div>
             </SortableContext>
           </DndContext>
         )}

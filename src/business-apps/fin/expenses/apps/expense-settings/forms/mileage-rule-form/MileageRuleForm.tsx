@@ -1,494 +1,552 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+import React, { useState, useEffect } from 'react';
 import { 
-  Form, 
-  Input, 
-  Select, 
-  DatePicker, 
   Button, 
-  Space, 
-  Alert, 
-  Typography, 
+  Input, 
+  Label, 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Card,
-  Row,
-  Col,
-  Spin,
+  CardContent,
+  CardHeader,
+  CardTitle,
   Table,
-  InputNumber,
-  Popconfirm
-} from 'antd';
-import { ColumnsType } from 'antd/es/table';
-import { PiFloppyDisk, PiX, PiWarning, PiPlus, PiTrash } from 'react-icons/pi';
-import dayjs from 'dayjs';
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Alert,
+  AlertDescription,
+  Spinner
+} from '@newwork/nw-design-system';
+import { PiPlus, PiTrash, PiWarning, PiDotsSixVertical } from 'react-icons/pi';
+import { getMileageRulePeriodOptions } from '../../types/ExpenseEnums';
+import { DndContext, closestCenter, DragEndEvent, DragOverlay, DragStartEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import { useSensors, useSensor, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
-const { Title } = Typography;
-const { TextArea } = Input;
-const { Option } = Select;
-
-export interface MileageRuleDetailFormData {
+interface MileageRuleFormData {
   id?: string;
-  amount: number;
-  limitFrom?: number;
-  limitTo?: number;
-  detailOrder: number;
-  activeFrom?: string;
-  activeTo?: string;
-}
-
-export interface MileageRuleFormData {
-  id?: string;
-  code: string;
-  name: string;
-  ruleOrder: number;
+  version?: number;
+  ruleName: string;
+  description: string;
+  rulePeriod: string;
   activeFrom: string;
-  activeTo?: string;
-  businessKey?: string;
+  activeTo: string;
   details: MileageRuleDetailFormData[];
 }
 
-interface MileageRuleFormProps extends BusinessAppContextProps {
-  initialData?: MileageRuleFormData;
-  isEditing?: boolean;
-  onSave: (data: MileageRuleFormData) => Promise<void>;
-  onCancel: () => void;
-  loading?: boolean;
+interface MileageRuleDetailFormData {
+  id?: string;
+  version?: number;
+  limitFrom?: number;
+  limitTo?: number;
+  rateAmount: number;
+  detailOrder: number;
+  activeFrom: string;
+  activeTo: string;
+  tempId?: string; // For stable keys during drag operations
 }
 
-interface CatalogOption {
-  id: string;
-  value: string;
-  code?: string;
+interface MileageRuleFormProps {
+  initialData?: MileageRuleFormData;
+  onSubmit: (data: MileageRuleFormData) => Promise<void>;
+  onCancel: () => void;
+  accessToken: string;
 }
+
+interface SortableRowProps {
+  id: string;
+  children: React.ReactNode;
+}
+
+const SortableRow: React.FC<SortableRowProps> = ({ id, children }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ 
+    id,
+    transition: {
+      duration: 150, // Shorter transition
+      easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+    },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: isDragging ? 'none' : transition, // No transition while dragging
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <TableRow ref={setNodeRef} style={style} {...attributes}>
+      <TableCell className="gba:w-10 gba:text-center gba:cursor-grab" {...listeners}>
+        <PiDotsSixVertical className="gba:text-gray-400 gba:text-lg" />
+      </TableCell>
+      {children}
+    </TableRow>
+  );
+};
 
 const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
   initialData,
-  isEditing = false,
-  onSave,
+  onSubmit,
   onCancel,
-  loading = false,
-  accessToken,
-  ...context
+  accessToken
 }) => {
-  const [form] = Form.useForm();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [details, setDetails] = useState<MileageRuleDetailFormData[]>([]);
   
-  // Catalog data
-  const [currencies, setCurrencies] = useState<CatalogOption[]>([]);
-  const [catalogsLoading, setCatalogsLoading] = useState(true);
+  // Form state
+  const [formData, setFormData] = useState<MileageRuleFormData>({
+    ruleName: initialData?.ruleName || '',
+    description: initialData?.description || '',
+    rulePeriod: initialData?.rulePeriod || '',
+    activeFrom: initialData?.activeFrom || '',
+    activeTo: initialData?.activeTo || '',
+    details: initialData?.details || []
+  });
 
-  const catalogClient = useCatalogManagerClient(accessToken);
+  // UI state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
-  // Load catalog data
-  const loadCatalogData = useCallback(async () => {
-    setCatalogsLoading(true);
-    try {
-      const currenciesRes = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: 'Currency', version: 'v1' },
-        { limit: 100, offset: 0, returnTotalRecords: true }
-      );
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px of movement before starting drag
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-      setCurrencies(currenciesRes.data.map((item: any) => ({
-        id: item.id,
-        value: item.value,
-        code: item.code
-      })));
-    } catch (err) {
-      console.error('Error loading catalog data:', err);
-      setError('Failed to load catalog data');
-    } finally {
-      setCatalogsLoading(false);
-    }
-  }, [catalogClient]);
-
+  // Ensure all details have stable tempIds
   useEffect(() => {
-    if (accessToken) {
-      loadCatalogData();
+    setFormData(prev => ({
+      ...prev,
+      details: prev.details.map(detail => ({
+        ...detail,
+        tempId: detail.tempId || `temp-${Date.now()}-${Math.random()}`
+      }))
+    }));
+  }, []);
+
+  // Add new detail
+  const addDetail = () => {
+    const newDetail: MileageRuleDetailFormData = {
+      limitFrom: undefined,
+      limitTo: undefined,
+      rateAmount: 0,
+      detailOrder: formData.details.length + 1,
+      activeFrom: '',
+      activeTo: '',
+      tempId: `temp-${Date.now()}-${Math.random()}` // Stable unique ID
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      details: [...prev.details, newDetail]
+    }));
+  };
+
+  // Remove detail
+  const removeDetail = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      details: prev.details.filter((_, i) => i !== index).map((detail, i) => ({
+        ...detail,
+        detailOrder: i + 1
+      }))
+    }));
+  };
+
+  // Update detail
+  const updateDetail = (index: number, field: keyof MileageRuleDetailFormData, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      details: prev.details.map((detail, i) => 
+        i === index ? { ...detail, [field]: value } : detail
+      )
+    }));
+  };
+
+  // Handle drag start
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  // Handle drag end
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    setActiveId(null);
+    
+    if (!over || active.id === over.id) return;
+
+    const activeIndex = formData.details.findIndex(detail => detail.tempId === active.id);
+    const overIndex = formData.details.findIndex(detail => detail.tempId === over.id);
+
+    if (activeIndex === -1 || overIndex === -1) return;
+
+    // Use a more immediate update to prevent animation issues
+    const newDetails = arrayMove(formData.details, activeIndex, overIndex);
+    
+    // Update detail order
+    newDetails.forEach((detail, index) => {
+      detail.detailOrder = index + 1;
+    });
+
+    setFormData(prev => ({ ...prev, details: newDetails }));
+  };
+
+  // Validate form
+  const validateForm = (): boolean => {
+    const errors: string[] = [];
+
+    // Basic validation
+    if (!formData.ruleName.trim()) {
+      errors.push('Rule name is required');
     }
-  }, [accessToken, loadCatalogData]);
-
-  // Initialize form with data
-  useEffect(() => {
-    if (initialData) {
-      form.setFieldsValue({
-        ...initialData,
-        activeFrom: initialData.activeFrom ? dayjs(initialData.activeFrom) : null,
-        activeTo: initialData.activeTo ? dayjs(initialData.activeTo) : null,
-      });
-      setDetails(initialData.details || []);
-    } else {
-      // Set default values for new rule
-      form.setFieldsValue({
-        ruleOrder: 1,
-        activeFrom: dayjs(),
-      });
-      setDetails([]);
+    if (!formData.rulePeriod) {
+      errors.push('Rule period is required');
     }
-  }, [initialData, form]);
+    if (!formData.activeFrom) {
+      errors.push('Active from date is required');
+    }
+    if (formData.details.length === 0) {
+      errors.push('At least one mileage detail is required');
+    }
 
-  const handleSubmit = async (values: any) => {
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      if (details.length === 0) {
-        setError('At least one mileage detail is required');
-        return;
+    // Detail validation
+    formData.details.forEach((detail, index) => {
+      if (detail.rateAmount <= 0) {
+        errors.push(`Row ${index + 1}: Rate amount must be greater than 0`);
       }
+      if (detail.limitFrom !== undefined && detail.limitTo !== undefined && detail.limitFrom >= detail.limitTo) {
+        errors.push(`Row ${index + 1}: Limit from must be less than limit to`);
+      }
+      if (!detail.activeFrom) {
+        errors.push(`Row ${index + 1}: Active from date is required`);
+      }
+      if (detail.activeFrom && detail.activeTo && detail.activeFrom >= detail.activeTo) {
+        errors.push(`Row ${index + 1}: Active from must be before active to`);
+      }
+    });
 
-      const formData: MileageRuleFormData = {
-        ...values,
-        activeFrom: values.activeFrom?.toISOString(),
-        activeTo: values.activeTo?.toISOString(),
-        details: details,
-        id: initialData?.id
+    // Check for overlapping ranges
+    const sortedDetails = [...formData.details].sort((a, b) => (a.limitFrom || 0) - (b.limitFrom || 0));
+    for (let i = 0; i < sortedDetails.length - 1; i++) {
+      const current = sortedDetails[i];
+      const next = sortedDetails[i + 1];
+      
+      const currentTo = current.limitTo || Infinity;
+      const nextFrom = next.limitFrom || 0;
+      
+      if (currentTo > nextFrom) {
+        errors.push(`Overlapping ranges detected between rows`);
+        break;
+      }
+    }
+
+    setValidationErrors(errors);
+    return errors.length === 0;
+  };
+
+  // Handle submit
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Sort details by limit ranges before saving
+      const sortedDetails = [...formData.details].sort((a, b) => {
+        const aFrom = a.limitFrom || 0;
+        const bFrom = b.limitFrom || 0;
+        if (aFrom !== bFrom) {
+          return aFrom - bFrom;
+        }
+        const aTo = a.limitTo || Infinity;
+        const bTo = b.limitTo || Infinity;
+        return aTo - bTo;
+      });
+
+      // Update detail order based on sorted position
+      sortedDetails.forEach((detail, idx) => {
+        detail.detailOrder = idx + 1;
+      });
+
+      const dataToSubmit = {
+        ...formData,
+        details: sortedDetails
       };
 
-      await onSave(formData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save mileage rule');
+      await onSubmit(dataToSubmit);
+    } catch (error) {
+      console.error('Error submitting form:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleCancel = () => {
-    form.resetFields();
-    setDetails([]);
-    onCancel();
-  };
-
-  // Detail management functions
-  const addDetail = () => {
-    const newDetail: MileageRuleDetailFormData = {
-      amount: 0,
-      limitFrom: 0,
-      limitTo: 100,
-      detailOrder: details.length + 1,
-      activeFrom: dayjs().toISOString(),
-    };
-    setDetails([...details, newDetail]);
-  };
-
-  const updateDetail = (index: number, field: keyof MileageRuleDetailFormData, value: any) => {
-    const updatedDetails = [...details];
-    updatedDetails[index] = { ...updatedDetails[index], [field]: value };
-    setDetails(updatedDetails);
-  };
-
-  const removeDetail = (index: number) => {
-    const updatedDetails = details.filter((_, i) => i !== index);
-    // Reorder remaining details
-    updatedDetails.forEach((detail, i) => {
-      detail.detailOrder = i + 1;
-    });
-    setDetails(updatedDetails);
-  };
-
-  // Table columns for details
-  const detailColumns: ColumnsType<MileageRuleDetailFormData> = [
-    {
-      title: 'Order',
-      dataIndex: 'detailOrder',
-      key: 'detailOrder',
-      width: 80,
-      render: (value: number, record: MileageRuleDetailFormData, index: number) => (
-        <InputNumber
-          min={1}
-          value={value}
-          onChange={(val) => updateDetail(index, 'detailOrder', val)}
-          size="small"
-          data-testid={`mileage-detail-order-${index}`}
-        />
-      ),
-    },
-    {
-      title: 'Amount',
-      dataIndex: 'amount',
-      key: 'amount',
-      width: 120,
-      render: (value: number, record: MileageRuleDetailFormData, index: number) => (
-        <InputNumber
-          min={0}
-          step={0.01}
-          value={value}
-          onChange={(val) => updateDetail(index, 'amount', val || 0)}
-          size="small"
-          placeholder="0.00"
-          data-testid={`mileage-detail-amount-${index}`}
-        />
-      ),
-    },
-    {
-      title: 'Limit From (km)',
-      dataIndex: 'limitFrom',
-      key: 'limitFrom',
-      width: 130,
-      render: (value: number, record: MileageRuleDetailFormData, index: number) => (
-        <InputNumber
-          min={0}
-          value={value}
-          onChange={(val) => updateDetail(index, 'limitFrom', val)}
-          size="small"
-          placeholder="0"
-          data-testid={`mileage-detail-limit-from-${index}`}
-        />
-      ),
-    },
-    {
-      title: 'Limit To (km)',
-      dataIndex: 'limitTo',
-      key: 'limitTo',
-      width: 130,
-      render: (value: number, record: MileageRuleDetailFormData, index: number) => (
-        <InputNumber
-          min={0}
-          value={value}
-          onChange={(val) => updateDetail(index, 'limitTo', val)}
-          size="small"
-          placeholder="100"
-          data-testid={`mileage-detail-limit-to-${index}`}
-        />
-      ),
-    },
-    {
-      title: 'Active From',
-      dataIndex: 'activeFrom',
-      key: 'activeFrom',
-      width: 150,
-      render: (value: string, record: MileageRuleDetailFormData, index: number) => (
-        <DatePicker
-          value={value ? dayjs(value) : null}
-          onChange={(date) => updateDetail(index, 'activeFrom', date?.toISOString())}
-          size="small"
-          format="YYYY-MM-DD"
-          data-testid={`mileage-detail-active-from-${index}`}
-        />
-      ),
-    },
-    {
-      title: 'Active To',
-      dataIndex: 'activeTo',
-      key: 'activeTo',
-      width: 150,
-      render: (value: string, record: MileageRuleDetailFormData, index: number) => (
-        <DatePicker
-          value={value ? dayjs(value) : null}
-          onChange={(date) => updateDetail(index, 'activeTo', date?.toISOString())}
-          size="small"
-          format="YYYY-MM-DD"
-          allowClear
-          data-testid={`mileage-detail-active-to-${index}`}
-        />
-      ),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 80,
-      render: (_, record: MileageRuleDetailFormData, index: number) => (
-        <Popconfirm
-          title="Delete Detail"
-          description="Are you sure you want to delete this detail?"
-          onConfirm={() => removeDetail(index)}
-          okText="Yes"
-          cancelText="No"
-        >
-          <Button
-            type="text"
-            danger
-            icon={<PiTrash />}
-            size="small"
-            data-testid={`mileage-detail-delete-${index}`}
-          />
-        </Popconfirm>
-      ),
-    },
-  ];
-
-  if (catalogsLoading) {
-    return (
-      <div 
-        data-testid="mileage-rule-form-loading"
-        className="gba:flex gba:justify-center gba:items-center gba:min-h-96"
-      >
-        <Spin size="large" />
-      </div>
-    );
-  }
-
   return (
-    <div data-testid="mileage-rule-form-container">
-      <Card
-        title={
-          <Title level={4} style={{ margin: 0 }}>
-            {isEditing ? 'Edit Mileage Rule' : 'Create New Mileage Rule'}
-          </Title>
-        }
-        data-testid="mileage-rule-form-card"
-      >
-        {error && (
-          <Alert
-            message="Error"
-            description={error}
-            type="error"
-            showIcon
-            icon={<PiWarning />}
-            style={{ marginBottom: 16 }}
-            data-testid="mileage-rule-form-error"
-          />
-        )}
-
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          data-testid="mileage-rule-form"
-        >
-          <Row gutter={16}>
-            <Col xs={24} md={8}>
-              <Form.Item
-                name="code"
-                label="Rule Code"
-                rules={[
-                  { required: true, message: 'Rule code is required' },
-                  { max: 50, message: 'Rule code cannot exceed 50 characters' }
-                ]}
+    <div className="gba:space-y-6" data-testid="mileage-rule-form">
+      {/* Basic Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Basic Information</CardTitle>
+        </CardHeader>
+        <CardContent className="gba:space-y-4" style={{ overflow: 'visible' }}>
+          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+            <div>
+              <Label htmlFor="ruleName">Rule Name *</Label>
+              <Input
+                id="ruleName"
+                value={formData.ruleName}
+                onChange={(e) => setFormData(prev => ({ ...prev, ruleName: e.target.value }))}
+                placeholder="Enter rule name"
+                data-testid="mileage-rule-form-name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="rulePeriod">Rule Period *</Label>
+              <Select
+                value={formData.rulePeriod || undefined}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, rulePeriod: value }))}
+                data-testid="mileage-rule-form-rule-period"
               >
-                <Input 
-                  placeholder="Enter rule code (e.g., MR_001)"
-                  data-testid="mileage-rule-form-code-input"
-                />
-              </Form.Item>
-            </Col>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select rule period" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getMileageRulePeriodOptions().map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-            <Col xs={24} md={8}>
-              <Form.Item
-                name="name"
-                label="Rule Name"
-                rules={[
-                  { required: true, message: 'Rule name is required' },
-                  { max: 100, message: 'Rule name cannot exceed 100 characters' }
-                ]}
-              >
-                <Input 
-                  placeholder="Enter rule name"
-                  data-testid="mileage-rule-form-name-input"
-                />
-              </Form.Item>
-            </Col>
-
-            <Col xs={24} md={8}>
-              <Form.Item
-                name="ruleOrder"
-                label="Rule Order"
-                rules={[
-                  { required: true, message: 'Rule order is required' }
-                ]}
-              >
-                <InputNumber 
-                  min={1}
-                  placeholder="Enter order"
-                  style={{ width: '100%' }}
-                  data-testid="mileage-rule-form-rule-order-input"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="activeFrom"
-                label="Active From"
-                rules={[
-                  { required: true, message: 'Active from date is required' }
-                ]}
-              >
-                <DatePicker 
-                  style={{ width: '100%' }}
-                  placeholder="Select start date"
-                  data-testid="mileage-rule-form-active-from-picker"
-                />
-              </Form.Item>
-            </Col>
-
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="activeTo"
-                label="Active To"
-              >
-                <DatePicker 
-                  style={{ width: '100%' }}
-                  placeholder="Select end date (optional)"
-                  data-testid="mileage-rule-form-active-to-picker"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            name="businessKey"
-            label="Business Key"
-          >
-            <Input 
-              placeholder="Enter business key (optional)"
-              data-testid="mileage-rule-form-business-key-input"
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Input
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Enter description"
+              data-testid="mileage-rule-form-description"
             />
-          </Form.Item>
+          </div>
 
-          {/* Mileage Details Section */}
-          <Card
-            title="Mileage Details"
-            size="small"
-            style={{ marginTop: 16 }}
-            extra={
-              <Button
-                type="primary"
-                icon={<PiPlus />}
-                size="small"
-                onClick={addDetail}
-                data-testid="mileage-rule-form-add-detail-button"
-              >
-                Add Detail
-              </Button>
-            }
-          >
-            <Table
-              columns={detailColumns}
-              dataSource={details}
-              rowKey={(record, index) => `detail-${index}`}
-              pagination={false}
-              size="small"
-              locale={{ emptyText: 'No mileage details added yet' }}
-              data-testid="mileage-rule-form-details-table"
-            />
-          </Card>
-
-          <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
-            <Space>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={isSubmitting}
-                icon={<PiFloppyDisk />}
-                data-testid="mileage-rule-form-save-button"
-              >
-                {isEditing ? 'Update Rule' : 'Create Rule'}
-              </Button>
-              <Button
-                onClick={handleCancel}
-                icon={<PiX />}
-                data-testid="mileage-rule-form-cancel-button"
-              >
-                Cancel
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
+          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+            <div>
+              <Label htmlFor="activeFrom">Active From *</Label>
+              <Input
+                id="activeFrom"
+                type="date"
+                value={formData.activeFrom}
+                onChange={(e) => setFormData(prev => ({ ...prev, activeFrom: e.target.value }))}
+                data-testid="mileage-rule-form-active-from"
+              />
+            </div>
+            <div>
+              <Label htmlFor="activeTo">Active To</Label>
+              <Input
+                id="activeTo"
+                type="date"
+                value={formData.activeTo}
+                onChange={(e) => setFormData(prev => ({ ...prev, activeTo: e.target.value }))}
+                data-testid="mileage-rule-form-active-to"
+              />
+            </div>
+          </div>
+        </CardContent>
       </Card>
+
+      {/* Mileage Details */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="gba:flex gba:justify-between gba:items-center">
+            <span>Mileage Details</span>
+            <Button
+              onClick={addDetail}
+              data-testid="mileage-rule-form-add-detail"
+              className="gba:flex gba:items-center gba:gap-2"
+            >
+              <PiPlus className="gba:w-4 gba:h-4" />
+              Add Detail
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {formData.details.length === 0 ? (
+            <Alert>
+              <AlertDescription>
+                No mileage details added yet. Click "Add Detail" to create your first rate.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              modifiers={[restrictToVerticalAxis]}
+            >
+              <SortableContext
+                items={formData.details.map(detail => detail.tempId!)}
+                strategy={verticalListSortingStrategy}
+              >
+                                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="gba:w-10">Drag</TableHead>
+                        <TableHead>Limit From</TableHead>
+                        <TableHead>Limit To</TableHead>
+                        <TableHead>Rate Amount</TableHead>
+                        <TableHead>Active From</TableHead>
+                        <TableHead>Active To</TableHead>
+                        <TableHead className="gba:w-20">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                  <TableBody>
+                    {formData.details.map((detail, index) => (
+                      <SortableRow
+                        key={detail.tempId}
+                        id={detail.tempId!}
+                      >
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="1"
+                            value={detail.limitFrom || ''}
+                            onChange={(e) => updateDetail(index, 'limitFrom', e.target.value ? parseFloat(e.target.value) : undefined)}
+                            placeholder="0"
+                            data-testid={`mileage-rule-form-detail-limit-from-${index}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="1"
+                            value={detail.limitTo || ''}
+                            onChange={(e) => updateDetail(index, 'limitTo', e.target.value ? parseFloat(e.target.value) : undefined)}
+                            placeholder="∞"
+                            data-testid={`mileage-rule-form-detail-limit-to-${index}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={detail.rateAmount.toFixed(2)}
+                            onChange={(e) => updateDetail(index, 'rateAmount', parseFloat(e.target.value) || 0)}
+                            placeholder="0.00"
+                            data-testid={`mileage-rule-form-detail-rate-amount-${index}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="date"
+                            value={detail.activeFrom}
+                            onChange={(e) => updateDetail(index, 'activeFrom', e.target.value)}
+                            data-testid={`mileage-rule-form-detail-active-from-${index}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="date"
+                            value={detail.activeTo}
+                            onChange={(e) => updateDetail(index, 'activeTo', e.target.value)}
+                            data-testid={`mileage-rule-form-detail-active-to-${index}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeDetail(index)}
+                            data-testid={`mileage-rule-form-detail-delete-${index}`}
+                            className="gba:text-red-600 hover:gba:text-red-800"
+                          >
+                            <PiTrash className="gba:w-4 gba:h-4" />
+                          </Button>
+                        </TableCell>
+                      </SortableRow>
+                    ))}
+                  </TableBody>
+                                  </Table>
+                </SortableContext>
+                <DragOverlay>
+                  {activeId ? (
+                    <TableRow style={{ backgroundColor: '#f3f4f6', opacity: 0.8 }}>
+                      <TableCell className="gba:w-10 gba:text-center">
+                        <PiDotsSixVertical className="gba:text-gray-400 gba:text-lg" />
+                      </TableCell>
+                      <TableCell>Dragging...</TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Validation Errors */}
+      {validationErrors.length > 0 && (
+        <Alert variant="destructive">
+          <PiWarning className="gba:w-4 gba:h-4" />
+          <AlertDescription>
+            <strong>Please fix the following issues:</strong>
+            <ul className="gba:list-disc gba:list-inside gba:mt-2">
+              {validationErrors.map((error, idx) => (
+                <li key={idx}>{error}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Form Actions */}
+      <div className="gba:flex gba:justify-end gba:gap-3">
+        <Button variant="outline" onClick={onCancel} data-testid="mileage-rule-form-cancel">
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleSubmit} 
+          disabled={isSubmitting}
+          data-testid="mileage-rule-form-save"
+        >
+          {isSubmitting ? (
+            <>
+              <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />
+              Saving...
+            </>
+          ) : (
+            'Save'
+          )}
+        </Button>
+      </div>
     </div>
   );
 };

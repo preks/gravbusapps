@@ -6,18 +6,12 @@ export interface EnhancedTravelRegionRule {
   id: string;
   name: string;
   code: string;
-  region: string;
-  country: string;
-  allowanceType: 'daily' | 'hourly' | 'meal' | 'accommodation';
-  amount: number;
-  currency: string;
   effectiveFrom: string;
   effectiveTo?: string;
   isActive: boolean;
   description?: string;
   createdAt: string;
   updatedAt: string;
-  ruleOrder: number;
   details: {
     id: string;
     amount: number;
@@ -25,6 +19,11 @@ export interface EnhancedTravelRegionRule {
     currency: string;
     countryRef?: string;
     currencyRef?: string;
+    travelRegion: string;
+    travelRegionRef?: string;
+    home: boolean;
+    activeFrom?: string;
+    activeTo?: string;
   }[];
 }
 
@@ -36,33 +35,11 @@ export const useTravelRegionRulesIntegration = (context: BusinessAppContextProps
 
   const { fetchTravelRegionRules } = useGetTravelRegionRulesData(context);
 
-  // Extract currency code from NEWWORK format (e.g., "Currency:v1:EUR" -> "EUR")
-  const extractCurrencyCode = useCallback((currencyId: string): string => {
-    if (!currencyId) return 'EUR';
-    return currencyId.split(':').pop() || 'EUR';
-  }, []);
+
 
   // Transform GraphQL data to enhanced UI format
   const transformTravelRegionRuleData = useCallback((data: TravelRegionRuleData[]): EnhancedTravelRegionRule[] => {
     return data.map(rule => {
-      // Extract primary allowance from first detail (if available)
-      const primaryDetail = rule.allowanceRegionRuleDetail?.[0];
-      const amount = primaryDetail?.amount || 0;
-      
-      // Extract currency from detail
-      const currencyCode = primaryDetail?.currency?.value || 
-                          extractCurrencyCode(primaryDetail?.currencyRef || '') || 
-                          'EUR';
-      
-      // Extract country from detail
-      const country = primaryDetail?.country?.value || 'Unknown';
-      
-      // Determine region from country or rule name
-      const region = determineRegion(country, rule.name);
-      
-      // Determine allowance type from rule name
-      const allowanceType = determineAllowanceType(rule.name, rule.code);
-      
       // Check if rule is currently active
       const now = new Date();
       const activeFrom = rule.activeFrom ? new Date(rule.activeFrom) : null;
@@ -75,75 +52,30 @@ export const useTravelRegionRulesIntegration = (context: BusinessAppContextProps
         id: rule.id,
         name: rule.name,
         code: rule.code,
-        region,
-        country,
-        allowanceType,
-        amount,
-        currency: currencyCode,
         effectiveFrom: rule.activeFrom || rule.createdAt,
         effectiveTo: rule.activeTo,
         isActive,
-        description: `${rule.name} - Order: ${rule.ruleOrder}`,
+        description: rule.name,
         createdAt: rule.createdAt,
         updatedAt: rule.updatedAt,
-        ruleOrder: rule.ruleOrder,
         details: rule.allowanceRegionRuleDetail.map(detail => ({
           id: detail.id,
           amount: detail.amount,
           country: detail.country?.value || 'Unknown',
-          currency: detail.currency?.value || extractCurrencyCode(detail.currencyRef || '') || 'EUR',
-          countryRef: detail.countryRef,
-          currencyRef: detail.currencyRef
+          currency: detail.currency?.code || 'EUR',
+          countryRef: detail.country?.id || detail.countryRef,
+          currencyRef: detail.currency?.id || detail.currencyRef,
+          travelRegion: detail.travelRegion?.value || 'Unknown',
+          travelRegionRef: detail.travelRegion?.id || detail.travelRegionRef,
+          home: detail.home || false,
+          activeFrom: detail.activeFrom,
+          activeTo: detail.activeTo
         }))
       };
     });
-  }, [extractCurrencyCode]);
+  }, []);
 
-  // Determine region from country name
-  const determineRegion = (country: string, ruleName: string): string => {
-    const countryLower = country.toLowerCase();
-    const ruleLower = ruleName.toLowerCase();
-    
-    // European countries
-    if (['germany', 'france', 'italy', 'spain', 'netherlands', 'belgium', 'austria', 'switzerland'].some(c => countryLower.includes(c))) {
-      return 'Western Europe';
-    }
-    if (['poland', 'czech', 'hungary', 'slovakia', 'romania', 'bulgaria'].some(c => countryLower.includes(c))) {
-      return 'Eastern Europe';
-    }
-    
-    // North America
-    if (['united states', 'canada', 'usa', 'america'].some(c => countryLower.includes(c))) {
-      return 'North America';
-    }
-    
-    // Asia
-    if (['japan', 'china', 'korea', 'singapore', 'india', 'thailand'].some(c => countryLower.includes(c))) {
-      return 'Asia';
-    }
-    
-    // Check rule name for region hints
-    if (ruleLower.includes('europe')) return 'Europe';
-    if (ruleLower.includes('america') || ruleLower.includes('usa')) return 'North America';
-    if (ruleLower.includes('asia')) return 'Asia';
-    
-    return 'International'; // Default
-  };
 
-  // Determine allowance type from rule name or code
-  const determineAllowanceType = (name: string, code: string): 'daily' | 'hourly' | 'meal' | 'accommodation' => {
-    const nameAndCode = `${name} ${code}`.toLowerCase();
-    
-    if (nameAndCode.includes('meal') || nameAndCode.includes('food') || nameAndCode.includes('lunch') || nameAndCode.includes('dinner')) {
-      return 'meal';
-    } else if (nameAndCode.includes('accommodation') || nameAndCode.includes('hotel') || nameAndCode.includes('lodging')) {
-      return 'accommodation';
-    } else if (nameAndCode.includes('hourly') || nameAndCode.includes('hour')) {
-      return 'hourly';
-    }
-    
-    return 'daily'; // Default to daily allowance
-  };
 
   const loadTravelRegionRules = useCallback(async (variables: TravelRegionRuleQueryVariables = {}) => {
     if (!context.accessToken) {

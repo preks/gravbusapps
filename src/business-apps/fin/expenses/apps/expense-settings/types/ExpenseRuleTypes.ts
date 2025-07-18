@@ -1,16 +1,25 @@
 export interface ExpenseRule {
   id: string;
   code: string;
+  name?: string;
   activeFrom: string;
   activeTo?: string;
   deductionLimit: boolean;
   advancePaymentCode?: string;
+  standard?: boolean;
+  version?: number;
   isDeleted: boolean;
   
   // Relations
   calculationType?: CatalogEntry;
   country?: CatalogEntry;
   currency?: CatalogEntry;
+  
+  // Related rule configurations
+  expenseRuleAllowanceCode?: ExpenseRuleAllowanceCode[];
+  expenseRuleDeduction?: ExpenseRuleDeduction[];
+  expenseRuleMileage?: ExpenseRuleMileage[];
+  expenseRuleCustomField?: ExpenseRuleCustomField[];
 }
 
 export interface ExpenseRuleAssignment {
@@ -48,10 +57,11 @@ export interface MileageRule {
   rateType: 'DISTANCE' | 'FIXED';
   rateAmount: number;
   currency: string;
-  vehicleType?: string;
   activeFrom: string;
   activeTo: string;
+  version?: number;
   isDeleted: boolean;
+  period?: string; // Maps to MileageRulePeriod enum
 }
 
 export interface MileageRuleDetail {
@@ -63,6 +73,7 @@ export interface MileageRuleDetail {
   minDistance?: number;
   maxDistance?: number;
   conditions?: string;
+  version?: number;
 }
 
 export interface AllowanceRegionRule {
@@ -75,6 +86,7 @@ export interface AllowanceRegionRule {
   cityName?: string;
   activeFrom: string;
   activeTo: string;
+  version?: number;
   isDeleted: boolean;
 }
 
@@ -86,6 +98,7 @@ export interface AllowanceRegionRuleDetail {
   amount: number;
   currency: string;
   conditions?: string;
+  version?: number;
 }
 
 export interface Company {
@@ -173,15 +186,16 @@ export interface ExpenseRuleAssignmentFormData {
 }
 
 export interface MileageRuleFormData {
+  id?: string;
   code: string;
   name: string;
   description?: string;
   rateType: 'DISTANCE' | 'FIXED';
   rateAmount: number;
   currency: string;
-  vehicleType?: string;
   activeFrom: string;
   activeTo: string;
+  version?: number;
   details: MileageRuleDetailFormData[];
 }
 
@@ -195,6 +209,7 @@ export interface MileageRuleDetailFormData {
 }
 
 export interface AllowanceRegionRuleFormData {
+  id?: string;
   code: string;
   name: string;
   description?: string;
@@ -203,6 +218,7 @@ export interface AllowanceRegionRuleFormData {
   cityName?: string;
   activeFrom: string;
   activeTo: string;
+  version?: number;
   details: AllowanceRegionRuleDetailFormData[];
 }
 
@@ -286,6 +302,7 @@ export interface ExpenseRuleAssignmentQueryVariables {
   employeeId?: string;
   companyId?: string;
   expenseRuleId?: string;
+  filters?: ExpenseRuleAssignmentFilters;
 }
 
 export interface ExpenseRuleQueryVariables {
@@ -313,4 +330,58 @@ export interface ExpenseSettingsStatistics {
   regionRules: number;
   recentChanges: number;
   conflictingRules: number;
+}
+
+// Related rule configuration interfaces
+export interface ExpenseRuleAllowanceCode {
+  id: string;
+  code: string;
+  amount: number;
+  abroad?: boolean; // Maps to TravelLocation enum
+  allowanceType?: string; // Maps to AllowanceType enum  
+  calculation?: string;
+  codeOrder: number;
+  activeFrom: string;
+  activeTo?: string;
+  version?: number;
+  isDeleted: boolean;
+}
+
+export interface ExpenseRuleDeduction {
+  id: string;
+  deductBreakfast: boolean;
+  deductLunch: boolean;
+  deductDinner: boolean;
+  deductionDay?: string; // Maps to DeductionDay enum
+  deductionOrder: number;
+  overnightAllowance: boolean;
+  activeFrom: string;
+  activeTo?: string;
+  version?: number;
+  isDeleted: boolean;
+}
+
+export interface ExpenseRuleMileage {
+  id: string;
+  code: string;
+  mileageOrder: number;
+  unitPrice: number;
+  taxValue: number;
+  activeFrom: string;
+  activeTo?: string;
+  version?: number;
+  isDeleted: boolean;
+}
+
+export interface ExpenseRuleCustomField {
+  id: string;
+  fieldName: string;
+  fieldValue: string;
+  fieldType: string;
+  ruleSource?: string; // Maps to RuleSource enum
+  fieldOrder: number;
+  activeFrom: string;
+  activeTo?: string;
+  version?: number;
+  isDeleted: boolean;
 } 
