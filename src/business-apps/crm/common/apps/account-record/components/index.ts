@@ -1,6 +1,23 @@
-export { AccountHeader } from './AccountHeader';
-export { CompanyInformation } from './CompanyInformation';
-export { ContactInformation } from './ContactInformation';
-export { ActivityTimeline } from './ActivityTimeline';
-export { TasksSection } from './TasksSection';
-export { NotesSection } from './NotesSection'; 
+import { AccountHeader } from './AccountHeader';
+import { CompanyInformation } from './CompanyInformation';
+import { ContactInformation } from './ContactInformation';
+import { ActivityTimeline } from './ActivityTimeline';
+import { TasksSection } from './TasksSection';
+import { NotesSection } from './NotesSection';
+
+export { AccountHeader };
+export { CompanyInformation };
+export { ContactInformation };
+export { ActivityTimeline };
+export { TasksSection };
+export { NotesSection };
+
+// Default export for build system compatibility
+export default {
+  AccountHeader,
+  CompanyInformation,
+  ContactInformation,
+  ActivityTimeline,
+  TasksSection,
+  NotesSection
+}; 

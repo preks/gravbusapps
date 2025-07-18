@@ -22,6 +22,10 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
 
   const { fetchContactById } = useGetContactById({ accessToken: props.accessToken });
 
+  const getBackButtonText = () => {
+    return 'Back to Contacts';
+  };
+
   useEffect(() => {
     const fetchContactData = async () => {
       if (!contactId) {
@@ -68,7 +72,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
             onClick={onBack}
             className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
           >
-            Back to Customer Relations
+            {getBackButtonText()}
           </button>
       </div>
       </div>
@@ -85,7 +89,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
           data-testid="back-button"
         >
           <ArrowLeftOutlined className="gba:mr-2" />
-          <span>Back to Customer Relations</span>
+          <span>{getBackButtonText()}</span>
         </button>
       </div>
 
@@ -132,6 +136,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
 
 interface ContactRecordProps extends BusinessAppContextProps {
   contactId?: string;
+  source?: string;
   onBack?: () => void;
 }
 
@@ -139,13 +144,25 @@ const ContactRecord: React.FC<ContactRecordProps> = (props) => {
   const contactId = useMemo(() => {
     return props.contactId || new URLSearchParams(window.location.search).get('contactId');
   }, [props.contactId]);
+
+  const source = useMemo(() => {
+    return props.source || new URLSearchParams(window.location.search).get('source');
+  }, [props.source]);
   
   const handleBack = () => {
     if (props.onBack) {
       props.onBack();
     } else {
-      // Navigate back to customer relations
-      navigateTo('/platform/crm/customer-relations?view=contacts');
+      // Navigate back based on source
+      switch (source) {
+        case 'investments':
+          navigateTo('/platform/irm/investment-relations?view=contacts');
+          break;
+        case 'customer-relations':
+        default:
+          navigateTo('/platform/crm/customer-relations?view=contacts');
+          break;
+      }
     }
   };
 

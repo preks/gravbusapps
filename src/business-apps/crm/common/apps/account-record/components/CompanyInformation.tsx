@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Spinner, Alert } from '@newwork/nw-design-system';
+import { Card, CardHeader, CardTitle, CardContent, Spinner, Alert } from '@newwork/nw-design-system';
 import { Account } from '../hooks/useAccountData';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetAccountById } from '../queries/GetAccountByIdQueries';
@@ -50,12 +50,14 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
   if (loading) {
     return (
       <Card className="gba:w-full gba:h-full">
-        <div className="gba:p-6">
-          <h3 className="gba:text-lg gba:font-semibold gba:mb-4">Company Information</h3>
+        <CardHeader>
+          <CardTitle>Company Information</CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="gba:text-center gba:py-10">
             <Spinner size="lg" />
           </div>
-        </div>
+        </CardContent>
       </Card>
     );
   }
@@ -63,21 +65,25 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
   if (error) {
     return (
       <Card className="gba:w-full gba:h-full">
-        <div className="gba:p-6">
-          <h3 className="gba:text-lg gba:font-semibold gba:mb-4">Company Information</h3>
+        <CardHeader>
+          <CardTitle>Company Information</CardTitle>
+        </CardHeader>
+        <CardContent>
           <Alert variant="destructive">
             <div className="gba:font-medium">Error Loading Company Information</div>
             <div className="gba:text-sm gba:mt-1">{error}</div>
           </Alert>
-        </div>
+        </CardContent>
       </Card>
     );
   }
 
-    return (
-    <Card className="gba:w-full gba:h-full gba:p-6">
-      <h3 className="gba:text-lg gba:font-semibold gba:mb-4">Company Information</h3>
-      <div>
+  return (
+    <Card className="gba:w-full gba:h-full">
+      <CardHeader>
+        <CardTitle>Company Information</CardTitle>
+      </CardHeader>
+      <CardContent>
         <div style={{ marginBottom: '24px' }}>
           {/* Company details grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 32px' }}>
@@ -97,12 +103,7 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
                 </div>
               </div>
               
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Country</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {accountData?.country?.value || '-'}
-                </div>
-              </div>
+
               
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Industry</div>
@@ -114,20 +115,7 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
               <div>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Address</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {(() => {
-                    const address = accountData?.addresses?.[0] || account?.addresses?.[0];
-                    if (!address) return '-';
-                    
-                    const parts = [
-                      address.addressLine,
-                      address.city,
-                      address.postalCode,
-                      address.region?.value,
-                      address.country?.value
-                    ].filter(Boolean);
-                    
-                    return parts.length > 0 ? parts.join(', ') : '-';
-                  })()}
+                  {accountData?.addressLine || '-'}
                 </div>
               </div>
             </div>
@@ -160,13 +148,14 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Phone</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {(() => {
-                    const phone = accountData?.phone || accountData?.phoneNumber;
+                    const phone = accountData?.phone || account?.phone;
                     if (!phone) return '-';
                     
                     return (
                       <a 
                         href={`tel:${phone}`} 
                         style={{ color: '#3b82f6', textDecoration: 'none' }}
+                        data-testid="account-phone-link"
                       >
                         {phone}
                       </a>
@@ -184,7 +173,7 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
               
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Revenue</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }} data-testid="account-revenue-value">
                   {accountData?.annualRevenue?.value || account?.annualRevenue?.value || account?.revenue || '-'}
                 </div>
               </div>
@@ -193,7 +182,7 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
             </div>
           </div>
         </div>
-      </div>
+      </CardContent>
     </Card>
   );
 }; 

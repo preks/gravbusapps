@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, CalendarOutlined, CloudUploadOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, CloudUploadOutlined } from '@ant-design/icons';
 import { Button, Spin, Alert, Empty, Timeline, Typography, Modal, message } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -8,7 +8,7 @@ import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 // Import the GraphQL queries we created
-import { useGetSalesActivities } from '../queries/SalesActivityQueries';
+import { useGetSalesActivities } from '../queries/salesActivityQueries';
 import { useGetCrmDocuments } from '../queries/CrmDocumentQueries';
 import { NotesSection } from './NotesSection';
 

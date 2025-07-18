@@ -37,7 +37,13 @@ export const ContactHeader: React.FC<ContactHeaderProps> = ({ contact, contactId
               {contact.email && (
                 <>
                   <MailOutlined style={{ marginRight: '4px' }} />
-                  <span>{contact.email}</span>
+                  <a 
+                    href={`mailto:${contact.email}`}
+                    style={{ color: '#3b82f6', textDecoration: 'none' }}
+                    data-testid="contact-header-email-link"
+                  >
+                    {contact.email}
+                  </a>
                   <span style={{ margin: '0 8px' }}>•</span>
                 </>
               )}
