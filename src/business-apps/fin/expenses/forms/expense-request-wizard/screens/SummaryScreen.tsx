@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Row, Col, Pagination, Alert } from 'antd';
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue, formatNumberFunction } from '@/common/utils/windowUtils';
 import { useExpenseRequestDateValidation } from '../utils/dateValidationUtils';
@@ -9,6 +9,8 @@ import ExpenseItemRow from '../components/ExpenseItemRow';
 import ExpenseSummary from './components/ExpenseSummary';
 import { noAllowanceItemsFunction, getAllowanceItemsFunction } from '../utils/itemsScreenUtils';
 import { getDayName } from '../utils/allowanceScreenUtils';
+import { createSummaryScreenLogObject } from '../utils/summaryScreenUtils';
+import { EVENTS } from '../../../utils/constants';
 
 
 
@@ -30,11 +32,47 @@ interface SummaryScreenProps extends BusinessAppContextProps {
  * @returns SummaryScreen component
  */
 const SummaryScreen: React.FC<SummaryScreenProps> = () => {
-  const { expenseRequestData } = useExpenseRequestWizardContext();
+  const { expenseRequestData, employeeRuleId, currentTitle } = useExpenseRequestWizardContext();
   const { hasFutureDates } = useExpenseRequestDateValidation();
   const requestData = expenseRequestData?.ExpenseRequestByPk;
   const requestItemData = expenseRequestData.ExpenseItem;
   const expenseItems = noAllowanceItemsFunction(requestItemData);
+  
+  const handleSave = useCallback(() => {
+    if (expenseRequestData?.ExpenseRequestByPk) {
+      const logObject = createSummaryScreenLogObject(
+        expenseRequestData.ExpenseRequestByPk,
+        employeeRuleId,
+        currentTitle,
+        expenseRequestData,
+        EVENTS.SAVE
+      );
+      console.log('Summary Screen Save Event:', logObject);
+    }
+  }, [expenseRequestData, employeeRuleId, currentTitle]);
+  
+  const handleSubmit = useCallback(() => {
+    if (expenseRequestData?.ExpenseRequestByPk) {
+      const logObject = createSummaryScreenLogObject(
+        expenseRequestData.ExpenseRequestByPk,
+        employeeRuleId,
+        currentTitle,
+        expenseRequestData,
+        EVENTS.SUBMIT
+      );
+      console.log('Summary Screen Submit Event:', logObject);
+    }
+  }, [expenseRequestData, employeeRuleId, currentTitle]);
+  
+  useEffect(() => {
+    document.addEventListener('expense-request-save-summary', handleSave);
+    document.addEventListener('expense-request-submit-summary', handleSubmit);
+    
+    return () => {
+      document.removeEventListener('expense-request-save-summary', handleSave);
+      document.removeEventListener('expense-request-submit-summary', handleSubmit);
+    };
+  }, [handleSave, handleSubmit]);
   
   const allowanceItems = getAllowanceItemsFunction(requestItemData);
   const positionsArray :any= [];
@@ -82,8 +120,8 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
   
   console.log("positionsArray",positionsArray)
   return (
-    <div className="gba:summaryScreenContainer" data-testid="expense-request-wizard-summary-screen">
-      <div className="gba:summaryContent" data-testid="expense-request-wizard-summary-screen-content">
+    <div className="gba:summaryScreenContainer gba:flex gba:flex-col gba:flex-grow" data-testid="expense-request-wizard-summary-screen" style={{ minHeight: '50vh' }}>
+      <div className="gba:summaryContent gba:flex gba:flex-col gba:flex-grow" data-testid="expense-request-wizard-summary-screen-content">
         <div className="gba:summaryHeader gba:rounded-lg" data-testid="expense-request-summary-header">
           <Row gutter={[24, 16]} className="gba:mb-2">
             <Col xs={24} md={12} className="gba:text-left">

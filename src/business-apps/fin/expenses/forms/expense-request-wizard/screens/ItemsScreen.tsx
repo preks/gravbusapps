@@ -49,7 +49,8 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const [totalItems, setTotalItems] = useState<number>(0);
   const [selectedItemIdsForSelection, setSelectedItemIdsForSelection] = useState<string[]>([]);
   const [initialCurrentPage, setInitialCurrentPage] = useState<number>(1);
-  const [titleSearch, setTitleSearch] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [expenseTotals, setExpenseTotals] = useState<{currency: string, amount: number}[]>([]);
   
   const employeeId = userInfo?.employeeDetails?.employeeId;
   const itemListLimit = 4;
@@ -63,6 +64,33 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     
     return noAllowanceItemsFunction(expenseRequestData.ExpenseItem);
   }, [expenseRequestData]);
+  useEffect(() => {
+    const calculateTotals = () => {
+      if (!expenseItems || expenseItems.length === 0) {
+        const defaultCurrency = expenseRequestData?.ExpenseRequestByPk?.currency?.code || 'RON';
+        return [{ currency: defaultCurrency, amount: 0 }];
+      }
+
+      const totals: Record<string, number> = {};
+      expenseItems.forEach(item => {
+        const currency = item.currency?.code || '';
+            const amount = item.totalAmount || 0;
+            
+            if (currency) {
+              if (!totals[currency]) {
+                totals[currency] = 0;
+              }
+              totals[currency] += parseFloat(amount);
+            }
+      });
+      return Object.entries(totals).map(([currency, amount]) => ({
+        currency,
+        amount
+      }));
+    };
+
+    setExpenseTotals(calculateTotals());
+  }, [expenseItems, expenseRequestData]);
 
   const fetchSelectItems = useCallback(async () => {
     try {
@@ -95,7 +123,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         ...countVariables,
         limit: 1,
         offset: 0,
-        titleSearch: titleSearch ? `%${titleSearch}%` : '%'
+        titleSearch: searchQuery ? `%${searchQuery}%` : '%'
       });
       
       const offset = (currentPage - 1) * itemListLimit;
@@ -104,7 +132,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         ...countVariables,
         limit: Number(itemListLimit),
         offset: Math.max(0, Number(offset)),
-        titleSearch: titleSearch ? `%${titleSearch}%` : '%%'
+        titleSearch: searchQuery ? `%${searchQuery}%` : '%%'
       };
             
       const response = await graphQLClient.request(fetchEmployeeExpenseItems, variables);
@@ -116,8 +144,8 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       const filteredDeletedItems = deletedItems.filter((item: any) => {
         if (excludedIds.includes(item.id)) return false;
         
-        if (titleSearch && item.title) {
-          return item.title.toLowerCase().includes(titleSearch.toLowerCase());
+        if (searchQuery && item.title) {
+          return item.title.toLowerCase().includes(searchQuery.toLowerCase());
         }
         
         return true;
@@ -148,7 +176,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, deletedItems, employeeId, expenseRequestData?.ExpenseItem, graphQLClient, itemListLimit, selectedItemsToInitial, currentCurrency, titleSearch]);
+  }, [currentPage, deletedItems, employeeId, expenseRequestData?.ExpenseItem, graphQLClient, itemListLimit, selectedItemsToInitial, currentCurrency, searchQuery]);
 
   const handleDeleteItem = (itemId: string) => {
     if (!expenseRequestData?.ExpenseItem) return;
@@ -223,7 +251,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       setSelectedItemIdsForSelection([]);
     }
     
-    setTitleSearch("");
+    setSearchQuery("");
     setCurrentPage(1);
     setShowSelectItems(false);
     
@@ -236,7 +264,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const handleCancelSelection = useCallback(() => {
     setSelectedItemIdsForSelection([]);
     
-    setTitleSearch("");
+    setSearchQuery("");
     setCurrentPage(1);
     setShowSelectItems(false);
     
@@ -247,7 +275,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   }, []);
   
   const handleSearch = (value: string) => {
-    setTitleSearch(value);
+    setSearchQuery(value);
  };
   
   const handlePageChange = useCallback((page: number) => {
@@ -286,7 +314,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
           let itemCurrency = currentCurrency || "";
           if (expenseRequestData?.ExpenseRequestByPk?.currencyRef) {
             itemCurrency = expenseRequestData.ExpenseRequestByPk.currencyRef;
-          } else if (expenseRequestData?.ExpenseItem && expenseRequestData.ExpenseItem.length > 0) {
+          } else if (expenseRequestData?.ExpenseItem && expenseRequestData?.ExpenseItem.length > 0) {
             itemCurrency = expenseRequestData.ExpenseItem[0].currencyRef;
           }
           
@@ -391,20 +419,20 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     }
   }, [selectedItemIdsForSelection, showSelectItems]);
   
-  const prevTitleSearchRef = React.useRef("");
+  const prevSearchQueryRef = React.useRef("");
   const isPageChangeRef = React.useRef(false);
   
   useEffect(() => {
     if (showSelectItems) {
-      if (titleSearch !== prevTitleSearchRef.current && !isPageChangeRef.current) {
+      if (searchQuery !== prevSearchQueryRef.current && !isPageChangeRef.current) {
         setCurrentPage(1);
       }
-      prevTitleSearchRef.current = titleSearch;
+      prevSearchQueryRef.current = searchQuery;
       isPageChangeRef.current = false;
       
       fetchSelectItems();
     }
-  }, [titleSearch, currentPage, showSelectItems]);
+  }, [searchQuery, currentPage, showSelectItems]);
   
   const toggleItemSelection = (itemId: string) => {
     if (selectedItemIdsForSelection.includes(itemId)) {
@@ -436,7 +464,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         
         <div className="gba:itemsContent gba:bg-[#F7F7F7] gba:border-t gba:border-b gba:border-[#F7F7F7] gba:py-2 gba:px-2" data-testid="expense-request-wizard-select-items-content">
           {isLoading ? (
-            <div className="gba:text-center gba:p-8 gba:bg-white" data-testid="loading-message">
+            <div className="gba:text-center gba:p-8 gba:bg-[#F7F7F7]" data-testid="loading-message">
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request.loading', 'Loading items...')}
             </div>
           ) : selectItemsList.length > 0 ? (
@@ -479,7 +507,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
               </div>}
             </>
           ) : (
-            <div className="gba:text-center gba:p-8 gba:bg-white" data-testid="no-items-message">
+            <div className="gba:text-center gba:p-8 bg-[#F7F7F7]" data-testid="no-items-message">
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request.no_items_to_select', 'No expense items available to select')}
             </div>
           )}
@@ -489,39 +517,43 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   }
 
   return (
-    <div className="gba:itemsScreenContainer" data-testid="expense-request-wizard-items-screen">
-      <div className="gba:flex gba:flex-row gba:justify-between gba:items-center gba:mb-4 gba:px-4">
-        <div className="gba:screenTitle gba:m-0 gba:text-[16px] gba:font-bold" data-testid="expense-request-wizard-items-screen-title">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.items_subtitle', 'Expense Items')}
-          {expenseItems.length > 0 && `(${expenseItems.length})`}
+    <div className="gba:itemsScreenContainer gba:flex gba:flex-col gba:h-full" data-testid="expense-request-wizard-items-screen">
+      {expenseItems.length > 0 && (
+        <div className="gba:flex gba:flex-row gba:justify-between gba:items-center gba:mb-4 gba:px-4">
+          <div className="gba:screenTitle gba:m-0 gba:text-[16px] gba:font-bold" data-testid="expense-request-wizard-items-screen-title">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.items_subtitle', 'Expense Items')}
+            {expenseItems.length > 0 && `(${expenseItems.length})`}
+          </div>
+          <div className="gba:flex gba:gap-2">
+            <Button 
+              variant="secondary" 
+              icon={<img src={ICONS.ADD_CIRCLE} alt="Add" className="gba:w-4 gba:h-4" />}
+              className="gba:flex gba:items-center gba:gap-1"
+              style={{ backgroundColor: '#EFEFEF', borderRadius: '9999px', fontWeight:600 }}
+              data-testid="add-item-button"
+              onClick={toggleSelectItemsView}
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.add_items_text', 'Add Items')}
+            </Button>
+            <Button 
+              variant="secondary" 
+              icon={<img src={ICONS.FOCUS} alt="Create" className="gba:w-4 gba:h-4" />}
+              className="gba:flex gba:items-center gba:gap-1"
+              style={{ backgroundColor: '#EFEFEF', borderRadius: '9999px', fontWeight:600 }}
+              data-testid="create-item-button"
+              onClick={handleCreateItem}
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.create_item', 'Create Item')}
+            </Button>
+          </div>
         </div>
-        <div className="gba:flex gba:gap-2">
-          <Button 
-            variant="secondary" 
-            icon={<img src={ICONS.ADD_CIRCLE} alt="Add" className="gba:w-4 gba:h-4" />}
-            className="gba:flex gba:items-center gba:gap-1"
-            style={{ backgroundColor: '#EFEFEF', borderRadius: '9999px', fontWeight:600 }}
-            data-testid="add-item-button"
-            onClick={toggleSelectItemsView}
-          >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.add_items_text', 'Add Items')}
-          </Button>
-          <Button 
-            variant="secondary" 
-            icon={<img src={ICONS.FOCUS} alt="Create" className="gba:w-4 gba:h-4" />}
-            className="gba:flex gba:items-center gba:gap-1"
-            style={{ backgroundColor: '#EFEFEF', borderRadius: '9999px', fontWeight:600 }}
-            data-testid="create-item-button"
-            onClick={handleCreateItem}
-          >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.create_item', 'Create Item')}
-          </Button>
-        </div>
-      </div>
+      )}
 
-      <div className="gba:itemsContent gba:bg-[#F7F7F7] gba:border-t gba:border-b gba:border-[#F7F7F7] gba:py-2 gba:px-2" data-testid="expense-request-wizard-items-screen-content">
+      <div className="gba:bg-[#F7F7F7] gba:flex gba:flex-col gba:flex-grow gba:border-t gba:border-b gba:border-[#F7F7F7]" 
+           data-testid="expense-request-wizard-items-screen-content"
+           style={{ flex: '1 1 auto', minHeight: expenseItems.length === 0 ? '50vh' : 'auto' }}>
         {expenseItems.length > 0 ? (
-          <>
+          <div className="gba:py-2 gba:px-2 gba:flex gba:flex-col gba:flex-grow">
             <div className="gba:flex gba:flex-col gba:gap-2">
               {paginatedInitialItems.map((item) => {
                 const formattedItem = formatArrayOfItems([item])[0];
@@ -554,12 +586,81 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
                 />
               </div>
             )}
-          </>
+          </div>
         ) : (
-          <div className="gba:text-center gba:p-8 gba:bg-white" data-testid="no-items-message">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.no_items', 'No expense items found')}
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:p-8 gba:bg-[#F7F7F7] gba:gap-8" 
+               data-testid="empty-items-container"
+               style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Button 
+              variant="ghost" 
+              icon={<img src={ICONS.ADD_CIRCLE} alt="Add" style={{ width: '50px', height: '50px' }} />}
+              className="gba:flex gba:flex-col gba:items-center gba:gap-4 gba:p-6"
+              style={{ 
+                height: 'auto',
+                width: 'auto',
+                padding:'0px',
+                borderRadius: '9999px', 
+                fontWeight: 600, 
+                fontSize: '24px',
+                background: 'transparent',
+                border: 'none',
+                boxShadow: 'none'
+              }}
+              data-testid="empty-add-item-button"
+              onClick={toggleSelectItemsView}
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.add_items_text', 'Add Item')}
+            </Button>
+            <Button 
+              variant="ghost" 
+              icon={<img src={ICONS.FOCUS} alt="Create" style={{ width: '50px', height: '50px' }} />}
+              className="gba:flex gba:flex-col gba:items-center gba:gap-4 gba:p-6"
+              style={{ 
+                height: 'auto',
+                width: 'auto',
+                padding:'0px',
+                borderRadius: '9999px', 
+                fontWeight: 600,  
+                fontSize: '24px',
+                background: 'transparent',
+                border: 'none',
+                boxShadow: 'none'
+              }}
+              data-testid="empty-create-item-button"
+              onClick={handleCreateItem}
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.create_item', 'Create Item')}
+            </Button>
           </div>
         )}
+      </div>
+
+      {/* Expense Total Display */}
+      <div className="gba:expense-total-container gba:mt-8 gba:mb-4 gba:px-4" data-testid="expense-items-total-container">
+        <div className="gba:flex gba:justify-between gba:items-center">
+          <span className="gba:text-base gba:font-normal">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.expense_items_sum', 'Expenses')}
+          </span>
+          <div className="gba:flex gba:flex-col gba:items-end">
+            {expenseTotals.length > 0 ? (
+              expenseTotals.map((total, index) => (
+                <span 
+                  key={`total-${index}`} 
+                  className="gba:text-3xl gba:font-bold"
+                  data-testid={`expense-items-total-${total.currency}`}
+                >
+                  {total.amount.toFixed(2)} {total.currency}
+                </span>
+              ))
+            ) : (
+              <span className="gba:text-3xl gba:font-bold" data-testid="expense-items-total-default">
+                {expenseRequestData?.ExpenseRequestByPk && expenseRequestData.ExpenseRequestByPk.currency ? 
+                  `0.00 ${expenseRequestData.ExpenseRequestByPk.currency.code}` : 
+                  "0.00 RON"}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

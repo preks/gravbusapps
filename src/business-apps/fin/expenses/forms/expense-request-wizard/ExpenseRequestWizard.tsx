@@ -376,7 +376,16 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
       </div>
       <ProgressIndicator currentScreen={currentScreen} isTrip={isTrip} />
       
-      <div data-testid="expense-request-wizard-content-container">
+      {/* Main content container with responsive height */}
+      <div 
+        data-testid="expense-request-wizard-content-container"
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          flex: '1 1 auto',
+          minHeight: '50vh'
+        }}
+      >
         {loading ? (
           <div className="gba:loadingContainer" data-testid="expense-request-wizard-loading">
             {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.loading', 'Loading...')}
@@ -391,7 +400,16 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
             </p>
           </div>
         ) : (
-          <div className="gba:screenContainer" data-testid="expense-request-wizard-screen-container">
+          <div 
+            className="gba:screenContainer" 
+            data-testid="expense-request-wizard-screen-container"
+            style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              flex: '1 1 auto',
+              minHeight: '50vh'
+            }}
+          >
             {renderCurrentScreen()}
           </div>
         )}
@@ -453,6 +471,9 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                     } else if (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB) {
                       const saveEvent = new CustomEvent('expense-request-save-allowance');
                       document.dispatchEvent(saveEvent);
+                    } else if (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB) {
+                      const saveEvent = new CustomEvent('expense-request-save-summary');
+                      document.dispatchEvent(saveEvent);
                     } else {
                       // Default save action for other screens
                     }
@@ -482,6 +503,9 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                       const nextEvent = new CustomEvent('expense-request-next-allowance');
                       document.dispatchEvent(nextEvent);
                       navigateToNextScreen()
+                    } else if (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB) {
+                      const submitEvent = new CustomEvent('expense-request-submit-summary');
+                      document.dispatchEvent(submitEvent);
                     } else {
                       navigateToNextScreen()
                     }
