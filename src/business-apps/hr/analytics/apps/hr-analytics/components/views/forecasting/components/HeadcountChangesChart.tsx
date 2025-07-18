@@ -2,7 +2,7 @@ import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card, Typography, Spin } from 'antd';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useMonthlyHeadcountChanges } from '../hooks/useMonthlyHeadcountChanges';
+import { useMonthlyHeadcountChanges } from '../../../../hooks/useMonthlyHeadcountChanges';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 const { Title, Text } = Typography;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
-import type { HeadcountStatistics } from '../hooks/useHeadcountTrendsData';
+import type { HeadcountStatistics } from '../../../../../hooks/useHeadcountTrendsData';
 
 interface HeadcountStatisticsProps {
   statistics: HeadcountStatistics;

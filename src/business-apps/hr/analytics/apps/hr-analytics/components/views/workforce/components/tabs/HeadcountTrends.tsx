@@ -7,7 +7,7 @@ import HeadcountStatistics from '../components/HeadcountStatistics';
 import HeadcountTrendsChart from '../components/HeadcountTrendsChart';
 import HiresAndDeparturesChart from '../components/HiresAndDeparturesChart';
 import HeadcountByOrgUnitChart from '../components/HeadcountByOrgUnitChart';
-import { useHeadcountTrendsData } from '../hooks/useHeadcountTrendsData';
+import { useHeadcountTrendsData } from '../../../../../hooks/useHeadcountTrendsData';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const { Title, Text } = Typography;

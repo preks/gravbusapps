@@ -1,7 +1,7 @@
 import React from 'react';
 import { Typography, Spin, Empty } from 'antd';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { useHealthInsuranceDistribution } from '../../hooks/useHealthInsuranceDistribution';
+import { useHealthInsuranceDistribution } from '../../../../../hooks/useHealthInsuranceDistribution';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 

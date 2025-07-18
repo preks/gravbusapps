@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { OrganizationalUnitSalary } from '../../hooks/useSalaryByOrgUnit';
+import { OrganizationalUnitSalary } from '../../../../../hooks/useSalaryByOrgUnit';
 
 const { Title, Text } = Typography;
 

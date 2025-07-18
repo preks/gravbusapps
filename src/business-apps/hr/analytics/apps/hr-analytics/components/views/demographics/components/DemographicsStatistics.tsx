@@ -1,6 +1,6 @@
 import React from 'react';
 import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
-import type { DemographicsStatistics } from '../hooks/useDemographicsDataIntegration';
+import type { DemographicsStatistics } from '../../../../hooks/useDemographicsDataIntegration';
 
 interface DemographicsStatisticsProps {
   statistics: DemographicsStatistics;
@@ -15,12 +15,12 @@ const DemographicsStatistics: React.FC<DemographicsStatisticsProps> = ({
 }) => {
   const kpiCards: KpiCardData[] = [
     {
-      id: 'average-age',
-      title: 'Average Age',
-      value: statistics.averageAge ? `${statistics.averageAge.toFixed(1)} years` : 'N/A',
-      icon: 'calendar',
-      iconColor: '#722ed1',
-      footer: 'Average employee age'
+      id: 'gender-diversity',
+      title: 'Gender Diversity',
+      value: `${statistics.genderDiversity.toFixed(1)}%`,
+      icon: 'users',
+      iconColor: '#eb2f96',
+      footer: 'Gender distribution balance'
     },
     {
       id: 'common-gender',
@@ -31,20 +31,20 @@ const DemographicsStatistics: React.FC<DemographicsStatisticsProps> = ({
       footer: 'Most frequent gender'
     },
     {
+      id: 'average-age',
+      title: 'Average Age',
+      value: statistics.averageAge ? `${statistics.averageAge.toFixed(1)} years` : 'N/A',
+      icon: 'calendar',
+      iconColor: '#722ed1',
+      footer: 'Average employee age'
+    },
+    {
       id: 'nationality-overview',
-      title: 'Nationality Overview',
+      title: 'Nationality Distribution',
       value: statistics.mostCommonNationality || 'N/A',
       icon: 'mail',
       iconColor: '#13c2c2',
       footer: `Most common • ${statistics.nationalityDiversity} different nationalities`
-    },
-    {
-      id: 'gender-diversity',
-      title: 'Gender Diversity',
-      value: `${statistics.genderDiversity.toFixed(1)}%`,
-      icon: 'users',
-      iconColor: '#eb2f96',
-      footer: 'Gender distribution balance'
     }
   ];
 

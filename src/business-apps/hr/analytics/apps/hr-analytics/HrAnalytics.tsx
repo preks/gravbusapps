@@ -13,7 +13,6 @@ import {
 import { ChartPie } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import Dashboard from './components/views/dashboard/Dashboard';
-import AbsenceReport from './components/views/absence-report';
 import Demographics from './components/views/demographics';
 import Workforce from './components/views/workforce';
 import StructuralAnalysisReport from './components/views/structural-analysis/StructuralAnalysisReport';
@@ -53,11 +52,6 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
       key: 'structural-analysis',
       icon: <ApartmentOutlined />,
       label: 'Structural Analysis'
-    },
-    {
-      key: 'absences',
-      icon: <CalendarOutlined />,
-      label: 'Absences'
     }
   ];
 
@@ -84,6 +78,15 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
     // Update URL to reflect the current view
     const url = new URL(window.location.href);
     url.searchParams.set('view', value);
+    
+    // Define which views have tabs
+    const viewsWithTabs = ['workforce', 'structural-analysis', 'forecasting'];
+    
+    // If switching to a view without tabs, remove the tab parameter
+    if (!viewsWithTabs.includes(value)) {
+      url.searchParams.delete('tab');
+    }
+    
     window.history.pushState({}, '', url.toString());
   };
 
@@ -95,6 +98,16 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
       
       if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
         setActiveTab(viewFromUrl);
+        
+        // Define which views have tabs
+        const viewsWithTabs = ['workforce', 'structural-analysis', 'forecasting'];
+        
+        // If navigating to a view without tabs, clean up the tab parameter
+        if (!viewsWithTabs.includes(viewFromUrl) && urlParams.has('tab')) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('tab');
+          window.history.replaceState({}, '', url.toString());
+        }
       }
     };
 
@@ -106,6 +119,18 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
   useEffect(() => {
     console.log(`HR Analytics - Active view: ${activeTab}`);
   }, [activeTab]);
+
+  // Clean up tab parameter on initial load if current view doesn't support tabs
+  useEffect(() => {
+    const viewsWithTabs = ['workforce', 'structural-analysis', 'forecasting'];
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    if (!viewsWithTabs.includes(activeTab) && urlParams.has('tab')) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('tab');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, []); // Run only on initial mount
 
   const renderErrorContent = (viewName: string) => {
     if (error) {
@@ -190,12 +215,6 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
         return (
           <div data-testid="structural-analysis-tab-content">
             <StructuralAnalysisReport {...context} />
-          </div>
-        );
-      case 'absences':
-        return (
-          <div data-testid="absences-tab-content">
-            <AbsenceReport {...context} />
           </div>
         );
       default:

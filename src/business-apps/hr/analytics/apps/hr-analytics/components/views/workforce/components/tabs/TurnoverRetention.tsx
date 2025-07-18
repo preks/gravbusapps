@@ -7,7 +7,7 @@ import TurnoverRetentionStatistics from '../components/TurnoverRetentionStatisti
 import TurnoverRateChart from '../components/TurnoverRateChart';
 import TenureDistributionChart from '../components/TenureDistributionChart';
 import RetentionByDepartmentChart from '../components/RetentionByDepartmentChart';
-import { useTurnoverRetentionData } from '../hooks/useTurnoverRetentionData';
+import { useTurnoverRetentionData } from '../../../../../hooks/useTurnoverRetentionData';
 
 const { Title, Text } = Typography;
 

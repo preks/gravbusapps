@@ -11,7 +11,7 @@ import {
   Legend
 } from 'recharts';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import type { DemographicsData } from '../hooks/useDemographicsDataIntegration';
+import type { DemographicsData } from '../../../../hooks/useDemographicsDataIntegration';
 
 const { Title, Text } = Typography;
 

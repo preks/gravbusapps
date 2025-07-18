@@ -1,6 +1,6 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system';
-import { MonthlyWorkdaysData } from '../hooks/usePerformanceData';
+import { MonthlyWorkdaysData } from '../../../../../hooks/usePerformanceData';
 import { OrgEntityType } from '../tabs/Performance';
 
 interface MonthlyWorkdaysTableProps {

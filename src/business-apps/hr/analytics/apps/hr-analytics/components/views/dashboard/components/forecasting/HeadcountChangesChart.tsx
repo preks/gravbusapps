@@ -10,8 +10,8 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useMonthlyHeadcountChanges } from '../../hooks/useMonthlyHeadcountChanges';
-import { BusinessAppContextProps } from '../../../../../../../common/BusinessAppContext';
+import { useMonthlyHeadcountChanges } from '../../../../../hooks/useMonthlyHeadcountChanges';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface HeadcountChangesChartProps extends BusinessAppContextProps {}
 

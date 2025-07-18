@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, Card, Spin, Alert, Button, Typography, Space, Tag } from 'antd';
 import { 
   BarChartOutlined, 
@@ -9,7 +9,7 @@ import {
   NodeExpandOutlined 
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useStructuralAnalysisDataIntegration } from './hooks/useStructuralAnalysisDataIntegration';
+import { useStructuralAnalysisDataIntegration } from '../../../hooks/useStructuralAnalysisDataIntegration';
 import { SunburstVisualization } from './components/SunburstVisualization';
 import { SpanOfControlChart } from './components/SpanOfControlChart';
 import { ReportingChainAnalysis } from './components/ReportingChainAnalysis';
@@ -24,9 +24,52 @@ interface StructuralAnalysisReportProps extends BusinessAppContextProps {
 
 export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> = (props) => {
   const { prefixDataTestId = 'StructuralAnalysisReport' } = props;
-  const [activeTab, setActiveTab] = useState<AnalysisTab>('overview');
+  
+  // Define valid tabs
+  const validTabs: AnalysisTab[] = ['overview', 'span-control', 'depth-analysis', 'reporting-chains', 'organizational-hierarchy'];
+  const defaultTab: AnalysisTab = 'overview';
+
+  // Get tab from URL query parameter or use default
+  const getInitialTab = (): AnalysisTab => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab') as AnalysisTab;
+    
+    if (validTabs.includes(tabFromUrl)) {
+      return tabFromUrl;
+    } else {
+      // No valid tab in URL, set default tab in URL
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', defaultTab);
+      window.history.replaceState({}, '', url.toString());
+      return defaultTab;
+    }
+  };
+
+  const [activeTab, setActiveTab] = useState<AnalysisTab>(getInitialTab);
 
   const { data, isLoading, error, refetch } = useStructuralAnalysisDataIntegration(props);
+
+  // Update URL when tab changes
+  const handleTabChange = (key: string) => {
+    const newTab = key as AnalysisTab;
+    setActiveTab(newTab);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', newTab);
+    window.history.pushState({}, '', url.toString());
+  };
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabFromUrl = urlParams.get('tab') as AnalysisTab;
+      const newTab = validTabs.includes(tabFromUrl) ? tabFromUrl : defaultTab;
+      setActiveTab(newTab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Show loading state
   if (isLoading) {
@@ -311,7 +354,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       {/* Tabs */}
       <Tabs
         activeKey={activeTab}
-        onChange={(key) => setActiveTab(key as AnalysisTab)}
+        onChange={handleTabChange}
         items={tabItems}
         size="large"
         style={{ 

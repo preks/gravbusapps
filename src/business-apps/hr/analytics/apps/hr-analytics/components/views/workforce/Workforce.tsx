@@ -1,16 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger, Button, Spinner, Card, CardContent } from '@newwork/nw-design-system';
-import { PiTrendUp, PiArrowClockwise, PiUsers, PiChartBar } from 'react-icons/pi';
+import { PiTrendUp, PiArrowClockwise, PiUsers, PiChartBar, PiBriefcase } from 'react-icons/pi';
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext';
 import HeadcountTrends from './components/tabs/HeadcountTrends';
 import TurnoverRetention from './components/tabs/TurnoverRetention';
 import Performance from './components/tabs/Performance';
-import { useHeadcountTrendsData } from './components/hooks/useHeadcountTrendsData';
+import Employment from './components/tabs/Employment';
+import { useHeadcountTrendsData } from '../../../hooks/useHeadcountTrendsData';
 
 interface WorkforceProps extends BusinessAppContextProps {}
 
 const Workforce: React.FC<WorkforceProps> = (context) => {
-  const [activeTab, setActiveTab] = useState<string>('headcount-trends');
+  // Define valid tabs
+  const validTabs = ['headcount-trends', 'turnover-retention', 'employment', 'performance'];
+  const defaultTab = 'headcount-trends';
+
+  // Get tab from URL query parameter or use default
+  const getInitialTab = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    
+    if (validTabs.includes(tabFromUrl ?? '')) {
+      return tabFromUrl!;
+    } else {
+      // No valid tab in URL, set default tab in URL
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', defaultTab);
+      window.history.replaceState({}, '', url.toString());
+      return defaultTab;
+    }
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   
   const {
     statistics,
@@ -20,6 +41,27 @@ const Workforce: React.FC<WorkforceProps> = (context) => {
   } = useHeadcountTrendsData(context);
 
   const prefixDataTestId = 'Workforce';
+
+  // Update URL when tab changes
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', key);
+    window.history.pushState({}, '', url.toString());
+  };
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabFromUrl = urlParams.get('tab');
+      const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : defaultTab;
+      setActiveTab(newTab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   if (error) {
     return (
@@ -98,8 +140,8 @@ const Workforce: React.FC<WorkforceProps> = (context) => {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="gba:grid gba:w-full gba:max-w-4xl gba:grid-cols-3">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabsList className="gba:grid gba:w-full gba:max-w-5xl gba:grid-cols-4">
           <TabsTrigger 
             value="headcount-trends"
             data-testid="headcount-trends-tab"
@@ -117,6 +159,14 @@ const Workforce: React.FC<WorkforceProps> = (context) => {
             Turnover & Retention
           </TabsTrigger>
           <TabsTrigger 
+            value="employment"
+            data-testid="employment-tab"
+            className="gba:flex gba:items-center gba:gap-2"
+          >
+            <PiBriefcase />
+            Employment
+          </TabsTrigger>
+          <TabsTrigger 
             value="performance"
             data-testid="performance-tab"
             className="gba:flex gba:items-center gba:gap-2"
@@ -132,6 +182,10 @@ const Workforce: React.FC<WorkforceProps> = (context) => {
         
         <TabsContent value="turnover-retention" className="gba:mt-6">
           <TurnoverRetention {...context} />
+        </TabsContent>
+        
+        <TabsContent value="employment" className="gba:mt-6">
+          <Employment {...context} />
         </TabsContent>
         
         <TabsContent value="performance" className="gba:mt-6">

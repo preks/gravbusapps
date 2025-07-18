@@ -95,7 +95,7 @@
 {
   "name": "absenceDaysPerYear",
   "description": "Total absence days taken each year",
-  "query": "SELECT 'Absence Days' as category, DATE_TRUNC('year', ea.active_from) as date_category, COALESCE(SUM(ea.effective_days), 0) as value FROM nw_employee_time.employee_absence ea LEFT JOIN nw_employee.employee e ON ea.employee_id = e.id WHERE e.is_deleted = false AND ea.active_from IS NOT NULL AND ea.active_from BETWEEN :startDate AND :endDate GROUP BY date_category ORDER BY date_category",
+  "query": "SELECT 'Absence Days' as category, DATE_TRUNC('year', ea.start_date) as date_category, COALESCE(SUM(ea.effective_days), 0) as value FROM nw_employee_time.employee_absence ea LEFT JOIN nw_employee.employee e ON ea.employee_id = e.id WHERE e.is_deleted = false AND ea.is_deleted = false AND ea.start_date IS NOT NULL AND ea.start_date BETWEEN :startDate::timestamp AND :endDate::timestamp GROUP BY date_category ORDER BY date_category",
   "queryType": "TIMESERIES",
   "status": "ACTIVE",
   "parameters": [
@@ -123,7 +123,7 @@
 {
   "name": "avgAbsenceDurationPerYear",
   "description": "Average absence duration in days per year",
-  "query": "SELECT 'Avg Duration' as category, DATE_TRUNC('year', ea.active_from) as date_category, COALESCE(AVG(ea.effective_days), 0) as value FROM nw_employee_time.employee_absence ea LEFT JOIN nw_employee.employee e ON ea.employee_id = e.id WHERE e.is_deleted = false AND ea.active_from IS NOT NULL AND ea.active_from BETWEEN :startDate AND :endDate GROUP BY date_category ORDER BY date_category",
+  "query": "SELECT 'Avg Duration' as category, DATE_TRUNC('year', ea.start_date) as date_category, COALESCE(AVG(ea.effective_days), 0) as value FROM nw_employee_time.employee_absence ea LEFT JOIN nw_employee.employee e ON ea.employee_id = e.id WHERE e.is_deleted = false AND ea.is_deleted = false AND ea.start_date IS NOT NULL AND ea.start_date BETWEEN :startDate::timestamp AND :endDate::timestamp GROUP BY date_category ORDER BY date_category",
   "queryType": "TIMESERIES",
   "status": "ACTIVE",
   "parameters": [
@@ -200,7 +200,7 @@
 {
   "name": "absenceByType",
   "description": "Total absence days by absence type",
-  "query": "SELECT COALESCE(at.value, 'Unknown') as category, COALESCE(SUM(ea.effective_days), 0) as value FROM nw_employee_time.employee_absence ea LEFT JOIN nw_employee.employee e ON ea.employee_id = e.id LEFT JOIN nw_catalog.catalog_entry at ON ea.type_ref = at.id LEFT JOIN nw_catalog.catalog atc ON at.catalog_id = atc.id WHERE e.is_deleted = false AND ea.is_deleted = false AND (atc.identifier = 'AbsenceType' AND atc.version = 'v1' OR at.id IS NULL) AND ea.active_from BETWEEN :startDate AND :endDate GROUP BY at.value ORDER BY value DESC",
+  "query": "SELECT COALESCE(at.value, 'Unknown') as category, COALESCE(SUM(ea.effective_days), 0) as value FROM nw_employee_time.employee_absence ea LEFT JOIN nw_employee.employee e ON ea.employee_id = e.id LEFT JOIN nw_catalog.catalog_entry at ON ea.type_ref = at.id LEFT JOIN nw_catalog.catalog atc ON at.catalog_id = atc.id WHERE e.is_deleted = false AND ea.is_deleted = false AND (atc.identifier = 'AbsenceType' AND atc.version = 'v1' OR at.id IS NULL) AND ea.start_date BETWEEN :startDate::timestamp AND :endDate::timestamp GROUP BY at.value ORDER BY value DESC",
   "queryType": "DATASET",
   "status": "ACTIVE",
   "parameters": [
@@ -261,7 +261,7 @@
 {
   "name": "monthlyAbsenceDays",
   "description": "Total absence days taken each month",
-  "query": "SELECT 'Absence Days' as category, DATE_TRUNC('month', ea.active_from) as date_category, COALESCE(SUM(ea.effective_days), 0) as value FROM nw_employee_time.employee_absence ea LEFT JOIN nw_employee.employee e ON ea.employee_id = e.id WHERE e.is_deleted = false AND ea.active_from IS NOT NULL AND ea.active_from BETWEEN :startDate AND :endDate GROUP BY date_category ORDER BY date_category",
+  "query": "SELECT 'Absence Days' as category, DATE_TRUNC('month', ea.start_date) as date_category, COALESCE(SUM(ea.effective_days), 0) as value FROM nw_employee_time.employee_absence ea LEFT JOIN nw_employee.employee e ON ea.employee_id = e.id WHERE e.is_deleted = false AND ea.is_deleted = false AND ea.start_date IS NOT NULL AND ea.start_date BETWEEN :startDate::timestamp AND :endDate::timestamp GROUP BY date_category ORDER BY date_category",
   "queryType": "TIMESERIES",
   "status": "ACTIVE",
   "parameters": [
@@ -287,7 +287,7 @@
 {
   "name": "absenceByDepartment",
   "description": "Total absence days by department/organizational unit",
-  "query": "SELECT COALESCE(ou.name, 'Unknown Department') as category, COALESCE(SUM(ea.effective_days), 0) as value FROM nw_employee_time.employee_absence ea LEFT JOIN nw_employee.employee e ON ea.employee_id = e.id LEFT JOIN nw_orgchart.employee_position ep ON e.id = ep.employee_id LEFT JOIN nw_orgchart.organizational_unit ou ON ep.organizational_unit_id = ou.id WHERE e.is_deleted = false AND ea.active_from IS NOT NULL AND ea.active_from BETWEEN :startDate AND :endDate GROUP BY ou.name ORDER BY value DESC",
+  "query": "SELECT COALESCE(ou.name, 'Unknown Department') as category, COALESCE(SUM(ea.effective_days), 0) as value FROM nw_employee_time.employee_absence ea LEFT JOIN nw_employee.employee e ON ea.employee_id = e.id LEFT JOIN nw_orgchart.employee_position ep ON e.id = ep.employee_id LEFT JOIN nw_orgchart.organizational_unit ou ON ep.organizational_unit_id = ou.id WHERE e.is_deleted = false AND ea.is_deleted = false AND ea.start_date IS NOT NULL AND ea.start_date BETWEEN :startDate::timestamp AND :endDate::timestamp GROUP BY ou.name ORDER BY value DESC",
   "queryType": "DATASET",
   "status": "ACTIVE",
   "parameters": [
@@ -572,4 +572,39 @@
     }
   ],
   "additionalColumns": []
+}
+
+-- =============================================================================
+-- TENURE HEATMAP QUERY (for tenure distribution by organizational unit)
+-- =============================================================================
+
+-- 27. TENURE DISTRIBUTION BY ORGANIZATIONAL UNIT - IMPORTED
+{
+  "name": "tenureDistributionByOrgUnit",
+  "description": "Employee tenure distribution across organizational units for heatmap visualization",
+  "query": "WITH tenure_calculations AS (SELECT e.id as employee_id, ou.id as org_unit_id, ou.name as org_unit_name, EXTRACT(EPOCH FROM AGE(CURRENT_DATE, COALESCE(ewc.hire_date, e.created_at))) / (30.44 * 24 * 3600) as tenure_months FROM nw_employee.employee e LEFT JOIN nw_employee.employee_working_condition ewc ON e.id = ewc.employee_id AND ewc.is_deleted = false LEFT JOIN nw_orgchart.organizational_unit_employee oue ON e.id = oue.employee_id LEFT JOIN nw_orgchart.organizational_unit ou ON oue.organizational_unit_id = ou.id WHERE e.is_deleted = false AND ou.is_deleted = false AND oue.structure_id = CAST(:structureId AS UUID) AND (e.active_from IS NULL OR e.active_from <= CURRENT_DATE) AND (e.active_to IS NULL OR e.active_to >= CURRENT_DATE) AND (COALESCE(ewc.hire_date, e.created_at) IS NOT NULL)), tenure_ranges AS (SELECT employee_id, org_unit_id, org_unit_name, CASE WHEN tenure_months < 6 THEN 'less-than-6m' WHEN tenure_months >= 6 AND tenure_months < 12 THEN '6m-1y' WHEN tenure_months >= 12 AND tenure_months < 24 THEN '1y-2y' WHEN tenure_months >= 24 AND tenure_months < 60 THEN '2y-5y' ELSE 'more-than-5y' END as tenure_range_id, CASE WHEN tenure_months < 6 THEN '< 6 months' WHEN tenure_months >= 6 AND tenure_months < 12 THEN '6-12 months' WHEN tenure_months >= 12 AND tenure_months < 24 THEN '1-2 years' WHEN tenure_months >= 24 AND tenure_months < 60 THEN '2-5 years' ELSE '5+ years' END as tenure_range_label FROM tenure_calculations WHERE tenure_months >= 0) SELECT org_unit_name as category, COUNT(*) as value, tenure_range_id, tenure_range_label FROM tenure_ranges GROUP BY org_unit_id, org_unit_name, tenure_range_id, tenure_range_label ORDER BY org_unit_name, CASE tenure_range_id WHEN 'less-than-6m' THEN 1 WHEN '6m-1y' THEN 2 WHEN '1y-2y' THEN 3 WHEN '2y-5y' THEN 4 WHEN 'more-than-5y' THEN 5 END",
+  "queryType": "DATASET",
+  "status": "ACTIVE",
+  "parameters": [
+    {
+      "name": "structureId",
+      "type": "STRING",
+      "description": "Organizational structure ID to filter employees",
+      "defaultValue": "ffaf293e-15a8-427a-bbf5-0ad64eb875a7",
+      "required": false,
+      "allowedValues": null
+    }
+  ],
+  "additionalColumns": [
+    {
+      "name": "tenure_range_id",
+      "type": "STRING",
+      "description": "Tenure range identifier (less-than-6m, 6m-1y, 1y-2y, 2y-5y, more-than-5y)"
+    },
+    {
+      "name": "tenure_range_label", 
+      "type": "STRING",
+      "description": "Human-readable tenure range label"
+    }
+  ]
 }

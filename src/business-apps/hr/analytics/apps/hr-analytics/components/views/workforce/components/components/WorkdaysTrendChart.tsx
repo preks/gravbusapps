@@ -1,7 +1,7 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Spinner } from '@newwork/nw-design-system';
-import { WorkdaysTrendData } from '../hooks/usePerformanceData';
+import { WorkdaysTrendData } from '../../../../../hooks/usePerformanceData';
 
 interface WorkdaysTrendChartProps {
   data: WorkdaysTrendData[];

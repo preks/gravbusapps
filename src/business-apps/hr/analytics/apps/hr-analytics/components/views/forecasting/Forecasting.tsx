@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Typography, Tabs } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Tabs, Typography } from 'antd';
 import { DollarOutlined, TeamOutlined } from '@ant-design/icons';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { SalaryForecasting, WorkforceForecasting } from './components/tabs';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import SalaryForecasting from './components/tabs/SalaryForecasting';
+import WorkforceForecasting from './components/tabs/WorkforceForecasting';
 
 const { Title, Text } = Typography;
 
@@ -13,7 +14,49 @@ interface ForecastingProps extends BusinessAppContextProps {
 
 export const Forecasting: React.FC<ForecastingProps> = (props) => {
   const { prefixDataTestId = 'Forecasting' } = props;
-  const [activeTab, setActiveTab] = useState<string>('salary');
+  
+  // Define valid tabs
+  const validTabs = ['salary', 'workforce'];
+  const defaultTab = 'salary';
+
+  // Get tab from URL query parameter or use default
+  const getInitialTab = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    
+    if (validTabs.includes(tabFromUrl ?? '')) {
+      return tabFromUrl!;
+    } else {
+      // No valid tab in URL, set default tab in URL
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', defaultTab);
+      window.history.replaceState({}, '', url.toString());
+      return defaultTab;
+    }
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(getInitialTab);
+
+  // Update URL when tab changes
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', key);
+    window.history.pushState({}, '', url.toString());
+  };
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabFromUrl = urlParams.get('tab');
+      const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : defaultTab;
+      setActiveTab(newTab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const tabItems = [
     {
@@ -64,7 +107,7 @@ export const Forecasting: React.FC<ForecastingProps> = (props) => {
       <div data-testid="forecasting-tabs-container" className="gba:flex-1">
         <Tabs
           activeKey={activeTab}
-          onChange={setActiveTab}
+          onChange={handleTabChange}
           items={tabItems}
           size="large"
           className="gba:h-full"

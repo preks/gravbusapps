@@ -3,8 +3,10 @@ import { Typography } from 'antd';
 import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { WorkingConditionKpi } from '../../hooks/useWorkingConditionForecast';
-import { useWorkingConditionForecast } from '../../hooks/useWorkingConditionForecast';
+import { WorkingConditionKpi } from '../../../../../hooks/useWorkingConditionForecast';
+import { useWorkingConditionForecast } from '../../../../../hooks/useWorkingConditionForecast';
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset';
+import { useState, useEffect, useCallback } from 'react';
 import HeadcountChangesChart from '../HeadcountChangesChart';
 
 const { Title, Text } = Typography;
@@ -16,13 +18,41 @@ interface WorkforceForecastingProps extends BusinessAppContextProps {
 export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = (props) => {
   const { prefixDataTestId = 'WorkforceForecasting' } = props;
   const kpiData = useWorkingConditionForecast(props);
+  
+  // Add authoritative employee count hook
+  const [totalEmployeeCount, setTotalEmployeeCount] = useState<number>(0);
+  const [isLoadingEmployeeCount, setIsLoadingEmployeeCount] = useState(true);
+  const queryClient = useQueryExecutionClient(props.accessToken, Services.EMPLOYEE);
+
+  const loadTotalEmployeeCount = useCallback(async () => {
+    if (!props.accessToken) return;
+    
+    setIsLoadingEmployeeCount(true);
+    try {
+      // Use the same authoritative source as Demographics and Workforce views
+      const totalEmployeeData = await queryClient.executeQuery('totalEmployeeCount', QueryType.DATASET, {});
+      const count = totalEmployeeData.data.length > 0 ? totalEmployeeData.data[0].value : 0;
+      setTotalEmployeeCount(count);
+    } catch (error) {
+      console.error('Error fetching total employee count:', error);
+      setTotalEmployeeCount(0);
+    } finally {
+      setIsLoadingEmployeeCount(false);
+    }
+  }, [queryClient, props.accessToken]);
+
+  useEffect(() => {
+    if (props.accessToken) {
+      loadTotalEmployeeCount();
+    }
+  }, [props.accessToken, loadTotalEmployeeCount]);
 
   // Calculate Workforce-related KPI metrics
   const workforceKpiCards: KpiCardData[] = useMemo(() => {
     const { loading, data } = kpiData;
     const employees: WorkingConditionKpi[] = data as WorkingConditionKpi[];
 
-    if (loading) {
+    if (loading || isLoadingEmployeeCount) {
       return [
         {
           id: 'current-headcount',
@@ -69,11 +99,9 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = (props)
       ];
     }
 
-    // Calculate metrics
+    // Calculate metrics using working condition data for hire/departure calculations
     const today = new Date();
     const startOfYear = new Date(today.getFullYear(), 0, 1);
-    const activeEmployees = employees.filter(wc => !wc.exitDate || new Date(wc.exitDate) > today);
-    const headcount = activeEmployees.length;
     
     const ytdHires = employees.filter(wc =>
       wc.hireDate &&
@@ -88,6 +116,9 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = (props)
     ).length;
 
     const netChange = ytdHires - ytdDepartures;
+    
+    // Use authoritative total employee count for headcount and calculations
+    const headcount = totalEmployeeCount;
     const turnoverRate = headcount > 0 ? (ytdDepartures / headcount) * 100 : 0;
     const growthRate = headcount > 0 ? (netChange / headcount) * 100 : 0;
 
@@ -98,7 +129,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = (props)
         value: headcount,
         icon: 'users',
         iconColor: '#722ed1',
-        footer: 'Active employees'
+        footer: 'Active employees (authoritative count)'
       },
       {
         id: 'ytd-hires',
@@ -141,7 +172,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = (props)
         footer: 'Year-to-date growth'
       }
     ];
-  }, [kpiData]);
+  }, [kpiData, isLoadingEmployeeCount, totalEmployeeCount]);
 
   return (
     <div 

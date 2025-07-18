@@ -10,7 +10,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useDepartmentMonthlySalaryStack } from '../hooks/useDepartmentMonthlySalaryStack';
+import { useDepartmentMonthlySalaryStack } from '../../../../hooks/useDepartmentMonthlySalaryStack';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 const { Title, Text } = Typography;

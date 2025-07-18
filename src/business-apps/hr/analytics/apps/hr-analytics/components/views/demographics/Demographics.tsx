@@ -1,8 +1,8 @@
 import React from 'react';
 import { Button, Spinner, Card, CardContent } from '@newwork/nw-design-system';
 import { PiArrowClockwise } from 'react-icons/pi';
-import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext';
-import { useDemographicsDataIntegration } from './hooks/useDemographicsDataIntegration';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useDemographicsDataIntegration } from '../../../hooks/useDemographicsDataIntegration';
 import DemographicsChartsView from './components/DemographicsChartsView';
 import DemographicsStatistics from './components/DemographicsStatistics';
 

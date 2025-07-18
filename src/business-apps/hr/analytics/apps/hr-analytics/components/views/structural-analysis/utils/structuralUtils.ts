@@ -17,7 +17,7 @@ import {
   EmployeeSiteLocationResponse,
   CostCenterResponse,
   StructuralAnalysisData
-} from '../queries/StructuralAnalysisQueries';
+} from '../../../../queries/StructuralAnalysisQueries';
 
 // Color schemes for visualizations
 export const chartColors = {

@@ -10,7 +10,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { useYearlyPayroll } from '../../hooks/useYearlyPayroll';
+import { useYearlyPayroll } from '../../../../../hooks/useYearlyPayroll';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 

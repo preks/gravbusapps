@@ -15,7 +15,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { AbsenceChartData } from '../hooks/useAbsenceDataIntegration';
+import { AbsenceChartData } from '../../../../hooks/useAbsenceDataIntegration';
 
 const { Title, Text } = Typography;
 

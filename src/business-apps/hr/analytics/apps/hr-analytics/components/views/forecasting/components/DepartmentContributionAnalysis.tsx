@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, Spin } from 'antd';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useDepartmentMonthlySalaryStack } from '../hooks/useDepartmentMonthlySalaryStack';
+import { useDepartmentMonthlySalaryStack } from '../../../../hooks/useDepartmentMonthlySalaryStack';
 
 interface DepartmentContributionAnalysisProps extends BusinessAppContextProps {}
 

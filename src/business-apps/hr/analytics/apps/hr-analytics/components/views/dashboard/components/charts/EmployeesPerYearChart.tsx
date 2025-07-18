@@ -4,7 +4,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { YearlyEmployeeData } from '../../hooks/useEmployeesPerYear';
+import { YearlyEmployeeData } from '../../../../../hooks/useEmployeesPerYear';
 
 const { Title, Text } = Typography;
 

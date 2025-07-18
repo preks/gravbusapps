@@ -21,5 +21,3 @@ export interface AnalyticsKpiData {
     label: string;
   };
 }
-
-export type TabKey = 'overview' | 'workforce';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
-import type { TurnoverRetentionStatistics } from '../hooks/useTurnoverRetentionData';
+import type { TurnoverRetentionStatistics } from '../../../../../hooks/useTurnoverRetentionData';
 
 interface TurnoverRetentionStatisticsProps {
   statistics: TurnoverRetentionStatistics;

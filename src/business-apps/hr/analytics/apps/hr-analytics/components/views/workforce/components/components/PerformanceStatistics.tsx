@@ -1,7 +1,7 @@
 import React from 'react';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { UserOutlined, CalendarOutlined, TeamOutlined, BarChartOutlined } from '@ant-design/icons';
-import { PerformanceStatistics as PerformanceStatsType } from '../hooks/usePerformanceData';
+import { PerformanceStatistics as PerformanceStatsType } from '../../../../../hooks/usePerformanceData';
 
 interface PerformanceStatisticsProps {
   statistics: PerformanceStatsType;

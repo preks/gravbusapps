@@ -13,23 +13,34 @@ interface SunburstVisualizationProps {
 // Custom tooltip component for sunburst
 const SunburstTooltip: React.FC<any> = ({ active, payload }) => {
   if (active && payload && payload.length > 0) {
-    const data = payload[0].payload;
+    const data = payload[0]?.payload;
+    
+    // Add defensive checks to ensure data exists and has required properties
+    if (!data || typeof data !== 'object') {
+      return null;
+    }
+
+    const name = data.name || 'Unknown';
+    const value = data.value || 0;
+    const companyName = data.companyName;
+
     return (
       <div 
         style={{ 
           backgroundColor: 'white', 
           border: '1px solid #ccc', 
           borderRadius: '4px', 
-          padding: '8px' 
+          padding: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
         }}
       >
-        <p style={{ margin: 0, fontWeight: 'bold' }}>{data.name}</p>
+        <p style={{ margin: 0, fontWeight: 'bold' }}>{name}</p>
         <p style={{ margin: 0, color: '#666' }}>
-          Employees: {data.value}
+          Employees: {value}
         </p>
-        {data.companyName && (
+        {companyName && (
           <p style={{ margin: 0, color: '#666' }}>
-            Company: {data.companyName}
+            Company: {companyName}
           </p>
         )}
       </div>
@@ -38,23 +49,51 @@ const SunburstTooltip: React.FC<any> = ({ active, payload }) => {
   return null;
 };
 
-// Transform hierarchical data to sunburst format
-const transformToSunburstFormat = (node: SunburstNode): any => {
-  return {
+// Transform hierarchical data to sunburst format with proper unique keys
+const transformToSunburstFormat = (node: SunburstNode, parentPath = 'root', index = 0): any => {
+  // Create a unique path-based identifier
+  const currentPath = `${parentPath}-${node.name.replace(/\s+/g, '_')}-${index}`;
+  const uniqueId = `${currentPath}-level${node.level}`;
+  
+  const result = {
     name: node.name,
     value: node.value,
-    children: node.children?.map(transformToSunburstFormat) || []
+    level: node.level,
+    id: uniqueId, // Add unique ID for chart identification
+    key: uniqueId, // Ensure unique key for React rendering
+    fill: node.color || node.fill, // Preserve color information
+    color: node.color, // Keep original color property
+    children: node.children?.map((child, childIndex) => 
+      transformToSunburstFormat(child, currentPath, childIndex)
+    ) || []
   };
+
+  return result;
 };
+
+// Add a fallback data generator for empty/invalid data
+const createFallbackData = () => ({
+  name: 'No Data',
+  value: 0,
+  level: 0,
+  id: 'fallback-node',
+  key: 'fallback-node',
+  children: []
+});
 
 export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
   data,
   prefixDataTestId = 'StructuralAnalysis'
 }) => {
-  const hasData = data && data.value > 0;
+  // Enhanced data validation
+  const hasValidData = data && 
+    typeof data === 'object' && 
+    data.name && 
+    typeof data.value === 'number' && 
+    data.value > 0;
   
-  // Transform data to match the working sunburst format
-  const sunburstData = hasData ? transformToSunburstFormat(data) : null;
+  // Transform data to match the working sunburst format with proper keys
+  const sunburstData = hasValidData ? transformToSunburstFormat(data) : createFallbackData();
 
   return (
     <Card
@@ -71,17 +110,18 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
       </div>
       
       <div className="gba:p-4">
-        {hasData && sunburstData ? (
+        {hasValidData ? (
           <ResponsiveContainer height={450} width="100%">
             <SunburstChart
               data={sunburstData}
               startAngle={0}
               endAngle={360}
-              fill=""
+              fill="#8884d8"
               innerRadius={10}
               ringPadding={1}
-              stroke=""
+              stroke="#fff"
               textOptions={{}}
+              dataKey="value"
             >
               <Tooltip content={<SunburstTooltip />} />
             </SunburstChart>

@@ -2,7 +2,7 @@ import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
 import { Card, Spin, Empty, Typography, theme } from 'antd';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useEmployeesByOrgUnit } from '../../hooks/useEmployeesByOrgUnit';
+import { useEmployeesByOrgUnit } from '../../../../../hooks/useEmployeesByOrgUnit';
 import { BusinessAppContextProps } from '@/business-apps/types';
 
 const { Title, Text } = Typography;

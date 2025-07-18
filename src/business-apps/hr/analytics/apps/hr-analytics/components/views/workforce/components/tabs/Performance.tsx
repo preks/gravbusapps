@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Card, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner, Alert } from '@newwork/nw-design-system';
-import { usePerformanceData, WorkdaysData } from '../hooks/usePerformanceData';
+import { usePerformanceData, WorkdaysData } from '../../../../../hooks/usePerformanceData';
 import PerformanceStatistics from '../components/PerformanceStatistics';
 import MonthlyWorkdaysTable from '../components/MonthlyWorkdaysTable';
 import WorkdaysTrendChart from '../components/WorkdaysTrendChart';
