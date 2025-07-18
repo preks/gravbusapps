@@ -20,9 +20,11 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
       code
       title
       requestDate
+      startDate
       endDate
       description
       totalAmount
+      currencyRef
       status
       createdAt
       employeeDocument { # Corrected field for attachments
@@ -46,6 +48,86 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
   }
 `;
 
+// New query that follows the same pattern as expense plans with proper search and status filtering
+export const GET_MAIN_VIEW_EXPENSE_REQUESTS = `
+  query GetMainViewExpenseRequests(
+    $managerId: uuid!,
+    $limit: Int!,
+    $offset: Int!,
+    $searchTerm: String,
+    $status: String
+  ) {
+    ExpenseRequestAggregate(
+      where: {
+        employee: {
+          employeePosition: {
+            supervisorEmployeeId: {_eq: $managerId}
+          }
+        },
+        isDeleted: {_eq: false},
+        _or: [
+          {code: {_ilike: $searchTerm}},
+          {title: {_ilike: $searchTerm}},
+          {employee: {fullName: {_ilike: $searchTerm}}}
+        ],
+        status: {_eq: $status}
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    ExpenseRequest(
+      limit: $limit,
+      offset: $offset,
+      orderBy: {requestDate: DESC},
+      where: {
+        employee: {
+          employeePosition: {
+            supervisorEmployeeId: {_eq: $managerId}
+          }
+        },
+        isDeleted: {_eq: false},
+        _or: [
+          {code: {_ilike: $searchTerm}},
+          {title: {_ilike: $searchTerm}},
+          {employee: {fullName: {_ilike: $searchTerm}}}
+        ],
+        status: {_eq: $status}
+      }
+    ) {
+      id
+      code
+      title
+      requestDate
+      startDate
+      endDate
+      description
+      totalAmount
+      currencyRef
+      status
+      createdAt
+      employeeDocument {
+        file
+        name
+      }
+      employee {
+        id
+        displayName
+        fullName
+        pictureThumbnail
+        employeePosition {
+          organizationalUnit {
+            id
+            name
+          }
+        }
+        additionalProperties
+      }
+    }
+  }
+`;
+
 export const GET_EXPENSE_REQUEST_BY_ID = `
   query GetExpenseRequestById($id: uuid!) {
     ExpenseRequest(where: {id: {_eq: $id}}) {
@@ -54,7 +136,10 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
       title
       description
       requestDate
-      amount
+      startDate
+      endDate
+      totalAmount
+      currencyRef
       status
       attachments {
         fileUrl

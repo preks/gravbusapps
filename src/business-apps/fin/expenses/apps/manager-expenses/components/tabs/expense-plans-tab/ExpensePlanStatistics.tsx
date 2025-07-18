@@ -1,9 +1,10 @@
 import React, { useCallback, useMemo } from 'react';
-import { CalendarOutlined, FileOutlined, EuroOutlined } from '@ant-design/icons';
+import { PiCalendar, PiFileText, PiCurrencyEur } from 'react-icons/pi';
 import { ExpensePlanStatistics } from '../../../hooks/useGetExpensePlans'; // Assuming this type is exported from your hook
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { formatNumberFunction } from '@/common/utils/windowUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrency } from '../../../utils/currencyUtils';
 // Local definition of ExpenseStatus
 enum ExpenseStatus {
   PREPARED = "PREPARED",
@@ -26,8 +27,8 @@ interface ExpensePlanStatisticsProps {
   statsLoading: boolean;
   statsError: Error | null;
   fetchPlanStatistics: () => void;
-  activeFilter: ExpenseStatus | null;
-  onFilterChange: (filter: ExpenseStatus | null) => void;
+  activeFilter: ExpenseStatus[] | null;
+  onFilterChange: (filter: ExpenseStatus[] | null) => void;
 }
 
 const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
@@ -40,10 +41,16 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
 }) => {
   // Handle card click
   const handleCardClick = useCallback((filterKey: ExpenseStatus | null) => {
-    if (activeFilter === filterKey) {
-      onFilterChange(null); // Toggle off if already active
+    if (filterKey === null) {
+      onFilterChange(null); // Clear all filters
     } else {
-      onFilterChange(filterKey);
+      // Check if this status is currently active
+      const isActive = activeFilter?.includes(filterKey) || false;
+      if (isActive) {
+        onFilterChange(null); // Clear all filters if clicking active status
+      } else {
+        onFilterChange([filterKey]); // Set single filter
+      }
     }
   }, [activeFilter, onFilterChange]);
 
@@ -55,9 +62,10 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'pending-approval',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_approval', 'Pending Approval'),
-        value: planStats.pendingCount,
-        prefix: <CalendarOutlined />,
-        color: activeFilter === ExpenseStatus.PENDING ? '#1890ff' : '#faad14',
+        value: formatNumberFunction(planStats.pendingCount.toString(), "0.00[,]00"),
+        prefix: <PiCalendar />,
+        color: activeFilter?.includes(ExpenseStatus.PENDING) ? '#1890ff' : '#faad14',
+        valueIsString: true,
         span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.requires_action', 'Requires action'),
         onClick: () => handleCardClick(ExpenseStatus.PENDING)
@@ -65,9 +73,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'pending-amount',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_amount', 'Pending Amount'),
-        value: planStats.pendingAmount ? formatNumberFunction(planStats.pendingAmount.toString(), "0.00[,]00") : '0,00',
-        prefix: <EuroOutlined />,
-        suffix: '€',
+        value: planStats.pendingAmount ? formatCurrency(planStats.pendingAmount, 'EUR') : 'EUR 0,00',
+        prefix: <PiCurrencyEur />,
         color: '#faad14',
         valueIsString: true,
         span: { xs: 24, sm: 6 },
@@ -76,18 +83,18 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'total-plans',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.total_plans_submitted', 'Total Plans (Submitted)'),
-        value: planStats.totalCount,
-        prefix: <FileOutlined />,
+        value: formatNumberFunction(planStats.totalCount.toString(), "0.00[,]00"),
+        prefix: <PiFileText />,
         color: '#1890ff',
+        valueIsString: true,
         span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.all_submitted_plans', 'All submitted plans')
       },
       {
         key: 'total-amount',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.total_amount_submitted', 'Total Amount (Submitted)'),
-        value: planStats.sumTotalAmount ? formatNumberFunction(planStats.sumTotalAmount.toString(), "0.00[,]00") : '0,00',
-        prefix: <EuroOutlined />,
-        suffix: '€',
+        value: planStats.sumTotalAmount ? formatCurrency(planStats.sumTotalAmount, 'EUR') : 'EUR 0,00',
+        prefix: <PiCurrencyEur />,
         color: '#3f8600',
         valueIsString: true,
         span: { xs: 24, sm: 6 },
@@ -109,6 +116,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         skeletonCount={4}
         emptyText= {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.no_expense_plan_statistics_available', 'No expense plan statistics available.')}
         cardBackground="transparent"
+        className="gba:py-0 gba:bg-transparent"
       />
   );
 

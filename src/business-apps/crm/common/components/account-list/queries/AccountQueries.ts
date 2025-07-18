@@ -23,11 +23,13 @@ export interface AccountData {
   numberOfEmployees: {
     value: string;
   };
-  contact: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
+  accountContacts: {
+    contact: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+    };
   }[];
   addresses: {
     city: string;
@@ -53,6 +55,7 @@ export interface AccountData {
     id: string;
     lastName: string;
     firstName: string;
+    pictureThumbnail?: string;
   };
   createdAt: string;
   updatedAt: string;
@@ -93,11 +96,13 @@ export const GET_ACCOUNTS_DATA = `
       numberOfEmployees {
         value
       }
-      contact {
-        firstName
-        lastName
-        email
-        phone
+      accountContacts(where:{contactType:{_eq:"PRIMARY_CONTACT"}}) {
+        contact{
+          firstName
+          lastName
+          phone
+          email
+        }
       }
       addresses {
         city

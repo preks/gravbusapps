@@ -33,12 +33,18 @@ const MetricsCards: React.FC<MetricsCardsProps> = ({ metrics }) => {
   return (
     <div className="gba:grid gba:gap-4 gba:grid-cols-1 gba:md:grid-cols-4">
       {/* Total Invested Card */}
-      <Card>
-        <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
-          <CardTitle className="gba:text-sm gba:font-medium">Total Invested</CardTitle>
-          <DollarSign className="gba:h-4 gba:w-4 gba:text-blue-600" />
+      <Card className="gba:h-full">
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <div className="gba:p-2 gba:bg-blue-100 gba:rounded-lg">
+              <DollarSign className="gba:h-5 gba:w-5 gba:text-blue-600" />
+            </div>
+            <div>
+              <CardTitle>Total Invested</CardTitle>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="gba:p-6">
           <div className="gba:text-2xl gba:font-bold">{metrics.totalInvested}</div>
           <p className="gba:text-xs gba:text-muted-foreground">
             {metrics.bookValueChange} from initial investment
@@ -47,12 +53,18 @@ const MetricsCards: React.FC<MetricsCardsProps> = ({ metrics }) => {
       </Card>
       
       {/* Current Book Value Card */}
-      <Card>
-        <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
-          <CardTitle className="gba:text-sm gba:font-medium">Current Book Value</CardTitle>
-          <TrendingUp className="gba:h-4 gba:w-4 gba:text-green-500" />
+      <Card className="gba:h-full">
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <div className="gba:p-2 gba:bg-green-100 gba:rounded-lg">
+              <TrendingUp className="gba:h-5 gba:w-5 gba:text-green-600" />
+            </div>
+            <div>
+              <CardTitle>Current Book Value</CardTitle>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="gba:p-6">
           <div className="gba:text-2xl gba:font-bold">{metrics.currentBookValue}</div>
           <p className="gba:text-xs gba:text-muted-foreground">
             {metrics.bookValueChange} from initial investment
@@ -61,12 +73,18 @@ const MetricsCards: React.FC<MetricsCardsProps> = ({ metrics }) => {
       </Card>
       
       {/* Avg. Expected ROI Card */}
-      <Card>
-        <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
-          <CardTitle className="gba:text-sm gba:font-medium">Avg. Expected ROI</CardTitle>
-          <Target className="gba:h-4 gba:w-4 gba:text-yellow-600" />
+      <Card className="gba:h-full">
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <div className="gba:p-2 gba:bg-amber-100 gba:rounded-lg">
+              <Target className="gba:h-5 gba:w-5 gba:text-amber-600" />
+            </div>
+            <div>
+              <CardTitle>Avg. Expected ROI</CardTitle>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="gba:p-6">
           <div className="gba:text-2xl gba:font-bold">{metrics.avgExpectedROI}</div>
           <p className="gba:text-xs gba:text-muted-foreground">
             across all investment types
@@ -75,12 +93,18 @@ const MetricsCards: React.FC<MetricsCardsProps> = ({ metrics }) => {
       </Card>
       
       {/* Total Investments Card */}
-      <Card>
-        <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
-          <CardTitle className="gba:text-sm gba:font-medium">Total Investments</CardTitle>
-          <Clock className="gba:h-4 gba:w-4 gba:text-purple-600" />
+      <Card className="gba:h-full">
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <div className="gba:p-2 gba:bg-purple-100 gba:rounded-lg">
+              <Clock className="gba:h-5 gba:w-5 gba:text-purple-600" />
+            </div>
+            <div>
+              <CardTitle>Total Investments</CardTitle>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="gba:p-6">
           <div className="gba:text-2xl gba:font-bold">{metrics.totalInvestments}</div>
           <p className="gba:text-xs gba:text-muted-foreground">
             {metrics.investmentTypes} types

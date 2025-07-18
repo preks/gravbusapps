@@ -205,7 +205,7 @@ const RelationshipInformationSection: React.FC = () => {
                 <div className="gba:mb-2 gba:flex gba:items-center">
                   <span className="gba:text-sm gba:font-medium gba:text-green-700">Account:</span>
                   <a
-                    href={`/platform/crm/account-record?accountId=${formValues.account}`}
+                    href={`/platform/crm/account-record?accountId=${formValues.account}&source=customer-relations`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="gba:text-sm gba:text-blue-600 gba:ml-2 gba:hover:text-blue-800 gba:hover:underline gba:transition-colors gba:cursor-pointer"
@@ -220,7 +220,7 @@ const RelationshipInformationSection: React.FC = () => {
                 <div className="gba:mb-2 gba:flex gba:items-center">
                   <span className="gba:text-sm gba:font-medium gba:text-blue-700">Lead:</span>
                   <a
-                    href={`/platform/crm/lead-record?leadId=${formValues.lead}`}
+                    href={`/platform/crm/lead-record?leadId=${formValues.lead}&source=customer-relations`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="gba:text-sm gba:text-blue-600 gba:ml-2 gba:hover:text-blue-800 gba:hover:underline gba:transition-colors gba:cursor-pointer"

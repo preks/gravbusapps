@@ -96,7 +96,7 @@ const KeyMetrics: React.FC<KeyMetricsProps> = ({ data, equityData, isLoading }) 
     return (
       <div className="gba:grid gba:gap-4 gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="gba:bg-white gba:shadow-sm">
+          <Card key={i}>
             <CardContent className="gba:p-6">
               <div className="gba:animate-pulse">
                 <div className="gba:flex gba:items-center gba:gap-3">

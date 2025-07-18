@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import { Card, Tag, Button, Space, Alert, Spin, Typography } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
+import { Badge } from '@newwork/nw-design-system';
+import { Button } from '@newwork/nw-design-system';
+import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system';
+import { Spinner } from '@newwork/nw-design-system';
+import { Plus } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
@@ -9,7 +13,7 @@ import { usePrivateEquityInvestmentIntegration } from './hooks/usePrivateEquityI
 import { usePrivateEquityChartData } from './hooks/usePrivateEquityChartData';
 import { PrivateEquityKPICards, PrivateEquityCharts } from './components';
 
-const { Title } = Typography;
+// Typography no longer needed with design system
 
 interface PrivateEquityInvestmentsReportProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
@@ -37,7 +41,7 @@ const PrivateEquityInvestmentsReport: React.FC<PrivateEquityInvestmentsReportPro
           minHeight: '400px'
         }}
       >
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -46,51 +50,41 @@ const PrivateEquityInvestmentsReport: React.FC<PrivateEquityInvestmentsReportPro
     return (
       <Alert
         data-testid={formatDataTestId(prefixDataTestId, 'Error')}
-        message={getTranslationFromI18nKeyAndLabel('error.loading', 'Error Loading Data')}
-        description={error}
-        type="error"
-        showIcon
-        action={
-          <Button size="small" onClick={() => refetch()}>
+        variant="destructive"
+      >
+        <AlertTitle>{getTranslationFromI18nKeyAndLabel('error.loading', 'Error Loading Data')}</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+        <div className="gba:mt-2">
+          <Button variant="default" size="sm" onClick={() => refetch()}>
             {getTranslationFromI18nKeyAndLabel('button.retry', 'Retry')}
           </Button>
-        }
-      />
+        </div>
+      </Alert>
     );
   }
 
   return (
     <div
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
-      style={{
-        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-        minHeight: '100%',
-        padding: '24px',
-        borderRadius: '8px'
-      }}
+      className="gba:bg-gradient-to-b gba:from-gray-50 gba:to-gray-100 gba:min-h-full gba:p-6 gba:rounded-lg"
     >
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '24px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Title level={3} style={{ margin: 0, color: '#1f2937' }}>
+      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
+        <div className="gba:flex gba:items-center gba:gap-4">
+          <h3 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:m-0">
             {getTranslationFromI18nKeyAndLabel('privateEquity.investments.title', 'Private Equity Investments Report')}
-          </Title>
-          <Tag color="magenta">{privateEquityInvestments.length} {getTranslationFromI18nKeyAndLabel('privateEquity.investments.items', 'PE investments')}</Tag>
+          </h3>
+          <Badge variant="secondary">{privateEquityInvestments.length} {getTranslationFromI18nKeyAndLabel('privateEquity.investments.items', 'PE investments')}</Badge>
         </div>
-        <Space>
+        <div className="gba:flex gba:gap-2">
           <Button
             data-testid={formatDataTestId(prefixDataTestId, 'AddButton')}
-            type="primary"
-            icon={<PlusOutlined />}
+            variant="default"
           >
+            <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
             {getTranslationFromI18nKeyAndLabel('button.addPrivateEquityInvestment', 'Add PE Investment')}
           </Button>
-        </Space>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -100,8 +94,8 @@ const PrivateEquityInvestmentsReport: React.FC<PrivateEquityInvestmentsReportPro
       />
 
       {/* Search */}
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ width: '300px' }}>
+      <div className="gba:mb-6">
+        <div className="gba:w-80">
           <DebouncedInput
             data-testid={formatDataTestId(prefixDataTestId, 'SearchInput')}
             placeholder={getTranslationFromI18nKeyAndLabel('placeholder.searchPrivateEquityInvestments', 'Search private equity investments...')}

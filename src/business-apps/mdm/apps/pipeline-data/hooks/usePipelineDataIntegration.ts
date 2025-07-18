@@ -12,13 +12,12 @@ import {
 } from '../types';
 import { useSalesPipelines } from './useSalesPipelines';
 
-
-
 export const usePipelineDataIntegration = (
   context: BusinessAppContextProps,
   options?: {
     limit?: number;
     autoFetch?: boolean;
+    sourceApp?: 'CRM' | 'IRM'; // Add sourceApp parameter for filtering
   }
 ): PipelineDataIntegration & {
   refetch: () => Promise<void>;
@@ -171,7 +170,7 @@ export const usePipelineDataIntegration = (
     try {
       console.log('Fetching pipeline data with token:', context.accessToken.substring(0, 20) + '...');
 
-      // Only fetch pipelines for the overview - stages are loaded on-demand
+      // Fetch all pipelines initially
       const pipelinesResult = await fetchSalesPipelines({
         limit: options?.limit || 100,
         offset: 0,
@@ -180,9 +179,18 @@ export const usePipelineDataIntegration = (
       console.log('Raw pipelines result:', pipelinesResult);
       console.log('Found pipelines:', pipelinesResult.data?.length || 0);
 
+      // Filter pipelines by sourceApp type if specified
+      let filteredPipelines = pipelinesResult.data.filter((entry) => entry.id && entry.value);
+      
+      if (options?.sourceApp) {
+        filteredPipelines = filteredPipelines.filter(entry => 
+          (entry.type || 'CRM') === options.sourceApp
+        );
+        console.log(`Filtered to ${options.sourceApp} pipelines:`, filteredPipelines.length);
+      }
+
       // Transform pipelines without stages (they'll be loaded on-demand in the modal)
-      const transformedPipelines = pipelinesResult.data
-        .filter((entry) => entry.id && entry.value)
+      const transformedPipelines = filteredPipelines
         .map((entry) => {
           return {
             id: entry.id,
@@ -217,6 +225,7 @@ export const usePipelineDataIntegration = (
   }, [
     context.accessToken,
     options?.limit,
+    options?.sourceApp, // Add sourceApp to dependencies
     fetchSalesPipelines,
   ]);
 

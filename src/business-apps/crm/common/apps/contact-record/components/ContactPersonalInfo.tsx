@@ -10,7 +10,7 @@ interface ContactPersonalInfoProps {
 export const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact }) => {
   return (
     <Card
-      title="Personal Information"
+      title="Contact Information"
       style={{ width: '100%', height: '100%' }}
     >
       <div>
@@ -31,6 +31,7 @@ export const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contac
               <a 
                 href={`mailto:${contact.email}`}
                 style={{ color: '#3b82f6', textDecoration: 'none' }}
+                data-testid="contact-personal-info-email-link"
               >
                 {contact.email}
               </a>

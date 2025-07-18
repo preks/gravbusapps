@@ -37,7 +37,7 @@ const transformOpportunityData = (apiOpportunity: OpportunityData): Opportunity 
     estimatedAmount: apiOpportunity.estimatedAmount || 0,
     winningChance: apiOpportunity.winningChance || 0,
     closeDate: apiOpportunity.closeDate || '',
-    stage: apiOpportunity.salesPipelineStage?.value || temporaryMapToStage(apiOpportunity.stage) || '',
+    stage: apiOpportunity.salesPipelineStage?.value || '',
     salesPipeline: apiOpportunity.salesPipeline ? {
       id: apiOpportunity.salesPipeline.id,
       value: apiOpportunity.salesPipeline.value,

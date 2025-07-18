@@ -6,19 +6,19 @@ export interface SalesActivityQueryVariables {
 }
 
 export interface SalesActivityData {
-  id: string;
-  title: string;
-  version: number;
-  description: string;
-  createdAt: string;
+    id: string;
+    title: string;
+    version: number;
+    description: string;
+    createdAt: string;
   completedAt?: string | null;
   createdBy: string;
-  activityType?: {
+    activityType?: {
     code: string;
-    id: string;
+      id: string;
     type: string;
-    value: string;
-  };
+      value: string;
+    };
 }
 
 export interface SalesActivityResponse {
@@ -27,24 +27,24 @@ export interface SalesActivityResponse {
 
 export const GET_SALES_ACTIVITIES = (variables: SalesActivityQueryVariables): string => {
   return `
-    query GetSalesActivities($accountId: uuid!) {
+  query GetSalesActivities($accountId: uuid!) {
       SalesActivity(where: {accountId: {_eq: $accountId}, isDeleted: {_eq: false}}) {
-        id
-        title
-        version
-        description
-        createdAt
-        completedAt
+      id
+      title
+      version
+      description
+      createdAt
+      completedAt
         createdBy
-        activityType {
+      activityType {
           code
-          id
+        id
           type
-          value
-        }
+        value
       }
     }
-  `;
+  }
+`;
 };
 
 export const useGetSalesActivities = (context: BusinessAppContextProps) => {
