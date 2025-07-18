@@ -175,7 +175,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
 
   const handleDeleteSelection = useCallback((ids?: string[]) => {
     const targetIds = ids || selectedRowKeys;
-    console.log('handleDeleteSelection - ids:', targetIds);
     if (!targetIds.length) return;
     const selectedItems = items?.filter((item: any) => targetIds.includes(item.id)) || [];
     const allAllowed = selectedItems.every((item: any) => item.status === 'CREATED' || item.status === 'ASSIGNED');

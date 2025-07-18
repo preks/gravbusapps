@@ -298,7 +298,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                     key: 'view-request-details',
                     label: 'View Request Details',
                     onClick: (e?: React.MouseEvent) => {
-                      console.log('View request details for plan:', (record.expenseRequest as unknown as any[])[0].id);
                       e?.stopPropagation();
                       handleViewExpenseRequestDetails(record);
                     },

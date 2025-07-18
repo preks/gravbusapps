@@ -58,7 +58,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback((widgetKey: string) => {
     const newActiveWidget = activeWidget === widgetKey ? null : widgetKey;
-    console.log('Widget click:', widgetKey, 'Current active:', activeWidget, 'New active:', newActiveWidget);
     setActiveWidget(newActiveWidget);
     
     // Clear existing filters for all widget activations
@@ -110,7 +109,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
         });
         // Set destination filter
         if (statistics.topDestination && statistics.topDestination !== 'N/A') {
-          console.log('Setting destination filter directly to:', statistics.topDestination);
           setDestinationFilter(statistics.topDestination);
         }
         break;
@@ -123,7 +121,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
 
   // Handle destination filter changes
   const handleDestinationFilterChange = useCallback((destination: string | null) => {
-    console.log('Parent received destination filter change:', destination, 'Current activeWidget:', activeWidget);
     setDestinationFilter(destination);
   }, [activeWidget]);
 
@@ -167,7 +164,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     
     // Add top-destinations widget filters
     if (activeWidget === 'top-destinations' && destinationFilter && destinationFilter !== 'N/A') {
-      console.log('Building destination filter for:', destinationFilter);
       const destinationCondition = {
         expenseRequestTrip: {
           pointType: { _eq: "DESTINATION_POINT" },

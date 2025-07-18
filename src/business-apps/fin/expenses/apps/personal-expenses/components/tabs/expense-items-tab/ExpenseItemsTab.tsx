@@ -225,7 +225,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       }
     } catch (error) {
       if (isMounted.current) {
-        console.error('Error fetching statistics data:', error);
         setStatsError(error instanceof Error ? error.message : 'Unknown error fetching statistics');
       }
     } finally {
