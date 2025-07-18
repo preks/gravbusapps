@@ -27,6 +27,7 @@ interface ExpensePlanStatisticsProps {
   // Add date range filter callbacks
   onStartDateRangeFilterChange?: (startDateRange: [Date | null, Date | null] | null) => void;
   onEndDateRangeFilterChange?: (endDateRange: [Date | null, Date | null] | null) => void;
+  onPlanDateRangeFilterChange?: (planDateRange: [Date | null, Date | null] | null) => void;
   // Add status filter callback
   onStatusFilterChange?: (status: string, selected: boolean) => void;
 }
@@ -46,6 +47,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
   previousMonthClosedPlans = 0,
   onStartDateRangeFilterChange,
   onEndDateRangeFilterChange,
+  onPlanDateRangeFilterChange,
   onStatusFilterChange
 }) => {
   // Calculate summary statistics with memoization
@@ -86,12 +88,9 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       const currentMonthStart = today.startOf('month').toDate();
       const currentMonthEnd = today.endOf('month').toDate();
       
-      // Set both start and end date ranges to current month
-      if (onStartDateRangeFilterChange) {
-        onStartDateRangeFilterChange([currentMonthStart, currentMonthEnd]);
-      }
-      if (onEndDateRangeFilterChange) {
-        onEndDateRangeFilterChange([currentMonthStart, currentMonthEnd]);
+      // Set plan date range to current month
+      if (onPlanDateRangeFilterChange) {
+        onPlanDateRangeFilterChange([currentMonthStart, currentMonthEnd]);
       }
     }
     
@@ -101,12 +100,9 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       const currentMonthStart = today.startOf('month').toDate();
       const currentMonthEnd = today.endOf('month').toDate();
       
-      // Set date ranges to current month
-      if (onStartDateRangeFilterChange) {
-        onStartDateRangeFilterChange([currentMonthStart, currentMonthEnd]);
-      }
-      if (onEndDateRangeFilterChange) {
-        onEndDateRangeFilterChange([currentMonthStart, currentMonthEnd]);
+      // Set plan date range to current month
+      if (onPlanDateRangeFilterChange) {
+        onPlanDateRangeFilterChange([currentMonthStart, currentMonthEnd]);
       }
       
       // Set status filters to exclude DRAFT (CREATED) and PAID
@@ -163,7 +159,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       // Note: Destination filtering will be handled by the table component
       // since we need to filter by the specific destination value
     }
-  }, [onWidgetClick, onStartDateRangeFilterChange, onEndDateRangeFilterChange, onStatusFilterChange]);
+  }, [onWidgetClick, onStartDateRangeFilterChange, onEndDateRangeFilterChange, onPlanDateRangeFilterChange, onStatusFilterChange]);
 
   // Transform the stats data into widgets format
   const widgets: WidgetItem[] = useMemo(() => [

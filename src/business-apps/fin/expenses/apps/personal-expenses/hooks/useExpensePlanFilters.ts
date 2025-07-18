@@ -3,6 +3,7 @@ import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { ExpenseStatus } from '../utils';
 import { DateRangeFilter } from '../components/tabs/expense-plans-tab/DateRangeFilter';
 import { EndDateRangeFilter } from '../components/tabs/expense-plans-tab/EndDateRangeFilter';
+import PlanDateRangeFilter from '../components/tabs/expense-plans-tab/PlanDateRangeFilter';
 
 export enum DataFilterType {
   CHECKBOX_GROUP = 'checkbox-group',
@@ -15,8 +16,20 @@ export const useExpensePlanFilters = () => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [startDateRange, setStartDateRange] = useState<[Date | null, Date | null] | null>(null);
   const [endDateRange, setEndDateRange] = useState<[Date | null, Date | null] | null>(null);
+  const [planDateRange, setPlanDateRange] = useState<[Date | null, Date | null] | null>(null);
  
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
+    {
+      id: 'planDateRange',
+      title: 'Filter by Plan Date',
+      type: DataFilterType.DATE_RANGE,
+      customComponent: React.createElement(PlanDateRangeFilter, {
+        planDateRange: planDateRange,
+        onDateRangeChange: setPlanDateRange,
+        placeholder: ['Start date', 'End date']
+      }),
+      hideSearch: true,
+    },
     {
       id: 'startDateRange',
       title: 'Filter by Start Date',
@@ -58,7 +71,7 @@ export const useExpensePlanFilters = () => {
       ],
     },
   
-  ], [selectedFilters, startDateRange, endDateRange]);
+  ], [selectedFilters, startDateRange, endDateRange, planDateRange]);
 
   /**
    * Returns the current filters as an object for API queries (GraphQL/REST)
@@ -74,6 +87,12 @@ export const useExpensePlanFilters = () => {
     }
     if (selectedFilters.length > 0) {
       conditions.push({ status: { _in: selectedFilters } });
+    }
+    if (planDateRange?.[0]) {
+      conditions.push({ planDate: { _gte: planDateRange[0] } });
+    }
+    if (planDateRange?.[1]) {
+      conditions.push({ planDate: { _lte: planDateRange[1] } });
     }
     if (startDateRange?.[0]) {
       conditions.push({ startDate: { _gte: startDateRange[0] } });
@@ -92,12 +111,13 @@ export const useExpensePlanFilters = () => {
     conditions.push({ status: { _neq: 'DISCARDED' } });
     return { _and: conditions.length > 0 ? conditions : [{}] };
 
-  }, [search, selectedFilters, startDateRange, endDateRange]);
+  }, [search, selectedFilters, planDateRange, startDateRange, endDateRange]);
 
   const clearFilters = useCallback(() => {
     setSelectedFilters([]);
     setStartDateRange(null);
     setEndDateRange(null);
+    setPlanDateRange(null);
     setSearch('');
   }, []);
 
@@ -118,5 +138,6 @@ export const useExpensePlanFilters = () => {
     getFilters,
     setStartDateRange,
     setEndDateRange,
+    setPlanDateRange,
   };
 };

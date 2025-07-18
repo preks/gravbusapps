@@ -28,7 +28,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     setSearch,
     getFilters,
     setStartDateRange,
-    setEndDateRange
+    setEndDateRange,
+    setPlanDateRange
   } = useExpensePlanFilters();
   
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpensePlans(props);
@@ -57,9 +58,18 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     
     // Synchronize widget state with table filters
     if (newActiveWidget === 'total-plans') {
-      // Clear existing filters and add closed status
+      // Clear existing filters and set up total-plans filters
       clearFilters();
+      
+      // Set plan date range to current month
+      const today = dayjs();
+      const currentMonthStart = today.startOf('month').toDate();
+      const currentMonthEnd = today.endOf('month').toDate();
+      setPlanDateRange([currentMonthStart, currentMonthEnd]);
+      
+      // Add closed and paid status filters
       handleFilterChange(ExpenseStatus.CLOSED, true);
+      handleFilterChange(ExpenseStatus.PAID, true);
     } else if (newActiveWidget === 'total-estimated') {
       // Clear existing filters and set up total-estimated filters
       clearFilters();
@@ -76,7 +86,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       // If deactivating widget, clear all filters
       clearFilters();
     }
-  }, [activeWidget, clearFilters, handleFilterChange]);
+  }, [activeWidget, clearFilters, handleFilterChange, setPlanDateRange]);
 
   // Handle clearing all filters (widget + table)
   const handleClearAllFilters = useCallback((filters: string[]) => {
@@ -87,8 +97,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       setSearch('');
       setStartDateRange(null);
       setEndDateRange(null);
+      setPlanDateRange(null);
     }
-  }, [setFilters, setSearch, setStartDateRange, setEndDateRange]);
+  }, [setFilters, setSearch, setStartDateRange, setEndDateRange, setPlanDateRange]);
 
   // Memoize the filters to prevent unnecessary API calls
   const memoizedFilters = useMemo(() => {
@@ -96,32 +107,24 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     const baseFilters = getFilters();
     
     // Only add widget-specific filters if a widget is active and needs date filtering
-    if (activeWidget && (activeWidget === 'total-plans' || activeWidget === 'total-estimated')) {
+    if (activeWidget === 'total-estimated') {
       const today = dayjs();
       const currentMonthStart = today.startOf('month').format('YYYY-MM-DD HH:mm:ss');
       const currentMonthEnd = today.endOf('month').format('YYYY-MM-DD HH:mm:ss');
       
-      // Add date range filters for current month (both start and end dates)
-      const startDateCondition = {
+      // Add plan date range filters for current month
+      const planDateCondition = {
         _and: [
-          { startDate: { _gte: currentMonthStart } },
-          { startDate: { _lte: currentMonthEnd } }
-        ]
-      };
-      
-      const endDateCondition = {
-        _and: [
-          { endDate: { _gte: currentMonthStart } },
-          { endDate: { _lte: currentMonthEnd } }
+          { planDate: { _gte: currentMonthStart } },
+          { planDate: { _lte: currentMonthEnd } }
         ]
       };
       
       // Merge with existing conditions
       if (baseFilters._and) {
-        baseFilters._and.push(startDateCondition);
-        baseFilters._and.push(endDateCondition);
+        baseFilters._and.push(planDateCondition);
       } else {
-        baseFilters._and = [startDateCondition, endDateCondition];
+        baseFilters._and = [planDateCondition];
       }
     }
     
@@ -180,9 +183,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       previousMonthClosedPlans={statistics.previousMonthClosedPlans}
       onStartDateRangeFilterChange={setStartDateRange}
       onEndDateRangeFilterChange={setEndDateRange}
+      onPlanDateRangeFilterChange={setPlanDateRange}
       onStatusFilterChange={handleFilterChange}
     />;
-  }, [items, statistics, statsLoading, statsError, handleWidgetClick, activeWidget, setStartDateRange, setEndDateRange, handleFilterChange]);
+  }, [items, statistics, statsLoading, statsError, handleWidgetClick, activeWidget, setStartDateRange, setEndDateRange, setPlanDateRange, handleFilterChange]);
 
   useEffect(() => {
     if (props.onContentHeaderChange) {

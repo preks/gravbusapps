@@ -53,6 +53,7 @@ class SortingService {
 const EXPENSE_PLAN_COLUMNS = {
   code: { key: 'code' as keyof ExpensePlan, type: 'string' as const },
   title: { key: 'title' as keyof ExpensePlan, type: 'string' as const },
+  planDate: { key: 'planDate' as keyof ExpensePlan, type: 'date' as const, nullable: true },
   startDate: { key: 'startDate' as keyof ExpensePlan, type: 'date' as const, nullable: true },
   endDate: { key: 'endDate' as keyof ExpensePlan, type: 'date' as const, nullable: true },
   status: { key: 'status' as keyof ExpensePlan, type: 'string' as const },
@@ -310,6 +311,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
           },
           createColumn('code', 'Plan Number'),
           createColumn('title', 'Title'),
+          createColumn('planDate', 'Plan Date', (date: string) => (date ? formatDate(date, 'date.long') : '-')),
           createColumn('startDate', 'Start Date', (date: string) => (date ? formatDate(date, 'date.long') : '-')),
           createColumn('endDate', 'End Date', (date: string) => (date ? formatDate(date, 'date.long') : '-')),
           createColumn('status', 'Status', (status: string) => {
