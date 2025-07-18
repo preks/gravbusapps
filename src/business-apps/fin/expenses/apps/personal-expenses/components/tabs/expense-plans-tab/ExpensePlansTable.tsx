@@ -317,7 +317,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
           createColumn('endDate', 'End Date', (date: string) => (date ? formatDate(date, 'date.long') : '-')),
           createColumn('status', 'Status', (status: string) => {
             const statusConfig = getExpensePlanStatusDisplay(status);
-            console.log('statusConfig', statusConfig);
             return <Pill type={statusConfig.type} label={statusConfig.label} />;
           }),
           createColumn('reimbursableAmount', 'Reimbursable Amount', (amount: number, record: ExpensePlan) => {

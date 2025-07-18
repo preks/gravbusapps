@@ -64,8 +64,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     // Clear existing filters for all widget activations
     clearFilters();
     
-    // Don't clear destination filter for top-destinations widget
-    // as it will be set by the statistics component
+    // Clear destination filter for all widgets except top-destinations
     if (newActiveWidget !== 'top-destinations') {
       setDestinationFilter(null);
     }
@@ -79,22 +78,54 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
         handleFilterChange(ExpenseStatus.PAID, true);
         break;
       case 'total-estimated':
+        const today = dayjs();
+        const currentMonthStart = today.startOf('month').toDate();
+        const currentMonthEnd = today.endOf('month').toDate();
+        setPlanDateRange([currentMonthStart, currentMonthEnd]);
+        // Set status filters to exclude DRAFT (CREATED) and PAID
+        const allStatuses = ['PREPARED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'];
+        allStatuses.forEach(status => {
+          handleFilterChange(status, true);
+        });
+        break;
       case 'pending-approval':
+        // Clear any existing date range filters
+        setStartDateRange(null);
+        setEndDateRange(null);
+        // Set status filter to only show PENDING plans
+        const allStatusesForPending = ['PREPARED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'CLOSED', 'TRANSFERRED'];
+        allStatusesForPending.forEach(status => {
+          handleFilterChange(status, false);
+        });
+        handleFilterChange('PENDING', true);
+        break;
       case 'top-destinations':
-        // These widgets handle their own filtering through the statistics component
+        // Clear any existing date range filters
+        setStartDateRange(null);
+        setEndDateRange(null);
+        // Clear all status filters to show all plans for the destination
+        const allStatusesForDestination = ['PREPARED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'CLOSED', 'TRANSFERRED'];
+        allStatusesForDestination.forEach(status => {
+          handleFilterChange(status, false);
+        });
+        // Set destination filter
+        if (statistics.topDestination && statistics.topDestination !== 'N/A') {
+          console.log('Setting destination filter directly to:', statistics.topDestination);
+          setDestinationFilter(statistics.topDestination);
+        }
         break;
       case null:
         // Widget deactivated - filters already cleared above
         setDestinationFilter(null);
         break;
     }
-  }, [activeWidget, clearFilters, handleFilterChange, setPlanDateRange, getCurrentMonthRange, setDestinationFilter]);
+  }, [activeWidget, clearFilters, handleFilterChange, setPlanDateRange, getCurrentMonthRange, setDestinationFilter, statistics.topDestination, setStartDateRange, setEndDateRange]);
 
   // Handle destination filter changes
   const handleDestinationFilterChange = useCallback((destination: string | null) => {
-    console.log('Parent received destination filter change:', destination);
+    console.log('Parent received destination filter change:', destination, 'Current activeWidget:', activeWidget);
     setDestinationFilter(destination);
-  }, []);
+  }, [activeWidget]);
 
   // Handle clearing all filters (widget + table)
   const handleClearAllFilters = useCallback((filters: string[]) => {
@@ -220,13 +251,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       activeWidgetKey={activeWidget ?? undefined}
       currentMonthClosedPlans={statistics.currentMonthClosedPlans}
       previousMonthClosedPlans={statistics.previousMonthClosedPlans}
-      onStartDateRangeFilterChange={setStartDateRange}
-      onEndDateRangeFilterChange={setEndDateRange}
-      onPlanDateRangeFilterChange={setPlanDateRange}
-      onStatusFilterChange={handleFilterChange}
-      onDestinationFilterChange={handleDestinationFilterChange}
     />;
-  }, [items, statistics, statsLoading, statsError, handleWidgetClick, activeWidget, setStartDateRange, setEndDateRange, setPlanDateRange, handleFilterChange, handleDestinationFilterChange]);
+  }, [items, statistics, statsLoading, statsError, handleWidgetClick, activeWidget]);
 
   useEffect(() => {
     if (props.onContentHeaderChange) {
