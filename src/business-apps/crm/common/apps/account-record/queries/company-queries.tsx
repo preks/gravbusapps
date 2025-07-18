@@ -97,10 +97,6 @@ export const GET_COMPANIES = `
     numberOfEmployees {
       value
     }
-    contact {
-      firstName
-      lastName
-    }
     addresses {
       city
       country {
