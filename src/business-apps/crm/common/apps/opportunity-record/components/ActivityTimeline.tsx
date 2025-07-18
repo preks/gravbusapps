@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CalendarOutlined, CloudUploadOutlined } from '@ant-design/icons';
-import { Button, List, Avatar, Spin, Alert, Empty, Tag, message, Timeline, Typography } from 'antd';
+import { Button, List, Avatar, Spin, Alert, Empty, Tag, message, Timeline, Typography, Modal } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { NotesSection } from './NotesSection';
@@ -12,6 +12,7 @@ import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
+import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 
 const { Text } = Typography;
 
@@ -43,6 +44,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
   const { fetchCrmDocuments } = useGetCrmDocuments(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const fileClient = useFileClient(context);
+  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 
   const loadActivities = async () => {
     if (!opportunityId) return;
@@ -176,7 +178,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        if (event.detail?.resolution === 'success' && activeTab === 'activities') {
+        if (event.detail?.resolution === 'success') {
           loadActivities();
           loadDocuments();
           refreshNotes();
@@ -267,61 +269,86 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     }
   };
 
-  const handleDeleteActivity = async (activity: SalesActivityData) => {
-    try {
-      await restClient.post('/customer-relations/saveSalesActivity', {
-        changeMode: "DELETE",
-        salesActivity: {
-          id: activity.id,
-          version: activity.version,
-          opportunity: opportunityId
+  const handleDeleteActivity = (activity: SalesActivityData) => {
+    Modal.confirm({
+      title: 'Confirm Deletion',
+      content: `Are you sure you want to delete the activity "${activity.title}"?`,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          await restClient.post('/customer-relations/saveSalesActivity', {
+            changeMode: "DELETE",
+            salesActivity: {
+              id: activity.id,
+              version: activity.version,
+              opportunity: opportunityId
+            }
+          }, {
+            headers: { Authorization: `Bearer ${context.accessToken}` }
+          });
+          
+          // Remove the activity from both states
+          setActivities(prevActivities => 
+            prevActivities.filter(a => a.id !== activity.id)
+          );
+          
+          // Also remove from original activities ref
+          originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== activity.id);
+          
+          message.success('Activity deleted successfully');
+        } catch (error) {
+          console.error('Error deleting activity:', error);
+          message.error('Failed to delete activity');
         }
-      }, {
-        headers: { Authorization: `Bearer ${context.accessToken}` }
-      });
-      
-      // Remove the activity from both states
-      setActivities(prevActivities => 
-        prevActivities.filter(a => a.id !== activity.id)
-      );
-      
-      // Also remove from original activities ref
-      originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== activity.id);
-      
-      message.success('Activity deleted successfully');
-    } catch (error) {
-      console.error('Error deleting activity:', error);
-      message.error('Failed to delete activity');
-    }
+      },
+    });
   };
 
   const handleLanguageChange = (languageCode: string) => {
     setSelectedLanguage(languageCode);
   };
 
-  const handleDeleteDocument = async (document: CrmDocumentData) => {
-    try {
-      await restClient.post('/customer-relations/saveCrmDocument', {
-        changeMode: "DELETE",
-        crmDocument: {
-          id: document.id,
-          version: document.version,
-          opportunity: opportunityId
+  const getActivityTypeValue = (activityType: any): string => {
+    if (!activityType) return '';
+    if (typeof activityType === 'string') return activityType;
+    if (activityType.value) return activityType.value;
+    return '';
+  };
+
+  const handleDeleteDocument = (document: CrmDocumentData) => {
+    Modal.confirm({
+      title: 'Confirm Deletion',
+      content: `Are you sure you want to delete the document "${document.name}"?`,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          await restClient.post('/customer-relations/saveCrmDocument', {
+            changeMode: "DELETE",
+            crmDocument: {
+              id: document.id,
+              version: document.version,
+              opportunity: opportunityId
+            }
+          }, {
+            headers: { Authorization: `Bearer ${context.accessToken}` }
+          });
+          
+          // Remove the document from local state
+          setDocuments(prevDocuments => 
+            prevDocuments.filter(d => d.id !== document.id)
+          );
+          
+          message.success('Document deleted successfully');
+        } catch (error) {
+          console.error('Error deleting document:', error);
+          message.error('Failed to delete document');
         }
-      }, {
-        headers: { Authorization: `Bearer ${context.accessToken}` }
-      });
-      
-      // Remove the document from local state
-      setDocuments(prevDocuments => 
-        prevDocuments.filter(d => d.id !== document.id)
-      );
-      
-      message.success('Document deleted successfully');
-    } catch (error) {
-      console.error('Error deleting document:', error);
-      message.error('Failed to delete document');
-    }
+      },
+    });
   };
 
   return (
@@ -470,7 +497,25 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                           {activity.translatedTitle || activity.title}
                         </Text>
                       </div>
-                      <div><Text type="secondary">{dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')}</Text></div>
+                      <div>
+                        <Text type="secondary">
+                          {dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(activity.createdBy)}
+                        </Text>
+                      </div>
+                      {getActivityTypeValue(activity.activityType) && (
+                        <div style={{ marginTop: '4px', marginBottom: '4px' }}>
+                          <span style={{ 
+                            backgroundColor: '#f0f0f0', 
+                            color: '#333', 
+                            padding: '2px 8px', 
+                            borderRadius: '4px', 
+                            fontSize: '12px',
+                            fontWeight: '500'
+                          }}>
+                            {getActivityTypeValue(activity.activityType)}
+                          </span>
+                        </div>
+                      )}
                       <div style={{ marginTop: '4px' }}>
                         <div>{activity.translatedDescription || activity.description}</div>
                       </div>
@@ -572,9 +617,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                         <FileTextOutlined />
                         <Text strong>{document.name}</Text>
                       </div>
-                      <div><Text type="secondary">{dayjs(document.createdAt).format('MMM D, YYYY [at] h:mm A')}</Text></div>
+                      <div>
+                        <Text type="secondary">
+                          {dayjs(document.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(document.createdBy)}
+                        </Text>
+                      </div>
                       <div style={{ marginTop: '4px' }}>
-                        <Text type="secondary">Type: {document.documentType?.value || 'Unknown'}</Text>
+                        <Text type="secondary">Type: {document.mimeType || 'Unknown'}</Text>
                         {document.fileSize && (
                           <Text type="secondary" style={{ marginLeft: '16px' }}>
                             Size: {Math.floor(document.fileSize / 1024)} KB

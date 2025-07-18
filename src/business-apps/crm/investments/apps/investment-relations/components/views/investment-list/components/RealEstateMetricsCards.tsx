@@ -1,6 +1,6 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@newwork/nw-design-system";
-import { DollarSign, TrendingUp, Target, Clock } from "lucide-react";
+import { WidgetGroup, WidgetItem } from "@/components/widget-group";
+import { DollarOutlined, RiseOutlined, TrophyOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { EnhancedInvestment } from "../hooks";
 
 interface RealEstateMetricsCardsProps {
@@ -44,64 +44,77 @@ const RealEstateMetricsCards: React.FC<RealEstateMetricsCardsProps> = ({ investm
     }).format(amount);
   };
 
+  // Transform the stats data into widgets format
+  const widgets: WidgetItem[] = [
+    {
+      key: 'total-invested',
+      title: 'Total Invested',
+      value: formatCurrency(totalInvested),
+      prefix: <DollarOutlined />,
+      color: '#1677ff',
+      valueIsString: true,
+      span: { xs: 24, sm: 12, md: 6, lg: 6 },
+      description: `${formatCurrency(bookValueChange)} (${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%)`,
+      trend: {
+        value: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%`,
+        positive: changePercent >= 0,
+        description: `${formatCurrency(bookValueChange)} change`
+      }
+    },
+    {
+      key: 'book-value',
+      title: 'Book Value',
+      value: formatCurrency(totalBookValue),
+      prefix: <RiseOutlined />,
+      color: '#52c41a',
+      valueIsString: true,
+      span: { xs: 24, sm: 12, md: 6, lg: 6 },
+      description: `${formatCurrency(bookValueChange)} (${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%)`,
+      trend: {
+        value: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%`,
+        positive: changePercent >= 0,
+        description: `${formatCurrency(bookValueChange)} change`
+      }
+    },
+    {
+      key: 'avg-roi',
+      title: 'Avg. Expected ROI',
+      value: `${avgROI.toFixed(1)}%`,
+      prefix: <TrophyOutlined />,
+      color: '#faad14',
+      valueIsString: true,
+      span: { xs: 24, sm: 12, md: 6, lg: 6 },
+      description: `across ${realEstateInvestments.length} real estate investments`,
+      trend: {
+        value: `${avgROI.toFixed(1)}%`,
+        positive: avgROI >= 0,
+        description: `Expected return rate`
+      }
+    },
+    {
+      key: 'active-investments',
+      title: 'Active Investments',
+      value: activeInvestments,
+      prefix: <ClockCircleOutlined />,
+      color: '#722ed1',
+      span: { xs: 24, sm: 12, md: 6, lg: 6 },
+      description: `of ${realEstateInvestments.length} total`,
+      trend: {
+        value: `${Math.round((activeInvestments / Math.max(realEstateInvestments.length, 1)) * 100)}%`,
+        positive: activeInvestments > 0,
+        description: `Active rate`
+      }
+    }
+  ];
+
   return (
-    <div className="gba:grid gba:gap-4 gba:grid-cols-1 gba:md:grid-cols-4">
-      {/* Total Invested Card */}
-      <Card>
-        <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
-          <CardTitle className="gba:text-sm gba:font-medium">Total Invested</CardTitle>
-          <DollarSign className="gba:h-4 gba:w-4 gba:text-blue-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="gba:text-2xl gba:font-bold">{formatCurrency(totalInvested)}</div>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            {formatCurrency(bookValueChange)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}%)
-          </p>
-        </CardContent>
-      </Card>
-      
-      {/* Book Value Card */}
-      <Card>
-        <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
-          <CardTitle className="gba:text-sm gba:font-medium">Book Value</CardTitle>
-          <TrendingUp className="gba:h-4 gba:w-4 gba:text-green-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="gba:text-2xl gba:font-bold">{formatCurrency(totalBookValue)}</div>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            {formatCurrency(bookValueChange)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}%)
-          </p>
-        </CardContent>
-      </Card>
-      
-      {/* Avg. Expected ROI Card */}
-      <Card>
-        <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
-          <CardTitle className="gba:text-sm gba:font-medium">Avg. Expected ROI</CardTitle>
-          <Target className="gba:h-4 gba:w-4 gba:text-yellow-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="gba:text-2xl gba:font-bold">{avgROI.toFixed(1)}%</div>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            across {realEstateInvestments.length} real estate investments
-          </p>
-        </CardContent>
-      </Card>
-      
-      {/* Active Investments Card */}
-      <Card>
-        <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
-          <CardTitle className="gba:text-sm gba:font-medium">Active Investments</CardTitle>
-          <Clock className="gba:h-4 gba:w-4 gba:text-purple-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="gba:text-2xl gba:font-bold">{activeInvestments}</div>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            of {realEstateInvestments.length} total
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+    <WidgetGroup
+      widgets={widgets}
+      isLoading={false}
+      error={null}
+      skeletonCount={4}
+      emptyText="No real estate metrics available."
+    />
   );
 };
 

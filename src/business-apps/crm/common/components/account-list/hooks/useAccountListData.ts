@@ -10,7 +10,7 @@ interface UseAccountListDataParams {
   sortOrder: 'ASC' | 'DESC';
   context: BusinessAppContextProps;
   sourceApp?: string;
-  accountTypes?: string[];
+  // accountTypes?: string[]; // REMOVED: field does not exist in GraphQL schema
   industries?: string[];
   createdAfter?: string;
   createdBefore?: string;
@@ -36,11 +36,13 @@ const transformAccountData = (apiAccount: AccountData): Account => {
     email: apiAccount.contact?.[0]?.email || '',
     industry: {
       id: apiAccount.industry?.id || '',
-      value: apiAccount.industry?.value || ''
+      value: apiAccount.industry?.value || '',
+      objectValue: apiAccount.industry?.objectValue
     },
     type: {
       id: apiAccount.legalForm?.id || '',
-      value: apiAccount.legalForm?.value || ''
+      value: apiAccount.legalForm?.value || '',
+      objectValue: apiAccount.legalForm?.objectValue
     },
     ownerEmployee: {
       id: apiAccount.ownerEmployee?.id || '',
@@ -89,7 +91,7 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
 
       // Add search functionality
       if (params.search?.trim()) {
-        const searchPattern = { _iregex: params.search.trim() };
+        const searchPattern = { _ilike: `%${params.search.trim()}%` };
         whereCondition._or = [
           { name: searchPattern },
           { website: searchPattern },
@@ -106,6 +108,8 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
       if (params.industries && params.industries.length > 0) {
         whereCondition.industry = { value: { _in: params.industries } };
       }
+
+      // Note: accountType field does not exist in GraphQL schema - removed filter
 
       // Add date filtering
       if (params.createdAfter) {
@@ -161,7 +165,7 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
     } finally {
       setLoading(false);
     }
-  }, [fetchAccountsData, params.search, params.sortField, params.sortOrder, params.industries, params.createdAfter, params.createdBefore, params.context.accessToken]);
+  }, [fetchAccountsData, params.search, params.sortField, params.sortOrder, JSON.stringify(params.industries), params.createdAfter, params.createdBefore, params.context.accessToken]);
 
   const loadMore = useCallback(() => {
     console.log('Load more accounts requested');

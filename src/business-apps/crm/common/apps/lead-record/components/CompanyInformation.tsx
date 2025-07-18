@@ -22,7 +22,7 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({ lead, le
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Name</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {leadData?.companyName || lead.name || '-'}
+                  {leadData?.companyName || '-'}
                 </div>
               </div>
               
@@ -90,7 +90,14 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({ lead, le
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Phone</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {leadData?.companyPhone || '-'}
+                  {leadData?.companyPhone ? (
+                    <a 
+                      href={`tel:${leadData.companyPhone}`}
+                      style={{ color: '#3b82f6', textDecoration: 'none' }}
+                    >
+                      {leadData.companyPhone}
+                    </a>
+                  ) : '-'}
                 </div>
               </div>
               

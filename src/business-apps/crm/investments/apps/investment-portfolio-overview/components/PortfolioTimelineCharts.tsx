@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card } from 'antd';
+import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
 import { 
   LineChart,
   Line,
@@ -28,8 +28,12 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
       {/* Investment Performance Timeline - Composed Chart */}
-      <Card title="Investment Performance Timeline" style={{ borderRadius: '8px', width: '100%' }}>
-        <ResponsiveContainer width="100%" height={350}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Investment Performance Timeline</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={350}>
           <ComposedChart
             data={performanceTimelineData}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
@@ -88,12 +92,17 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
               activeDot={{ r: 3 }}
             />
           </ComposedChart>
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        </CardContent>
       </Card>
 
       {/* Investment Value Trends - Area Chart */}
-      <Card title="Investment Value Trends Over Time" style={{ borderRadius: '8px', width: '100%' }}>
-        <ResponsiveContainer width="100%" height={300}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Investment Value Trends Over Time</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
           <AreaChart
             data={valueOverTimeData}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
@@ -109,7 +118,8 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
               fillOpacity={0.8}
             />
           </AreaChart>
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        </CardContent>
       </Card>
     </div>
   );

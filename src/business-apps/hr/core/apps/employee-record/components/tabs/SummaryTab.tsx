@@ -16,6 +16,7 @@ import {
   PiCalendarCheck
 } from 'react-icons/pi';
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
+import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Button } from 'antd';
@@ -24,6 +25,8 @@ interface SummaryTabProps {
   employee: Employee;
   accessToken: string;
   currentUserEmployeeId?: string;
+  userInfo?: UserInfoProps; // Current user info
+  isSelfView: boolean; // Whether user is viewing their own profile
 }
 
 /**
@@ -35,7 +38,7 @@ interface SummaryTabProps {
 // Employee availability & schedule information comes from employee data
 // Specific schedule information should be retrieved from the API
 
-const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentUserEmployeeId }) => {
+const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentUserEmployeeId, isSelfView }) => {
   // Fetch upcoming absence for this employee
   const { loading: absenceLoading, upcomingAbsence } = useEmployeeUpcomingAbsence(accessToken, employee.id);
   // Get additional attributes from additionalProperties
@@ -100,25 +103,27 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
           </div>
         </div>
         
-        {/* Action Button */}
-        <div>
-          <AppActionButton 
-            data-testid="employee-action-button"
-            variant="primary"
-            contextsArray={[FlowContextName.employeeEntity]}
-            externalContextData={{
-              employeeId: employee?.id
-            }}
-            prefixDataTestId="employee-action"
-            accessToken={accessToken}
-            autoExecuteSingleAction={true}
-          >
-            {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:hr_employee.action",
-              "Actions"
-            )}
-          </AppActionButton>
-        </div>
+        {/* Action Button - Only visible when viewing own profile */}
+        {isSelfView && (
+          <div>
+            <AppActionButton 
+              data-testid="employee-action-button"
+              variant="primary"
+              contextsArray={[FlowContextName.employeeEntity]}
+              externalContextData={{
+                employeeId: employee?.id
+              }}
+              prefixDataTestId="employee-action"
+              accessToken={accessToken}
+              autoExecuteSingleAction={true}
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:hr_employee.action",
+                "Actions"
+              )}
+            </AppActionButton>
+          </div>
+        )}
       </div>
       
       {/* Main grid layout for content blocks */}
@@ -418,14 +423,12 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                     <div className="gba:bg-gray-50 gba:p-3 gba:rounded gba:border gba:border-gray-200">
                       <div className="gba:flex gba:justify-between gba:items-center">
                         <div>
-                          <p className="gba:text-sm gba:font-medium" data-testid="absence-type">{upcomingAbsence.type.value}</p>
+                          <p className="gba:text-sm gba:font-medium" data-testid="absence-type">{upcomingAbsence.type.value} - {upcomingAbsence.calendarDays} days</p>
                           <div className="gba:flex gba:items-center gba:mt-1">
                             <span className="gba:text-xs gba:text-gray-500" data-testid="absence-dates">
                               {dayjs(upcomingAbsence.startDate).format('MMM DD')} - {dayjs(upcomingAbsence.endDate).format('MMM DD, YYYY')}
                             </span>
-                            <span className="gba:bg-blue-100 gba:text-blue-800 gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full gba:ml-2" data-testid="absence-days">
-                              {upcomingAbsence.calendarDays} days
-                            </span>
+                          
                           </div>
                         </div>
                         <div className="gba:bg-green-100 gba:text-green-800 gba:text-xs gba:px-2 gba:py-1 gba:rounded" data-testid="absence-status">

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '@newwork/nw-design-system';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { EnhancedInvestment } from '../hooks';
@@ -58,11 +58,11 @@ const LiquidFundsTable: React.FC<LiquidFundsTableProps> = ({
       return null;
     }
     
-    if (sortOrder === 'ASC') {
-      return <ChevronUp className="gba:h-4 gba:w-4 gba:ml-1" />;
-    } else if (sortOrder === 'DESC') {
-      return <ChevronDown className="gba:h-4 gba:w-4 gba:ml-1" />;
-    }
+          if (sortOrder === 'ASC') {
+        return <PiArrowUp className="gba:h-4 gba:w-4 gba:ml-1" />;
+      } else if (sortOrder === 'DESC') {
+        return <PiArrowDown className="gba:h-4 gba:w-4 gba:ml-1" />;
+      }
     
     return null;
   };
@@ -182,9 +182,8 @@ const LiquidFundsTable: React.FC<LiquidFundsTableProps> = ({
                 return (
                   <TableRow 
                     key={investment.id}
-                    className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer" 
+                    className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors" 
                     data-testid={`liquid-funds-row-${index + 1}`}
-                    onClick={() => onRowClick && onRowClick(investment.id)}
                   >
                     {/* Actions */}
                     <TableCell className="gba:py-4 gba:px-6">
@@ -206,7 +205,13 @@ const LiquidFundsTable: React.FC<LiquidFundsTableProps> = ({
                     </TableCell>
                     {/* Basic Investment Info */}
                     <TableCell className="gba:py-4 gba:px-6">
-                      <div>
+                      <div 
+                        className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRowClick && onRowClick(investment.id);
+                        }}
+                      >
                         <div className="gba:font-semibold gba:text-gray-900 gba:mb-1">{investmentData.name || 'N/A'}</div>
                         <div className="gba:text-sm gba:text-gray-600">{investment.subType}</div>
                       </div>

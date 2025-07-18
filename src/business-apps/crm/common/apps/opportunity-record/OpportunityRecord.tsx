@@ -14,9 +14,10 @@ import { TasksSection } from "./components/TasksSection";
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string;
   onBack: () => void;
+  getBackButtonText: () => string;
 }
 
-const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opportunityId, onBack, ...props }) => {
+const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opportunityId, onBack, getBackButtonText, ...props }) => {
   const { 
     opportunity, 
     opportunityData, 
@@ -46,7 +47,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
             onClick={onBack}
             className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
           >
-            Back to Opportunities Overview
+            {getBackButtonText()}
           </button>
         </div>
       </div>
@@ -62,7 +63,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
           data-testid="back-button"
         >
           <ArrowLeftOutlined className="gba:mr-2" />
-          <span>Back to Opportunities Overview</span>
+          <span>{getBackButtonText()}</span>
         </button>
       </div>
 
@@ -82,7 +83,11 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
           </Col>
 
           <Col span={6} style={{ display: 'flex' }}>
-            <ContactInformation opportunityData={opportunityData} />
+            <ContactInformation 
+              opportunityData={opportunityData} 
+              opportunityId={opportunityId}
+              context={props}
+            />
           </Col>
         </Row>
 
@@ -108,6 +113,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
 
 interface OpportunityRecordProps extends BusinessAppContextProps {
   opportunityId?: string;
+  source?: string;
   onBack?: () => void;
 }
 
@@ -116,12 +122,27 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = (props) => {
   const opportunityId = props.opportunityId || 
                        urlParams.get('opportunityId') ||
                        urlParams.get('id');
+
+  const source = props.source || urlParams.get('source');
+
+  const getBackButtonText = () => {
+    return 'Back to Opportunities';
+  };
   
   const handleBack = () => {
     if (props.onBack) {
       props.onBack();
     } else {
-      navigateTo('/platform/crm/opportunity-overview');
+      // Navigate back based on source
+      switch (source) {
+        case 'investments':
+          navigateTo('/platform/irm/investment-relations?view=opportunities');
+          break;
+        case 'customer-relations':
+        default:
+          navigateTo('/platform/crm/customer-relations?view=opportunities');
+          break;
+      }
     }
   };
 
@@ -135,7 +156,7 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = (props) => {
             onClick={handleBack}
             className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
           >
-            Back to Opportunities Overview
+            {getBackButtonText()}
           </button>
         </div>
       </div>
@@ -147,6 +168,7 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = (props) => {
       {...props}
       opportunityId={opportunityId}
       onBack={handleBack}
+      getBackButtonText={getBackButtonText}
     />
   );
 };

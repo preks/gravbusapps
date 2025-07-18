@@ -2,14 +2,15 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useOpportunityListData } from './hooks/useOpportunityListData';
-import { useOpportunityStatistics } from './hooks/useOpportunityStatistics';
+import { useOpportunityStatisticsWithTrend } from './hooks/useOpportunityStatisticsWithTrend';
 import { useOpportunityFilters } from './hooks/useOpportunityFilters';
-import OpportunityStatistics from './components/OpportunityStatistics';
+import { OpportunityStatisticsWithTrend } from './components/OpportunityStatistics';
 import OpportunityTable from './components/OpportunityTable';
 import { Opportunity } from './types';
 import { Alert, Button } from 'antd';
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 import { PlusOutlined, DollarCircleOutlined } from '@ant-design/icons';
+import { startProcess } from '@/common/utils/start-process';
 
 interface OpportunityListProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -31,7 +32,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   const opportunityFilters = useOpportunityFilters(context);
   const appliedFilters = opportunityFilters.getFilters();
   
-  // Data hooks
+  // Data hooks with all filter parameters
   const opportunityListData = useOpportunityListData({
     search: appliedFilters.search,
     sortField,
@@ -39,11 +40,13 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
     context: context,
     sourceApp,
     stages: appliedFilters.stages,
+    winningChanceRanges: appliedFilters.winningChanceRanges,
+    amountRanges: appliedFilters.amountRanges,
     createdAfter: appliedFilters.createdAfter,
     createdBefore: appliedFilters.createdBefore
   });
   
-  const opportunityStatistics = useOpportunityStatistics({
+  const opportunityStatistics = useOpportunityStatisticsWithTrend({
     ...context,
     sourceApp
   });
@@ -55,7 +58,30 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
       opportunityListData.loadPage(1, pageSize);
       opportunityStatistics.refetch();
     }
-  }, [context.accessToken, opportunityListData, opportunityStatistics, pageSize]);
+  }, [context.accessToken, pageSize]); // Removed opportunityListData and opportunityStatistics from dependencies
+
+  // Effect to reload data when filters change
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      setCurrentPage(1); // Reset to first page when filters change
+      opportunityListData.loadPage(1, pageSize);
+    }
+  }, [
+    appliedFilters.search,
+    JSON.stringify(appliedFilters.stages), // Use JSON.stringify for array
+    JSON.stringify(appliedFilters.winningChanceRanges), // Use JSON.stringify for array
+    JSON.stringify(appliedFilters.amountRanges), // Use JSON.stringify for array
+    appliedFilters.createdAfter,
+    appliedFilters.createdBefore,
+    pageSize
+  ]); // Removed opportunityListData from dependencies
+
+  // Effect to reload data when sort changes
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      opportunityListData.loadPage(currentPage, pageSize);
+    }
+  }, [sortField, sortOrder, currentPage, pageSize]); // Removed opportunityListData from dependencies
 
   // Handlers
   const handleOpportunityClick = useCallback((opportunity: Opportunity) => {
@@ -81,25 +107,28 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
       setSortOrder(order);
       setCurrentPage(1);
     }
-    opportunityListData.loadPage(1, pageSize);
-  }, [opportunityListData, pageSize]);
+  }, []);
 
   const handlePageChange = useCallback((page: number, size?: number) => {
     const newSize = size || pageSize;
     setCurrentPage(page);
     setPageSize(newSize);
     opportunityListData.loadPage(page, newSize);
-  }, [opportunityListData, pageSize]);
+  }, [pageSize]); // Removed opportunityListData from dependencies
 
   const handleSearch = useCallback((searchTerm: string) => {
     opportunityFilters.setSearch(searchTerm);
     setCurrentPage(1);
-    opportunityListData.loadPage(1, pageSize);
-  }, [opportunityFilters, opportunityListData, pageSize]);
+    // Data will reload automatically via useEffect
+  }, [opportunityFilters]);
 
   const handleAddOpportunity = useCallback(() => {
-    // TODO: Open add opportunity modal
-    console.log('Add opportunity clicked');
+    startProcess({
+      domain: 'customer-relations',
+      processName: 'saveOpportunity',
+      builderType: 'NATIVE_SCREEN',
+      payload: {}
+    });
   }, []);
 
   const handleRetryStatistics = useCallback(() => {
@@ -108,26 +137,23 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
 
   const handleRetryData = useCallback(() => {
     opportunityListData.loadPage(currentPage, pageSize);
-  }, [opportunityListData, currentPage, pageSize]);
+  }, [currentPage, pageSize]); // Removed opportunityListData from dependencies
 
-  if (opportunityListData.error && !opportunityListData.loading) {
+  // If there's an error loading opportunities, show error state
+  if (opportunityListData.error) {
     return (
-      <div data-testid="opportunity-list-content">
-        <div data-testid="opportunity-statistics-section" className="gba:mb-6">
-          <OpportunityStatistics
-            statistics={opportunityStatistics.statistics}
-            isLoading={opportunityStatistics.isLoading}
-            error={opportunityStatistics.error}
-            onRetry={handleRetryStatistics}
-          />
-        </div>
-        
+      <div data-testid="opportunity-list-error">
         <Alert
           message="Error Loading Opportunities"
           description={opportunityListData.error instanceof Error ? opportunityListData.error.message : String(opportunityListData.error)}
           type="error"
           showIcon
-          data-testid="opportunity-list-error"
+          data-testid="opportunity-list-error-alert"
+          action={
+            <Button size="small" onClick={handleRetryData}>
+              Retry
+            </Button>
+          }
         />
       </div>
     );
@@ -136,12 +162,16 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   return (
     <div data-testid="opportunity-list-content">
       <div data-testid="opportunity-statistics-section" className="gba:mb-6">
-        <OpportunityStatistics
-          statistics={opportunityStatistics.statistics}
-          isLoading={opportunityStatistics.isLoading}
-          error={opportunityStatistics.error}
-          onRetry={handleRetryStatistics}
-        />
+        {opportunityStatistics.trendData ? (
+          <OpportunityStatisticsWithTrend
+            trendData={opportunityStatistics.trendData}
+            isLoading={opportunityStatistics.isLoading}
+            error={opportunityStatistics.error}
+            onRetry={handleRetryStatistics}
+          />
+        ) : (
+          <div>Loading statistics...</div>
+        )}
       </div>
 
       <DataContainer

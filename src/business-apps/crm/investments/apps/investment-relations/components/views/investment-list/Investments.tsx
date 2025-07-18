@@ -3,7 +3,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-sys
 import { Button, Input } from '@newwork/nw-design-system';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system';
 import { Spin, Alert } from 'antd';
-import { BarChart3, Home, Briefcase, DollarSign, Search, Filter, ChevronUp, ChevronDown } from 'lucide-react';
+import { BarChart3, Home, Briefcase, DollarSign, Search, Filter } from 'lucide-react';
+import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { EquityMetricsCards, RealEstateMetricsCards, PrivateEquityMetricsCards, LiquidFundsMetricsCards } from './components';
 import EquityTable from './components/EquityTable';
@@ -176,11 +177,11 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
       return null;
     }
     
-    if (sortOrder === 'ASC') {
-      return <ChevronUp className="gba:h-4 gba:w-4 gba:ml-1" />;
-    } else if (sortOrder === 'DESC') {
-      return <ChevronDown className="gba:h-4 gba:w-4 gba:ml-1" />;
-    }
+          if (sortOrder === 'ASC') {
+        return <PiArrowUp className="gba:h-4 gba:w-4 gba:ml-1" />;
+      } else if (sortOrder === 'DESC') {
+        return <PiArrowDown className="gba:h-4 gba:w-4 gba:ml-1" />;
+      }
     
     return null;
   };
@@ -241,7 +242,18 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
     }
   };
 
-  const currentSortingAndPagination = getCurrentSortingAndPagination();
+  // Use useMemo to prevent object recreation on every render
+  const currentSortingAndPagination = React.useMemo(() => 
+    getCurrentSortingAndPagination(), 
+    [
+      activeSubTab,
+      sortField, sortOrder, currentPage, pageSize,
+      equitySortField, equitySortOrder, equityCurrentPage, equityPageSize,
+      realEstateSortField, realEstateSortOrder, realEstateCurrentPage, realEstatePageSize,
+      privateEquitySortField, privateEquitySortOrder, privateEquityCurrentPage, privateEquityPageSize,
+      liquidFundsSortField, liquidFundsSortOrder, liquidFundsCurrentPage, liquidFundsPageSize
+    ]
+  );
   
   const { 
     investments, 
@@ -322,21 +334,27 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
         </TabsList>
 
         <TabsContent value="overview" data-testid="investments-overview-content">
-          <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
-            <div className="gba:relative gba:flex-1 gba:max-w-sm">
-              <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-gray-400 gba:h-4 gba:w-4" />
+          <div className="gba:flex gba:lg:flex-row gba:lg:items-center gba:justify-between gba:gap-4 gba:mb-6">
+            <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
+              <div className="gba:relative gba:flex-1 gba:max-w-md">
+                <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-gray-400" size={20} />
               <Input
+                  type="text"
                 placeholder="Search investments..."
-                className="gba:pl-10 gba:pr-4 gba:py-2 gba:!pl-[32px]"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                data-testid="investments-overview-search"
+                  className="gba:[&&]:pl-10 gba:pr-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded-lg gba:focus:ring-2 gba:focus:ring-blue-500 gba:focus:border-transparent"
+                  data-testid="investments-search-input"
               />
+              </div>
             </div>
-            <Button variant="outline" className="gba:flex gba:items-center gba:gap-2" data-testid="investments-overview-filters-button">
-              <Filter className="gba:h-4 gba:w-4" />
-              Filters
+            
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <Button variant="outline" size="sm" className="gba:flex gba:items-center gba:gap-2" data-testid="investments-filter-button">
+                <Filter size={16} />
+                Filter
             </Button>
+            </div>
           </div>
 
           {filteredInvestments.length === 0 ? (
@@ -430,6 +448,7 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
               pageSize={equityPageSize}
               total={equityTotal}
               onPaginationChange={handleEquityPaginationChange}
+              accessToken={props.accessToken}
               data-testid="investments-equity-table"
             />
           </div>
@@ -469,6 +488,7 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
               pageSize={realEstatePageSize}
               total={realEstateTotal}
               onPaginationChange={handleRealEstatePaginationChange}
+              accessToken={props.accessToken}
               data-testid="investments-real-estate-table"
             />
           </div>
@@ -508,6 +528,7 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
               pageSize={privateEquityPageSize}
               total={privateEquityTotal}
               onPaginationChange={handlePrivateEquityPaginationChange}
+              accessToken={props.accessToken}
               data-testid="investments-private-equity-table"
             />
           </div>
@@ -547,6 +568,7 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
               pageSize={liquidFundsPageSize}
               total={liquidFundsTotal}
               onPaginationChange={handleLiquidFundsPaginationChange}
+              accessToken={props.accessToken}
               data-testid="investments-liquid-funds-table"
             />
           </div>

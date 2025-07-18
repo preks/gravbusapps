@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, Button, Spin, Alert } from 'antd';
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system';
+import { Spinner } from '@newwork/nw-design-system';
 import { ToggleGroup, ToggleGroupItem, PageLayout } from '@newwork/nw-design-system';
 import {
   DashboardOutlined,
@@ -75,6 +76,8 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
   };
 
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
+  const [dashboardSubTab, setDashboardSubTab] = useState<string>('overview');
+  const [opportunitiesSubTab, setOpportunitiesSubTab] = useState<string>('list');
   const [dateRange] = useState<DateRange>({
     startDate: new Date(new Date().getFullYear() - 2, 0, 1),
     endDate: new Date()
@@ -131,7 +134,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
       return (
         <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
           <div className="gba:text-center">
-            <Spin size="large" />
+            <Spinner size="lg" />
             <div className="gba:mt-4 gba:text-gray-600 gba:text-lg">
               Loading Customer Relations Dashboard...
             </div>
@@ -143,106 +146,67 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
     if (error) {
       return (
         <div className="gba:p-6">
-          <Alert
-            message="Error Loading Dashboard"
-            description={error}
-            type="error"
-            showIcon
-            action={
-              <Button size="small" onClick={refetch} type="primary">
-                Retry
-              </Button>
-            }
-            className="gba:shadow-sm"
-          />
+          <Alert variant="destructive" className="gba:shadow-sm">
+            <AlertTitle>Error Loading Dashboard</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+            <Button size="sm" onClick={refetch} variant="default">
+              Retry
+            </Button>
+          </Alert>
         </div>
       );
     }
 
-    const dashboardTabItems = [
-      {
-        key: 'overview',
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <BarChartOutlined />
-            <span>Overview</span>
-          </div>
-        ),
-        children: (
+    return (
+      <Tabs value={dashboardSubTab} onValueChange={setDashboardSubTab}>
+        <TabsList className="gba:mb-4">
+          <TabsTrigger value="overview" data-testid="overview-tab">
+            <BarChartOutlined className="gba:mr-2" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="pipelines" data-testid="pipelines-tab">
+            <PieChartOutlined className="gba:mr-2" />
+            Pipeline Details
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview">
           <OverviewTab
             pipelines={pipelines}
             dateRange={dateRange}
             {...context}
           />
-        )
-      },
-      {
-        key: 'pipelines',
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PieChartOutlined />
-            <span>Pipeline Details</span>
-          </div>
-        ),
-        children: (
+        </TabsContent>
+        <TabsContent value="pipelines">
           <PipelineDetailsTab
             pipelines={pipelines}
             dateRange={dateRange}
             {...context}
           />
-        )
-      }
-    ];
-
-    return (
-      <Tabs
-        defaultActiveKey="overview"
-        size="large"
-        className="gba:h-full gba:dashboard-tabs"
-        items={dashboardTabItems}
-        tabBarStyle={{ marginBottom: 16 }}
-        data-testid="dashboard-sub-tabs"
-      />
+        </TabsContent>
+      </Tabs>
     );
   };
 
   const renderOpportunitiesContent = () => {
-    const opportunitiesTabItems = [
-      {
-        key: 'list',
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <UnorderedListOutlined />
-            <span>List View</span>
-          </div>
-        ),
-        children: (
-          <OpportunityList {...context} sourceApp="CRM" />
-        )
-      },
-      {
-        key: 'board',
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <AppstoreOutlined />
-            <span>Board View</span>
-          </div>
-        ),
-        children: (
-          <OpportunityBoard {...context} sourceApp="CRM" />
-        )
-      }
-    ];
-
     return (
-      <Tabs
-        defaultActiveKey="list"
-        size="large"
-        className="gba:h-full gba:opportunities-tabs"
-        items={opportunitiesTabItems}
-        tabBarStyle={{ marginBottom: 16 }}
-        data-testid="opportunities-sub-tabs"
-      />
+      <Tabs value={opportunitiesSubTab} onValueChange={setOpportunitiesSubTab}>
+        <TabsList className="gba:mb-4">
+          <TabsTrigger value="list" data-testid="opportunities-list-tab">
+            <UnorderedListOutlined className="gba:mr-2" />
+            List View
+          </TabsTrigger>
+          <TabsTrigger value="board" data-testid="opportunities-board-tab">
+            <AppstoreOutlined className="gba:mr-2" />
+            Board View
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="list">
+          <OpportunityList {...context} sourceApp="CRM" />
+        </TabsContent>
+        <TabsContent value="board">
+          <OpportunityBoard {...context} sourceApp="CRM" />
+        </TabsContent>
+      </Tabs>
     );
   };
 

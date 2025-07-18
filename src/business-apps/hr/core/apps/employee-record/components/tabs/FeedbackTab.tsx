@@ -10,11 +10,15 @@ import { employeeFeedbackQuery } from '../../queries/feedbackQueries';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
 
 interface FeedbackTabProps {
   employee: Employee;
   accessToken: string;
+  employeeId?: string; // Optional employeeId override for permissions check
+  userInfo?: UserInfoProps; // Current user info for self-view check
   employeeFeedback?: EmployeeFeedback[];
+  isSelfView: boolean; // Whether user is viewing their own profile
 }
 
 // Extended interfaces to include properties used in the drawer
@@ -35,8 +39,12 @@ interface FormattedFeedback {
 const FeedbackTab: React.FC<FeedbackTabProps> = ({ 
   employee,
   accessToken,
-  employeeFeedback = []
+  // employeeId and userInfo are kept in interface for future use
+  employeeFeedback = [],
+  isSelfView
 }) => {
+  // employeeId and userInfo props are available in the interface
+  // isSelfView can be used for conditional rendering
   const [localFeedback, setLocalFeedback] = useState<EmployeeFeedback[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -172,14 +180,15 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
             </AppActionButton>
           </div>
           
-          {/* Request Feedback Button */}
-          <div>
-            <AppActionButton 
-              data-testid="request-feedback-button"
-              variant="secondary"
-              contextsArray={[FlowContextName.employeeRequestFeedback]}
-              externalContextData={{
-                employeeId: employee?.id,
+          {/* Request Feedback Button - only visible when viewing own profile */}
+          {isSelfView && (
+            <div>
+              <AppActionButton 
+                data-testid="request-feedback-button"
+                variant="secondary"
+                contextsArray={[FlowContextName.employeeRequestFeedback]}
+                externalContextData={{
+                  employeeId: employee?.id,
                 isRequestingFeedback: true
               }}
               prefixDataTestId="request-feedback"
@@ -192,6 +201,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               )}
             </AppActionButton>
           </div>
+          )}
         </div>
       </div>
       

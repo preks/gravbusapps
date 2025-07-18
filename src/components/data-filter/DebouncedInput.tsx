@@ -17,6 +17,8 @@ interface DebouncedInputProps {
   debounceDelay?: number;
   /** Input aria-label for accessibility */
   ariaLabel?: string;
+  /** data-testid attribute for testing */
+  'data-testid'?: string;
 }
 
 /**
@@ -32,6 +34,7 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
   className = '',
   debounceDelay = 300,
   ariaLabel = 'Search',
+  'data-testid': dataTestId = 'debounced-input',
 }, ref) => {
   // Local state for immediate UI feedback
   const [localValue, setLocalValue] = useState(value);
@@ -65,6 +68,7 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
       onChange={handleChange}
       aria-label={ariaLabel}
       ref={ref}
+      data-testid={dataTestId}
     />
   );
 });

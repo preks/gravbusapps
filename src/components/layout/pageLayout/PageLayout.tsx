@@ -86,13 +86,14 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
     <div
       className={containerClasses}
       style={backgroundStyle}
+      data-testid="page-layout-container"
     >
-      <header className="gba:flex gba:flex-col gba:box-border gba:relative">
-        <div className="gba:h-24 gba:grid gba:grid-cols-3 gba:items-center gba:w-full">
+      <header className="gba:flex gba:flex-col gba:box-border gba:border-b gba:border-gray-200 gba:relative" data-testid="page-layout-header">
+        <div className="gba:h-24 gba:grid gba:grid-cols-3 gba:items-center gba:w-full" data-testid="page-layout-header-main">
           {/* Left section: Icon + Label */}
-          <div className="gba:flex gba:items-center gba:h-full gba:gap-4 gba:justify-start">
+          <div className="gba:flex gba:items-center gba:h-full gba:gap-4 gba:justify-start" data-testid="page-layout-header-left">
             <div className="gba:flex gba:items-center gba:h-full">
-              <span className={iconClasses} data-testid="page-header-icon">
+              <span className={iconClasses} data-testid="page-layout-header-icon">
                 {React.isValidElement(headerIcon)
                   ? React.cloneElement(headerIcon as React.ReactElement, {
                       size: isDisplay ? 48 : 32,
@@ -101,33 +102,33 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
               </span>
             </div>
             <div className="gba:flex gba:items-center gba:h-full">
-              <span className={labelClasses}>{headerLabel}</span>
+              <span className={labelClasses} data-testid="page-layout-header-label">{headerLabel}</span>
             </div>
           </div>
           
           {/* Center section: pageHeaderCenter - Perfectly centered */}
-          <div className="gba:flex gba:items-center gba:h-full gba:justify-center">
+          <div className="gba:flex gba:items-center gba:h-full gba:justify-center" data-testid="page-layout-header-center">
             {pageHeaderCenter}
           </div>
           
           {/* Right section: pageHeaderRight */}
-          <div className="gba:flex gba:items-center gba:h-full gba:justify-end">
+          <div className="gba:flex gba:items-center gba:h-full gba:justify-end" data-testid="page-layout-header-right">
             {pageHeaderRight}
           </div>
         </div>
         {pageController && (
-          <div className="gba:w-full gba:py-2">
+          <div className="gba:flex gba:justify-start gba:py-2" data-testid="page-layout-page-controller">
             {pageController}
           </div>
         )}
       </header>
-      <div className="flex flex-col flex-1 min-h-0">
+      <div className="flex flex-col flex-1 min-h-0" data-testid="page-layout-content">
         {contentHeader && (
-          <div>
+          <div className="gba:py-2 gba:border-b gba:border-gray-200" data-testid="page-layout-content-header">
             {contentHeader}
           </div>
         )}
-        <div className="gba:flex-1 gba:min-h-0">{contentContainer}</div>
+        <div className="gba:flex-1 gba:min-h-0" data-testid="page-layout-content-container">{contentContainer}</div>
       </div>
     </div>
   );

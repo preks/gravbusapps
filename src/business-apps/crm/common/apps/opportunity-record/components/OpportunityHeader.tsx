@@ -1,9 +1,10 @@
 import React from 'react';
 import { Button } from 'antd';
-import { DollarOutlined, StarOutlined, UserOutlined, CalendarOutlined, TrophyOutlined, PercentageOutlined } from '@ant-design/icons';
+import { DollarOutlined, StarOutlined, UserOutlined, CalendarOutlined, TrophyOutlined } from '@ant-design/icons';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Opportunity } from '../types';
+import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils';
 
 interface OpportunityHeaderProps {
   opportunity: Opportunity;
@@ -20,20 +21,9 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
   additionalData, 
   accessToken 
 }) => {
-  const formatCurrency = (value: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'EUR'
-    }).format(value);
-  };
-
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Not set';
     return new Date(dateString).toLocaleDateString('en-GB');
-  };
-
-  const extractCurrencyCode = (currencyId: string): string => {
-    return currencyId.split(':').pop() || 'EUR';
   };
 
   return (
@@ -67,7 +57,7 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
                   <DollarOutlined style={{ marginRight: '6px' }} />
                   {formatCurrency(
                     opportunityData.estimatedAmount, 
-                    opportunityData?.currency?.code || extractCurrencyCode(opportunity?.currency?.id || 'Currency:v1:EUR')
+                    opportunityData?.currency?.id || opportunity?.currency?.id || 'Currency:v1:EUR'
                   )}
                 </div>
               )}
@@ -79,14 +69,15 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
               <span style={{ margin: '0 8px' }}>•</span>
               <span>Currency: {opportunityData?.currency?.code || extractCurrencyCode(opportunity?.currency?.id || 'Currency:v1:EUR')}</span>
               <span style={{ margin: '0 8px' }}>•</span>
-              <PercentageOutlined style={{ marginRight: '4px' }} />
-              <span>Winning Chance: {opportunity.probability ? `${opportunity.probability}%` : 'Not set'}</span>
+              <span>Estimated Amount: {
+                opportunity.value ? 
+                  formatCurrency(opportunity.value, opportunity.currency.id) : 
+                  'Not set'
+              }</span>
+
             </div>
 
             <div style={{ color: '#8c8c8c', fontSize: '14px', marginBottom: '8px' }}>
-              <CalendarOutlined style={{ marginRight: '4px' }} />
-              <span>Close Date: {formatDate(opportunity.expectedCloseDate)}</span>
-              <span style={{ margin: '0 8px' }}>•</span>
               <UserOutlined style={{ marginRight: '4px' }} />
               <span>Owner: {opportunity.ownerEmployee ? `${opportunity.ownerEmployee.firstName} ${opportunity.ownerEmployee.lastName}` : 'Not assigned'}</span>
               {opportunityData?.createdAt && (
@@ -118,15 +109,6 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
               Actions
             </AppActionButton>
           )}
-          
-          <Button 
-            type="default"
-            data-testid="edit-opportunity-button"
-            onClick={() => {
-            }}
-          >
-            Edit Opportunity
-          </Button>
         </div>
       </div>
     </div>
