@@ -1,10 +1,12 @@
-import React from 'react';
-import { Row, Col } from 'antd';
+import React, { useState } from 'react';
+import { Row, Col, Pagination, Alert } from 'antd';
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue, formatNumberFunction } from '@/common/utils/windowUtils';
+import { useExpenseRequestDateValidation } from '../utils/dateValidationUtils';
 import { BusinessAppContextProps } from '@/business-apps/types';
 import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardContext';
 import { PlanCard } from '../../expense-request/components';
 import ExpenseItemRow from '../components/ExpenseItemRow';
+import ExpenseSummary from './components/ExpenseSummary';
 import { noAllowanceItemsFunction, getAllowanceItemsFunction } from '../utils/itemsScreenUtils';
 import { getDayName } from '../utils/allowanceScreenUtils';
 
@@ -29,6 +31,7 @@ interface SummaryScreenProps extends BusinessAppContextProps {
  */
 const SummaryScreen: React.FC<SummaryScreenProps> = () => {
   const { expenseRequestData } = useExpenseRequestWizardContext();
+  const { hasFutureDates } = useExpenseRequestDateValidation();
   const requestData = expenseRequestData?.ExpenseRequestByPk;
   const requestItemData = expenseRequestData.ExpenseItem;
   const expenseItems = noAllowanceItemsFunction(requestItemData);
@@ -52,6 +55,31 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
       })
     });
   }
+  // Pagination state
+  const itemListLimit = 4;
+  const [allowanceCurrentPage, setAllowanceCurrentPage] = useState(1);
+  const [expenseCurrentPage, setExpenseCurrentPage] = useState(1);
+  
+  // Pagination handlers
+  const handleAllowancePageChange = (page: number) => {
+    setAllowanceCurrentPage(page);
+  };
+  
+  const handleExpensePageChange = (page: number) => {
+    setExpenseCurrentPage(page);
+  };
+  
+  // Get paginated data
+  const paginatedAllowanceItems = allowanceItems.slice(
+    (allowanceCurrentPage - 1) * itemListLimit,
+    allowanceCurrentPage * itemListLimit
+  );
+  
+  const paginatedExpenseItems = positionsArray.slice(
+    (expenseCurrentPage - 1) * itemListLimit,
+    expenseCurrentPage * itemListLimit
+  );
+  
   console.log("positionsArray",positionsArray)
   return (
     <div className="gba:summaryScreenContainer" data-testid="expense-request-wizard-summary-screen">
@@ -103,24 +131,26 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
           </span>
           {requestData?.expensePlan && (
             <div className="gba:mb-4" data-testid="expense-request-plan-card-container">
-              <PlanCard 
-                key={requestData.expensePlan.id} 
-                plan={{
-                  id: requestData.expensePlan.id,
-                  planType: requestData.expensePlan.planType,
-                  title: requestData.expensePlan.title,
-                  creationDate: requestData.expensePlan.createdAt,
-                  tripStart: requestData.expensePlan.tripStart,
-                  tripEnd: requestData.expensePlan.tripEnd,
-                  tripInterval: requestData.expensePlan.tripInterval,
-                  paymentAmount: requestData.expensePlan.paymentAmount,
-                  paymentCurrency: requestData.expensePlan.paymentCurrency,
-                  planAmount: requestData.expensePlan.planAmount,
-                  planCurrency: requestData.expensePlan.planCurrency
-                }} 
-                selectable={false}
-                onClick={undefined}
-              />
+              <div className="gba:summary-plan-card-container" data-testid="summary-plan-card-custom-container">
+                <PlanCard 
+                  key={requestData.expensePlan.id} 
+                  plan={{
+                    id: requestData.expensePlan.id,
+                    planType: requestData.expensePlan.planType,
+                    title: requestData.expensePlan.title,
+                    creationDate: requestData.expensePlan.createdAt,
+                    tripStart: requestData.expensePlan.tripStart,
+                    tripEnd: requestData.expensePlan.tripEnd,
+                    tripInterval: requestData.expensePlan.tripInterval,
+                    paymentAmount: requestData.expensePlan.paymentAmount,
+                    paymentCurrency: requestData.expensePlan.paymentCurrency,
+                    planAmount: requestData.expensePlan.planAmount,
+                    planCurrency: requestData.expensePlan.planCurrency
+                  }} 
+                  selectable={false}
+                  onClick={undefined}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -134,17 +164,32 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
           </span>
           
           {allowanceItems && allowanceItems.length > 0 ? (
-            <div className="gba:allowances-list" data-testid="expense-request-allowances-list">
-              {allowanceItems.map((item) => (
-                <ExpenseItemRow 
-                  key={item.id}
-                  id={item.id}
-                  leftPrimary={getDayName(item.expenseDate)}
-                  leftSecondary={formatDate(item.expenseDate)}
-                  rightSecondary={`${formatNumberFunction(item.totalAmount)} ${item.currency.code}`}
-                />
-              ))}
-            </div>
+            <>
+              <div className="gba:allowances-list" data-testid="expense-request-allowances-list">
+                {paginatedAllowanceItems.map((item) => (
+                  <ExpenseItemRow 
+                    key={item.id}
+                    id={item.id}
+                    leftPrimary={getDayName(item.expenseDate)}
+                    leftSecondary={formatDate(item.expenseDate)}
+                    rightSecondary={`${formatNumberFunction(item.totalAmount)} ${item.currency.code}`}
+                  />
+                ))}
+              </div>
+              
+              {allowanceItems.length > itemListLimit && (
+                <div className="gba:paginationContainer  gba:flex gba:justify-center" data-testid="allowance-items-pagination-container">
+                  <Pagination
+                    current={allowanceCurrentPage}
+                    onChange={handleAllowancePageChange}
+                    total={allowanceItems.length}
+                    pageSize={itemListLimit}
+                    showSizeChanger={false}
+                    data-testid="allowance-items-pagination"
+                  />
+                </div>
+              )}
+            </>
           ) : (
             <div className="gba:text-gray-500 gba:px-4 gba:py-5" data-testid="expense-request-no-allowances">
               {getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.no_allowances_text', 'No allowances created')}
@@ -161,25 +206,52 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
           </span>
           
           {positionsArray && positionsArray.length > 0 ? (
-            <div className="gba:expense-items-list" data-testid="expense-request-expense-items-list">
-              {positionsArray.map((element:any) => (
-                <ExpenseItemRow 
-                  key={element.id}
-                  id={element.id}
-                  leftPrimary={element.title}
-                  leftSecondary={`${element.expenseGroup} ${element.expenseType}`}
-                  rightSecondary={`${element.amount} ${element.currency}`}
-                />
-              ))}
-            </div>
+            <>
+              <div className="gba:expense-items-list" data-testid="expense-request-expense-items-list">
+                {paginatedExpenseItems.map((element:any) => (
+                  <ExpenseItemRow 
+                    key={element.id}
+                    id={element.id}
+                    leftPrimary={element.title}
+                    leftSecondary={`${element.expenseGroup} ${element.expenseType}`}
+                    rightSecondary={`${element.amount} ${element.currency}`}
+                  />
+                ))}
+              </div>
+              
+              {positionsArray.length > itemListLimit && (
+                <div className="gba:paginationContainer  gba:flex gba:justify-center" data-testid="expense-items-pagination-container">
+                  <Pagination
+                    current={expenseCurrentPage}
+                    onChange={handleExpensePageChange}
+                    total={positionsArray.length}
+                    pageSize={itemListLimit}
+                    showSizeChanger={false}
+                    data-testid="expense-items-pagination"
+                  />
+                </div>
+              )}
+            </>
           ) : (
             <div className="gba:text-gray-500 gba:px-4 gba:py-5" data-testid="expense-request-no-expense-items">
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_expense_items', 'No expense items created')}
             </div>
           )}
         </div>
-        
-        {/* Additional summary sections can be added here */}
+        <ExpenseSummary requestData={requestData} />
+        {hasFutureDates && (
+          <div className="gba:mt-4 gba:mb-4" data-testid="expense-request-future-dates-container">
+            <Alert
+              message={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_summary_request.future_dates_warning',
+                'Warning: Future dates detected in this expense request. Submission is disabled.'
+              )}
+              type="warning"
+              showIcon
+              data-testid="expense-request-future-dates-warning"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

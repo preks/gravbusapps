@@ -7,6 +7,7 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import { showToast } from '../../utils/notificationUtils';
 import { EVENTS } from '../../utils/constants';
 import { ICONS } from '../../utils/icons';
+import { useExpenseRequestDateValidation } from './utils/dateValidationUtils';
 import './ExpenseRequestWizard.css';
 
 import { ExpenseRequestWizardProvider, useExpenseRequestWizardContext } from './context/ExpenseRequestWizardContext';
@@ -48,6 +49,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   } = useExpenseRequestWizardContext();
   const [currentScreen, setCurrentScreen] = useState<string>(SCREEN_NAMES_ENUM.LOAD_TAB);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
+  const { hasFutureDates } = useExpenseRequestDateValidation();
   const [titleValue, setTitleValue] = useState<string>('');
   const [titleError, setTitleError] = useState<string>('');
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false);
@@ -462,10 +464,11 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                   variant="primary" 
                   className="gba:submitButton" 
                   data-testid="expense-request-wizard-next-button"
-                  disabled={
+                  disabled={(
                     (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
-                    (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB && !isFormValid)
-                  }
+                    (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB && !isFormValid) ||
+                    (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && hasFutureDates)
+                  )}
                   onClick={() => {
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
                       const nextEvent = new CustomEvent('expense-request-next-trip');

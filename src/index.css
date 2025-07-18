@@ -18,6 +18,7 @@
 @import "./business-apps/hr/absence/apps/AbsenceCalendar/styles/AbsenceCalendar.css";
 @import "./business-apps/fin/expenses/forms/expense-item/ExpenseItem.css";
 @import "./business-apps/fin/expenses/forms/expense-request/ExpenseRequest.css";
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/SummaryScreen.css";
 @import "./business-apps/fin/expenses/forms/expense-request-invalid/ExpenseRequestInvalid.css";
 @import "./business-apps/fin/expenses/forms/expense-request/components/PlanCard.css";
 
