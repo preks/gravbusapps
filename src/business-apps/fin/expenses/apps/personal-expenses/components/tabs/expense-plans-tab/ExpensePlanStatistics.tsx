@@ -30,6 +30,8 @@ interface ExpensePlanStatisticsProps {
   onPlanDateRangeFilterChange?: (planDateRange: [Date | null, Date | null] | null) => void;
   // Add status filter callback
   onStatusFilterChange?: (status: string, selected: boolean) => void;
+  // Add destination filter callback
+  onDestinationFilterChange?: (destination: string | null) => void;
 }
 
 const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({ 
@@ -48,14 +50,15 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
   onStartDateRangeFilterChange,
   onEndDateRangeFilterChange,
   onPlanDateRangeFilterChange,
-  onStatusFilterChange
+  onStatusFilterChange,
+  onDestinationFilterChange
 }) => {
   // Calculate summary statistics with memoization
   const currentMonthName = dayjs().format('MMMM');
 
   // Use closed plans data for total plans widget
   const totalPlans = useMemo(() => currentMonthClosedPlans, [currentMonthClosedPlans]);
-  console.log('totalPlans', currentMonthClosedPlans);
+  
 
   const percentageChange = useMemo(() => {
     if (previousMonthClosedPlans === 0) {
@@ -77,6 +80,12 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
 
   // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback((widgetKey: string) => {
+  
+    // Prevent clicking when statistics are still loading
+    if (statsLoading) {
+      return;
+    }
+    
     // Provide immediate visual feedback
     if (onWidgetClick) {
       onWidgetClick(widgetKey);
@@ -109,7 +118,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       if (onStatusFilterChange) {
         // First, clear any existing status filters
         // Then add all statuses except CREATED (Draft) and PAID
-        const allStatuses = ['PREPARED', 'ASSIGNED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'];
+        const allStatuses = ['PREPARED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'];
         allStatuses.forEach(status => {
           onStatusFilterChange(status, true);
         });
@@ -129,7 +138,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       // Set status filter to only show PENDING plans
       if (onStatusFilterChange) {
         // Clear all existing status filters first
-        const allStatuses = ['PREPARED', 'ASSIGNED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'CLOSED', 'TRANSFERRED'];
+        const allStatuses = ['PREPARED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'CLOSED', 'TRANSFERRED'];
         allStatuses.forEach(status => {
           onStatusFilterChange(status, false);
         });
@@ -138,8 +147,13 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       }
     }
     
-    // Set filters when top-destinations widget is clicked
+        // Set filters when top-destinations widget is clicked
     if (widgetKey === 'top-destinations') {
+      // Check if topDestination is available
+      if (!topDestination || topDestination === 'N/A') {
+        return;
+      }
+      
       // Clear any existing date range filters
       if (onStartDateRangeFilterChange) {
         onStartDateRangeFilterChange(null);
@@ -150,16 +164,20 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       
       // Clear all status filters to show all plans for the destination
       if (onStatusFilterChange) {
-        const allStatuses = ['PREPARED', 'ASSIGNED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'CLOSED', 'TRANSFERRED'];
+        const allStatuses = ['PREPARED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'CLOSED', 'TRANSFERRED'];
         allStatuses.forEach(status => {
           onStatusFilterChange(status, false);
         });
       }
       
-      // Note: Destination filtering will be handled by the table component
-      // since we need to filter by the specific destination value
+      // Apply destination filter to show plans for the top destination
+      if (onDestinationFilterChange && topDestination && topDestination !== 'N/A') {
+        onDestinationFilterChange(topDestination);
+      } else if (onDestinationFilterChange) {
+        onDestinationFilterChange(null);
+      }
     }
-  }, [onWidgetClick, onStartDateRangeFilterChange, onEndDateRangeFilterChange, onPlanDateRangeFilterChange, onStatusFilterChange]);
+  }, [onWidgetClick, onStartDateRangeFilterChange, onEndDateRangeFilterChange, onPlanDateRangeFilterChange, onStatusFilterChange, onDestinationFilterChange, topDestination, statsLoading]);
 
   // Transform the stats data into widgets format
   const widgets: WidgetItem[] = useMemo(() => [
@@ -202,11 +220,14 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       prefix: <CompassOutlined />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, md: 6 },
-      description: 'Most frequent',
+      description: topDestination && topDestination !== 'N/A' ? 'Most frequent' : 'No data available',
       active: activeWidgetKey === 'top-destinations',
-      onClick: () => handleWidgetClick('top-destinations')
+      onClick: () => {
+        console.log('Individual top-destinations widget onClick called');
+        handleWidgetClick('top-destinations');
+      }
     }
-  ], [currentMonthName, totalPlans, totalEstimated, pendingApproval, topDestination, description, activeWidgetKey, handleWidgetClick]);
+  ], [currentMonthName, totalPlans, totalEstimated, pendingApproval, topDestination, description, activeWidgetKey, handleWidgetClick, statsLoading]);
 
   return (
     <WidgetGroup
@@ -214,6 +235,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       isLoading={statsLoading}
       error={statsError}
       onRetry={fetchPlanStatistics}
+      onWidgetClick={onWidgetClick}
       skeletonCount={4}
       emptyText="No expense plan statistics available."
       data-testid="expense-plan-statistics"

@@ -17,6 +17,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [activeWidget, setActiveWidget] = useState<string | null>(null);
+  const [destinationFilter, setDestinationFilter] = useState<string | null>(null);
 
   const {
     filterGroups,
@@ -42,56 +43,64 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   useEffect(() => {
     const expectedActiveWidget = getActiveWidgetFromFilters(selectedFilters);
     if (expectedActiveWidget !== activeWidget) {
-      console.log('Synchronizing expense plan widget state:', { 
-        selectedFilters, 
-        activeWidget, 
-        expectedActiveWidget 
-      });
       setActiveWidget(expectedActiveWidget);
     }
   }, [selectedFilters, activeWidget]);
 
+  // Helper function to get current month date range
+  const getCurrentMonthRange = useCallback(() => {
+    const today = dayjs();
+    const currentMonthStart = today.startOf('month').toDate();
+    const currentMonthEnd = today.endOf('month').toDate();
+    return [currentMonthStart, currentMonthEnd] as [Date, Date];
+  }, []);
+
   // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback((widgetKey: string) => {
     const newActiveWidget = activeWidget === widgetKey ? null : widgetKey;
+    console.log('Widget click:', widgetKey, 'Current active:', activeWidget, 'New active:', newActiveWidget);
     setActiveWidget(newActiveWidget);
     
-    // Synchronize widget state with table filters
-    if (newActiveWidget === 'total-plans') {
-      // Clear existing filters and set up total-plans filters
-      clearFilters();
-      
-      // Set plan date range to current month
-      const today = dayjs();
-      const currentMonthStart = today.startOf('month').toDate();
-      const currentMonthEnd = today.endOf('month').toDate();
-      setPlanDateRange([currentMonthStart, currentMonthEnd]);
-      
-      // Add closed and paid status filters
-      handleFilterChange(ExpenseStatus.CLOSED, true);
-      handleFilterChange(ExpenseStatus.PAID, true);
-    } else if (newActiveWidget === 'total-estimated') {
-      // Clear existing filters and set up total-estimated filters
-      clearFilters();
-      // The date and status filters will be set by the statistics component
-    } else if (newActiveWidget === 'pending-approval') {
-      // Clear existing filters and set up pending-approval filters
-      clearFilters();
-      // The status filter will be set by the statistics component
-    } else if (newActiveWidget === 'top-destinations') {
-      // Clear existing filters and set up top-destinations filters
-      clearFilters();
-      // The destination filtering will be handled by the memoized filters
-    } else if (newActiveWidget === null) {
-      // If deactivating widget, clear all filters
-      clearFilters();
+    // Clear existing filters for all widget activations
+    clearFilters();
+    
+    // Don't clear destination filter for top-destinations widget
+    // as it will be set by the statistics component
+    if (newActiveWidget !== 'top-destinations') {
+      setDestinationFilter(null);
     }
-  }, [activeWidget, clearFilters, handleFilterChange, setPlanDateRange]);
+    
+    // Apply widget-specific filter logic
+    switch (newActiveWidget) {
+      case 'total-plans':
+        const currentMonthRange = getCurrentMonthRange();
+        setPlanDateRange(currentMonthRange);
+        handleFilterChange(ExpenseStatus.CLOSED, true);
+        handleFilterChange(ExpenseStatus.PAID, true);
+        break;
+      case 'total-estimated':
+      case 'pending-approval':
+      case 'top-destinations':
+        // These widgets handle their own filtering through the statistics component
+        break;
+      case null:
+        // Widget deactivated - filters already cleared above
+        setDestinationFilter(null);
+        break;
+    }
+  }, [activeWidget, clearFilters, handleFilterChange, setPlanDateRange, getCurrentMonthRange, setDestinationFilter]);
+
+  // Handle destination filter changes
+  const handleDestinationFilterChange = useCallback((destination: string | null) => {
+    console.log('Parent received destination filter change:', destination);
+    setDestinationFilter(destination);
+  }, []);
 
   // Handle clearing all filters (widget + table)
   const handleClearAllFilters = useCallback((filters: string[]) => {
     setFilters(filters);
     setActiveWidget(null);
+    setDestinationFilter(null);
     // Also clear search and date ranges when clearing all filters
     if (filters.length === 0) {
       setSearch('');
@@ -101,18 +110,16 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     }
   }, [setFilters, setSearch, setStartDateRange, setEndDateRange, setPlanDateRange]);
 
-  // Memoize the filters to prevent unnecessary API calls
-  const memoizedFilters = useMemo(() => {
-    // Get base filters from the filter hook
-    const baseFilters = getFilters();
+  // Helper function to build widget-specific filters
+  const buildWidgetFilters = useCallback((baseFilters: any) => {
+    const filters = { ...baseFilters };
     
-    // Only add widget-specific filters if a widget is active and needs date filtering
+    // Add total-estimated widget filters
     if (activeWidget === 'total-estimated') {
       const today = dayjs();
       const currentMonthStart = today.startOf('month').format('YYYY-MM-DD HH:mm:ss');
       const currentMonthEnd = today.endOf('month').format('YYYY-MM-DD HH:mm:ss');
       
-      // Add plan date range filters for current month
       const planDateCondition = {
         _and: [
           { planDate: { _gte: currentMonthStart } },
@@ -120,38 +127,43 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
         ]
       };
       
-      // Merge with existing conditions
-      if (baseFilters._and) {
-        baseFilters._and.push(planDateCondition);
+      if (filters._and) {
+        filters._and.push(planDateCondition);
       } else {
-        baseFilters._and = [planDateCondition];
+        filters._and = [planDateCondition];
       }
     }
     
-    // Add destination filtering when top-destinations widget is active
-    if (activeWidget === 'top-destinations' && statistics.topDestination && statistics.topDestination !== 'N/A') {
+    // Add top-destinations widget filters
+    if (activeWidget === 'top-destinations' && destinationFilter && destinationFilter !== 'N/A') {
+      console.log('Building destination filter for:', destinationFilter);
       const destinationCondition = {
         expenseRequestTrip: {
           pointType: { _eq: "DESTINATION_POINT" },
           travelRegion: {
             _or: [
-              { value: { _eq: statistics.topDestination } },
-              { translations: { value: { _eq: statistics.topDestination } } }
+              { value: { _eq: destinationFilter } },
+              { translations: { value: { _eq: destinationFilter } } }
             ]
           }
         }
       };
       
-      // Merge with existing conditions
-      if (baseFilters._and) {
-        baseFilters._and.push(destinationCondition);
+      if (filters._and) {
+        filters._and.push(destinationCondition);
       } else {
-        baseFilters._and = [destinationCondition];
+        filters._and = [destinationCondition];
       }
     }
     
-    return baseFilters;
-  }, [getFilters, activeWidget, statistics.topDestination]);
+    return filters;
+  }, [activeWidget, destinationFilter]);
+
+  // Memoize the filters to prevent unnecessary API calls
+  const memoizedFilters = useMemo(() => {
+    const baseFilters = getFilters();
+    return buildWidgetFilters(baseFilters);
+  }, [getFilters, buildWidgetFilters]);
 
   // Only fetch when filters, page, or pageSize change
   useEffect(() => {
@@ -165,6 +177,33 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   useEffect(() => {
     fetchStatistics();
   }, [fetchStatistics]);
+
+  // Create filter label map for proper display labels
+  const filterLabelMap = useMemo(() => {
+    const labelMap: Record<string, string> = {};
+    
+    // Map status values to their display labels
+    const statusLabels = {
+      [ExpenseStatus.PREPARED]: 'Prepared',
+      [ExpenseStatus.CREATED]: 'Draft (Created)',
+      [ExpenseStatus.PENDING]: 'In Approval (Pending)',
+      [ExpenseStatus.ASSIGNED]: 'Assigned',
+      [ExpenseStatus.APPROVED]: 'Approved',
+      [ExpenseStatus.REJECTED]: 'Revision Required (Rejected)',
+      [ExpenseStatus.VERIFIED]: 'In Transit (Verified)',
+      [ExpenseStatus.BOOKED]: 'In Transit (Booked)',
+      [ExpenseStatus.PAID]: 'Paid',
+      [ExpenseStatus.CLOSED]: 'Closed',
+      [ExpenseStatus.TRANSFERRED]: 'In Transit (Transferred)',
+    };
+    
+    // Add all status mappings
+    Object.entries(statusLabels).forEach(([status, label]) => {
+      labelMap[status] = label;
+    });
+    
+    return labelMap;
+  }, []);
 
   // Memoize content header to prevent unnecessary re-renders
   const contentHeader = useMemo(() => {
@@ -185,8 +224,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       onEndDateRangeFilterChange={setEndDateRange}
       onPlanDateRangeFilterChange={setPlanDateRange}
       onStatusFilterChange={handleFilterChange}
+      onDestinationFilterChange={handleDestinationFilterChange}
     />;
-  }, [items, statistics, statsLoading, statsError, handleWidgetClick, activeWidget, setStartDateRange, setEndDateRange, setPlanDateRange, handleFilterChange]);
+  }, [items, statistics, statsLoading, statsError, handleWidgetClick, activeWidget, setStartDateRange, setEndDateRange, setPlanDateRange, handleFilterChange, handleDestinationFilterChange]);
 
   useEffect(() => {
     if (props.onContentHeaderChange) {
@@ -216,6 +256,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       filterGroups={filterGroups}
       handleFilterChange={handleFilterChange}
       clearFilters={clearFilters}
+      filterLabelMap={filterLabelMap}
     />
   );
 };

@@ -76,6 +76,7 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   filterGroups: DataFilterGroup[];
   handleFilterChange: (filterId: string, selected: boolean) => void;
   clearFilters: () => void;
+  filterLabelMap?: Record<string, string>;
 }
 
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) => {
@@ -316,6 +317,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
           createColumn('endDate', 'End Date', (date: string) => (date ? formatDate(date, 'date.long') : '-')),
           createColumn('status', 'Status', (status: string) => {
             const statusConfig = getExpensePlanStatusDisplay(status);
+            console.log('statusConfig', statusConfig);
             return <Pill type={statusConfig.type} label={statusConfig.label} />;
           }),
           createColumn('reimbursableAmount', 'Reimbursable Amount', (amount: number, record: ExpensePlan) => {
@@ -367,6 +369,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
           setSearch: props.onSearchChange,
           filter: props.selectedFilters,
           setFilter: props.setFilters,
+          filterLabelMap: props.filterLabelMap,
           addButton: {
             onClick: handleAddExpensePlan,
             label: 'Add',
