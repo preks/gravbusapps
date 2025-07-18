@@ -11,6 +11,7 @@ import { noAllowanceItemsFunction, getAllowanceItemsFunction } from '../utils/it
 import { getDayName } from '../utils/allowanceScreenUtils';
 import { createSummaryScreenLogObject } from '../utils/summaryScreenUtils';
 import { EVENTS } from '../../../utils/constants';
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 
 
 
@@ -47,7 +48,8 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
         expenseRequestData,
         EVENTS.SAVE
       );
-      console.log('Summary Screen Save Event:', logObject);
+      dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
+      // console.log('Summary Screen Save Event:', logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle]);
   
@@ -60,7 +62,8 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
         expenseRequestData,
         EVENTS.SUBMIT
       );
-      console.log('Summary Screen Submit Event:', logObject);
+      dispatchProcessContinueEvent(EVENTS.SUBMIT, logObject);
+      // console.log('Summary Screen Submit Event:', logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle]);
   

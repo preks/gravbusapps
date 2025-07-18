@@ -10,6 +10,7 @@ import { getTravelRegionsAndUser, getUserCostCenters, getUserProjects } from '..
 import { getAllowanceItemsFunction } from '../utils/itemsScreenUtils';
 import { createAllowanceScreenLogObject } from '../utils/allowanceScreenUtils';
 import { EVENTS } from '../../../utils/constants';
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 
 const { Title } = Typography;
 
@@ -248,7 +249,8 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           expenseRequestData,
           EVENTS.SAVE
         );
-        console.log('Allowance Screen Save Event:', logObject);
+        // console.log('Allowance Screen Save Event:', logObject);
+        dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
       }
     };
     
@@ -263,7 +265,8 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           expenseRequestData,
           EVENTS.NEXT
         );
-        console.log('Allowance Screen Next Event:', logObject);
+        // console.log('Allowance Screen Next Event:', logObject);
+        dispatchProcessContinueEvent(EVENTS.SUBMIT, logObject);
       }
     };
     

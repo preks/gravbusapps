@@ -5,6 +5,8 @@ import { showToast } from '../../../utils/notificationUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { ADDRESS_TYPES_ENUM, PointTypeEnum, SCREEN_NAMES_ENUM, TripDirectionDefaultValue } from '../constants/constants';
 import { mergeUniqueById } from '../../../utils/functionUtils';
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { EVENTS } from '../../../utils/constants';
 
 /**
  * Prepares trip data for saving
@@ -384,7 +386,8 @@ export const handleTripSubmitAction = (
     expenseTrips: verifiedTrips ? arrayWithExistingTrips : (initialRequest.expenseRequestTrip || [])
   };
 
-  console.log(logObject);
+  // console.log(logObject);
+  dispatchProcessContinueEvent(event, logObject);
   
   // Here you would normally save the data
   // TODO: Implement actual save functionality

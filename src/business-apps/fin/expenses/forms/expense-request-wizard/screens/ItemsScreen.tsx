@@ -11,6 +11,7 @@ import { createItemsScreenLogObject, formatArrayOfItems, noAllowanceItemsFunctio
 import { fetchEmployeeExpenseItems, fetchEmployeeExpenseItemsFromPayload } from '../ExpenseRequestWizardQueries';
 import { SearchBarWithLabel } from '../../../forms/expense-request/components';
 import { EVENTS } from '../../../utils/constants';
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 
 
 interface ItemsScreenProps extends BusinessAppContextProps {
@@ -196,7 +197,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       setSelectedItemsToInitial((prev: any[]) => prev.filter((item: any) => item.id !== itemId));
     }
     
-    setDeletedItems([...deletedItems, deletedItem]);
+    const isAlreadyDeleted = deletedItems.some((item: any) => item.id === itemId);
+    if (!isAlreadyDeleted) {
+      setDeletedItems([...deletedItems, deletedItem]);
+    }
 
     if (showSelectItems) {
       isPageChangeRef.current = true;
@@ -382,7 +386,8 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         expenseRequestData,
         EVENTS.NEXT
       );
-      console.log('Items Screen Next Event:', logObject);
+      // console.log('Items Screen Next Event:', logObject);
+      dispatchProcessContinueEvent(EVENTS.SUBMIT, logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle, currentCurrency, expenseItems]);
   
@@ -397,7 +402,8 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         expenseRequestData,
         EVENTS.SAVE
       );
-      console.log('Items Screen Save Event:', logObject);
+      dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
+      // console.log('Items Screen Save Event:', logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle, currentCurrency, expenseItems]);
   
