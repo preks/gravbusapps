@@ -319,14 +319,20 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
             const statusConfig = getExpensePlanStatusDisplay(status);
             return <Pill type={statusConfig.type} label={statusConfig.label} />;
           }),
-          createColumn('reimbursableAmount', 'Reimbursable Amount', (amount: number, record: ExpensePlan) => {
-            const currencyCode = record.currency?.code || '';
-            return `${formatNumberFunction(String(amount ?? '0'))} ${currencyCode}`;
-          }),
-          createColumn('advancePaymentPaidAmount', 'Paid Advance', (amount: number, record: ExpensePlan) => {
-            const currencyCode = record.currency?.code || '';
-            return `${formatNumberFunction(String(amount ?? '0'))} ${currencyCode}`;
-          }),
+          {
+            ...createColumn('reimbursableAmount', 'Reimbursable Amount', (amount: number, record: ExpensePlan) => {
+              const currencyCode = record.currency?.code || '';
+              return `${formatNumberFunction(String(amount ?? '0'))} ${currencyCode}`;
+            }),
+            align: 'right' as const,
+          },
+          {
+            ...createColumn('advancePaymentPaidAmount', 'Paid Advance', (amount: number, record: ExpensePlan) => {
+              const currencyCode = record.currency?.code || '';
+              return `${formatNumberFunction(String(amount ?? '0'))} ${currencyCode}`;
+            }),
+            align: 'right' as const,
+          },
         ] as any}
       />
     );
