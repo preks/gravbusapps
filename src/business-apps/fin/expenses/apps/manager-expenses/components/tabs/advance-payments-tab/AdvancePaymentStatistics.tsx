@@ -36,10 +36,12 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     <WidgetGroup
       widgets={widgets}
       isLoading={statsLoading}
-      error={statsError}
+      error={statsError ? 'Failed to load statistics' : undefined}
       onRetry={fetchAdvancePaymentStatistics}
-      skeletonCount={1}
+      skeletonCount={4}
       emptyText="No advance payment statistics available."
+      cardBackground="transparent"
+      className="gba:py-0"
     />
   );
 };

@@ -1,19 +1,12 @@
-import React, { useState, useEffect, useMemo, ReactNode } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests';
 import ExpenseRequestStatistics from './ExpenseRequestStatistics';
 import ExpenseRequestsTable from './ExpenseRequestsTable';
 
-export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
-  onContentHeaderChange?: (header: ReactNode) => void;
-}
+export interface ExpenseRequestsTabProps extends BusinessAppContextProps {}
 
 const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
-  const { onContentHeaderChange } = props;
-  
-  // Search term state for synchronization with table
-  const [searchTerm, setSearchTerm] = useState<string>('');
-
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(() => ({
     accessToken: props.accessToken,
@@ -33,36 +26,27 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     fetchRequestStatistics();
   }, [fetchRequestStatistics]);
 
-  // Handle search changes from the table
-  const handleSearchChange = (search: string) => {
-    setSearchTerm(search);
-  };
-
-  // Update the content header when statistics change
-  useEffect(() => {
-    if (onContentHeaderChange) {
-      const headerContent = (
+  return (
+    <div className="gba:h-full gba:flex gba:flex-col">
+      {/* Statistics Section - Now inside the tab content */}
+      <div className="gba:mb-6">
         <ExpenseRequestStatistics 
           requestStats={requestStats} 
           requestStatsLoading={requestStatsLoading} 
           requestStatsError={requestStatsError} 
           fetchRequestStatistics={fetchRequestStatistics} 
         />
-      );
-      onContentHeaderChange(headerContent);
-    }
-  }, [requestStats, requestStatsLoading, requestStatsError, onContentHeaderChange, fetchRequestStatistics]);
-
-
-
-
-
-  return (
-    <ExpenseRequestsTable
-      {...contextProps}
-      search={searchTerm}
-      onSearchChange={handleSearchChange}
-    />
+      </div>
+      
+      {/* Table Container */}
+      <div className="gba:flex-1">
+        <div data-testid="expense-requests-table-container">
+          <ExpenseRequestsTable
+            {...contextProps}
+          />
+        </div>
+      </div>
+    </div>
   );
 };
 
