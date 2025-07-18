@@ -7,8 +7,8 @@ export interface UseAdvancePaymentFiltersReturn {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   debouncedSearchTerm: string;
-  statusFilter: string | null;
-  setStatusFilter: (status: string | null) => void;
+  statusFilter: string[] | null;
+  setStatusFilter: (status: string[] | null) => void;
   filterGroups: DataFilterGroup[];
   handleDataFilterChange: (filterId: string, selected: boolean) => void;
   filterLabelMap: Record<string, string>;
@@ -16,12 +16,12 @@ export interface UseAdvancePaymentFiltersReturn {
 
 export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string[] | null>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const handleStatusFilterChange = useCallback((newStatus: string | null) => {
-    if (newStatus === null || newStatus === 'all_statuses') {
+  const handleStatusFilterChange = useCallback((newStatus: string[] | null) => {
+    if (newStatus === null || newStatus.length === 0) {
       setStatusFilter(null);
     } else {
       setStatusFilter(newStatus);
@@ -29,50 +29,46 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
   }, [setStatusFilter]);
 
   const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
+    const currentFilters = statusFilter || [];
+    
     if (isSelected) {
-      handleStatusFilterChange(filterId);
-    } else if (statusFilter === filterId) {
-      handleStatusFilterChange(null);
+      // Add the filter
+      const newFilters = [...currentFilters, filterId];
+      handleStatusFilterChange(newFilters);
+    } else {
+      // Remove the filter
+      const newFilters = currentFilters.filter(id => id !== filterId);
+      handleStatusFilterChange(newFilters.length > 0 ? newFilters : null);
     }
   }, [statusFilter, handleStatusFilterChange]);
 
-  // Define the statuses that should be used for filtering, grouped by their display labels
+  // Define the statuses that should be used for filtering with the correct mappings
   const availableFilterStatuses: ExpenseStatus[] = [
-    // Group 1: Approval Required
-    ExpenseStatus.PENDING,
-    
-    // Group 2: In Transit (group multiple statuses under one label)
+    ExpenseStatus.PREPARED,
     ExpenseStatus.APPROVED,
-    ExpenseStatus.VERIFIED,
     ExpenseStatus.BOOKED,
-    ExpenseStatus.TRANSFERRED,
-    
-    // Group 3: In Revision
-    ExpenseStatus.RETURNED,
-    
-    // Group 4: Paid
     ExpenseStatus.PAID,
-    
-    // Group 5: Completed
-    ExpenseStatus.CLOSED,
+    ExpenseStatus.PENDING,
+    ExpenseStatus.REJECTED,
+    ExpenseStatus.TRANSFERRED,
+    ExpenseStatus.VERIFIED,
   ];
   
-  // Map of status to display label (for statuses that should be grouped or have custom labels)
+  // Map of status to display label based on user requirements
   const statusDisplayMap: Partial<Record<ExpenseStatus, string>> = {
+    [ExpenseStatus.PREPARED]: 'Prepared',
+    [ExpenseStatus.APPROVED]: 'Approved',
+    [ExpenseStatus.BOOKED]: 'In Transit (Booked)',
+    [ExpenseStatus.PAID]: 'Paid',
     [ExpenseStatus.PENDING]: 'Approval Required',
-    [ExpenseStatus.APPROVED]: 'In Transit',
-    [ExpenseStatus.VERIFIED]: 'In Transit',
-    [ExpenseStatus.BOOKED]: 'In Transit',
-    [ExpenseStatus.TRANSFERRED]: 'In Transit',
-    [ExpenseStatus.RETURNED]: 'In Revision',
-    [ExpenseStatus.CLOSED]: 'Completed',
+    [ExpenseStatus.REJECTED]: 'Revision Required',
+    [ExpenseStatus.TRANSFERRED]: 'Transferred',
+    [ExpenseStatus.VERIFIED]: 'In Transit (Verified)',
   };
 
   // Create a mapping of filter IDs to their display labels
   const filterLabelMap = useMemo(() => {
-    const map: Record<string, string> = {
-      all_statuses: 'All Statuses',
-    };
+    const map: Record<string, string> = {};
     
     availableFilterStatuses.forEach((status) => {
       // Use the custom display map if available, otherwise get from getAdvancePaymentStatusDisplay
@@ -88,7 +84,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
       (status) => ({
         id: status,
         label: filterLabelMap[status],
-        selected: statusFilter === status,
+        selected: statusFilter ? statusFilter.includes(status) : false,
         group: 'statusGroup',
       })
     );
@@ -97,16 +93,8 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
       {
         id: 'statusGroup',
         title: 'Status',
-        filters: [
-          { 
-            id: 'all_statuses', 
-            label: filterLabelMap.all_statuses, 
-            selected: statusFilter === null, 
-            group: 'statusGroup' 
-          },
-          ...statusItems,
-        ],
-        selectionMode: 'single',
+        filters: statusItems,
+        selectionMode: 'multiple',
       },
     ];
   }, [availableFilterStatuses, statusFilter, filterLabelMap]);

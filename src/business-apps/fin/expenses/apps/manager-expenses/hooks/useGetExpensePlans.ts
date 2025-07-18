@@ -14,6 +14,7 @@ export interface ExpensePlan {
   endDate: string;
   planDate: string; // Added by user query modification
   totalAmount: number;
+  currency: string;
   createdAt: string;
   updatedAt: string;
   employee: {
@@ -36,7 +37,7 @@ export interface ExpensePlan {
 }
 
 export interface ExpensePlanResponse {
-  ExpensePlan: ExpensePlan[];
+  ExpensePlan: (ExpensePlan & { currencyRef?: string })[];
   ExpensePlanAggregate: {
     aggregate: {
       count: number;
@@ -159,6 +160,12 @@ export const useGetExpensePlans = ({
       
       // Apply client-side filtering for status and employee
       let filteredPlans = data.ExpensePlan;
+      
+      // Map currency information from currencyRef field
+      filteredPlans = filteredPlans.map(plan => ({
+        ...plan,
+        currency: plan.currencyRef ? plan.currencyRef.replace('Currency:v1:', '') : 'EUR'
+      }));
       
       // Filter by employee if employeeFilter is set (client-side for now)
       if (employeeFilter) {

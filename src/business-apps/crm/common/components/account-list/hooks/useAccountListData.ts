@@ -28,12 +28,17 @@ const transformAccountData = (apiAccount: AccountData): Account => {
     location = country;
   }
 
+  // Extract primary contact information from accountContacts
+  const primaryContact = apiAccount.accountContacts?.[0]?.contact;
+
   return {
     id: apiAccount.id,
     name: apiAccount.name || '',
     website: apiAccount.website || '',
-    phone: apiAccount.contact?.[0]?.phone || '',
-    email: apiAccount.contact?.[0]?.email || '',
+    phone: primaryContact?.phone || '',
+    email: primaryContact?.email || '',
+    contactFirstName: primaryContact?.firstName || '',
+    contactLastName: primaryContact?.lastName || '',
     industry: {
       id: apiAccount.industry?.id || '',
       value: apiAccount.industry?.value || '',
@@ -51,7 +56,7 @@ const transformAccountData = (apiAccount: AccountData): Account => {
       displayName: apiAccount.ownerEmployee 
         ? `${apiAccount.ownerEmployee.firstName} ${apiAccount.ownerEmployee.lastName}` 
         : '',
-      pictureThumbnail: undefined
+      pictureThumbnail: apiAccount.ownerEmployee?.pictureThumbnail
     },
     annualRevenue: 0, // Not available in current schema
     numberOfEmployees: parseInt(apiAccount.numberOfEmployees?.value || '0') || 0,
@@ -100,7 +105,12 @@ export const useAccountListData = (params: UseAccountListDataParams): UseAccount
           { ownerEmployee: { firstName: searchPattern } },
           { ownerEmployee: { lastName: searchPattern } },
           { addresses: { city: searchPattern } },
-          { addresses: { country: { value: searchPattern } } }
+          { addresses: { country: { value: searchPattern } } },
+          // Add search functionality for accountContacts (primary contact info)
+          { accountContacts: { contact: { firstName: searchPattern } } },
+          { accountContacts: { contact: { lastName: searchPattern } } },
+          { accountContacts: { contact: { email: searchPattern } } },
+          { accountContacts: { contact: { phone: searchPattern } } }
         ];
       }
 

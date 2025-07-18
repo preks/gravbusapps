@@ -251,19 +251,39 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-contact-cell-${record.id}`}>
                     <div className="gba:space-y-1">
+                      {(record.contactFirstName || record.contactLastName) && (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <PiUser size={14} className="gba:text-gray-400" />
+                          <span className="gba:text-sm gba:font-medium">
+                            {`${record.contactFirstName || ''} ${record.contactLastName || ''}`.trim()}
+                          </span>
+                        </div>
+                      )}
                       {record.email && (
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <PiEnvelope size={14} className="gba:text-gray-400" />
-                          <span className="gba:text-sm">{record.email}</span>
+                          <a 
+                            href={`mailto:${record.email}`}
+                            className="gba:text-sm gba:text-blue-600 hover:gba:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {record.email}
+                          </a>
                         </div>
                       )}
                       {record.phone && (
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <PiPhone size={14} className="gba:text-gray-400" />
-                          <span className="gba:text-sm">{record.phone}</span>
+                          <a 
+                            href={`tel:${record.phone}`}
+                            className="gba:text-sm gba:text-blue-600 hover:gba:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {record.phone}
+                          </a>
                         </div>
                       )}
-                      {!record.email && !record.phone && (
+                      {!record.contactFirstName && !record.contactLastName && !record.email && !record.phone && (
                         <span className="gba:text-gray-400">-</span>
                       )}
                     </div>
