@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Modal } from 'antd';
 import { ReferenceData } from '../types';
+import { useUpdateLeadStatus } from '../hooks/useUpdateLeadStatus';
 
 interface StatusProgressionProps {
   currentStatus: string;
@@ -12,8 +14,51 @@ interface StatusProgressionProps {
 
 export const StatusProgression: React.FC<StatusProgressionProps> = ({ 
   currentStatus, 
-  statuses
+  statuses,
+  leadId,
+  leadVersion,
+  accessToken,
+  onStatusUpdate
 }) => {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<ReferenceData | null>(null);
+  
+  const { updateStatus, isLoading } = useUpdateLeadStatus({ accessToken });
+
+  const handleStatusClick = (status: ReferenceData) => {
+    // Don't show modal if clicking on current status
+    if (status.value.toLowerCase() === currentStatus.toLowerCase()) {
+      return;
+    }
+    
+    setSelectedStatus(status);
+    setModalVisible(true);
+  };
+
+  const handleConfirmStatusChange = async () => {
+    if (!selectedStatus) return;
+    
+    const statusRef = `SalesLeadStatus:v1:${selectedStatus.code}`;
+    
+    await updateStatus(
+      leadId,
+      leadVersion,
+      statusRef,
+      selectedStatus.value,
+      () => {
+        setModalVisible(false);
+        setSelectedStatus(null);
+        if (onStatusUpdate) {
+          onStatusUpdate();
+        }
+      }
+    );
+  };
+
+  const handleCancelModal = () => {
+    setModalVisible(false);
+    setSelectedStatus(null);
+  };
   const getCurrentStatusIndex = () => {
     const currentIndex = statuses.findIndex(status => 
       status.value.toLowerCase() === currentStatus.toLowerCase() || 
@@ -70,9 +115,10 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
               transition: 'all 0.3s ease',
               clipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
               WebkitClipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
-              cursor: 'default'
+              cursor: isOpen ? 'default' : 'pointer'
             }}
             data-testid="status-open"
+            onClick={() => !isOpen && handleStatusClick(statuses[openIndex])}
           >
             <div style={{
               display: 'flex',
@@ -132,9 +178,11 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
                 fontWeight: '600',
                 backgroundColor: 'transparent',
                 color: '#666666',
-                transition: 'all 0.3s ease'
+                transition: 'all 0.3s ease',
+                cursor: 'pointer'
               }}
               data-testid="status-converted"
+              onClick={() => convertedIndex !== -1 && handleStatusClick(statuses[convertedIndex])}
             >
               <div style={{
                 display: 'flex',
@@ -165,9 +213,11 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
                 fontWeight: '600',
                 backgroundColor: 'transparent',
                 color: '#666666',
-                transition: 'all 0.3s ease'
+                transition: 'all 0.3s ease',
+                cursor: 'pointer'
               }}
               data-testid="status-lost"
+              onClick={() => lostIndex !== -1 && handleStatusClick(statuses[lostIndex])}
             >
               <div style={{
                 display: 'flex',
@@ -196,9 +246,17 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
               borderRadius: '0 20px 20px 0',
               marginRight: '0',
               transition: 'all 0.3s ease',
-              cursor: 'default'
+              cursor: 'pointer'
             }}
             data-testid={isConverted ? "status-converted" : "status-lost"}
+            onClick={() => {
+              // When clicking on an active status, show options to change to other statuses
+              if (isConverted && openIndex !== -1) {
+                handleStatusClick(statuses[openIndex]);
+              } else if (isLost && openIndex !== -1) {
+                handleStatusClick(statuses[openIndex]);
+              }
+            }}
           >
             <div style={{
               display: 'flex',
@@ -228,6 +286,27 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
           </div>
         )}
       </div>
+      
+      {/* Status Change Confirmation Modal */}
+      <Modal
+        title="Confirm Status Change"
+        open={modalVisible}
+        onOk={handleConfirmStatusChange}
+        onCancel={handleCancelModal}
+        confirmLoading={isLoading}
+        okText="Confirm"
+        cancelText="Cancel"
+        okType="primary"
+        data-testid="status-change-modal"
+      >
+        <p>
+          Are you sure you want to change the lead status to{' '}
+          <strong>{selectedStatus?.value}</strong>?
+        </p>
+        <p style={{ color: '#666', fontSize: '14px', marginTop: '8px' }}>
+          This action will update the lead's current status and may trigger additional workflows.
+        </p>
+      </Modal>
     </div>
   );
 }; 
