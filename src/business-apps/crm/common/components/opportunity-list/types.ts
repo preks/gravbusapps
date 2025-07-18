@@ -10,26 +10,31 @@ export interface Opportunity {
     id: string;
     value: string;
     code: string;
+    objectValue?: any;
   };
   salesPipelineStage?: {
     id: string;
     value: string;
     code: string;
+    objectValue?: any;
   };
   salesOpportunityStatus?: {
     id: string;
     value: string;
     code: string;
+    objectValue?: any;
   };
   salesLeadSource?: {
     id: string;
     value: string;
     code: string;
+    objectValue?: any;
   };
   currency?: {
     id: string;
     value: string;
     code: string;
+    objectValue?: any;
   };
   account?: {
     id: string;

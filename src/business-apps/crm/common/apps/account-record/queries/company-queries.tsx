@@ -1,6 +1,8 @@
 export interface CompanyData {
     id: string;
     name: string;
+    email?: string;
+    phone?: string;
     version:number;
     website:string;
     legalForm: {
@@ -9,6 +11,10 @@ export interface CompanyData {
       id: string;
     };
     numberOfEmployees: {
+      value: string;
+    };
+    annualRevenue?: {
+      id: string;
       value: string;
     };
     contact: {
@@ -39,6 +45,8 @@ export interface CompanyData {
     }[];
     numberOfEmployeesRef: string;
     foundationDate: string;
+    createdAt?: string;
+    addressLine?: string;
     industry: {
       id: string;
       code: string;
@@ -89,10 +97,6 @@ export const GET_COMPANIES = `
     numberOfEmployees {
       value
     }
-    contact {
-      firstName
-      lastName
-    }
     addresses {
       city
       country {
@@ -136,53 +140,30 @@ export const GET_COMPANY_BY_ID = `
       id
       version
       name
+      email
+      phone
       website
-      legalForm {
-        value
-        code
-        id
-      }
-      numberOfEmployeesRef
-      numberOfEmployees {
-        value
-      }
-      contact {
+      ownerEmployee {
         firstName
         lastName
-        email
-        phone
       }
-      addresses {
-        city
-        countryRef
-        version
-        regionRef
-        postalCode
+      createdAt
+      legalForm {
         id
-        addressType
-        addressLine
-        region {
-          id
-          value
-          code
-        }
-        country {
-          id
-          value
-          code
-        }
+        value
       }
-
-      foundationDate
       industry {
         id
-        code
         value
       }
-      ownerEmployee {
+      addressLine
+      numberOfEmployees {
         id
-        lastName
-        firstName
+        value
+      }
+      annualRevenue {
+        id
+        value
       }
     }
   }

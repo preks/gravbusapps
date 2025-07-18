@@ -1,7 +1,7 @@
 import React from "react";
 import { List, Tag } from "antd";
 import { formatDate } from '@/common/utils/windowUtils';
-import { BusinessAppContextProps } from "../../../../../../common/BusinessAppContext";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
 export interface AbsenceListDisplayItem {
   id: string;

@@ -14,7 +14,8 @@ const AnalyticsMetrics = () => {
       changeType: "positive",
       icon: TrendingUp,
       description: "Year over year",
-      color: "gba:text-green-600"
+      iconColor: "gba:text-green-600",
+      iconBg: "gba:bg-green-100"
     },
     {
       title: "Average ROI",
@@ -23,7 +24,8 @@ const AnalyticsMetrics = () => {
       changeType: "positive", 
       icon: Target,
       description: "Across all investments",
-      color: "gba:text-blue-600"
+      iconColor: "gba:text-blue-600",
+      iconBg: "gba:bg-blue-100"
     },
     {
       title: "Risk-Adjusted Return",
@@ -32,7 +34,8 @@ const AnalyticsMetrics = () => {
       changeType: "positive",
       icon: Award,
       description: "Sharpe ratio: 1.24",
-      color: "gba:text-purple-600"
+      iconColor: "gba:text-purple-600",
+      iconBg: "gba:bg-purple-100"
     },
     {
       title: "Liquidity Ratio",
@@ -41,7 +44,8 @@ const AnalyticsMetrics = () => {
       changeType: "negative",
       icon: DollarSign,
       description: "Available for deployment",
-      color: "gba:text-amber-600"
+      iconColor: "gba:text-amber-600",
+      iconBg: "gba:bg-amber-100"
     },
     {
       title: "Investment Velocity",
@@ -50,7 +54,8 @@ const AnalyticsMetrics = () => {
       changeType: "positive",
       icon: Calendar,
       description: "Deployed this quarter",
-      color: "gba:text-indigo-600"
+      iconColor: "gba:text-indigo-600",
+      iconBg: "gba:bg-indigo-100"
     },
     {
       title: "Portfolio Diversification",
@@ -59,7 +64,8 @@ const AnalyticsMetrics = () => {
       changeType: "positive",
       icon: TrendingUp,
       description: "Herfindahl index",
-      color: "gba:text-teal-600"
+      iconColor: "gba:text-teal-600",
+      iconBg: "gba:bg-teal-100"
     }
   ];
 
@@ -70,33 +76,37 @@ const AnalyticsMetrics = () => {
         const isPositive = metric.changeType === "positive";
         
         return (
-          <Card key={index} className="gba:hover:shadow-md gba:transition-shadow">
-            <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
-              <CardTitle className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {metric.title}
-              </CardTitle>
-              <IconComponent className={`gba:h-4 gba:w-4 ${metric.color}`} />
+          <Card key={index} className="gba:h-full">
+            <CardHeader>
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <div className={`gba:p-2 ${metric.iconBg} gba:rounded-lg`}>
+                  <IconComponent className={`gba:h-5 gba:w-5 ${metric.iconColor}`} />
+                </div>
+                <div>
+                  <CardTitle>
+                    {metric.title}
+                  </CardTitle>
+                  <p className="gba:text-sm gba:text-gray-600">
+                    {metric.description}
+                  </p>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="gba:p-6">
               <div className="gba:space-y-2">
                 <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
                   {metric.value}
                 </div>
-                <div className="gba:flex gba:items-center gba:justify-between">
-                  <div className="gba:flex gba:items-center gba:gap-1">
-                    {isPositive ? (
-                      <TrendingUp className="gba:h-3 gba:w-3 gba:text-green-500" />
-                    ) : (
-                      <TrendingDown className="gba:h-3 gba:w-3 gba:text-red-500" />
-                    )}
-                    <span className={`gba:text-xs gba:font-medium ${
-                      isPositive ? 'gba:text-green-600' : 'gba:text-red-600'
-                    }`}>
-                      {metric.change}
-                    </span>
-                  </div>
-                  <span className="gba:text-xs gba:text-gray-500">
-                    {metric.description}
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  {isPositive ? (
+                    <TrendingUp className="gba:h-3 gba:w-3 gba:text-green-500" />
+                  ) : (
+                    <TrendingDown className="gba:h-3 gba:w-3 gba:text-red-500" />
+                  )}
+                  <span className={`gba:text-xs gba:font-medium ${
+                    isPositive ? 'gba:text-green-600' : 'gba:text-red-600'
+                  }`}>
+                    {metric.change}
                   </span>
                 </div>
               </div>

@@ -15,10 +15,14 @@ import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
 
 interface DocumentsTabProps {
   employee: Employee;
   accessToken: string;
+  employeeId?: string; // Optional employeeId override for permissions check
+  userInfo?: UserInfoProps; // Current user info for self-view check
+  isSelfView: boolean; // Whether user is viewing their own profile
 }
 
 interface EmployeeDocument {
@@ -64,7 +68,7 @@ interface Document {
  * Documents Tab Component
  * Displays documents related to the employee
  */
-const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) => {
+const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSelfView }) => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -609,22 +613,23 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) =>
             </div>
           </div>
           
-          {/* Upload document button */}
-          <div>
-            <AppActionButton
-              data-testid="upload-document-button"
-              variant="primary"
-              contextsArray={[FlowContextName.documentPersonal]}
-              externalContextData={{
-                employeeId: employee?.id
-              }}
-              prefixDataTestId="upload-document"
-              accessToken={accessToken}
-              autoExecuteSingleAction={true}
-            >
-              Upload Document
-            </AppActionButton>
-          </div>
+          {isSelfView && (
+            <div>
+              <AppActionButton
+                data-testid="upload-document-button"
+                variant="primary"
+                contextsArray={[FlowContextName.documentPersonal]}
+                externalContextData={{
+                  employeeId: employee?.id
+                }}
+                prefixDataTestId="upload-document"
+                accessToken={accessToken}
+                autoExecuteSingleAction={true}
+              >
+                Upload Document
+              </AppActionButton>
+            </div>
+          )}
         </div>
 
         <Empty 

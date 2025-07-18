@@ -285,6 +285,7 @@ export const useEmployeeData = (accessToken: string, activeStructureId: string, 
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
+    console.log('Fetching employee data...');
     if (skipRequest || !accessToken || !employeeId) {
       setData(null);
       setIsLoading(false);

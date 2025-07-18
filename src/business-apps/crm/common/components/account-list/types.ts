@@ -4,13 +4,17 @@ export interface Account {
   website?: string;
   phone?: string;
   email?: string;
+  contactFirstName?: string;
+  contactLastName?: string;
   industry?: {
     id: string;
     value: string;
+    objectValue?: any;
   };
   type?: {
     id: string;
     value: string;
+    objectValue?: any;
   };
   ownerEmployee?: {
     id: string;

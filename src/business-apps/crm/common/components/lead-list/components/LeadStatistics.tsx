@@ -4,7 +4,6 @@ import {
   UserOutlined, 
   FireOutlined, 
   ShopOutlined, 
-  BankOutlined,
   TrophyOutlined 
 } from '@ant-design/icons';
 
@@ -29,7 +28,6 @@ interface LeadStatisticsWithTrendProps {
     };
   };
   mostCommonLeadSource: string;
-  mostCommonIndustry: string;
   isLoading?: boolean;
   error?: Error | null;
   onRetry?: () => void;
@@ -38,7 +36,6 @@ interface LeadStatisticsWithTrendProps {
 export const LeadStatisticsWithTrend: React.FC<LeadStatisticsWithTrendProps> = ({
   trendData,
   mostCommonLeadSource,
-  mostCommonIndustry,
   isLoading = false,
   error = null,
   onRetry
@@ -92,15 +89,6 @@ export const LeadStatisticsWithTrend: React.FC<LeadStatisticsWithTrendProps> = (
       description: 'Most common in recent leads'
     },
     {
-      key: 'top-industry',
-      title: 'Top Industry',
-      value: mostCommonIndustry,
-      prefix: <BankOutlined />,
-      color: '#fa8c16',
-      span: { xs: 24, sm: 12, md: 8, lg: 4, xl: 4 },
-      description: 'Most common in recent leads'
-    },
-    {
       key: 'conversion-rate',
       title: 'Conversion Rate',
       value: trendData.conversionRate.currentRate,
@@ -125,7 +113,7 @@ export const LeadStatisticsWithTrend: React.FC<LeadStatisticsWithTrendProps> = (
         isLoading={isLoading}
         error={error}
         onRetry={onRetry}
-        skeletonCount={5}
+        skeletonCount={4}
         emptyText="No lead statistics available."
         data-testid="lead-statistics-with-trend"
       />

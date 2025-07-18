@@ -37,24 +37,27 @@ const transformOpportunityData = (apiOpportunity: OpportunityData): Opportunity 
     estimatedAmount: apiOpportunity.estimatedAmount || 0,
     winningChance: apiOpportunity.winningChance || 0,
     closeDate: apiOpportunity.closeDate || '',
-    stage: apiOpportunity.salesPipelineStage?.value || temporaryMapToStage(apiOpportunity.stage) || '',
+    stage: apiOpportunity.salesPipelineStage?.value || '',
     salesPipeline: apiOpportunity.salesPipeline ? {
       id: apiOpportunity.salesPipeline.id,
       value: apiOpportunity.salesPipeline.value,
-      code: apiOpportunity.salesPipeline.code
-    } : { id: '', value: '', code: '' },
+      code: apiOpportunity.salesPipeline.code,
+      objectValue: apiOpportunity.salesPipeline.objectValue
+    } : { id: '', value: '', code: '', objectValue: undefined },
     salesPipelineStage: apiOpportunity.salesPipelineStage ? {
       id: apiOpportunity.salesPipelineStage.id,
       value: apiOpportunity.salesPipelineStage.value,
-      code: apiOpportunity.salesPipelineStage.code
-    } : { id: '', value: '', code: '' },
+      code: apiOpportunity.salesPipelineStage.code,
+      objectValue: apiOpportunity.salesPipelineStage.objectValue
+    } : { id: '', value: '', code: '', objectValue: undefined },
     salesOpportunityStatus: { id: '', value: '', code: '' }, // Field doesn't exist in API
     salesLeadSource: { id: '', value: '', code: '' }, // Field doesn't exist in API
     currency: apiOpportunity.currency ? {
       id: apiOpportunity.currency.id,
       value: apiOpportunity.currency.value,
-      code: apiOpportunity.currency.code
-    } : { id: '', value: 'USD', code: 'USD' },
+      code: apiOpportunity.currency.code,
+      objectValue: apiOpportunity.currency.objectValue
+    } : { id: '', value: 'USD', code: 'USD', objectValue: undefined },
     account: apiOpportunity.account ? {
       id: apiOpportunity.account.id,
       name: apiOpportunity.account.name
@@ -134,6 +137,12 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
             displayName: { _ilike: searchTerm } 
           } 
         });
+
+        // Add stage and pipeline search
+        searchConditions.push({ stage: { _ilike: searchTerm } }); // Added: displayed in stage
+        searchConditions.push({ salesPipelineStage: { value: { _ilike: searchTerm } } }); // Added: displayed in stage
+        searchConditions.push({ pipeline: { value: { _ilike: searchTerm } } }); // Added: displayed in pipeline
+        searchConditions.push({ salesPipeline: { value: { _ilike: searchTerm } } }); // Added: displayed in pipeline
         
         // Add number-specific conditions if the search term can be parsed as a number
         if (isNumber) {

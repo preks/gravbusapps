@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from 'antd';
 import { MailOutlined, PhoneOutlined, UserOutlined } from '@ant-design/icons';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -38,7 +37,13 @@ export const ContactHeader: React.FC<ContactHeaderProps> = ({ contact, contactId
               {contact.email && (
                 <>
                   <MailOutlined style={{ marginRight: '4px' }} />
-                  <span>{contact.email}</span>
+                  <a 
+                    href={`mailto:${contact.email}`}
+                    style={{ color: '#3b82f6', textDecoration: 'none' }}
+                    data-testid="contact-header-email-link"
+                  >
+                    {contact.email}
+                  </a>
                   <span style={{ margin: '0 8px' }}>•</span>
                 </>
               )}
@@ -66,7 +71,7 @@ export const ContactHeader: React.FC<ContactHeaderProps> = ({ contact, contactId
               data-testid="contact-record-action-button"
               variant="primary"
               size="md"
-              contextsArray={[FlowContextName.employeeEntity]}
+              contextsArray={[FlowContextName.contactEntity]}
               externalContextData={{
                 contactId: contactId
               }}
