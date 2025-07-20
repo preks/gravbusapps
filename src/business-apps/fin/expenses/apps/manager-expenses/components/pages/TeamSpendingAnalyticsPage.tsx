@@ -484,12 +484,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         <div className="gba:space-y-4">
           <Label className="gba:text-sm gba:font-semibold gba:text-foreground">Location Filters</Label>
           <div className="gba:relative">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:z-10" />
+            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
             <Input
               placeholder="Search locations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="gba:pl-11 gba:h-10 gba:text-sm gba:border-input"
+              className="gba:pl-12 gba:h-10 gba:text-sm gba:border-input"
             />
           </div>
           <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
@@ -515,12 +515,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         <div className="gba:space-y-4">
           <Label className="gba:text-sm gba:font-semibold gba:text-foreground">Department Filters</Label>
           <div className="gba:relative">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:z-10" />
+            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
             <Input
               placeholder="Search departments..."
               value={departmentSearchTerm}
               onChange={(e) => setDepartmentSearchTerm(e.target.value)}
-              className="gba:pl-11 gba:h-10 gba:text-sm gba:border-input"
+              className="gba:pl-12 gba:h-10 gba:text-sm gba:border-input"
             />
           </div>
           <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
