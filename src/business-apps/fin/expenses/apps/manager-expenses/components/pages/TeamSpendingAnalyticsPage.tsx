@@ -460,19 +460,19 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             className="gba:space-y-3"
           >
             <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
-              <RadioGroupItem value={DateRangeOption.LAST_30_DAYS} id="last-30-days" className="gba:mt-0.5" />
+              <RadioGroupItem value={DateRangeOption.LAST_30_DAYS} id="last-30-days" />
               <Label htmlFor="last-30-days" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">Last 30 Days</Label>
             </div>
             <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
-              <RadioGroupItem value={DateRangeOption.LAST_90_DAYS} id="last-90-days" className="gba:mt-0.5" />
+              <RadioGroupItem value={DateRangeOption.LAST_90_DAYS} id="last-90-days" />
               <Label htmlFor="last-90-days" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">Last 90 Days</Label>
             </div>
             <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
-              <RadioGroupItem value={DateRangeOption.YEAR_TO_DATE} id="current-year" className="gba:mt-0.5" />
+              <RadioGroupItem value={DateRangeOption.YEAR_TO_DATE} id="current-year" />
               <Label htmlFor="current-year" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">Current Year</Label>
             </div>
             <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
-              <RadioGroupItem value={DateRangeOption.CUSTOM} id="custom" className="gba:mt-0.5" />
+              <RadioGroupItem value={DateRangeOption.CUSTOM} id="custom" />
               <Label htmlFor="custom" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">Custom Range</Label>
             </div>
           </RadioGroup>
@@ -484,12 +484,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         <div className="gba:space-y-4">
           <Label className="gba:text-sm gba:font-semibold gba:text-foreground">Location Filters</Label>
           <div className="gba:relative">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4" />
+            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:z-10" />
             <Input
               placeholder="Search locations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
+              className="gba:pl-11 gba:h-10 gba:text-sm gba:border-input"
             />
           </div>
           <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
@@ -499,7 +499,6 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                   id={location.id}
                   checked={location.selected}
                   onCheckedChange={() => toggleLocationFilter(location.id)}
-                  className="gba:mt-0.5"
                 />
                 <Label htmlFor={location.id} className="gba:text-sm gba:leading-relaxed gba:cursor-pointer gba:flex-1">{location.name}</Label>
               </div>
@@ -516,12 +515,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         <div className="gba:space-y-4">
           <Label className="gba:text-sm gba:font-semibold gba:text-foreground">Department Filters</Label>
           <div className="gba:relative">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4" />
+            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:z-10" />
             <Input
               placeholder="Search departments..."
               value={departmentSearchTerm}
               onChange={(e) => setDepartmentSearchTerm(e.target.value)}
-              className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
+              className="gba:pl-11 gba:h-10 gba:text-sm gba:border-input"
             />
           </div>
           <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
@@ -531,7 +530,6 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                   id={department.id}
                   checked={department.selected}
                   onCheckedChange={() => toggleDepartmentFilter(department.id)}
-                  className="gba:mt-0.5"
                 />
                 <Label htmlFor={department.id} className="gba:text-sm gba:leading-relaxed gba:cursor-pointer gba:flex-1">{department.name}</Label>
               </div>
