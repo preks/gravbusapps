@@ -4,6 +4,8 @@ export interface Account {
   website?: string;
   phone?: string;
   email?: string;
+  contactFirstName?: string;
+  contactLastName?: string;
   industry?: {
     id: string;
     value: string;

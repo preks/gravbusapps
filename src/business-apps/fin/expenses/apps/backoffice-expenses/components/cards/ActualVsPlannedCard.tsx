@@ -4,11 +4,8 @@
  */
 
 import React from 'react';
-import { Card, Statistic, Spin, Typography, Tooltip, Alert } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system';
 import { ExpensePlanYearly, YTDStats } from '../../types';
-
-const { Text } = Typography;
 
 export interface ActualVsPlannedCardProps {
   loading: boolean;
@@ -44,80 +41,55 @@ const ActualVsPlannedCard: React.FC<ActualVsPlannedCardProps> = ({ loading, erro
     return { difference, percentDifference, isOverBudget: difference > 0 };
   };
 
-  if (error) {
+  if (loading) {
     return (
-      <Card title="Actual vs Planned" className="gba:bg-blue-50" style={{ height: '100%' }}>
-        <Alert message={`Error: ${error.message}`} type="error" showIcon />
-      </Card>
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-32" data-testid="actual-vs-planned-loading">
+        <Spinner size="lg" />
+      </div>
     );
   }
 
-  const { difference, percentDifference, isOverBudget } = calculateDifference();
-  const actualAmount = Number(ytdStats.totalAmount) || 0;
-  const plannedAmount = Number(expensePlanYearly.totalAmount) || 0;
-  let progressPercent = 0;
-  if (plannedAmount > 0) {
-    progressPercent = Math.min(Math.round((actualAmount / plannedAmount) * 100), 100);
+  if (error) {
+    return (
+      <div className="gba:p-4" data-testid="actual-vs-planned-error">
+        <Alert variant="destructive">
+          <div>
+            <h4 className="gba:font-semibold">Actual vs Planned</h4>
+            <p className="gba:text-sm gba:mt-1">Error: {error.message}</p>
+          </div>
+        </Alert>
+      </div>
+    );
   }
 
+  const { percentDifference, isOverBudget } = calculateDifference();
+  const actualAmount = Number(ytdStats.totalAmount) || 0;
+  const plannedAmount = Number(expensePlanYearly.totalAmount) || 0;
+
+  // Create KPI card data
+  const kpiCardData: KpiCardData = {
+    id: 'actual-vs-planned',
+    title: `Actual vs Planned ${currentYear}`,
+    value: Math.abs(percentDifference).toFixed(1),
+    suffix: '%',
+    decimalPlaces: 1,
+    footer: `Planned: ${formatCurrency(plannedAmount)} (${expensePlanYearly.count} plans) | Actual: ${formatCurrency(actualAmount)} (${ytdStats.count} expenses)`,
+    trend: {
+      value: Math.abs(percentDifference).toFixed(1),
+      positive: !isOverBudget,
+      description: isOverBudget ? 'over budget' : 'under budget'
+    },
+    icon: 'target',
+    iconColor: isOverBudget ? '#ff4d4f' : '#52c41a'
+  };
+
   return (
-    <Card title={`Actual vs Planned ${currentYear}`} className="gba:bg-blue-50" style={{ height: '100%' }}>
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          <Spin size="large" />
-        </div>
-      ) : (
-        <>
-          <Statistic
-            title="Budget Utilization"
-            value={percentDifference}
-            precision={2}
-            valueStyle={{ color: isOverBudget ? '#cf1322' : '#3f8600' }}
-            prefix={isOverBudget ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
-            suffix="%"
-          />
-
-          <div className="gba:mt-2">
-            <Text strong>Planned: </Text>
-            <Text>
-              {formatCurrency(expensePlanYearly.totalAmount)} ({expensePlanYearly.count} plans)
-            </Text>
-          </div>
-
-          <div className="gba:mt-1">
-            <Text strong>Actual: </Text>
-            <Text>
-              {formatCurrency(ytdStats.totalAmount)} ({ytdStats.count} expenses)
-            </Text>
-          </div>
-
-          <div className="gba:mt-2">
-            <Tooltip title={`${progressPercent}% of planned budget spent`}>
-              <div style={{ position: 'relative', height: '8px', backgroundColor: '#f0f0f0', borderRadius: '4px', overflow: 'hidden' }}>
-                <div
-                  style={{
-                    position: 'absolute',
-                    height: '100%',
-                    backgroundColor: isOverBudget ? '#ff4d4f' : '#52c41a',
-                    width: `${Math.max(0.5, progressPercent)}%`,
-                    transition: 'width 0.3s ease',
-                  }}
-                />
-              </div>
-              <div style={{ textAlign: 'center', marginTop: '4px', fontSize: '12px', color: '#666' }}>
-                {progressPercent}%
-              </div>
-            </Tooltip>
-          </div>
-
-          <div className="gba:mt-2 gba:text-xs gba:text-gray-500">
-            {isOverBudget
-              ? `Over budget by ${formatCurrency(Math.abs(difference))} (${Math.abs(percentDifference).toFixed(1)}%)`
-              : `Under budget by ${formatCurrency(Math.abs(difference))} (${Math.abs(percentDifference).toFixed(1)}%)`}
-          </div>
-        </>
-      )}
-    </Card>
+    <div data-testid="actual-vs-planned-card">
+      <SectionKpiCards 
+        cards={[kpiCardData]} 
+        data-testid="actual-vs-planned-kpi-cards"
+      />
+    </div>
   );
 };
 

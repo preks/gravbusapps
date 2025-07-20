@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Statistic, Spin, Alert } from 'antd';
+import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system';
 
 export interface PendingRequestsCardProps {
   loading: boolean;
@@ -8,24 +8,45 @@ export interface PendingRequestsCardProps {
 }
 
 const PendingRequestsCard: React.FC<PendingRequestsCardProps> = ({ loading, error, pendingRequestsCount }) => {
-  if (error) {
+  if (loading) {
     return (
-      <Card title="Pending Requests" style={{ height: '100%' }}>
-        <Alert message={`Error: ${error.message}`} type="error" showIcon />
-      </Card>
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-32" data-testid="pending-requests-loading">
+        <Spinner size="lg" />
+      </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="gba:p-4" data-testid="pending-requests-error">
+        <Alert variant="destructive">
+          <div>
+            <h4 className="gba:font-semibold">Pending Requests</h4>
+            <p className="gba:text-sm gba:mt-1">Error: {error.message}</p>
+          </div>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Create KPI card data
+  const kpiCardData: KpiCardData = {
+    id: 'pending-requests',
+    title: 'Pending Requests',
+    value: pendingRequestsCount.toString(),
+    suffix: 'requests',
+    footer: 'Expense requests awaiting approval',
+    icon: 'clock',
+    iconColor: '#1890ff'
+  };
+
   return (
-    <Card title="Pending Requests" className="gba:bg-cyan-50" style={{ height: '100%' }}>
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          <Spin size="large" />
-        </div>
-      ) : (
-        <Statistic value={pendingRequestsCount} suffix="requests" />
-      )}
-    </Card>
+    <div data-testid="pending-requests-card">
+      <SectionKpiCards 
+        cards={[kpiCardData]} 
+        data-testid="pending-requests-kpi-cards"
+      />
+    </div>
   );
 };
 
