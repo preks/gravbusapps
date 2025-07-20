@@ -446,87 +446,99 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   );
 
   const renderFilters = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle>Filters & Settings</CardTitle>
+    <Card className="gba:sticky gba:top-6">
+      <CardHeader className="gba:pb-4">
+        <CardTitle className="gba:text-lg gba:font-semibold">Filters & Settings</CardTitle>
       </CardHeader>
-      <CardContent className="gba:space-y-6">
+      <CardContent className="gba:space-y-8">
         {/* Date Range Filter */}
-        <div>
-          <Label className="gba:text-sm gba:font-medium gba:mb-3 gba:block">Date Range</Label>
-          <RadioGroup value={dateRange} onValueChange={(value) => handleDateRangeChange(value as DateRangeOption)}>
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <RadioGroupItem value={DateRangeOption.LAST_30_DAYS} id="last-30-days" />
-              <Label htmlFor="last-30-days">Last 30 Days</Label>
+        <div className="gba:space-y-4">
+          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">Date Range</Label>
+          <RadioGroup 
+            value={dateRange} 
+            onValueChange={(value) => handleDateRangeChange(value as DateRangeOption)}
+            className="gba:space-y-3"
+          >
+            <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
+              <RadioGroupItem value={DateRangeOption.LAST_30_DAYS} id="last-30-days" className="gba:mt-0.5" />
+              <Label htmlFor="last-30-days" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">Last 30 Days</Label>
             </div>
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <RadioGroupItem value={DateRangeOption.LAST_90_DAYS} id="last-90-days" />
-              <Label htmlFor="last-90-days">Last 90 Days</Label>
+            <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
+              <RadioGroupItem value={DateRangeOption.LAST_90_DAYS} id="last-90-days" className="gba:mt-0.5" />
+              <Label htmlFor="last-90-days" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">Last 90 Days</Label>
             </div>
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <RadioGroupItem value={DateRangeOption.YEAR_TO_DATE} id="current-year" />
-              <Label htmlFor="current-year">Current Year</Label>
+            <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
+              <RadioGroupItem value={DateRangeOption.YEAR_TO_DATE} id="current-year" className="gba:mt-0.5" />
+              <Label htmlFor="current-year" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">Current Year</Label>
             </div>
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <RadioGroupItem value={DateRangeOption.CUSTOM} id="custom" />
-              <Label htmlFor="custom">Custom Range</Label>
+            <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
+              <RadioGroupItem value={DateRangeOption.CUSTOM} id="custom" className="gba:mt-0.5" />
+              <Label htmlFor="custom" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">Custom Range</Label>
             </div>
           </RadioGroup>
         </div>
 
-        <Separator />
+        <Separator className="gba:my-6" />
 
         {/* Location Filters */}
-        <div>
-          <Label className="gba:text-sm gba:font-medium gba:mb-3 gba:block">Location Filters</Label>
-          <div className="gba:relative gba:mb-3">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:text-sm" />
+        <div className="gba:space-y-4">
+          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">Location Filters</Label>
+          <div className="gba:relative">
+            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4" />
             <Input
               placeholder="Search locations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="gba:pl-10"
+              className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
             />
           </div>
-          <div className="gba:space-y-2 gba:max-h-32 gba:overflow-y-auto">
+          <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
             {locationFilters.map((location) => (
-              <div key={location.id} className="gba:flex gba:items-center gba:space-x-2">
+              <div key={location.id} className="gba:flex gba:items-center gba:space-x-3 gba:py-1 gba:rounded-md gba:hover:bg-accent/50 gba:px-2 gba:-mx-2 gba:transition-colors">
                 <Checkbox
                   id={location.id}
                   checked={location.selected}
                   onCheckedChange={() => toggleLocationFilter(location.id)}
+                  className="gba:mt-0.5"
                 />
-                <Label htmlFor={location.id} className="gba:text-sm">{location.name}</Label>
+                <Label htmlFor={location.id} className="gba:text-sm gba:leading-relaxed gba:cursor-pointer gba:flex-1">{location.name}</Label>
               </div>
             ))}
+            {locationFilters.length === 0 && (
+              <div className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2">No locations found</div>
+            )}
           </div>
         </div>
 
-        <Separator />
+        <Separator className="gba:my-6" />
 
         {/* Department Filters */}
-        <div>
-          <Label className="gba:text-sm gba:font-medium gba:mb-3 gba:block">Department Filters</Label>
-          <div className="gba:relative gba:mb-3">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:text-sm" />
+        <div className="gba:space-y-4">
+          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">Department Filters</Label>
+          <div className="gba:relative">
+            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4" />
             <Input
               placeholder="Search departments..."
               value={departmentSearchTerm}
               onChange={(e) => setDepartmentSearchTerm(e.target.value)}
-              className="gba:pl-10"
+              className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
             />
           </div>
-          <div className="gba:space-y-2 gba:max-h-32 gba:overflow-y-auto">
+          <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
             {departmentFilters.map((department) => (
-              <div key={department.id} className="gba:flex gba:items-center gba:space-x-2">
+              <div key={department.id} className="gba:flex gba:items-center gba:space-x-3 gba:py-1 gba:rounded-md gba:hover:bg-accent/50 gba:px-2 gba:-mx-2 gba:transition-colors">
                 <Checkbox
                   id={department.id}
                   checked={department.selected}
                   onCheckedChange={() => toggleDepartmentFilter(department.id)}
+                  className="gba:mt-0.5"
                 />
-                <Label htmlFor={department.id} className="gba:text-sm">{department.name}</Label>
+                <Label htmlFor={department.id} className="gba:text-sm gba:leading-relaxed gba:cursor-pointer gba:flex-1">{department.name}</Label>
               </div>
             ))}
+            {departmentFilters.length === 0 && (
+              <div className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2">No departments found</div>
+            )}
           </div>
         </div>
       </CardContent>
