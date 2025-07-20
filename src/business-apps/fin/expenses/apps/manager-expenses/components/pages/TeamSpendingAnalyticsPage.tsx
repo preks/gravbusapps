@@ -489,7 +489,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               placeholder="Search locations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="gba:pl-12 gba:h-10 gba:text-sm gba:border-input"
+              className="gba:pl-14 gba:h-10 gba:text-sm gba:border-input"
             />
           </div>
           <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
@@ -520,7 +520,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               placeholder="Search departments..."
               value={departmentSearchTerm}
               onChange={(e) => setDepartmentSearchTerm(e.target.value)}
-              className="gba:pl-12 gba:h-10 gba:text-sm gba:border-input"
+              className="gba:pl-14 gba:h-10 gba:text-sm gba:border-input"
             />
           </div>
           <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
