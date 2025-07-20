@@ -27,11 +27,11 @@ import { LineChartComponent, PieChartComponent, BarChartComponent } from '../mod
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { 
-  UserOutlined,
-  FileTextOutlined,
-  CalendarOutlined,
-  DollarOutlined
-} from '@ant-design/icons';
+  Users,
+  FileText,
+  Calendar,
+  CurrencyEur
+} from '@phosphor-icons/react';
 
 interface TeamSpendingAnalyticsPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void;
@@ -106,7 +106,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       key: 'total-expense-items',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_items', 'Total Expense Items'),
       value: data?.totalExpenseAmount ? formatNumberFunction(data.totalExpenseAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <DollarOutlined />,
+      prefix: <CurrencyEur />,
       color: '#1890ff',
       suffix: '€',
       valueIsString: true,
@@ -116,7 +116,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       key: 'total-expense-requests',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_requests', 'Total Expense Requests'),
       value: data?.totalRequestAmount ? formatNumberFunction(data.totalRequestAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <FileTextOutlined />,
+      prefix: <FileText />,
       color: '#52c41a',
       suffix: '€',
       valueIsString: true,
@@ -126,7 +126,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       key: 'total-expense-plans',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_plans', 'Total Expense Plans'),
       value: data?.totalPlanAmount ? formatNumberFunction(data.totalPlanAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <CalendarOutlined />,
+      prefix: <Calendar />,
       color: '#722ed1',
       suffix: '€',
       valueIsString: true,
@@ -136,7 +136,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       key: 'total-advance-payments',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments', 'Total Advance Payments'),
       value: data?.totalAdvanceAmount ? formatNumberFunction(data.totalAdvanceAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <UserOutlined />,
+      prefix: <Users />,
       color: '#13c2c2',
       suffix: '€',
       valueIsString: true,
