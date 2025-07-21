@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
-import { PiCalendar, PiFileText, PiCurrencyEur } from 'react-icons/pi';
+import { PiCalendar, PiFileText } from 'react-icons/pi';
+import { useCurrencyStore } from '../../../store/useCurrencyStore';
 import { ExpensePlanStatistics } from '../../../hooks/useGetExpensePlans'; // Assuming this type is exported from your hook
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { formatNumberFunction } from '@/common/utils/windowUtils';
@@ -39,6 +40,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
   activeFilter,
   onFilterChange,
 }) => {
+  // Use the global currency store
+  const { primaryCurrency } = useCurrencyStore();
   // Handle card click
   const handleCardClick = useCallback((filterKey: ExpenseStatus | null) => {
     if (filterKey === null) {
@@ -73,8 +76,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'pending-amount',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_amount', 'Pending Amount'),
-        value: planStats.pendingAmount ? formatCurrency(planStats.pendingAmount, 'EUR') : 'EUR 0,00',
-        prefix: <PiCurrencyEur />,
+        value: planStats.pendingAmount ? formatCurrency(planStats.pendingAmount, primaryCurrency) : `${primaryCurrency} 0,00`,
+        prefix: <span className="gba:font-medium" data-testid="expense-plan-stats-pending-currency-code">{primaryCurrency}</span>,
         color: '#faad14',
         valueIsString: true,
         span: { xs: 24, sm: 6 },
@@ -93,8 +96,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'total-amount',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.total_amount_submitted', 'Total Amount (Submitted)'),
-        value: planStats.sumTotalAmount ? formatCurrency(planStats.sumTotalAmount, 'EUR') : 'EUR 0,00',
-        prefix: <PiCurrencyEur />,
+        value: planStats.sumTotalAmount ? formatCurrency(planStats.sumTotalAmount, primaryCurrency) : `${primaryCurrency} 0,00`,
+        prefix: <span className="gba:font-medium" data-testid="expense-plan-stats-total-currency-code">{primaryCurrency}</span>,
         color: '#3f8600',
         valueIsString: true,
         span: { xs: 24, sm: 6 },

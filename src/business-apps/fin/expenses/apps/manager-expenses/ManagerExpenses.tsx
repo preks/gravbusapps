@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { PageLayout } from '@newwork/nw-design-system';
 import { PiGauge, PiPath, PiHandCoins, PiMoney, PiCalendarBlank, PiWalletDuotone } from 'react-icons/pi';
+import { useAppCurrency } from './hooks/useAppCurrency';
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
@@ -19,6 +20,15 @@ import TeamSpendingAnalyticsPage from './components/pages/TeamSpendingAnalyticsP
 export interface ManagerExpensesProps extends BusinessAppContextProps {}
 
 const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
+  // Initialize currency store when the app loads
+  const { primaryCurrency, isLoaded } = useAppCurrency(props);
+  
+  // Log the primary currency once it's loaded
+  useEffect(() => {
+    if (isLoaded) {
+      console.log('App initialized with primary currency:', primaryCurrency);
+    }
+  }, [isLoaded, primaryCurrency]);
   const viewOptions = [
     {
       key: 'dashboard',
@@ -79,7 +89,8 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     ...props,
     onNavigateToApprovals: handleNavigateToApprovals,
     onNavigateToReports: handleNavigateToReports,
-    onNavigateToAnalytics: handleNavigateToAnalytics
+    onNavigateToAnalytics: handleNavigateToAnalytics,
+    // Currency is now managed globally via the store, no need to pass it explicitly
   };
 
   // Render tab content based on active tab

@@ -1,8 +1,9 @@
 import React from 'react';
-import { Clock, FileText, CurrencyEur } from '@phosphor-icons/react';
+import { Clock, FileText } from '@phosphor-icons/react';
+import { useCurrencyStore } from '../../../store/useCurrencyStore';
 import { ExpenseRequestStatisticsData } from '../../../hooks/useGetExpenseRequests';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { formatAmount, formatCurrency } from '../../../utils/currencyUtils';
+import { formatCurrency } from '../../../utils/currencyUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpenseRequestStatisticsProps {
@@ -18,6 +19,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   requestStatsError,
   fetchRequestStatistics,
 }) => {
+  // Use the global currency store
+  const { primaryCurrency } = useCurrencyStore();
   // Calculate total requests count (pending + approved + rejected)
   const totalRequests = requestStats ? 
     requestStats.pendingCount + requestStats.approvedCount + requestStats.rejectedCount : 0;
@@ -36,9 +39,9 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     {
       key: 'pending-amount',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_amount', 'Pending Amount'),
-      value: requestStats.pendingAmount ? formatCurrency(requestStats.pendingAmount, 'EUR') : 'EUR 0,00',
+      value: requestStats.pendingAmount ? formatCurrency(requestStats.pendingAmount, primaryCurrency) : `${primaryCurrency} 0,00`,
       color: '#faad14',
-      prefix: <CurrencyEur />,
+      prefix: <span className="gba:font-medium" data-testid="expense-request-stats-pending-currency-code">{primaryCurrency}</span>,
       valueIsString: true,
       span: { xs: 24, sm: 12, md: 6, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.total_pending_funds', 'Total pending funds')
@@ -55,9 +58,9 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     {
       key: 'total-submitted-amount',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.total_submitted_amount', 'Total Submitted Amount'),
-      value: requestStats.totalSubmittedAmount ? formatCurrency(requestStats.totalSubmittedAmount, 'EUR') : 'EUR 0,00',
+      value: requestStats.totalSubmittedAmount ? formatCurrency(requestStats.totalSubmittedAmount, primaryCurrency) : `${primaryCurrency} 0,00`,
       color: '#3f8600',
-      prefix: <CurrencyEur />,
+      prefix: <span className="gba:font-medium" data-testid="expense-request-stats-total-currency-code">{primaryCurrency}</span>,
       valueIsString: true,
       span: { xs: 24, sm: 12, md: 6, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.all_expense_requests', 'All expense requests')

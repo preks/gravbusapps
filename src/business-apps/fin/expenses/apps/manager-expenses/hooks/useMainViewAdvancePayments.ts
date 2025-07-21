@@ -59,6 +59,7 @@ export interface AdvancePaymentStatistics {
   sumAmount: number | null;
   pendingCount: number;
   pendingAmount: number | null;
+  // primaryCurrency removed as it's now managed by the global currency store
 }
 
 interface AdvancePaymentStatisticsResponse {
@@ -270,6 +271,9 @@ export const useMainViewAdvancePayments = ({
       
       const data = result.data as AdvancePaymentStatisticsResponse;
       
+      // Currency is now managed by the global currency store
+      // No need to calculate the most used currency here
+      
       console.log('Advance payment statistics received:', {
         totalCount: data.allPaymentsStats?.aggregate.totalCount,
         sumAmount: data.allPaymentsStats?.aggregate.sum?.amount,
@@ -299,7 +303,7 @@ export const useMainViewAdvancePayments = ({
     setInternalCurrentPage(page);
   };
 
-  const approvePayment = useCallback(async (paymentId: string, comments: string = '') => {
+  const approvePayment = useCallback(async (_paymentId: string, _comments: string = '') => {
     if (!accessToken || !managerId) return;
 
     setApproving(true);
@@ -317,7 +321,7 @@ export const useMainViewAdvancePayments = ({
     }
   }, [accessToken, managerId, fetchPayments, fetchPaymentStatistics]);
 
-  const rejectPayment = useCallback(async (paymentId: string, reason: string) => {
+  const rejectPayment = useCallback(async (_paymentId: string, _reason: string) => {
     if (!accessToken || !managerId) return;
 
     setRejecting(true);

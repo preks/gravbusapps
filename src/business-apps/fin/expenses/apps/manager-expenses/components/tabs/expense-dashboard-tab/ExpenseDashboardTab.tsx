@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
-  Button, 
   Card, 
   CardContent, 
   CardHeader, 
   CardTitle 
 } from '@newwork/nw-design-system';
-import { PiListChecks, PiChartLineUp, PiFileText, PiCalendar, PiClockAfternoon, PiCurrencyDollar } from 'react-icons/pi';
+import { PiListChecks, PiChartLineUp, PiFileText, PiCalendar, PiClockAfternoon } from 'react-icons/pi';
+import { useCurrencyStore } from '../../../store/useCurrencyStore';
 import { useGetExpenseDashboard } from '../../../hooks/useGetExpenseDashboard';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import ExpenseTrendsChart from './components/ExpenseTrendsChart';
@@ -40,6 +40,8 @@ const getErrorMessage = (err: unknown): string => {
 };
 
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
+  // Use the global currency store
+  const { primaryCurrency } = useCurrencyStore();
   const { dashboardData, isLoading, error } = useGetExpenseDashboard(props);
 
   // Quick actions data
@@ -104,8 +106,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     {
       key: 'monthly-expenses',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expenses', 'Monthly Expenses'),
-      value: dashboardData?.monthlyExpensesAmount ? `€${formatNumberFunction(dashboardData.monthlyExpensesAmount.toString(), "0.00[,]00")}` : '€0,00',
-      prefix: <PiCurrencyDollar />,
+      value: dashboardData?.monthlyExpensesAmount ? `${primaryCurrency} ${formatNumberFunction(dashboardData.monthlyExpensesAmount.toString(), "0.00[,]00")}` : `${primaryCurrency} 0,00`,
+      prefix: <span className="gba:font-medium" data-testid="dashboard-monthly-expenses-currency-code">{primaryCurrency}</span>,
       color: '#3f8600',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
@@ -192,7 +194,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                       </div>
                       <div className="gba:text-right gba:ml-4">
                         <p className="gba:font-medium gba:text-sm">
-                          €{typeof request.totalAmount === 'number' ? formatNumberFunction(request.totalAmount.toString(), "0.00[,]00") : request.totalAmount}
+                          {primaryCurrency} {typeof request.totalAmount === 'number' ? formatNumberFunction(request.totalAmount.toString(), "0.00[,]00") : request.totalAmount}
                         </p>
                         <p className="gba:text-sm gba:text-muted-foreground">{request.requestDate}</p>
                       </div>
@@ -235,10 +237,10 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                   <div>
                     <div className="gba:flex gba:justify-between gba:mb-2 gba:text-sm">
                       <span>
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} €{formatNumberFunction(dashboardData.teamBudget?.used.toString() ?? '0', "0.00[,]00")}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {primaryCurrency} {formatNumberFunction(dashboardData.teamBudget?.used.toString() ?? '0', "0.00[,]00")}
                       </span>
                       <span>
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} €{formatNumberFunction(dashboardData.teamBudget?.total.toString() ?? '0', "0.00[,]00")}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} {primaryCurrency} {formatNumberFunction(dashboardData.teamBudget?.total.toString() ?? '0', "0.00[,]00")}
                       </span>
                     </div>
                     <div className="gba:w-full gba:bg-secondary gba:rounded-full gba:h-2">

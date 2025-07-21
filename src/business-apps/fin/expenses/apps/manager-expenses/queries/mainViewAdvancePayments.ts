@@ -134,5 +134,6 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
         }
       }
     }
+    # Currency stats are now handled at the app level via useAppCurrency
   }
 `;

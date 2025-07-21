@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { useCurrencyStore } from '../../../../store/useCurrencyStore';
 
 interface ExpenseTrendsChartProps {
   data: {
@@ -18,6 +19,8 @@ const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({
   data, 
   title = getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', 'Monthly Expense Trends') 
 }) => {
+  // Use the global currency store
+  const { primaryCurrency } = useCurrencyStore();
   if (!data || data.length === 0) {
     return (
       <Card>
@@ -52,9 +55,9 @@ const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
-              <YAxis tickFormatter={(value) => `€${formatNumberFunction(value.toString(), "0[,]0")}`} />
+              <YAxis tickFormatter={(value) => `${primaryCurrency} ${formatNumberFunction(value.toString(), "0[,]0")}`} data-testid="expense-trends-chart-y-axis" />
               <Tooltip 
-                formatter={(value: number) => [`€${formatNumberFunction(value.toString(), "0.00[,]00")}`, 'Amount']}
+                formatter={(value: number) => [`${primaryCurrency} ${formatNumberFunction(value.toString(), "0.00[,]00")}`, 'Amount']}
                 labelStyle={{ color: '#666' }}
               />
               <Bar dataKey="amount" fill="#8884d8" radius={[4, 4, 0, 0]} />
