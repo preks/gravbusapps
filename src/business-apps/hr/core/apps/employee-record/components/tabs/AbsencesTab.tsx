@@ -34,6 +34,7 @@ import {
   getTranslationFromI18nKeyAndLabel,
   getCatalogValue,
 } from '../../../../../../../common/utils/windowUtils';
+import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
 
 // Types for absence data
 interface AbsenceListCardAbsence {
@@ -66,6 +67,9 @@ interface AbsencesTabProps {
   employee: Employee;
   employeeAbsenceEntitlement: EmployeeAbsenceEntitlement[];
   accessToken: string;
+  employeeId?: string; // Optional employeeId override for permissions check
+  userInfo?: UserInfoProps; // Current user info for self-view check
+  isSelfView?: boolean; // Whether user is viewing their own profile
 }
 
 // GraphQL queries for absences and entitlements

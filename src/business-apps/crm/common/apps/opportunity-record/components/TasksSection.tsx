@@ -277,7 +277,15 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
                       <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
                         {getPriorityValue(task.priority)} priority • {getTypeValue(task.type)}
                         {task.dueDate && (
-                          <span> • Due: {dayjs(task.dueDate).format('MMM D, YYYY')}</span>
+                          <span 
+                            style={{ 
+                              color: dayjs(task.dueDate).isBefore(dayjs(), 'day') ? '#ff4d4f' : undefined,
+                              fontWeight: dayjs(task.dueDate).isBefore(dayjs(), 'day') ? '500' : undefined
+                            }}
+                          >
+                            • Due: {dayjs(task.dueDate).format('MMM D, YYYY')}
+                            {dayjs(task.dueDate).isBefore(dayjs(), 'day') && ' (Overdue)'}
+                          </span>
                         )}
                       </div>
                     </div>

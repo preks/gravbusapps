@@ -103,13 +103,19 @@ export const LeadTable: React.FC<LeadTableProps> = ({
 
   // Handle row click
   const handleRowClick = useCallback((record: Lead) => {
+    // Determine source based on sourceApp
+    const source = (sourceApp === 'investment-relations' || sourceApp === 'IRM') ? 'investments' : 'customer-relations';
+    
     // Navigate to lead record page
-    const url = buildPlatformUrl('/platform/crm/lead-record', { leadId: record.id });
+    const url = buildPlatformUrl('/platform/crm/lead-record', { 
+      leadId: record.id, 
+      source: source 
+    });
     navigateTo(url);
     
     // Also call the selection callback if provided
     onSelectLead?.(record);
-  }, [onSelectLead]);
+  }, [onSelectLead, sourceApp]);
 
   // Show error state
   if (error) {
@@ -189,7 +195,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                   data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('lead.company', 'Company & Industry')}
+                    {t('lead.company', 'Lead Company')}
                     {renderSortIcon('accountName')}
                   </div>
                 </TableHead>

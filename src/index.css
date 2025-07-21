@@ -15,7 +15,7 @@
 @import "tailwindcss" prefix(gba);
 @config "../tailwind.config.js";
 @import "tw-animate-css";
-@import "./business-apps/hr/absence/apps/AbsenceCalendar/styles/AbsenceCalendar.css";
+@import "./business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css";
 @import "./business-apps/fin/expenses/forms/expense-item/ExpenseItem.css";
 @import "./business-apps/fin/expenses/forms/expense-request/ExpenseRequest.css";
 @import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/SummaryScreen.css";
@@ -28,12 +28,12 @@
 @import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/AllowanceScreen.css";
 @import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/TripScreen.css";
 @import "@newwork/gravity-ui-catalog/dist/assets/style.no-base.css";
-@import "./business-apps/hr/absence/apps/AbsenceHub/styles/absenceHub.css";
-@import "./business-apps/hr/absence/apps/AbsenceHub/styles/absenceListCard.css";
-@import "./business-apps/hr/absence/apps/AbsenceHub/styles/entitlementCard.css";
-@import "./business-apps/hr/absence/apps/AbsenceHub/styles/statisticsTab.css";
-@import "./business-apps/hr/absence/apps/AbsenceHub/styles/upcomingAbsenceCard.css";
-@import "./business-apps/hr/absence/apps/AbsenceHub/styles/statsCard.css";
+@import "./business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css";
+@import "./business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css";
+@import "./business-apps/hr/absences/apps/personal-absences/styles/entitlementCard.css";
+@import "./business-apps/hr/absences/apps/personal-absences/styles/statisticsTab.css";
+@import "./business-apps/hr/absences/apps/personal-absences/styles/upcomingAbsenceCard.css";
+@import "./business-apps/hr/absences/apps/personal-absences/styles/statsCard.css";
 @import "@newwork/nw-design-system/index.css";
 
 @custom-variant dark (&:is(.dark *));

@@ -2,15 +2,17 @@ import { useState, useCallback, useMemo } from 'react';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
-// Define expense request status types
+// Define expense request status types - updated to match the correct options
 export enum ExpenseRequestStatus {
   DRAFT = 'DRAFT',
-  PENDING = 'PENDING',
-  SUBMITTED = 'SUBMITTED',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
+  IN_APPROVAL = 'IN_APPROVAL',
+  VERIFICATION_REQUIRED = 'VERIFICATION_REQUIRED',
+  REVISION_REQUIRED = 'REVISION_REQUIRED',
+  BOOKING_REQUIRED = 'BOOKING_REQUIRED',
+  TRANSFER_REQUIRED = 'TRANSFER_REQUIRED',
+  PAYMENT_REQUIRED = 'PAYMENT_REQUIRED',
   PAID = 'PAID',
-  CANCELLED = 'CANCELLED'
+  CLOSED = 'CLOSED'
 }
 
 // Interface for request filter
@@ -47,12 +49,14 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   
   const statusLabelMap: Record<string, string> = {
     [ExpenseRequestStatus.DRAFT]: 'Draft',
-    [ExpenseRequestStatus.PENDING]: 'Approval Required',
-    [ExpenseRequestStatus.SUBMITTED]: 'Submitted',
-    [ExpenseRequestStatus.APPROVED]: 'Approved',
-    [ExpenseRequestStatus.REJECTED]: 'Rejected',
+    [ExpenseRequestStatus.IN_APPROVAL]: 'Approval Required',
+    [ExpenseRequestStatus.VERIFICATION_REQUIRED]: 'Verification Required',
+    [ExpenseRequestStatus.REVISION_REQUIRED]: 'Revision Required',
+    [ExpenseRequestStatus.BOOKING_REQUIRED]: 'Booking Required',
+    [ExpenseRequestStatus.TRANSFER_REQUIRED]: 'Transfer Required',
+    [ExpenseRequestStatus.PAYMENT_REQUIRED]: 'Payment Required',
     [ExpenseRequestStatus.PAID]: 'Paid',
-    [ExpenseRequestStatus.CANCELLED]: 'Cancelled'
+    [ExpenseRequestStatus.CLOSED]: 'Closed'
   };
 
   // Define filter groups - memoized so they don't cause re-renders
@@ -64,7 +68,8 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
         { id: 'last30days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_30_days', 'Last 30 days'), selected: selectedFilters.includes('last30days') },
         { id: 'last90days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_90_days', 'Last 90 days'), selected: selectedFilters.includes('last90days') },
         { id: 'last180days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_180_days', 'Last 180 days'), selected: selectedFilters.includes('last180days') }
-      ]
+      ],
+      selectionMode: 'single'
     },
     {
       id: 'requestType',
@@ -72,7 +77,8 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       filters: [
         { id: 'general', label: 'General Expense', selected: selectedFilters.includes('general') },
         { id: 'trip', label: 'Trip', selected: selectedFilters.includes('trip') }
-      ]
+      ],
+      selectionMode: 'single'
     },
     {
       id: 'status',
@@ -84,7 +90,8 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
           label: statusLabelMap[status],
           selected: selectedFilters.includes(id) 
         };
-      })
+      }),
+      selectionMode: 'multiple'
     }
   ], [selectedFilters]);
   
@@ -128,13 +135,57 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   const getFilters = useCallback((): ExpenseRequestFilter => {
     const filters: ExpenseRequestFilter = {};
     
-    // Handle status filters, mapping UI 'draft' to backend 'created'
+    // Handle status filters, mapping UI status values to backend database values
     let statusFilters = selectedFilters
-      .filter(filter => Object.values(ExpenseRequestStatus).map(s => s.toLowerCase()).includes(filter));
+      .filter(filter => {
+        const validStatuses = Object.values(ExpenseRequestStatus).map(s => s.toLowerCase());
+        const isValid = validStatuses.includes(filter);
+        console.log(`Filter validation - ${filter}: ${isValid} (valid statuses: ${validStatuses.join(', ')})`);
+        return isValid;
+      });
 
-    if (statusFilters.includes('draft')) {
-      statusFilters = statusFilters.map(s => s === 'draft' ? 'CREATED' : s.toUpperCase());
-    }
+    // Map UI status values to database status values
+    console.log('Filter mapping - selected filters:', selectedFilters);
+    console.log('Filter mapping - status filters before mapping:', statusFilters);
+    
+    statusFilters = statusFilters.map(status => {
+      let mappedStatus;
+      switch (status) {
+        case 'draft':
+          mappedStatus = 'CREATED';
+          break;
+        case 'in_approval':
+          mappedStatus = 'PENDING';
+          break;
+        case 'verification_required':
+          mappedStatus = 'APPROVED';
+          break;
+        case 'revision_required':
+          mappedStatus = 'REJECTED'; // Changed from RETURNED to REJECTED
+          break;
+        case 'booking_required':
+          mappedStatus = 'VERIFIED';
+          break;
+        case 'transfer_required':
+          mappedStatus = 'BOOKED';
+          break;
+        case 'payment_required':
+          mappedStatus = 'TRANSFERRED';
+          break;
+        case 'paid':
+          mappedStatus = 'PAID';
+          break;
+        case 'closed':
+          mappedStatus = 'CLOSED';
+          break;
+        default:
+          mappedStatus = status.toUpperCase();
+      }
+      console.log(`Filter mapping - ${status} → ${mappedStatus}`);
+      return mappedStatus;
+    });
+    
+    console.log('Filter mapping - status filters after mapping:', statusFilters);
 
     if (statusFilters.length > 0) {
       filters.status = statusFilters;

@@ -5,16 +5,29 @@ import dayjs from 'dayjs';
 import { Card } from '@newwork/gravity-ui-catalog';
 import { Employee } from '../../hooks/useEmployeeData';
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
+import AppActionButton from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { PiPencilSimple } from 'react-icons/pi';
+import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
 
 interface EmploymentTabProps {
   employee: Employee;
+  accessToken: string;
+  employeeId?: string; // Optional employeeId override for permissions check
+  userInfo?: UserInfoProps; // Current user info
+  isSelfView: boolean; // Whether user is viewing their own profile
 }
 
 /**
  * Employment Tab Component
  * Displays employment-related information about the employee
  */
-const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
+const EmploymentTab: React.FC<EmploymentTabProps> = ({ 
+  employee,
+  accessToken,
+  isSelfView
+}) => {
+  // Using isSelfView from props instead of calculating it locally
 
   // Prepare organizational data
   const organizationalData = [
@@ -247,8 +260,22 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
           className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-conditions"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Conditions</h3>
+            {isSelfView && (
+              <AppActionButton 
+                data-testid="working-conditions-action-button"
+                variant="ghost"
+                contextsArray={[FlowContextName.updateEmployeeWorkingCondition]}
+                externalContextData={{
+                  employeeId: employee.id
+                }}
+                prefixDataTestId="working-conditions-action"
+                accessToken={accessToken}
+                autoExecuteSingleAction={true}
+                icon={<PiPencilSimple />}
+              />
+            )}
           </div>
           {renderDataItems(workingConditionsData)}
         </Card>
@@ -259,8 +286,22 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee }) => {
           className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-hours"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Hours</h3>
+            {isSelfView && (
+              <AppActionButton 
+                data-testid="working-hours-action-button"
+                variant="ghost"
+                contextsArray={[FlowContextName.updateEmployeeWorkingHours]}
+                externalContextData={{
+                  employeeId: employee.id
+                }}
+                prefixDataTestId="working-hours-action"
+                accessToken={accessToken}
+                autoExecuteSingleAction={true}
+                icon={<PiPencilSimple />}
+              />
+            )}
           </div>
           {renderDataItems(workingHoursData)}
         </Card>

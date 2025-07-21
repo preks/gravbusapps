@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Tabs } from 'antd';
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
 import { ToggleGroup, ToggleGroupItem, PageLayout } from '@newwork/nw-design-system';
 import {
-  DollarCircleOutlined,
-  TeamOutlined,
-  BarChartOutlined,
-  UserOutlined,
-  BankOutlined,
-  ContactsOutlined,
-  DashboardOutlined,
-  AppstoreOutlined,
-  UnorderedListOutlined
-} from '@ant-design/icons';
+  DollarSign,
+  Users,
+  BarChart3,
+  User,
+  Building2,
+  Contact as ContactIcon,
+  LayoutDashboard,
+  Grid3X3,
+  List
+} from 'lucide-react';
 import { TrendUp } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { LeadList } from '@/business-apps/crm/common/components/lead-list';
@@ -31,27 +31,27 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <DashboardOutlined />,
+      icon: <LayoutDashboard />,
       label: 'Portfolio'
     },
     {
       key: 'leads',
-      icon: <TeamOutlined />,
+      icon: <Users />,
       label: 'Leads'
     },
     {
       key: 'accounts',
-      icon: <BankOutlined />,
+      icon: <Building2 />,
       label: 'Accounts'
     },
     {
       key: 'contacts',
-      icon: <ContactsOutlined />,
+      icon: <ContactIcon />,
       label: 'Contacts'
     },
     {
       key: 'opportunities',
-      icon: <DollarCircleOutlined />,
+      icon: <DollarSign />,
       label: 'Opportunities'
     },
     {
@@ -76,6 +76,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
   };
 
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
+  const [opportunitiesSubTab, setOpportunitiesSubTab] = useState<string>('list');
 
   // Update URL when view changes
   const updateUrl = (view: string) => {
@@ -117,42 +118,25 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
   }, []);
 
   const renderOpportunitiesContent = () => {
-    const opportunitiesTabItems = [
-      {
-        key: 'list',
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <UnorderedListOutlined />
-            <span>List View</span>
-          </div>
-        ),
-        children: (
-          <OpportunityList {...context} sourceApp="IRM" />
-        )
-      },
-      {
-        key: 'board',
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <AppstoreOutlined />
-            <span>Board View</span>
-          </div>
-        ),
-        children: (
-          <OpportunityBoard {...context} sourceApp="IRM" />
-        )
-      }
-    ];
-
     return (
-      <Tabs
-        defaultActiveKey="list"
-        size="large"
-        className="gba:h-full gba:opportunities-tabs"
-        items={opportunitiesTabItems}
-        tabBarStyle={{ marginBottom: 16 }}
-        data-testid="opportunities-sub-tabs"
-      />
+      <Tabs value={opportunitiesSubTab} onValueChange={setOpportunitiesSubTab}>
+        <TabsList className="gba:mb-4">
+          <TabsTrigger value="list" data-testid="opportunities-list-tab">
+            <List className="gba:mr-2 gba:h-4 gba:w-4" />
+            List View
+          </TabsTrigger>
+          <TabsTrigger value="board" data-testid="opportunities-board-tab">
+            <Grid3X3 className="gba:mr-2 gba:h-4 gba:w-4" />
+            Board View
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="list">
+          <OpportunityList {...context} sourceApp="IRM" />
+        </TabsContent>
+        <TabsContent value="board">
+          <OpportunityBoard {...context} sourceApp="IRM" />
+        </TabsContent>
+      </Tabs>
     );
   };
 

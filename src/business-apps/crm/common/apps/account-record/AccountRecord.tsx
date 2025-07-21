@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { Row, Col, Spin } from 'antd';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Button, Spinner } from '@newwork/nw-design-system';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
@@ -8,6 +8,7 @@ import { AccountHeader } from "./components/AccountHeader";
 import { CompanyInformation } from "./components/CompanyInformation";
 import { ContactInformation } from "./components/ContactInformation";
 import { ActivityTimeline } from "./components/ActivityTimeline";
+import { TasksSection } from "./components/TasksSection";
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string;
@@ -15,61 +16,59 @@ interface AccountRecordContentProps extends BusinessAppContextProps {
 }
 
 const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, onBack, ...props }) => {
-  const { account, accountData, loading, error, refetchAccountData } = useAccountData(accountId, props.accessToken);
+  const [account, setAccount] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Listen for process completion events to refresh account data
+  const { account: accountData, loading: dataLoading, error: dataError, refetchAccountData } = useAccountData(accountId, props.accessToken);
+
+  // Get source from URL parameters to determine back navigation text
+  const source = useMemo(() => {
+    return new URLSearchParams(window.location.search).get('source');
+  }, []);
+
+  const getBackButtonText = () => {
+    return 'Back to Accounts';
+  };
+
   useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
+    const fetchAccountData = async () => {
+      if (!accountId) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        console.log('AccountRecord: Process completion event received:', event);
+        setLoading(true);
+        setError(null);
         
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          console.log('AccountRecord: Refreshing account data...');
-          refetchAccountData();
-          return;
-        }
-        
-        // Also check for different event structure
-        const response = event.detail?.response;
-        if (response?.detail?.resolution === 'success' || response?.account) {
-          console.log('AccountRecord: Refreshing account data from response...');
-          refetchAccountData();
+        if (accountData) {
+          setAccount(accountData);
+        } else if (dataError) {
+          setError(dataError);
         }
       } catch (err) {
-        console.error('Error handling process completion in AccountRecord:', err);
+        console.error('Error fetching account:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load account');
+      } finally {
+        setLoading(false);
       }
     };
 
-    // Listen to multiple possible event names for account updates
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ];
+    if (!dataLoading) {
+      fetchAccountData();
+    }
+  }, [accountId, accountData, dataLoading, dataError]);
 
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener);
-    });
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
-      });
-    };
-  }, [accountId, refetchAccountData]);
+  // Update loading state based on data loading
+  useEffect(() => {
+    setLoading(dataLoading);
+  }, [dataLoading]);
 
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -79,19 +78,20 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
           <p className="gba:text-red-500 gba:text-lg">{error || 'Account not found'}</p>
-          <button
+          <Button
             onClick={onBack}
-            className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
+            className="gba:mt-4"
+            variant="default"
           >
-            Back to Customer Relations
-          </button>
+            {getBackButtonText()}
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="gba:account-details-container" data-testid="account-detail" style={{ backgroundColor: 'white', padding: '16px' }}>
+    <div className="gba:contact-details-container" data-testid="contact-opportunity-investment-detail" style={{ backgroundColor: 'white', padding: '16px' }}>
       {/* Back navigation */}
       <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
         <button
@@ -100,7 +100,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           data-testid="back-button"
         >
           <ArrowLeftOutlined className="gba:mr-2" />
-          <span>Back to Customer Relations</span>
+          <span>{getBackButtonText()}</span>
         </button>
       </div>
 
@@ -115,28 +115,42 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
       />
 
       {/* Main content */}
-      <div className="gba:account-details-content" data-testid="account-details-content">
+      <div className="gba:contact-details-content" data-testid="contact-details-content">
         
-        {/* First Row: Company Information + Contacts */}
-        <Row gutter={24} style={{ marginBottom: '24px', display: 'flex', alignItems: 'stretch' }}>
+        {/* First Row: Company Information + Personal Info */}
+        <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mb-6">
           {/* Company Information - 3/4 width */}
-          <Col span={18} style={{ display: 'flex' }}>
-            <CompanyInformation account={account} accountData={accountData} />
-          </Col>
+          <div className="gba:col-span-3 gba:flex">
+            <CompanyInformation 
+              account={account} 
+              accountData={accountData} 
+              accountId={accountId}
+              context={props}
+            />
+          </div>
 
-          {/* Contacts - 1/4 width */}
-          <Col span={6} style={{ display: 'flex' }}>
-            <ContactInformation accountData={accountData} />
-          </Col>
-        </Row>
+          {/* Personal Information - 1/4 width */}
+          <div className="gba:col-span-1 gba:flex">
+            <ContactInformation 
+              accountData={accountData} 
+              accountId={accountId}
+              context={props}
+            />
+          </div>
+        </div>
 
-        {/* Second Row: Activity Timeline */}
-        <Row gutter={24}>
-          {/* Activity Timeline - Full width for now */}
-          <Col span={24}>
+        {/* Second Row: Activity Timeline + Tasks */}
+        <div className="gba:grid gba:grid-cols-2 gba:gap-6">
+          {/* Activity Timeline - 1/2 width */}
+          <div>
             <ActivityTimeline accountId={accountId} context={props} />
-          </Col>
-        </Row>
+          </div>
+
+          {/* Tasks - 1/2 width */}
+          <div>
+            <TasksSection accountId={accountId} context={props} />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -144,25 +158,39 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
 
 interface AccountRecordProps extends BusinessAppContextProps {
   accountId?: string;
+  source?: string;
   onBack?: () => void;
 }
 
 const AccountRecord: React.FC<AccountRecordProps> = (props) => {
-  // For testing, use hardcoded ID if no accountId provided
-  const accountId = props.accountId || new URLSearchParams(window.location.search).get('accountId') || 'b58eee23-54b1-4eb3-a0fe-aa59d2a3751c';
+  const accountId = useMemo(() => {
+    return props.accountId || new URLSearchParams(window.location.search).get('accountId');
+  }, [props.accountId]);
+
+  const source = useMemo(() => {
+    return props.source || new URLSearchParams(window.location.search).get('source');
+  }, [props.source]);
   
   const handleBack = () => {
     if (props.onBack) {
       props.onBack();
     } else {
-      // Navigate back to customer relations
+      // Navigate back based on source
+      switch (source) {
+        case 'investments':
+          navigateTo('/platform/irm/investment-relations?view=accounts');
+          break;
+        case 'customer-relations':
+        default:
       navigateTo('/platform/crm/customer-relations?view=accounts');
+          break;
+      }
     }
   };
 
   if (!accountId) {
     return (
-      <div data-testid="account-record-no-id">
+      <div data-testid="contact-record-no-id">
         <p>No account ID provided</p>
       </div>
     );

@@ -179,18 +179,15 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
   } = useLeadStatisticsWithTrend({ ...props, sourceApp });
 
   // Also get the text-based statistics that don't have trend data
-  const { fetchMostCommonLeadSource, fetchMostCommonIndustry } = useLeadStatisticsQueries({ ...props, sourceApp });
-  const [textStatistics, setTextStatistics] = useState({ mostCommonLeadSource: 'N/A', mostCommonIndustry: 'N/A' });
+  const { fetchMostCommonLeadSource } = useLeadStatisticsQueries({ ...props, sourceApp });
+  const [textStatistics, setTextStatistics] = useState({ mostCommonLeadSource: 'N/A' });
 
   // Fetch text statistics
   useEffect(() => {
     const fetchTextStats = async () => {
       try {
-        const [leadSource, industry] = await Promise.all([
-          fetchMostCommonLeadSource(),
-          fetchMostCommonIndustry()
-        ]);
-        setTextStatistics({ mostCommonLeadSource: leadSource, mostCommonIndustry: industry });
+        const leadSource = await fetchMostCommonLeadSource();
+        setTextStatistics({ mostCommonLeadSource: leadSource });
       } catch (error) {
         console.error('Error fetching text statistics:', error);
       }
@@ -199,7 +196,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     if (props.accessToken) {
       fetchTextStats();
     }
-  }, [props.accessToken, fetchMostCommonLeadSource, fetchMostCommonIndustry]);
+  }, [props.accessToken, fetchMostCommonLeadSource]);
   
   // Trigger initial data loading when component mounts
   useEffect(() => {
@@ -285,7 +282,6 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
           <LeadStatisticsWithTrend
             trendData={trendData}
             mostCommonLeadSource={textStatistics.mostCommonLeadSource}
-            mostCommonIndustry={textStatistics.mostCommonIndustry}
             isLoading={statsLoading}
             error={statsError}
             onRetry={refetchStats}

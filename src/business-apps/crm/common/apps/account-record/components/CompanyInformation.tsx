@@ -1,155 +1,188 @@
-import React from 'react';
-import { Card, Typography, Row, Col } from 'antd';
-import { BankOutlined, EnvironmentOutlined, TeamOutlined, CalendarOutlined, DollarOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Card, CardHeader, CardTitle, CardContent, Spinner, Alert } from '@newwork/nw-design-system';
 import { Account } from '../hooks/useAccountData';
-
-const { Text } = Typography;
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGetAccountById } from '../queries/GetAccountByIdQueries';
 
 interface CompanyInformationProps {
-  account: Account;
-  accountData: any;
+  account?: Account;
+  accountData?: any;
+  accountId?: string;
+  context?: BusinessAppContextProps;
 }
 
-export const CompanyInformation: React.FC<CompanyInformationProps> = ({ account, accountData }) => {
-  const getAddress = () => {
-    const address = accountData?.addresses?.[0] || account.addresses?.[0];
-    if (!address) return 'N/A';
-    
-    const parts = [
-      address.addressLine,
-      address.city,
-      address.postalCode,
-      address.region?.value,
-      address.country?.value
-    ].filter(Boolean);
-    
-    return parts.length > 0 ? parts.join(', ') : 'N/A';
-  };
-
-  const getRevenue = () => {
-    const revenue = accountData?.annualRevenue?.value || account.annualRevenue?.value || account.revenue;
-    return revenue || 'N/A';
-  };
-
-  const getEmployeeCount = () => {
-    return accountData?.numberOfEmployees?.value || account.numberOfEmployees?.value || account.size || 'N/A';
-  };
-
-  const getFoundedDate = () => {
-    const date = accountData?.foundationDate || account.foundationDate || account.founded;
-    if (!date) return 'N/A';
-    
-    try {
-      return new Date(date).getFullYear().toString();
-    } catch {
-      return date;
+export const CompanyInformation: React.FC<CompanyInformationProps> = ({ 
+  account, 
+  accountData: providedAccountData, 
+  accountId,
+  context 
+}) => {
+  const [fetchedAccountData, setFetchedAccountData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Use GraphQL query hook if context is provided
+  const { fetchAccountById } = context ? useGetAccountById(context) : { fetchAccountById: null };
+  
+  // Use provided data or fetch from GraphQL
+  const accountData = providedAccountData || fetchedAccountData;
+  
+  useEffect(() => {
+    // Only fetch if we don't have provided data and we have the necessary props
+    if (!providedAccountData && accountId && fetchAccountById) {
+      const loadAccountData = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          const result = await fetchAccountById({ id: accountId });
+          setFetchedAccountData(result.Account?.[0] || null);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to load account data');
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      loadAccountData();
     }
-  };
+  }, [providedAccountData, accountId, fetchAccountById]);
+
+  if (loading) {
+    return (
+      <Card className="gba:w-full gba:h-full">
+        <CardHeader>
+          <CardTitle>Company Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:text-center gba:py-10">
+            <Spinner size="lg" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="gba:w-full gba:h-full">
+        <CardHeader>
+          <CardTitle>Company Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <div className="gba:font-medium">Error Loading Company Information</div>
+            <div className="gba:text-sm gba:mt-1">{error}</div>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <Card 
-      className="gba:h-full" 
-      style={{ 
-        height: '100%',
-        backgroundColor: '#fafafa',
-        border: '1px solid #e8e8e8'
-      }}
-    >
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        marginBottom: '16px',
-        fontSize: '16px',
-        fontWeight: '600',
-        color: '#262626'
-      }}>
-        <BankOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-        Company Information
-      </div>
-      
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <Row gutter={[0, 16]}>
-          <Col span={24}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <EnvironmentOutlined style={{ color: '#8c8c8c', fontSize: '14px' }} />
-                <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500' }}>
-                  Headquarters
-                </Text>
-              </div>
-              <Text style={{ fontSize: '14px', marginLeft: '22px' }}>
-                {getAddress()}
-              </Text>
-            </div>
-          </Col>
-        </Row>
-
-        <Row gutter={[0, 16]}>
-          <Col span={24}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <TeamOutlined style={{ color: '#8c8c8c', fontSize: '14px' }} />
-                <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500' }}>
-                  Company Size
-                </Text>
-              </div>
-              <Text style={{ fontSize: '14px', marginLeft: '22px' }}>
-                {getEmployeeCount()}
-              </Text>
-            </div>
-          </Col>
-        </Row>
-
-        <Row gutter={[0, 16]}>
-          <Col span={24}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CalendarOutlined style={{ color: '#8c8c8c', fontSize: '14px' }} />
-                <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500' }}>
-                  Founded
-                </Text>
-              </div>
-              <Text style={{ fontSize: '14px', marginLeft: '22px' }}>
-                {getFoundedDate()}
-              </Text>
-            </div>
-          </Col>
-        </Row>
-
-        <Row gutter={[0, 16]}>
-          <Col span={24}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <DollarOutlined style={{ color: '#8c8c8c', fontSize: '14px' }} />
-                <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500' }}>
-                  Annual Revenue
-                </Text>
-              </div>
-              <Text style={{ fontSize: '14px', marginLeft: '22px' }}>
-                {getRevenue()}
-              </Text>
-            </div>
-          </Col>
-        </Row>
-
-        {accountData?.legalForm?.value && (
-          <Row gutter={[0, 16]}>
-            <Col span={24}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <BankOutlined style={{ color: '#8c8c8c', fontSize: '14px' }} />
-                  <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500' }}>
-                    Legal Form
-                  </Text>
+    <Card className="gba:w-full gba:h-full">
+      <CardHeader>
+        <CardTitle>Company Information</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div style={{ marginBottom: '24px' }}>
+          {/* Company details grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 32px' }}>
+            {/* Left Column */}
+            <div>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Name</div>
+                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                  {accountData?.name || account?.name || '-'}
                 </div>
-                <Text style={{ fontSize: '14px', marginLeft: '22px' }}>
-                  {accountData.legalForm.value}
-                </Text>
               </div>
-            </Col>
-          </Row>
-        )}
-      </div>
+              
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Legal Form</div>
+                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                  {accountData?.legalForm?.value || account?.legalForm || '-'}
+                </div>
+              </div>
+              
+
+              
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Industry</div>
+                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                  {accountData?.industry?.value || account?.industry || '-'}
+                </div>
+              </div>
+              
+              <div>
+                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Address</div>
+                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                  {accountData?.addressLine || '-'}
+                </div>
+              </div>
+            </div>
+            
+            {/* Right Column */}
+            <div>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Website</div>
+                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                  {(() => {
+                    const website = accountData?.website || account?.website;
+                    if (!website) return '-';
+                    
+                    const fullUrl = website.includes('://') ? website : `https://${website}`;
+                    return (
+                      <a 
+                        href={fullUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ color: '#3b82f6', textDecoration: 'none' }}
+                      >
+                        {website}
+                      </a>
+                    );
+                  })()}
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Phone</div>
+                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                  {(() => {
+                    const phone = accountData?.phone || account?.phone;
+                    if (!phone) return '-';
+                    
+                    return (
+                      <a 
+                        href={`tel:${phone}`} 
+                        style={{ color: '#3b82f6', textDecoration: 'none' }}
+                        data-testid="account-phone-link"
+                      >
+                        {phone}
+                      </a>
+                    );
+                  })()}
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Employees</div>
+                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                  {accountData?.numberOfEmployees?.value || account?.numberOfEmployees?.value || account?.size || '-'}
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Revenue</div>
+                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }} data-testid="account-revenue-value">
+                  {accountData?.annualRevenue?.value || account?.annualRevenue?.value || account?.revenue || '-'}
+                </div>
+              </div>
+              
+
+            </div>
+          </div>
+        </div>
+      </CardContent>
     </Card>
   );
 }; 

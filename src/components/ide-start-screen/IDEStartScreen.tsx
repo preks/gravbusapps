@@ -54,8 +54,25 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
         return acc;
     }, {} as Record<string, Record<string, BusinessAppInfo[]>>);
 
+    const createAppURL = (app: BusinessAppInfo): string => {
+        const url = new URL(window.location.href);
+        url.searchParams.set("app", app.name);
+        return url.toString();
+    };
+
     const handleAppClick = (app: BusinessAppInfo) => {
         onAppSelect(app);
+    };
+
+    const handleAppLinkClick = (event: React.MouseEvent, app: BusinessAppInfo) => {
+        // Allow middle-click and right-click to work with browser defaults
+        if (event.button === 1 || event.button === 2) {
+            return; // Let browser handle middle-click and right-click
+        }
+        
+        // For left-click, prevent default and handle navigation
+        event.preventDefault();
+        handleAppClick(app);
     };
 
     const getRecentApps = (): BusinessAppInfo[] => {
@@ -77,22 +94,32 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
     };
 
     const renderAppButton = (app: BusinessAppInfo) => (
-        <Button
+        <a
             key={app.name}
-            type="text"
-            size="small"
-            icon={<PlayCircleOutlined />}
-            onClick={() => handleAppClick(app)}
-            className="gba:w-full gba:text-left gba:justify-start gba:mb-1 gba:h-8 gba:flex gba:items-center"
+            href={createAppURL(app)}
+            onClick={(e) => handleAppLinkClick(e, app)}
+            onAuxClick={(e) => {
+                // Handle middle-click specifically
+                if (e.button === 1) {
+                    // Allow browser to open in new tab
+                    e.stopPropagation();
+                }
+            }}
+            className="gba:w-full gba:text-left gba:justify-start gba:mb-1 gba:h-8 gba:flex gba:items-center gba:no-underline hover:gba:bg-gray-100 gba:text-gray-700 hover:gba:text-gray-900"
             style={{
                 padding: '4px 8px',
                 borderRadius: '4px',
                 transition: 'all 0.2s',
-                justifyContent: 'flex-start'
+                justifyContent: 'flex-start',
+                textDecoration: 'none',
+                color: 'inherit',
+                display: 'flex',
+                alignItems: 'center'
             }}
         >
+            <PlayCircleOutlined style={{ marginRight: '6px', fontSize: '14px' }} />
             <span className="gba:text-xs gba:truncate gba:text-left">{app.name}</span>
-        </Button>
+        </a>
     );
 
     const renderSubModuleContent = (subModules: Record<string, BusinessAppInfo[]>) => {
@@ -160,26 +187,42 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
                                 <Row gutter={[16, 16]} justify="center">
                                     {getRecentApps().map((app) => (
                                         <Col key={app.name} xs={24} sm={12} md={8} lg={6} xl={4}>
-                                            <Card
-                                                hoverable
-                                                size="small"
-                                                className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
-                                                onClick={() => handleAppClick(app)}
-                                                style={{ cursor: 'pointer' }}
+                                            <a
+                                                href={createAppURL(app)}
+                                                onClick={(e) => handleAppLinkClick(e, app)}
+                                                onAuxClick={(e) => {
+                                                    // Handle middle-click specifically
+                                                    if (e.button === 1) {
+                                                        // Allow browser to open in new tab
+                                                        e.stopPropagation();
+                                                    }
+                                                }}
+                                                style={{ 
+                                                    textDecoration: 'none', 
+                                                    color: 'inherit',
+                                                    display: 'block'
+                                                }}
                                             >
-                                                <div className="gba:text-center">
-                                                    <PlayCircleOutlined className="gba:text-2xl gba:text-blue-500 gba:mb-2" />
-                                                    <div className="gba:text-sm gba:font-medium gba:truncate" title={app.name}>
-                                                        {app.name}
+                                                <Card
+                                                    hoverable
+                                                    size="small"
+                                                    className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                                                    style={{ cursor: 'pointer' }}
+                                                >
+                                                    <div className="gba:text-center">
+                                                        <PlayCircleOutlined className="gba:text-2xl gba:text-blue-500 gba:mb-2" />
+                                                        <div className="gba:text-sm gba:font-medium gba:truncate" title={app.name}>
+                                                            {app.name}
+                                                        </div>
+                                                        <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                                                            {formatModuleName(app.module)}
+                                                            {app.subModule && app.subModule !== 'default' && (
+                                                                <span> › {formatSubModuleName(app.subModule.split('/')[0])}</span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                                                        {formatModuleName(app.module)}
-                                                        {app.subModule && app.subModule !== 'default' && (
-                                                            <span> › {formatSubModuleName(app.subModule.split('/')[0])}</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </Card>
+                                                </Card>
+                                            </a>
                                         </Col>
                                     ))}
                                 </Row>
