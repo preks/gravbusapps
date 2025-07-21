@@ -102,8 +102,8 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
   };
 
   const handleTabChange = (key: string) => {
-    // Prevent deselection - if key is empty or same as current, ignore the change
-    if (!key || key === activeTab) {
+    // Allow all valid tab changes including clicking the same tab to ensure proper highlighting
+    if (!key) {
       return;
     }
     setActiveTab(key);

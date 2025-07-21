@@ -162,7 +162,9 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
               marginRight: '0',
               transition: 'all 0.3s ease',
               border: '1px solid #e0e0e0',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              clipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
+              WebkitClipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
             }}
             data-testid="status-converted-lost-combined"
           >
@@ -246,7 +248,9 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
               borderRadius: '0 20px 20px 0',
               marginRight: '0',
               transition: 'all 0.3s ease',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              clipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
+              WebkitClipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
             }}
             data-testid={isConverted ? "status-converted" : "status-lost"}
             onClick={() => {

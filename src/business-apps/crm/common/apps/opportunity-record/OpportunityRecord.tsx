@@ -9,6 +9,7 @@ import { CompanyInformation } from "./components/CompanyInformation";
 import { ContactInformation } from "./components/ContactInformation";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
+import { StageProgression } from "./components/StageProgression";
 
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
@@ -27,6 +28,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
     opportunityStatuses,
     loadingStages,
     loadingStatuses,
+    stagesError,
     refetchOpportunityData
   } = useOpportunityData(opportunityId, props.accessToken);
 
@@ -74,6 +76,40 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
         additionalData={props} 
         accessToken={props.accessToken} 
       />
+
+      {/* Stage Progression - Show filtered pipeline stages */}
+      {!loadingStages && !stagesError && opportunityStages.length > 0 && opportunityData?.salesPipelineRef && (
+        <StageProgression 
+          currentStage={opportunityData?.salesPipelineStage?.value || 'Discovery'} 
+          stages={opportunityStages}
+          opportunityId={opportunityId}
+          opportunityVersion={parseInt(opportunity.version) || 0}
+          accessToken={props.accessToken}
+          onStageUpdate={refetchOpportunityData}
+        />
+      )}
+
+      {/* Show stages loading */}
+      {loadingStages && (
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <Spin size="small" />
+          <span style={{ marginLeft: '8px' }}>Loading pipeline stages...</span>
+        </div>
+      )}
+
+      {/* Show stages error */}
+      {stagesError && (
+        <div style={{ textAlign: 'center', padding: '20px', color: '#ff4d4f' }}>
+          <p>Failed to load pipeline stages: {stagesError}</p>
+        </div>
+      )}
+
+      {/* Show info when no salesPipelineRef */}
+      {!opportunityData?.salesPipelineRef && !loadingStages && (
+        <div style={{ textAlign: 'center', padding: '20px', color: '#8c8c8c' }}>
+          <p>No sales pipeline assigned to this opportunity</p>
+        </div>
+      )}
 
       <div className="gba:opportunity-details-content" data-testid="opportunity-details-content">
         

@@ -10,6 +10,14 @@ export interface OpportunityResponse {
   version: string;
   name: string;
   estimatedAmount?: number;
+  salesPipelineRef?: string;
+  salesPipelineStageRef?: string;
+  salesPipelineStage?: {
+    id: string;
+    value: string;
+    type: string;
+    code: string;
+  };
   opportunityStatus?: {
     id: string;
     value: string;
@@ -79,6 +87,14 @@ export const GET_OPPORTUNITY_BY_ID = `
       version
       name
       estimatedAmount
+      salesPipelineRef
+      salesPipelineStageRef
+      salesPipelineStage {
+        id
+        value
+        type
+        code
+      }
       opportunityStatus {
         id
         value
