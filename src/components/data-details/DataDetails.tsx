@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
-import { Button } from '@newwork/gravity-ui-catalog';
+import { Button } from '@newwork/nw-design-system';
+import { PiX } from 'react-icons/pi';
 //import { useTranslation } from 'react-i18next';
 
 /**
@@ -76,27 +77,16 @@ export const DataDetails: React.FC<DataDetailsProps> = ({
           {icon && <div className="gba:shrink-0" data-testid="data-details-icon">{icon}</div>}
           <h2 className="gba:text-lg gba:font-bold" data-testid="data-details-title">{title}</h2>
         </div>
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={onClose}
-          className="gba:p-2 gba:rounded-full gba:hover:bg-gray-100 gba:transition-colors"
+          className="gba:p-2 gba:rounded-full gba:hover:bg-gray-100"
           aria-label="Close"
           data-testid="data-details-close-button"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+          <PiX className="gba:h-4 gba:w-4" />
+        </Button>
       </div>
 
       {/* Scrollable content area */}

@@ -145,7 +145,9 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
         </div>
       )}
       {/* Main Content - center column */}
-      <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:bg-white" data-testid="data-container-main-content">
+      <div className={cn("gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:bg-white", {
+        "gba:pl-6": !showDataFilter
+      })} data-testid="data-container-main-content">
           {CustomDataController ? (
             <CustomDataController
               showDataFilter={showDataFilter}
