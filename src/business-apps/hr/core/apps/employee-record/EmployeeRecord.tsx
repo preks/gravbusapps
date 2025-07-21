@@ -115,6 +115,8 @@ export const EmployeeRecord: React.FC<BusinessAppContextProps> = (props) => {
     ? urlParams.tab 
     : TAB_KEYS.summary;
 
+  console.log("🔍 EmployeeRecordContent test");
+
   // Render the actual employee record content
   return <EmployeeRecordContent 
     {...props}

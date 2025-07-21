@@ -97,3 +97,7 @@ pipelines:
     publish-manual:
       - step: *install_dependencies
       - step: *publish-changed-screens
+
+    publish-manual-prod:
+      - step: *install_dependencies
+      - step: *publish-changed-prod-screens
