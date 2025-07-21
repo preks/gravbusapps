@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Button, Steps, Card, message } from 'antd';
-import { CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { Modal } from 'antd';
 import { ReferenceData } from '../types';
+import { useUpdateOpportunityStage } from '../hooks/useUpdateOpportunityStage';
 
 interface StageProgressionProps {
   currentStage: string;
@@ -20,135 +20,197 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
   accessToken,
   onStageUpdate
 }) => {
-  const [updating, setUpdating] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedStage, setSelectedStage] = useState<ReferenceData | null>(null);
+  
+  const { updateStage, isLoading } = useUpdateOpportunityStage(accessToken);
 
-  const handleStageUpdate = async (newStage: string) => {
+  const handleStageClick = (stage: ReferenceData) => {
+    // Don't show modal if clicking on current stage
+    if (stage.value.toLowerCase() === currentStage.toLowerCase()) {
+      return;
+    }
+    
+    setSelectedStage(stage);
+    setModalVisible(true);
+  };
+
+  const handleConfirmStageChange = async () => {
+    if (!selectedStage) return;
+    
     try {
-      setUpdating(true);
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      message.success(`Stage updated to ${newStage}`);
-      onStageUpdate();
+      await updateStage(
+        opportunityId, 
+        opportunityVersion, 
+        selectedStage.id, // Use stage id as the reference
+        selectedStage.value, // Display name for the success message
+        () => {
+          setModalVisible(false);
+          setSelectedStage(null);
+          onStageUpdate();
+        }
+      );
     } catch (error) {
-      message.error('Failed to update stage');
       console.error('Error updating stage:', error);
-    } finally {
-      setUpdating(false);
     }
   };
 
-  const getStageColor = (stage: string) => {
-    const stageColors: Record<string, string> = {
-      'Discovery': '#1890ff',
-      'Qualification': '#52c41a',
-      'Proposal': '#faad14',
-      'Negotiation': '#f5222d',
-      'Closed Won': '#52c41a',
-      'Closed Lost': '#8c8c8c'
-    };
-    return stageColors[stage] || '#1890ff';
-  };
-
-  const getStageIcon = (stage: string, isCompleted: boolean) => {
-    if (isCompleted) {
-      return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
-    }
-    return <ClockCircleOutlined style={{ color: '#8c8c8c' }} />;
+  const handleCancelModal = () => {
+    setModalVisible(false);
+    setSelectedStage(null);
   };
 
   const getCurrentStageIndex = () => {
-    return stages.findIndex(stage => stage.value === currentStage);
+    const currentIndex = stages.findIndex(stage => 
+      stage.value.toLowerCase() === currentStage.toLowerCase() || 
+      stage.code.toLowerCase() === currentStage.toLowerCase()
+    );
+    return currentIndex >= 0 ? currentIndex : 0;
   };
 
-  const getStageItems = () => {
-    const currentIndex = getCurrentStageIndex();
-    
-    return stages.map((stage, index) => ({
-      title: stage.value,
-      status: (index < currentIndex ? 'finish' : 
-              index === currentIndex ? 'process' : 'wait') as 'finish' | 'process' | 'wait',
-      icon: getStageIcon(stage.value, index < currentIndex),
-      description: index === currentIndex ? 'Current Stage' : 
-                   index < currentIndex ? 'Completed' : 'Pending'
-    }));
-  };
+  const currentIndex = getCurrentStageIndex();
 
-  const getNextStage = () => {
-    const currentIndex = getCurrentStageIndex();
-    if (currentIndex < stages.length - 1) {
-      return stages[currentIndex + 1];
-    }
+  if (stages.length === 0) {
     return null;
-  };
-
-  const getPreviousStage = () => {
-    const currentIndex = getCurrentStageIndex();
-    if (currentIndex > 0) {
-      return stages[currentIndex - 1];
-    }
-    return null;
-  };
-
-  const nextStage = getNextStage();
-  const previousStage = getPreviousStage();
+  }
 
   return (
-    <Card
-      title="Opportunity Stage Progression"
-      style={{ marginBottom: '24px' }}
-      data-testid="stage-progression-card"
-    >
-      <div style={{ marginBottom: '24px' }}>
-        <Steps
-          current={getCurrentStageIndex()}
-          items={getStageItems()}
-          style={{ marginBottom: '24px' }}
-        />
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '16px', fontWeight: 'bold' }}>
-            Current Stage:
-          </span>
-          <span 
-            style={{ 
-              color: getStageColor(currentStage),
-              fontSize: '16px',
-              fontWeight: '500'
-            }}
-          >
-            {currentStage}
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {previousStage && (
-            <Button
-              type="default"
-              size="small"
-              loading={updating}
-              onClick={() => handleStageUpdate(previousStage.value)}
-              data-testid="previous-stage-button"
-            >
-              ← {previousStage.value}
-            </Button>
-          )}
+    <div style={{ marginBottom: '24px' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        height: '48px',
+        backgroundColor: '#f5f5f5',
+        borderRadius: '24px',
+        overflow: 'visible',
+        border: '1px solid #e0e0e0',
+        padding: '0 4px'
+      }}>
+        
+        {stages.map((stage, index) => {
+          const isCurrentStage = index === currentIndex;
+          const isCompleted = index < currentIndex;
+          const isPending = index > currentIndex;
           
-          {nextStage && (
-            <Button
-              type="primary"
-              size="small"
-              loading={updating}
-              onClick={() => handleStageUpdate(nextStage.value)}
-              data-testid="next-stage-button"
+          // Determine background color
+          let backgroundColor = 'transparent';
+          let textColor = '#666666';
+          
+          if (isCurrentStage) {
+            backgroundColor = '#4CAF50'; // Green for current stage
+            textColor = 'white';
+          } else if (isCompleted) {
+            backgroundColor = '#4CAF50'; // Green for completed stages
+            textColor = 'white';
+          }
+
+          // Determine border radius based on position
+          let borderRadius = '0';
+          let clipPath = 'none';
+          let WebkitClipPath = 'none';
+          let marginRight = '0';
+
+          if (index === 0) {
+            // First stage - rounded left, pointed right
+            borderRadius = '20px 0 0 20px';
+            if (stages.length > 1) {
+              clipPath = 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)';
+              WebkitClipPath = 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)';
+              marginRight = '8px';
+            } else {
+              borderRadius = '20px';
+            }
+          } else if (index === stages.length - 1) {
+            // Last stage - inward curve left, rounded right
+            borderRadius = '0 20px 20px 0';
+            clipPath = 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)';
+            WebkitClipPath = 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)';
+          } else {
+            // Middle stages - inward curve left, pointed right
+            clipPath = 'polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 24px 50%)';
+            WebkitClipPath = 'polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 24px 50%)';
+            marginRight = '8px';
+          }
+
+          return (
+            <div
+              key={stage.id}
+              style={{
+                position: 'relative',
+                height: '40px',
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px',
+                fontWeight: '600',
+                backgroundColor,
+                color: textColor,
+                borderRadius,
+                marginRight,
+                transition: 'all 0.3s ease',
+                clipPath,
+                WebkitClipPath,
+                cursor: isCurrentStage ? 'default' : 'pointer'
+              }}
+              data-testid={`stage-${stage.code}`}
+              onClick={() => !isCurrentStage && handleStageClick(stage)}
             >
-              {nextStage.value} →
-            </Button>
-          )}
-        </div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '0 16px',
+                paddingRight: index < stages.length - 1 ? '24px' : '16px',
+                paddingLeft: index > 0 ? '24px' : '16px'
+              }}>
+                {(isCurrentStage || isCompleted) && (
+                  <span style={{ 
+                    fontSize: '14px', 
+                    fontWeight: 'bold',
+                    backgroundColor: 'rgba(255,255,255,0.3)',
+                    borderRadius: '50%',
+                    width: '20px',
+                    height: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    ✓
+                  </span>
+                )}
+                <span style={{ 
+                  whiteSpace: 'nowrap',
+                  fontSize: stages.length > 4 ? '12px' : '14px'
+                }}>
+                  {stage.value}
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
-    </Card>
+      
+      {/* Stage Change Confirmation Modal */}
+      <Modal
+        title="Confirm Stage Change"
+        open={modalVisible}
+        onOk={handleConfirmStageChange}
+        onCancel={handleCancelModal}
+        confirmLoading={isLoading}
+        okText="Confirm"
+        cancelText="Cancel"
+        okType="primary"
+        data-testid="stage-change-modal"
+      >
+        <p>
+          Are you sure you want to change the opportunity stage to{' '}
+          <strong>{selectedStage?.value}</strong>?
+        </p>
+        <p style={{ color: '#666', fontSize: '14px', marginTop: '8px' }}>
+          This action will update the opportunity's current stage and may trigger additional workflows.
+        </p>
+      </Modal>
+    </div>
   );
 }; 

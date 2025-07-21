@@ -18,6 +18,8 @@ export const GET_OPPORTUNITIES = `
       estimatedAmount
       stage
       sourceApp
+      salesPipelineRef
+      salesPipelineStageRef
     }
   }
 `;
