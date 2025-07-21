@@ -29,16 +29,17 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
   const [createdBefore, setCreatedBefore] = useState<string | undefined>();
 
   const filterGroups: FilterGroup[] = useMemo(() => [
-    {
-      id: 'accountType',
-      title: 'Account Type', // Changed from label to title
-      filters: [
-        { id: 'type-customer', label: 'Customer', value: 'Customer', selected: selectedFilters.includes('type-customer') },
-        { id: 'type-prospect', label: 'Prospect', value: 'Prospect', selected: selectedFilters.includes('type-prospect') },
-        { id: 'type-partner', label: 'Partner', value: 'Partner', selected: selectedFilters.includes('type-partner') },
-        { id: 'type-competitor', label: 'Competitor', value: 'Competitor', selected: selectedFilters.includes('type-competitor') }
-      ]
-    },
+    // REMOVED: accountType filter - field does not exist in GraphQL schema
+    // {
+    //   id: 'accountType',
+    //   title: 'Account Type',
+    //   filters: [
+    //     { id: 'type-customer', label: 'Customer', value: 'Customer', selected: selectedFilters.includes('type-customer') },
+    //     { id: 'type-prospect', label: 'Prospect', value: 'Prospect', selected: selectedFilters.includes('type-prospect') },
+    //     { id: 'type-partner', label: 'Partner', value: 'Partner', selected: selectedFilters.includes('type-partner') },
+    //     { id: 'type-competitor', label: 'Competitor', value: 'Competitor', selected: selectedFilters.includes('type-competitor') }
+    //   ]
+    // },
     {
       id: 'industry',
       title: 'Industry', // Changed from label to title
@@ -104,10 +105,8 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
       for (const group of filterGroups) {
         const filter = group.filters.find(f => f.id === filterId);
         if (filter) {
-          if (group.id === 'accountType') {
-            if (!filters.accountTypes) filters.accountTypes = [];
-            filters.accountTypes.push(filter.value);
-          } else if (group.id === 'industry') {
+          // REMOVED: accountType processing - field does not exist in GraphQL schema
+          if (group.id === 'industry') {
             if (!filters.industries) filters.industries = [];
             filters.industries.push(filter.value);
           }

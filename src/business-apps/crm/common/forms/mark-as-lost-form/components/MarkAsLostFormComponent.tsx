@@ -120,7 +120,7 @@ const MarkAsLostFormComponent: React.FC = () => {
         />
 
         {/* Lead Information Display */}
-        <Card className="gba:mb-6 gba:border-none gba:bg-gray-50" data-testid="lead-info-card">
+        <Card className="gba:mb-6" data-testid="lead-info-card">
           <Title level={4} className="gba:!mb-4">
             {getTranslationFromI18nKeyAndLabel(
               "crm:markLeadAsLost.leadInfo",

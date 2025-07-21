@@ -18,15 +18,18 @@ export interface AccountData {
     value: string;
     code: string;
     id: string;
+    objectValue?: any;
   };
   numberOfEmployees: {
     value: string;
   };
-  contact: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
+  accountContacts: {
+    contact: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+    };
   }[];
   addresses: {
     city: string;
@@ -46,11 +49,13 @@ export interface AccountData {
     id: string;
     code: string;
     value: string;
+    objectValue?: any;
   };
   ownerEmployee: {
     id: string;
     lastName: string;
     firstName: string;
+    pictureThumbnail?: string;
   };
   createdAt: string;
   updatedAt: string;
@@ -86,15 +91,18 @@ export const GET_ACCOUNTS_DATA = `
         value
         code
         id
+        objectValue
       }
       numberOfEmployees {
         value
       }
-      contact {
-        firstName
-        lastName
-        email
-        phone
+      accountContacts(where:{contactType:{_eq:"PRIMARY_CONTACT"}}) {
+        contact{
+          firstName
+          lastName
+          phone
+          email
+        }
       }
       addresses {
         city
@@ -114,6 +122,7 @@ export const GET_ACCOUNTS_DATA = `
         id
         code
         value
+        objectValue
       }
       ownerEmployee {
         id

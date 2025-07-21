@@ -115,6 +115,7 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
           ...(additionalData?.leadId && { lead: additionalData.leadId }),
           ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
           ...(additionalData?.contactId && { contact: additionalData.contactId }),
+          ...(additionalData?.accountId && { account: additionalData.accountId }),
         },
       };
       
@@ -164,6 +165,7 @@ export const SalesTaskForm: React.FC<SalesTaskFormProps> = (props) => {
         </div>
         <Form.Item
           label={getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Name')}
+          rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesTask.titleRequired', 'Name is required') }]}
           name="title"
         >
           <Input 

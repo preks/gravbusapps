@@ -13,6 +13,12 @@ export interface SalesActivityData {
   createdAt: string;
   completedAt?: string | null;
   createdBy: string;
+  activityType?: {
+    code: string;
+    id: string;
+    type: string;
+    value: string;
+  };
 }
 
 export interface SalesActivityResponse {
@@ -30,6 +36,12 @@ export const GET_SALES_ACTIVITIES = (variables: SalesActivityQueryVariables): st
         createdAt
         completedAt
         createdBy
+        activityType {
+          code
+          id
+          type
+          value
+        }
       }
     }
   `;

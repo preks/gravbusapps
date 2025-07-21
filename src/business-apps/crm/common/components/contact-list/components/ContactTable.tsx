@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Avatar, AvatarFallback, Button, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Card, CardContent } from '@newwork/nw-design-system';
-import { PiUser, PiEnvelope, PiPhone, PiLinkedinLogo, PiBuilding, PiCaretUp, PiCaretDown } from 'react-icons/pi';
+import { PiUser, PiEnvelope, PiPhone, PiLinkedinLogo, PiBuilding, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -25,6 +25,7 @@ interface ContactTableProps extends BusinessAppContextProps {
   onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void;
   selectedContactId?: string;
   onEdit?: (contact: Contact) => void;
+  sourceApp?: string;
 }
 
 const DATA_TEST_ID_PREFIX = 'ContactTable';
@@ -47,7 +48,8 @@ const ContactTable: React.FC<ContactTableProps> = ({
   onSortingChange,
   selectedContactId,
   onEdit,
-  accessToken
+  accessToken,
+  sourceApp
 }) => {
   // Get contact display name
   const getContactName = (contact: Contact) => {
@@ -60,13 +62,19 @@ const ContactTable: React.FC<ContactTableProps> = ({
 
   // Handle row click
   const handleRowClick = useCallback((record: Contact) => {
+    // Determine source based on sourceApp
+    const source = (sourceApp === 'investment-relations' || sourceApp === 'IRM') ? 'investments' : 'customer-relations';
+    
     // Navigate to contact record page
-    const url = buildPlatformUrl('/platform/crm/contact-record', { contactId: record.id });
+    const url = buildPlatformUrl('/platform/crm/contact-record', { 
+      contactId: record.id, 
+      source: source 
+    });
     navigateTo(url);
     
     // Also call the selection callback if provided
     onSelectContact?.(record);
-  }, [onSelectContact]);
+  }, [onSelectContact, sourceApp]);
 
   // Helper function to handle column sorting
   const handleSort = (field: string) => {
@@ -87,8 +95,8 @@ const ContactTable: React.FC<ContactTableProps> = ({
   // Helper function to render sort icon
   const renderSortIcon = (field: string) => {
     if (sortField !== field) return null;
-    if (sortOrder === 'ASC') return <PiCaretUp className="gba:inline gba:ml-1" size={12} />;
-    if (sortOrder === 'DESC') return <PiCaretDown className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
     return null;
   };
 
@@ -106,8 +114,8 @@ const ContactTable: React.FC<ContactTableProps> = ({
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
                 <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}>ACTIONS</TableHead>
-                <TableHead 
-                  className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                                <TableHead 
+                  className="gba:w-[30%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort('firstName')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-contact-header`}
                 >
@@ -116,11 +124,11 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     {renderSortIcon('firstName')}
                   </div>
                 </TableHead>
-                <TableHead className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-contact-info-header`}>
+                <TableHead className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-contact-info-header`}>
                   Contact Info
                 </TableHead>
                 <TableHead 
-                  className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort('accountId')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-account-header`}
                 >
@@ -128,9 +136,6 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     Account
                     {renderSortIcon('accountId')}
                   </div>
-                </TableHead>
-                <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-type-role-header`}>
-                  Type & Role
                 </TableHead>
                 <TableHead 
                   className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
@@ -236,20 +241,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
                       <span className="gba:text-gray-400 gba:text-sm">No account</span>
                     )}
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-type-role-cell-${record.id}`}>
-                    <div className="gba:space-y-1">
-                      {record.contactType && (
-                        <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
-                          {record.contactType}
-                        </Badge>
-                      )}
-                      {record.contactRole && (
-                        <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
-                          {record.contactRole}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
+
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}>
                     {record.ownerEmployee ? (
                       <div className="gba:text-sm gba:font-medium">

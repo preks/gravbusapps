@@ -1,10 +1,11 @@
 import React, { useCallback } from 'react';
 import { Avatar, AvatarImage, AvatarFallback, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Button, Card, CardContent } from '@newwork/nw-design-system';
-import { PiUser, PiCurrencyDollar, PiTarget, PiFunnel, PiCalendar, PiBuilding, PiCaretUp, PiCaretDown } from 'react-icons/pi';
+import { PiUser, PiCurrencyDollar, PiTarget, PiFunnel, PiCalendar, PiBuilding, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Opportunity } from '../types';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { getWinningChanceBadgeVariant, getSalesPipelineStageBadgeVariant } from '@/common/utils/badgeUtils';
 
 export interface OpportunityTableProps {
   data: Opportunity[];
@@ -24,6 +25,7 @@ export interface OpportunityTableProps {
   onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void;
   selectedOpportunityId?: string;
   accessToken: string;
+  sourceApp?: string;
 }
 
 const DATA_TEST_ID_PREFIX = 'OpportunityTable';
@@ -45,7 +47,8 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
   onPaginationChange,
   onSortingChange,
   selectedOpportunityId,
-  accessToken
+  accessToken,
+  sourceApp
 }) => {
   const formatCurrency = (amount: number | undefined, currency?: string): string => {
     if (!amount) return '$0';
@@ -90,13 +93,19 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
 
   // Handle row click
   const handleRowClick = useCallback((record: Opportunity) => {
+    // Determine source based on sourceApp
+    const source = (sourceApp === 'investment-relations' || sourceApp === 'IRM') ? 'investments' : 'customer-relations';
+    
     // Navigate to opportunity record page
-    const url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: record.id });
+    const url = buildPlatformUrl('/platform/crm/opportunity-record', { 
+      opportunityId: record.id, 
+      source: source 
+    });
     navigateTo(url);
     
     // Also call the selection callback if provided
     onSelectOpportunity?.(record);
-  }, [onSelectOpportunity]);
+  }, [onSelectOpportunity, sourceApp]);
 
   // Helper function to handle column sorting
   const handleSort = (field: string) => {
@@ -117,8 +126,8 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
   // Helper function to render sort icon
   const renderSortIcon = (field: string) => {
     if (sortField !== field) return null;
-    if (sortOrder === 'ASC') return <PiCaretUp className="gba:inline gba:ml-1" size={12} />;
-    if (sortOrder === 'DESC') return <PiCaretDown className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
     return null;
   };
 
@@ -256,12 +265,12 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
         </div>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-win-rate-cell-${record.id}`}>
-                    <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
+                    <Badge variant={getWinningChanceBadgeVariant(record.winningChance)}>
             {record.winningChance ? `${record.winningChance}%` : '0%'}
                     </Badge>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-stage-cell-${record.id}`}>
-                    <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center gba:min-h-[24px]">
+                    <Badge variant={getSalesPipelineStageBadgeVariant(record.salesPipelineStage)}>
                       {record.stage || 'Unknown Stage'}
                     </Badge>
                   </TableCell>

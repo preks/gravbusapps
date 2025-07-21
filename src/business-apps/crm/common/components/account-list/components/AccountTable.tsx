@@ -3,12 +3,13 @@
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Avatar, AvatarImage, AvatarFallback, Button, Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Card, CardContent } from '@newwork/nw-design-system';
-import { PiUser, PiEnvelope, PiPhone, PiBuilding, PiCalendar, PiMapPin, PiCaretUp, PiCaretDown } from 'react-icons/pi';
+import { PiUser, PiEnvelope, PiPhone, PiBuilding, PiCalendar, PiMapPin, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Account } from '../types';
 import dayjs from 'dayjs';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { getAccountTypeBadgeVariant, getIndustryBadgeVariant } from '@/common/utils/badgeUtils';
 
 interface AccountTableProps {
   accounts: Account[];
@@ -28,6 +29,7 @@ interface AccountTableProps {
   onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void;
   selectedAccountId?: string;
   accessToken: string;
+  sourceApp?: string;
 }
 
 const DATA_TEST_ID_PREFIX = 'AccountTable';
@@ -37,6 +39,7 @@ const DATA_TEST_ID_PREFIX = 'AccountTable';
  */
 export const AccountTable: React.FC<AccountTableProps> = ({
   accounts,
+  sourceApp,
   loading,
   error,
   hasMore,
@@ -67,46 +70,18 @@ export const AccountTable: React.FC<AccountTableProps> = ({
     return '-';
   };
 
-  // Get account type color
-  const getTypeColor = (type?: string) => {
-    if (!type) return 'gray';
-    switch (type.toLowerCase()) {
-      case 'customer':
-        return 'green';
-      case 'prospect':
-        return 'blue';
-      case 'partner':
-        return 'purple';
-      case 'competitor':
-        return 'red';
-      default:
-        return 'gray';
-    }
-  };
 
-  // Get industry color
-  const getIndustryColor = (industry?: string) => {
-    if (!industry) return 'gray';
-    switch (industry.toLowerCase()) {
-      case 'technology':
-        return 'blue';
-      case 'finance':
-        return 'green';
-      case 'healthcare':
-        return 'red';
-      case 'manufacturing':
-        return 'orange';
-      case 'retail':
-        return 'purple';
-      default:
-        return 'gray';
-    }
-  };
 
   // Handle row click
   const handleRowClick = useCallback((record: Account) => {
+    // Determine source based on sourceApp
+    const source = (sourceApp === 'investment-relations' || sourceApp === 'IRM') ? 'investments' : 'customer-relations';
+    
     // Navigate to account record page
-    const url = buildPlatformUrl('/platform/crm/account-record', { accountId: record.id });
+    const url = buildPlatformUrl('/platform/crm/account-record', { 
+      accountId: record.id, 
+      source: source 
+    });
     navigateTo(url);
     
     // Also call the selection callback if provided
@@ -132,8 +107,8 @@ export const AccountTable: React.FC<AccountTableProps> = ({
   // Helper function to render sort icon
   const renderSortIcon = (field: string) => {
     if (sortField !== field) return null;
-    if (sortOrder === 'ASC') return <PiCaretUp className="gba:inline gba:ml-1" size={12} />;
-    if (sortOrder === 'DESC') return <PiCaretDown className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
     return null;
   };
 
@@ -276,19 +251,39 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-contact-cell-${record.id}`}>
                     <div className="gba:space-y-1">
+                      {(record.contactFirstName || record.contactLastName) && (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <PiUser size={14} className="gba:text-gray-400" />
+                          <span className="gba:text-sm gba:font-medium">
+                            {`${record.contactFirstName || ''} ${record.contactLastName || ''}`.trim()}
+                          </span>
+                        </div>
+                      )}
                       {record.email && (
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <PiEnvelope size={14} className="gba:text-gray-400" />
-                          <span className="gba:text-sm">{record.email}</span>
+                          <a 
+                            href={`mailto:${record.email}`}
+                            className="gba:text-sm gba:text-blue-600 hover:gba:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {record.email}
+                          </a>
                         </div>
                       )}
                       {record.phone && (
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <PiPhone size={14} className="gba:text-gray-400" />
-                          <span className="gba:text-sm">{record.phone}</span>
+                          <a 
+                            href={`tel:${record.phone}`}
+                            className="gba:text-sm gba:text-blue-600 hover:gba:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {record.phone}
+                          </a>
                         </div>
                       )}
-                      {!record.email && !record.phone && (
+                      {!record.contactFirstName && !record.contactLastName && !record.email && !record.phone && (
                         <span className="gba:text-gray-400">-</span>
                       )}
                     </div>
@@ -326,12 +321,12 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                     </div>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-type-cell-${record.id}`}>
-                    <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center">
+                    <Badge variant={getAccountTypeBadgeVariant(record.type)}>
                       {record.type?.value || '-'}
                     </Badge>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-industry-cell-${record.id}`}>
-                    <Badge className="gba:px-3 gba:py-1 gba:text-sm gba:font-medium gba:flex gba:items-center gba:justify-center">
+                    <Badge variant={getIndustryBadgeVariant(record.industry)}>
                       {record.industry?.value || '-'}
                     </Badge>
                   </TableCell>

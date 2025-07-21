@@ -272,8 +272,16 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
                       {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(task.createdBy)}
                     </Text>
                     {task.dueDate && (
-                      <Text type="secondary" style={{ marginLeft: '16px' }}>
+                      <Text 
+                        type="secondary" 
+                        style={{ 
+                          marginLeft: '16px',
+                          color: dayjs(task.dueDate).isBefore(dayjs(), 'day') ? '#ff4d4f' : undefined,
+                          fontWeight: dayjs(task.dueDate).isBefore(dayjs(), 'day') ? '500' : undefined
+                        }}
+                      >
                         Due: {dayjs(task.dueDate).format('MMM D, YYYY')}
+                        {dayjs(task.dueDate).isBefore(dayjs(), 'day') && ' (Overdue)'}
                       </Text>
                     )}
                   </div>

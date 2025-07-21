@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
+import { PageHeader } from '@newwork/nw-design-system';
+import { Target, PieChart } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { RiFlowChart } from '@remixicon/react';
 import { PipelineOverview } from './components/PipelineOverview';
 
 export interface PipelineDataProps extends BusinessAppContextProps {
@@ -19,20 +19,58 @@ const PipelineData: React.FC<PipelineDataProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  // Get sourceApp from URL params - required for this app to work
+  const urlParams = new URLSearchParams(window.location.search);
+  const sourceApp = urlParams.get('sourceApp') as 'CRM' | 'IRM' | null;
+
+  // Validate sourceApp parameter
+  useEffect(() => {
+    if (!sourceApp || !['CRM', 'IRM'].includes(sourceApp)) {
+      console.error('PipelineData requires sourceApp parameter (CRM or IRM)');
+    }
+  }, [sourceApp]);
+
+  // Default to CRM if no valid sourceApp parameter
+  const validSourceApp: 'CRM' | 'IRM' = sourceApp && ['CRM', 'IRM'].includes(sourceApp) ? sourceApp : 'CRM';
+
+  // Determine title and icon based on sourceApp
+  const getAppConfig = () => {
+    switch (validSourceApp) {
+      case 'IRM':
+        return {
+          title: t('crm.investment_pipeline_data_management', 'Investment Pipeline Data Management'),
+          icon: <Target className="gba:w-6 gba:h-6" />
+        };
+      case 'CRM':
+      default:
+        return {
+          title: t('crm.sales_pipeline_data_management', 'Sales Pipeline Data Management'),
+          icon: <PieChart className="gba:w-6 gba:h-6" />
+        };
+    }
+  };
+
+  const { title, icon } = getAppConfig();
+
   return (
-    <PageLayout
-      headerIcon={<RiFlowChart />}
-      headerLabel={t('crm.pipeline_data_management', 'Pipeline Data Management')}
-      className={className}
-      contentContainer={
-        <div className="gba:w-full gba:h-full" style={{ padding: '24px' }}>
-          <PipelineOverview 
-            {...contextProps}
-            prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-          />
-        </div>
-      }
-    />
+    <div 
+      className={`gba:h-full gba:w-full ${className || ''}`}
+      data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+    >
+      <PageHeader
+        title={title}
+        icon={icon}
+        className="gba:mb-6"
+      />
+      
+      <div className="gba:w-full gba:h-full gba:px-6 gba:pb-6">
+        <PipelineOverview 
+          {...contextProps}
+          sourceApp={validSourceApp}
+          prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+        />
+      </div>
+    </div>
   );
 };
 

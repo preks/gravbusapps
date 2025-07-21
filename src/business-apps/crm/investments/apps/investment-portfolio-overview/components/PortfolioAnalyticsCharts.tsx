@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card } from 'antd';
+import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
 import { 
   ScatterChart,
   Scatter,
@@ -36,8 +36,12 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
     <>
       {/* Investment Value by Account - Bar Chart - Full Width */}
       <div style={{ gridColumn: '1 / -1', marginBottom: '24px' }}>
-        <Card title="Top Investment Accounts by Value" style={{ borderRadius: '8px' }}>
-          <ResponsiveContainer width="100%" height={400}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Investment Accounts by Value</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={400}>
             <BarChart
               data={valueByAccountData}
               margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
@@ -107,13 +111,18 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
-          </ResponsiveContainer>
+            </ResponsiveContainer>
+          </CardContent>
         </Card>
       </div>
 
       {/* Investment Size vs ROI Correlation - Scatter Plot */}
-      <Card title="Investment Size vs ROI Correlation" style={{ borderRadius: '8px' }}>
-        <ResponsiveContainer width="100%" height={350}>
+              <Card>
+          <CardHeader>
+            <CardTitle>Investment Size vs ROI Correlation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={350}>
           <ScatterChart
             margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
           >
@@ -153,12 +162,17 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
               fill={CHART_COLORS[0]}
             />
           </ScatterChart>
-        </ResponsiveContainer>
-      </Card>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
       {/* Leverage vs Performance Analysis - Composed Chart */}
-      <Card title="Leverage vs Performance Analysis" style={{ borderRadius: '8px' }}>
-        <ResponsiveContainer width="100%" height={300}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Leverage vs Performance Analysis</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
           <ComposedChart
             data={leverageAnalysisData}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
@@ -202,12 +216,17 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
               dot={{ r: 6 }}
             />
           </ComposedChart>
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        </CardContent>
       </Card>
 
       {/* Risk vs Return Analysis - Scatter Plot */}
-      <Card title="Risk vs Return Analysis" style={{ borderRadius: '8px' }}>
-        <ResponsiveContainer width="100%" height={350}>
+              <Card>
+          <CardHeader>
+            <CardTitle>Risk vs Return Analysis</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={350}>
           <ScatterChart
             margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
           >
@@ -254,12 +273,17 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
               fill={CHART_COLORS[1]}
             />
           </ScatterChart>
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        </CardContent>
       </Card>
 
       {/* Portfolio Concentration Analysis - Composed Chart */}
-      <Card title="Portfolio Concentration by Investment Group" style={{ borderRadius: '8px' }}>
-        <ResponsiveContainer width="100%" height={400}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Portfolio Concentration by Investment Group</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={400}>
           <ComposedChart
             data={concentrationByGroupData}
             margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
@@ -306,7 +330,8 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
               dot={{ r: 6 }}
             />
           </ComposedChart>
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        </CardContent>
       </Card>
     </>
   );

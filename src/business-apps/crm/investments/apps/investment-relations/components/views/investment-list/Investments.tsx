@@ -3,7 +3,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-sys
 import { Button, Input } from '@newwork/nw-design-system';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system';
 import { Spin, Alert } from 'antd';
-import { BarChart3, Home, Briefcase, DollarSign, Search, Filter, ChevronUp, ChevronDown } from 'lucide-react';
+import { BarChart3, Home, Briefcase, DollarSign, Search, Filter } from 'lucide-react';
+import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { EquityMetricsCards, RealEstateMetricsCards, PrivateEquityMetricsCards, LiquidFundsMetricsCards } from './components';
 import EquityTable from './components/EquityTable';
@@ -176,11 +177,11 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
       return null;
     }
     
-    if (sortOrder === 'ASC') {
-      return <ChevronUp className="gba:h-4 gba:w-4 gba:ml-1" />;
-    } else if (sortOrder === 'DESC') {
-      return <ChevronDown className="gba:h-4 gba:w-4 gba:ml-1" />;
-    }
+          if (sortOrder === 'ASC') {
+        return <PiArrowUp className="gba:h-4 gba:w-4 gba:ml-1" />;
+      } else if (sortOrder === 'DESC') {
+        return <PiArrowDown className="gba:h-4 gba:w-4 gba:ml-1" />;
+      }
     
     return null;
   };

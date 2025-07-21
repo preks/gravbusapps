@@ -50,7 +50,7 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({
   if (error) {
     return (
       <div className="gba:px-6 gba:pt-6 gba:pb-4">
-        <Card className="gba:bg-gradient-to-r gba:from-red-50 gba:to-pink-50 gba:border-red-200">
+        <Card>
           <CardContent className="gba:py-4">
             <Alert
               message="Error Loading Investment Data"

@@ -9,10 +9,15 @@ import { employeeSkillsQuery } from '../../queries/skillsQueries';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
+import { PiPencilSimple } from 'react-icons/pi';
 
 interface SkillsTabProps {
   employee: Employee;
   accessToken: string;
+  employeeId?: string; // Optional employeeId override for permissions check
+  userInfo?: UserInfoProps; // Current user info for self-view check
+  isSelfView: boolean; // Whether user is viewing their own profile
 }
 
 interface EmployeeSkill {
@@ -30,8 +35,14 @@ interface EmployeeSkill {
  */
 const SkillsTab: React.FC<SkillsTabProps> = ({ 
   employee,
-  accessToken
+  accessToken,
+  // employeeId and userInfo are kept in the interface for future use
+  isSelfView
 }) => {
+
+  // Using isSelfView prop passed from parent component
+  // Note: We're adding employeeId and userInfo props for consistency with other tabs,
+  // but this tab currently doesn't use them for conditional rendering
   const [employeeSkills, setEmployeeSkills] = useState<EmployeeSkill[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,23 +125,20 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
             )}
           </div>
         </div>
-        
+        {isSelfView && (
         <AppActionButton
-          variant="primary"
+          variant="ghost"
           data-testid="update-skills-button"
-          contextsArray={[FlowContextName.employeeSkills]}
+          contextsArray={[FlowContextName.updateEmployeeSkill]}
           externalContextData={{
             employeeId: employee?.id
           }}
           prefixDataTestId="update-skills"
           accessToken={accessToken}
           autoExecuteSingleAction={true}
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:employee_record.update_skills",
-            "Update Skills"
-          )}
-        </AppActionButton>
+          icon={<PiPencilSimple />}
+        />
+        )}
       </div>
 
       {loading ? (
