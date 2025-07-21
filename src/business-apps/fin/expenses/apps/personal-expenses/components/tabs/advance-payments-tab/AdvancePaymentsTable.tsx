@@ -132,12 +132,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         dataSource={items}
         rowKey="id"
         loading={isLoading}
-        rowSelection={{
-          type: 'checkbox',
-          selectedRowKeys,
-          onChange: handleRowSelectionChange,
-          columnWidth: 48,
-        }}
+        // rowSelection={{
+        //   type: 'checkbox',
+        //   selectedRowKeys,
+        //   onChange: handleRowSelectionChange,
+        //   columnWidth: 48,
+        // }}
         onRow={(record: any) => ({
           onClick: (event: React.MouseEvent) => {
             // Prevent row click from triggering when clicking on checkbox
@@ -160,53 +160,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         }}
         data-testid="advance-payments-data-table"
         columns={[
-          {
-            title: 'Expense Plan',
-            dataIndex: 'code',
-            key: 'code',
-            render: (text: any, record: any) => (
-              <div data-testid="advance-payment-expense-plan">
-                <div className="gba:font-bold">{text}</div>
-                <div className="gba:text-xs gba:text-gray-600">
-                  {record.expensePlan?.title ?? 'No expense plan'}
-                </div>
-              </div>
-            )
-          },
-          {
-            title: 'Payment Method',
-            dataIndex: 'paymentMethod',
-            key: 'paymentMethod',
-            render: (method: any) => (
-              <div data-testid="advance-payment-method">
-                {method ?? 'Not specified'}
-              </div>
-            )
-          },
-          {
-            title: 'Amount',
-            dataIndex: 'amount',
-            key: 'amount',
-            align: 'right' as const,
-            render: (amount: any) => (
-              <span className="gba:font-bold" data-testid="advance-payment-amount">
-                €{formatCurrency(amount ?? 0)}
-              </span>
-            )
-          },
-          {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            render: (status: any) => {
-              const statusConfig = getAdvancePaymentStatusDisplay(status);
-              return (
-                <div data-testid="advance-payment-status">
-                  <Pill type={statusConfig.type} label={statusConfig.label} />
-                </div>
-              );
-            }
-          },
           {
             title: '',
             key: 'actions',
@@ -248,6 +201,71 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 data-testid="advance-payment-actions"
                 size="md"
               />
+            )
+          },
+          {
+            title: 'Expense Plan',
+            dataIndex: 'code',
+            key: 'code',
+            render: (text: any, record: any) => (
+              <div data-testid="advance-payment-expense-plan">
+                <div className="gba:text-gray-600">
+                  {record.expensePlan?.title ?? 'No expense plan'}
+                </div>
+              </div>
+            )
+          },
+          {
+            title: 'Plan Number',
+            dataIndex: 'expensePlan',
+            key: 'planNumber',
+            render: (text: any, record: any) => (
+              <div data-testid="advance-payment-plan-number">
+                <div>{record.expensePlan?.code ?? 'N/A'}</div>
+              </div>
+            )
+          },
+          {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            render: (status: any) => {
+              const statusConfig = getAdvancePaymentStatusDisplay(status);
+              return (
+                <div data-testid="advance-payment-status">
+                  <Pill type={statusConfig.type} label={statusConfig.label} />
+                </div>
+              );
+            }
+          },
+          {
+            title: 'Amount',
+            dataIndex: 'expensePlan',
+            key: 'amount',
+            render: (text: any, record: any) => (
+              <div className="gba:text-right" data-testid="advance-payment-amount">
+                {formatCurrency(record.expensePlan?.totalAmount ?? 0)} {record.expensePlan?.currency?.code ?? 'EUR'}
+              </div>
+            )
+          },
+          {
+            title: 'Advance',
+            dataIndex: 'amount',
+            key: 'advance',
+            render: (amount: any, record: any) => (
+              <div className="gba:text-right" data-testid="advance-payment-advance">
+                {formatCurrency(amount ?? 0)} {record.currency?.code ?? 'EUR'}
+              </div>
+            )
+          },
+          {
+            title: 'Payment Method',
+            dataIndex: 'paymentMethod',
+            key: 'paymentMethod',
+            render: (method: any) => (
+              <div data-testid="advance-payment-method">
+                {method ? method.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Not specified'}
+              </div>
             )
           }
         ] as any}

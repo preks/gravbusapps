@@ -9,15 +9,23 @@ export interface AdvancePayment {
   code: string;
   description: string;
   amount: number;
+  advance: number;
   currencyRef: string;
+  currency: {
+    code: string;
+  };
   costCenter: {
     name: string;
   };
-  status: string;
+  status: string; 
   paymentMethod: string | null;
   expensePlan: {
     code: string;
-    title: string;
+    title: string;  
+    totalAmount: number;
+    currency: {
+      code: string;
+    };
   };
   expensePlanId: string;
 }
