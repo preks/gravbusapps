@@ -1,0 +1,58 @@
+import * as z from "zod";
+import { env } from "../env/EnvUtils";
+
+import { useCallback, useMemo } from "react";
+
+type AvailableLlmModels = "gpt-4.1";
+
+/**
+ * React hook that prepares and memoises the information-extraction request.
+ *
+ * The costly parts – endpoint URL construction and Zod → JSON-schema conversion –
+ * are memoised so they are executed only when one of the dependencies changes.
+ *
+ * Usage:
+ * const extractInformation = useInformationExtraction(taskDescription, responseModel);
+ * const result = await extractInformation(inputText);
+ */
+export default function useInformationExtraction<T>(
+  taskDescription: string,
+  responseModel: z.ZodType<T>,
+  llmModel: AvailableLlmModels = "gpt-4.1",
+) {
+  // Memoise values that do not change between invocations of the returned function
+  const endpointUrl = useMemo(() => `${env("NEXT_PUBLIC_BASE_URL")}/flowbot/information-extraction/extract_information`, []);
+  const outputJsonSchema = useMemo(() => z.toJSONSchema(responseModel), [responseModel]);
+
+  /**
+   * Memoised function that sends the extraction request.
+   * Only the `inputData` argument is required by consumers.
+   */
+  const extractInformation = useCallback(
+    async (inputData: string): Promise<T> => {
+      const form = new FormData();
+      form.append("task_description", taskDescription);
+      form.append("output_json_schema_string", outputJsonSchema.toString());
+      if (inputData !== undefined) form.append("input_data", inputData);
+      // ⬇ files intentionally left out
+      form.append("llm_model", llmModel);
+
+      const res = await fetch(endpointUrl, {
+        method: "POST",
+        body: form,
+      });
+
+      if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+
+      // Validate the result against the response model
+      const ExtractInformationResponse = z.object({
+        extracted_data: responseModel,
+      });
+      const result = ExtractInformationResponse.parse(await res.json());
+      return result.extracted_data;
+    },
+    [endpointUrl, llmModel, outputJsonSchema, responseModel, taskDescription],
+  );
+
+  return extractInformation;
+}
