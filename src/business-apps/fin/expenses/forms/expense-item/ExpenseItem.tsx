@@ -9,6 +9,8 @@ import FormScreenComponent from "./components/FormScreenComponent";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { ICONS } from "../../utils/icons";
 import { FORM_STEPS } from "./constants/constants";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { showToast } from "../../utils/notificationUtils";
 
 const { Title } = Typography;
 
@@ -68,7 +70,13 @@ const ExpenseItemContent: React.FC<ExpenseItemContentProps> = ({ onClose }) => {
         onClose(true);
       }
     } catch (error) {
-      console.error('Error submitting expense item:', error);
+      showToast(
+            getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_summary_request.no_expense_items",
+              "No expense items created"
+            ),
+            "error"
+          )
     }
   };
 
