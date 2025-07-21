@@ -72,6 +72,46 @@ function formatPathForResource(path) {
 }
 
 /**
+ * Format screen name from path - extracts only the screen name and converts to Pascal Case
+ * @param {string} path - The path to format (e.g., "apps/hr/core/apps/employee-record")
+ * @returns {string} Formatted screen name (e.g., "Employee Record")
+ */
+function formatScreenNameFromPath(path) {
+  const segments = path.split("/");
+  // Get the last segment which is the actual screen name
+  const screenName = segments[segments.length - 1];
+  
+  // Convert kebab-case to Pascal Case with spaces
+  return screenName
+    .split("-")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+/**
+ * Generate screen key from path - removes "apps" and "forms" segments only from the beginning
+ * @param {string} path - The path to format (e.g., "apps/hr/core/apps/employee-record")
+ * @returns {string} Screen key (e.g., "url_hr~core~apps~employee-record")
+ */
+function generateScreenKeyFromPath(path) {
+  const segments = path.split("/");
+  
+  // Remove "apps" and "forms" segments only from the beginning of the path
+  let startIndex = 0;
+  while (startIndex < segments.length && 
+         (segments[startIndex].toLowerCase() === "apps" || segments[startIndex].toLowerCase() === "forms")) {
+    startIndex++;
+  }
+  
+  // Take segments from startIndex onwards and convert to lowercase
+  const filteredSegments = segments
+    .slice(startIndex)
+    .map(segment => segment.toLowerCase());
+  
+  return `url_${filteredSegments.join("~")}`;
+}
+
+/**
  * Add an app resource URL to Navigation service
  * @param {string} azureDestinationPath - The path where the app is deployed
  * @param {boolean} addIfExistsResponse - Whether to respond if the URL exists
@@ -181,7 +221,7 @@ async function addCustomResourceUrl(customUrlPath) {
  * @param {string} buildNumber - The build number to use as version (optional, defaults to empty string)
  * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
  * @param {Object} oauthConfig - OAuth configuration for production (optional)
- * @returns {Promise<string|null>} The generated UUID if successful, null if failed
+ * @returns {Promise<string>} The generated UUID if successful, null if failed
  */
 async function addScreenConfigToScreenManagement(
   azureDestinationPath,
@@ -190,18 +230,18 @@ async function addScreenConfigToScreenManagement(
   apiEndpoint = null,
   oauthConfig = {}
 ) {
+
+  const generatedId = uuidv4();
+
   try {
     const oauthClient = new OAuthClient(oauthConfig);
     const accessToken = await oauthClient.getAccessToken();
     const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API;
 
-    const { name } = formatPathForResource(customUrlPath);
-    const screenKey = `url_${customUrlPath
-      .split("/")
-      .map((s) => s.toLowerCase())
-      .join("~")}`;
+    // Use new helper functions for proper screen naming and key generation
+    const name = formatScreenNameFromPath(customUrlPath);
+    const screenKey = generateScreenKeyFromPath(customUrlPath);
 
-    const generatedId = uuidv4();
     const payload = {
       id: generatedId,
       name: name,
@@ -237,15 +277,67 @@ async function addScreenConfigToScreenManagement(
         }
       );
       console.log(`✅ Screen config added successfully for ${customUrlPath}`);
-      return generatedId;
+      return { success: true, id: generatedId };
     } catch (error) {
       console.log(
         `ℹ️ Possible Error. Or Screen config already exists for ${customUrlPath}`
       );
-      return null;
+      return { success: false, id: generatedId };
     }
   } catch (error) {
     console.error("❌ Failed to add screen config:", error.message);
+    throw error;
+  }
+}
+
+/**
+ * Get screen configuration by screen key from Screen Management service
+ * @param {string} screenKey - The screen key to search for
+ * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
+ * @param {Object} oauthConfig - OAuth configuration for production (optional)
+ * @returns {Promise<Object|null>} The screen object if found, null if not found
+ */
+async function getScreenByKey(screenKey, apiEndpoint = null, oauthConfig = {}) {
+  try {
+    const oauthClient = new OAuthClient(oauthConfig);
+    const accessToken = await oauthClient.getAccessToken();
+    const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API;
+
+    try {
+      const response = await axios.get(
+        `${screenManagementApi}/screen`,
+        {
+          headers: {
+            accept: "application/json",
+            authorization: `Bearer ${accessToken}`,
+          },
+          params: {
+            screenKey: screenKey,
+            builderType: "NATIVE_SCREEN",
+            sort: "updatedAt",
+            order: "DESC",
+            limit: 1,
+            offset: 0,
+          }
+        }
+      );
+
+      if (response.data && response.data.data && response.data.data.length > 0) {
+        const screen = response.data.data.find(s => s.screenKey === screenKey);
+        if (screen) {
+          console.log(`🔍 Found existing screen with key: ${screenKey}, ID: ${screen.id}`);
+          return screen;
+        }
+      }
+      
+      console.log(`🔍 Screen not found for key: ${screenKey}`);
+      return null;
+    } catch (error) {
+      console.error(`❌ Failed to get screen by key: ${screenKey}`, error.message);
+      throw error;
+    }
+  } catch (error) {
+    console.error("❌ Failed to get screen by key:", error.message);
     throw error;
   }
 }
@@ -338,9 +430,11 @@ function camelCaseToNaturalLanguageWithWhiteSpaces(camelCase) {
  * @param {string} buildNumber - The build number to use as version (optional, defaults to empty string)
  * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
  * @param {Object} oauthConfig - OAuth configuration for production (optional)
- * @returns {Promise<string|null>} - The generated UUID if successful, null if failed
+ * @returns {Promise<string>} - The generated UUID if successful, null if failed
  */
 async function addFormAsLandingScreen(processName, azureDestinationPath, buildNumber = "", apiEndpoint = null, oauthConfig = {}) {
+  const generatedId = uuidv4();
+
   try {
     const oauthClient = new OAuthClient(oauthConfig);
     const accessToken = await oauthClient.getAccessToken();
@@ -349,7 +443,6 @@ async function addFormAsLandingScreen(processName, azureDestinationPath, buildNu
     const name = camelCaseToNaturalLanguageWithWhiteSpaces(processName);
     const screenKey = `frm_${processName}`;
 
-    const generatedId = uuidv4();
     const payload = {
       id: generatedId,
       name: name,
@@ -389,11 +482,11 @@ async function addFormAsLandingScreen(processName, azureDestinationPath, buildNu
       console.log(
         `✅ Successfully added landing screen with ID: ${generatedId}`
       );
-      return generatedId;
+      return { success: true, id: generatedId };
     } catch (apiError) {
       if (apiError.response && apiError.response.status === 409) {
         console.log("⚠️ Screen config already exists. Continuing...");
-        return null;
+        return { success: false, id: generatedId };
       }
       throw apiError; // Re-throw to be caught by outer try-catch
     }
@@ -406,7 +499,7 @@ async function addFormAsLandingScreen(processName, azureDestinationPath, buildNu
       console.error("Response status:", error.response.status);
       console.error("Response data:", error.response.data);
     }
-    return null;
+    return { success: false, id: generatedId };
   }
 }
 
@@ -504,6 +597,9 @@ export {
   addCustomResourceUrl,
   addScreenConfigToScreenManagement,
   updateScreenConfigInScreenManagement,
+  getScreenByKey,
   addFormAsLandingScreen,
   addFormAsUserTaskScreen,
+  formatScreenNameFromPath,
+  generateScreenKeyFromPath,
 };

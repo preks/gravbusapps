@@ -16,7 +16,10 @@ import { glob } from "glob";
 import {
   addScreenConfigToScreenManagement,
   updateScreenConfigInScreenManagement,
-  addFormAsLandingScreen
+  getScreenByKey,
+  addFormAsLandingScreen,
+  formatScreenNameFromPath,
+  generateScreenKeyFromPath
 } from "./api-client.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -107,38 +110,67 @@ async function handleScreenManagement(screenPath, azureDestinationPath) {
       const formName = pathParts[pathParts.length - 1]; // Get the form name
       const processName = formName.replace(/-form$/, ""); // Remove "-form" suffix if present
       
-      const formId = await addFormAsLandingScreen(processName, azureDestinationPath, PUBLISH_VERSION, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
-      if (formId) {
-        console.log(`✅ Form screen registered successfully with ID: ${formId}`);
-        return { success: true, operation: 'add' };
-      } else {
-        console.log(`⚠️  Form screen registration failed or already exists, try updating the form`);
-
-        // Update the form with build number as version
-        const updateData = {
-            screenKey: `frm_${processName}`,
-            name: camelCaseToNaturalLanguageWithWhiteSpaces(processName),
-            type: "SCREEN",
-            screenComponents: {
-              key: `frm_${processName}`,
-              name: camelCaseToNaturalLanguageWithWhiteSpaces(processName),
-              builderType: "NATIVE_SCREEN",
-              formDefinition: {
-                componentPath: `/${azureDestinationPath}`,
-                version: PUBLISH_VERSION,
-              },
-              release: PUBLISH_VERSION,
-            },
-          };
+            // Get the form screen key for lookup
+      const formScreenKey = `frm_${processName}`;
+      
+      // First, check if the form already exists
+      console.log(`🔍 Checking if form exists with key: ${formScreenKey}`);
+      try {
+        const existingForm = await getScreenByKey(formScreenKey, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
+        
+        if (existingForm && existingForm.id) {
+          // Form exists, update it
+          console.log(`📝 Form exists with ID: ${existingForm.id}, updating version to ${PUBLISH_VERSION}`);
           
-          const updateSuccess = await updateScreenConfigInScreenManagement(formId, updateData, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
-          if (updateSuccess) {
-            console.log(`✅ Form version updated to ${PUBLISH_VERSION}`);
-            return { success: true, operation: 'update' };
+          const updateData = {
+              screenKey: formScreenKey,
+              name: camelCaseToNaturalLanguageWithWhiteSpaces(processName),
+              type: "SCREEN",
+              screenComponents: {
+                key: formScreenKey,
+                name: camelCaseToNaturalLanguageWithWhiteSpaces(processName),
+                builderType: "NATIVE_SCREEN",
+                formDefinition: {
+                  componentPath: `/${azureDestinationPath}`,
+                  version: PUBLISH_VERSION,
+                },
+                release: PUBLISH_VERSION,
+              },
+            };
+            
+            const updateSuccess = await updateScreenConfigInScreenManagement(existingForm.id, updateData, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
+            if (updateSuccess) {
+              console.log(`✅ Form version updated to ${PUBLISH_VERSION}`);
+              return { success: true, operation: 'update' };
+            } else {
+              console.error(`❌ Form version update failed`);
+              return { success: false, operation: 'update', error: 'Form version update failed' };
+            }
+        } else {
+          // Form doesn't exist, create it
+          console.log(`🆕 Form doesn't exist, creating new form with key: ${formScreenKey}`);
+          
+          const result = await addFormAsLandingScreen(processName, azureDestinationPath, PUBLISH_VERSION, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
+          if (result.success) {
+            console.log(`✅ Form screen created successfully with ID: ${result.id}`);
+            return { success: true, operation: 'add' };
           } else {
-            console.error(`❌ Form version update failed`);
-            return { success: false, operation: 'update', error: 'Form version update failed' };
+            console.error(`❌ Form screen creation failed`);
+            return { success: false, operation: 'add', error: 'Form screen creation failed' };
           }
+        }
+      } catch (error) {
+        console.log(`⚠️  Error checking existing form: ${error.message}, attempting to create new form`);
+        
+        // If lookup fails, try to create the form
+        const result = await addFormAsLandingScreen(processName, azureDestinationPath, PUBLISH_VERSION, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
+        if (result.success) {
+          console.log(`✅ Form screen created successfully with ID: ${result.id}`);
+          return { success: true, operation: 'add' };
+        } else {
+          console.error(`❌ Form screen creation failed`);
+          return { success: false, operation: 'add', error: 'Form screen creation failed' };
+        }
       }
     } else {
       // For regular screens, register with build number as version
@@ -147,45 +179,81 @@ async function handleScreenManagement(screenPath, azureDestinationPath) {
       // Generate custom URL path from screen path
       const customUrlPath = `apps/${azureDestinationPath}`;
       
-      // Try to add screen config first
-      const screenId = await addScreenConfigToScreenManagement(
-        azureDestinationPath, 
-        customUrlPath,
-        PUBLISH_VERSION,
-        SCREEN_MANAGEMENT_SERVICE_API_PROD,
-        oauthConfig
-      );
+            // Get the screen name and key for lookup
+      const screenName = formatScreenNameFromPath(customUrlPath);
+      const screenKey = generateScreenKeyFromPath(customUrlPath);
       
-      if (screenId) {
-        console.log(`✅ Screen registered successfully with ID: ${screenId}`);
-        return { success: true, operation: 'add' };
-      } else {
-        console.log(`⚠️  Screen registration failed or already exists, try updating the screen`);
-
-        // Update the screen with build number as version
-        const updateData = {
-            screenKey: `url_${customUrlPath.split("/").map(s => s.toLowerCase()).join("~")}`,
-            name: azureDestinationPath.split("/").pop(),
-            type: "SCREEN",
-            screenComponents: {
-                key: `url_${customUrlPath.split("/").map(s => s.toLowerCase()).join("~")}`,
-                name: azureDestinationPath.split("/").pop(),
-                builderType: "NATIVE_SCREEN",
-                formDefinition: {
-                componentPath: `/${azureDestinationPath}`,
-                version: PUBLISH_VERSION,
-                },
-                release: PUBLISH_VERSION,
-            },
-        };
+      // First, check if the screen already exists
+      console.log(`🔍 Checking if screen exists with key: ${screenKey}`);
+      try {
+        const existingScreen = await getScreenByKey(screenKey, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
         
-        const updateSuccess = await updateScreenConfigInScreenManagement(screenId, updateData, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
-        if (updateSuccess) {
-            console.log(`✅ Screen version updated to ${PUBLISH_VERSION}`);
-            return { success: true, operation: 'update' };
+        if (existingScreen && existingScreen.id) {
+          // Screen exists, update it
+          console.log(`📝 Screen exists with ID: ${existingScreen.id}, updating version to ${PUBLISH_VERSION}`);
+          
+          const updateData = {
+              screenKey: screenKey,
+              name: screenName,
+              type: "SCREEN",
+              screenComponents: {
+                  key: screenKey,
+                  name: screenName,
+                  builderType: "NATIVE_SCREEN",
+                  formDefinition: {
+                  componentPath: `/${azureDestinationPath}`,
+                  version: PUBLISH_VERSION,
+                  },
+                  release: PUBLISH_VERSION,
+              },
+          };
+          
+          const updateSuccess = await updateScreenConfigInScreenManagement(existingScreen.id, updateData, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
+          if (updateSuccess) {
+              console.log(`✅ Screen version updated to ${PUBLISH_VERSION}`);
+              return { success: true, operation: 'update' };
+          } else {
+              console.error(`❌ Screen version update failed`);
+              return { success: false, operation: 'update', error: 'Screen version update failed' };
+          }
         } else {
-            console.error(`❌ Screen version update failed`);
-            return { success: false, operation: 'update', error: 'Screen version update failed' };
+          // Screen doesn't exist, create it
+          console.log(`🆕 Screen doesn't exist, creating new screen with key: ${screenKey}`);
+          
+          const result = await addScreenConfigToScreenManagement(
+            azureDestinationPath, 
+            customUrlPath,
+            PUBLISH_VERSION,
+            SCREEN_MANAGEMENT_SERVICE_API_PROD,
+            oauthConfig
+          );
+          
+          if (result.success) {
+            console.log(`✅ Screen created successfully with ID: ${result.id}`);
+            return { success: true, operation: 'add' };
+          } else {
+            console.error(`❌ Screen creation failed`);
+            return { success: false, operation: 'add', error: 'Screen creation failed' };
+          }
+        }
+      } catch (error) {
+        console.log(`⚠️  Error checking existing screen: ${error.message}, attempting to create new screen`);
+        
+        // If lookup fails, try to create the screen
+        const result = await addScreenConfigToScreenManagement(
+          azureDestinationPath, 
+          customUrlPath,
+          PUBLISH_VERSION,
+          SCREEN_MANAGEMENT_SERVICE_API_PROD,
+          oauthConfig
+        );
+        
+        if (result.success) {
+          console.log(`✅ Screen created successfully with ID: ${result.id}`);
+          return { success: true, operation: 'add' };
+        } else {
+          console.error(`❌ Screen creation failed`);
+          return { success: false, operation: 'add', error: 'Screen creation failed' };
         }
       }
     }
