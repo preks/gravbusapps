@@ -1,5 +1,6 @@
 import React from 'react';
 import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system';
+import { getExpenseIconColor } from '../../utils/colorConstants';
 
 export interface PendingRequestsCardProps {
   loading: boolean;
@@ -37,7 +38,7 @@ const PendingRequestsCard: React.FC<PendingRequestsCardProps> = ({ loading, erro
     suffix: 'requests',
     footer: 'Expense requests awaiting approval',
     icon: 'clock',
-    iconColor: '#1890ff'
+          iconColor: getExpenseIconColor.pendingRequests()
   };
 
   return (

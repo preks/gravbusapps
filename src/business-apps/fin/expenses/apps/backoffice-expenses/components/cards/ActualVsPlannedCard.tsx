@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system';
+import { getExpenseIconColor } from '../../utils/colorConstants';
 import { ExpensePlanYearly, YTDStats } from '../../types';
 
 export interface ActualVsPlannedCardProps {
@@ -80,7 +81,7 @@ const ActualVsPlannedCard: React.FC<ActualVsPlannedCardProps> = ({ loading, erro
       description: isOverBudget ? 'over budget' : 'under budget'
     },
     icon: 'target',
-    iconColor: isOverBudget ? '#ff4d4f' : '#52c41a'
+          iconColor: getExpenseIconColor.actualVsPlanned(isOverBudget)
   };
 
   return (

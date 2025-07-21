@@ -42,6 +42,10 @@ interface UseFilterDataResult {
   refetch: () => void;
 }
 
+// ⚡ PERFORMANCE OPTIMIZATION: Add simple cache to prevent refetching
+const FILTER_DATA_CACHE = new Map<string, { data: any; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 export const useFilterData = ({ accessToken }: Pick<BusinessAppContextProps, 'accessToken'>): UseFilterDataResult => {
   const [organizationalUnits, setOrganizationalUnits] = useState<OrganizationalUnit[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
@@ -53,6 +57,16 @@ export const useFilterData = ({ accessToken }: Pick<BusinessAppContextProps, 'ac
   const fetchFilterData = useCallback(async () => {
     if (!accessToken || !client) {
       setError(new Error('Access token and GraphQL client are required.'));
+      setLoading(false);
+      return;
+    }
+
+    // ⚡ Check cache first
+    const cacheKey = `filter_data_${accessToken}`;
+    const cached = FILTER_DATA_CACHE.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      setOrganizationalUnits(cached.data.orgUnits);
+      setCurrencies(cached.data.currencies);
       setLoading(false);
       return;
     }
@@ -128,6 +142,12 @@ export const useFilterData = ({ accessToken }: Pick<BusinessAppContextProps, 'ac
       );
       
       setCurrencies(uniqueCurrencies);
+      
+      // ⚡ Store in cache
+      FILTER_DATA_CACHE.set(cacheKey, {
+        data: { orgUnits, currencies: uniqueCurrencies },
+        timestamp: Date.now()
+      });
     } catch (err) {
       console.error('Error fetching filter data:', err);
       setError(err instanceof Error ? err : new Error('Failed to fetch filter data'));

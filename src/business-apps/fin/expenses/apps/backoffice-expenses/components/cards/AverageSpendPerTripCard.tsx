@@ -1,5 +1,6 @@
 import React from 'react';
 import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system';
+import { getExpenseIconColor } from '../../utils/colorConstants';
 
 export interface AverageSpendPerTripCardProps {
   loading: boolean;
@@ -39,7 +40,7 @@ const AverageSpendPerTripCard: React.FC<AverageSpendPerTripCardProps> = ({ loadi
     decimalPlaces: 2,
     footer: `Based on ${travelExpensesCount} travel expenses`,
     icon: 'plane',
-    iconColor: '#1890ff'
+          iconColor: getExpenseIconColor.averageSpend()
   };
 
   return (

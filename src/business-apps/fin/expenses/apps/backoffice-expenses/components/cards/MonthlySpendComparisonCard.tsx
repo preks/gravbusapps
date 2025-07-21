@@ -1,5 +1,6 @@
 import React from 'react';
 import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system';
+import { getExpenseIconColor } from '../../utils/colorConstants';
 import { MonthlySpendComparison } from '../../types';
 
 export interface MonthlySpendComparisonCardProps {
@@ -72,7 +73,7 @@ const MonthlySpendComparisonCard: React.FC<MonthlySpendComparisonCardProps> = ({
       description: isIncrease ? 'increase vs last month' : 'decrease vs last month'
     },
     icon: 'calendar',
-    iconColor: isIncrease ? '#ff4d4f' : '#52c41a'
+          iconColor: getExpenseIconColor.monthlyComparison(isIncrease)
   };
 
   return (

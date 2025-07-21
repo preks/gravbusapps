@@ -1,5 +1,6 @@
 import React from 'react';
 import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system';
+import { getExpenseIconColor } from '../../utils/colorConstants';
 
 export interface TransferRequiredCardProps {
   loading: boolean;
@@ -38,7 +39,7 @@ const TransferRequiredCard: React.FC<TransferRequiredCardProps> = ({ loading, er
     decimalPlaces: 2,
     footer: 'Approved expenses awaiting payment',
     icon: 'dollar-sign',
-    iconColor: '#d46b08'
+          iconColor: getExpenseIconColor.transferRequired()
   };
 
   return (

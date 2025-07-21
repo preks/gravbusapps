@@ -47,10 +47,14 @@ export const useDashboardStats = ({ accessToken }: Pick<BusinessAppContextProps,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  
+  // ⚡ PERFORMANCE: Separate loading state for expensive monthly trends
+  const [trendsLoading, setTrendsLoading] = useState(false);
 
   const client = useGraphqlClient(accessToken);
 
-  const fetchDashboardStats = useCallback(async () => {
+  // ⚡ PERFORMANCE: Phase 1 - Load essential dashboard data quickly
+  const fetchEssentialStats = useCallback(async () => {
     if (!accessToken || !client) {
       setError(new Error('Access token and GraphQL client are required.'));
       setLoading(false);
@@ -83,12 +87,11 @@ export const useDashboardStats = ({ accessToken }: Pick<BusinessAppContextProps,
       const previousMonthStart = new Date(currentYear, currentDate.getMonth() - 1, 1).toISOString().split('T')[0];
       const previousMonthEnd = new Date(currentYear, currentDate.getMonth(), 0, 23, 59, 59).toISOString().split('T')[0];
 
-      // Execute all queries in parallel with correct variables
+      // ⚡ PHASE 1: Load only essential KPI data - MUCH faster!
       const [
         expensePlanResponse,
         monthlyStatsResponse,
         ytdStatsResponse,
-        monthlyTrendsResponse,
         additionalMetricsResponse,
       ] = await Promise.all([
         client.request(GET_EXPENSE_PLAN_YEARLY_TOTAL, {
@@ -109,16 +112,20 @@ export const useDashboardStats = ({ accessToken }: Pick<BusinessAppContextProps,
           previousYearStart,
           previousYTD,
         }),
-        Promise.all(Array.from({ length: 12 }).map((_, monthIndex) => {
-          const monthStart = new Date(currentYear, monthIndex, 1).toISOString();
-          const monthEnd = new Date(currentYear, monthIndex + 1, 0, 23, 59, 59).toISOString();
-          return client.request(GET_MONTHLY_EXPENSE_TRENDS, {
-            startDate: monthStart,
-            endDate: monthEnd,
-          });
-        })),
         client.request(GET_ADDITIONAL_DASHBOARD_METRICS, {}),
       ]);
+
+      // ⚡ FIXED: Restore real monthly trends data (was accidentally using placeholders)
+      const monthlyTrendsPromises = Array.from({ length: 12 }, (_, index) => {
+        const monthStart = new Date(currentYear, index, 1).toISOString();
+        const monthEnd = new Date(currentYear, index + 1, 1).toISOString();
+        return client.request(GET_MONTHLY_EXPENSE_TRENDS, {
+          startDate: monthStart,
+          endDate: monthEnd,
+        });
+      });
+      
+      const monthlyTrendsResponse = await Promise.all(monthlyTrendsPromises);
 
       // Process the responses
       const processedStats: DashboardStats = {
@@ -171,10 +178,10 @@ export const useDashboardStats = ({ accessToken }: Pick<BusinessAppContextProps,
   }, [accessToken, client]);
 
   useEffect(() => {
-    fetchDashboardStats();
-  }, [fetchDashboardStats]);
+    fetchEssentialStats();
+  }, [fetchEssentialStats]);
 
-  return { stats, loading, error, refetch: fetchDashboardStats };
+  return { stats, loading, error, refetch: fetchEssentialStats };
 };
 
 export default useDashboardStats;

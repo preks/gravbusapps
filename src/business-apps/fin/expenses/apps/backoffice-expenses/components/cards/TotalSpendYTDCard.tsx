@@ -1,5 +1,6 @@
 import React from 'react';
 import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system';
+import { getExpenseIconColor } from '../../utils/colorConstants';
 import { YTDStats } from '../../types';
 
 export interface TotalSpendYTDCardProps {
@@ -59,7 +60,7 @@ const TotalSpendYTDCard: React.FC<TotalSpendYTDCardProps> = ({ loading, error, y
       description: 'vs last year'
     },
     icon: 'euro',
-    iconColor: '#1890ff'
+          iconColor: getExpenseIconColor.totalSpend()
   };
 
   return (
