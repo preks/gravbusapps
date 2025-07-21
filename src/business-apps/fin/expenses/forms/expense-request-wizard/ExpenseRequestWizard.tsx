@@ -494,20 +494,20 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
                       const nextEvent = new CustomEvent('expense-request-next-trip');
                       document.dispatchEvent(nextEvent);
-                      navigateToNextScreen()
+                      // navigateToNextScreen()
                     } else if (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB) {
                       const nextEvent = new CustomEvent('expense-request-next-items');
                       document.dispatchEvent(nextEvent);
-                      navigateToNextScreen()
+                      // navigateToNextScreen()
                     } else if (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB) {
                       const nextEvent = new CustomEvent('expense-request-next-allowance');
                       document.dispatchEvent(nextEvent);
-                      navigateToNextScreen()
+                      // navigateToNextScreen()
                     } else if (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB) {
                       const submitEvent = new CustomEvent('expense-request-submit-summary');
                       document.dispatchEvent(submitEvent);
                     } else {
-                      navigateToNextScreen()
+                      // navigateToNextScreen()
                     }
                   }}
                 >
