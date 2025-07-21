@@ -235,7 +235,7 @@ const LocationForm: React.FC<LocationFormProps> = ({
                 <div className="gba:warningMessageRow" data-testid={`${idPrefix}-warnings-row`}>
                   <Alert
                     message={getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:expense_request_wizard.trip_screen.future_date_warning",
+                      "lowcoder:create_expense_request.add_request_trip_details.future_date_warning",
                       "The selected date is in the future"
                     )}
                     type="warning"

@@ -12,6 +12,7 @@ import { fetchEmployeeExpenseItems, fetchEmployeeExpenseItemsFromPayload } from 
 import { SearchBarWithLabel } from '../../../forms/expense-request/components';
 import { EVENTS } from '../../../utils/constants';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { showToast } from '../../../utils/notificationUtils';
 
 
 interface ItemsScreenProps extends BusinessAppContextProps {
@@ -166,7 +167,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       
       setSelectItemsList(finalItems);
     } catch (error) {
-      console.error('Error fetching expense items:', error);
+      showToast(
+        getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetch_items",
+        "Error fetching expense items"),
+         "error")
       const filteredDeletedItems = deletedItems.filter((item: any) => 
         !expenseRequestData.ExpenseItem?.map((i: any) => i.id).includes(item.id) &&
         !selectedItemsToInitial.map((i: any) => i.id).includes(item.id)
@@ -351,7 +355,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
             setPayloadItemsLoaded(true);
           }
         } catch (error) {
-          console.error('Error fetching items from payload:', error);
+          showToast(
+          getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetch_items_payload",
+          "Error fetching items from payload"),
+           "error")
         } finally {
           setIsLoading(false);
         }
@@ -386,7 +393,6 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         expenseRequestData,
         EVENTS.NEXT
       );
-      // console.log('Items Screen Next Event:', logObject);
       dispatchProcessContinueEvent(EVENTS.SUBMIT, logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle, currentCurrency, expenseItems]);
@@ -403,7 +409,6 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         EVENTS.SAVE
       );
       dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
-      // console.log('Items Screen Save Event:', logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle, currentCurrency, expenseItems]);
   
@@ -462,8 +467,8 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         <div className="gba:screenHeader gba:flex gba:justify-between gba:items-center gba:mb-4" data-testid="expense-request-wizard-select-items-header">
           <SearchBarWithLabel 
             onSearch={handleSearch} 
-            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.search_module', 'My Expense Items')}
-            label={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.expense_header_title', 'Search In Expense Items List') + ` (${totalItems})`}
+            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.expense_header_title', 'My Expense Items')}
+            label={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.search_module', 'Search In Expense Items List') + ` (${totalItems})`}
             data-testid="expense-request-wizard-search-bar"
           />
         </div>
@@ -471,7 +476,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         <div className="gba:itemsContent gba:bg-[#F7F7F7] gba:border-t gba:border-b gba:border-[#F7F7F7] gba:py-2 gba:px-2" data-testid="expense-request-wizard-select-items-content">
           {isLoading ? (
             <div className="gba:text-center gba:p-8 gba:bg-[#F7F7F7]" data-testid="loading-message">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request.loading', 'Loading items...')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.loading_text', 'Loading items...')}
             </div>
           ) : selectItemsList.length > 0 ? (
             <>
@@ -514,7 +519,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
             </>
           ) : (
             <div className="gba:text-center gba:p-8 bg-[#F7F7F7]" data-testid="no-items-message">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request.no_items_to_select', 'No expense items available to select')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.no_items_to_select', 'No expense items available to select')}
             </div>
           )}
         </div>

@@ -11,6 +11,7 @@ import { getAllowanceItemsFunction } from '../utils/itemsScreenUtils';
 import { createAllowanceScreenLogObject } from '../utils/allowanceScreenUtils';
 import { EVENTS } from '../../../utils/constants';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { showToast } from '../../../utils/notificationUtils';
 
 const { Title } = Typography;
 
@@ -92,7 +93,10 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           }
         }
       } catch (error) {
-        console.error('Error fetching travel regions and cost centers:', error);
+        showToast(
+          getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetch_regions_cost_centers",
+          "Error fetching travel regions and cost centers"),
+          "error")
       }
     };
     
@@ -158,7 +162,10 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
         setProjects(projectsResponse.Project);
       }
     } catch (error) {
-      console.error('Error fetching projects:', error);
+      showToast(
+      getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetch_projects",
+      "Error fetching projects"),
+      "error")
     }
   };
   useEffect(() => {
@@ -249,7 +256,6 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           expenseRequestData,
           EVENTS.SAVE
         );
-        // console.log('Allowance Screen Save Event:', logObject);
         dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
       }
     };
@@ -265,7 +271,6 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           expenseRequestData,
           EVENTS.NEXT
         );
-        // console.log('Allowance Screen Next Event:', logObject);
         dispatchProcessContinueEvent(EVENTS.SUBMIT, logObject);
       }
     };

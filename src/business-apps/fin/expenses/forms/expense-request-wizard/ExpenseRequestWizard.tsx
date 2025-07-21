@@ -135,7 +135,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
 
   useEffect(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {
-      const initialTitle = expenseRequestData.ExpenseRequestByPk.title || getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.untitled', 'Untitled');
+      const initialTitle = expenseRequestData.ExpenseRequestByPk.title || "";
       setCurrentTitle(initialTitle);
       setTitleValue(initialTitle);
     }
@@ -149,7 +149,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   useEffect(() => {
     if (expenseRequestData) {
       if (isTrip) {
-        setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB);
+        setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
       } else {
         setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
       }
@@ -276,7 +276,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
             >
               <img 
                 src={ICONS.BACK_ARROW} 
-                alt={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.back', 'Back')}
+                alt={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.back_text', 'Back')}
                 className="gba:backIcon"
                 width="24"
                 height="24"
@@ -311,7 +311,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                     >
                       <img
                         src={ICONS.CHECK_ICON}
-                        alt={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.save_title', 'Save')}
+                        alt={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.save_btn', 'Save')}
                         width="20"
                         height="20"
                         data-testid="title-save-button-icon"
@@ -340,7 +340,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
             ) : (
               <div className="gba:displayTitleContainer" data-testid="expense-request-wizard-display-title-container">
                 <Title level={4} className="gba:headerTitle" data-testid="expense-request-wizard-title">
-                  {currentTitle || getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.untitled', 'Untitled')}
+                  {currentTitle || ""}
                 </Title>
                 <div className="gba:editButtonWrapper" data-testid="expense-request-wizard-edit-button-wrapper">
                   <Button
@@ -352,7 +352,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                   >
                     <img
                       src={ICONS.EDIT_ICON}
-                      alt={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.edit_title', 'Edit')}
+                      alt={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.back_text', 'Edit')}
                       width="20"
                       height="20"
                       data-testid="edit-title-button-icon"
@@ -388,7 +388,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
       >
         {loading ? (
           <div className="gba:loadingContainer" data-testid="expense-request-wizard-loading">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.loading', 'Loading...')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
           </div>
         ) : expenseRuleError ? (
           <div className="gba:validationContainer" data-testid="expense-request-wizard-error-container">
@@ -429,7 +429,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                   document.dispatchEvent(cancelEvent);
                 }}
               >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request.btn_cancel', 'Cancel')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_cancel', 'Cancel')}
               </Button>
               <div className="gba:rightButtonsContainer">
                 <Button 

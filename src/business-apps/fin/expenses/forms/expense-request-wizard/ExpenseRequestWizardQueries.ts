@@ -26,7 +26,7 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
       return await flowClient.getResource(path);
     } catch (error) {
       showToast(
-        getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_request.process_error_data_fetch", "Error fetching data"),
+        getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
         "error"
       );
       return null;
@@ -55,7 +55,7 @@ export const fetchEmployeeRule = async (employeeId: string, date: string, access
     return await flowClient.getResource(path);
   } catch (error) {
     showToast(
-      getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_request.process_error_data_fetch", "Error fetching data"),
+      getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
       "error"
     );
     return null;

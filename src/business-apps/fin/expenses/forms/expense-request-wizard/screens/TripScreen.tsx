@@ -380,7 +380,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
           const employeeId = userInfo?.employeeDetails?.employeeId;
           if (!employeeId) {
             showToast(
-              getTranslationFromI18nKeyAndLabel("lowcoder:expense_request_wizard.missing_employee_id", "Missing employee ID"),
+              getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.missing_employee_id", "Missing employee ID"),
               "error"
             );
             return;
@@ -544,7 +544,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
         const expenseId = expenseRequestData?.ExpenseRequestByPk?.id;
         if (!expenseId) {
           showToast(
-            getTranslationFromI18nKeyAndLabel("lowcoder:expense_request_wizard.missing_expense_id", "Missing expense ID"),
+            getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_request.error_missing_user_info", "Missing user information"),
             "error"
           );
           return;
@@ -755,7 +755,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
             <div key={destination.id} className="gba:locationContainerWrapper gba:withDivider" data-testid={`destination-wrapper-${destination.id}`}>
               <LocationContainer
                 title={getTranslationFromI18nKeyAndLabel(
-                  "lowcoder:expense_request_wizard.trip_screen.destination",
+                  "lowcoder:create_expense_request.add_request_trip_details.destination_collapsible_title",
                   "Destination"
                 )}
                 icon={ICONS.PIN_ICON}

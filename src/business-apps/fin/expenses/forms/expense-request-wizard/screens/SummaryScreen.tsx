@@ -13,8 +13,6 @@ import { createSummaryScreenLogObject } from '../utils/summaryScreenUtils';
 import { EVENTS } from '../../../utils/constants';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 
-
-
 /**
  * SummaryScreen component props
  */
@@ -49,7 +47,6 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
         EVENTS.SAVE
       );
       dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
-      // console.log('Summary Screen Save Event:', logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle]);
   
@@ -63,7 +60,6 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
         EVENTS.SUBMIT
       );
       dispatchProcessContinueEvent(EVENTS.SUBMIT, logObject);
-      // console.log('Summary Screen Submit Event:', logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle]);
   
@@ -121,7 +117,6 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
     expenseCurrentPage * itemListLimit
   );
   
-  console.log("positionsArray",positionsArray)
   return (
     <div className="gba:summaryScreenContainer gba:flex gba:flex-col gba:flex-grow" data-testid="expense-request-wizard-summary-screen" style={{ minHeight: '50vh' }}>
       <div className="gba:summaryContent gba:flex gba:flex-col gba:flex-grow" data-testid="expense-request-wizard-summary-screen-content">
