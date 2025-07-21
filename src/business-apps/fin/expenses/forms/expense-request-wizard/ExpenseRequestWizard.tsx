@@ -11,7 +11,7 @@ import { useExpenseRequestDateValidation } from './utils/dateValidationUtils';
 import './ExpenseRequestWizard.css';
 
 import { ExpenseRequestWizardProvider, useExpenseRequestWizardContext } from './context/ExpenseRequestWizardContext';
-import { mockAdditionalData, SCREEN_NAMES_ENUM } from './constants/constants';
+import { SCREEN_NAMES_ENUM } from './constants/constants';
 
 import ItemsScreen from './screens/ItemsScreen';
 import CreateItemScreen from './screens/CreateItemScreen';
@@ -220,19 +220,19 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   const renderCurrentScreen = () => {    
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.ITEMS_TAB:
-        return <ItemsScreen accessToken={accessToken} userInfo={userInfo} additionalData={mockAdditionalData || additionalData} />;
+        return <ItemsScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />;
       case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
-        return <CreateItemScreen accessToken={accessToken} userInfo={userInfo} additionalData={mockAdditionalData || additionalData}/>;
+        return <CreateItemScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}/>;
       case SCREEN_NAMES_ENUM.TRIPS_TAB:
-        return <TripScreen accessToken={accessToken} userInfo={userInfo} additionalData={mockAdditionalData || additionalData} />;
+        return <TripScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />;
       case SCREEN_NAMES_ENUM.LOAD_TAB:
-        return <LoadScreen accessToken={accessToken} userInfo={userInfo} additionalData={mockAdditionalData || additionalData} />;
+        return <LoadScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />;
       case SCREEN_NAMES_ENUM.ALLOWANCE_TAB:
-        return <AllowanceScreen accessToken={accessToken} userInfo={userInfo} additionalData={mockAdditionalData || additionalData} />;
+        return <AllowanceScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />;
       case SCREEN_NAMES_ENUM.SUMMARY_TAB:
-        return <SummaryScreen accessToken={accessToken} userInfo={userInfo} additionalData={mockAdditionalData || additionalData} />;
+        return <SummaryScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />;
       default:
-        return <ItemsScreen accessToken={accessToken} userInfo={userInfo} additionalData={mockAdditionalData || additionalData}/>;
+        return <ItemsScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}/>;
     }
   };
   
@@ -548,7 +548,7 @@ const ExpenseRequestWizard: React.FC<BusinessAppContextProps> = (props) => {
     <ExpenseRequestWizardProvider 
       accessToken={accessToken} 
       userInfo={userInfo}
-      additionalData={mockAdditionalData|| additionalData}
+      additionalData={additionalData}
     >
       <div className="gba:expenseRequestWizardWrapper" data-testid="expense-request-wizard-wrapper">
         <ExpenseRequestWizardContent 
