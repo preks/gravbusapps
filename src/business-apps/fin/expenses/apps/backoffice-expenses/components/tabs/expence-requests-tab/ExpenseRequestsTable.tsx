@@ -3,7 +3,7 @@
  * Displays a table of expense requests with filtering and view capabilities
  */
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useExpenseRequests } from '../../../hooks/useExpenseRequests';
 import {
@@ -60,7 +60,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const [searchText, setSearchText] = useState<string>(search ?? initialParams.search);
   const [selectedExpense, setSelectedExpense] = useState<ExpenseData | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const initialLoadDone = useRef(false);
   
   // ⚡ BEST PRACTICE: Update URL parameters (like leads)
   const updateURLParams = useCallback((params: {

@@ -51,12 +51,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     fetchPayments 
   } = useAdvancePayments({ accessToken });
 
-  // Debounced fetch function to improve performance
-  const debouncedFetchPayments = useCallback(
+  // ⚡ PERFORMANCE: Properly memoized debounced function to prevent recreation on every render
+  const debouncedFetchPayments = useMemo(() => 
     debounce((searchTerm: string, page: number, size: number, status?: string) => {
       fetchPayments(searchTerm, page, size, status);
     }, 300),
-    [fetchPayments]
+    [] // Stable - no dependencies needed as fetchPayments is already stable
   );
 
   // Initial data fetch on component mount - optimized

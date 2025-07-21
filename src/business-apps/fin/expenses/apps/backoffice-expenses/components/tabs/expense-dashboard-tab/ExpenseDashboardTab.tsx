@@ -8,7 +8,7 @@
  * Displays KPIs and statistics for expense management by composing various dashboard cards.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Alert, Spinner, SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useDashboardStats } from '../../../hooks/useDashboardStats';
@@ -21,37 +21,9 @@ interface ExpenseDashboardTabProps extends BusinessAppContextProps {
 
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   const { accessToken, prefixDataTestId = 'expense-dashboard-tab' } = props;
-  const [filters, setFilters] = useState<FilterOptions>({});
   
-  // Use the dashboard stats hook with current filters
+  // Use the dashboard stats hook
   const { stats, loading, error } = useDashboardStats({ accessToken });
-
-  const handleFiltersChange = (newFilters: FilterOptions) => {
-    setFilters(newFilters);
-    console.log('Filters applied:', newFilters);
-    // TODO: Implement actual filtering logic when dashboard stats hook supports it
-  };
-
-  if (loading) {
-    return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-64" data-testid="expense-dashboard-loading">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert variant="destructive" className="gba:mb-4" data-testid="expense-dashboard-error">
-        <div>
-          <h4 className="gba:font-semibold">Error Loading Dashboard Data</h4>
-          <p className="gba:text-sm gba:mt-1">
-            {error.message || 'An error occurred while loading dashboard data'}
-          </p>
-        </div>
-      </Alert>
-    );
-  }
 
   // Helper functions for KPI data formatting
   const formatCurrency = (value: number): string => {
@@ -73,8 +45,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     return date.toLocaleString('default', { month: 'long' });
   };
 
-  // Create all KPI cards data
-  const createKpiCards = (): KpiCardData[] => {
+  // ⚡ PERFORMANCE: Memoize KPI cards creation to prevent unnecessary recalculations
+  const kpiCards = useMemo((): KpiCardData[] => {
     const cards: KpiCardData[] = [];
 
     // 1. Total Spend YTD Card
@@ -178,7 +150,35 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     });
 
     return cards;
+  }, [stats]); // Recalculate only when stats change
+
+  // ⚡ PERFORMANCE: Remove unused filter functionality (filters not implemented in dashboard stats)
+  const handleFiltersChange = (newFilters: FilterOptions) => {
+    // Currently filters are not supported by the dashboard stats hook
+    // This is a placeholder for future filter implementation
+    console.log('Dashboard filters not yet implemented:', newFilters);
   };
+
+  if (loading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-64" data-testid="expense-dashboard-loading">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive" className="gba:mb-4" data-testid="expense-dashboard-error">
+        <div>
+          <h4 className="gba:font-semibold">Error Loading Dashboard Data</h4>
+          <p className="gba:text-sm gba:mt-1">
+            {error.message || 'An error occurred while loading dashboard data'}
+          </p>
+        </div>
+      </Alert>
+    );
+  }
 
   if (loading) {
     return (
@@ -218,7 +218,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       {/* KPI Cards Section */}
       <div data-testid={`${prefixDataTestId}-kpi-section`}>
         <SectionKpiCards 
-          cards={createKpiCards()} 
+          cards={kpiCards} 
           data-testid={`${prefixDataTestId}-kpi-cards`}
         />
       </div>

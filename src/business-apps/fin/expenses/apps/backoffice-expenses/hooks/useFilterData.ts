@@ -8,6 +8,17 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 
 import { GET_ORGANIZATIONAL_UNITS, GET_EXPENSE_CURRENCIES } from '../queries/filterData.queries';
 
+// ⚡ SECURITY: Hash function for sensitive data in cache keys
+const createHash = (input: string): string => {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    const char = input.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(36);
+};
+
 export interface OrganizationalUnit {
   id: string;
   name: string;
@@ -61,8 +72,8 @@ export const useFilterData = ({ accessToken }: Pick<BusinessAppContextProps, 'ac
       return;
     }
 
-    // ⚡ Check cache first
-    const cacheKey = `filter_data_${accessToken}`;
+    // ⚡ SECURITY: Use hashed access token for cache key
+    const cacheKey = `filter_data_${createHash(accessToken)}`;
     const cached = FILTER_DATA_CACHE.get(cacheKey);
     if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
       setOrganizationalUnits(cached.data.orgUnits);
