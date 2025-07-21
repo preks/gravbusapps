@@ -2,6 +2,7 @@
 export interface Stage {
   id: string;
   name: string;
+  code?: string; // Catalog code for API calls (enum value)
   order: number;
   probability: number;
   rotting: boolean;
@@ -16,6 +17,8 @@ export interface Opportunity {
   winningChance?: number;
   stageId?: string;
   stage?: string;
+  salesPipelineRef?: string;
+  salesPipelineStageRef?: string;
   closeDate?: string;
   status?: string;
   account?: {
