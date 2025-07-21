@@ -42,7 +42,6 @@ interface SummaryTabProps {
 // Specific schedule information should be retrieved from the API
 
 const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentUserEmployeeId, isSelfView }) => {
-  console.log("🚀 ~ employee:", employee)
   // Fetch upcoming absence for this employee
   const { loading: absenceLoading, upcomingAbsence } = useEmployeeUpcomingAbsence(accessToken, employee.id);
   // Get additional attributes from additionalProperties
