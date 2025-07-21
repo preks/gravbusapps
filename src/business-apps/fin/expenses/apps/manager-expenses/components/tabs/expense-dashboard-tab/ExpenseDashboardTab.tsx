@@ -1,15 +1,23 @@
 import React, { useState } from 'react';
-import { Row, Col, Card, Statistic, Spin, Alert, Typography } from 'antd';
-import { PiChartBar, PiCurrencyEur, PiUsers, PiClipboardText, PiListChecks, PiChartLineUp, PiFileText } from 'react-icons/pi';
+import { 
+  Button, 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle 
+} from '@newwork/nw-design-system';
+import { PiListChecks, PiChartLineUp, PiFileText, PiCalendar, PiClockAfternoon, PiCurrencyDollar } from 'react-icons/pi';
 import { useGetExpenseDashboard } from '../../../hooks/useGetExpenseDashboard';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import ExpenseTrendsChart from './components/ExpenseTrendsChart';
-import { ApprovalsModal, ExpenseReportsModal, TeamSpendingAnalyticsModal } from '../../modals';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 
-const { Title, Text } = Typography;
-
-export interface ExpenseDashboardTabProps extends BusinessAppContextProps {}
+export interface ExpenseDashboardTabProps extends BusinessAppContextProps {
+  onNavigateToApprovals?: () => void;
+  onNavigateToReports?: () => void;
+  onNavigateToAnalytics?: () => void;
+}
 
 // Define a type for recent requests if not already available from the hook
 interface RecentRequestItem {
@@ -31,247 +39,239 @@ const getErrorMessage = (err: unknown): string => {
   return 'An unknown error occurred';
 };
 
-const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = (props) => {
+const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   const { dashboardData, isLoading, error } = useGetExpenseDashboard(props);
-  const [approvalsModalVisible, setApprovalsModalVisible] = useState<boolean>(false);
-  const [reportsModalVisible, setReportsModalVisible] = useState<boolean>(false);
-  const [analyticsModalVisible, setAnalyticsModalVisible] = useState<boolean>(false);
-  
-  if (isLoading) {
-    return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
-        <Spin size="large" />
-      </div>
-    );
-  }
 
-  if (error) {
-    return (
-      <Alert
-        message="Error"
-        description={getErrorMessage(error)}
-        type="error"
-        showIcon
-      />
-    );
-  }
+  // Quick actions data
+  const quickActions = [
+    {
+      key: 'approvals',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.review_approvals', 'Review Approvals'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.review_pending_expense_approvals', 'Review pending expense approvals.'),
+      icon: PiListChecks,
+      onClick: () => props.onNavigateToApprovals?.(),
+      testId: 'review-approvals-action',
+      iconColor: 'gba:text-blue-500'
+    },
+    {
+      key: 'analysis',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_spending_analysis', 'Team Spending Analysis'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.view_spending_trends_and_reports', 'View spending trends and reports.'),
+      icon: PiChartLineUp,
+      onClick: () => props.onNavigateToAnalytics?.(),
+      testId: 'team-spending-analysis-action',
+      iconColor: 'gba:text-green-500'
+    },
+    {
+      key: 'reports',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.absence_same_location_btn', 'Expense Reports'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.generate_or_view_team_expense_reports', 'Generate or view team expense reports.'),
+      icon: PiFileText,
+      onClick: () => props.onNavigateToReports?.(),
+      testId: 'expense-reports-action',
+      iconColor: 'gba:text-purple-500'
+    }
+  ];
+
+  // Debug logging
+  console.log('Dashboard Data in UI:', { 
+    teamMembersCount: dashboardData?.teamMembersCount,
+    pendingApprovalsCount: dashboardData?.pendingApprovalsCount,
+    monthlyExpensesAmount: dashboardData?.monthlyExpensesAmount,
+    expenseCategoriesCount: dashboardData?.expenseCategoriesCount
+  });
+
+  // Transform dashboard data into widgets format
+  const widgets: WidgetItem[] = [
+    {
+      key: 'team-members',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_members', 'Team Members'),
+      value: dashboardData?.teamMembersCount ?? 0,
+      prefix: <PiListChecks />,
+      color: '#1677ff',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_members_description', 'Total team members')
+    },
+    {
+      key: 'pending-approvals',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.pending_approvals', 'Pending Approvals'),
+      value: dashboardData?.pendingApprovalsCount ?? 0,
+      prefix: <PiClockAfternoon />,
+      color: '#faad14',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.requires_action', 'Requires action')
+    },
+    {
+      key: 'monthly-expenses',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expenses', 'Monthly Expenses'),
+      value: dashboardData?.monthlyExpensesAmount ? `€${formatNumberFunction(dashboardData.monthlyExpensesAmount.toString(), "0.00[,]00")}` : '€0,00',
+      prefix: <PiCurrencyDollar />,
+      color: '#3f8600',
+      valueIsString: true,
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.current_month', 'Current month')
+    },
+    {
+      key: 'expense-categories',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_categories', 'Expense Categories'),
+      value: dashboardData?.expenseCategoriesCount ?? 0,
+      prefix: <PiCalendar />,
+      color: '#722ed1',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.categories_used', 'Categories used')
+    }
+  ];
 
   return (
-    <div>
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
-          {/* Log dashboard data for debugging */}
-          {(() => { 
-            console.log('Dashboard Data in UI:', { 
-              teamMembersCount: dashboardData?.teamMembersCount,
-              pendingApprovalsCount: dashboardData?.pendingApprovalsCount,
-              monthlyExpensesAmount: dashboardData?.monthlyExpensesAmount,
-              expenseCategoriesCount: dashboardData?.expenseCategoriesCount
-            }); 
-            return null; 
-          })()}
-          <Card className="gba:h-full">
-            <Statistic
-              title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_members', 'Team Members')}
-              value={dashboardData?.teamMembersCount ?? 0}
-              prefix={<PiUsers className="gba:mr-2" />}
-            />
-          </Card>
-        </Col>
-        
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="gba:h-full">
-            <Statistic
-              title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.pending_approvals', 'Pending Approvals')}
-              value={dashboardData?.pendingApprovalsCount ?? 0}
-              prefix={<PiClipboardText className="gba:mr-2" />}
-            />
-          </Card>
-        </Col>
-        
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="gba:h-full">
-            <Statistic
-              title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expenses', 'Monthly Expenses')}
-              value={dashboardData?.monthlyExpensesAmount ?? 0}
-              formatter={(value) => formatNumberFunction(value.toString(), "0.00[,]00")}
-              prefix={<PiCurrencyEur className="gba:mr-2" />}
-              suffix="€"
-              data-testid="monthly-expenses-statistic"
-            />
-          </Card>
-        </Col>
-        
-        <Col xs={24} sm={12} lg={6}>
-          {/* Log expense categories data for debugging */}
-          {(() => { 
-            console.log('Expense Categories - value:', dashboardData?.expenseCategoriesCount); 
-            console.log('Monthly Expenses - value:', dashboardData?.monthlyExpensesAmount); 
-            return null; 
-          })()}
-          <Card className="gba:h-full">
-            <Statistic
-              title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_categories', 'Expense Categories')}
-              value={dashboardData?.expenseCategoriesCount ?? 0}
-              prefix={<PiChartBar className="gba:mr-2" />}
-            />
-          </Card>
-        </Col>
-      </Row>
+    <div className="gba:h-full gba:flex gba:flex-col">
+      {/* Statistics Cards using WidgetGroup */}
+      <div className="gba:mb-6">
+        <WidgetGroup
+          widgets={widgets}
+          isLoading={isLoading}
+          error={error ? getErrorMessage(error) : null}
+          onRetry={() => window.location.reload()}
+          skeletonCount={4}
+          emptyText={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_statistics_available', 'No dashboard statistics available.')}
+          data-testid="expense-dashboard-statistics"
+        />
+      </div>
       
-      {/* Quick Actions Section */}
-      <Title level={5} className="gba:mt-8 gba:mb-4">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.quick_actions', 'Quick Actions')}</Title>
-      <Row gutter={[16, 16]}>
-        {
-          [
-            {
-              key: 'approvals',
-              title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.review_approvals', 'Review Approvals'),
-              description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.process_pending_expense_requests', 'Process pending expense requests.'),
-              icon: <PiListChecks className="gba:text-2xl gba:text-blue-500" />,
-              onClick: () => setApprovalsModalVisible(true),
-              'data-testid': 'review-approvals-action',
-            },
-            {
-              key: 'analysis',
-              title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_spending_analysis', 'Team Spending Analysis'),
-              description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.view_spending_trends_and_reports', 'View spending trends and reports.'),
-              icon: <PiChartLineUp className="gba:text-2xl gba:text-green-500" />,
-              onClick: () => setAnalyticsModalVisible(true),
-              'data-testid': 'team-spending-analysis-action',
-            },
-            {
-              key: 'reports',
-              title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.absence_same_location_btn', 'Expense Reports'),
-              description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.generate_or_view_team_expense_reports', 'Generate or view team expense reports.'),
-              icon: <PiFileText className="gba:text-2xl gba:text-purple-500" />,
-              onClick: () => setReportsModalVisible(true),
-              'data-testid': 'expense-reports-action'
-            }
-          ].map(action => (
-            <Col xs={24} sm={12} lg={6} key={action.key}>
-              <Card 
-                hoverable 
-                className="gba:h-full gba:flex gba:flex-col" 
-                onClick={action.onClick || (() => { /* Navigate to action.link */ })} 
-                data-testid={`quick-action-${action.key}`}
-              >
-                <div className="gba:flex gba:items-center gba:mb-2">
-                  {action.icon}
-                  <Title level={5} className="gba:ml-3 gba:mb-0">{action.title}</Title>
-                </div>
-                <Text type="secondary">{action.description}</Text>
-              </Card>
-            </Col>
-          ))
-        }
-      </Row>
+      {/* Main Content Area */}
+      <div className="gba:flex-1 gba:space-y-6 gba:px-6">
+        {/* Quick Actions Section */}
+        <div>
+          <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.quick_actions', 'Quick Actions')}
+          </h3>
+          <div className="gba:grid gba:grid-cols-1 sm:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4">
+            {quickActions.map((action) => {
+              const IconComponent = action.icon;
+              return (
+                <Card 
+                  key={action.key}
+                  className="gba:cursor-pointer gba:transition-all gba:hover:shadow-md" 
+                  onClick={action.onClick}
+                  data-testid={`quick-action-${action.key}`}
+                >
+                  <CardContent className="gba:p-6">
+                    <div className="gba:flex gba:items-center gba:mb-3">
+                      <IconComponent className={`gba:text-2xl ${action.iconColor} gba:mr-3`} />
+                      <h4 className="gba:text-base gba:font-semibold gba:m-0">{action.title}</h4>
+                    </div>
+                    <p className="gba:text-sm gba:text-muted-foreground gba:m-0">{action.description}</p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
 
-      {/* Additional dashboard content can be added here */}
-      <Row gutter={[16, 16]} className="gba:mt-6">
-        <Col xs={24} lg={12}>
-          <Card 
-            title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.recent_expense_requests', 'Recent Expense Requests')}
-            className="gba:h-full"
-            data-testid="recent-expense-requests-card"
-          >
-            {(dashboardData?.recentRequests && dashboardData.recentRequests.length > 0) ? (
-              <ul className="gba:list-none gba:p-0">
-                {dashboardData.recentRequests.map((request: RecentRequestItem) => (
-                  <li key={request.id} className="gba:py-3 gba:border-b gba:border-gray-100 gba:last:border-0">
-                    <div className="gba:flex gba:justify-between gba:mb-1">
-                      <div>
-                        <Text strong>{request.title}</Text>
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <Text type="secondary">{request.employeeName}</Text>
-                          <span className="gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-gray-100">
+        {/* Recent Requests and Budget Status */}
+        <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
+          {/* Recent Expense Requests */}
+          <Card data-testid="recent-expense-requests-card">
+            <CardHeader>
+              <CardTitle>
+                {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.recent_expense_requests', 'Recent Expense Requests')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {(dashboardData?.recentRequests && dashboardData.recentRequests.length > 0) ? (
+                <div className="gba:space-y-4">
+                  {dashboardData.recentRequests.map((request: RecentRequestItem) => (
+                    <div key={request.id} className="gba:flex gba:justify-between gba:items-start gba:pb-4 gba:border-b gba:border-border gba:last:border-0">
+                      <div className="gba:flex-1">
+                        <p className="gba:font-medium gba:text-sm gba:mb-1">{request.title}</p>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <p className="gba:text-sm gba:text-muted-foreground">{request.employeeName}</p>
+                          <span className="gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:bg-secondary gba:text-secondary-foreground">
                             {request.status}
                           </span>
                         </div>
                       </div>
-                      <div className="gba:text-right">
-                        <Text className="gba:font-medium">€{typeof request.totalAmount === 'number' ? formatNumberFunction(request.totalAmount.toString(), "0.00[,]00") : request.totalAmount}</Text>
-                        <div><Text type="secondary">{request.requestDate}</Text></div>
+                      <div className="gba:text-right gba:ml-4">
+                        <p className="gba:font-medium gba:text-sm">
+                          €{typeof request.totalAmount === 'number' ? formatNumberFunction(request.totalAmount.toString(), "0.00[,]00") : request.totalAmount}
+                        </p>
+                        <p className="gba:text-sm gba:text-muted-foreground">{request.requestDate}</p>
                       </div>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="gba:py-8 gba:text-center">
-                <Text type="secondary">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_recent_expense_requests', 'No recent expense requests')}</Text>
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <div className="gba:py-8 gba:text-center">
+                  <p className="gba:text-muted-foreground">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_recent_expense_requests', 'No recent expense requests')}
+                  </p>
+                </div>
+              )}
+            </CardContent>
           </Card>
-        </Col>
-        
-        <Col xs={24} lg={12}>
-          <Card 
-            title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_budget_status', 'Team Budget Status')}
-            className="gba:h-full"
-          >
-            {dashboardData?.teamBudget ? (
-              <div>
-                <Statistic
-                  title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.budget_used', 'Budget Used')}
-                  value={dashboardData.teamBudget.total > 0 ? ((dashboardData.teamBudget.used / dashboardData.teamBudget.total) * 100) : 0}
-                  precision={1}
-                  suffix="%"
-                />
-                <div className="gba:mt-4">
-                  <div className="gba:flex gba:justify-between gba:mb-1">
-                    <Text>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} €{formatNumberFunction(dashboardData.teamBudget?.used.toString() ?? 0, "0.00[,]00")}</Text>
-                    <Text>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} €{formatNumberFunction(dashboardData.teamBudget?.total.toString() ?? 0, "0.00[,]00")}</Text>
+          
+          {/* Team Budget Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_budget_status', 'Team Budget Status')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {dashboardData?.teamBudget ? (
+                <div className="gba:space-y-4">
+                  <div>
+                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+                      <p className="gba:text-sm gba:font-medium">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.budget_used', 'Budget Used')}
+                      </p>
+                      <p className="gba:text-2xl gba:font-bold">
+                        {dashboardData.teamBudget.total > 0 ? 
+                          `${((dashboardData.teamBudget.used / dashboardData.teamBudget.total) * 100).toFixed(1)}%` 
+                          : '0%'
+                        }
+                      </p>
+                    </div>
                   </div>
-                  <div className="gba:bg-gray-200 gba:rounded-full gba:h-2">
-                    <div 
-                      className="gba:bg-blue-500 gba:h-2 gba:rounded-full" 
-                      style={{ width: `${dashboardData.teamBudget.total > 0 ? Math.min(((dashboardData.teamBudget.used / dashboardData.teamBudget.total) * 100), 100) : 0}%` }}
-                    />
+                  <div>
+                    <div className="gba:flex gba:justify-between gba:mb-2 gba:text-sm">
+                      <span>
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} €{formatNumberFunction(dashboardData.teamBudget?.used.toString() ?? '0', "0.00[,]00")}
+                      </span>
+                      <span>
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} €{formatNumberFunction(dashboardData.teamBudget?.total.toString() ?? '0', "0.00[,]00")}
+                      </span>
+                    </div>
+                    <div className="gba:w-full gba:bg-secondary gba:rounded-full gba:h-2">
+                      <div 
+                        className="gba:bg-primary gba:h-2 gba:rounded-full gba:transition-all" 
+                        style={{ 
+                          width: `${dashboardData.teamBudget.total > 0 ? 
+                            Math.min(((dashboardData.teamBudget.used / dashboardData.teamBudget.total) * 100), 100) 
+                            : 0}%` 
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <Text type="secondary">{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_budget_data_available', 'No budget data available')}</Text>
-            )}
+              ) : (
+                <p className="gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_budget_data_available', 'No budget data available')}
+                </p>
+              )}
+            </CardContent>
           </Card>
-        </Col>
-      </Row>
+        </div>
 
-      {/* Expense Trends Chart */}
-      <Row gutter={[16, 16]} className="gba:mt-6">
-        <Col xs={24}>
+        {/* Expense Trends Chart */}
+        <div>
           <ExpenseTrendsChart 
             data={dashboardData?.monthlyTrends || []} 
             title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', 'Monthly Expense Trends')}
           />
-        </Col>
-      </Row>
+        </div>
+      </div>
       
-      {/* Approvals Modal */}
-      <ApprovalsModal 
-        visible={approvalsModalVisible}
-        onCancel={() => setApprovalsModalVisible(false)}
-        accessToken={props.accessToken}
-        userInfo={props.userInfo}
-      />
-      
-      {/* Expense Reports Modal */}
-      <ExpenseReportsModal
-        visible={reportsModalVisible}
-        onCancel={() => setReportsModalVisible(false)}
-        accessToken={props.accessToken}
-        userInfo={props.userInfo}
-      />
-      
-      {/* Team Spending Analytics Modal */}
-      <TeamSpendingAnalyticsModal
-        visible={analyticsModalVisible}
-        onCancel={() => setAnalyticsModalVisible(false)}
-        accessToken={props.accessToken}
-        userInfo={props.userInfo}
-      />
-      
+      {/* Modals */}
     </div>
   );
 };

@@ -12,6 +12,10 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/fin/expenses/expense-plan-record': 'ExpensePlanRecord',
   '/platform/fin/expenses/expense-request-record': 'ExpenseRequestRecord',
   '/platform/employee-record': 'EmployeeRecord',
+  '/platform/mdm/pipeline-data': 'PipelineData',
+  '/platform/mdm/lead-data': 'LeadData',
+  '/platform/mdm/operation-data': 'OperationData',
+  '/platform/mdm/engagement-data': 'EngagementData',
 };
 
 /**

@@ -53,6 +53,7 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       activeFrom
       activeTo
       totalAmount
+      currencyRef
       createdAt
       updatedAt
       decisionDate

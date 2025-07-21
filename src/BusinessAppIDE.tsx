@@ -324,10 +324,46 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     setSettingsModalVisible(false);
   };
 
+  const createAppURL = (app: BusinessAppInfo): string => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("app", app.name);
+    return url.toString();
+  };
+
+  const handleAppLinkClick = (event: React.MouseEvent, app: BusinessAppInfo) => {
+    // Allow middle-click and right-click to work with browser defaults
+    if (event.button === 1 || event.button === 2) {
+      return; // Let browser handle middle-click and right-click
+    }
+    
+    // For left-click, prevent default and handle navigation
+    event.preventDefault();
+    handleAppSelect(app);
+  };
+
   const createAppMenuItem = (app: BusinessAppInfo) => ({
     key: app.name,
-    label: app.name,
-    onClick: () => handleAppSelect(app),
+    label: (
+      <a 
+        href={createAppURL(app)}
+        onClick={(e) => handleAppLinkClick(e, app)}
+        onAuxClick={(e) => {
+          // Handle middle-click specifically
+          if (e.button === 1) {
+            // Allow browser to open in new tab
+            e.stopPropagation();
+          }
+        }}
+        style={{ 
+          textDecoration: 'none', 
+          color: 'inherit',
+          display: 'block',
+          width: '100%'
+        }}
+      >
+        {app.name}
+      </a>
+    ),
   });
 
   const getMenuItems = (): any => {
