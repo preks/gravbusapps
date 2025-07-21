@@ -202,6 +202,8 @@ export interface ReferenceData {
   id: string;
   code: string;
   value: string;
+  alternativeCode?: string;
+  additionalValue1?: string;
 }
 
 export interface OpportunityMetrics {

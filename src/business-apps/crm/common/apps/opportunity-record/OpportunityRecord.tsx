@@ -9,14 +9,16 @@ import { CompanyInformation } from "./components/CompanyInformation";
 import { ContactInformation } from "./components/ContactInformation";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
+import { StageProgression } from "./components/StageProgression";
 
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string;
   onBack: () => void;
+  getBackButtonText: () => string;
 }
 
-const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opportunityId, onBack, ...props }) => {
+const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opportunityId, onBack, getBackButtonText, ...props }) => {
   const { 
     opportunity, 
     opportunityData, 
@@ -26,6 +28,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
     opportunityStatuses,
     loadingStages,
     loadingStatuses,
+    stagesError,
     refetchOpportunityData
   } = useOpportunityData(opportunityId, props.accessToken);
 
@@ -46,7 +49,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
             onClick={onBack}
             className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
           >
-            Back to Opportunities Overview
+            {getBackButtonText()}
           </button>
         </div>
       </div>
@@ -62,7 +65,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
           data-testid="back-button"
         >
           <ArrowLeftOutlined className="gba:mr-2" />
-          <span>Back to Opportunities Overview</span>
+          <span>{getBackButtonText()}</span>
         </button>
       </div>
 
@@ -74,6 +77,40 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
         accessToken={props.accessToken} 
       />
 
+      {/* Stage Progression - Show filtered pipeline stages */}
+      {!loadingStages && !stagesError && opportunityStages.length > 0 && opportunityData?.salesPipelineRef && (
+        <StageProgression 
+          currentStage={opportunityData?.salesPipelineStage?.value || 'Discovery'} 
+          stages={opportunityStages}
+          opportunityId={opportunityId}
+          opportunityVersion={parseInt(opportunity.version) || 0}
+          accessToken={props.accessToken}
+          onStageUpdate={refetchOpportunityData}
+        />
+      )}
+
+      {/* Show stages loading */}
+      {loadingStages && (
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <Spin size="small" />
+          <span style={{ marginLeft: '8px' }}>Loading pipeline stages...</span>
+        </div>
+      )}
+
+      {/* Show stages error */}
+      {stagesError && (
+        <div style={{ textAlign: 'center', padding: '20px', color: '#ff4d4f' }}>
+          <p>Failed to load pipeline stages: {stagesError}</p>
+        </div>
+      )}
+
+      {/* Show info when no salesPipelineRef */}
+      {!opportunityData?.salesPipelineRef && !loadingStages && (
+        <div style={{ textAlign: 'center', padding: '20px', color: '#8c8c8c' }}>
+          <p>No sales pipeline assigned to this opportunity</p>
+        </div>
+      )}
+
       <div className="gba:opportunity-details-content" data-testid="opportunity-details-content">
         
         <Row gutter={24} style={{ marginBottom: '24px', display: 'flex', alignItems: 'stretch' }}>
@@ -82,7 +119,11 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
           </Col>
 
           <Col span={6} style={{ display: 'flex' }}>
-            <ContactInformation opportunityData={opportunityData} />
+            <ContactInformation 
+              opportunityData={opportunityData} 
+              opportunityId={opportunityId}
+              context={props}
+            />
           </Col>
         </Row>
 
@@ -108,6 +149,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
 
 interface OpportunityRecordProps extends BusinessAppContextProps {
   opportunityId?: string;
+  source?: string;
   onBack?: () => void;
 }
 
@@ -116,12 +158,27 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = (props) => {
   const opportunityId = props.opportunityId || 
                        urlParams.get('opportunityId') ||
                        urlParams.get('id');
+
+  const source = props.source || urlParams.get('source');
+
+  const getBackButtonText = () => {
+    return 'Back to Opportunities';
+  };
   
   const handleBack = () => {
     if (props.onBack) {
       props.onBack();
     } else {
-      navigateTo('/platform/crm/opportunity-overview');
+      // Navigate back based on source
+      switch (source) {
+        case 'investments':
+          navigateTo('/platform/irm/investment-relations?view=opportunities');
+          break;
+        case 'customer-relations':
+        default:
+          navigateTo('/platform/crm/customer-relations?view=opportunities');
+          break;
+      }
     }
   };
 
@@ -135,7 +192,7 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = (props) => {
             onClick={handleBack}
             className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
           >
-            Back to Opportunities Overview
+            {getBackButtonText()}
           </button>
         </div>
       </div>
@@ -147,6 +204,7 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = (props) => {
       {...props}
       opportunityId={opportunityId}
       onBack={handleBack}
+      getBackButtonText={getBackButtonText}
     />
   );
 };

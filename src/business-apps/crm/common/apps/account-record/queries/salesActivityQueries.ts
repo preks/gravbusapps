@@ -1,39 +1,65 @@
-export interface SalesActivityResponse {
-  SalesActivity: {
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+
+export interface SalesActivityQueryVariables {
+  accountId: string;
+}
+
+export interface SalesActivityData {
     id: string;
-    accountId: string;
     title: string;
     version: number;
     description: string;
     createdAt: string;
-    completedAt?: string;
+  completedAt?: string | null;
+  createdBy: string;
     activityType?: {
+    code: string;
       id: string;
+    type: string;
       value: string;
     };
-  }[];
 }
 
-/**
- * Query to fetch sales activities by account ID
- */
-export const GET_SALES_ACTIVITIES = `
+export interface SalesActivityResponse {
+  SalesActivity: SalesActivityData[];
+}
+
+export const GET_SALES_ACTIVITIES = (variables: SalesActivityQueryVariables): string => {
+  return `
   query GetSalesActivities($accountId: uuid!) {
-    SalesActivity(
-      where: { accountId: { _eq: $accountId }, isDeleted: { _eq: false } }
-      orderBy: { createdAt: DESC }
-    ) {
+      SalesActivity(where: {accountId: {_eq: $accountId}, isDeleted: {_eq: false}}) {
       id
-      accountId
       title
       version
       description
       createdAt
       completedAt
+        createdBy
       activityType {
+          code
         id
+          type
         value
       }
     }
   }
 `;
+};
+
+export const useGetSalesActivities = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchSalesActivities = async (variables: SalesActivityQueryVariables) => {
+    const query = GET_SALES_ACTIVITIES(variables);
+    try {
+      const result = await graphqlClient.request<SalesActivityResponse>(query, variables);
+      return result;
+    } catch (error) {
+      console.error('Error fetching sales activities:', error);
+      throw error;
+    }
+  };
+
+  return { fetchSalesActivities };
+};

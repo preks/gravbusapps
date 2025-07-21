@@ -16,8 +16,12 @@ interface KanbanStore {
   selectedOpportunity: Opportunity | null;
   isViewingOpportunity: boolean;
 
-  fetchOpportunities: (accessToken: string, employeeId?: string, sourceApp?: string, selectedEmployeeIds?: string[]) => Promise<Opportunity[]>;
+  fetchOpportunities: (accessToken: string, employeeId?: string, sourceApp?: string, selectedEmployeeIds?: string[], selectedPipelineId?: string) => Promise<Opportunity[]>;
+  updateStages: (stages: Stage[]) => void;
   moveOpportunity: (opportunityId: string, targetStageId: string, accessToken: string) => Promise<void>;
+  moveOpportunityToStage: (opportunityId: string, targetStageId: string, accessToken: string) => Promise<void>;
+  moveOpportunityToPosition: (opportunityId: string, targetStageId: string, position: number, accessToken: string) => Promise<void>;
+  reorderOpportunities: (stageId: string, reorderedOpportunities: Opportunity[]) => void;
   updateOpportunity: (opportunityId: string, updates: Partial<Opportunity>, accessToken: string) => Promise<void>;
   deleteOpportunity: (opportunityId: string, accessToken: string) => Promise<void>;
   setEditingOpportunity: (opportunityId: string | null) => void;
@@ -34,7 +38,11 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
   selectedOpportunity: null,
   isViewingOpportunity: false,
 
-  fetchOpportunities: async (accessToken: string, employeeId?: string, sourceApp?: string, selectedEmployeeIds?: string[]) => {
+  updateStages: (stages: Stage[]) => {
+    set({ stages });
+  },
+
+  fetchOpportunities: async (accessToken: string, employeeId?: string, sourceApp?: string, selectedEmployeeIds?: string[], selectedPipelineId?: string) => {
     set({ loading: true, error: null });
     try {
 
@@ -46,6 +54,11 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
       // Add sourceApp filtering if provided
       if (sourceApp) {
         where.sourceApp = { _eq: sourceApp };
+      }
+      
+      // Add pipeline filtering if provided
+      if (selectedPipelineId) {
+        where.salesPipelineRef = { _eq: selectedPipelineId };
       }
       
       // Handle employee filtering logic
@@ -75,15 +88,18 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
         return [];
       }
 
-      let opportunities = response.Opportunity.map((opp: any) => ({
+      let opportunities = response.Opportunity.map((opp: any, index: number) => ({
         ...opp,
         id: opp.id || '',
         title: opp.name || '',
         stageId: opp.stage || FIXED_STAGES[0].id, 
+        salesPipelineRef: opp.salesPipelineRef,
+        salesPipelineStageRef: opp.salesPipelineStageRef,
         version: opp.version || 0,
         owner: opp.ownerEmployee?.fullName || 'Unassigned',
         account: opp.account?.name || '',
-        amount: opp.estimatedAmount || 0
+        amount: opp.estimatedAmount || 0,
+        position: opp.position || index // Add position for ordering
       }));
       
       set({ opportunities, loading: false });
@@ -95,33 +111,225 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
   },
   
   moveOpportunity: async (opportunityId: string, targetStageId: string, accessToken: string) => {
-    try {
-      const opportunity = get().opportunities.find(opp => opp.id === opportunityId);
-      if (!opportunity) return;
-      
-      
-      await opportunityClient.updateOpportunityStage(
-        opportunityId,
-        targetStageId,
-        opportunity.version,
-        opportunity,
-        accessToken
-      );
-      
-      
+    const opportunity = get().opportunities.find(opp => opp.id === opportunityId);
+    if (!opportunity) return;
+    
+    const originalStageId = opportunity.stageId;
+    const originalSalesPipelineStageRef = opportunity.salesPipelineStageRef;
+    
+    set(state => ({
+      opportunities: state.opportunities.map(opp => 
+        opp.id === opportunityId 
+          ? { 
+              ...opp, 
+              stageId: targetStageId, 
+              salesPipelineStageRef: targetStageId, // Update both fields
+              version: opp.version + 1 
+            } 
+          : opp
+      )
+    }));
+    
+    // Find the stage code for proper API formatting
+    const targetStage = get().stages.find(stage => stage.id === targetStageId);
+    const stageCode = targetStage?.code;
+    
+    opportunityClient.updateOpportunityStage(
+      opportunityId,
+      targetStageId,
+      opportunity.version,
+      opportunity,
+      accessToken,
+      stageCode
+    ).catch(error => {
       set(state => ({
         opportunities: state.opportunities.map(opp => 
           opp.id === opportunityId 
-            ? { ...opp, stageId: targetStageId, version: opp.version + 1 } 
+            ? { 
+                ...opp, 
+                stageId: originalStageId, 
+                salesPipelineStageRef: originalSalesPipelineStageRef,
+                version: opportunity.version 
+              } 
             : opp
-        )
+        ),
+        error: error as Error
       }));
-    } catch (error) {
-      set({ error: error as Error });
-    }
+    });
   },
-  
 
+  moveOpportunityToStage: async (opportunityId: string, targetStageId: string, accessToken: string) => {
+    const opportunity = get().opportunities.find(opp => opp.id === opportunityId);
+    if (!opportunity) return;
+    
+    const originalStageId = opportunity.stageId;
+    const originalSalesPipelineStageRef = opportunity.salesPipelineStageRef;
+    
+    // Get the target stage opportunities to determine position (add to end)
+    const targetStageOpportunities = get().opportunities.filter(op => {
+      const oppStageId = op.salesPipelineStageRef || op.stageId;
+      return oppStageId === targetStageId;
+    });
+    const newPosition = targetStageOpportunities.length;
+    
+    // Optimistic update - move the card to end of target stage
+    set(state => ({
+      opportunities: state.opportunities.map(opp => 
+        opp.id === opportunityId 
+          ? { 
+              ...opp, 
+              stageId: targetStageId, 
+              salesPipelineStageRef: targetStageId, // Update both fields
+              position: newPosition, 
+              version: opp.version + 1 
+            } 
+          : opp
+      )
+    }));
+    
+    // Make API call in background
+    // Find the stage code for proper API formatting
+    const targetStage = get().stages.find(stage => stage.id === targetStageId);
+    const stageCode = targetStage?.code;
+    
+    opportunityClient.updateOpportunityStage(
+      opportunityId,
+      targetStageId,
+      opportunity.version,
+      opportunity,
+      accessToken,
+      stageCode
+    ).catch(error => {
+      // Revert on error
+      set(state => ({
+        opportunities: state.opportunities.map(opp => 
+          opp.id === opportunityId 
+            ? { 
+                ...opp, 
+                stageId: originalStageId, 
+                salesPipelineStageRef: originalSalesPipelineStageRef,
+                position: opportunity.position, 
+                version: opportunity.version 
+              } 
+            : opp
+        ),
+        error: error as Error
+      }));
+    });
+  },
+
+  moveOpportunityToPosition: async (opportunityId: string, targetStageId: string, position: number, accessToken: string) => {
+    const opportunity = get().opportunities.find(opp => opp.id === opportunityId);
+    if (!opportunity) return;
+    
+    const originalStageId = opportunity.stageId;
+    const originalSalesPipelineStageRef = opportunity.salesPipelineStageRef;
+    const originalPosition = opportunity.position;
+    
+    // Get target stage opportunities and insert at specific position
+    const targetStageOpportunities = get().opportunities
+      .filter(op => {
+        const oppStageId = op.salesPipelineStageRef || op.stageId;
+        return oppStageId === targetStageId && op.id !== opportunityId;
+      })
+      .sort((a, b) => (a.position || 0) - (b.position || 0));
+    
+    // Insert the opportunity at the specified position
+    targetStageOpportunities.splice(position, 0, { 
+      ...opportunity, 
+      stageId: targetStageId,
+      salesPipelineStageRef: targetStageId
+    });
+    
+    // Update positions for all opportunities in target stage
+    const updatedTargetOpportunities = targetStageOpportunities.map((op, index) => ({
+      ...op,
+      position: index,
+      stageId: targetStageId,
+      salesPipelineStageRef: targetStageId
+    }));
+    
+    // Optimistic update
+    set(state => {
+      const otherOpportunities = state.opportunities.filter(op => {
+        const oppStageId = op.salesPipelineStageRef || op.stageId;
+        return oppStageId !== targetStageId && op.id !== opportunityId;
+      });
+      
+      return {
+        opportunities: [
+          ...otherOpportunities,
+          ...updatedTargetOpportunities.map(op => 
+            op.id === opportunityId 
+              ? { ...op, version: op.version + 1 }
+              : op
+          )
+        ]
+      };
+    });
+    
+    // Make API call in background
+    // Find the stage code for proper API formatting
+    const targetStage = get().stages.find(stage => stage.id === targetStageId);
+    const stageCode = targetStage?.code;
+    
+    opportunityClient.updateOpportunityStage(
+      opportunityId,
+      targetStageId,
+      opportunity.version,
+      opportunity,
+      accessToken,
+      stageCode
+    ).catch(error => {
+      // Revert on error
+      set(state => ({
+        opportunities: state.opportunities.map(opp => 
+          opp.id === opportunityId 
+            ? { 
+                ...opp, 
+                stageId: originalStageId, 
+                salesPipelineStageRef: originalSalesPipelineStageRef,
+                position: originalPosition, 
+                version: opportunity.version 
+              } 
+            : opp
+        ),
+        error: error as Error
+      }));
+    });
+  },
+
+  reorderOpportunities: (stageId: string, reorderedOpportunities: Opportunity[]) => {
+    set(state => {
+      // Update positions for the reordered opportunities
+      const updatedReorderedOps = reorderedOpportunities.map((op, index) => ({
+        ...op,
+        position: index
+      }));
+      
+      // Update the opportunities array with the new positions
+      const updatedOpportunities = state.opportunities.map(opp => {
+        const oppStageId = opp.salesPipelineStageRef || opp.stageId;
+        if (oppStageId === stageId) {
+          const reorderedOp = updatedReorderedOps.find(rop => rop.id === opp.id);
+          return reorderedOp || opp;
+        }
+        return opp;
+      });
+      
+      // Sort opportunities by position within each stage
+      const sortedOpportunities = updatedOpportunities.sort((a, b) => {
+        const aStageId = a.salesPipelineStageRef || a.stageId;
+        const bStageId = b.salesPipelineStageRef || b.stageId;
+        if (aStageId === bStageId) {
+          return (a.position || 0) - (b.position || 0);
+        }
+        return 0;
+      });
+      
+      return { opportunities: sortedOpportunities };
+    });
+  },
   
   updateOpportunity: async (opportunityId: string, updates: Partial<Opportunity>, _accessToken: string) => {
     set(state => ({

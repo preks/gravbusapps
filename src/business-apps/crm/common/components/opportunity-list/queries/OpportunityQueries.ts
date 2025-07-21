@@ -15,39 +15,37 @@ export interface OpportunityData {
   estimatedAmount: number;
   winningChance: number;
   stage: string;
-  status: string;
   closeDate: string;
-  notesSummary: string; // Changed from description to notesSummary
+  accountId: string;
   salesPipeline: {
     id: string;
     value: string;
     code: string;
-  };
+    objectValue?: any;
+  } | null;
   salesPipelineStage: {
     id: string;
     value: string;
     code: string;
-  };
-  opportunityStatus: {
-    id: string;
-    value: string;
-    code: string;
-  };
+    objectValue?: any;
+  } | null;
   account: {
     id: string;
     name: string;
-  };
+  } | null;
   ownerEmployee: {
     id: string;
     firstName: string;
     lastName: string;
-  };
+    displayName: string;
+    pictureThumbnail: string;
+  } | null;
   currency: {
     id: string;
     value: string;
     code: string;
-  };
-  lastInteraction: string;
+    objectValue?: any;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -79,23 +77,19 @@ export const GET_OPPORTUNITIES_DATA = `
       estimatedAmount
       winningChance
       stage
-      status
       closeDate
-      notesSummary
+      accountId
       salesPipeline {
         id
         value
         code
+        objectValue
       }
       salesPipelineStage {
         id
         value
         code
-      }
-      opportunityStatus {
-        id
-        value
-        code
+        objectValue
       }
       account {
         id
@@ -105,14 +99,15 @@ export const GET_OPPORTUNITIES_DATA = `
         id
         firstName
         lastName
+        displayName
         pictureThumbnail
       }
       currency {
         id
         value
         code
+        objectValue
       }
-      lastInteraction
       createdAt
       updatedAt
     }

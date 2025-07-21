@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Row, Col, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -20,45 +20,35 @@ interface LeadRecordContentProps extends BusinessAppContextProps {
 const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, ...props }) => {
   const { lead, leadData, loading, error, leadStatuses, loadingStatuses, refetchLeadData } = useLeadData(leadId, props.accessToken);
 
-  // Add comprehensive event listeners for process completion (like activities)
+  const getBackButtonText = () => {
+    return 'Back to Leads';
+  };
+
+  // Listen for process completion events to refresh lead data (including status updates)
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
+        console.log('LeadRecord: Process completion event received:', event);
+        
+        // Check for successful completion
         if (event.detail?.resolution === 'success') {
+          console.log('LeadRecord: Refreshing lead data...');
           refetchLeadData();
           return;
         }
         
         // Also check for different event structure
         const response = event.detail?.response;
-        if (response?.detail?.resolution === 'success') {
+        if (response?.detail?.resolution === 'success' || response?.lead) {
+          console.log('LeadRecord: Refreshing lead data from response...');
           refetchLeadData();
         }
       } catch (err) {
-        console.error('LeadRecord: Error handling process completion:', err);
+        console.error('Error handling process completion in LeadRecord:', err);
       }
     };
 
-    // Universal event listener to capture all events
-    const handleAllEvents = (event: any) => {
-      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleProcessCompletion(event);
-      }
-    };
-
-    // Add focus event listener to refresh data when user returns to the tab
-    const handleFocus = () => {
-      refetchLeadData();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        handleFocus();
-      }
-    });
-
-    // Listen to multiple possible event names (comprehensive list like activities)
+    // Listen to multiple possible event names for lead updates
     const eventNames = [
       'com.newwork.process.taskCompletion',
       'com.newwork.process.completion',
@@ -76,25 +66,10 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
       window.addEventListener(eventName, handleProcessCompletion as EventListener);
     });
 
-    // Add a universal listener for debugging (like activities)
-    const originalDispatchEvent = window.dispatchEvent;
-    window.dispatchEvent = function(event: Event) {
-      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleAllEvents(event);
-      }
-      return originalDispatchEvent.call(this, event);
-    };
-
     return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleFocus);
-      
       eventNames.forEach(eventName => {
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
-      
-      // Restore original dispatchEvent
-      window.dispatchEvent = originalDispatchEvent;
     };
   }, [leadId, refetchLeadData]);
 
@@ -115,7 +90,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
             onClick={onBack}
             className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
           >
-            Back to Leads Overview
+            {getBackButtonText()}
           </button>
         </div>
       </div>
@@ -132,7 +107,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
           data-testid="back-button"
         >
           <ArrowLeftOutlined className="gba:mr-2" />
-          <span>Back to Leads Overview</span>
+          <span>{getBackButtonText()}</span>
         </button>
       </div>
 
@@ -163,7 +138,11 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
 
           {/* Contacts - 1/4 width */}
           <Col span={6} style={{ display: 'flex' }}>
-            <ContactInformation leadData={leadData} />
+            <ContactInformation 
+              leadData={leadData} 
+              leadId={leadId}
+              context={props}
+            />
           </Col>
         </Row>
 
@@ -186,18 +165,31 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
 
 interface LeadRecordProps extends BusinessAppContextProps {
   leadId?: string;
+  source?: string;
   onBack?: () => void;
 }
 
 const LeadRecord: React.FC<LeadRecordProps> = (props) => {
   const leadId = props.leadId || new URLSearchParams(window.location.search).get('leadId');
+
+  const source = useMemo(() => {
+    return props.source || new URLSearchParams(window.location.search).get('source');
+  }, [props.source]);
   
   const handleBack = () => {
     if (props.onBack) {
       props.onBack();
     } else {
-      // Navigate back to leads overview
-      navigateTo('/platform/crm/lead-list');
+      // Navigate back based on source
+      switch (source) {
+        case 'investments':
+          navigateTo('/platform/irm/investment-relations?view=leads');
+          break;
+        case 'customer-relations':
+        default:
+          navigateTo('/platform/crm/customer-relations?view=leads');
+          break;
+      }
     }
   };
 

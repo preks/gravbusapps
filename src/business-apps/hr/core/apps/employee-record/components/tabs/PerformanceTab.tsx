@@ -10,11 +10,15 @@ import { employeePerformanceQuery } from '../../queries/performanceQueries';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
 
 interface PerformanceTabProps {
   employee: Employee;
   accessToken: string;
+  employeeId?: string; // Optional employeeId override for permissions check
+  userInfo?: UserInfoProps; // Current user info for self-view check
   employeePerformanceGoals?: EmployeePerformanceGoal[];
+  isSelfView: boolean; // Whether user is viewing their own profile
 }
 
 // Extend the EmployeePerformanceGoal interface to include additional properties
@@ -30,7 +34,8 @@ interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
 const PerformanceTab: React.FC<PerformanceTabProps> = ({ 
   employee,
   accessToken,
-  employeePerformanceGoals = []
+  employeePerformanceGoals = [],
+  isSelfView
 }) => {
   const [localPerformanceGoals, setLocalPerformanceGoals] = useState<ExtendedEmployeePerformanceGoal[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -149,22 +154,23 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
           </div>
         </div>
         
-        {/* Set New Goal Button */}
-        <div>
-          <AppActionButton
-            data-testid="add-goal-button"
-            variant="primary"
-            contextsArray={[FlowContextName.employeePerformanceGoal]}
-            externalContextData={{
-              employeeId: employee?.id
-            }}
-            prefixDataTestId="add-goal"
-            accessToken={accessToken}
-            autoExecuteSingleAction={true}
-          >
-            Set New Goal
-          </AppActionButton>
-        </div>
+        {isSelfView && (
+          <div>
+            <AppActionButton
+              data-testid="add-goal-button"
+              variant="primary"
+              contextsArray={[FlowContextName.employeePerformanceGoal]}
+              externalContextData={{
+                employeeId: employee?.id
+              }}
+              prefixDataTestId="add-goal"
+              accessToken={accessToken}
+              autoExecuteSingleAction={true}
+            >
+              Set New Goal
+            </AppActionButton>
+          </div>
+        )}
       </div>
 
       {/* Goals Content */}

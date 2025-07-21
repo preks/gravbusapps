@@ -1,25 +1,35 @@
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCallback } from 'react';
 
 export interface UseContactStatisticsQueriesProps extends BusinessAppContextProps {
-  sourceApp?: string;
+  sourceApp: string;
 }
 
-export interface ContactStatisticsData {
-  recentContacts: number;
-  activeContacts: number;
-  totalEmailEngagements: number;
-  totalContactsThisYear: number;
-  mostCommonJobTitle: string;
-  mostCommonContactSource: string;
+interface TrendData {
+  current: number;
+  previous: number;
+  change: number;
+  changePercent: number;
+  isPositive: boolean;
 }
 
-// Query to get recent contacts count (past two weeks)
-export const GET_RECENT_CONTACTS_COUNT = `
-  query GetRecentContactsCount($twoWeeksAgo: timestamptz!, $sourceApp: String) {
-    ContactAggregate(where: {
-      createdAt: {_gte: $twoWeeksAgo},
+// Enhanced queries that fetch both current and previous period data for trend calculations
+
+// Query to get recent contacts count (current 2 weeks vs previous 2 weeks)
+export const GET_RECENT_CONTACTS_WITH_TREND = `
+  query GetRecentContactsWithTrend($currentStart: timestamptz!, $previousStart: timestamptz!, $previousEnd: timestamptz!, $sourceApp: String) {
+    current: ContactAggregate(where: {
+      createdAt: {_gte: $currentStart},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false}
+    }) {
+      aggregate {
+        count
+      }
+    }
+    previous: ContactAggregate(where: {
+      createdAt: {_gte: $previousStart, _lt: $previousEnd},
       sourceApp: {_eq: $sourceApp},
       isDeleted: {_eq: false}
     }) {
@@ -30,10 +40,10 @@ export const GET_RECENT_CONTACTS_COUNT = `
   }
 `;
 
-// Query to get active contacts count (contacts with recent activity)
-export const GET_ACTIVE_CONTACTS_COUNT = `
-  query GetActiveContactsCount($sourceApp: String) {
-    ContactAggregate(where: {
+// Query to get active contacts count (current vs last month)
+export const GET_ACTIVE_CONTACTS_WITH_TREND = `
+  query GetActiveContactsWithTrend($lastMonth: timestamptz!, $sourceApp: String) {
+    current: ContactAggregate(where: {
       sourceApp: {_eq: $sourceApp},
       isDeleted: {_eq: false},
       activeTo: {_isNull: true}
@@ -42,52 +52,11 @@ export const GET_ACTIVE_CONTACTS_COUNT = `
         count
       }
     }
-  }
-`;
-
-// Query to get most common job title in recent contacts
-export const GET_MOST_COMMON_JOB_TITLE = `
-  query GetMostCommonJobTitle($twoWeeksAgo: timestamptz!, $sourceApp: String) {
-    Contact(
-      where: {
-        createdAt: {_gte: $twoWeeksAgo}, 
-        jobTitle: {_isNull: false},
-        sourceApp: {_eq: $sourceApp},
-        isDeleted: {_eq: false}
-      }
-    ) {
-      jobTitle
-    }
-  }
-`;
-
-// Query to get most common contact source in recent contacts
-export const GET_MOST_COMMON_CONTACT_SOURCE = `
-  query GetMostCommonContactSource($twoWeeksAgo: timestamptz!, $sourceApp: String) {
-    Contact(
-      where: {
-        createdAt: {_gte: $twoWeeksAgo}, 
-        contactSource: {_isNull: false},
-        sourceApp: {_eq: $sourceApp},
-        isDeleted: {_eq: false}
-      }
-    ) {
-      contactSource {
-        id
-        value
-        code
-      }
-    }
-  }
-`;
-
-// Query to get total contacts count for this year
-export const GET_TOTAL_CONTACTS_THIS_YEAR_COUNT = `
-  query GetTotalContactsThisYearCount($startOfYear: timestamptz!, $sourceApp: String) {
-    ContactAggregate(where: {
-      createdAt: {_gte: $startOfYear},
+    previous: ContactAggregate(where: {
       sourceApp: {_eq: $sourceApp},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      activeTo: {_isNull: true},
+      createdAt: {_lt: $lastMonth}
     }) {
       aggregate {
         count
@@ -96,13 +65,47 @@ export const GET_TOTAL_CONTACTS_THIS_YEAR_COUNT = `
   }
 `;
 
-// Query to get total email engagements (contacts with email addresses)
-export const GET_TOTAL_EMAIL_ENGAGEMENTS = `
-  query GetTotalEmailEngagements($sourceApp: String) {
-    ContactAggregate(where: {
+// Query to get email engagements (current vs last month)
+export const GET_EMAIL_ENGAGEMENTS_WITH_TREND = `
+  query GetEmailEngagementsWithTrend($lastMonth: timestamptz!, $sourceApp: String) {
+    current: ContactAggregate(where: {
       sourceApp: {_eq: $sourceApp},
       isDeleted: {_eq: false},
       email: {_isNull: false}
+    }) {
+      aggregate {
+        count
+      }
+    }
+    previous: ContactAggregate(where: {
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false},
+      email: {_isNull: false},
+      createdAt: {_lt: $lastMonth}
+    }) {
+      aggregate {
+        count
+      }
+    }
+  }
+`;
+
+// Query to get contacts this year vs same period last year
+export const GET_CONTACTS_THIS_YEAR_WITH_TREND = `
+  query GetContactsThisYearWithTrend($thisYearStart: timestamptz!, $lastYearStart: timestamptz!, $lastYearEnd: timestamptz!, $sourceApp: String) {
+    current: ContactAggregate(where: {
+      createdAt: {_gte: $thisYearStart},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false}
+    }) {
+      aggregate {
+        count
+      }
+    }
+    previous: ContactAggregate(where: {
+      createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false}
     }) {
       aggregate {
         count
@@ -115,141 +118,123 @@ export const useContactStatisticsQueries = (context: UseContactStatisticsQueries
   const graphqlClient = useGraphQLClient(context.accessToken);
   const { sourceApp } = context;
 
-  const fetchRecentContacts = useCallback(async (): Promise<number> => {
+  const calculateTrend = (current: number, previous: number): TrendData => {
+    const change = current - previous;
+    const changePercent = previous > 0 ? (change / previous) * 100 : (current > 0 ? 100 : 0);
+    return {
+      current,
+      previous,
+      change,
+      changePercent,
+      isPositive: change >= 0
+    };
+  };
+
+  const fetchRecentContactsWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
       const now = new Date();
-      const twoWeeksAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)).toISOString();
+      const currentStart = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+      const previousEnd = currentStart;
+      const previousStart = new Date(currentStart.getTime() - (14 * 24 * 60 * 60 * 1000));
       
       const result = await graphqlClient.request<{
-        ContactAggregate: { aggregate: { count: number } }
-      }>(GET_RECENT_CONTACTS_COUNT, { twoWeeksAgo, sourceApp });
-      return result.ContactAggregate.aggregate.count;
+        current: { aggregate: { count: number } };
+        previous: { aggregate: { count: number } };
+      }>(GET_RECENT_CONTACTS_WITH_TREND, { 
+        currentStart: currentStart.toISOString(),
+        previousStart: previousStart.toISOString(),
+        previousEnd: previousEnd.toISOString(),
+        sourceApp 
+      });
+      
+      return calculateTrend(
+        result.current.aggregate.count,
+        result.previous.aggregate.count
+      );
     } catch (error) {
-      console.error('Error fetching recent contacts count:', error);
+      console.error('Error fetching recent contacts with trend:', error);
       throw error;
     }
   }, [graphqlClient, sourceApp]);
 
-  const fetchActiveContacts = useCallback(async (): Promise<number> => {
+  const fetchActiveContactsWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
+      const now = new Date();
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      
       const result = await graphqlClient.request<{
-        ContactAggregate: { aggregate: { count: number } }
-      }>(GET_ACTIVE_CONTACTS_COUNT, { sourceApp });
-      return result.ContactAggregate.aggregate.count;
+        current: { aggregate: { count: number } };
+        previous: { aggregate: { count: number } };
+      }>(GET_ACTIVE_CONTACTS_WITH_TREND, { 
+        lastMonth: lastMonth.toISOString(),
+        sourceApp 
+      });
+      
+      return calculateTrend(
+        result.current.aggregate.count,
+        result.previous.aggregate.count
+      );
     } catch (error) {
-      console.error('Error fetching active contacts count:', error);
+      console.error('Error fetching active contacts with trend:', error);
       throw error;
     }
   }, [graphqlClient, sourceApp]);
 
-  const fetchMostCommonJobTitle = useCallback(async (): Promise<string> => {
+  const fetchEmailEngagementsWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
       const now = new Date();
-      const twoWeeksAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)).toISOString();
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
       
       const result = await graphqlClient.request<{
-        Contact: Array<{ jobTitle: string | null }>
-      }>(GET_MOST_COMMON_JOB_TITLE, { twoWeeksAgo, sourceApp });
-
-      // Count occurrences of each job title
-      const jobTitleCounts: Record<string, number> = {};
-      result.Contact.forEach(contact => {
-        const jobTitle = contact.jobTitle;
-        if (jobTitle) {
-          jobTitleCounts[jobTitle] = (jobTitleCounts[jobTitle] || 0) + 1;
-        }
+        current: { aggregate: { count: number } };
+        previous: { aggregate: { count: number } };
+      }>(GET_EMAIL_ENGAGEMENTS_WITH_TREND, { 
+        lastMonth: lastMonth.toISOString(),
+        sourceApp 
       });
-
-      // Find the most common job title
-      let mostCommon = 'N/A';
-      let maxCount = 0;
-      Object.entries(jobTitleCounts).forEach(([title, count]) => {
-        if (count > maxCount) {
-          maxCount = count;
-          mostCommon = title;
-        }
-      });
-
-      return mostCommon;
-    } catch (error) {
-      console.error('Error fetching most common job title:', error);
-      return 'N/A';
-    }
-  }, [graphqlClient, sourceApp]);
-
-  const fetchMostCommonContactSource = useCallback(async (): Promise<string> => {
-    try {
-      const now = new Date();
-      const twoWeeksAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)).toISOString();
       
-      const result = await graphqlClient.request<{
-        Contact: Array<{ 
-          contactSource: Array<{ value: string; code: string }> | null;
-        }>
-      }>(GET_MOST_COMMON_CONTACT_SOURCE, { twoWeeksAgo, sourceApp });
-
-      // Count occurrences of each contact source
-      const sourceCounts: Record<string, number> = {};
-      result.Contact.forEach(contact => {
-        const sources = contact.contactSource;
-        if (sources && sources.length > 0) {
-          sources.forEach(source => {
-            if (source.value) {
-              sourceCounts[source.value] = (sourceCounts[source.value] || 0) + 1;
-            }
-          });
-        }
-      });
-
-      // Find the most common contact source
-      let mostCommon = 'N/A';
-      let maxCount = 0;
-      Object.entries(sourceCounts).forEach(([source, count]) => {
-        if (count > maxCount) {
-          maxCount = count;
-          mostCommon = source;
-        }
-      });
-
-      return mostCommon;
+      return calculateTrend(
+        result.current.aggregate.count,
+        result.previous.aggregate.count
+      );
     } catch (error) {
-      console.error('Error fetching most common contact source:', error);
-      return 'N/A';
-    }
-  }, [graphqlClient, sourceApp]);
-
-  const fetchTotalContactsThisYear = useCallback(async (): Promise<number> => {
-    try {
-      const startOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString();
-      
-      const result = await graphqlClient.request<{
-        ContactAggregate: { aggregate: { count: number } }
-      }>(GET_TOTAL_CONTACTS_THIS_YEAR_COUNT, { startOfYear, sourceApp });
-      return result.ContactAggregate.aggregate.count;
-    } catch (error) {
-      console.error('Error fetching total contacts this year:', error);
+      console.error('Error fetching email engagements with trend:', error);
       throw error;
     }
   }, [graphqlClient, sourceApp]);
 
-  const fetchTotalEmailEngagements = useCallback(async (): Promise<number> => {
+  const fetchContactsThisYearWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
+      const now = new Date();
+      const thisYearStart = new Date(now.getFullYear(), 0, 1);
+      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+      const lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      
       const result = await graphqlClient.request<{
-        ContactAggregate: { aggregate: { count: number } }
-      }>(GET_TOTAL_EMAIL_ENGAGEMENTS, { sourceApp });
-      return result.ContactAggregate.aggregate.count;
+        current: { aggregate: { count: number } };
+        previous: { aggregate: { count: number } };
+      }>(GET_CONTACTS_THIS_YEAR_WITH_TREND, { 
+        thisYearStart: thisYearStart.toISOString(),
+        lastYearStart: lastYearStart.toISOString(),
+        lastYearEnd: lastYearEnd.toISOString(),
+        sourceApp 
+      });
+      
+      return calculateTrend(
+        result.current.aggregate.count,
+        result.previous.aggregate.count
+      );
     } catch (error) {
-      console.error('Error fetching total email engagements:', error);
-      return 0;
+      console.error('Error fetching contacts this year with trend:', error);
+      throw error;
     }
   }, [graphqlClient, sourceApp]);
 
   return {
-    fetchRecentContacts,
-    fetchActiveContacts,
-    fetchMostCommonJobTitle,
-    fetchMostCommonContactSource,
-    fetchTotalContactsThisYear,
-    fetchTotalEmailEngagements
+    // Enhanced methods with trend data
+    fetchRecentContactsWithTrend,
+    fetchActiveContactsWithTrend,
+    fetchEmailEngagementsWithTrend,
+    fetchContactsThisYearWithTrend
   };
 }; 

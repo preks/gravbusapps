@@ -4,14 +4,15 @@ import { DataContainer } from '@/components/layout/dataContainer';
 import { DataFilter } from '@/components/data-filter/DataFilter';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useContactListData } from './hooks/useContactListData';
-import { useContactStatistics } from './hooks/useContactStatistics';
+import { useContactStatisticsWithTrend } from './hooks/useContactStatisticsWithTrend';
 import { useContactFilters } from './hooks/useContactFilters';
-import ContactStatistics from './components/ContactStatistics';
+import { ContactStatisticsWithTrend } from './components/ContactStatistics';
 import ContactTable from './components/ContactTable';
 import { Contact } from './types';
 import { Alert, Button, Modal, Form, Input, Select, message } from 'antd';
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 import { PlusOutlined } from '@ant-design/icons';
+import { startProcess } from '@/common/utils/start-process';
 
 interface ContactListProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -47,7 +48,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     createdBefore: appliedFilters.createdBefore
   });
   
-  const contactStatistics = useContactStatistics({
+  const contactStatistics = useContactStatisticsWithTrend({
     ...context,
     sourceApp
   });
@@ -59,7 +60,37 @@ const ContactList: React.FC<ContactListProps> = (context) => {
       contactListData.loadPage(1, pageSize);
       contactStatistics.refetch();
     }
-  }, [context.accessToken, contactListData, contactStatistics, pageSize]);
+  }, [context.accessToken, pageSize]);
+
+  // Auto-reload when filters change
+  useEffect(() => {
+    if (initialLoadDone.current && context.accessToken) {
+      setCurrentPage(1);
+      contactListData.loadPage(1, pageSize);
+    }
+  }, [
+    JSON.stringify(appliedFilters.contactTypes),
+    JSON.stringify(appliedFilters.jobTitles),
+    appliedFilters.createdAfter,
+    appliedFilters.createdBefore,
+    context.accessToken,
+    pageSize
+  ]);
+
+  // Auto-reload when search changes
+  useEffect(() => {
+    if (initialLoadDone.current && context.accessToken) {
+      setCurrentPage(1);
+      contactListData.loadPage(1, pageSize);
+    }
+  }, [appliedFilters.search, context.accessToken, pageSize]);
+
+  // Auto-reload when sort changes
+  useEffect(() => {
+    if (initialLoadDone.current && context.accessToken) {
+      contactListData.loadPage(currentPage, pageSize);
+    }
+  }, [sortField, sortOrder, context.accessToken, currentPage, pageSize]);
 
   // Handlers
   const handleContactClick = useCallback((contact: Contact) => {
@@ -102,7 +133,12 @@ const ContactList: React.FC<ContactListProps> = (context) => {
   }, [contactFilters, contactListData, pageSize]);
 
   const handleAddContact = useCallback(() => {
-    setIsAddModalVisible(true);
+    startProcess({
+      domain: 'customer-relations',
+      processName: 'saveContact',
+      builderType: 'NATIVE_SCREEN',
+      payload: {}
+    });
   }, []);
 
   const handleRetryStatistics = useCallback(() => {
@@ -126,17 +162,10 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     onDateRangeChange: contactFilters.handleDateRangeChange
   };
 
-  if (contactListData.error && !contactListData.loading) {
+  // If there's an error loading contacts, show error state
+  if (contactListData.error) {
     return (
-      <div data-testid="contact-list-content">
-        <div data-testid="contact-statistics-section" className="gba:mb-6">
-          <ContactStatistics
-            statistics={contactStatistics.statistics}
-            isLoading={contactStatistics.isLoading}
-            error={contactStatistics.error}
-            onRetry={handleRetryStatistics}
-          />
-        </div>
+      <div data-testid="contact-list-error">
         
         <Alert
           message="Error Loading Contacts"
@@ -152,12 +181,16 @@ const ContactList: React.FC<ContactListProps> = (context) => {
   return (
     <div data-testid="contact-list-content">
       <div data-testid="contact-statistics-section" className="gba:mb-6">
-        <ContactStatistics
-          statistics={contactStatistics.statistics}
-          isLoading={contactStatistics.isLoading}
-          error={contactStatistics.error}
-          onRetry={handleRetryStatistics}
-        />
+        {contactStatistics.trendData ? (
+          <ContactStatisticsWithTrend
+            trendData={contactStatistics.trendData}
+            isLoading={contactStatistics.isLoading}
+            error={contactStatistics.error}
+            onRetry={handleRetryStatistics}
+          />
+        ) : (
+          <div>Loading statistics...</div>
+        )}
       </div>
 
       <DataContainer

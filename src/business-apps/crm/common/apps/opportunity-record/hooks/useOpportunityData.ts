@@ -6,6 +6,7 @@ import { useGetSalesActivities } from '../queries/OpportunityActivityQueries';
 import { useGetSalesTasks } from '../queries/OpportunityTaskQueries';
 import { useGetCrmNotes } from '../queries/CrmNoteQueries';
 import { useGetCrmDocuments } from '../queries/CrmDocumentQueries';
+import { useSalesPipelineStages } from './useSalesPipelineStages';
 import { Opportunity, ReferenceData } from '../types';
 
 export const useOpportunityData = (opportunityId: string, accessToken: string) => {
@@ -13,9 +14,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
   const [opportunityData, setOpportunityData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [opportunityStages, setOpportunityStages] = useState<ReferenceData[]>([]);
   const [opportunityStatuses, setOpportunityStatuses] = useState<ReferenceData[]>([]);
-  const [loadingStages, setLoadingStages] = useState(false);
   const [loadingStatuses, setLoadingStatuses] = useState(false);
   
   // New states for activities, tasks, notes, and documents
@@ -31,6 +30,13 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
   const graphQLClient = useGraphQLClient(accessToken);
   const catalogClient = useCatalogManagerClient(accessToken);
   
+  // Use the new pipeline stages hook
+  const {
+    pipelineStages: opportunityStages,
+    loadingPipelineStages: loadingStages,
+    errorPipelineStages: stagesError
+  } = useSalesPipelineStages(opportunityData?.salesPipelineRef, accessToken);
+  
   // Initialize the new query hooks
   const { fetchSalesActivities } = useGetSalesActivities({ accessToken });
   const { fetchSalesTasks } = useGetSalesTasks({ accessToken });
@@ -38,13 +44,18 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
   const { fetchCrmDocuments } = useGetCrmDocuments({ accessToken });
 
   const fetchOpportunityData = async () => {
+    // Use a fallback ID if none provided
+    const safeOpportunityId = opportunityId || '2cabb386-82b8-4a9b-8a91-e8d008b4b2e8';
+    
     try {
       setLoading(true);
       setError(null);
       
+      console.log('Fetching opportunity data for ID:', safeOpportunityId);
+      
       const result = await graphQLClient.request<GetOpportunityByIdResponse>(
         GET_OPPORTUNITY_BY_ID,
-        { id: opportunityId }
+        { id: safeOpportunityId }
       );
       
       if (result && result.Opportunity && result.Opportunity.length > 0) {
@@ -61,7 +72,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
           statusRef: rawOpportunityData.opportunityStatus?.id || '',
           stage: 'Discovery', // Default since not in API
           stageRef: '',
-          value: 0, // Default since not in API
+          value: rawOpportunityData.estimatedAmount || 0, // Use estimatedAmount from GraphQL
           currency: {
             id: rawOpportunityData.currency?.id || 'EUR',
             type: 'currency',
@@ -160,32 +171,10 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
         setError('Opportunity not found');
       }
     } catch (err) {
+      console.error('Error fetching opportunity data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch opportunity data');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchOpportunityStages = async () => {
-    try {
-      setLoadingStages(true);
-      const response = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: 'OpportunityStage', version: 'v1' },
-        { limit: 100, offset: 0, returnTotalRecords: true }
-      );
-      
-      if (response && response.data) {
-        const stageData = response.data.map((entry: any) => ({
-          id: entry.id,
-          code: entry.code,
-          value: entry.value,
-        }));
-        setOpportunityStages(stageData);
-      }
-    } catch (err) {
-      console.error('Error fetching opportunity stages:', err);
-    } finally {
-      setLoadingStages(false);
     }
   };
 
@@ -264,7 +253,6 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
   useEffect(() => {
     if (opportunityId && accessToken) {
       fetchOpportunityData();
-      fetchOpportunityStages();
       fetchOpportunityStatuses();
       fetchActivities();
       fetchTasks();
@@ -282,6 +270,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
     opportunityStatuses,
     loadingStages,
     loadingStatuses,
+    stagesError,
     activities,
     tasks,
     notes,

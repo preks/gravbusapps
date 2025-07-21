@@ -24,6 +24,10 @@ export type AppActionButtonProps = Omit<ActionButtonProps, "flowData"> & {
    * @default 'disable'
    */
   emptyStateBehavior?: 'disable' | 'hide' | 'enabled';
+  /**
+   * Test ID for the AppActionButton container
+   */
+  'data-testid'?: string;
 };
 
 const DATA_TEST_ID_PREFIX = "AppActionButton";
@@ -81,42 +85,46 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
     staticFlowData,
     deferMainContextRequestsUntilClick,
     emptyStateBehavior = 'disable',
+    'data-testid': customDataTestId,
     ...restProps
   } = props;
 
   return (
-    <ActionButton
-      {...restProps}
-      data-testid={formatDataTestId(dataTestId, "Button")}
-      noFlowAvailableText={t("flow_button.no_flows_available")}
-      noOptionAvailableText={t("flow_button.no_flows_available")}
-      // Apply the emptyStateBehavior provided in props
-      // When in deferred mode and 'enabled' mode is not explicitly requested, we ensure it's clickable using loading state instead
-      emptyStateBehavior={emptyStateBehavior}
-      // Show loading state when actually loading or when in deferred mode with no data yet AND no fetch has been attempted
-      dropdownLoading={isLoading || (deferMainContextRequestsUntilClick && combinedData.length === 0 && !hasDeferredFetchAttempted)}
-      flowData={combinedData}
-      portalContainer={document.body}
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
+    <div data-testid={customDataTestId || `${dataTestId}-container`}>
+      <ActionButton
+        {...restProps}
+        data-testid={formatDataTestId(dataTestId, "Button")}
+        noFlowAvailableText={t("flow_button.no_flows_available")}
+        noOptionAvailableText={t("flow_button.no_flows_available")}
+        // Apply the emptyStateBehavior provided in props
+        // When in deferred mode and 'enabled' mode is not explicitly requested, we ensure it's clickable using loading state instead
+        emptyStateBehavior={emptyStateBehavior}
+        // Show loading state when actually loading or when in deferred mode with no data yet AND no fetch has been attempted
+        dropdownLoading={isLoading || (deferMainContextRequestsUntilClick && combinedData.length === 0 && !hasDeferredFetchAttempted)}
+        flowData={combinedData}
+        portalContainer={document.body}
+        className="gba:[&_.guic-action-button-icon-hover.guic-transform]:!-translate-1/2 gba:[&_.guic-action-button-icon-default.guic-transform]:!-translate-1/2"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
 
-        // If configured to defer requests until click, trigger the requests
-        if (deferMainContextRequestsUntilClick) {
-          // Mark that a fetch has been attempted
-          setHasDeferredFetchAttempted(true);
-          
-          // First fetch main contexts data, then pass that data directly to fetchFlowItems
-          fetchMainContextsData && 
-            fetchMainContextsData().then((contextData) => {
-              // Only fetch flow items if we have context data
-              if (contextData && fetchFlowItems) {
-                fetchFlowItems(contextData);
-              }
-            });
-        }
-      }}
-    />
+          // If configured to defer requests until click, trigger the requests
+          if (deferMainContextRequestsUntilClick) {
+            // Mark that a fetch has been attempted
+            setHasDeferredFetchAttempted(true);
+            
+            // First fetch main contexts data, then pass that data directly to fetchFlowItems
+            fetchMainContextsData && 
+              fetchMainContextsData().then((contextData) => {
+                // Only fetch flow items if we have context data
+                if (contextData && fetchFlowItems) {
+                  fetchFlowItems(contextData);
+                }
+              });
+          }
+        }}
+      />
+    </div>
   );
 };
 

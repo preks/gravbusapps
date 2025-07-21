@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { DndContext, DragOverlay, useSensors, useSensor, PointerSensor, closestCorners } from "@dnd-kit/core";
-import { Switch, Radio } from "antd";
+import { DndContext, DragOverlay, useSensors, useSensor, PointerSensor, closestCorners, DragOverEvent, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove } from "@dnd-kit/sortable";
+import { Switch, Radio, Select, Spin } from "antd";
 import { useKanbanStore } from "./lib/kanban-store";
 import { 
   KanbanColumn, 
@@ -10,6 +11,9 @@ import {
 } from "./components";
 import OpportunityRecord from "../../apps/opportunity-record/OpportunityRecord";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { useSalesPipelines } from "./hooks/useSalesPipelines";
+import { usePipelineStages } from "./hooks/usePipelineStages";
+import { FIXED_STAGES } from "./lib/stages";
 import type { Opportunity } from "./lib/types";
 
 interface BusinessAppContextProps {
@@ -29,7 +33,11 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
     stages, 
     opportunities, 
     moveOpportunity, 
+    moveOpportunityToStage,
+    moveOpportunityToPosition,
+    reorderOpportunities,
     fetchOpportunities,
+    updateStages,
     selectOpportunity,
     selectedOpportunity,
     isViewingOpportunity
@@ -38,6 +46,44 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
   const [filterMode, setFilterMode] = useState<'my' | 'all' | 'selected'>('my');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string | undefined>(undefined);
+  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
+  const [dragOverOpportunity, setDragOverOpportunity] = useState<string | null>(null);
+  const [insertPosition, setInsertPosition] = useState<'before' | 'after' | null>(null);
+
+  // Fetch sales pipelines
+  const { pipelines, isLoading: pipelinesLoading } = useSalesPipelines(accessToken);
+  
+  // Set default pipeline to "standard" when pipelines are loaded
+  useEffect(() => {
+    if (pipelines.length > 0 && selectedPipelineId === undefined) {
+      // Look for a pipeline with "standard" in the name (case insensitive)
+      const standardPipeline = pipelines.find(p => 
+        p.value.toLowerCase().includes('standard') || 
+        p.code?.toLowerCase().includes('standard')
+      );
+      if (standardPipeline) {
+        setSelectedPipelineId(standardPipeline.id);
+      }
+    }
+  }, [pipelines, selectedPipelineId]);
+  
+  // Fetch pipeline stages for selected pipeline
+  const { stages: pipelineStages, isLoading: stagesLoading } = usePipelineStages(accessToken, selectedPipelineId);
+
+  // Update stages when pipeline stages change
+  useEffect(() => {
+    if (selectedPipelineId && pipelineStages.length > 0) {
+      // Use pipeline-specific stages
+      updateStages(pipelineStages);
+    } else if (selectedPipelineId && pipelineStages.length === 0 && !stagesLoading) {
+      // Clear stages when pipeline is selected but has no stages
+      updateStages([]);
+    } else if (!selectedPipelineId) {
+      // Use fixed stages when no pipeline is selected
+      updateStages(FIXED_STAGES);
+    }
+  }, [selectedPipelineId, pipelineStages, stagesLoading, updateStages]);
 
   useEffect(() => {
     let employeeFilter: string | undefined;
@@ -55,9 +101,10 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
       accessToken,
       employeeFilter,
       sourceApp,
-      employeeListFilter
+      employeeListFilter,
+      selectedPipelineId
     );
-  }, [fetchOpportunities, employeeId, accessToken, filterMode, selectedEmployeeIds, sourceApp]);
+  }, [fetchOpportunities, employeeId, accessToken, filterMode, selectedEmployeeIds, selectedPipelineId, sourceApp]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -78,38 +125,118 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
     setActiveOpportunity(draggedOpportunity || null);
   };
 
-  const handleDragEnd = (event: any) => {
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over, active } = event;
+    
+    if (over) {
+      const overId = over.id as string;
+      const activeId = active.id as string;
+      
+      // Find the active opportunity
+      const activeOpportunity = opportunities.find(op => op.id === activeId);
+      
+      // Check if we're hovering over a stage (column)
+      const stage = stages.find(s => s.id === overId);
+      if (stage) {
+        setDragOverStage(overId as string);
+        setDragOverOpportunity(null);
+        setInsertPosition(null);
+      } else {
+        // We're hovering over another opportunity
+        const overOpportunity = opportunities.find(op => op.id === overId);
+        if (overOpportunity && activeOpportunity) {
+          const overStageId = overOpportunity.salesPipelineStageRef || overOpportunity.stageId;
+          const activeStageId = activeOpportunity.salesPipelineStageRef || activeOpportunity.stageId;
+          
+          setDragOverStage(overStageId || null);
+          
+          // If dragging to a different column, enable insertion positioning
+          if (activeStageId !== overStageId) {
+            setDragOverOpportunity(overId);
+            // For simplicity, we'll insert after the hovered card
+            // You could enhance this to detect mouse position for before/after
+            setInsertPosition('after');
+          } else {
+            // Same column - use existing sortable behavior
+            setDragOverOpportunity(null);
+            setInsertPosition(null);
+          }
+        } else {
+          setDragOverStage(null);
+          setDragOverOpportunity(null);
+          setInsertPosition(null);
+        }
+      }
+    } else {
+      setDragOverStage(null);
+      setDragOverOpportunity(null);
+      setInsertPosition(null);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
-    if (!over) {
-      setActiveOpportunity(null);
-      return;
-    }
-    
-    const activeId = active.id;
-    const overId = over.id;
-    
-    if (activeId === overId) {
-      setActiveOpportunity(null);
-      return;
-    }
-    
-    const activeOpportunityData = opportunities.find(
-      (item) => item.id === activeId
-    );
-    
-    if (!activeOpportunityData) {
-      setActiveOpportunity(null);
-      return;
-    }
-    
-    const targetStageId = overId;
-    
-    if (activeOpportunityData.stageId !== targetStageId) {
-      moveOpportunity(activeId, targetStageId, accessToken);
-    }
-    
+    // Clear all drag over states
+    setDragOverStage(null);
+    setDragOverOpportunity(null);
+    setInsertPosition(null);
     setActiveOpportunity(null);
+    
+    if (!over || active.id === over.id) {
+      return;
+    }
+    
+    const activeId = active.id as string;
+    const overId = over.id as string;
+    
+    const activeOpportunity = opportunities.find(op => op.id === activeId);
+    if (!activeOpportunity) return;
+    
+    // Check if we're dropping on a stage (inter-column move to end)
+    const targetStage = stages.find(s => s.id === overId);
+    if (targetStage) {
+      // Moving to a different stage at the end
+      const activeStageId = activeOpportunity.salesPipelineStageRef || activeOpportunity.stageId;
+      if (activeStageId !== targetStage.id) {
+        moveOpportunityToStage(activeId, targetStage.id, accessToken);
+      }
+      return;
+    }
+    
+    // Check if we're dropping on another opportunity
+    const overOpportunity = opportunities.find(op => op.id === overId);
+    if (overOpportunity) {
+      const activeStageId = activeOpportunity.salesPipelineStageRef || activeOpportunity.stageId;
+      const overStageId = overOpportunity.salesPipelineStageRef || overOpportunity.stageId;
+      
+      if (activeStageId === overStageId) {
+        // Reordering within the same column
+        const stageOpportunities = opportunities.filter(op => {
+          const oppStageId = op.salesPipelineStageRef || op.stageId;
+          return oppStageId === activeStageId;
+        });
+        const activeIndex = stageOpportunities.findIndex(op => op.id === activeId);
+        const overIndex = stageOpportunities.findIndex(op => op.id === overId);
+        
+        if (activeIndex !== overIndex) {
+          const reorderedOpportunities = arrayMove(stageOpportunities, activeIndex, overIndex);
+          reorderOpportunities(activeStageId || '', reorderedOpportunities);
+        }
+      } else {
+        // Moving to a different stage with specific positioning
+        const targetStageOpportunities = opportunities.filter(op => {
+          const oppStageId = op.salesPipelineStageRef || op.stageId;
+          return oppStageId === overStageId;
+        });
+        const insertIndex = targetStageOpportunities.findIndex(op => op.id === overId);
+        
+        // Insert after the target opportunity
+        const newPosition = insertIndex + 1;
+        
+        moveOpportunityToPosition(activeId, overStageId || '', newPosition, accessToken);
+      }
+    }
   };
 
 
@@ -149,6 +276,29 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
             </Radio.Group>
           </div>
           
+          <div className="gba:flex gba:items-center gba:gap-2" data-testid="pipeline-filter-container">
+            <span className="gba:text-sm gba:font-medium gba:text-gray-700 gba:dark:text-gray-300">
+              Pipeline:
+            </span>
+            <Select
+              value={selectedPipelineId}
+              onChange={setSelectedPipelineId}
+              placeholder="All Pipelines"
+              allowClear
+              style={{ minWidth: 200 }}
+              size="small"
+              loading={pipelinesLoading}
+              data-testid="pipeline-filter-select"
+              notFoundContent={pipelinesLoading ? <Spin size="small" /> : 'No pipelines found'}
+            >
+              {pipelines.map((pipeline) => (
+                <Select.Option key={pipeline.id} value={pipeline.id} data-testid={`pipeline-option-${pipeline.id}`}>
+                  {pipeline.value}
+                </Select.Option>
+              ))}
+            </Select>
+          </div>
+          
           {filterMode === 'selected' && (
             <EmployeeSelector
               {...{ accessToken, userInfo, employeeId }}
@@ -165,21 +315,56 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
-      >
+      >      
         <div className="gba:flex gba:flex-1 gba:overflow-x-auto gba:overflow-y-hidden gba:scroll-smooth gba:p-4 gba:gap-4">
-          {stages.map((stage) => (
-            <KanbanColumn
-              key={stage.id}
-              stage={stage}
-              opportunities={opportunities.filter(
-                (opportunity) => opportunity.stageId === stage.id
-              )}
-              accessToken={accessToken}
-              userInfo={userInfo}
-              sourceApp={sourceApp}
-            />
-          ))}
+          {stagesLoading && selectedPipelineId ? (
+            <div className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full">
+              <div className="gba:text-center">
+                <Spin size="large" />
+                <p className="gba:mt-4 gba:text-gray-500">Loading pipeline stages...</p>
+              </div>
+            </div>
+          ) : selectedPipelineId && stages.length === 0 && !stagesLoading ? (
+            <div className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full" data-testid="no-stages-message">
+              <div className="gba:text-center gba:p-8">
+                <div className="gba:text-6xl gba:mb-4">📋</div>
+                <h3 className="gba:text-xl gba:font-semibold gba:text-gray-700 gba:mb-2">
+                  No Stages for This Pipeline
+                </h3>
+                <p className="gba:text-gray-500 gba:mb-4">
+                  This pipeline doesn't have any stages configured yet.
+                </p>
+                <p className="gba:text-sm gba:text-gray-400">
+                  Configure stages in the pipeline settings to start organizing opportunities.
+                </p>
+              </div>
+            </div>
+          ) : (
+            stages.map((stage) => (
+              <KanbanColumn
+                key={stage.id}
+                stage={stage}
+                opportunities={opportunities
+                  .filter((opportunity) => {
+                    // Handle stage mapping - if opportunity has salesPipelineStageRef, use that
+                    // Otherwise fall back to stageId for backwards compatibility
+                    const opportunityStageId = opportunity.salesPipelineStageRef || opportunity.stageId;
+                    return opportunityStageId === stage.id;
+                  })
+                  .sort((a, b) => (a.position || 0) - (b.position || 0))
+                }
+                accessToken={accessToken}
+                userInfo={userInfo}
+                sourceApp={sourceApp}
+                isDraggedOver={dragOverStage === stage.id}
+                isDragging={activeOpportunity !== null}
+                dragOverOpportunity={dragOverOpportunity}
+                insertPosition={insertPosition}
+              />
+            ))
+          )}
         </div>
 
         <DragOverlay>

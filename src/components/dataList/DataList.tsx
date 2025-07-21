@@ -130,17 +130,17 @@ export function DataList<T>({
 }: DataListProps<T>) {
   // Handle loading state
   if (isLoading) {
-    return <Spin size="large" style={{ display: 'block', margin: '40px auto' }} />;
+    return <Spin size="large" style={{ display: 'block', margin: '40px auto' }} data-testid="data-list-loading" />;
   }
 
   // Handle error state
   if (error) {
-    return <Alert message="Error" description={error} type="error" showIcon />;
+    return <Alert message="Error" description={error} type="error" showIcon data-testid="data-list-error" />;
   }
 
   // Handle empty state
   if (!items || items.length === 0) {
-    return <Empty description={emptyMessage} style={{ margin: '40px 0' }} />;
+    return <Empty description={emptyMessage} style={{ margin: '40px 0' }} data-testid="data-list-empty" />;
   }
 
   // Use Ant Design List component if specified
@@ -150,6 +150,7 @@ export function DataList<T>({
         className={className}
         itemLayout={itemLayout}
         dataSource={items as T[]}
+        data-testid="data-list-ant-list"
         renderItem={(item, index) => {
           const key = getKey?.(item, index) ?? index;
           const selected = selectedItem === item;
@@ -181,6 +182,7 @@ export function DataList<T>({
               extra={extra}
               onClick={onItemClick ? () => onItemClick(item, index) : undefined}
               className={selected ? 'ant-list-item-selected' : ''}
+              data-testid={`data-list-ant-item-${key}`}
             >
               <List.Item.Meta
                 title={title}
@@ -196,7 +198,7 @@ export function DataList<T>({
 
   // Use native HTML list
   return (
-    <ul className={`w-full list-none p-0 m-0 border-t border-gray-200 ${className}`.trim()} {...ulProps}>
+    <ul className={`w-full list-none p-0 m-0 border-t border-gray-200 ${className}`.trim()} {...ulProps} data-testid="data-list-native-list">
       {items.map((item, index) => {
         const selected = selectedItem === item;
         const key = getKey ? getKey(item, index) : index;
@@ -204,12 +206,13 @@ export function DataList<T>({
         // If item is clickable, wrap in a button for proper accessibility
         if (onItemClick) {
           return (
-            <li key={key} className={`gba:border-b gba:border-gray-200 gba:transition-colors gba:duration-200 ${selected ? 'gba:bg-gray-100' : 'gba:hover:bg-gray-50'}`}>
+            <li key={key} className={`gba:border-b gba:border-gray-200 gba:transition-colors gba:duration-200 ${selected ? 'gba:bg-gray-100' : 'gba:hover:bg-gray-50'}`} data-testid={`data-list-item-${key}`}>
               <button
                 type="button"
                 className="gba:w-full gba:text-left gba:bg-transparent gba:border-none gba:py-3 gba:px-4 gba:cursor-pointer gba:block gba:font-inherit gba:text-inherit"
                 onClick={() => onItemClick(item, index)}
                 aria-current={selected ? 'page' : undefined}
+                data-testid={`data-list-item-button-${key}`}
               >
                 {renderItem?.(item, index, selected)}
               </button>
@@ -223,6 +226,7 @@ export function DataList<T>({
             key={key}
             className={`gba:border-b gba:border-gray-200 gba:py-3 gba:px-4 gba:transition-colors gba:duration-200 ${selected ? 'gba:bg-gray-100' : 'gba:hover:bg-gray-50'}`}
             aria-current={selected ? 'page' : undefined}
+            data-testid={`data-list-item-${key}`}
           >
             {renderItem?.(item, index, selected)}
           </li>

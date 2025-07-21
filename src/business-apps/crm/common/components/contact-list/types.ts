@@ -9,11 +9,11 @@ export interface Contact {
   linkedinUrl?: string;
   xingUrl?: string;
   birthDate?: string;
-  contactRole?: string;
-  contactType?: string;
+
   academicTitle?: {
     id: string;
     value: string;
+    objectValue?: any;
   };
   account?: {
     id: string;
@@ -32,15 +32,6 @@ export interface Contact {
   updatedAt?: string;
 }
 
-export interface ContactStatisticsData {
-  recentContacts: number;
-  activeContacts: number;
-  totalEmailEngagements: number;
-  totalContactsThisYear: number;
-  mostCommonJobTitle: string;
-  mostCommonContactSource: string;
-}
-
 export interface UseContactListDataReturn {
   contacts: Contact[];
   total: number;
@@ -50,11 +41,4 @@ export interface UseContactListDataReturn {
   loadMore: () => void;
   loadPage: (page: number, pageSize?: number, additionalFilters?: any) => Promise<void>;
   retry: () => void;
-}
-
-export interface UseContactStatisticsReturn {
-  statistics: ContactStatisticsData;
-  isLoading: boolean;
-  error: Error | null;
-  refetch: () => void;
 } 
