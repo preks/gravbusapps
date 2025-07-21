@@ -2,26 +2,37 @@ import React, { useState } from 'react';
 import {
   Button,
   Card,
-  Tag,
-  Typography,
-  Space,
-  Alert,
-  Spin,
-  Modal,
+  Badge,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
   Input,
   Select,
-  Row,
-  Col,
-  message,
-} from 'antd';
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+  Spinner,
+  Alert,
+  AlertDescription,
+} from '@newwork/nw-design-system';
 import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  EyeOutlined,
-  SettingOutlined,
-} from '@ant-design/icons';
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  Settings,
+} from 'lucide-react';
+import { useForm } from 'react-hook-form';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { usePipelineDataIntegration } from '../hooks/usePipelineDataIntegration';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
@@ -33,9 +44,6 @@ import {
 import { PipelineStagesModal } from './PipelineStagesModal';
 import { convertToScreamingSnakeCase } from '../utils';
 
-const { Title, Text } = Typography;
-const { Option } = Select;
-
 // Pipeline Type Options
 const PIPELINE_TYPE_OPTIONS = [
   { label: 'Customer Pipeline', value: 'CRM' },
@@ -44,10 +52,11 @@ const PIPELINE_TYPE_OPTIONS = [
 
 export interface PipelineOverviewProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
+  sourceApp?: 'CRM' | 'IRM'; // Add sourceApp parameter for filtering
 }
 
 export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
-  const { prefixDataTestId } = props;
+  const { prefixDataTestId, sourceApp = 'CRM' } = props;
   
   // Modal states
   const [isPipelineModalVisible, setIsPipelineModalVisible] = useState(false);
@@ -55,27 +64,38 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
   const [editingPipeline, setEditingPipeline] = useState<EnhancedSalesPipeline | null>(null);
   const [selectedPipeline, setSelectedPipeline] = useState<EnhancedSalesPipeline | null>(null);
   const [operationLoading, setOperationLoading] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pipelineToDelete, setPipelineToDelete] = useState<EnhancedSalesPipeline | null>(null);
   
-  const [pipelineForm] = Form.useForm<PipelineFormData>();
+  const pipelineForm = useForm<PipelineFormData>({
+    defaultValues: {
+      value: '',
+      description: '',
+      type: sourceApp // Default to current sourceApp
+    }
+  });
 
-  const { pipelines, isLoading, error, refetch } = usePipelineDataIntegration(props);
+  const { pipelines, isLoading, error, refetch } = usePipelineDataIntegration(props, { sourceApp });
   const catalogClient = useCatalogManagerClient(props.accessToken);
+
+  // Pipelines are already filtered by sourceApp in the hook
 
   const handleAddPipeline = () => {
     setEditingPipeline(null);
-    pipelineForm.resetFields();
-    pipelineForm.setFieldsValue({
-      type: 'CRM' // Default to Customer Pipeline
+    pipelineForm.reset({
+      value: '',
+      description: '',
+      type: sourceApp // Default to current sourceApp
     });
     setIsPipelineModalVisible(true);
   };
 
   const handleEditPipeline = (pipeline: EnhancedSalesPipeline) => {
     setEditingPipeline(pipeline);
-    pipelineForm.setFieldsValue({
+    pipelineForm.reset({
       value: pipeline.value,
       description: pipeline.description,
-      type: pipeline.type || 'CRM', // Default to CRM if no type is set
+      type: pipeline.type || sourceApp,
     });
     setIsPipelineModalVisible(true);
   };
@@ -86,48 +106,46 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
   };
 
   const handleDeletePipeline = (pipeline: EnhancedSalesPipeline) => {
-    Modal.confirm({
-      title: 'Delete Pipeline',
-      content: `Are you sure you want to delete pipeline "${pipeline.value}"? This will also delete all its stages.`,
-      okText: 'Delete',
-      okType: 'danger',
-      onOk: async () => {
-        try {
-          setOperationLoading(true);
-          await catalogClient.deleteCatalogEntry(
-            SALES_PIPELINE_CATALOG,
-            SALES_PIPELINE_VERSION,
-            pipeline.id // Use full ID, not just code
-          );
-          message.success(`Pipeline "${pipeline.value}" deleted successfully`);
-          await refetch(); // Refresh data
-        } catch (error) {
-          console.error('Error deleting pipeline:', error);
-          message.error(`Failed to delete pipeline: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        } finally {
-          setOperationLoading(false);
-        }
-      },
-    });
+    setPipelineToDelete(pipeline);
+    setDeleteDialogOpen(true);
   };
 
-  const handlePipelineModalOk = async () => {
+  const confirmDelete = async () => {
+    if (!pipelineToDelete) return;
+    
     try {
-      const values = await pipelineForm.validateFields();
+      setOperationLoading(true);
+      await catalogClient.deleteCatalogEntry(
+        SALES_PIPELINE_CATALOG,
+        SALES_PIPELINE_VERSION,
+        pipelineToDelete.id
+      );
+      console.log(`Pipeline "${pipelineToDelete.value}" deleted successfully`);
+      await refetch();
+    } catch (error) {
+      console.error('Error deleting pipeline:', error);
+    } finally {
+      setOperationLoading(false);
+      setDeleteDialogOpen(false);
+      setPipelineToDelete(null);
+    }
+  };
+
+  const handlePipelineModalSubmit = async (values: PipelineFormData) => {
+    try {
       setOperationLoading(true);
 
       if (editingPipeline) {
-        // Update existing pipeline - build payload with ID and filter out null values
+        // Update existing pipeline
         const payload: any = {
-          id: editingPipeline.id, // Must include the ID in the request body
-          code: editingPipeline.code, // Keep existing code
+          id: editingPipeline.id,
+          code: editingPipeline.code,
           value: values.value,
-          type: values.type, // Pipeline type (CRM or IRM)
+          type: values.type,
           objectValue: editingPipeline.objectValue || {},
           translations: []
         };
 
-        // Only include fields that have values
         if (values.description) {
           payload.additionalValue1 = values.description;
         }
@@ -138,20 +156,19 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
           editingPipeline.id,
           payload
         );
-        message.success(`Pipeline "${values.value}" updated successfully`);
+        console.log(`Pipeline "${values.value}" updated successfully`);
       } else {
-        // Create new pipeline - auto-generate code from name
+        // Create new pipeline
         const code = convertToScreamingSnakeCase(values.value);
         
         const payload: any = {
           code,
           value: values.value,
-          type: values.type, // Pipeline type (CRM or IRM)
+          type: values.type,
           objectValue: {},
           translations: []
         };
 
-        // Only include fields that have values
         if (values.description) {
           payload.additionalValue1 = values.description;
         }
@@ -161,29 +178,50 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
           SALES_PIPELINE_VERSION,
           payload
         );
-        message.success(`Pipeline "${values.value}" created successfully`);
+        console.log(`Pipeline "${values.value}" created successfully`);
       }
 
       setIsPipelineModalVisible(false);
-      await refetch(); // Refresh data
+      await refetch();
     } catch (error) {
       console.error('Error saving pipeline:', error);
-      message.error(`Failed to ${editingPipeline ? 'update' : 'create'} pipeline: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setOperationLoading(false);
+    }
+  };
+
+  const getPipelineTypeColor = (type: string) => {
+    switch (type) {
+      case 'CRM':
+        return 'default';
+      case 'IRM':
+        return 'secondary';
+      default:
+        return 'outline';
+    }
+  };
+
+  const getPipelineTypeLabel = (type: string) => {
+    switch (type) {
+      case 'CRM':
+        return 'Customer';
+      case 'IRM':
+        return 'Investment';
+      default:
+        return type;
     }
   };
 
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-        <Spin size="large" />
+        <Spinner className="gba:w-8 gba:h-8" />
         <div className="gba:ml-4 gba:text-gray-600">
           Loading pipeline data...
           <br />
-          <Text className="gba:text-sm gba:text-gray-500">
-            Fetching sales pipelines from catalog
-          </Text>
+          <span className="gba:text-sm gba:text-gray-500">
+            Fetching {sourceApp === 'CRM' ? 'sales' : 'investment'} pipelines from catalog
+          </span>
         </div>
       </div>
     );
@@ -191,13 +229,19 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
 
   if (error) {
     return (
-      <Alert
-        message="Error Loading Pipeline Data"
-        description={error}
-        type="error"
-        showIcon
-        action={<Button size="small" onClick={refetch}>Retry</Button>}
-      />
+      <Alert variant="destructive" data-testid={`${prefixDataTestId}-error-alert`}>
+        <AlertDescription>
+          Error Loading Pipeline Data: {error}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={refetch}
+            className="gba:ml-2"
+          >
+            Retry
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 
@@ -209,19 +253,19 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
         <div>
-          <Title level={3} className="gba:mb-1">
-            Pipeline Management
-          </Title>
-          <Text className="gba:text-gray-600">
-            Manage your sales pipelines and configure their stages
-          </Text>
+          <h3 className="gba:text-2xl gba:font-semibold gba:mb-1">
+            {sourceApp === 'CRM' ? 'Sales' : 'Investment'} Pipeline Management
+          </h3>
+          <p className="gba:text-gray-600">
+            Manage your {sourceApp === 'CRM' ? 'sales' : 'investment'} pipelines and configure their stages
+          </p>
         </div>
         <Button
-          type="primary"
-          icon={<PlusOutlined />}
           onClick={handleAddPipeline}
-          size="large"
+          data-testid={`${prefixDataTestId}-add-pipeline-button`}
+          className="gba:flex gba:items-center gba:gap-2"
         >
+          <Plus className="gba:w-4 gba:h-4" />
           Add Pipeline
         </Button>
       </div>
@@ -230,129 +274,219 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
       {pipelines.length === 0 ? (
         <div className="gba:flex gba:justify-center gba:items-center gba:w-full gba:h-96 gba:bg-gray-50 gba:rounded-lg gba:border-2 gba:border-dashed gba:border-gray-300">
           <div className="gba:text-center">
-            <SettingOutlined className="gba:text-4xl gba:text-gray-400 gba:mb-4" />
-            <Title level={4} className="gba:text-gray-500 gba:mb-2">
-              No Pipelines Found
-            </Title>
-            <Text className="gba:text-gray-400 gba:mb-4">
-              Create your first sales pipeline to get started
-            </Text>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddPipeline}>
+            <Settings className="gba:w-16 gba:h-16 gba:text-gray-400 gba:mb-4 gba:mx-auto" />
+            <h4 className="gba:text-xl gba:font-medium gba:text-gray-500 gba:mb-2">
+              No {sourceApp === 'CRM' ? 'Sales' : 'Investment'} Pipelines Found
+            </h4>
+            <p className="gba:text-gray-400 gba:mb-4">
+              Create your first {sourceApp === 'CRM' ? 'sales' : 'investment'} pipeline to get started
+            </p>
+            <Button onClick={handleAddPipeline} className="gba:flex gba:items-center gba:gap-2">
+              <Plus className="gba:w-4 gba:h-4" />
               Create Pipeline
             </Button>
           </div>
         </div>
       ) : (
-        <Row gutter={[24, 24]}>
+        <div className="gba:flex gba:flex-wrap gba:gap-6 gba:justify-start">
           {pipelines.map((pipeline) => (
-            <Col xs={24} sm={12} lg={8} xl={6} key={pipeline.id}>
-              <Card
-                className="gba:border-gray-200 hover:gba:border-blue-400 hover:gba:shadow-lg gba:transition-all gba:h-full gba:relative"
-                style={{
-                  borderTop: '4px solid #1890ff',
-                }}
-                bodyStyle={{ padding: '20px' }}
-                data-testid={`${prefixDataTestId}-PipelineCard-${pipeline.id}`}
-              >
-                {/* Pipeline Type Flag */}
-                <div className="gba:absolute gba:top-2 gba:right-2 gba:z-10">
-                  <Tag
-                    color={pipeline.type === 'CRM' ? 'blue' : 'purple'}
-                    className="gba:text-xs gba:font-medium gba:px-2 gba:py-1"
-                  >
-                    {pipeline.type}
-                  </Tag>
-                </div>
+            <Card
+              key={pipeline.id}
+              className="gba:max-w-96 gba:flex-1 gba:min-w-80 gba:border-gray-200 hover:gba:border-blue-400 hover:gba:shadow-lg gba:transition-all gba:relative gba:border-t-4 gba:border-t-blue-500 gba:shadow-md gba:duration-200 gba:rounded-xl gba:overflow-hidden"
+              data-testid={`${prefixDataTestId}-pipeline-card-${pipeline.id}`}
+            >
+              {/* Pipeline Type Flag */}
+              <div className="gba:absolute gba:top-4 gba:right-4 gba:z-10">
+                <Badge
+                  variant={getPipelineTypeColor(pipeline.type)}
+                  className="gba:text-xs gba:font-medium gba:px-2 gba:py-1"
+                >
+                  {getPipelineTypeLabel(pipeline.type)}
+                </Badge>
+              </div>
 
+              <div className="gba:p-5">
                 <div className="gba:mb-4">
-                  <Title level={5} className="gba:mb-2 gba:text-gray-800">
+                  <h5 className="gba:text-lg gba:font-semibold gba:mb-2 gba:text-gray-800 gba:pr-16">
                     {pipeline.value}
-                  </Title>
+                  </h5>
 
                   {pipeline.description && (
-                    <Text className="gba:text-gray-500 gba:text-sm">
+                    <p className="gba:text-gray-500 gba:text-sm">
                       {pipeline.description}
-                    </Text>
+                    </p>
                   )}
                 </div>
 
                 <div className="gba:flex gba:justify-between gba:items-center">
                   <Button
-                    type="primary"
-                    icon={<EyeOutlined />}
                     onClick={() => handleViewStages(pipeline)}
-                    size="small"
+                    className="gba:flex gba:items-center gba:gap-2"
+                    size="sm"
                   >
+                    <Eye className="gba:w-4 gba:h-4" />
                     View Stages
                   </Button>
                   
-                  <Space size="small">
+                  <div className="gba:flex gba:gap-1">
                     <Button
-                      type="text"
-                      size="small"
-                      icon={<EditOutlined />}
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleEditPipeline(pipeline)}
                       className="gba:text-gray-400 hover:gba:text-blue-500"
-                    />
+                      data-testid={`${prefixDataTestId}-edit-pipeline-${pipeline.id}`}
+                    >
+                      <Edit className="gba:w-4 gba:h-4" />
+                    </Button>
                     <Button
-                      type="text"
-                      size="small"
-                      icon={<DeleteOutlined />}
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleDeletePipeline(pipeline)}
                       className="gba:text-gray-400 hover:gba:text-red-500"
-                    />
-                  </Space>
+                      data-testid={`${prefixDataTestId}-delete-pipeline-${pipeline.id}`}
+                    >
+                      <Trash2 className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </div>
                 </div>
-              </Card>
-            </Col>
+              </div>
+            </Card>
           ))}
-        </Row>
+        </div>
       )}
 
       {/* Pipeline Modal */}
-      <Modal
-        title={editingPipeline ? 'Edit Pipeline' : 'Add New Pipeline'}
-        open={isPipelineModalVisible}
-        onOk={handlePipelineModalOk}
-        onCancel={() => setIsPipelineModalVisible(false)}
-        okText={editingPipeline ? 'Update' : 'Create'}
-        confirmLoading={operationLoading}
-      >
-        <Form form={pipelineForm} layout="vertical">
-          <Form.Item
-            name="value"
-            label="Pipeline Name"
-            rules={[{ required: true, message: 'Please enter a pipeline name' }]}
-          >
-            <Input placeholder="e.g., Enterprise Sales" />
-          </Form.Item>
+      <Dialog open={isPipelineModalVisible} onOpenChange={setIsPipelineModalVisible}>
+        <DialogContent data-testid={`${prefixDataTestId}-pipeline-modal`}>
+          <DialogHeader>
+            <DialogTitle>
+              {editingPipeline ? 'Edit Pipeline' : 'Add New Pipeline'}
+            </DialogTitle>
+          </DialogHeader>
 
-          <Form.Item
-            name="type"
-            label="Type"
-            rules={[{ required: true, message: 'Please select a pipeline type' }]}
-          >
-            <Select placeholder="Select Pipeline Type">
-              {PIPELINE_TYPE_OPTIONS.map(option => (
-                <Option key={option.value} value={option.value}>
-                  {option.label}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
+          <Form {...pipelineForm}>
+            <form onSubmit={pipelineForm.handleSubmit(handlePipelineModalSubmit)} className="gba:space-y-4">
+              <FormField
+                control={pipelineForm.control}
+                name="value"
+                rules={{ required: 'Please enter a pipeline name' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pipeline Name</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="e.g., Enterprise Sales"
+                        data-testid={`${prefixDataTestId}-pipeline-name-input`}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <Form.Item
-            name="description"
-            label="Description"
-            rules={[]}
-          >
-            <Input.TextArea 
-              placeholder="Describe the purpose and use case of this pipeline..."
-              rows={3}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+              <FormField
+                control={pipelineForm.control}
+                name="type"
+                rules={{ required: 'Please select a pipeline type' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid={`${prefixDataTestId}-pipeline-type-select`}>
+                          <SelectValue placeholder="Select Pipeline Type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {PIPELINE_TYPE_OPTIONS.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={pipelineForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        {...field} 
+                        placeholder="Describe the purpose and use case of this pipeline..."
+                        rows={3}
+                        data-testid={`${prefixDataTestId}-pipeline-description-input`}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter className="gba:flex gba:gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsPipelineModalVisible(false)}
+                  data-testid={`${prefixDataTestId}-pipeline-modal-cancel`}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={operationLoading}
+                  data-testid={`${prefixDataTestId}-pipeline-modal-submit`}
+                >
+                  {operationLoading && <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />}
+                  {editingPipeline ? 'Update' : 'Create'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent data-testid={`${prefixDataTestId}-delete-confirmation-modal`}>
+          <DialogHeader>
+            <DialogTitle>Delete Pipeline</DialogTitle>
+          </DialogHeader>
+          
+          <div className="gba:py-4">
+            <p>
+              Are you sure you want to delete pipeline "{pipelineToDelete?.value}"? 
+              This will also delete all its stages.
+            </p>
+          </div>
+
+          <DialogFooter className="gba:flex gba:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              data-testid={`${prefixDataTestId}-delete-cancel-button`}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={operationLoading}
+              data-testid={`${prefixDataTestId}-delete-confirm-button`}
+            >
+              {operationLoading && <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Pipeline Stages Modal */}
       <PipelineStagesModal
@@ -361,7 +495,7 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
         onClose={() => {
           setIsStagesModalVisible(false);
           setSelectedPipeline(null);
-          refetch(); // Refresh data when closing stages modal
+          refetch();
         }}
         prefixDataTestId={prefixDataTestId}
         {...props}
