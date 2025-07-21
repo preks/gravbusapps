@@ -3,7 +3,7 @@
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Avatar, AvatarFallback, Button, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Card, CardContent } from '@newwork/nw-design-system';
-import { PiUser, PiCalendar, PiArrowUp, PiArrowDown } from 'react-icons/pi';
+import { PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Task } from '../types/TaskTypes';
@@ -14,6 +14,7 @@ import {
   getReferenceTypeBadgeVariant
 } from '../utils/taskBadgeUtils';
 import dayjs from 'dayjs';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 interface TaskTableProps {
   tasks: Task[];
@@ -71,12 +72,54 @@ export const TaskTable: React.FC<TaskTableProps> = ({
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
-  // Handle row click
-  const handleRowClick = useCallback((record: Task) => {
-    // TODO: Navigate to task record page
-    console.log('Task row clicked:', record.id);
+  // Handle employee profile navigation
+  const handleEmployeeClick = useCallback((employee: Task['assignedTo']) => {
+    const url = buildPlatformUrl('/platform/employee-record', { employeeId: employee.id });
+    navigateTo(url);
+  }, []);
+
+  // Handle reference record navigation
+  const handleReferenceClick = useCallback((reference: Task['reference']) => {
+    // Determine source based on sourceApp
+    const source = (sourceApp === 'investment-relations' || sourceApp === 'IRM') ? 'investments' : 'customer-relations';
     
-    // Call the selection callback if provided
+    let url: string;
+    switch (reference.type) {
+      case 'lead':
+        url = buildPlatformUrl('/platform/crm/lead-record', { 
+          leadId: reference.id, 
+          source: source 
+        });
+        break;
+      case 'account':
+        url = buildPlatformUrl('/platform/crm/account-record', { 
+          accountId: reference.id, 
+          source: source 
+        });
+        break;
+      case 'contact':
+        url = buildPlatformUrl('/platform/crm/contact-record', { 
+          contactId: reference.id, 
+          source: source 
+        });
+        break;
+      case 'opportunity':
+        url = buildPlatformUrl('/platform/crm/opportunity-record', { 
+          opportunityId: reference.id, 
+          source: source 
+        });
+        break;
+      default:
+        console.warn('Unknown reference type:', reference.type);
+        return;
+    }
+    
+    navigateTo(url);
+  }, [sourceApp]);
+
+  // Handle row click - opens task details in side panel
+  const handleRowClick = useCallback((record: Task) => {
+    // Call the selection callback to open side panel
     onSelectTask?.(record);
   }, [onSelectTask]);
 
@@ -255,26 +298,35 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     </div>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-cell-${record.id}`}>
-                    <div className="gba:flex gba:items-center gba:gap-3">
+                    <div 
+                      className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEmployeeClick(record.assignedTo);
+                      }}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-link-${record.id}`}
+                    >
                       <Avatar size="sm">
                         <AvatarFallback>
                           {getInitials(record.assignedTo.firstName, record.assignedTo.lastName)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="gba:flex gba:flex-col">
-                        <span className="gba:font-medium gba:text-sm">{record.assignedTo.displayName}</span>
+                        <span className="gba:font-medium gba:text-sm">
+                          {record.assignedTo.displayName}
+                        </span>
                         <span className="gba:text-xs gba:text-gray-500">{record.assignedTo.department}</span>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-type-cell-${record.id}`}>
                     <Badge variant={getTaskTypeBadgeVariant(record.type)}>
-                      {record.type.charAt(0).toUpperCase() + record.type.slice(1)}
+                      {record.type.charAt(0).toUpperCase() + record.type.slice(1).toLowerCase()}
                     </Badge>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-priority-cell-${record.id}`}>
                     <Badge variant={getTaskPriorityBadgeVariant(record.priority)}>
-                      {record.priority.charAt(0).toUpperCase() + record.priority.slice(1)}
+                      {record.priority.charAt(0).toUpperCase() + record.priority.slice(1).toLowerCase()}
                     </Badge>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
@@ -284,7 +336,14 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     </Badge>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-reference-cell-${record.id}`}>
-                    <div>
+                    <div 
+                      className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleReferenceClick(record.reference);
+                      }}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-reference-link-${record.id}`}
+                    >
                       <div className="gba:font-medium gba:text-sm">
                         {record.reference.name}
                       </div>
@@ -302,14 +361,13 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-schedule-cell-${record.id}`}>
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <PiCalendar size={16} className="gba:text-gray-400" />
                       <span className="gba:text-sm">
                         {formatDate(record.dueDate)}
                       </span>
                     </div>
                     {record.scheduleDate && (
-                      <div className="gba:text-xs gba:text-gray-500 gba:mt-1 gba:ml-6">
-                        ⏰ {formatDate(record.scheduleDate)}
+                      <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                        {formatDate(record.scheduleDate)}
                       </div>
                     )}
                   </TableCell>

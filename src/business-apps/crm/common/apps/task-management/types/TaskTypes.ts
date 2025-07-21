@@ -19,7 +19,7 @@ export interface Task {
   id: string;
   name: string;
   assignedTo: TaskEmployee;
-  type: 'deadline' | 'scheduled';
+  type: string;
   priority: 'high' | 'medium' | 'urgent' | 'low';
   status: 'in_progress' | 'pending' | 'completed' | 'overdue';
   reference: TaskReference;

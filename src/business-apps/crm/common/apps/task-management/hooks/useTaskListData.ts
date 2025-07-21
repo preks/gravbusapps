@@ -3,7 +3,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Task } from '../types/TaskTypes';
 import { TaskFilters } from './useTaskFilters';
-import { mockTasks } from '../utils/mockData';
+import { useSalesTaskQueries } from './useSalesTaskQueries';
+import { SalesTask } from '../types/SalesTaskTypes';
 
 interface UseTaskListDataProps extends TaskFilters {
   sortField: string;
@@ -23,13 +24,146 @@ interface UseTaskListDataReturn {
   retry: () => void;
 }
 
+// Transform SalesTask to Task
+const transformSalesTaskToTask = (salesTask: SalesTask): Task | null => {
+  // Skip if essential data is missing
+  if (!salesTask.id) {
+    return null;
+  }
+
+  // Get task name - use name field or description as fallback
+  const taskName = salesTask.name || salesTask.description;
+  if (!taskName?.trim()) {
+    return null; // Skip if no meaningful name
+  }
+
+  // Get task type from typeRef (extract the actual type from the ref)
+  const taskType = salesTask.typeRef?.split(':').pop() || 'GENERAL';
+
+  // Get status from statusRef or default to pending
+  let status: 'pending' | 'in_progress' | 'completed' | 'overdue' = 'pending';
+  if (salesTask.statusRef) {
+    const statusValue = salesTask.statusRef.split(':').pop()?.toLowerCase();
+    switch (statusValue) {
+      case 'completed':
+      case 'done':
+        status = 'completed';
+        break;
+      case 'in_progress':
+      case 'active':
+        status = 'in_progress';
+        break;
+      case 'overdue':
+        status = 'overdue';
+        break;
+      default:
+        status = 'pending';
+    }
+  } else {
+    // Calculate status from due date if no statusRef
+    if (salesTask.dueDate) {
+      const dueDate = new Date(salesTask.dueDate);
+      const now = new Date();
+      if (dueDate < now) {
+        status = 'overdue';
+      } else {
+        status = 'pending';
+      }
+    }
+  }
+
+  // Get priority from priorityRef (extract the actual priority from the ref)
+  let priority: 'high' | 'medium' | 'urgent' | 'low' = 'medium';
+  if (salesTask.priorityRef) {
+    const priorityValue = salesTask.priorityRef.split(':').pop()?.toLowerCase();
+    switch (priorityValue) {
+      case 'high':
+        priority = 'high';
+        break;
+      case 'urgent':
+      case 'critical':
+        priority = 'urgent';
+        break;
+      case 'low':
+        priority = 'low';
+        break;
+      default:
+        priority = 'medium';
+    }
+  }
+
+  // Create reference object based on related entity with fallbacks
+  let reference: Task['reference'];
+  
+  if (salesTask.opportunity?.name) {
+    reference = {
+      type: 'opportunity',
+      id: salesTask.opportunity.id,
+      name: salesTask.opportunity.name
+    };
+  } else if (salesTask.account?.name) {
+    reference = {
+      type: 'account',
+      id: salesTask.account.id,
+      name: salesTask.account.name
+    };
+  } else if (salesTask.lead) {
+    const leadName = `${salesTask.lead.firstName || ''} ${salesTask.lead.lastName || ''}`.trim() || salesTask.lead.companyName;
+    reference = {
+      type: 'lead',
+      id: salesTask.lead.id,
+      name: leadName || 'Lead'
+    };
+  } else if (salesTask.contact) {
+    const contactName = `${salesTask.contact.firstName || ''} ${salesTask.contact.lastName || ''}`.trim();
+    reference = {
+      type: 'contact',
+      id: salesTask.contact.id,
+      name: contactName || 'Contact'
+    };
+  } else {
+    // Default reference if none found
+    reference = {
+      type: 'account',
+      id: salesTask.id,
+      name: 'General'
+    };
+  }
+
+  // Create assigned employee - use available data or minimal defaults
+  const assignedTo: Task['assignedTo'] = {
+    id: salesTask.assignedEmployeeId || salesTask.id,
+    firstName: salesTask.assignedEmployee?.firstName || '',
+    lastName: salesTask.assignedEmployee?.lastName || '',
+    displayName: salesTask.assignedEmployee?.displayName || 
+                 `${salesTask.assignedEmployee?.firstName || ''} ${salesTask.assignedEmployee?.lastName || ''}`.trim() || 'Unassigned',
+    department: '', // No department data available from GraphQL
+    initials: `${(salesTask.assignedEmployee?.firstName || 'U').charAt(0)}${(salesTask.assignedEmployee?.lastName || 'U').charAt(0)}`.toUpperCase(),
+    avatar: salesTask.assignedEmployee?.pictureThumbnail || undefined
+  };
+
+  return {
+    id: salesTask.id,
+    name: taskName, // Use validated task name
+    assignedTo,
+    type: taskType, // Use actual activity type value
+    priority: priority,
+    status,
+    reference,
+    dueDate: salesTask.dueDate || salesTask.createdAt,
+    scheduleDate: salesTask.createdAt,
+    createdAt: salesTask.createdAt,
+    updatedAt: salesTask.updatedAt || salesTask.createdAt
+  };
+};
+
 export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataReturn => {
   const {
     search,
-    taskStatuses,
-    taskPriorities,
+    statusRefs,
+    priorityRefs,
     taskTypes,
-    assignees,
+    assignedEmployeeIds,
     referenceTypes,
     createdAfter,
     createdBefore,
@@ -48,122 +182,69 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
   const [pageSize, setPageSize] = useState(20);
   const [hasMore, setHasMore] = useState(false);
 
+  // GraphQL queries
+  const { fetchSalesTasks, fetchSalesTasksCount, fetchSalesTasksWithCount } = useSalesTaskQueries({ accessToken });
+
   // Refs to track the latest props
   const propsRef = useRef(props);
   propsRef.current = props;
 
-  // Apply filters to mock data
-  const getFilteredTasks = useCallback((page: number, size: number): { tasks: Task[]; total: number } => {
-    let filtered = [...mockTasks];
-
-    // Apply search filter
-    if (search?.trim()) {
-      const searchTerm = search.toLowerCase();
-      filtered = filtered.filter(task => 
-        task.name.toLowerCase().includes(searchTerm) ||
-        task.assignedTo.displayName.toLowerCase().includes(searchTerm) ||
-        task.assignedTo.department.toLowerCase().includes(searchTerm) ||
-        task.reference.name.toLowerCase().includes(searchTerm)
-      );
-    }
-
-    // Apply status filters
-    if (taskStatuses.length > 0) {
-      filtered = filtered.filter(task => taskStatuses.includes(task.status));
-    }
-
-    // Apply priority filters
-    if (taskPriorities.length > 0) {
-      filtered = filtered.filter(task => taskPriorities.includes(task.priority));
-    }
-
-    // Apply type filters
-    if (taskTypes.length > 0) {
-      filtered = filtered.filter(task => taskTypes.includes(task.type));
-    }
-
-    // Apply assignee filters
-    if (assignees.length > 0) {
-      filtered = filtered.filter(task => {
-        const assigneeName = task.assignedTo.displayName.toLowerCase();
-        return assignees.some(assignee => assigneeName.includes(assignee.toLowerCase()));
-      });
-    }
-
-    // Apply reference type filters
-    if (referenceTypes.length > 0) {
-      filtered = filtered.filter(task => referenceTypes.includes(task.reference.type));
-    }
-
-    // Apply date range filters
-    if (createdAfter) {
-      filtered = filtered.filter(task => new Date(task.createdAt) >= new Date(createdAfter));
-    }
-    if (createdBefore) {
-      filtered = filtered.filter(task => new Date(task.createdAt) <= new Date(createdBefore));
-    }
-
-    // Apply sorting
-    if (sortField && sortOrder) {
-      filtered.sort((a, b) => {
-        let aValue: any;
-        let bValue: any;
-
-        switch (sortField) {
-          case 'name':
-            aValue = a.name;
-            bValue = b.name;
-            break;
-          case 'assignedTo':
-            aValue = a.assignedTo.displayName;
-            bValue = b.assignedTo.displayName;
-            break;
-          case 'type':
-            aValue = a.type;
-            bValue = b.type;
-            break;
-          case 'priority':
-            aValue = a.priority;
-            bValue = b.priority;
-            break;
-          case 'status':
-            aValue = a.status;
-            bValue = b.status;
-            break;
-          case 'reference':
-            aValue = a.reference.name;
-            bValue = b.reference.name;
-            break;
-          case 'dueDate':
-            aValue = new Date(a.dueDate);
-            bValue = new Date(b.dueDate);
-            break;
-          case 'createdAt':
-            aValue = new Date(a.createdAt);
-            bValue = new Date(b.createdAt);
-            break;
-          default:
-            return 0;
-        }
-
-        if (aValue < bValue) return sortOrder === 'ASC' ? -1 : 1;
-        if (aValue > bValue) return sortOrder === 'ASC' ? 1 : -1;
-        return 0;
-      });
-    }
-
-    const totalFiltered = filtered.length;
-    
-    // Apply pagination
-    const start = (page - 1) * size;
-    const end = start + size;
-    const paginatedTasks = filtered.slice(start, end);
-
-    return {
-      tasks: paginatedTasks,
-      total: totalFiltered
+  // Build GraphQL variables from filters
+  const buildQueryVariables = useCallback((page: number, size: number) => {
+    const variables: any = {
+      offset: (page - 1) * size,
+      limit: size,
+      search: search?.trim() || undefined,
     };
-  }, [search, taskStatuses, taskPriorities, taskTypes, assignees, referenceTypes, createdAfter, createdBefore, sortField, sortOrder]);
+
+    // Add filter conditions for SalesTask
+    if (statusRefs.length > 0) {
+      variables.statusRefs = statusRefs;
+    }
+
+    if (priorityRefs.length > 0) {
+      variables.priorityRefs = priorityRefs;
+    }
+
+    if (taskTypes.length > 0) {
+      variables.taskTypes = taskTypes;
+    }
+
+    if (assignedEmployeeIds.length > 0) {
+      variables.assignedEmployeeIds = assignedEmployeeIds;
+    }
+
+    if (referenceTypes.length > 0) {
+      // We can filter by entity type (account, lead, opportunity, contact)
+      // This would require multiple queries or a more complex where clause
+    }
+
+    if (createdAfter) {
+      variables.createdAfter = createdAfter;
+    }
+
+    if (createdBefore) {
+      variables.createdBefore = createdBefore;
+    }
+
+    // Convert sort field
+    if (sortField && sortOrder) {
+      const orderByField = (() => {
+        switch (sortField) {
+          case 'name': return 'name';
+          case 'assignedTo': return 'assignedEmployee';
+          case 'type': return 'typeRef';
+          case 'dueDate': return 'dueDate';
+          case 'createdAt': return 'createdAt';
+          default: return 'createdAt';
+        }
+      })();
+
+      variables.orderBy = [{ [orderByField]: sortOrder }];
+    }
+
+    return variables;
+  }, [search, statusRefs, priorityRefs, taskTypes, assignedEmployeeIds, referenceTypes, createdAfter, createdBefore, sortField, sortOrder]);
 
   // Load data function
   const loadData = useCallback(async (page: number, size: number) => {
@@ -176,16 +257,23 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
     setError(null);
 
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      const result = getFilteredTasks(page, size);
+      const variables = buildQueryVariables(page, size);
       
-      setTasks(result.tasks);
-      setTotal(result.total);
+      // Fetch both data and count in a single API call (like LeadList)
+      const result = await fetchSalesTasksWithCount(variables);
+
+      // Transform sales tasks to task format and filter out null values
+      const transformedTasks = result.SalesTask
+        .map(transformSalesTaskToTask)
+        .filter((task): task is Task => task !== null);
+      
+      const totalCount = result.SalesTaskAggregate.aggregate.count;
+      
+      setTasks(transformedTasks);
+      setTotal(totalCount);
       setCurrentPage(page);
       setPageSize(size);
-      setHasMore(page * size < result.total);
+      setHasMore(page * size < totalCount);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to load tasks');
       setError(error);
@@ -193,7 +281,7 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
     } finally {
       setLoading(false);
     }
-  }, [accessToken, getFilteredTasks]);
+  }, [accessToken, buildQueryVariables, fetchSalesTasksWithCount]);
 
   // Load page function
   const loadPage = useCallback(async (page: number, size?: number) => {
@@ -213,22 +301,21 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
     await loadData(currentPage, pageSize);
   }, [loadData, currentPage, pageSize]);
 
-  // Auto-reload when filters change
+  // Auto-reload when filters change (NOT when sorting changes)
   useEffect(() => {
     if (accessToken) {
       loadData(1, pageSize);
     }
   }, [
     search,
-    JSON.stringify(taskStatuses),
-    JSON.stringify(taskPriorities),
+    JSON.stringify(statusRefs),
+    JSON.stringify(priorityRefs),
     JSON.stringify(taskTypes),
-    JSON.stringify(assignees),
+    JSON.stringify(assignedEmployeeIds),
     JSON.stringify(referenceTypes),
     createdAfter,
     createdBefore,
-    sortField,
-    sortOrder,
+    // NOTE: sortField and sortOrder removed - sorting handled by explicit loadPage calls
     accessToken,
     pageSize
   ]);

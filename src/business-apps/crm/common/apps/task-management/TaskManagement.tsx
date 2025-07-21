@@ -2,16 +2,18 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system';
 
 import { DataContainer } from '@/components/layout/dataContainer';
 import { useTaskListData } from './hooks/useTaskListData';
 import { useTaskFilters } from './hooks/useTaskFilters';
+import { useTaskStatistics } from './hooks/useTaskStatistics';
 import { TaskTable } from './components/TaskTable';
+import { TaskDetails } from './components/TaskDetails';
 import TaskStatistics from './components/TaskStatistics';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { startProcess } from '@/common/utils/start-process';
 import { Task } from './types/TaskTypes';
-import { mockStatistics } from './utils/mockData';
 
 export interface TaskManagementProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -171,6 +173,17 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     sourceApp
   });
 
+  // Get task statistics
+  const {
+    statistics, 
+    loading: statisticsLoading, 
+    error: statisticsError, 
+    refetch: refetchStatistics
+  } = useTaskStatistics({
+    ...getFilters(), 
+    accessToken
+  });
+
   // Trigger initial data loading when component mounts
   useEffect(() => {
     if (!initialLoadDone.current && accessToken) {
@@ -272,10 +285,10 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
       {/* Statistics Cards */}
       <div className="gba:mb-6" data-testid="task-statistics-section">
         <TaskStatistics
-          statistics={mockStatistics}
-          isLoading={loading}
-          error={error}
-          onRetry={retry}
+          statistics={statistics}
+          isLoading={statisticsLoading}
+          error={statisticsError}
+          onRetry={refetchStatistics}
         />
       </div>
 
@@ -334,6 +347,23 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           </div>
         }
       />
+
+      {/* Task Details Sheet */}
+      <Sheet open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
+        <SheetContent className="gba:w-[400px] gba:sm:w-[540px]">
+          <SheetHeader className="gba:px-6">
+            <SheetTitle>{selectedTask?.name}</SheetTitle>
+          </SheetHeader>
+          <div className="gba:px-6 gba:mt-4">
+            {selectedTask && (
+              <TaskDetails
+                task={selectedTask}
+                sourceApp={sourceApp}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
  };
