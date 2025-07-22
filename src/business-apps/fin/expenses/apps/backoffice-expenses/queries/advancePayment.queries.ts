@@ -12,15 +12,36 @@ query GetAdvancePayments($where: AdvancePaymentBoolExp, $limit: Int!, $offset: I
     description
     amount
     status
+    paymentMethod
+    costCenter {
+      name
+    }
+    currency {
+      code
+    }
     expensePlan {
+      id
       code
       title
       startDate
+      totalAmount
+      expenseRequest {
+        id
+      }
       employee {
         id
         firstName
         lastName
+        employeePosition {
+          organizationalUnit {
+            name
+          }
+        }
       }
+      currency {
+        code
+        id
+     }
     }
   }
 }

@@ -1,8 +1,11 @@
-import { useState, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { GET_ADVANCE_PAYMENTS, GET_ADVANCE_PAYMENT_STATISTICS } from '../queries/advancePayment.queries';
-import { AdvancePaymentItem, AdvancePaymentStatisticsData } from '../types';
+import { useState, useCallback } from "react";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
+import {
+  GET_ADVANCE_PAYMENTS,
+  GET_ADVANCE_PAYMENT_STATISTICS,
+} from "../queries/advancePayment.queries";
+import { AdvancePaymentItem, AdvancePaymentStatisticsData } from "../types";
 
 // ⚡ BEST PRACTICE: Query limit enforcement for safety (like leads)
 const MAX_QUERY_LIMIT = 1000;
@@ -27,17 +30,20 @@ export interface AdvancePaymentsResult {
   fetchAdvancePaymentStatistics: () => Promise<void>;
 }
 
-export const useAdvancePayments = (context?: BusinessAppContextProps): AdvancePaymentsResult => {
+export const useAdvancePayments = (
+  context?: BusinessAppContextProps
+): AdvancePaymentsResult => {
   const [payments, setPayments] = useState<AdvancePaymentItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<any>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
 
-  const [advancePaymentStats, setAdvancePaymentStats] = useState<AdvancePaymentStatisticsData | null>(null);
+  const [advancePaymentStats, setAdvancePaymentStats] =
+    useState<AdvancePaymentStatisticsData | null>(null);
   const [statsLoading, setStatsLoading] = useState<boolean>(false);
   const [statsError, setStatsError] = useState<any>(null);
 
-  const client = useGraphqlClient(context?.accessToken ?? '');
+  const client = useGraphqlClient(context?.accessToken ?? "");
 
   // ⚡ OPTIMIZED: Build proper where clause for better performance
   const buildQueryVariables = (
@@ -47,21 +53,25 @@ export const useAdvancePayments = (context?: BusinessAppContextProps): AdvancePa
     status?: string
   ) => {
     const offset = (page - 1) * pageSize;
-    
+
     // Build conditions array like expense requests
     const conditions: any[] = [];
-    
+
     // Base conditions
     conditions.push({ isDeleted: { _eq: false } });
-    conditions.push({ status: { _nin: ["CREATED", "PREPARED", "RETURNED", "REJECTED", "DISCARDED"] } });
-    
+    conditions.push({
+      status: {
+        _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"],
+      },
+    });
+
     // Add status filter if provided
-    if (status && status !== 'all' && status !== '') {
+    if (status && status !== "all" && status !== "") {
       conditions.push({ status: { _eq: status } });
     }
-    
+
     // Add search conditions if provided
-    if (searchTerm && searchTerm.trim() !== '') {
+    if (searchTerm && searchTerm.trim() !== "") {
       const searchValue = `%${searchTerm.trim()}%`;
       conditions.push({
         _or: [
@@ -71,16 +81,17 @@ export const useAdvancePayments = (context?: BusinessAppContextProps): AdvancePa
           { expensePlan: { title: { _ilike: searchValue } } },
           { expensePlan: { employee: { firstName: { _ilike: searchValue } } } },
           { expensePlan: { employee: { lastName: { _ilike: searchValue } } } },
-        ]
+        ],
       });
     }
-    
+
     // Build final where clause
-    const where = conditions.length === 1 ? conditions[0] : { _and: conditions };
+    const where =
+      conditions.length === 1 ? conditions[0] : { _and: conditions };
 
     // ⚡ BEST PRACTICE: Enforce query limit for safety (like leads)
     const safePageSize = enforceQueryLimit(pageSize);
-    
+
     return {
       where,
       limit: safePageSize,
@@ -94,57 +105,72 @@ export const useAdvancePayments = (context?: BusinessAppContextProps): AdvancePa
       id: payment.id,
       code: payment.expensePlan?.code || payment.code, // Use expense plan code first, fallback to payment code
       description: payment.description,
-      status: payment.status ?? 'PENDING',
+      status: payment.status ?? "PENDING",
       title: payment.expensePlan?.title,
-      employeeDisplayName: payment.expensePlan?.employee 
-        ? `${payment.expensePlan.employee.firstName || ''} ${payment.expensePlan.employee.lastName || ''}`.trim()
-        : 'N/A',
-      employeeFullName: payment.expensePlan?.employee 
-        ? `${payment.expensePlan.employee.firstName || ''} ${payment.expensePlan.employee.lastName || ''}`.trim()
-        : 'N/A',
+      employeeDisplayName: payment.expensePlan?.employee
+        ? `${payment.expensePlan.employee.firstName || ""} ${
+            payment.expensePlan.employee.lastName || ""
+          }`.trim()
+        : "N/A",
+      employeeFullName: payment.expensePlan?.employee
+        ? `${payment.expensePlan.employee.firstName || ""} ${
+            payment.expensePlan.employee.lastName || ""
+          }`.trim()
+        : "N/A",
       amount: payment.amount,
       startDate: payment.expensePlan?.startDate,
+      paymentMethod: payment.paymentMethod,
+      currency: payment.currency,
+      costCenter: payment.costCenter,
+      expensePlan: payment.expensePlan,
     }));
   };
 
-  const fetchPayments = useCallback(async (
-    searchTerm: string = '',
-    page: number = 1,
-    pageSize: number = 10,
-    status?: string,
-  ) => {
-    if (!context?.accessToken) {
-        setError(new Error('Access token not found.'));
+  const fetchPayments = useCallback(
+    async (
+      searchTerm: string = "",
+      page: number = 1,
+      pageSize: number = 10,
+      status?: string
+    ) => {
+      if (!context?.accessToken) {
+        setError(new Error("Access token not found."));
         setIsLoading(false);
         return;
-    }
+      }
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const variables = buildQueryVariables(searchTerm, page, pageSize, status);
-      
-      const data = await client.request(GET_ADVANCE_PAYMENTS, variables);
+      try {
+        const variables = buildQueryVariables(
+          searchTerm,
+          page,
+          pageSize,
+          status
+        );
 
-      const mappedPayments = mapResponseToPayments(data);
-      setPayments(mappedPayments);
-      setTotalCount(data.AdvancePaymentAggregate?.aggregate?.count ?? 0);
+        const data = await client.request(GET_ADVANCE_PAYMENTS, variables);
 
-    } catch (err: any) {
-      setError(err);
-      setPayments([]);
-      setTotalCount(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [client, context?.accessToken]);
+        const mappedPayments = mapResponseToPayments(data);
+        setPayments(mappedPayments);
+        setTotalCount(data.AdvancePaymentAggregate?.aggregate?.count ?? 0);
+      } catch (err: any) {
+        setError(err);
+        setPayments([]);
+        setTotalCount(0);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [client, context?.accessToken]
+  );
 
   const fetchAdvancePaymentStatistics = useCallback(async () => {
     if (!context?.accessToken) {
-        setStatsError(new Error('Access token not found.'));
-        setStatsLoading(false);
-        return;
+      setStatsError(new Error("Access token not found."));
+      setStatsLoading(false);
+      return;
     }
 
     setStatsLoading(true);
@@ -154,13 +180,12 @@ export const useAdvancePayments = (context?: BusinessAppContextProps): AdvancePa
       const data = await client.request(GET_ADVANCE_PAYMENT_STATISTICS, {});
 
       if (!data?.advancePaymentStats?.aggregate?.sum) {
-        setAdvancePaymentStats({ totalAmount: null }); 
+        setAdvancePaymentStats({ totalAmount: null });
       } else {
-         setAdvancePaymentStats({
-           totalAmount: data.advancePaymentStats.aggregate.sum.amount,
-         });
+        setAdvancePaymentStats({
+          totalAmount: data.advancePaymentStats.aggregate.sum.amount,
+        });
       }
-
     } catch (err: any) {
       setStatsError(err);
       setAdvancePaymentStats(null);

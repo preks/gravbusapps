@@ -20,11 +20,14 @@ import {
   Card,
   CardContent,
 } from '@newwork/nw-design-system';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 
-import { getAdvancePaymentStatusConfig } from '../../../utils/badgeUtils';
-import { ExpenseStatus } from '../../../utils/utils';
+import {  getAdvancePaymentStatusDisplay } from '../../../utils/utils';
 import ExpenseDetailDrawer from '../../details/ExpenseDetailDrawer';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import Pill from '@/components/pill/Pill';
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string;
@@ -115,6 +118,23 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     setSelectedRowKeys([record.id]);
   }, []);
 
+  // Helper function to get payment method display text
+  const getPaymentMethodDisplay = useCallback((paymentMethod: string | null | undefined) => {
+    if (!paymentMethod) return 'N/A';
+    
+    if (paymentMethod === 'DIRECT_DEPOSIT') {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
+        'Direct Deposit'
+      );
+    } else {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
+        'Cash Payment'
+      );
+    }
+  }, []);
+
   // Column definitions removed - now building table manually with Table components
 
   // Render data body with optimized loading states
@@ -159,10 +179,16 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             <Table>
               <TableHeader>
                 <TableRow className="gba:border-b gba:bg-gray-50">
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Expense Plan Code</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Employee</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Amount</TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:w-[60px]"></TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Title</TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Reporter</TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Org Unit</TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Cost Center</TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Plan Id</TableHead>
                   <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Status</TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Amount</TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Advance</TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Payment Method</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -173,25 +199,59 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                     data-testid={`advance-payment-row-${record.id}`}
                   >
                     <TableCell className="gba:py-4 gba:px-6">
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          data-testid={`advance-payments-update-button-${record.id}`}
+                          variant="secondary"
+                          contextsArray={[FlowContextName.leadEntity]}
+                          externalContextData={{
+                            paymentId: record.id
+                          }}
+                          prefixDataTestId="advance-payments-update"
+                          accessToken={accessToken}
+                          emptyStateBehavior="disable"
+                          deferMainContextRequestsUntilClick
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6">
                       <button
                         onClick={() => handleViewDetails(record)}
                         className="gba:cursor-pointer gba:hover:bg-gray-100 gba:p-1 gba:rounded"
-                        data-testid={`expense-plan-code-${record.id}`}
+                        data-testid={`advance-payment-title-${record.id}`}
                       >
-                        {record.code || 'N/A'}
+                        {record.title || 'N/A'}
                       </button>
                     </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6">{record.employeeFullName}</TableCell>
-                    <TableCell className="gba:py-4 gba:px-6">{record.amount}</TableCell>
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`advance-payment-reporter-${record.id}`}>
+                      {record.employeeFullName || 'N/A'}
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`advance-payment-org-unit-${record.id}`}>
+                      {record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A'}
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`advance-payment-cost-center-${record.id}`}>
+                      {record.costCenter?.name || 'N/A'}
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`advance-payment-plan-id-${record.id}`}>
+                      {record.expensePlan?.code || 'N/A'}
+                    </TableCell>
                     <TableCell className="gba:py-4 gba:px-6">
                       {(() => {
-                        const { label, variant } = getAdvancePaymentStatusConfig(record.status);
+                        const { label, type } = getAdvancePaymentStatusDisplay(record.status);
                         return (
-                          <Badge variant={variant} data-testid={`status-badge-${record.status?.toLowerCase()}`}>
-                            {label}
-                          </Badge>
+                          <Pill type={type} label={label} data-testid={`status-pill-${record.status?.toLowerCase()}`} />
                         );
                       })()}
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`advance-payment-amount-${record.id}`}>
+                      {record.amount ? `${formatNumberFunction(record.amount.toString())} ${record.currency?.code || 'EUR'}` : 'N/A'}
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`advance-payment-advance-${record.id}`}>
+                      {record.amount ? `${formatNumberFunction(record.amount.toString())} ${record.currency?.code || 'EUR'}` : 'N/A'}
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`advance-payment-method-${record.id}`}>
+                      {getPaymentMethodDisplay(record.paymentMethod)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -289,48 +349,38 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     );
   };
 
-  // Define available filter statuses for advance payments with comprehensive mapping
-  const availableAdvancePaymentStatuses = [
-    ExpenseStatus.PREPARED,
-    ExpenseStatus.CREATED,
-    ExpenseStatus.ASSIGNED,
-    ExpenseStatus.PENDING,
-    ExpenseStatus.APPROVED,
-    ExpenseStatus.VERIFIED,
-    ExpenseStatus.BOOKED,
-    ExpenseStatus.TRANSFERRED,
-    ExpenseStatus.PAID,
-    ExpenseStatus.REJECTED,
-    ExpenseStatus.CLOSED,
-    ExpenseStatus.DISCARDED,
-  ];
-
   // Create proper filter groups using advance payment status config mappings
   const filterGroups = [
     {
       id: 'status',
       title: 'Status',
-      filters: availableAdvancePaymentStatuses.map(status => {
-        const { label } = getAdvancePaymentStatusConfig(status);
-        return {
-          id: status,
-          label: label,
-          selected: statusFilter === status
-        };
-      })
+      filters: useMemo(() => {
+        // Get unique statuses from the payments data
+        const uniqueStatuses = [...new Set(payments.map(payment => payment.status))];
+        
+        return uniqueStatuses.map(status => {
+          const { label } = getAdvancePaymentStatusDisplay(status);
+          return {
+            id: status,
+            label: label,
+            selected: statusFilter === status
+          };
+        });
+      }, [payments, statusFilter])
     }
   ];
 
   // Handle filter changes like leads table
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    // Status filters - check if it's one of our available advance payment status values
-    if (availableAdvancePaymentStatuses.includes(filterId as ExpenseStatus)) {
+    // Status filters - check if it's one of the statuses from the backend
+    const uniqueStatuses = [...new Set(payments.map(payment => payment.status))];
+    if (uniqueStatuses.includes(filterId)) {
       const newStatusFilter = selected ? filterId : '';
       setStatusFilter(newStatusFilter);
       setCurrentPage(1);
       debouncedFetchPayments(searchText, 1, pageSize, newStatusFilter !== '' ? newStatusFilter : undefined);
     }
-  }, [availableAdvancePaymentStatuses, searchText, pageSize, debouncedFetchPayments]);
+  }, [payments, searchText, pageSize, debouncedFetchPayments]);
 
   return (
     <>
