@@ -21,7 +21,8 @@ export default function useInformationExtraction<T>(
   llmModel: AvailableLlmModels = "gpt-4.1",
 ) {
   // Memoise values that do not change between invocations of the returned function
-  const endpointUrl = useMemo(() => `${env("NEXT_PUBLIC_BASE_URL")}/flowbot/information-extraction/extract_information`, []);
+  // const endpointUrl = useMemo(() => `${env("NEXT_PUBLIC_BASE_URL")}/flowbot/information-extraction/extract_information`, []);
+  const endpointUrl = useMemo(() => `http://localhost:8000/flowbot/information-extraction/extract_information`, []);
   const outputJsonSchema = useMemo(() => z.toJSONSchema(responseModel), [responseModel]);
 
   /**
@@ -32,7 +33,7 @@ export default function useInformationExtraction<T>(
     async (inputData: string): Promise<T> => {
       const form = new FormData();
       form.append("task_description", taskDescription);
-      form.append("output_json_schema_string", outputJsonSchema.toString());
+      form.append("output_json_schema_string", JSON.stringify(outputJsonSchema));
       if (inputData !== undefined) form.append("input_data", inputData);
       // ⬇ files intentionally left out
       form.append("llm_model", llmModel);
