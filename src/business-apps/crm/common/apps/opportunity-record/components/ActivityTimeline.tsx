@@ -41,7 +41,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
   const [translating, setTranslating] = useState(false);
   const originalActivitiesRef = useRef<SalesActivityData[]>([]);
 
-  const { fetchSalesActivities } = useGetSalesActivities(context);
+  const { fetchSalesActivities } = useGetSalesActivities(context.accessToken);
   const { fetchCrmDocuments } = useGetCrmDocuments(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const fileClient = useFileClient(context);
