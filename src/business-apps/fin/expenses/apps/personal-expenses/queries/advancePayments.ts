@@ -39,6 +39,9 @@ export const GET_ADVANCE_PAYMENTS_BY_EMPLOYEE = `
       description
       amount
       currencyRef
+      currency {
+        code
+      }
       costCenter {
         name
       }
@@ -47,6 +50,10 @@ export const GET_ADVANCE_PAYMENTS_BY_EMPLOYEE = `
       expensePlan {
         code
         title
+        totalAmount
+        currency {
+          code
+        }
       }
       expensePlanId
     }
