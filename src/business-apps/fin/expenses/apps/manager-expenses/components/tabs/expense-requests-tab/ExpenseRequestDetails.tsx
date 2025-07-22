@@ -1,15 +1,17 @@
 import React from 'react';
 import { Button } from '@newwork/nw-design-system';
-import { PiArrowRight } from 'react-icons/pi';
+import { PiArrowRight, PiCheckCircle, PiXCircle } from 'react-icons/pi';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { useCurrencyStore } from '../../../store/useCurrencyStore';
+import { formatCurrency } from '../../../utils/currencyUtils';
 
 export interface ExpenseRequestDetailsProps extends BusinessAppContextProps {
   request: any;
-  onApprove: (requestId: string) => void;
-  onReject: (requestId: string) => void;
+  onApprove?: (requestId: string) => Promise<void>;
+  onReject?: (requestId: string) => Promise<void>;
 }
 
 // Shared component for expense details view
@@ -22,6 +24,10 @@ interface ExpenseDetailsViewProps {
   tripType: string;
   totalAmount: string;
   onViewDetails: () => void;
+  onApprove?: () => void;
+  onReject?: () => void;
+  canApprove: boolean;
+  canReject: boolean;
 }
 
 const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
@@ -32,7 +38,11 @@ const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
   department,
   tripType,
   totalAmount,
-  onViewDetails
+  onViewDetails,
+  onApprove,
+  onReject,
+  canApprove,
+  canReject
 }) => {
   // Helper function to get status display info
   const getStatusDisplay = (status: string) => {
@@ -84,15 +94,32 @@ const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
         </div>
       </div>
 
-      <div className="gba:flex gba:justify-end gba:mt-6">
-        <Button 
-          variant="default"
-          onClick={onViewDetails}
-          data-testid="view-full-details-button"
-          className="gba:flex gba:items-center gba:gap-2"
-        >
-          <PiArrowRight className="gba:w-4 gba:h-4" />
-          {getTranslationFromI18nKeyAndLabel('expense.details.view', 'View Full Details')}
+      <div className="gba:mt-8 gba:flex gba:justify-end gba:gap-3">
+        {canApprove && onApprove && (
+          <Button 
+            variant="default" 
+            onClick={onApprove} 
+            className="gba:flex gba:items-center gba:gap-2 gba:bg-green-500 gba:text-white gba:hover:bg-green-600" 
+            data-testid="expense-request-approve-button"
+          >
+            {getTranslationFromI18nKeyAndLabel('expense_request_approve', 'Approve')}
+            <PiCheckCircle className="gba:h-4 gba:w-4" />
+          </Button>
+        )}
+        {canReject && onReject && (
+          <Button 
+            variant="destructive" 
+            onClick={onReject} 
+            className="gba:flex gba:items-center gba:gap-2" 
+            data-testid="expense-request-reject-button"
+          >
+            {getTranslationFromI18nKeyAndLabel('expense_request_reject', 'Reject')}
+            <PiXCircle className="gba:h-4 gba:w-4" />
+          </Button>
+        )}
+        <Button onClick={onViewDetails} className="gba:flex gba:items-center gba:gap-2" data-testid="expense-request-view-details-button">
+          {getTranslationFromI18nKeyAndLabel('expense_request_view_details', 'View Details')}
+          <PiArrowRight className="gba:h-4 gba:w-4" />
         </Button>
       </div>
     </div>
@@ -104,11 +131,8 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
   onApprove,
   onReject
 }) => {
-  // Helper function to format currency
-  const formatCurrency = (amount: number, currencyValue = 'EUR') => {
-    const currencySymbol = currencyValue === 'EUR' ? '€' : currencyValue?.charAt(0) || '€';
-    return `${currencySymbol}${amount?.toFixed(2) || '0.00'}`;
-  };
+  // Use the currency store
+  const { primaryCurrency } = useCurrencyStore();
 
   // Helper function to get department safely
   const getDepartment = () => {
@@ -120,6 +144,22 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
     navigateTo(url);
   };
 
+  // Determine if approval/rejection actions are available based on status
+  const canApprove = request.status === 'IN_APPROVAL' || request.status === 'VERIFICATION_REQUIRED';
+  const canReject = request.status === 'IN_APPROVAL' || request.status === 'VERIFICATION_REQUIRED';
+
+  const handleApprove = () => {
+    if (onApprove) {
+      onApprove(request.id);
+    }
+  };
+
+  const handleReject = () => {
+    if (onReject) {
+      onReject(request.id);
+    }
+  };
+
   return (
     <ExpenseDetailsView
       title={request.title}
@@ -128,8 +168,12 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
       requester={request.employee?.fullName || 'Unknown'}
       department={getDepartment()}
       tripType="Business Travel"
-      totalAmount={typeof request.amount === 'number' ? formatCurrency(request.amount, request.currency) : '-'}
+      totalAmount={typeof request.amount === 'number' ? formatCurrency(request.amount, primaryCurrency || request.currency) : '-'}
       onViewDetails={handleViewDetails}
+      onApprove={handleApprove}
+      onReject={handleReject}
+      canApprove={canApprove}
+      canReject={canReject}
     />
   );
 };

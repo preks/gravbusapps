@@ -67,7 +67,7 @@ export interface ExpenseRequestsResult {
   requestStats: ExpenseRequestStatisticsData | null;
   requestStatsLoading: boolean;
   requestStatsError: string | null;
-  fetchRequestStatistics: () => Promise<void>;
+  fetchRequestStatistics: (currencyFilter?: string | null) => Promise<void>;
 }
 
 /**
@@ -373,7 +373,7 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     }
   }, [accessToken, setError, setRequests]);
 
-  const fetchRequestStatistics = useCallback(async () => {
+  const fetchRequestStatistics = useCallback(async (currencyFilter?: string | null) => {
     if (!accessToken) {
       setRequestStatsError('Access token not available for statistics.');
       setRequestStats(null);
@@ -381,7 +381,7 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
       return;
     }
     
-    console.log('Fetching expense request statistics for manager:', supervisorEmployeeId);
+    console.log('Fetching expense request statistics for manager:', supervisorEmployeeId, 'with currency filter:', currencyFilter || 'none');
     setRequestStatsLoading(true);
     setRequestStatsError(null);
     try {
@@ -393,7 +393,10 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
         },
         body: JSON.stringify({
           query: GET_EXPENSE_REQUEST_STATISTICS,
-          variables: { employeeId: supervisorEmployeeId },
+          variables: { 
+            employeeId: supervisorEmployeeId,
+            currencyRef: currencyFilter ? `Currency:v1:${currencyFilter}` : undefined
+          },
         }),
       });
       const result = await response.json();
@@ -426,10 +429,10 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
   useEffect(() => {
     if (accessToken) {
       fetchRequests(); // Fetches the first page of requests
-      fetchRequestStatistics();
+      // Don't pass currency filter here as it will be handled by the component using this hook
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, fetchRequests, fetchRequestStatistics]);
+  }, [accessToken, fetchRequests]);
 
   return {
     requests,

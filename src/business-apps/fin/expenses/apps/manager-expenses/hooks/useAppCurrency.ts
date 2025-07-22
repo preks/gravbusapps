@@ -102,13 +102,14 @@ interface CurrencyResponse {
  * Hook to fetch and manage the most used currency across the manager-expenses app
  */
 export const useAppCurrency = ({ accessToken, userInfo }: BusinessAppContextProps) => {
-  const { primaryCurrency, setPrimaryCurrency, isLoaded, setIsLoaded } = useCurrencyStore();
+  const { primaryCurrency, setPrimaryCurrency, isLoaded, setIsLoaded, isUserSelected } = useCurrencyStore();
   
   // Get managerId from userInfo or use a fallback for development
   const managerId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
   
   const fetchMostUsedCurrency = useCallback(async () => {
-    if (!accessToken || !managerId || isLoaded) {
+    // Don't fetch if user has already selected a currency or if already loaded
+    if (!accessToken || !managerId || isLoaded || isUserSelected) {
       return;
     }
 
@@ -202,7 +203,7 @@ export const useAppCurrency = ({ accessToken, userInfo }: BusinessAppContextProp
       console.error('Error fetching most used currency:', err);
       // Keep the default currency in case of error
     }
-  }, [accessToken, managerId, isLoaded, setPrimaryCurrency, setIsLoaded]);
+  }, [accessToken, managerId, isLoaded, isUserSelected, setPrimaryCurrency, setIsLoaded]);
 
   useEffect(() => {
     fetchMostUsedCurrency();

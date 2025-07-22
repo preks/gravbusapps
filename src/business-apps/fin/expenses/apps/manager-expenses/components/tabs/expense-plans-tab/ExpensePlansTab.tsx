@@ -5,6 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { ExpensePlan, useMainViewExpensePlans } from '../../../hooks/useMainViewExpensePlans';
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters';
+import { useCurrencyStore } from '../../../store/useCurrencyStore';
 import { ExpenseStatus } from '../../../utils';
 import ExpensePlanStatisticsDisplay from './ExpensePlanStatistics';
 import ExpensePlansTable from './ExpensePlansTable';
@@ -27,9 +28,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     setSearchTerm,
     statusFilter,
     setStatusFilter,
+    currencyFilter,
+    setCurrencyFilter,
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
+    getFilters,
   } = useExpensePlanFilters();
 
   // Use the statistics-only hook to get KPI data without interfering with table data
@@ -42,6 +46,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     rejectPlan
   } = useMainViewExpensePlans({
     ...contextProps,
+    currentCurrencyFilter: currencyFilter,
     statisticsOnly: true // This prevents race conditions with the table data
   });
 
@@ -85,13 +90,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     setSearchTerm(search);
   }, [setSearchTerm]);
 
-  // Handle filter changes (only log when user actually clicks)
-  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    console.log('🔥 Filter clicked:', { filterId, selected }); // Only log on actual clicks
-    handleDataFilterChange(filterId, selected);
-  }, [handleDataFilterChange]);
+  // Use the handleDataFilterChange function directly from the hook
+  // This handles both status and currency filters
 
-  // Handle clearing all filters
+  // Handle clear all filters
   const clearAllFilters = useCallback(() => {
     setSearchTerm('');
     setStatusFilter([]);
@@ -108,6 +110,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
           fetchPlanStatistics={fetchPlanStatistics}
           activeFilter={statusFilter}
           onFilterChange={(filter) => setStatusFilter(filter || [])}
+          currencyFilter={currencyFilter}
         />
       </div>
       
@@ -121,10 +124,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
             setSearch: handleSearchChange,
             setFilter: (newFilters) => {
               const filtersToRemove = statusFilter.filter(f => !newFilters.includes(f));
-              if (filtersToRemove.length > 0) {
-                console.log('🔥 Filters removed:', filtersToRemove); // Only log when filters actually removed
-              }
-              setStatusFilter(newFilters as ExpenseStatus[]);
+              const filtersToAdd = newFilters.filter(f => !statusFilter.includes(f));
+              
+              filtersToRemove.forEach(filter => handleDataFilterChange(filter, false));
+              filtersToAdd.forEach(filter => handleDataFilterChange(filter, true));
             },
             addButton: {
               onClick: () => {
@@ -147,7 +150,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
           }}
           dataFilterProps={{
             filterGroups,
-            onFilterChange: handleFilterChange
+            onFilterChange: handleDataFilterChange
           }}
           dataBody={
             <div data-testid="expense-plans-table-container">
@@ -160,6 +163,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
                 onClearFilters={clearAllFilters}
                 employeeId={props.employeeId}
                 onViewDetails={handleViewDetails}
+                currencyFilter={currencyFilter}
               />
             </div>
           }

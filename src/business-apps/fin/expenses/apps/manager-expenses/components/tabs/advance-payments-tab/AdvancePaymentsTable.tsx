@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead, Button, Avatar, AvatarImage, AvatarFallback, Tooltip, TooltipTrigger, TooltipContent, Alert } from '@newwork/nw-design-system';
-import { PiCheck, PiX } from 'react-icons/pi';
+import React, { useState, useCallback, useMemo } from 'react';
+import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Alert, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import Pill from '@/components/pill/Pill';
-import AdvancePaymentDetails from './AdvancePaymentDetails';
-import { useMainViewAdvancePayments, type AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments';
-import { getAdvancePaymentStatusDisplay } from '../../../utils';
-import { formatDate, formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters';
 import { formatCurrency } from '../../../utils/currencyUtils';
+import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters';
+import { useMainViewAdvancePayments } from '../../../hooks/useMainViewAdvancePayments';
+import { getAdvancePaymentStatusDisplay } from '../../../utils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments';
+import AdvancePaymentDetails from './AdvancePaymentDetails';
+import Pill from '@/components/pill/Pill';
 
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {}
@@ -33,6 +33,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
+    currencyFilter,
   } = useAdvancePaymentFilters();
 
   // Local state management
@@ -59,15 +60,16 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     searchTerm: searchTerm,
     currentStatusFilter: statusFilter || undefined,
     currentPage,
+    currentCurrencyFilter: currencyFilter,
   });
   
   // Filter payments based on search and status (already handled by the hook)
   const filteredPayments = useMemo(() => payments, [payments]);
 
-  // Handle table pagination and sorting changes
-  const handleTableChange = useCallback((pagination: any) => {
-    setCurrentPage(pagination.current);
-    setPageSize(pagination.pageSize);
+  // Handle page size changes
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1);
   }, []);
 
   const handleApprovePayment = useCallback(async (paymentId: string) => {
@@ -212,9 +214,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                     }
                   })() : 'N/A'}
                 </TableCell>
-                <TableCell className="gba:text-right">
+                <TableCell className="gba:text-right" data-testid={`advance-payments-amount-cell-${record.id}`}>
                   <span className="gba:font-medium gba:text-sm">
-                    {typeof record.amount === 'number' ? formatCurrency(record.amount, record.currency || 'EUR') : 'N/A'}
+                    {typeof record.amount === 'number' ? formatCurrency(record.amount, record.currencyRef || currencyFilter) : 'N/A'}
                   </span>
                 </TableCell>
                 <TableCell>
@@ -237,11 +239,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 <p className="gba:text-sm gba:font-medium">Rows per page</p>
                 <select
                   value={pageSize}
-                  onChange={(e) => {
-                    const newPageSize = Number(e.target.value);
-                    setPageSize(newPageSize);
-                    setCurrentPage(1);
-                  }}
+                  onChange={(e) => handlePageSizeChange(Number(e.target.value))}
                   className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                   data-testid="advance-payments-page-size-select"
                 >

@@ -1,9 +1,9 @@
 import React from 'react';
 import { AdvancePaymentStatistics as AdvancePaymentStatisticsData } from '../../../hooks/useMainViewAdvancePayments';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { formatNumberFunction } from '@/common/utils/windowUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useCurrencyStore } from '../../../store/useCurrencyStore';
+import { formatCurrency } from '../../../utils/currencyUtils';
 
 interface AdvancePaymentStatisticsProps {
   advancePaymentStats: AdvancePaymentStatisticsData | null;
@@ -25,8 +25,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     {
       key: 'total-count',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments', 'Total Advance Payments'),
-      value: formatNumberFunction(advancePaymentStats.totalCount.toString(), "0.00[,]00"),
-      prefix: <span className="gba:font-medium" data-testid="advance-payment-stats-currency-code">{primaryCurrency}</span>,
+      value: formatCurrency(advancePaymentStats.totalCount, primaryCurrency),
       color: '#3f8600',
       valueIsString: true, // Mark as pre-formatted string
       span: { xs: 24, sm: 12, md: 8, lg: 6 },

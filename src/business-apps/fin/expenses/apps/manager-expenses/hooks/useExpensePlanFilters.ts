@@ -1,7 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { DataFilterGroup, DataFilter } from '@/components/data-filter';
 import { ExpenseStatus, getExpensePlanStatusDisplay } from '../utils';
-import { useDebounce } from '@/common/hooks/useDebounce'; 
+import { useDebounce } from '@/common/hooks/useDebounce';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { useCurrencyStore } from '../store/useCurrencyStore';
 
 export interface UseExpensePlanFiltersReturn {
   searchTerm: string; 
@@ -9,9 +11,12 @@ export interface UseExpensePlanFiltersReturn {
   debouncedSearchTerm: string; 
   statusFilter: ExpenseStatus[]; 
   setStatusFilter: (status: ExpenseStatus[]) => void; 
+  currencyFilter: string;
+  setCurrencyFilter: (currency: string) => void;
   filterGroups: DataFilterGroup[]; 
   handleDataFilterChange: (filterId: string, selected: boolean) => void; 
   filterLabelMap: Record<string, string>; 
+  getFilters: () => Record<string, any>;
 }
 
 // Move outside component to prevent re-creation on every render
@@ -28,11 +33,26 @@ const availableFilterStatuses: ExpenseStatus[] = [
 
 export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<ExpenseStatus[]>([]);
+  // Default to PENDING (Approval Required) status filter
+  const [statusFilter, setStatusFilter] = useState<ExpenseStatus[]>([ExpenseStatus.PENDING]);
+  
+  // Use the currency store for global currency state management
+  const { primaryCurrency, setPrimaryCurrency } = useCurrencyStore();
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
+    // Check if this is a currency filter (starts with 'currency:')
+    if (filterId.startsWith('currency:')) {
+      const currencyCode = filterId.replace('currency:', '');
+      if (isSelected) {
+        setPrimaryCurrency(currencyCode);
+      }
+      // We don't handle deselection for currency as it's a single-select
+      return;
+    }
+    
+    // Handle status filters
     setStatusFilter(prevFilter => {
       if (isSelected) {
         // Add the status if it's not already in the array
@@ -45,7 +65,7 @@ export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
         return prevFilter.filter(status => status !== filterId);
       }
     });
-  }, []);
+  }, [setPrimaryCurrency]);
 
   // Memoize filterLabelMap with stable dependencies
   const filterLabelMap: Record<string, string> = useMemo(() => {
@@ -64,6 +84,7 @@ export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
   }, []); // Empty dependency array since availableFilterStatuses is now stable
 
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
+    // Status filter items
     const statusItems: DataFilter[] = availableFilterStatuses.map(
       (status) => ({
         id: status,
@@ -73,15 +94,47 @@ export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
       })
     );
 
+    // Currency filter items
+    const availableCurrencies = ['EUR', 'USD', 'GBP', 'CHF', 'JPY'];
+    const currencyItems: DataFilter[] = availableCurrencies.map(
+      (currency) => ({
+        id: `currency:${currency}`,
+        label: currency,
+        selected: primaryCurrency === currency,
+        group: 'currencyGroup',
+      })
+    );
+
     return [
       {
         id: 'statusGroup',
-        title: 'Status',
+        title: getTranslationFromI18nKeyAndLabel('expense_plan_status_filter_title', 'Status'),
         filters: statusItems,
-        selectionMode: 'multiple',
+      },
+      {
+        id: 'currencyGroup',
+        title: getTranslationFromI18nKeyAndLabel('expense_plan_currency_filter_title', 'Currency'),
+        filters: currencyItems,
       },
     ];
-  }, [filterLabelMap, statusFilter]); // Removed availableFilterStatuses dependency
+  }, [filterLabelMap, statusFilter, primaryCurrency]);
+
+  // Helper function to get filters for backend queries
+  const getFilters = useCallback(() => {
+    const filters: Record<string, any> = {};
+    
+    // Add status filters if any are selected
+    if (statusFilter.length > 0) {
+      filters.status = statusFilter;
+    }
+    
+    // Add currency filter if selected
+    if (primaryCurrency) {
+      filters.currency = `Currency:v1:${primaryCurrency}`;
+    }
+    
+    return filters;
+  }, [statusFilter, primaryCurrency]);
 
   return {
     searchTerm,
@@ -89,8 +142,11 @@ export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
     debouncedSearchTerm,
     statusFilter,
     setStatusFilter,
+    currencyFilter: primaryCurrency,
+    setCurrencyFilter: setPrimaryCurrency,
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
+    getFilters,
   };
 };

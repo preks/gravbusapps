@@ -6,6 +6,7 @@ import {
   GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS 
 } from '../queries/mainViewAdvancePayments';
 import { env } from '@/common/env/EnvUtils';
+import { useCurrencyStore } from '../store/useCurrencyStore';
 
 export interface AdvancePayment {
   id: string;
@@ -13,7 +14,7 @@ export interface AdvancePayment {
   description: string | null;
   status: string;
   amount: number;
-  currency: string;
+  currencyRef: string;
   createdAt: string;
   updatedAt: string;
   expensePlan: {
@@ -22,7 +23,7 @@ export interface AdvancePayment {
     title: string;
     startDate: string;
     endDate: string;
-    currency: string;
+    currencyRef: string;
     employee: {
       id: string;
       displayName?: string;
@@ -86,6 +87,7 @@ interface UseMainViewAdvancePaymentsProps extends BusinessAppContextProps {
   searchTerm?: string;
   currentStatusFilter?: string[] | null;
   currentPage?: number;
+  currentCurrencyFilter?: string;
 }
 
 export const useMainViewAdvancePayments = ({
@@ -95,7 +97,11 @@ export const useMainViewAdvancePayments = ({
   searchTerm,
   currentStatusFilter,
   currentPage: externalCurrentPage,
+  currentCurrencyFilter,
 }: UseMainViewAdvancePaymentsProps) => {
+  // Get currency from global store if not provided explicitly
+  const { primaryCurrency } = useCurrencyStore();
+  const currencyFilter = currentCurrencyFilter || primaryCurrency;
   // Get managerId from userInfo or use a fallback for development
   const managerId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
   
@@ -138,6 +144,13 @@ export const useMainViewAdvancePayments = ({
         status: { _in: currentStatusFilter }
       });
     }
+    
+    // Add currency filter condition if currencyFilter is provided
+    if (currencyFilter) {
+      conditions.push({
+        currencyRef: { _eq: currencyFilter }
+      });
+    }
 
     // If no conditions, return an empty object to show all records
     if (conditions.length === 0) {
@@ -151,7 +164,7 @@ export const useMainViewAdvancePayments = ({
 
     // If multiple conditions, combine them with _and
     return { _and: conditions };
-  }, [searchTerm, currentStatusFilter]);
+  }, [searchTerm, currentStatusFilter, currencyFilter]);
 
   const fetchPayments = useCallback(async () => {
     console.log('fetchPayments called with accessToken:', !!accessToken, 'managerId:', managerId);

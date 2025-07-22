@@ -5,11 +5,11 @@ import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { useCurrencyStore } from '../../../store/useCurrencyStore';
+import { formatCurrency } from '../../../utils/currencyUtils';
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
   plan: any;
-  onApprove: (planId: string) => void;
-  onReject: (planId: string) => void;
 }
 
 // Shared component for expense details view (same as in ExpenseRequestDetails)
@@ -100,15 +100,10 @@ const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
 };
 
 const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
-  plan,
-  onApprove,
-  onReject
+  plan
 }) => {
-  // Helper function to format currency
-  const formatCurrency = (amount: number, currencyValue = 'European euro') => {
-    const currencySymbol = currencyValue === 'European euro' ? '€' : currencyValue?.charAt(0) || '€';
-    return `${currencySymbol}${amount?.toFixed(2) || '0.00'}`;
-  };
+  // Use the currency store for global currency state management
+  const { primaryCurrency } = useCurrencyStore();
 
   // Get trip type
   const getTripType = () => {
@@ -150,7 +145,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
       requester={plan.employee?.fullName || plan.employee?.displayName || 'Unknown'}
       department={getDepartment()}
       tripType={getTripType()}
-      totalAmount={typeof plan.totalAmount === 'number' ? formatCurrency(plan.totalAmount, plan.currency?.value) : '-'}
+      totalAmount={typeof plan.totalAmount === 'number' ? formatCurrency(plan.totalAmount, primaryCurrency || plan.currency?.value) : '-'}
       onViewDetails={handleViewDetails}
     />
   );

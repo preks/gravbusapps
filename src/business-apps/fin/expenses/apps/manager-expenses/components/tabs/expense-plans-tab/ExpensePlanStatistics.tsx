@@ -30,6 +30,7 @@ interface ExpensePlanStatisticsProps {
   fetchPlanStatistics: () => void;
   activeFilter: ExpenseStatus[] | null;
   onFilterChange: (filter: ExpenseStatus[] | null) => void;
+  currencyFilter?: string | null;
 }
 
 const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
@@ -39,9 +40,12 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
   fetchPlanStatistics,
   activeFilter,
   onFilterChange,
+  currencyFilter,
 }) => {
-  // Use the global currency store
+  // Use the global currency store or the selected currency filter
   const { primaryCurrency } = useCurrencyStore();
+  // Use the currency filter if available, otherwise fall back to primary currency
+  const displayCurrency = currencyFilter || primaryCurrency;
   // Handle card click
   const handleCardClick = useCallback((filterKey: ExpenseStatus | null) => {
     if (filterKey === null) {
@@ -76,8 +80,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'pending-amount',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_amount', 'Pending Amount'),
-        value: planStats.pendingAmount ? formatCurrency(planStats.pendingAmount, primaryCurrency) : `${primaryCurrency} 0,00`,
-        prefix: <span className="gba:font-medium" data-testid="expense-plan-stats-pending-currency-code">{primaryCurrency}</span>,
+        value: planStats.pendingAmount ? formatCurrency(planStats.pendingAmount, displayCurrency) : `${displayCurrency} 0,00`,
+        prefix: <span className="gba:font-medium" data-testid="expense-plan-stats-pending-currency-code">{displayCurrency}</span>,
         color: '#faad14',
         valueIsString: true,
         span: { xs: 24, sm: 6 },
@@ -96,15 +100,15 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'total-amount',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.total_amount_submitted', 'Total Amount (Submitted)'),
-        value: planStats.sumTotalAmount ? formatCurrency(planStats.sumTotalAmount, primaryCurrency) : `${primaryCurrency} 0,00`,
-        prefix: <span className="gba:font-medium" data-testid="expense-plan-stats-total-currency-code">{primaryCurrency}</span>,
+        value: planStats.sumTotalAmount ? formatCurrency(planStats.sumTotalAmount, displayCurrency) : `${displayCurrency} 0,00`,
+        prefix: <span className="gba:font-medium" data-testid="expense-plan-stats-total-currency-code">{displayCurrency}</span>,
         color: '#3f8600',
         valueIsString: true,
         span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.across_all_plans', 'Across all plans')
       }
     ];
-  }, [planStats, activeFilter, handleCardClick]);
+  }, [planStats, activeFilter, handleCardClick, displayCurrency]);
 
   if (statsError) {
     console.error('Error loading expense plan statistics:', statsError);

@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import type { DataFilterGroup, DataFilter } from '@/components/data-filter/DataFilter';
 import { useDebounce } from '@/common/hooks/useDebounce';
 import { ExpenseStatus, getAdvancePaymentStatusDisplay } from '../utils';
+import { useCurrencyStore } from '../store/useCurrencyStore';
 
 export interface UseAdvancePaymentFiltersReturn {
   searchTerm: string;
@@ -12,11 +13,18 @@ export interface UseAdvancePaymentFiltersReturn {
   filterGroups: DataFilterGroup[];
   handleDataFilterChange: (filterId: string, selected: boolean) => void;
   filterLabelMap: Record<string, string>;
+  // Currency filter related properties
+  currencyFilter: string;
+  setCurrencyFilter: (currency: string) => void;
 }
 
 export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string[] | null>(null);
+  // Default to PENDING (Approval Required) status filter
+  const [statusFilter, setStatusFilter] = useState<string[] | null>([ExpenseStatus.PENDING]);
+  
+  // Use the global currency store
+  const { primaryCurrency, setPrimaryCurrency } = useCurrencyStore();
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -29,6 +37,18 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
   }, [setStatusFilter]);
 
   const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
+    // Check if this is a currency filter (EUR, USD, GBP)
+    const currencyOptions = ['EUR', 'USD', 'GBP'];
+    
+    if (currencyOptions.includes(filterId)) {
+      // Handle currency filter selection
+      if (isSelected) {
+        setPrimaryCurrency(filterId);
+      }
+      return;
+    }
+    
+    // Handle status filters
     const currentFilters = statusFilter || [];
     
     if (isSelected) {
@@ -40,7 +60,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
       const newFilters = currentFilters.filter(id => id !== filterId);
       handleStatusFilterChange(newFilters.length > 0 ? newFilters : null);
     }
-  }, [statusFilter, handleStatusFilterChange]);
+  }, [statusFilter, handleStatusFilterChange, setPrimaryCurrency]);
 
   // Define the statuses that should be used for filtering with the correct mappings
   const availableFilterStatuses: ExpenseStatus[] = [
@@ -70,22 +90,40 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
   const filterLabelMap = useMemo(() => {
     const map: Record<string, string> = {};
     
+    // Add status filters
     availableFilterStatuses.forEach((status) => {
       // Use the custom display map if available, otherwise get from getAdvancePaymentStatusDisplay
       map[status] = statusDisplayMap[status] || getAdvancePaymentStatusDisplay(status).label;
     });
+    
+    // Add currency filters
+    map['EUR'] = 'EUR';
+    map['USD'] = 'USD';
+    map['GBP'] = 'GBP';
     
     return map;
   }, [availableFilterStatuses]);
 
   // Create filter groups for the DataFilter component
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
+    // Status filter items
     const statusItems: DataFilter[] = availableFilterStatuses.map(
       (status) => ({
         id: status,
         label: filterLabelMap[status],
         selected: statusFilter ? statusFilter.includes(status) : false,
         group: 'statusGroup',
+      })
+    );
+    
+    // Currency filter items
+    const currencyOptions = ['EUR', 'USD', 'GBP'];
+    const currencyItems: DataFilter[] = currencyOptions.map(
+      (currency) => ({
+        id: currency,
+        label: currency,
+        selected: currency === primaryCurrency,
+        group: 'currencyGroup',
       })
     );
 
@@ -96,8 +134,14 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
         filters: statusItems,
         selectionMode: 'multiple',
       },
+      {
+        id: 'currencyGroup',
+        title: 'Currency',
+        filters: currencyItems,
+        selectionMode: 'single',
+      },
     ];
-  }, [availableFilterStatuses, statusFilter, filterLabelMap]);
+  }, [availableFilterStatuses, statusFilter, filterLabelMap, primaryCurrency]);
 
   return {
     searchTerm,
@@ -108,5 +152,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
+    currencyFilter: primaryCurrency,
+    setCurrencyFilter: setPrimaryCurrency,
   };
 };

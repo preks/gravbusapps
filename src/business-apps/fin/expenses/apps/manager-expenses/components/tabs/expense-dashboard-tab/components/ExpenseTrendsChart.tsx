@@ -10,6 +10,7 @@ interface ExpenseTrendsChartProps {
     amount: number;
   }[];
   title?: string;
+  currencyFilter?: string;
 }
 
 /**
@@ -17,10 +18,14 @@ interface ExpenseTrendsChartProps {
  */
 const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({ 
   data, 
-  title = getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', 'Monthly Expense Trends') 
+  title = getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', 'Monthly Expense Trends'),
+  currencyFilter
 }) => {
   // Use the global currency store
   const { primaryCurrency } = useCurrencyStore();
+  
+  // Use the selected currency filter or fall back to primary currency
+  const displayCurrency = currencyFilter || primaryCurrency;
   if (!data || data.length === 0) {
     return (
       <Card>
@@ -55,10 +60,11 @@ const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
-              <YAxis tickFormatter={(value) => `${primaryCurrency} ${formatNumberFunction(value.toString(), "0[,]0")}`} data-testid="expense-trends-chart-y-axis" />
+              <YAxis tickFormatter={(value) => `${displayCurrency} ${formatNumberFunction(value.toString(), "0[,]0")}`} data-testid="expense-trends-chart-y-axis" />
               <Tooltip 
-                formatter={(value: number) => [`${primaryCurrency} ${formatNumberFunction(value.toString(), "0.00[,]00")}`, 'Amount']}
+                formatter={(value: number) => [`${displayCurrency} ${formatNumberFunction(value.toString(), "0.00[,]00")}`, 'Amount']}
                 labelStyle={{ color: '#666' }}
+                data-testid="expense-trends-chart-tooltip"
               />
               <Bar dataKey="amount" fill="#8884d8" radius={[4, 4, 0, 0]} />
             </BarChart>

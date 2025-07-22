@@ -14,7 +14,7 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
     ExpensePlan(
       limit: $limit,
       offset: $offset,
-      orderBy: {planDate: DESC},
+      orderBy: {createdAt: DESC},
       where: $where
     ) {
       id

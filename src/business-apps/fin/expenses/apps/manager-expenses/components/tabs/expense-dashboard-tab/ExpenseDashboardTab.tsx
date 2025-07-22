@@ -1,17 +1,20 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   Card, 
   CardContent, 
   CardHeader, 
-  CardTitle 
+  CardTitle
 } from '@newwork/nw-design-system';
 import { PiListChecks, PiChartLineUp, PiFileText, PiCalendar, PiClockAfternoon } from 'react-icons/pi';
 import { useCurrencyStore } from '../../../store/useCurrencyStore';
+import { useCurrencyFilter } from '../../../hooks/useCurrencyFilter';
 import { useGetExpenseDashboard } from '../../../hooks/useGetExpenseDashboard';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+
 import ExpenseTrendsChart from './components/ExpenseTrendsChart';
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
+import { formatCurrency, getMostUsedCurrency } from '../../../utils/currencyUtils';
 
 export interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   onNavigateToApprovals?: () => void;
@@ -27,6 +30,7 @@ interface RecentRequestItem {
   requestDate: string;
   status: string;
   employeeName: string;
+  currency?: string; // Add currency field for display purposes
 }
 
 const getErrorMessage = (err: unknown): string => {
@@ -42,7 +46,31 @@ const getErrorMessage = (err: unknown): string => {
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   // Use the global currency store
   const { primaryCurrency } = useCurrencyStore();
-  const { dashboardData, isLoading, error } = useGetExpenseDashboard(props);
+  
+  // Use the currency filter hook
+  const { 
+    currencyFilter, 
+    setCurrencyFilter 
+  } = useCurrencyFilter();
+  
+  // Get dashboard data
+  const { dashboardData, isLoading, error } = useGetExpenseDashboard(props, currencyFilter);
+  
+  // Determine the most used currency from transactions if available
+  const mostUsedCurrency = useMemo(() => {
+    if (dashboardData?.recentRequests && dashboardData.recentRequests.length > 0) {
+      // Convert recent requests to a format compatible with getMostUsedCurrency
+      const transactions = dashboardData.recentRequests.map(req => ({
+        amount: typeof req.totalAmount === 'number' ? req.totalAmount : 0,
+        currency: 'EUR' // Default to EUR since the API doesn't provide currency per request
+      }));
+      return getMostUsedCurrency(transactions, 'currency', 'amount', 'EUR');
+    }
+    return null;
+  }, [dashboardData?.recentRequests]);
+  
+  // Use the selected currency filter, or most used currency, or fall back to primary currency
+  const displayCurrency = currencyFilter || mostUsedCurrency || primaryCurrency;
 
   // Quick actions data
   const quickActions = [
@@ -106,8 +134,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     {
       key: 'monthly-expenses',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expenses', 'Monthly Expenses'),
-      value: dashboardData?.monthlyExpensesAmount ? `${primaryCurrency} ${formatNumberFunction(dashboardData.monthlyExpensesAmount.toString(), "0.00[,]00")}` : `${primaryCurrency} 0,00`,
-      prefix: <span className="gba:font-medium" data-testid="dashboard-monthly-expenses-currency-code">{primaryCurrency}</span>,
+      value: dashboardData?.monthlyExpensesAmount ? formatCurrency(dashboardData.monthlyExpensesAmount, displayCurrency) : `${displayCurrency} 0,00`,
+      prefix: <span className="gba:font-medium" data-testid="dashboard-monthly-expenses-currency-code">{displayCurrency}</span>,
       color: '#3f8600',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
@@ -126,6 +154,24 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col">
+      {/* Currency Filter */}
+      <div className="gba:flex gba:justify-end gba:mb-4" data-testid="expense-dashboard-currency-filter-container">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span className="gba:text-sm gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.currency_filter', 'Currency:')}
+          </span>
+          <select 
+            className="gba:border gba:border-gray-300 gba:rounded gba:px-2 gba:py-1 gba:text-sm" 
+            value={currencyFilter || primaryCurrency}
+            onChange={(e) => setCurrencyFilter(e.target.value)}
+            data-testid="expense-dashboard-currency-select"
+          >
+            {['EUR', 'USD', 'GBP'].map(currency => (
+              <option key={currency} value={currency}>{currency}</option>
+            ))}
+          </select>
+        </div>
+      </div>
       {/* Statistics Cards using WidgetGroup */}
       <div className="gba:mb-6">
         <WidgetGroup
@@ -194,7 +240,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                       </div>
                       <div className="gba:text-right gba:ml-4">
                         <p className="gba:font-medium gba:text-sm">
-                          {primaryCurrency} {typeof request.totalAmount === 'number' ? formatNumberFunction(request.totalAmount.toString(), "0.00[,]00") : request.totalAmount}
+                          {typeof request.totalAmount === 'number' ? formatCurrency(request.totalAmount, request.currency || displayCurrency) : `${request.currency || displayCurrency} ${request.totalAmount}`}
                         </p>
                         <p className="gba:text-sm gba:text-muted-foreground">{request.requestDate}</p>
                       </div>
@@ -237,10 +283,10 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                   <div>
                     <div className="gba:flex gba:justify-between gba:mb-2 gba:text-sm">
                       <span>
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {primaryCurrency} {formatNumberFunction(dashboardData.teamBudget?.used.toString() ?? '0', "0.00[,]00")}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {formatCurrency(dashboardData.teamBudget?.used || 0, displayCurrency)}
                       </span>
                       <span>
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} {primaryCurrency} {formatNumberFunction(dashboardData.teamBudget?.total.toString() ?? '0', "0.00[,]00")}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} {formatCurrency(dashboardData.teamBudget?.total || 0, displayCurrency)}
                       </span>
                     </div>
                     <div className="gba:w-full gba:bg-secondary gba:rounded-full gba:h-2">
@@ -269,6 +315,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           <ExpenseTrendsChart 
             data={dashboardData?.monthlyTrends || []} 
             title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', 'Monthly Expense Trends')}
+            currencyFilter={currencyFilter}
           />
         </div>
       </div>

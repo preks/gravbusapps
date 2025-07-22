@@ -1,42 +1,24 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
-  Badge, 
   Avatar, 
   AvatarImage, 
   AvatarFallback, 
   Button, 
-  Tooltip, 
-  TooltipContent, 
-  TooltipProvider, 
-  TooltipTrigger, 
   Table, 
   TableHeader, 
   TableBody, 
   TableHead, 
   TableRow, 
   TableCell, 
-  Spinner,
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-  Input,
-  Label
+  Spinner
 } from '@newwork/nw-design-system';
-import { PiCheck, PiX, PiFileText, PiCaretUp, PiCaretDown } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import Pill from '@/components/pill/Pill';
-import ExpensePlanDetails from './ExpensePlanDetails';
 import { useMainViewExpensePlans, ExpensePlan } from '../../../hooks/useMainViewExpensePlans';
-
 import { getExpensePlanStatusDisplay, ExpenseStatus } from '../../../utils';
-import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatAmount, formatCurrency } from '../../../utils/currencyUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrency } from '../../../utils/currencyUtils';
+import { useCurrencyStore } from '../../../store/useCurrencyStore';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
@@ -48,84 +30,42 @@ interface ExpensePlansTableProps extends BusinessAppContextProps {
   onFilterChange?: (filter: ExpenseStatus[] | null) => void;
   onClearFilters?: () => void;
   onViewDetails?: (plan: ExpensePlan) => void;
+  currencyFilter?: string | null;
 }
 
 const DATA_TEST_ID_PREFIX = 'ExpensePlansTable';
 
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
-  const { search } = props;
-  
   // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = React.useMemo(() => ({
+  const contextProps = useMemo(() => ({
     accessToken: props.accessToken,
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
-  
-  // Use search term from parent (DataContainer handles debouncing)
-  const searchTerm = props.search || '';
 
-    // Use parent's filter state directly
+  // Use parent's filter state directly
   const currentStatusFilter = props.activeFilter || [];
   
-
-   
-  // Handle clearing all filters
-  const handleClearFilters = useCallback(() => {
-    // Reset search term via parent callback
-    if (props.onSearchChange) {
-      props.onSearchChange('');
-    }
-    
-    // Reset status filter 
-    if (props.onFilterChange) {
-      props.onFilterChange(null);
-    }
-    
-    // If parent provided a clear all function, use it
-    if (props.onClearFilters) {
-      props.onClearFilters();
-    }
-  }, [props.onSearchChange, props.onFilterChange, props.onClearFilters]);
-
-
+  // Use the currency store for consistent currency handling
+  const { primaryCurrency } = useCurrencyStore();
+  const currentCurrencyFilter = primaryCurrency || null;
   
-  // Check if any filters are active
-  const hasActiveFilters = useMemo(() => {
-    return searchTerm || (currentStatusFilter && currentStatusFilter.length > 0);
-  }, [searchTerm, currentStatusFilter]);
-
   // Set up local state
   const [pageSize, setPageSize] = useState<number>(10);
-  const [rejectReason, setRejectReason] = useState<string>('');
-  const [approvalComments, setApprovalComments] = useState<string>('');
-  const [isRejectModalVisible, setIsRejectModalVisible] = useState<boolean>(false);
-  const [isApproveModalVisible, setIsApproveModalVisible] = useState<boolean>(false);
-  const [currentActionPlanId, setCurrentActionPlanId] = useState<string>('');
 
-
-
-  // Get expense plans data and functions - only log when activeFilter actually changes
-  const filterChanged = JSON.stringify(props.activeFilter) !== JSON.stringify(currentStatusFilter);
-  if (filterChanged) {
-    console.log('🔥 Filter changed in table:', { from: currentStatusFilter, to: props.activeFilter });
-  }
-  
+  // Get expense plans data and functions
   const {
-    plans,
-    loading: isLoading,
+    plans: expensePlans,
+    loading,
     error,
     totalCount,
     currentPage,
     setCurrentPage,
-    approving,
-    rejecting,
-    approvePlan,
-    rejectPlan,
   } = useMainViewExpensePlans({
     ...contextProps,
     pageSize,
-    searchTerm: searchTerm,
+    searchTerm: props.search || '',
     currentStatusFilter: currentStatusFilter,
+    currentCurrencyFilter: currentCurrencyFilter,
   });
 
   // Reset page to 1 when filter changes (fixes pagination issue when switching filters)
@@ -136,20 +76,12 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     
     // Only reset page if filter actually changed (not on initial render)
     if (prevFilterRef.current !== null && currentFilterStr !== prevFilterStr) {
-      console.log('🔄 Filter changed, resetting to page 1:', { from: prevFilterRef.current, to: currentStatusFilter });
       setCurrentPage(1);
     }
     
     // Update the ref with current filter
     prevFilterRef.current = currentStatusFilter;
   }, [currentStatusFilter, setCurrentPage]);
-
-  // Notify parent of search changes if callback exists
-  const onSearchChange = useCallback((value: string) => {
-    if (props.onSearchChange) {
-      props.onSearchChange(value);
-    }
-  }, [props.onSearchChange]);
 
   // Handle viewing details for a plan
   const handleViewDetails = useCallback((plan: ExpensePlan) => {
@@ -158,117 +90,50 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     }
   }, [props.onViewDetails]);
 
-  // Handle filter changes and notify parent
-  const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
-    
-    // Reset to first page when filters change
-    setCurrentPage(1);
-    
-    if (props.onFilterChange) {
-      let newFilter: ExpenseStatus[] | null = null;
-      
-      if (isSelected) {
-        // Add the status to the current filter array
-        const currentFilters = currentStatusFilter || [];
-        newFilter = [...currentFilters, filterId as ExpenseStatus];
-      } else {
-        // Remove the status from the current filter array
-        const currentFilters = currentStatusFilter || [];
-        newFilter = currentFilters.filter(status => status !== filterId);
-        if (newFilter.length === 0) {
-          newFilter = null;
-        }
-      }
-      
-      props.onFilterChange(newFilter);
-    }
-  }, [currentStatusFilter]);
-
-
-
-
-
-  // Modal management for approve/reject
-  const showApproveModal = useCallback((planId: string) => {
-    setCurrentActionPlanId(planId);
-    setIsApproveModalVisible(true);
-  }, []);
-
-  const showRejectModal = useCallback((planId: string) => {
-    setCurrentActionPlanId(planId);
-    setIsRejectModalVisible(true);
-  }, []);
-
-  const handleApproveConfirm = useCallback(async () => {
-    await approvePlan(currentActionPlanId, approvalComments);
-    setIsApproveModalVisible(false);
-    setApprovalComments('');
-    setCurrentActionPlanId('');
-  }, [approvePlan, currentActionPlanId, approvalComments]);
-
-  const handleRejectConfirm = useCallback(async () => {
-    if (!rejectReason.trim()) {
-      return;
-    }
-    await rejectPlan(currentActionPlanId, rejectReason);
-    setIsRejectModalVisible(false);
-    setRejectReason('');
-    setCurrentActionPlanId('');
-  }, [rejectPlan, currentActionPlanId, rejectReason]);
-
-  const handleApprovePlan = useCallback((planId: string) => {
-      showApproveModal(planId);
-  }, [showApproveModal]);
-
-  const handleRejectPlan = useCallback((planId: string) => {
-    showRejectModal(planId);
-  }, [showRejectModal]);
-
-  // Handle pagination changes
+  // Pagination handlers - used directly in the component
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
   }, [setCurrentPage]);
-
-  const handlePageSizeChange = useCallback((newPageSize: number) => {
-    setPageSize(newPageSize);
+  
+  // Handle page size changes in the pagination controls
+  const handlePageSizeChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
+    const size = parseInt(event.target.value, 10);
+    setPageSize(size);
     setCurrentPage(1); // Reset to first page when changing page size
-  }, []);
+  }, [setPageSize, setCurrentPage]);
 
   // Show error state
   if (error) {
-        return (
+    return (
       <div 
         className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
         data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
       >
-        <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
-          Error Loading Expense Plans
-        </div>
         <div className="gba:text-gray-600 gba:mb-4">
           {error.message}
         </div>
-          <Button
+        <Button
           variant="default"
           onClick={() => window.location.reload()}
           data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
         >
           Retry
         </Button>
-              </div>
+      </div>
     );
   }
 
   // Show loading state
-  if (isLoading && !plans.length) {
-        return (
-      <div className="gba:flex gba:justify-center gba:p-8">
+  if (loading && !expensePlans.length) {
+    return (
+      <div className="gba:flex gba:justify-center gba:p-8" data-testid="expense-plans-loading">
         <Spinner />
       </div>
     );
   }
 
   // Show empty state
-  if (!plans || plans.length === 0) {
+  if (!expensePlans || expensePlans.length === 0) {
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
         <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
@@ -313,7 +178,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {plans.map((plan) => {
+            {expensePlans.map((plan: ExpensePlan) => {
               const display = getExpensePlanStatusDisplay(plan.status as ExpenseStatus);
               return (
                 <TableRow 
@@ -389,7 +254,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   </TableCell>
                   <TableCell className="gba:text-right">
                     <span className="gba:font-medium gba:text-sm">
-                      {typeof plan.totalAmount === 'number' ? formatCurrency(plan.totalAmount, plan.currency || 'EUR') : 'N/A'}
+                      {typeof plan.totalAmount === 'number' ? formatCurrency(plan.totalAmount, currentCurrencyFilter || plan.currency || 'EUR') : 'N/A'}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -412,13 +277,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             <div className="gba:flex gba:items-center gba:space-x-2">
               <p className="gba:text-sm gba:font-medium">Rows per page</p>
               <select
+                className="gba:h-8 gba:rounded-md gba:border gba:border-gray-300 gba:bg-white gba:px-2 gba:text-sm"
                 value={pageSize}
-                onChange={(e) => {
-                  const newPageSize = Number(e.target.value);
-                  setPageSize(newPageSize);
-                  setCurrentPage(1);
-                }}
-                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                onChange={handlePageSizeChange}
                 data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
               >
                 <option value={10}>10</option>
@@ -434,7 +295,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
               <Button
                 variant="outline"
                 className="gba:h-8 gba:w-8 gba:p-0"
-                onClick={() => setCurrentPage(1)}
+                onClick={() => handlePageChange(1)}
                 disabled={currentPage === 1}
                 data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
               >
@@ -444,7 +305,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
               <Button
                 variant="outline"
                 className="gba:h-8 gba:w-8 gba:p-0"
-                onClick={() => setCurrentPage(currentPage - 1)}
+                onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
                 data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
               >
@@ -454,7 +315,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
               <Button
                 variant="outline"
                 className="gba:h-8 gba:w-8 gba:p-0"
-                onClick={() => setCurrentPage(currentPage + 1)}
+                onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                 data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
               >
@@ -464,7 +325,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
               <Button
                 variant="outline"
                 className="gba:h-8 gba:w-8 gba:p-0"
-                onClick={() => setCurrentPage(Math.ceil(totalCount / pageSize))}
+                onClick={() => handlePageChange(Math.ceil(totalCount / pageSize))}
                 disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                 data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
               >

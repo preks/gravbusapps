@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead, Button, Avatar, AvatarImage, AvatarFallback, Spinner, Alert, Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@newwork/nw-design-system';
+import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead, Button, Avatar, AvatarImage, AvatarFallback, Spinner, Alert } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests';
-import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters';
+import { useExpenseRequestFilters, ExpenseRequestStatus } from '../../../hooks/useExpenseRequestFilters';
 import { getExpenseRequestStatusDisplay } from '../../../utils';
 import ExpenseRequestDetails from './ExpenseRequestDetails';
 import { ensureShortDateFormat } from '../../../utils/dateUtils';
@@ -40,7 +40,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     rejectRequest
   } = useGetExpenseRequests(contextProps);
 
-  // Use the expense request filters hook
+  // Use the expense request filters hook with integrated currency filter
   const {
     search: searchText,
     setSearch,
@@ -49,8 +49,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     filterLabelMap,
     addFilter,
     removeFilter,
-    getFilters
+    getFilters,
+    currencyFilter,
+    handleDataFilterChange
   } = useExpenseRequestFilters();
+  
+  // Set default filter for "Approval Required" status on initial load
+  useEffect(() => {
+    if (selectedFilters.length === 0) {
+      // Apply default filter for "Approval Required" (IN_APPROVAL)
+      addFilter(ExpenseRequestStatus.IN_APPROVAL.toLowerCase());
+    }
+  }, [addFilter, selectedFilters]);
 
   // Fetch requests when filters or pagination changes
   useEffect(() => {
@@ -63,7 +73,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       searchText,
       currentPage,
       pageSize,
-      undefined, // sortBy
+      'requestDate:desc', // Default sort by request date, newest first
       filters.status || [], // status filter - now an array
       filters.requestDateStart
     );
@@ -292,10 +302,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       }
                     })() : 'N/A'}
                   </TableCell>
-                  <TableCell className="gba:text-right">
-                    <span className="gba:font-medium gba:text-sm">
-                      {typeof record.amount === 'number' ? formatCurrency(record.amount, record.currency) : 'N/A'}
-                    </span>
+                  <TableCell className="gba:text-right gba:text-sm" data-testid={`expense-request-amount-cell-${record.id}`}>
+                    {typeof record.amount === 'number' ? formatCurrency(record.amount, currencyFilter || record.currency) : 'N/A'}
                   </TableCell>
                   <TableCell>
                     <Pill type={type as any} label={label} data-testid={`status-pill-${record.status?.toLowerCase()}`} />
@@ -386,19 +394,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
 
 
 
-  // Handle filter changes from the filter sidebar
-  const handleFilterChange = useCallback((filterId: string, isSelected: boolean) => {
-    if (isSelected) {
-      addFilter(filterId);
-    } else {
-      removeFilter(filterId);
-    }
-    setCurrentPage(1);
-  }, [addFilter, removeFilter]);
-
-  // Get the selected filters array
-  const activeFilters = [...selectedFilters];
-  
   // Update the URL or any other side effects when filters change
   useEffect(() => {
     const filters = getFilters();
@@ -414,33 +409,20 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
 
   return (
     <DataContainer
-      floatingDetails={true}
       dataControllerProps={{
         search: searchText,
         setSearch: handleSearchChange,
-        filter: activeFilters,
-        setFilter: (filters: string[]): void => {
-          // Create a set of new filter IDs for easier comparison
-          const newFilters = new Set(filters);
+        filter: selectedFilters,
+        setFilter: (newFilters: string[]): void => {
+          // Handle filter changes
+          const filtersToRemove = selectedFilters.filter(f => !newFilters.includes(f));
+          const filtersToAdd = newFilters.filter(f => !selectedFilters.includes(f));
           
-          // First, remove any filters that are not in the new filters
-          selectedFilters.forEach((filter: string) => {
-            if (!newFilters.has(filter)) {
-              removeFilter(filter);
-            }
-          });
-          
-          // Then, add any new filters that aren't already selected
-          filters.forEach((filter: string) => {
-            if (!selectedFilters.includes(filter)) {
-              addFilter(filter);
-            }
-          });
-          
+          filtersToRemove.forEach(removeFilter);
+          filtersToAdd.forEach(addFilter);
           setCurrentPage(1);
         },
-        placeholder: 'Search by request title, code, employee...', 
-        filterLabelMap,
+        filterLabelMap: filterLabelMap,
         listTitle: (
           <div className="gba:flex gba:items-center gba:gap-4">
             <div className="gba:flex gba:items-center gba:gap-2">
@@ -451,11 +433,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         ),
         debounceDelay: 300,
       }}
-      dataFilterProps={{ 
-        filterGroups,
-        onFilterChange: handleFilterChange,
+      dataFilterProps={{
+        filterGroups: filterGroups,
+        onFilterChange: handleDataFilterChange,
       }}
-      hideFilter={false}
       dataBody={renderDataBody()}
       contentBackground="white"
       dataDetails={selectedRequest ? {

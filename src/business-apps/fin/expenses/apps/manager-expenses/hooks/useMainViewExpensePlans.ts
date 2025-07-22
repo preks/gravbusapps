@@ -78,6 +78,7 @@ interface UseMainViewExpensePlansProps extends BusinessAppContextProps {
   pageSize?: number;
   searchTerm?: string;
   currentStatusFilter?: string[] | null;
+  currentCurrencyFilter?: string | null;
   statisticsOnly?: boolean; // If true, only fetch statistics, skip main data
 }
 
@@ -87,6 +88,7 @@ export const useMainViewExpensePlans = ({
   pageSize = 10,
   searchTerm,
   currentStatusFilter,
+  currentCurrencyFilter,
   statisticsOnly = false,
 }: UseMainViewExpensePlansProps) => {
   const hookId = useMemo(() => Math.random().toString(36).substring(7), []);
@@ -169,6 +171,7 @@ export const useMainViewExpensePlans = ({
         'activeFilter': activeFilter,
         'forceFilter': forceFilter, 
         'currentStatusFilter': currentStatusFilter,
+        'currentCurrencyFilter': currentCurrencyFilter,
         'activeFilter type': typeof activeFilter,
         'activeFilter length': activeFilter?.length,
         'is activeFilter array': Array.isArray(activeFilter)
@@ -180,6 +183,14 @@ export const useMainViewExpensePlans = ({
         console.log(`📊 WHERE CLAUSE WITH FILTER HOOK-${hookId}:`, whereClause.status);
       } else {
         console.log(`❌ NO FILTER APPLIED HOOK-${hookId} - activeFilter:`, activeFilter, 'length:', activeFilter?.length);
+      }
+      
+      // Add currency filter if provided
+      if (currentCurrencyFilter) {
+        console.log(`💰 APPLYING CURRENCY FILTER HOOK-${hookId}:`, currentCurrencyFilter);
+        // Format the currency reference for the database query (Currency:v1:CODE format)
+        const formattedCurrencyRef = `Currency:v1:${currentCurrencyFilter}`;
+        whereClause.currencyRef = { _eq: formattedCurrencyRef };
       }
 
       const variables = {
