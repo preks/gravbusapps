@@ -125,7 +125,6 @@ export const useExpenseRequestDetails = ({
                 firstName
                 lastName
                 businessKey
-                email
               }
               businessKey
               costCenter {
@@ -166,7 +165,7 @@ export const useExpenseRequestDetails = ({
             firstName: expenseRequest.employee?.firstName ?? 'N/A',
             lastName: expenseRequest.employee?.lastName ?? 'N/A',
             businessKey: expenseRequest.employee?.businessKey ?? 'N/A',
-            email: expenseRequest.employee?.email ?? 'N/A',
+            email: 'N/A', // Email field not available in Employee type
           },
           costCenter: expenseRequest.costCenter
             ? {

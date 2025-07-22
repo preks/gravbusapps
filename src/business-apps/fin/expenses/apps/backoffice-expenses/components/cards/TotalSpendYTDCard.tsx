@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, Statistic, Spin, Alert } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system';
+import { getExpenseIconColor } from '../../utils/colorConstants';
 import { YTDStats } from '../../types';
 
 export interface TotalSpendYTDCardProps {
@@ -23,35 +23,53 @@ const TotalSpendYTDCard: React.FC<TotalSpendYTDCardProps> = ({ loading, error, y
     return { percentChange, isIncrease };
   };
 
+  if (loading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-32" data-testid="total-spend-ytd-loading">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
   if (error) {
     return (
-      <Card title="Total Company Spend YTD" style={{ height: '100%' }}>
-        <Alert message={`Error: ${error.message}`} type="error" showIcon />
-      </Card>
+      <div className="gba:p-4" data-testid="total-spend-ytd-error">
+        <Alert variant="destructive">
+          <div>
+            <h4 className="gba:font-semibold">Total Company Spend YTD</h4>
+            <p className="gba:text-sm gba:mt-1">Error: {error.message}</p>
+          </div>
+        </Alert>
+      </div>
     );
   }
 
   const { percentChange, isIncrease } = calculateYTDComparison();
 
+  // Create KPI card data
+  const kpiCardData: KpiCardData = {
+    id: 'total-spend-ytd',
+    title: 'Total Company Spend YTD (EUR, Paid Status)',
+    value: totalAmount.toString(),
+    suffix: 'EUR',
+    decimalPlaces: 2,
+    footer: `Based on ${count} expense requests this year vs ${previousCount} last year`,
+    trend: {
+      value: Math.abs(percentChange).toFixed(1),
+      positive: !isIncrease,
+      description: 'vs last year'
+    },
+    icon: 'euro',
+          iconColor: getExpenseIconColor.totalSpend()
+  };
+
   return (
-    <Card title="Total Company Spend YTD (EUR, Paid Status)" className="gba:bg-blue-50" style={{ height: '100%' }}>
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          <Spin size="large" />
-        </div>
-      ) : (
-        <>
-          <Statistic value={totalAmount} precision={2} suffix="EUR" />
-          <div className={`gba:mt-2 gba:flex gba:items-center ${isIncrease ? 'gba:text-red-500' : 'gba:text-green-500'}`}>
-            {isIncrease ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
-            <span className="gba:ml-1">{Math.abs(percentChange).toFixed(1)}% vs last year</span>
-          </div>
-          <div className="gba:mt-2 gba:text-xs gba:text-gray-500">
-            Based on {count} expense requests this year vs {previousCount} last year
-          </div>
-        </>
-      )}
-    </Card>
+    <div data-testid="total-spend-ytd-card">
+      <SectionKpiCards 
+        cards={[kpiCardData]} 
+        data-testid="total-spend-ytd-kpi-cards"
+      />
+    </div>
   );
 };
 
