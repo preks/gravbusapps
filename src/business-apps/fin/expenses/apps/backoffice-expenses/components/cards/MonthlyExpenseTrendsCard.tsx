@@ -4,9 +4,10 @@
  */
 
 import React from 'react';
-import { Card, Spin, Alert } from 'antd';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { Card, CardHeader, CardTitle, CardContent, Spinner, Alert } from '@newwork/nw-design-system';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { MonthlyExpenseTrend } from '../../types';
+import { EXPENSE_COLORS } from '../../utils/colorConstants';
 
 export interface MonthlyExpenseTrendsCardProps {
   loading: boolean;
@@ -25,10 +26,34 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
     }).format(value);
   };
 
+  if (loading) {
+    return (
+      <Card className="gba:bg-blue-50 gba:h-full" data-testid="monthly-expense-trends-loading">
+        <CardHeader>
+          <CardTitle>Monthly Expense Trends {currentYear}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+            <Spinner size="lg" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (error) {
     return (
-      <Card title={`Monthly Expense Trends ${currentYear}`} className="gba:bg-blue-50" style={{ height: '100%' }}>
-        <Alert message={`Error: ${error.message}`} type="error" showIcon />
+      <Card className="gba:bg-blue-50 gba:h-full" data-testid="monthly-expense-trends-error">
+        <CardHeader>
+          <CardTitle>Monthly Expense Trends {currentYear}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <div>
+              <p className="gba:text-sm">Error: {error.message}</p>
+            </div>
+          </Alert>
+        </CardContent>
       </Card>
     );
   }
@@ -39,7 +64,7 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
       return (
         <div className="gba:bg-white gba:p-2 gba:border gba:rounded gba:shadow">
           <p className="gba:text-sm gba:font-medium">{`Month: ${label}`}</p>
-          <p className="gba:text-sm" style={{ color: '#1890ff' }}>
+          <p className="gba:text-sm" style={{ color: EXPENSE_COLORS.PRIMARY_BLUE }}>
             {`Total Expenses: ${formatCurrency(payload[0].value)}`}
           </p>
         </div>
@@ -55,10 +80,10 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
       <text 
         x={x + width / 2} 
         y={y - 10} 
-        fill="#1890ff" 
+        fill={EXPENSE_COLORS.PRIMARY_BLUE} 
         textAnchor="middle" 
         dy={-6}
-        style={{ fontSize: '12px', opacity: 0.6 }}
+        className="gba:text-xs gba:opacity-60"
       >
         {formatCurrency(value)}
       </text>
@@ -66,13 +91,14 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
   };
 
   return (
-    <Card title={`Monthly Expense Trends ${currentYear}`} className="gba:bg-blue-50" style={{ height: '100%' }}>
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          <Spin size="large" />
-        </div>
-      ) : (
-        <div style={{ height: 300 }}>
+    <Card className="gba:bg-blue-50 gba:w-full" data-testid="monthly-expense-trends-card">
+      <CardHeader>
+        <CardTitle className="gba:text-sm gba:font-medium gba:text-gray-700">
+          Monthly Expense Trends {currentYear}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="gba:p-6">
+        <div className="gba:h-80 gba:w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={monthlyTrends}
@@ -90,13 +116,13 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
               <Tooltip content={<CustomTooltip />} />
               <Bar 
                 dataKey="totalAmount" 
-                fill="#1890ff"
+                fill={EXPENSE_COLORS.PRIMARY_BLUE}
                 label={renderCustomLabel}
               />
             </BarChart>
           </ResponsiveContainer>
         </div>
-      )}
+      </CardContent>
     </Card>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Row, Col, Spin } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { Spinner, Tabs, TabsList, TabsTrigger, TabsContent, Button } from '@newwork/nw-design-system';
+import { ArrowLeftOutlined, UserOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { ContactData, useGetContactById } from './queries/ContactQueries';
@@ -9,6 +9,7 @@ import { CompanyInformation } from './components/CompanyInformation';
 import { ContactPersonalInfo } from './components/ContactPersonalInfo';
 import { ActivityTimeline } from './components/ActivityTimeline';
 import { TasksSection } from './components/TasksSection';
+import { ContactDocuments } from './components/ContactDocuments';
 
 interface ContactRecordContentProps extends BusinessAppContextProps {
   contactId: string;
@@ -19,6 +20,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
   const [contact, setContact] = useState<ContactData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
 
   const { fetchContactById } = useGetContactById({ accessToken: props.accessToken });
 
@@ -58,7 +60,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -68,12 +70,13 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
           <p className="gba:text-red-500 gba:text-lg">{error || 'Contact not found'}</p>
-          <button
+          <Button
             onClick={onBack}
-            className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
+            className="gba:mt-4"
+            variant="default"
           >
             {getBackButtonText()}
-          </button>
+          </Button>
       </div>
       </div>
     );
@@ -101,34 +104,55 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         accessToken={props.accessToken} 
       />
 
-      {/* Main content */}
+      {/* Main content with tabs */}
       <div className="gba:contact-details-content" data-testid="contact-details-content">
-        
-        {/* First Row: Company Information + Personal Info */}
-        <Row gutter={24} style={{ marginBottom: '24px', display: 'flex', alignItems: 'stretch' }}>
-          {/* Company Information - 3/4 width */}
-          <Col span={18} style={{ display: 'flex' }}>
-            <CompanyInformation contact={contact} />
-        </Col>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
+          <TabsList className="gba:bg-white gba:border gba:mb-6">
+            <TabsTrigger value="overview" data-testid="overview-tab">
+              <UserOutlined className="gba:mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="documents" data-testid="documents-tab">
+              <FolderOpenOutlined className="gba:mr-2" />
+              Documents
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Personal Information - 1/4 width */}
-          <Col span={6} style={{ display: 'flex' }}>
-            <ContactPersonalInfo contact={contact} />
-        </Col>
-      </Row>
+          <TabsContent value="overview" data-testid="overview-content">
+            {/* First Row: Company Information + Personal Info */}
+            <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mb-6">
+              {/* Company Information - 3/4 width */}
+              <div className="gba:col-span-3 gba:flex">
+                <CompanyInformation contact={contact} />
+              </div>
 
-        {/* Second Row: Activity Timeline + Tasks */}
-        <Row gutter={24}>
-          {/* Activity Timeline - 1/2 width */}
-          <Col span={12}>
-            <ActivityTimeline contactId={contactId} context={props} />
-          </Col>
+              {/* Personal Information - 1/4 width */}
+              <div className="gba:col-span-1 gba:flex">
+                <ContactPersonalInfo contact={contact} />
+              </div>
+            </div>
 
-          {/* Tasks - 1/2 width */}
-          <Col span={12}>
-            <TasksSection contactId={contactId} context={props} />
-          </Col>
-        </Row>
+            {/* Second Row: Activity Timeline + Tasks */}
+            <div className="gba:grid gba:grid-cols-2 gba:gap-6">
+              {/* Activity Timeline - 1/2 width */}
+              <div>
+                <ActivityTimeline contactId={contactId} context={props} />
+              </div>
+
+              {/* Tasks - 1/2 width */}
+              <div>
+                <TasksSection contactId={contactId} context={props} />
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="documents" data-testid="documents-content">
+            <ContactDocuments 
+              contactId={contactId} 
+              context={props} 
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
