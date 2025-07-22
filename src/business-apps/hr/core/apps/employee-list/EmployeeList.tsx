@@ -105,6 +105,8 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
     };
   }, [handleOutsideClick]);
 
+  console.log("🔍 EmployeeListContent test");
+
   return (
     <div >
       <PageLayout
