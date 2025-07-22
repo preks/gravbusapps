@@ -47,8 +47,8 @@ export const GET_SALES_TASKS = (variables: SalesTaskQueryVariables): string => {
   `;
 };
 
-export const useGetSalesTasks = (context: BusinessAppContextProps) => {
-  const graphQLClient = useGraphQLClient(context.accessToken);
+export const useGetSalesTasks = (accessToken: string) => {
+  const graphQLClient = useGraphQLClient(accessToken);
   
   const fetchSalesTasks = async (variables: SalesTaskQueryVariables) => {
     const query = GET_SALES_TASKS(variables);

@@ -5,6 +5,7 @@ import { useOpportunityData } from "./useOpportunityData";
 import { Opportunity } from "../types";
 import { SalesActivityData, useGetSalesActivities } from "../queries/OpportunityActivityQueries";
 import { CrmNoteData, useGetCrmNotes } from "../queries/CrmNoteQueries";
+import { SalesTaskData, useGetSalesTasks } from "../queries/OpportunityTaskQueries";
 
 
 const taskDescription = "You are an assistant that summarises CRM opportunity timelines. Provide a concise executive summary in plain language, the total number of activities mentioned, and up to 5 key insights or next steps as an array of strings. Respond strictly in JSON conforming to the provided schema.'"
@@ -29,11 +30,13 @@ type UseAiSummaryReturn = {
     generateSummary: () => Promise<void>
 }
 
-function generateInputData(opportunity: Opportunity, activities: SalesActivityData[], notes: CrmNoteData[]): string {
+function generateInputData(opportunity: Opportunity, activities: SalesActivityData[], notes: CrmNoteData[], tasks: SalesTaskData[]): string {
     let inputData = `
     Opportunity Info: ${JSON.stringify(opportunity)}
     Activities: ${JSON.stringify(activities)}
-    Notes: ${JSON.stringify(notes)}`;
+    Notes: ${JSON.stringify(notes)}
+    Tasks: ${JSON.stringify(tasks)}
+    `;
 
     return inputData;
 }
@@ -44,6 +47,7 @@ export function useAiSummary(opportunityId: string, accessToken: string): UseAiS
     const { opportunity, refetchOpportunityData } = useOpportunityData(opportunityId, accessToken);
     const { fetchSalesActivities } = useGetSalesActivities(accessToken);
     const { fetchCrmNotes } = useGetCrmNotes(accessToken);
+    const { fetchSalesTasks } = useGetSalesTasks(accessToken);
 
     const generateSummary = useCallback(async () => {
         setState({ type: "loading" });
@@ -67,7 +71,13 @@ export function useAiSummary(opportunityId: string, accessToken: string): UseAiS
                 new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             );
 
-            const inputData = generateInputData(opportunity, sortedActivities, sortedNotes);
+            // get task data
+            const tasksResult = await fetchSalesTasks({ opportunityId });
+            const sortedTasks = (tasksResult.SalesTask || []).sort((a, b) => 
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+
+            const inputData = generateInputData(opportunity, sortedActivities, sortedNotes, sortedTasks);
 
             const result = await extractInformation(inputData);
             setState({ type: "success", content: result });
