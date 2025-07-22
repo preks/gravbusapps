@@ -92,7 +92,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
         ...opp,
         id: opp.id || '',
         title: opp.name || '',
-        stageId: opp.stage || FIXED_STAGES[0].id, 
+        stageId: opp.salesPipelineStageRef || FIXED_STAGES[0].id, 
         salesPipelineRef: opp.salesPipelineRef,
         salesPipelineStageRef: opp.salesPipelineStageRef,
         version: opp.version || 0,
@@ -130,17 +130,12 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
       )
     }));
     
-    // Find the stage code for proper API formatting
-    const targetStage = get().stages.find(stage => stage.id === targetStageId);
-    const stageCode = targetStage?.code;
-    
     opportunityClient.updateOpportunityStage(
       opportunityId,
       targetStageId,
       opportunity.version,
       opportunity,
-      accessToken,
-      stageCode
+      accessToken
     ).catch(error => {
       set(state => ({
         opportunities: state.opportunities.map(opp => 
@@ -167,8 +162,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
     
     // Get the target stage opportunities to determine position (add to end)
     const targetStageOpportunities = get().opportunities.filter(op => {
-      const oppStageId = op.salesPipelineStageRef || op.stageId;
-      return oppStageId === targetStageId;
+      return op.salesPipelineStageRef === targetStageId;
     });
     const newPosition = targetStageOpportunities.length;
     
@@ -188,17 +182,12 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
     }));
     
     // Make API call in background
-    // Find the stage code for proper API formatting
-    const targetStage = get().stages.find(stage => stage.id === targetStageId);
-    const stageCode = targetStage?.code;
-    
     opportunityClient.updateOpportunityStage(
       opportunityId,
       targetStageId,
       opportunity.version,
       opportunity,
-      accessToken,
-      stageCode
+      accessToken
     ).catch(error => {
       // Revert on error
       set(state => ({
@@ -229,8 +218,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
     // Get target stage opportunities and insert at specific position
     const targetStageOpportunities = get().opportunities
       .filter(op => {
-        const oppStageId = op.salesPipelineStageRef || op.stageId;
-        return oppStageId === targetStageId && op.id !== opportunityId;
+        return op.salesPipelineStageRef === targetStageId && op.id !== opportunityId;
       })
       .sort((a, b) => (a.position || 0) - (b.position || 0));
     
@@ -252,8 +240,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
     // Optimistic update
     set(state => {
       const otherOpportunities = state.opportunities.filter(op => {
-        const oppStageId = op.salesPipelineStageRef || op.stageId;
-        return oppStageId !== targetStageId && op.id !== opportunityId;
+        return op.salesPipelineStageRef !== targetStageId && op.id !== opportunityId;
       });
       
       return {
@@ -269,17 +256,12 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
     });
     
     // Make API call in background
-    // Find the stage code for proper API formatting
-    const targetStage = get().stages.find(stage => stage.id === targetStageId);
-    const stageCode = targetStage?.code;
-    
     opportunityClient.updateOpportunityStage(
       opportunityId,
       targetStageId,
       opportunity.version,
       opportunity,
-      accessToken,
-      stageCode
+      accessToken
     ).catch(error => {
       // Revert on error
       set(state => ({
@@ -309,8 +291,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
       
       // Update the opportunities array with the new positions
       const updatedOpportunities = state.opportunities.map(opp => {
-        const oppStageId = opp.salesPipelineStageRef || opp.stageId;
-        if (oppStageId === stageId) {
+        if (opp.salesPipelineStageRef === stageId) {
           const reorderedOp = updatedReorderedOps.find(rop => rop.id === opp.id);
           return reorderedOp || opp;
         }
@@ -319,9 +300,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
       
       // Sort opportunities by position within each stage
       const sortedOpportunities = updatedOpportunities.sort((a, b) => {
-        const aStageId = a.salesPipelineStageRef || a.stageId;
-        const bStageId = b.salesPipelineStageRef || b.stageId;
-        if (aStageId === bStageId) {
+        if (a.salesPipelineStageRef === b.salesPipelineStageRef) {
           return (a.position || 0) - (b.position || 0);
         }
         return 0;

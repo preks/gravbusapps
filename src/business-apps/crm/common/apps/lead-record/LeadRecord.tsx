@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo } from "react";
-import { Row, Col, Spin } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import React, { useEffect, useMemo, useState } from "react";
+import { Spinner, Tabs, TabsList, TabsTrigger, TabsContent, Button } from '@newwork/nw-design-system';
+import { ArrowLeftOutlined, UserOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { useLeadData } from "./hooks/useLeadData";
@@ -10,6 +10,7 @@ import { CompanyInformation } from "./components/CompanyInformation";
 import { ContactInformation } from "./components/ContactInformation";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
+import { LeadDocuments } from "./components/LeadDocuments";
 
 
 interface LeadRecordContentProps extends BusinessAppContextProps {
@@ -18,6 +19,7 @@ interface LeadRecordContentProps extends BusinessAppContextProps {
 }
 
 const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, ...props }) => {
+  const [activeTab, setActiveTab] = useState('overview');
   const { lead, leadData, loading, error, leadStatuses, loadingStatuses, refetchLeadData } = useLeadData(leadId, props.accessToken);
 
   const getBackButtonText = () => {
@@ -76,7 +78,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -86,12 +88,13 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
           <p className="gba:text-red-500 gba:text-lg">{error || 'Lead not found'}</p>
-          <button
+          <Button
             onClick={onBack}
-            className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
+            className="gba:mt-4"
+            variant="default"
           >
             {getBackButtonText()}
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -126,38 +129,59 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, .
         />
       )}
 
-      {/* Main content */}
+      {/* Main content with tabs */}
       <div className="gba:lead-details-content" data-testid="lead-details-content">
-        
-        {/* First Row: Company Information + Contacts */}
-        <Row gutter={24} style={{ marginBottom: '24px', display: 'flex', alignItems: 'stretch' }}>
-          {/* Company Information - 3/4 width */}
-          <Col span={18} style={{ display: 'flex' }}>
-            <CompanyInformation lead={lead} leadData={leadData} />
-          </Col>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
+          <TabsList className="gba:bg-white gba:border gba:mb-6">
+            <TabsTrigger value="overview" data-testid="overview-tab">
+              <UserOutlined className="gba:mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="documents" data-testid="documents-tab">
+              <FolderOpenOutlined className="gba:mr-2" />
+              Documents
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Contacts - 1/4 width */}
-          <Col span={6} style={{ display: 'flex' }}>
-            <ContactInformation 
-              leadData={leadData} 
-              leadId={leadId}
-              context={props}
+          <TabsContent value="overview" data-testid="overview-content">
+            {/* First Row: Company Information + Contacts */}
+            <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mb-6">
+              {/* Company Information - 3/4 width */}
+              <div className="gba:col-span-3 gba:flex">
+                <CompanyInformation lead={lead} leadData={leadData} />
+              </div>
+
+              {/* Contacts - 1/4 width */}
+              <div className="gba:col-span-1 gba:flex">
+                <ContactInformation 
+                  leadData={leadData} 
+                  leadId={leadId}
+                  context={props}
+                />
+              </div>
+            </div>
+
+            {/* Second Row: Activity Timeline + Tasks */}
+            <div className="gba:grid gba:grid-cols-2 gba:gap-6">
+              {/* Activity Timeline - 1/2 width */}
+              <div>
+                <ActivityTimeline leadId={leadId} context={props} />
+              </div>
+
+              {/* Tasks - 1/2 width */}
+              <div>
+                <TasksSection leadId={leadId} context={props} />
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="documents" data-testid="documents-content">
+            <LeadDocuments 
+              leadId={leadId} 
+              context={props} 
             />
-          </Col>
-        </Row>
-
-        {/* Second Row: Activity Timeline + Tasks */}
-        <Row gutter={24}>
-          {/* Activity Timeline - 1/2 width */}
-          <Col span={12}>
-            <ActivityTimeline leadId={leadId} context={props} />
-          </Col>
-
-          {/* Tasks - 1/2 width */}
-          <Col span={12}>
-            <TasksSection leadId={leadId} context={props} />
-          </Col>
-        </Row>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

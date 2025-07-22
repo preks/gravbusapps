@@ -16,7 +16,6 @@ export interface Opportunity {
   estimatedAmount?: number;
   winningChance?: number;
   stageId?: string;
-  stage?: string;
   salesPipelineRef?: string;
   salesPipelineStageRef?: string;
   closeDate?: string;
