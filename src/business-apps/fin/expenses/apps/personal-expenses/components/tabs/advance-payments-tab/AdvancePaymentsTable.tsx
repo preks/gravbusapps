@@ -3,6 +3,7 @@ import { Typography, Alert, Spin } from 'antd';
 import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
 import { startProcess } from '@/common/utils/start-process';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
+import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetAdvancePayments, AdvancePayment } from '../../../hooks/useGetAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../../utils';
@@ -20,6 +21,12 @@ const formatCurrency = (value: number): string => {
 export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string;
   onSearchChange?: (search: string) => void;
+  activeFilter?: string[];
+  onFilterChange?: (filter: string[]) => void;
+  onClearFilters?: () => void;
+  filterGroups?: any[];
+  handleFilterChange?: (filterId: string, selected: boolean) => void;
+  filterLabelMap?: Record<string, string>;
 }
 
 const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
@@ -36,6 +43,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   const [selectedItem, setSelectedItem] = useState<AdvancePayment | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
+  // Use filter props from parent with stable references
+  const currentStatusFilter = useMemo(() => props.activeFilter || [], [props.activeFilter]);
+  const filterGroups = useMemo(() => props.filterGroups || [], [props.filterGroups]);
+  const filterLabelMap = useMemo(() => props.filterLabelMap || {}, [props.filterLabelMap]);
+
   // Sync search with parent component
   useEffect(() => {
     if (props.search !== undefined && props.search !== searchText) {
@@ -47,10 +59,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
 
   // Initial data load
   useEffect(() => {
-    if (contextProps.accessToken && items.length === 0) {
+    if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
       fetchItems(searchText, currentPage, pageSize);
     }
-  }, [contextProps.accessToken]);
+  }, [contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId, fetchItems]);
 
   // Create a memoized setSearch function to prevent re-renders
   const handleSearchChange = useCallback((value: string) => {
@@ -64,10 +76,26 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     }
   }, [fetchItems, pageSize, props.onSearchChange]);
   
-  // Create a memoized setFilter function to prevent re-renders
-  const handleFilterChange = useCallback(() => {
-    // This is empty as we're handling filters separately
-  }, []);
+  // Handle filter changes with debouncing to prevent infinite loops
+  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
+    if (props.handleFilterChange) {
+      props.handleFilterChange(filterId, selected);
+    }
+  }, [props.handleFilterChange]);
+
+  // Handle clearing all filters
+  const handleClearFilters = useCallback(() => {
+    if (props.onClearFilters) {
+      props.onClearFilters();
+    }
+  }, [props.onClearFilters]);
+
+  // Handle filter changes - only trigger when filters actually change
+  useEffect(() => {
+    if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
+      fetchItems(searchText, 1, pageSize, currentStatusFilter);
+    }
+  }, [currentStatusFilter, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId, searchText, pageSize, fetchItems]);
   
   // Handle adding a new advance payment
   const handleAddAdvancePayment = useCallback(() => {
@@ -294,19 +322,40 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     <DataContainer
       dataControllerProps={{
         search: searchText,
-        filter: [],
+        filter: currentStatusFilter,
         setSearch: handleSearchChange,
-        setFilter: handleFilterChange,
+        setFilter: (newFilters) => {
+          if (props.onFilterChange) {
+            props.onFilterChange(newFilters as string[]);
+          }
+        },
         addButton: {
           onClick: handleAddAdvancePayment,
           label: 'Add',
           'data-testid': 'add-advance-payment-button'
         },
         listTitle: "My Advance Payments",
-        listAmount: totalCount ? `${totalCount}` : undefined
+        listAmount: totalCount ? `${totalCount}` : undefined,
+        filterLabelMap: filterLabelMap,
+        actions: currentStatusFilter.length > 0 ? (
+          <button
+            onClick={handleClearFilters}
+            className="gba:px-3 gba:py-1 gba:text-sm gba:text-gray-600 gba:hover:text-gray-800 gba:border gba:border-gray-300 gba:rounded gba:hover:bg-gray-50"
+            data-testid="clear-filters-button"
+          >
+            Clear Filters
+          </button>
+        ) : undefined,
       }}
-      dataFilterProps={{}}
-      hideFilter={true}
+      dataFilterProps={{
+        filterGroups: filterGroups,
+        onFilterChange: (filterId: string, selected: boolean) => {
+          if (props.handleFilterChange) {
+            props.handleFilterChange(filterId, selected);
+          }
+        }
+      }}
+      hideFilter={false}
       dataBody={renderDataBody()}
       contentBackground="white"
       dataDetails={selectedItem ? {
