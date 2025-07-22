@@ -1,5 +1,5 @@
 import React from 'react';
-import { ClockCircleOutlined, FileOutlined, DollarOutlined } from '@ant-design/icons';
+import { Clock, FileText, CurrencyEur } from '@phosphor-icons/react';
 import { ExpenseRequestStatisticsData } from '../../../hooks/useGetExpenseRequests';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { formatAmount, formatCurrency } from '../../../utils/currencyUtils';
@@ -29,7 +29,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       title: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.pending_requests_btn', 'Pending Requests'),
       value: requestStats.pendingCount,
       color: '#faad14',
-      prefix: <ClockCircleOutlined />,
+      prefix: <Clock />,
       span: { xs: 24, sm: 12, md: 6, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.waiting_for_approval', 'Waiting for approval')
     },
@@ -38,7 +38,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_amount', 'Pending Amount'),
       value: requestStats.pendingAmount ? formatCurrency(requestStats.pendingAmount, 'EUR') : 'EUR 0,00',
       color: '#faad14',
-      prefix: <DollarOutlined />,
+      prefix: <CurrencyEur />,
       valueIsString: true,
       span: { xs: 24, sm: 12, md: 6, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.total_pending_funds', 'Total pending funds')
@@ -48,7 +48,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.total_requests_submitted', 'Total Requests (Submitted)'),
       value: totalRequests,
       color: '#1890ff',
-      prefix: <FileOutlined />,
+      prefix: <FileText />,
       span: { xs: 24, sm: 12, md: 6, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.all_submitted_requests', 'All submitted requests')
     },
@@ -57,7 +57,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.total_submitted_amount', 'Total Submitted Amount'),
       value: requestStats.totalSubmittedAmount ? formatCurrency(requestStats.totalSubmittedAmount, 'EUR') : 'EUR 0,00',
       color: '#3f8600',
-      prefix: <DollarOutlined />,
+      prefix: <CurrencyEur />,
       valueIsString: true,
       span: { xs: 24, sm: 12, md: 6, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.all_expense_requests', 'All expense requests')

@@ -187,27 +187,32 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
         {/* Left: Filter and Search */}
         <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:shrink-0" data-testid="data-controller-left-section">
           {!hideFilter && (
-            <button
-              className={`gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:flex-none gba:order-0 gba:grow-0 ${
-                showDataFilter
-                  ? "gba:!bg-black gba:text-white"
-                  : "gba:!bg-black/[0.04] gba:text-black"
-              }`}
-              aria-label={
-                showDataFilter ? "Close filter sidebar" : "Open filter sidebar"
-              }
-              onClick={onToggleDataFilter}
-              type="button"
-              data-testid="data-controller-filter-toggle-button"
-            >
-              <div className="gba:w-5 gba:h-5 gba:flex-none order-0 gba:grow-0">
-                {showDataFilter ? (
-                  <PiFunnelSimpleX fill="#fff" size={20} />
-                ) : (
-                  <PiFunnelSimple size={20} />
-                )}
-              </div>
-            </button>
+            <>
+              <button
+                className={`gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:flex-none gba:order-0 gba:grow-0 ${
+                  showDataFilter
+                    ? "gba:!bg-black gba:text-white"
+                    : "gba:!bg-black/[0.04] gba:text-black"
+                }`}
+                aria-label={
+                  showDataFilter ? "Close filter sidebar" : "Open filter sidebar"
+                }
+                onClick={onToggleDataFilter}
+                type="button"
+                data-testid="data-controller-filter-toggle-button"
+              >
+                <div className="gba:w-5 gba:h-5 gba:flex-none order-0 gba:grow-0">
+                  {showDataFilter ? (
+                    <PiFunnelSimpleX fill="#fff" size={20} />
+                  ) : (
+                    <PiFunnelSimple size={20} />
+                  )}
+                </div>
+              </button>
+              <span className="gba:text-sm gba:font-medium gba:text-gray-700" data-testid="data-controller-filter-label">
+                Filter
+              </span>
+            </>
           )}
           {!showSearchInput ? (
             <button
