@@ -323,7 +323,8 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
         processName: 'changeExpenseItem',
         payload: {
           employeeId: contextProps.userInfo.employeeDetails.employeeId
-        }
+        },
+        builderType: 'NATIVE_SCREEN'
       });
     }
   }, [contextProps.userInfo?.employeeDetails?.employeeId]);

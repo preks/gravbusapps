@@ -13,7 +13,10 @@ import {
   PiListNumbers, 
   PiFunction, 
   PiClock, 
-  PiCalendarCheck
+  PiCalendarCheck,
+  PiLightning,
+  PiCalendarX,
+  PiCheckCircle
 } from 'react-icons/pi';
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
@@ -330,9 +333,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
               <div className="gba:space-y-4">
                 {/* Status display */}
                 <div className="gba:flex gba:items-center">
-                  <div className="gba:relative gba:mr-3">
-                    <div className="gba:h-5 gba:w-5 gba:rounded-full gba:bg-green-500"></div>
-                  </div>
+                  <PiCheckCircle className="gba:h-5 gba:w-5 gba:text-green-500 gba:mr-3" data-testid="current-status-icon" />
                   <div>
                     <div className="gba:text-sm gba:font-medium gba:text-gray-900">Current Status</div>
                     <div className="gba:text-sm gba:text-gray-600">Available</div>
@@ -376,7 +377,10 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                 {/* Quick Actions - Only visible when user is viewing their own profile */}
                 {currentUserEmployeeId && currentUserEmployeeId === employee.id && (
                   <div className="gba:mt-4 gba:border-t gba:border-gray-200 gba:pt-4">
-                    <h3 className="gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-3" data-testid="quick-actions-heading">Quick Actions</h3>
+                    <div className="gba:flex gba:items-center gba:mb-3">
+                      <PiLightning className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                      <div className="gba:text-sm gba:font-medium gba:text-gray-900" data-testid="quick-actions-heading">Quick Actions</div>
+                    </div>
                     <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:w-full">
                       <Button 
                           type="default" 
@@ -419,7 +423,10 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                 {/* Upcoming Absence Section */}
                 {upcomingAbsence && (
                   <div className="gba:mt-4 gba:border-t gba:border-gray-200 gba:pt-4" data-testid="upcoming-absence-section">
-                    <h3 className="gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-3" data-testid="upcoming-absence-heading">Next Planned Absence</h3>
+                    <div className="gba:flex gba:items-center gba:mb-3">
+                      <PiCalendarX className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
+                      <div className="gba:text-sm gba:font-medium gba:text-gray-900" data-testid="upcoming-absence-heading">Next Planned Absence</div>
+                    </div>
                     <div className="gba:bg-gray-50 gba:p-3 gba:rounded gba:border gba:border-gray-200">
                       <div className="gba:flex gba:justify-between gba:items-center">
                         <div>

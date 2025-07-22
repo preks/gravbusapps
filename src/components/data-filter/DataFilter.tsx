@@ -147,7 +147,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
   return (
     <aside
       className={cn(
-        "gba:flex gba:flex-row gba:items-start gba:w-[336px] gba:h-full gba:pr-6 gba:relative",
+        "gba:flex gba:flex-row gba:items-start gba:w-[336px] gba:h-full gba:pl-6 gba:pr-6 gba:relative",
         className
       )}
       data-testid="data-filter-sidebar"
@@ -159,24 +159,22 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
           data-testid="data-filter-form"
         >
           <div className="gba:min-w-0 gba:w-full gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-1 gba:gap-4" data-testid="data-filter-header">
-            <div className="gba:flex gba:items-center gba:gap-4">
+            <div className="gba:flex gba:items-baseline gba:gap-2">
               {!showSearchInput ? (
                 <>
-                  <div className="gba:flex gba:flex-col gba:items-start gba:p-0 gba:w-8 gba:h-8 gba:relative">
-                    <button
-                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:!bg-black/[0.04] gba:rounded gba:hover:bg-gray-100/80 gba:transition-colors"
-                      type="button"
-                      aria-label="Search filters"
-                      onClick={handleSearchClick}
-                      data-testid="data-filter-search-toggle-button"
-                    >
-                      <PiMagnifyingGlass
-                        size={20}
-                        className="gba:text-black"
-                        aria-hidden="true"
-                      />
-                    </button>
-                  </div>
+                  <button
+                    className="gba:flex gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:!bg-black/[0.04] gba:rounded gba:hover:bg-gray-100/80 gba:transition-colors gba:leading-none"
+                    type="button"
+                    aria-label="Search filters"
+                    onClick={handleSearchClick}
+                    data-testid="data-filter-search-toggle-button"
+                  >
+                    <PiMagnifyingGlass
+                      size={16}
+                      className="gba:text-black"
+                      aria-hidden="true"
+                    />
+                  </button>
                   <span className="gba:text-base gba:font-medium gba:text-gray-900" data-testid="data-filter-title">
                     Filter
                   </span>

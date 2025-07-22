@@ -1,6 +1,6 @@
-import React from "react";
-import { Row, Col, Spin } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import React, { useState } from "react";
+import { Spinner, Tabs, TabsList, TabsTrigger, TabsContent, Button } from '@newwork/nw-design-system';
+import { ArrowLeftOutlined, UserOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { useOpportunityData } from "./hooks/useOpportunityData";
@@ -9,6 +9,8 @@ import { CompanyInformation } from "./components/CompanyInformation";
 import { ContactInformation } from "./components/ContactInformation";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
+import { StageProgression } from "./components/StageProgression";
+import { OpportunityDocuments } from "./components/OpportunityDocuments";
 
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
@@ -18,6 +20,7 @@ interface OpportunityRecordContentProps extends BusinessAppContextProps {
 }
 
 const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opportunityId, onBack, getBackButtonText, ...props }) => {
+  const [activeTab, setActiveTab] = useState('overview');
   const { 
     opportunity, 
     opportunityData, 
@@ -27,13 +30,14 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
     opportunityStatuses,
     loadingStages,
     loadingStatuses,
+    stagesError,
     refetchOpportunityData
   } = useOpportunityData(opportunityId, props.accessToken);
 
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -43,12 +47,13 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
           <p className="gba:text-red-500 gba:text-lg">{error || 'Opportunity not found'}</p>
-          <button
+          <Button
             onClick={onBack}
-            className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
+            className="gba:mt-4"
+            variant="default"
           >
             {getBackButtonText()}
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -75,37 +80,92 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
         accessToken={props.accessToken} 
       />
 
+      {/* Stage Progression - Show filtered pipeline stages */}
+      {!loadingStages && !stagesError && opportunityStages.length > 0 && opportunityData?.salesPipelineRef && (
+        <StageProgression 
+          currentStage={opportunityData?.salesPipelineStage?.value || 'Discovery'} 
+          stages={opportunityStages}
+          opportunityId={opportunityId}
+          opportunityVersion={parseInt(opportunity.version) || 0}
+          accessToken={props.accessToken}
+          onStageUpdate={refetchOpportunityData}
+        />
+      )}
+
+      {/* Show stages loading */}
+      {loadingStages && (
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <Spinner size="sm" />
+          <span style={{ marginLeft: '8px' }}>Loading pipeline stages...</span>
+        </div>
+      )}
+
+      {/* Show stages error */}
+      {stagesError && (
+        <div style={{ textAlign: 'center', padding: '20px', color: '#ff4d4f' }}>
+          <p>Failed to load pipeline stages: {stagesError}</p>
+        </div>
+      )}
+
+      {/* Show info when no salesPipelineRef */}
+      {!opportunityData?.salesPipelineRef && !loadingStages && (
+        <div style={{ textAlign: 'center', padding: '20px', color: '#8c8c8c' }}>
+          <p>No sales pipeline assigned to this opportunity</p>
+        </div>
+      )}
+
       <div className="gba:opportunity-details-content" data-testid="opportunity-details-content">
-        
-        <Row gutter={24} style={{ marginBottom: '24px', display: 'flex', alignItems: 'stretch' }}>
-          <Col span={18} style={{ display: 'flex' }}>
-            <CompanyInformation opportunity={opportunity} opportunityData={opportunityData} />
-          </Col>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
+          <TabsList className="gba:bg-white gba:border gba:mb-6">
+            <TabsTrigger value="overview" data-testid="overview-tab">
+              <UserOutlined className="gba:mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="documents" data-testid="documents-tab">
+              <FolderOpenOutlined className="gba:mr-2" />
+              Documents
+            </TabsTrigger>
+          </TabsList>
 
-          <Col span={6} style={{ display: 'flex' }}>
-            <ContactInformation 
-              opportunityData={opportunityData} 
-              opportunityId={opportunityId}
-              context={props}
-            />
-          </Col>
-        </Row>
+          <TabsContent value="overview" data-testid="overview-content">
+            <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mb-6">
+              <div className="gba:col-span-3 gba:flex">
+                <CompanyInformation opportunity={opportunity} opportunityData={opportunityData} />
+              </div>
 
-        <Row gutter={24}>
-          <Col span={12}>
-            <ActivityTimeline 
-              opportunityId={opportunityId}
+              <div className="gba:col-span-1 gba:flex">
+                <ContactInformation 
+                  opportunityData={opportunityData} 
+                  opportunityId={opportunityId}
+                  context={props}
+                />
+              </div>
+            </div>
+
+            <div className="gba:grid gba:grid-cols-2 gba:gap-6">
+              <div>
+                <ActivityTimeline 
+                  opportunityId={opportunityId}
+                  context={props} 
+                />
+              </div>
+
+              <div>
+                <TasksSection 
+                  opportunityId={opportunityId}
+                  context={props} 
+                />
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="documents" data-testid="documents-content">
+            <OpportunityDocuments 
+              opportunityId={opportunityId} 
               context={props} 
             />
-          </Col>
-
-          <Col span={12}>
-            <TasksSection 
-              opportunityId={opportunityId}
-              context={props} 
-            />
-          </Col>
-        </Row>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

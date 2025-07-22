@@ -167,7 +167,7 @@ export class OpportunityClient extends RestClient {
       changeMode
     };
 
-    return this.post(`${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveOpportunity`, payload, {
+    return this.post('/customer-relations/saveOpportunity', payload, {
       headers: {
         'Authorization': setAccessTokenToAuthorizationHeader(accessToken),
         'Content-Type': 'application/json'
@@ -176,9 +176,9 @@ export class OpportunityClient extends RestClient {
   }
 
   /**
-   * Updates an opportunity's stage
+   * Updates an opportunity's pipeline stage
    * @param opportunityId The opportunity ID
-   * @param stageId The new stage ID
+   * @param stageId The new stage ID (catalog entry ID)
    * @param version The opportunity version
    * @param opportunityData The existing opportunity data
    * @param accessToken The access token for authentication
@@ -195,7 +195,7 @@ export class OpportunityClient extends RestClient {
     const updatedOpportunity = {
       id: opportunityId,
       version: version,
-      stage: stageId,
+      salesPipelineStageRef: stageId, // Use only catalog entry ID for salesPipelineStageRef (stage field is deprecated)
       ...(opportunityData.name ? { name: opportunityData.name } : {}),
       ...(typeof opportunityData.estimatedAmount !== 'undefined' ? { estimatedAmount: opportunityData.estimatedAmount } : {})
     };

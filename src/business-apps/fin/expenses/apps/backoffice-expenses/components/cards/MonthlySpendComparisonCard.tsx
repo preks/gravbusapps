@@ -1,9 +1,7 @@
 import React from 'react';
-import { Card, Statistic, Spin, Typography, Alert } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system';
+import { getExpenseIconColor } from '../../utils/colorConstants';
 import { MonthlySpendComparison } from '../../types';
-
-const { Text } = Typography;
 
 export interface MonthlySpendComparisonCardProps {
   loading: boolean;
@@ -40,53 +38,51 @@ const MonthlySpendComparisonCard: React.FC<MonthlySpendComparisonCardProps> = ({
     return date.toLocaleString('default', { month: 'long' });
   };
 
-  if (error) {
+  if (loading) {
     return (
-      <Card title="Monthly Spend Comparison" className="gba:bg-blue-50" style={{ height: '100%' }}>
-        <Alert message={`Error: ${error.message}`} type="error" showIcon />
-      </Card>
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-32" data-testid="monthly-spend-comparison-loading">
+        <Spinner size="lg" />
+      </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="gba:p-4" data-testid="monthly-spend-comparison-error">
+        <Alert variant="destructive">
+          <div>
+            <h4 className="gba:font-semibold">Monthly Spend Comparison</h4>
+            <p className="gba:text-sm gba:mt-1">Error: {error.message}</p>
+          </div>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Create KPI card data
+  const kpiCardData: KpiCardData = {
+    id: 'monthly-spend-comparison',
+    title: 'Monthly Spend Comparison',
+    value: Math.abs(percentChange).toFixed(1),
+    suffix: '%',
+    decimalPlaces: 1,
+    footer: `${getCurrentMonthName()}: ${formatCurrency(currentMonthTotal)} (${currentMonthCount} expenses) | ${getPreviousMonthName()}: ${formatCurrency(previousMonthTotal)} (${previousMonthCount} expenses)`,
+    trend: {
+      value: Math.abs(percentChange).toFixed(1),
+      positive: !isIncrease,
+      description: isIncrease ? 'increase vs last month' : 'decrease vs last month'
+    },
+    icon: 'calendar',
+          iconColor: getExpenseIconColor.monthlyComparison(isIncrease)
+  };
+
   return (
-    <Card title="Monthly Spend Comparison" className="gba:bg-blue-50" style={{ height: '100%' }}>
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          <Spin size="large" />
-        </div>
-      ) : (
-        <>
-          <Statistic
-            title={`${getCurrentMonthName()} vs ${getPreviousMonthName()}`}
-            value={percentChange}
-            precision={2}
-            valueStyle={{ color: isIncrease ? '#cf1322' : '#3f8600' }}
-            prefix={isIncrease ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
-            suffix="%"
-          />
-
-          <div className="gba:mt-2">
-            <Text strong>{getCurrentMonthName()}: </Text>
-            <Text>
-              {formatCurrency(currentMonthTotal)} ({currentMonthCount} expenses)
-            </Text>
-          </div>
-
-          <div className="gba:mt-1">
-            <Text strong>{getPreviousMonthName()}: </Text>
-            <Text>
-              {formatCurrency(previousMonthTotal)} ({previousMonthCount} expenses)
-            </Text>
-          </div>
-
-          <div className="gba:mt-2 gba:text-xs gba:text-gray-500">
-            {isIncrease
-              ? `Spending increased by ${formatCurrency(currentMonthTotal - previousMonthTotal)} compared to last month`
-              : `Spending decreased by ${formatCurrency(previousMonthTotal - currentMonthTotal)} compared to last month`}
-          </div>
-        </>
-      )}
-    </Card>
+    <div data-testid="monthly-spend-comparison-card">
+      <SectionKpiCards 
+        cards={[kpiCardData]} 
+        data-testid="monthly-spend-comparison-kpi-cards"
+      />
+    </div>
   );
 };
 

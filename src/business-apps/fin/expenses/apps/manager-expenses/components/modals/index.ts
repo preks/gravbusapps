@@ -1,3 +1,1 @@
-export { default as ApprovalsModal } from './ApprovalsModal';
-export { default as ExpenseReportsModal } from './ExpenseReportsModal';
-export { default as TeamSpendingAnalyticsModal } from './TeamSpendingAnalyticsModal';
+// Modal exports - TeamSpendingAnalyticsModal removed, now using TeamSpendingAnalyticsPage
