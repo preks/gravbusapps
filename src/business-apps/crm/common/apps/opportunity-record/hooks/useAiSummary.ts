@@ -7,7 +7,11 @@ import { GET_OPPORTUNITY_BY_ID, GetOpportunityByIdResponse } from "../queries/Ge
 import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
 
 
-const taskDescription = "You are an assistant that summarises CRM opportunity timelines. Provide a concise executive summary in plain language, the total number of activities mentioned, and up to 5 key insights or next steps as an array of strings. Respond strictly in JSON conforming to the provided schema.'"
+const taskDescription = `You are an assistant that summarises CRM opportunity timelines. 
+Provide a concise executive summary in plain language, the total number of activities mentioned, 
+and up to 5 key insights or next steps as an array of strings. 
+Respond strictly in JSON conforming to the provided schema.`
+
 const summarySchema = z.object({
     summary: z.string().describe("A concise executive summary in plain language"),
     keyInsights: z.array(z.string()).describe("Up to 5 key insights or next steps"),
