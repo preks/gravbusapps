@@ -38,9 +38,9 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
   } = useSalesPipelineStages(opportunityData?.salesPipelineRef, accessToken);
   
   // Initialize the new query hooks
-  const { fetchSalesActivities } = useGetSalesActivities({ accessToken });
-  const { fetchSalesTasks } = useGetSalesTasks({ accessToken });
-  const { fetchCrmNotes } = useGetCrmNotes({ accessToken });
+  const { fetchSalesActivities } = useGetSalesActivities(accessToken);
+  const { fetchSalesTasks } = useGetSalesTasks(accessToken);
+  const { fetchCrmNotes } = useGetCrmNotes(accessToken);
   const { fetchCrmDocuments } = useGetCrmDocuments({ accessToken });
 
   const fetchOpportunityData = async () => {
