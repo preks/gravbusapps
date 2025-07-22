@@ -12,7 +12,9 @@ import {
   PiPencilSimple,
   PiVideoCamera,
   PiChat,
-  PiCurrencyDollar
+  PiCurrencyDollar,
+  PiGlobeHemisphereWest,
+  PiBookmarks
 } from 'react-icons/pi';
 import { Avatar } from '@newwork/gravity-ui-catalog';
 import { Employee } from '../hooks/useEmployeeData';
@@ -26,6 +28,8 @@ import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat';
 import { useEmployeeWorkCommunications, WorkCommunication } from '../hooks/useEmployeeWorkCommunications';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { notification } from 'antd';
+import { StarIcon } from "lucide-react";
+import { TeamOutlined } from "@ant-design/icons";
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -63,6 +67,34 @@ interface ProfileInfoItemProps {
   linkTo?: string;
   onClick?: () => void;
 }
+
+interface TagItemProps {
+  icon: React.ReactNode;
+  label: string;
+  bgColorClass: string;
+  textColorClass?: string;
+  borderColorClass?: string;
+  testId?: string;
+}
+
+const TagItem: React.FC<TagItemProps> = ({
+  icon,
+  label,
+  bgColorClass,
+  textColorClass = 'gba:text-gray-800',
+  borderColorClass = '',
+  testId,
+}) => {
+  return (
+    <span
+      className={`gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium ${bgColorClass} ${textColorClass} ${borderColorClass}`}
+      data-testid={testId}
+    >
+      {icon && <span className="gba:mr-2">{icon}</span>}
+      {label}
+    </span>
+  );
+};
 
 const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
   icon,
@@ -136,6 +168,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
   employee,
   accessToken,
 }) => {
+
   // Translation helper
   const t = (key: string) => getTranslationFromI18nKeyAndLabel(key, key);
   const [isHovering, setIsHovering] = useState(false);
@@ -417,7 +450,17 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                       : undefined
                   }
                 />
-
+ 
+                {/* Location */}
+                <ProfileInfoItem
+                  data-testid="employee-location-info"
+                  icon={<PiGlobeHemisphereWest className="gba:h-4 gba:w-4" />}
+                  label={"Location"}
+                  value={
+                    employee.employeePosition?.siteLocation?.name ||
+                    "Not assigned"
+                  }
+                />
                 {/* Email */}
                   <ProfileInfoItem
                     icon={<PiEnvelopeSimple className="gba:h-4 gba:w-4" />}
@@ -510,96 +553,93 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
               {employee.employeePosition?.matrixUnitEmployees &&
                 employee.employeePosition.matrixUnitEmployees.length > 0 && (
                   <div className="gba:mt-6">
-                    <h3 className="gba:text-sm gba:font-semibold gba:mb-2 gba:text-gray-700">
-                      {"Teams"}
-                    </h3>
-                    <div className="gba:flex gba:flex-wrap gba:gap-2">
-                      {employee.employeePosition.matrixUnitEmployees.map(
-                        (teamItem: MatrixUnitEmployee) => (
-                          <span
-                            key={teamItem.matrixUnit.id}
-                            className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-blue-100 gba:text-blue-800"
-                          >
-                            {teamItem.matrixUnit.name}
-                          </span>
-                        )
-                      )}
+                    <div className="gba:flex gba:items-start gba:p-1">
+                      <div className="gba:flex-1">
+                        <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Teams</div>
+                        <div className="gba:text-sm gba:text-gray-700">
+                          <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
+                            {employee.employeePosition.matrixUnitEmployees.map(
+                              (teamItem: MatrixUnitEmployee) => (
+                                <TagItem
+                                  key={teamItem.matrixUnit.id}
+                                  icon={<TeamOutlined className="gba:h-4 gba:w-4 gba:text-gray-500" />}
+                                  label={teamItem.matrixUnit.name}
+                                  bgColorClass="gba:bg-blue-100"
+                                  textColorClass="gba:text-blue-800"
+                                  testId={`team-${teamItem.matrixUnit.id}`}
+                                />
+                              )
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
 
-              {/* Capabilities Section - if available */}
-              {employee.employeePosition?.employeeCapabilities &&
-                employee.employeePosition.employeeCapabilities.length > 0 && (
-                  <div className="gba:mt-4">
-                    <h3 className="gba:text-sm gba:font-semibold gba:mb-2 gba:text-gray-700">
-                      {"Capabilities"}
-                    </h3>
-                    <div className="gba:flex gba:flex-wrap gba:gap-2">
-                      {employee.employeePosition.employeeCapabilities.map(
-                        (capItem: EmployeeCapability) => (
-                          <span
-                            key={capItem.capability?.id}
-                            className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-green-100 gba:text-green-800"
-                          >
-                            {capItem.capability?.name}
-                          </span>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-
-              {/* Skills Section - if available */}
-              {employee.skills?.length > 0 && (
-                <div className="gba:mt-4">
-                  <h3 className="gba:text-sm gba:font-semibold gba:mb-2 gba:text-gray-700">
-                    {"Skills"}
-                  </h3>
-                  <div className="gba:flex gba:flex-wrap gba:gap-2">
-                    {employee.skills.map((skillItem: EmployeeSkill) => (
-                      <span
-                        key={skillItem.skill.id}
-                        className={`gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium ${
-                          skillItem.level === "Advanced"
-                            ? "gba:bg-purple-100 gba:text-purple-800"
-                            : "gba:bg-gray-100 gba:text-gray-800"
-                        }`}
-                      >
-                        {skillItem.skill.name}
-                        {skillItem.level === "Advanced" && (
-                          <span className="gba:ml-1 gba:text-xs gba:font-semibold">
-                            ★
+              {/* Capabilities Section - always displayed */}
+              <div className="gba:mt-6 gba:grid gba:grid-cols-1 gba:gap-4 gba:w-full" data-testid="capabilities-section">
+                <div className="gba:flex gba:items-start">
+                  <div className="gba:flex-1">
+                    <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Capabilities</div>
+                    <div className="gba:text-sm gba:text-gray-700">
+                      <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
+                        {employee.employeePosition?.employeeCapabilities && 
+                         employee.employeePosition.employeeCapabilities.filter(cap => cap.capability).length > 0 ? (
+                          employee.employeePosition.employeeCapabilities
+                            .filter(capItem => capItem.capability)
+                            .map((capItem: EmployeeCapability) => (
+                              <TagItem
+                                key={capItem.capability!.id}
+                                icon={<PiBookmarks className="gba:h-4 gba:w-4 gba:text-gray-500" />}
+                                label={capItem.capability!.name}
+                                bgColorClass="gba:bg-green-100"
+                                textColorClass="gba:text-green-800"
+                                testId={`capability-${capItem.capability!.id}`}
+                              />
+                            ))
+                        ) : (
+                          <span className="gba:text-gray-500 gba:text-sm gba:text-left gba:block" data-testid="no-capabilities-message">
+                            No capabilities assigned
                           </span>
                         )}
-                      </span>
-                    ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              )}
-
-              {/* Contact Info */}
-              <div className="gba:mt-4 gba:flex gba:flex-col gba:gap-2">
-                {getBusinessEmail() && (
-                  <a
-                    href={`mailto:${getBusinessEmail()}`}
-                    className="gba:inline-flex gba:items-center gba:text-blue-600 gba:hover:text-blue-800 gba:transition-colors gba:text-sm"
-                  >
-                    <PiEnvelopeSimple className="gba:mr-2 gba:h-4 gba:w-4" />
-                    {getBusinessEmail()}
-                  </a>
-                )}
-
-                {getBusinessPhone() && (
-                  <a
-                    href={`tel:${getBusinessPhone()}`}
-                    className="gba:inline-flex gba:items-center gba:text-blue-600 gba:hover:text-blue-800 gba:transition-colors gba:text-sm"
-                  >
-                    <PiPhone className="gba:mr-2 gba:h-4 gba:w-4" />
-                    {getBusinessPhone()}
-                  </a>
-                )}
               </div>
+
+              {/* Skills Section - always displayed */}
+              <div className="gba:mt-6 gba:grid gba:grid-cols-1 gba:gap-4 gba:w-full" data-testid="skills-section">
+                <div className="gba:flex gba:items-start">
+                  <div className="gba:flex-1">
+                    <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Skills</div>
+                    <div className="gba:text-sm gba:text-gray-700">
+                      <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
+                        {employee.skills?.filter(skill => skill.skill).length > 0 ? (
+                          employee.skills
+                            .filter(skillItem => skillItem.skill)
+                            .map((skillItem: EmployeeSkill) => (
+                              <TagItem
+                                key={skillItem.skill.id}
+                                icon={<StarIcon className="gba:h-4 gba:w-4 gba:text-gray-500" />}
+                                label={skillItem.skill.name}
+                                bgColorClass="gba:bg-purple-100"
+                                textColorClass="gba:text-purple-800"
+                                testId={`skill-${skillItem.skill.id}`}
+                              />
+                            ))
+                        ) : (
+                          <span className="gba:text-gray-500 gba:text-sm gba:text-left gba:block" data-testid="no-skills-message">
+                            No skills assigned
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            
             </div>
           </div>
         </div>
