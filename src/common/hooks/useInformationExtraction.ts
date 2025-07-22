@@ -1,9 +1,23 @@
 import * as z from "zod";
 import { env } from "../env/EnvUtils";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 type AvailableLlmModels = "gpt-4.1";
+
+export type InformationExtractionState<T> = {
+    type: "loading"
+} | {
+    type: "error"
+} | {
+    type: "success"
+    content: T
+};
+
+export type UseInformationExtractionReturn<T> = {
+    state: InformationExtractionState<T> | null
+    generateSummary: () => Promise<void>
+}
 
 /**
  * React hook that prepares and memoises the information-extraction request.
@@ -18,8 +32,11 @@ type AvailableLlmModels = "gpt-4.1";
 export default function useInformationExtraction<T>(
   taskDescription: string,
   responseModel: z.ZodType<T>,
+  generateInputData: () => Promise<string>,
   llmModel: AvailableLlmModels = "gpt-4.1",
-) {
+): UseInformationExtractionReturn<T> {
+  const [state, setState] = useState<InformationExtractionState<T> | null>(null);
+
   // Memoise values that do not change between invocations of the returned function
   const endpointUrl = useMemo(() => `${env("NEXT_PUBLIC_BASE_URL")}/flowbot/information-extraction/extract_information`, []);
   const outputJsonSchema = useMemo(() => z.toJSONSchema(responseModel), [responseModel]);
@@ -54,5 +71,20 @@ export default function useInformationExtraction<T>(
     [endpointUrl, llmModel, outputJsonSchema, responseModel, taskDescription],
   );
 
-  return extractInformation;
+  const generateSummary = useCallback(async () => {
+    setState({ type: "loading" });
+
+    // Fetch input data
+    const inputData = await generateInputData();
+
+    // Extract information
+    try {
+      const result = await extractInformation(inputData);
+      setState({ type: "success", content: result });
+    } catch (e) {
+      setState({ type: "error" });
+    }
+  }, [extractInformation, generateInputData, setState]);
+
+  return { state, generateSummary };
 }
