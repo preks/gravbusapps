@@ -59,7 +59,7 @@ const InvestmentForm: React.FC<BusinessAppContextProps & InvestmentFormProps> = 
       }
 
       // Log success
-      console.log('Investment saved successfully:', result.data);
+
 
       // Call the provided onSubmit handler if available
       if (onSubmit) {
@@ -120,7 +120,7 @@ const InvestmentForm: React.FC<BusinessAppContextProps & InvestmentFormProps> = 
       }
 
       // Log success
-      console.log('Investment deleted successfully:', result.data);
+      
 
       // Call the provided onDelete handler if available
       if (onDelete) {

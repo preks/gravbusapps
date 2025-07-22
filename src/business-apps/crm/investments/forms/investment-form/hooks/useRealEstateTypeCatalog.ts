@@ -63,8 +63,6 @@ export const useRealEstateTypeCatalog = ({
         );
 
         const mappedOptions: SelectOption[] = response.data.map((entry: any) => {
-          console.log("Real estate type catalog entry:", entry);
-
           // Create the reference format: RealEstateType:v1:CODE
           const referenceValue = `${catalogIdentifier}:${version}:${entry.code || entry.id}`;
 
@@ -75,8 +73,6 @@ export const useRealEstateTypeCatalog = ({
             value: referenceValue, // Use reference format instead of just ID
           };
         });
-
-        console.log("Real estate type mapped options:", mappedOptions);
 
         const totalRecords = response.paging?.totalRecords || 0;
         const newOffset = offset + pageSize;

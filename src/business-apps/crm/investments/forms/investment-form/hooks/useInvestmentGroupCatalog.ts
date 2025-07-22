@@ -63,8 +63,6 @@ export const useInvestmentGroupCatalog = ({
         );
 
         const mappedOptions: SelectOption[] = response.data.map((entry: any) => {
-          console.log("Investment group catalog entry:", entry);
-
           // Create the reference format: InvestmentGroup:v1:CODE
           const referenceValue = `${catalogIdentifier}:${version}:${entry.code || entry.id}`;
 
@@ -75,8 +73,6 @@ export const useInvestmentGroupCatalog = ({
             value: referenceValue, // Use reference format instead of just ID
           };
         });
-
-        console.log("Investment group mapped options:", mappedOptions);
 
         const totalRecords = response.paging?.totalRecords || 0;
         const newOffset = offset + pageSize;

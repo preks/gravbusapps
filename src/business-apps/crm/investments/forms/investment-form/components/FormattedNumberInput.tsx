@@ -14,17 +14,7 @@ interface FormattedNumberInputProps {
   'data-testid'?: string;
 }
 
-// Wrapper for onChange to add debugging
-const createDebugOnChange = (name: string, originalOnChange: (value: string) => void) => {
-  return (value: string) => {
-    console.log(`FormattedNumberInput[${name}] - onChange called with:`, {
-      value,
-      valueType: typeof value,
-      asNumber: parseFloat(value)
-    });
-    originalOnChange(value);
-  };
-};
+
 
 const FormattedNumberInput: React.FC<FormattedNumberInputProps> = ({
   name,
@@ -46,7 +36,7 @@ const FormattedNumberInput: React.FC<FormattedNumberInputProps> = ({
   const locale = getCurrentActiveUserLocale() || 'en-US';
   
   // Create debug wrapper for onChange
-  const debugOnChange = createDebugOnChange(name, onChange);
+
 
   // Format number for display using user's locale
   const formatNumber = (num: number): string => {
@@ -62,8 +52,6 @@ const FormattedNumberInput: React.FC<FormattedNumberInputProps> = ({
       return '';
     }
 
-    console.log('Parsing value:', formattedValue);
-
     // Simple approach: use the browser's built-in parsing with locale
     // This avoids manual separator detection which can cause issues
     const cleaned = formattedValue.replace(/[^\d.,-]/g, ''); // Keep only digits, dots, commas, and minus
@@ -72,8 +60,6 @@ const FormattedNumberInput: React.FC<FormattedNumberInputProps> = ({
     const parts = new Intl.NumberFormat(locale).formatToParts(1234.56);
     const decimalSeparator = parts.find(part => part.type === 'decimal')?.value || '.';
     const groupSeparator = parts.find(part => part.type === 'group')?.value || ',';
-    
-    console.log('Detected separators - decimal:', decimalSeparator, 'group:', groupSeparator);
     
     let normalized = cleaned;
     
@@ -90,33 +76,22 @@ const FormattedNumberInput: React.FC<FormattedNumberInputProps> = ({
       }
     }
     
-    console.log('Normalized result:', normalized);
+
     
     return normalized;
   };
 
   // Update display value when prop value changes
   useEffect(() => {
-    console.log(`FormattedNumberInput[${name}] - useEffect triggered:`, {
-      value,
-      valueType: typeof value,
-      isFocused,
-      locale
-    });
-    
     if (!isFocused) {
       const numValue = typeof value === 'string' ? parseFloat(value) : value;
-      console.log(`FormattedNumberInput[${name}] - parsed number:`, numValue);
       
       if (!isNaN(numValue) && numValue !== 0) {
         const formatted = formatNumber(numValue);
-        console.log(`FormattedNumberInput[${name}] - formatting ${numValue} to:`, formatted);
         setDisplayValue(formatted);
       } else if (value === '' || value === '0' || value === 0) {
-        console.log(`FormattedNumberInput[${name}] - empty/zero value`);
         setDisplayValue('');
       } else {
-        console.log(`FormattedNumberInput[${name}] - fallback to string:`, String(value));
         setDisplayValue(String(value));
       }
     }
@@ -143,11 +118,6 @@ const FormattedNumberInput: React.FC<FormattedNumberInputProps> = ({
   const handleBlur = () => {
     setIsFocused(false);
     
-    console.log(`FormattedNumberInput[${name}] - Blur event:`, {
-      displayValue,
-      originalValue: value
-    });
-    
     // Simplified approach: remove common formatting and parse
     let cleanValue = displayValue;
     
@@ -157,9 +127,8 @@ const FormattedNumberInput: React.FC<FormattedNumberInputProps> = ({
     // Try direct parse first (for simple numbers like "1000", "1234.56")
     let directParse = parseFloat(cleanValue);
     if (!isNaN(directParse)) {
-      console.log(`FormattedNumberInput[${name}] - Direct parse successful:`, directParse);
       setDisplayValue(formatNumber(directParse));
-      debugOnChange(String(directParse));
+      onChange(String(directParse));
       return;
     }
     
@@ -182,24 +151,15 @@ const FormattedNumberInput: React.FC<FormattedNumberInputProps> = ({
     }
     
     const parsedValue = parseFloat(normalized);
-    console.log(`FormattedNumberInput[${name}] - Parse steps:`, {
-      original: displayValue,
-      cleaned: cleanValue,
-      normalized,
-      parsedValue
-    });
     
          if (!isNaN(parsedValue)) {
-       console.log(`FormattedNumberInput[${name}] - Parse successful:`, parsedValue);
        setDisplayValue(formatNumber(parsedValue));
-       debugOnChange(String(parsedValue));
+       onChange(String(parsedValue));
      } else if (normalized === '' || normalized === '0') {
-       console.log(`FormattedNumberInput[${name}] - Empty or zero`);
        setDisplayValue('');
-       debugOnChange('');
+       onChange('');
     } else {
       // Invalid input, revert to previous value
-      console.log(`FormattedNumberInput[${name}] - Invalid input, reverting to:`, value);
       const currentNumValue = typeof value === 'string' ? parseFloat(value) : value;
       if (!isNaN(currentNumValue) && currentNumValue !== 0) {
         setDisplayValue(formatNumber(currentNumValue));
@@ -211,15 +171,13 @@ const FormattedNumberInput: React.FC<FormattedNumberInputProps> = ({
 
   const handleChange = (e: any) => {
     const inputValue = String(e.value || '');
-    console.log(`FormattedNumberInput[${name}] - Input changed to:`, inputValue);
     setDisplayValue(inputValue);
 
     // If user is typing, pass the raw value up without complex parsing
     if (isFocused) {
       // For simple input during typing, just clean up basic characters
       const cleanValue = inputValue.replace(/[^\d.-]/g, '');
-      console.log(`FormattedNumberInput[${name}] - Sending to parent during typing:`, cleanValue);
-      debugOnChange(cleanValue);
+      onChange(cleanValue);
     }
   };
 

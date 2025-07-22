@@ -4,7 +4,7 @@ import { PiBuildings, PiCaretDown, PiCaretUp, PiCurrencyDollar } from 'react-ico
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { useInvestmentFormContext } from '../context/InvestmentFormContext';
 import { toStringOrUndefined, toNumberOrUndefined } from '../utils/validationUtils';
-import { env } from '@/common/env/EnvUtils';
+import { saveInvestment } from '../utils/apiClient';
 import OwnerSelector from './OwnerSelector';
 import FormattedNumberInput from './FormattedNumberInput';
 
@@ -82,21 +82,11 @@ const InvestmentFormComponent: React.FC = () => {
   // Check if this is an update operation
   const isUpdate = Boolean(formValues.id);
 
-  // Debug logging for form values
-  console.log('InvestmentFormComponent render - form values:', formValues);
-  console.log('InvestmentFormComponent render - initialInvestmentAmount field:', formValues.initialInvestmentAmount, typeof formValues.initialInvestmentAmount);
-  
-  // Track changes to initialInvestmentAmount
-  React.useEffect(() => {
-    console.log('InvestmentFormComponent - initialInvestmentAmount changed to:', formValues.initialInvestmentAmount, typeof formValues.initialInvestmentAmount);
-  }, [formValues.initialInvestmentAmount]);
 
-  // Clear section-specific values when investment type changes
+
+  // Clear equity information when investment type changes away from EQUITY
   React.useEffect(() => {
-    const currentGroup = formValues.group;
-    
-    // Clear equity information if not equity type
-    if (currentGroup !== "InvestmentGroup:v1:EQUITY") {
+    if (formValues.group !== "InvestmentGroup:v1:EQUITY") {
       if (formValues.equityRole || formValues.currentCompanyValue || formValues.lastReportedTurnover || formValues.lastReportedEbitda) {
         setFormValues({
           equityRole: '',
@@ -108,41 +98,53 @@ const InvestmentFormComponent: React.FC = () => {
         });
       }
     }
-    
-    // Clear private equity information if not private equity type
-    if (currentGroup !== "InvestmentGroup:v1:PRIVATE_EQUITY") {
+  }, [formValues.group, formValues.equityRole, formValues.currentCompanyValue, formValues.lastReportedTurnover, formValues.lastReportedEbitda, setFormValues]);
+
+  // Clear private equity information when investment type changes away from PRIVATE_EQUITY
+  React.useEffect(() => {
+    if (formValues.group !== "InvestmentGroup:v1:PRIVATE_EQUITY") {
       if (formValues.privateEquityRole) {
         setFormValues({
-          privateEquityRole: ''
+          privateEquityRole: '',
+          privateEquityInvestmentId: '',
+          privateEquityInvestmentVersion: ''
         });
       }
     }
-    
-    // Clear real estate information if not real estate type
-    if (currentGroup !== "InvestmentGroup:v1:REAL_ESTATE") {
+  }, [formValues.group, formValues.privateEquityRole, setFormValues]);
+
+  // Clear real estate information when investment type changes away from REAL_ESTATE
+  React.useEffect(() => {
+    if (formValues.group !== "InvestmentGroup:v1:REAL_ESTATE") {
       if (formValues.realEstateTypeRef || formValues.investmentOwnershipStructureRef || formValues.numberOfUnits || formValues.buildingYear) {
         setFormValues({
           realEstateTypeRef: '',
           investmentOwnershipStructureRef: '',
           numberOfUnits: '',
-          buildingYear: ''
+          buildingYear: '',
+          realEstateInvestmentId: '',
+          realEstateInvestmentVersion: ''
         });
       }
     }
-    
-    // Clear liquid fund information if not liquid fund type
-    if (currentGroup !== "InvestmentGroup:v1:LIQUID_FUND") {
+  }, [formValues.group, formValues.realEstateTypeRef, formValues.investmentOwnershipStructureRef, formValues.numberOfUnits, formValues.buildingYear, setFormValues]);
+
+  // Clear liquid fund information when investment type changes away from LIQUID_FUND
+  React.useEffect(() => {
+    if (formValues.group !== "InvestmentGroup:v1:LIQUID_FUND") {
       if (formValues.accountNumber || formValues.earlyTerminationAllowed || formValues.interestRate || formValues.interestPaymentFrequencyRef || formValues.maturityDate) {
         setFormValues({
           accountNumber: '',
           earlyTerminationAllowed: false,
           interestRate: '',
           interestPaymentFrequencyRef: '',
-          maturityDate: ''
+          maturityDate: '',
+          liquidFundInvestmentId: '',
+          liquidFundInvestmentVersion: ''
         });
       }
     }
-  }, [formValues.group, setFormValues, formValues.equityRole, formValues.currentCompanyValue, formValues.lastReportedTurnover, formValues.lastReportedEbitda, formValues.privateEquityRole, formValues.realEstateTypeRef, formValues.investmentOwnershipStructureRef, formValues.numberOfUnits, formValues.buildingYear, formValues.accountNumber, formValues.earlyTerminationAllowed, formValues.interestRate, formValues.interestPaymentFrequencyRef, formValues.maturityDate]);
+  }, [formValues.group, formValues.accountNumber, formValues.earlyTerminationAllowed, formValues.interestRate, formValues.interestPaymentFrequencyRef, formValues.maturityDate, setFormValues]);
 
   // Find selected account from current suggestions (only when not actively typing)
   useEffect(() => {
@@ -211,123 +213,12 @@ const InvestmentFormComponent: React.FC = () => {
         throw new Error('No access token available. Please refresh the page and try again.');
       }
 
-      // Prepare the investment payload
-      const investmentPayload = {
-        sourceApp: "CRM",
-        ownerEmployee: toStringOrUndefined(formValues.ownerEmployeeId),
-        name: toStringOrUndefined(formValues.name),
-        account: toStringOrUndefined(formValues.accountId),
-        initialInvestmentAmount: toNumberOrUndefined(formValues.initialInvestmentAmount),
-        investmentGroupRef: toStringOrUndefined(formValues.group),
-        version: formValues.version || 0
-      };
-
-      // Add equity information if this is an equity investment
-      const isEquityType = formValues.group === "InvestmentGroup:v1:EQUITY";
-      let equityInvestmentPayload = {};
-      console.log('formValues:', formValues);
-      if (isEquityType) {
-        equityInvestmentPayload = {
-          id: formValues.equityInvestmentId,
-          investmentRoleRef: toStringOrUndefined(formValues.equityRole),
-          currentCompanyValuation: toNumberOrUndefined(formValues.currentCompanyValue),
-          lastReportedTurnover: toNumberOrUndefined(formValues.lastReportedTurnover),
-          lastReportedEbitda: toNumberOrUndefined(formValues.lastReportedEbitda),
-          version: formValues.equityInvestmentVersion || 0
-        };
-      }
-
-      // Add private equity information if this is a private equity investment
-      const isPrivateEquityType = formValues.group === "InvestmentGroup:v1:PRIVATE_EQUITY";
-      let privateEquityInvestmentPayload = {};
-      if (isPrivateEquityType) {
-        privateEquityInvestmentPayload = {
-          id: formValues.privateEquityInvestmentId,
-          investmentRoleRef: toStringOrUndefined(formValues.privateEquityRole),
-          version: formValues.privateEquityInvestmentVersion || 0
-        };
-      }
-
-      // Add real estate information if this is a real estate investment
-      const isRealEstateType = formValues.group === "InvestmentGroup:v1:REAL_ESTATE";
-      let realEstateInvestmentPayload = {};
-      if (isRealEstateType) {
-        realEstateInvestmentPayload = {
-          id: formValues.realEstateInvestmentId,
-          realEstateTypeRef: toStringOrUndefined(formValues.realEstateTypeRef),
-          investmentOwnershipStructureRef: toStringOrUndefined(formValues.investmentOwnershipStructureRef),
-          numberOfUnits: toNumberOrUndefined(formValues.numberOfUnits),
-          buildingYear: toNumberOrUndefined(formValues.buildingYear),
-          version: formValues.realEstateInvestmentVersion || 0
-        };
-      }
-
-      // Add liquid fund information if this is a liquid fund investment
-      const isLiquidFundType = formValues.group === "InvestmentGroup:v1:LIQUID_FUND";
-      let liquidFundInvestmentPayload = {};
-      if (isLiquidFundType) {
-        liquidFundInvestmentPayload = {
-          id: formValues.liquidFundInvestmentId,
-          accountNumber: toStringOrUndefined(formValues.accountNumber),
-          earlyTerminationAllowed: formValues.earlyTerminationAllowed || false,
-          interestRate: toNumberOrUndefined(formValues.interestRate),
-          interestPaymentFrequencyRef: toStringOrUndefined(formValues.interestPaymentFrequencyRef),
-          maturityDate: toStringOrUndefined(formValues.maturityDate),
-          version: formValues.liquidFundInvestmentVersion || 0
-        };
-      }
-
-      // For updates, include the ID and version
-      if (isUpdate) {
-        (investmentPayload as any).id = formValues.id;
-        
-        if (formValues.version !== undefined) {
-          investmentPayload.version = formValues.version;
-        }
-      }
-
-      // Build the base payload with investment data always included
-      const investmentRequest: any = {
-        investment: investmentPayload
-      };
-
-      // Add the specific investment type payload based on the selected type
-      if (isEquityType) {
-        investmentRequest.equityInvestment = equityInvestmentPayload;
-      } else if (isPrivateEquityType) {
-        investmentRequest.privateEquityInvestment = privateEquityInvestmentPayload;
-      } else if (isRealEstateType) {
-        investmentRequest.realEstateInvestment = realEstateInvestmentPayload;
-      } else if (isLiquidFundType) {
-        investmentRequest.liquidFundInvestment = liquidFundInvestmentPayload;
-      }
-
-      const payload = {
-        investmentRequest,
-        changeMode: isUpdate ? "UPDATE" : "INSERT",
-      };
+      // Use the API client to save the investment
+      const apiResponse = await saveInvestment(formValues, businessAppContext.accessToken);
       
-      // Log the payload for debugging
-      console.log(`${isUpdate ? 'Updating' : 'Creating'} investment with payload:`, payload);
-      
-      // Call the API
-      const apiEndpoint = `${env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')}/customer-relations/saveInvestment`;
-      
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${businessAppContext.accessToken}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+      if (!apiResponse.success) {
+        throw new Error(apiResponse.error || 'Failed to save investment');
       }
-
-      const result = await response.json();
-      console.log('Investment saved successfully:', result);
       
       // Call the form's onSubmit handler
       await onSubmit(formValues);

@@ -53,7 +53,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   // Load initial data if value is present but options are empty
   useEffect(() => {
     if (value && options.length === 0 && !loading) {
-      console.log(`SearchableSelect ${name}: Loading initial data for value: ${value}`);
+
       onSearch('');
     }
   }, [value, options.length, loading, onSearch, name]);

@@ -127,24 +127,18 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
       // Spread any additional initial values
       ...initialValues
     };
-    console.log('Initial form state being set:', initialFormValues);
+
     return initialFormValues;
   });
 
-  // Debug when form values change
-  useEffect(() => {
-    console.log('Form values changed:', formValues);
-  }, [formValues]);
+
 
   // Global state
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  // Debug loading state changes
-  useEffect(() => {
-    console.log('Global loading state changed to:', isLoading);
-  }, [isLoading]);
+
 
   // Account autocomplete state
   const [accountSuggestions, setAccountSuggestions] = useState<SelectOption[]>([]);
@@ -196,8 +190,6 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
 
   // Transform investment data to form values
   const transformInvestmentToFormValues = useCallback((investment: InvestmentData): InvestmentFormValues => {
-    console.log('Investment data being transformed:', investment);
-    console.log('Raw initialInvestmentAmount from API:', investment.initialInvestmentAmount, typeof investment.initialInvestmentAmount);
     
     const formValues: InvestmentFormValues = {
       id: investment.id,
@@ -208,24 +200,21 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
       // Direct mapping since field names now match
       initialInvestmentAmount: (() => {
         const amount = investment.initialInvestmentAmount;
-        console.log('Processing amount:', amount, 'type:', typeof amount);
         
         if (amount === null || amount === undefined) {
-          console.log('Amount is null/undefined, returning empty string');
           return '';
         }
         
         // Handle both string and number types, preserve decimal values
         const numValue = typeof amount === 'string' ? parseFloat(amount) : amount;
         const result = isNaN(numValue) ? '' : String(numValue);
-        console.log('Final transformed value:', result);
         return result;
       })(),
       // Use investmentGroupRef for the group field since we're using investmentGroup catalog
       group: investment.investmentGroupRef || ''
     };
 
-    console.log('Transformed initialInvestmentAmount in formValues:', formValues.initialInvestmentAmount);
+
 
     // Add equity information if available
     if (investment.equityInvestment) {
@@ -265,7 +254,6 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
       
       // Handle maturity date format conversion
       const rawMaturityDate = investment.liquidFundInvestment.maturityDate;
-      console.log('Raw maturityDate from API:', rawMaturityDate, 'type:', typeof rawMaturityDate);
       
       if (rawMaturityDate) {
         // Convert date to YYYY-MM-DD format for HTML date input (timezone-safe)
@@ -278,35 +266,21 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
             formattedDate = `${year}-${month}-${day}`;
-            console.log('Formatted maturityDate for form (timezone-safe):', formattedDate);
-          } else {
-            console.warn('Invalid date format for maturityDate:', rawMaturityDate);
           }
-        } catch (error) {
-          console.error('Error parsing maturityDate:', error);
+        } catch {
+          // Handle date parsing errors silently
         }
         formValues.maturityDate = formattedDate;
       } else {
         formValues.maturityDate = '';
       }
-      
-      console.log('Final maturityDate in form values:', formValues.maturityDate);
     }
-
-    console.log('Final transformed form values:', formValues);
 
     return formValues;
   }, [businessAppContext.userInfo?.employeeDetails?.employeeId]);
 
   // Load investment data when investmentId is provided and catalogs are loaded
   useEffect(() => {
-    console.log('Investment data loading useEffect triggered');
-    console.log('Conditions:', {
-      hasId: !!initialValues?.id,
-      hasToken: !!businessAppContext.accessToken,
-      catalogsNotLoading: !investmentGroupsHook.loading,
-      hasOptions: investmentGroupsHook.options.length > 0
-    });
     
     const loadInvestmentData = async () => {
       if (
@@ -315,7 +289,6 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
         !investmentGroupsHook.loading && 
         investmentGroupsHook.options.length > 0
       ) {
-        console.log('Loading investment data for ID:', initialValues.id);
         setIsLoading(true);
         setError(null);
         
@@ -324,9 +297,7 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
           
           if (investmentData) {
             const transformedValues = transformInvestmentToFormValues(investmentData);
-            console.log('About to set form values to:', transformedValues);
             setFormValuesState(transformedValues);
-            console.log('Form values set successfully');
             
             // Pre-populate account suggestions with the loaded account
             if (investmentData.account) {
@@ -364,64 +335,16 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
   const hasInitialized = useRef(false);
   useEffect(() => {
     if (businessAppContext.accessToken && !hasInitialized.current) {
-      console.log('Initializing investment catalogs...');
       hasInitialized.current = true;
-      console.log('Initializing investmentGroupsHook...');
       investmentGroupsHook.initialize();
-      console.log('Initializing investmentRolesHook...');
       investmentRolesHook.initialize();
-      console.log('Initializing realEstateTypesHook...');
       realEstateTypesHook.initialize();
-      console.log('Initializing investmentOwnershipStructuresHook...');
       investmentOwnershipStructuresHook.initialize();
-      console.log('Initializing interestPaymentFrequenciesHook...');
       interestPaymentFrequenciesHook.initialize();
     }
   }, [businessAppContext.accessToken]); // Hook functions are stable, no need to include in deps
 
-  // Debug logging for catalog loading states
-  useEffect(() => {
-    console.log('Investment groups hook state:', {
-      loading: investmentGroupsHook.loading,
-      optionsCount: investmentGroupsHook.options.length,
-      error: investmentGroupsHook.error
-    });
-  }, [investmentGroupsHook.loading, investmentGroupsHook.options.length, investmentGroupsHook.error]);
 
-  useEffect(() => {
-    console.log('Investment roles hook state:', {
-      loading: investmentRolesHook.loading,
-      optionsCount: investmentRolesHook.options.length,
-      error: investmentRolesHook.error
-    });
-  }, [investmentRolesHook.loading, investmentRolesHook.options.length, investmentRolesHook.error]);
-
-  useEffect(() => {
-    console.log('Real estate types hook state:', {
-      loading: realEstateTypesHook.loading,
-      optionsCount: realEstateTypesHook.options.length,
-      error: realEstateTypesHook.error,
-      options: realEstateTypesHook.options
-    });
-  }, [realEstateTypesHook.loading, realEstateTypesHook.options.length, realEstateTypesHook.error]);
-
-  useEffect(() => {
-    console.log('Investment ownership structures hook state:', {
-      loading: investmentOwnershipStructuresHook.loading,
-      optionsCount: investmentOwnershipStructuresHook.options.length,
-      error: investmentOwnershipStructuresHook.error,
-      options: investmentOwnershipStructuresHook.options
-    });
-  }, [investmentOwnershipStructuresHook.loading, investmentOwnershipStructuresHook.options.length, investmentOwnershipStructuresHook.error]);
-
-  useEffect(() => {
-    console.log('Interest payment frequencies hook state:', {
-      loading: interestPaymentFrequenciesHook.loading,
-      optionsCount: interestPaymentFrequenciesHook.options.length,
-      error: interestPaymentFrequenciesHook.error,
-      options: interestPaymentFrequenciesHook.options
-    });
-  }, [interestPaymentFrequenciesHook.loading, interestPaymentFrequenciesHook.options.length, interestPaymentFrequenciesHook.error]);
 
   // Load default accounts on mount
   const hasLoadedDefaultAccounts = useRef(false);

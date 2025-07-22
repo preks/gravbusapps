@@ -63,8 +63,6 @@ export const useInvestmentOwnershipStructureCatalog = ({
         );
 
         const mappedOptions: SelectOption[] = response.data.map((entry: any) => {
-          console.log("Investment ownership structure catalog entry:", entry);
-
           // Create the reference format: InvestmentOwnershipStructure:v1:CODE
           const referenceValue = `${catalogIdentifier}:${version}:${entry.code || entry.id}`;
 
@@ -75,8 +73,6 @@ export const useInvestmentOwnershipStructureCatalog = ({
             value: referenceValue, // Use reference format instead of just ID
           };
         });
-
-        console.log("Investment ownership structure mapped options:", mappedOptions);
 
         const totalRecords = response.paging?.totalRecords || 0;
         const newOffset = offset + pageSize;

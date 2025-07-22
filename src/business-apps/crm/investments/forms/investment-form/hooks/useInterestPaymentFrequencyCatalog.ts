@@ -63,8 +63,6 @@ export const useInterestPaymentFrequencyCatalog = ({
         );
 
         const mappedOptions: SelectOption[] = response.data.map((entry: any) => {
-          console.log("Interest payment frequency catalog entry:", entry);
-
           // Create the reference format: InterestPaymentFrequency:v1:CODE
           const referenceValue = `${catalogIdentifier}:${version}:${entry.code || entry.id}`;
 
@@ -75,8 +73,6 @@ export const useInterestPaymentFrequencyCatalog = ({
             value: referenceValue, // Use reference format instead of just ID
           };
         });
-
-        console.log("Interest payment frequency mapped options:", mappedOptions);
 
         const totalRecords = response.paging?.totalRecords || 0;
         const newOffset = offset + pageSize;

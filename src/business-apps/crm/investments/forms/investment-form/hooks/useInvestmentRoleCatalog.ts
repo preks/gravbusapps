@@ -40,10 +40,6 @@ export const useInvestmentRoleCatalog = (accessToken: string): UseInvestmentRole
     async (searchTerm: string = "", offset: number = 0, isLoadMore: boolean = false): Promise<void> => {
       if (!accessToken) return;
 
-      console.log(
-        `Investment roles: fetchCatalogEntries called with searchTerm="${searchTerm}", offset=${offset}, isLoadMore=${isLoadMore}`
-      ); // Debug log
-
       setState((prev) => ({
         ...prev,
         loading: true,
@@ -66,15 +62,10 @@ export const useInvestmentRoleCatalog = (accessToken: string): UseInvestmentRole
           }
         );
 
-        console.log("Investment roles response:", response); // Debug log
-
         // Use response.data like other successful implementations
         const catalogEntries = response.data || [];
-        console.log(`Investment roles: found ${catalogEntries.length} entries`); // Debug log
 
         const newOptions: SelectOption[] = catalogEntries.map((entry: any) => {
-          console.log("Investment role catalog entry:", entry);
-
           // Create the reference format: InvestmentRole:v1:CODE
           const referenceValue = `${INVESTMENT_ROLE_CATALOG}:${CATALOG_VERSION}:${entry.code || entry.id}`;
 
@@ -89,10 +80,6 @@ export const useInvestmentRoleCatalog = (accessToken: string): UseInvestmentRole
         const totalRecords = response.paging?.totalRecords || 0;
         const newOffset = offset + 20;
         const hasMoreRecords = newOffset < totalRecords;
-
-        console.log(
-          `Investment roles: mapped ${newOptions.length} options, totalRecords=${totalRecords}, hasMore=${hasMoreRecords}`
-        ); // Debug log
 
         setState((prev) => ({
           ...prev,
