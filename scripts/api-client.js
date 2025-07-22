@@ -112,18 +112,118 @@ function generateScreenKeyFromPath(path) {
 }
 
 /**
+ * Get resource URLs from Navigation service
+ * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
+ * @param {Object} oauthConfig - OAuth configuration for production (optional)
+ * @param {Object} searchParams - Search parameters (optional)
+ * @param {string} searchParams.search - Search term to filter by URL or title
+ * @param {string} searchParams.sort - Comma-separated list of fields to define the sort order
+ * @returns {Promise<Array>} Array of resource URL objects
+ */
+async function getResourceUrls(apiEndpoint = null, oauthConfig = {}, searchParams = {}) {
+  try {
+    const oauthClient = new OAuthClient(oauthConfig);
+    const accessToken = await oauthClient.getAccessToken();
+    const navigationServiceApi = apiEndpoint || process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API;
+
+    // Use search endpoint if search parameters are provided
+    const endpoint = searchParams.search || searchParams.sort 
+      ? `${navigationServiceApi}/resource-url/search`
+      : `${navigationServiceApi}/resource-url`;
+
+    // Build query parameters
+    const params = {};
+    if (searchParams.search) {
+      params.search = searchParams.search;
+    }
+    if (searchParams.sort) {
+      params.sort = searchParams.sort;
+    }
+
+    // Build the full URL with parameters for logging
+    const urlParams = new URLSearchParams(params).toString();
+    const fullUrl = urlParams ? `${endpoint}?${urlParams}` : endpoint;
+    console.log("🔍 Full resource request URL:", fullUrl);
+    
+    const response = await axios.get(endpoint, {
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${accessToken}`,
+      },
+      params: params
+    });
+
+    // Handle different response structures
+    let results = [];
+    if (Array.isArray(response.data)) {
+      results = response.data;
+    } else if (response.data && Array.isArray(response.data.data)) {
+      results = response.data.data;
+    } else if (response.data && response.data.content && Array.isArray(response.data.content)) {
+      results = response.data.content;
+    }
+    
+    console.log("🔍 Results count:", results.length);
+    
+    return results;
+  } catch (error) {
+    console.error("❌ Failed to get resource URLs:", error.message);
+    throw error;
+  }
+}
+
+/**
+ * Check if a resource URL exists for a given URL path
+ * @param {string} urlPath - The URL path to check (e.g., "/platform/apps/hr/core/apps/employee-record")
+ * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
+ * @param {Object} oauthConfig - OAuth configuration for production (optional)
+ * @returns {Promise<Object|null>} The resource URL object if found, null if not found
+ */
+async function getResourceUrlByPath(urlPath, apiEndpoint = null, oauthConfig = {}) {
+  try {
+    // Extract just the path part for searching (remove /platform/ prefix)
+    const searchTerm = urlPath.replace(/^\/platform\//, '');
+    
+    // Use search to find the specific resource URL
+    const resourceUrls = await getResourceUrls(apiEndpoint, oauthConfig, {
+      search: searchTerm,
+      sort: '-updatedAt'
+    });
+    
+    // Look for exact URL match
+    const foundResource = resourceUrls.find(resource => resource.url === urlPath);
+    
+    if (foundResource) {
+      console.log(`🔍 Found existing resource URL: ${urlPath}`);
+      return foundResource;
+    } else {
+      console.log(`🔍 Resource URL not found: ${urlPath} (searched for: ${searchTerm})`);
+      return null;
+    }
+  } catch (error) {
+    console.error("❌ Failed to check resource URL:", error.message);
+    throw error;
+  }
+}
+
+/**
  * Add an app resource URL to Navigation service
  * @param {string} azureDestinationPath - The path where the app is deployed
  * @param {boolean} addIfExistsResponse - Whether to respond if the URL exists
+ * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
+ * @param {Object} oauthConfig - OAuth configuration for production (optional)
  * @returns {Promise<void>}
  */
 async function addAppResourceUrl(
   azureDestinationPath,
-  addIfExistsResponse = true
+  addIfExistsResponse = true,
+  apiEndpoint = null,
+  oauthConfig = {}
 ) {
   try {
-    const oauthClient = new OAuthClient();
+    const oauthClient = new OAuthClient(oauthConfig);
     const accessToken = await oauthClient.getAccessToken();
+    const navigationServiceApi = apiEndpoint || process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API;
 
     const { code, name } = formatPathForResource(azureDestinationPath);
 
@@ -140,7 +240,7 @@ async function addAppResourceUrl(
 
     try {
       await axios.post(
-        `${process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API}/resource-url`,
+        `${navigationServiceApi}/resource-url`,
         payload,
         {
           headers: {
@@ -166,14 +266,16 @@ async function addAppResourceUrl(
 
 /**
  * Add a custom resource URL to Navigation service
- * @param {string} azureDestinationPath - The path where the app is deployed
  * @param {string} customUrlPath - The custom URL path provided by user
+ * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
+ * @param {Object} oauthConfig - OAuth configuration for production (optional)
  * @returns {Promise<void>}
  */
-async function addCustomResourceUrl(customUrlPath) {
+async function addCustomResourceUrl(customUrlPath, apiEndpoint = null, oauthConfig = {}) {
   try {
-    const oauthClient = new OAuthClient();
+    const oauthClient = new OAuthClient(oauthConfig);
     const accessToken = await oauthClient.getAccessToken();
+    const navigationServiceApi = apiEndpoint || process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API;
 
     const { code, name } = formatPathForResource(customUrlPath);
 
@@ -190,7 +292,7 @@ async function addCustomResourceUrl(customUrlPath) {
 
     try {
       await axios.post(
-        `${process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API}/resource-url`,
+        `${navigationServiceApi}/resource-url`,
         payload,
         {
           headers: {
@@ -593,6 +695,8 @@ async function addFormAsUserTaskScreen(
 
 export {
   OAuthClient,
+  getResourceUrls,
+  getResourceUrlByPath,
   addAppResourceUrl,
   addCustomResourceUrl,
   addScreenConfigToScreenManagement,
