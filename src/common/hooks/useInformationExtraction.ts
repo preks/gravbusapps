@@ -21,8 +21,7 @@ export default function useInformationExtraction<T>(
   llmModel: AvailableLlmModels = "gpt-4.1",
 ) {
   // Memoise values that do not change between invocations of the returned function
-  // const endpointUrl = useMemo(() => `${env("NEXT_PUBLIC_BASE_URL")}/flowbot/information-extraction/extract_information`, []);
-  const endpointUrl = useMemo(() => `http://localhost:8000/flowbot/information-extraction/extract_information`, []);
+  const endpointUrl = useMemo(() => `${env("NEXT_PUBLIC_BASE_URL")}/flowbot/information-extraction/extract_information`, []);
   const outputJsonSchema = useMemo(() => z.toJSONSchema(responseModel), [responseModel]);
 
   /**
