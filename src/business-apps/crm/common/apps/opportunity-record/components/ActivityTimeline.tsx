@@ -46,7 +46,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const fileClient = useFileClient(context);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
-  const { state: aiSummaryState, generateSummary } = useAiSummary(opportunityId, context.accessToken)
+  const { state: aiSummaryState, generateSummary } = useAiSummary(opportunityId, context.accessToken);
 
   const loadActivities = async () => {
     if (!opportunityId) return;
