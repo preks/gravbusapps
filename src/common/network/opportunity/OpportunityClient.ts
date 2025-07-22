@@ -176,13 +176,12 @@ export class OpportunityClient extends RestClient {
   }
 
   /**
-   * Updates an opportunity's stage
+   * Updates an opportunity's pipeline stage
    * @param opportunityId The opportunity ID
    * @param stageId The new stage ID (catalog entry ID)
    * @param version The opportunity version
    * @param opportunityData The existing opportunity data
    * @param accessToken The access token for authentication
-   * @param stageCode Optional stage code for formatting, will fetch if not provided
    * @returns A promise that resolves when the update is complete
    */
   public async updateOpportunityStage(
@@ -190,19 +189,13 @@ export class OpportunityClient extends RestClient {
     stageId: string, 
     version: number,
     opportunityData: any, 
-    accessToken: string,
-    stageCode?: string
+    accessToken: string
   ): Promise<any> {
-    
-    // The API expects just the enum value, not a formatted string
-    // Valid values: [NEGOTIATION, NEW_OPPORTUNITY, IN_QUALIFICATION, UNKNOWN_STAGE, PROPOSAL_IN_PROGRESS, CLOSED]
-    let stageEnumValue = stageCode || 'UNKNOWN_STAGE'; // Default fallback
     
     const updatedOpportunity = {
       id: opportunityId,
       version: version,
-      stage: stageEnumValue,
-      salesPipelineStageRef: stageId, // Keep the catalog entry ID for salesPipelineStageRef
+      salesPipelineStageRef: stageId, // Use only catalog entry ID for salesPipelineStageRef (stage field is deprecated)
       ...(opportunityData.name ? { name: opportunityData.name } : {}),
       ...(typeof opportunityData.estimatedAmount !== 'undefined' ? { estimatedAmount: opportunityData.estimatedAmount } : {})
     };

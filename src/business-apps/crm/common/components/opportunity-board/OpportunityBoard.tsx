@@ -145,8 +145,8 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
         // We're hovering over another opportunity
         const overOpportunity = opportunities.find(op => op.id === overId);
         if (overOpportunity && activeOpportunity) {
-          const overStageId = overOpportunity.salesPipelineStageRef || overOpportunity.stageId;
-          const activeStageId = activeOpportunity.salesPipelineStageRef || activeOpportunity.stageId;
+                  const overStageId = overOpportunity.salesPipelineStageRef;
+        const activeStageId = activeOpportunity.salesPipelineStageRef;
           
           setDragOverStage(overStageId || null);
           
@@ -197,7 +197,7 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
     const targetStage = stages.find(s => s.id === overId);
     if (targetStage) {
       // Moving to a different stage at the end
-      const activeStageId = activeOpportunity.salesPipelineStageRef || activeOpportunity.stageId;
+      const activeStageId = activeOpportunity.salesPipelineStageRef;
       if (activeStageId !== targetStage.id) {
         moveOpportunityToStage(activeId, targetStage.id, accessToken);
       }
@@ -207,34 +207,36 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
     // Check if we're dropping on another opportunity
     const overOpportunity = opportunities.find(op => op.id === overId);
     if (overOpportunity) {
-      const activeStageId = activeOpportunity.salesPipelineStageRef || activeOpportunity.stageId;
-      const overStageId = overOpportunity.salesPipelineStageRef || overOpportunity.stageId;
+      const activeStageId = activeOpportunity.salesPipelineStageRef;
+      const overStageId = overOpportunity.salesPipelineStageRef;
       
       if (activeStageId === overStageId) {
         // Reordering within the same column
         const stageOpportunities = opportunities.filter(op => {
-          const oppStageId = op.salesPipelineStageRef || op.stageId;
-          return oppStageId === activeStageId;
+          return op.salesPipelineStageRef === activeStageId;
         });
         const activeIndex = stageOpportunities.findIndex(op => op.id === activeId);
         const overIndex = stageOpportunities.findIndex(op => op.id === overId);
         
         if (activeIndex !== overIndex) {
           const reorderedOpportunities = arrayMove(stageOpportunities, activeIndex, overIndex);
-          reorderOpportunities(activeStageId || '', reorderedOpportunities);
+          if (activeStageId) {
+            reorderOpportunities(activeStageId, reorderedOpportunities);
+          }
         }
       } else {
         // Moving to a different stage with specific positioning
         const targetStageOpportunities = opportunities.filter(op => {
-          const oppStageId = op.salesPipelineStageRef || op.stageId;
-          return oppStageId === overStageId;
+          return op.salesPipelineStageRef === overStageId;
         });
         const insertIndex = targetStageOpportunities.findIndex(op => op.id === overId);
         
         // Insert after the target opportunity
         const newPosition = insertIndex + 1;
         
-        moveOpportunityToPosition(activeId, overStageId || '', newPosition, accessToken);
+        if (overStageId) {
+          moveOpportunityToPosition(activeId, overStageId, newPosition, accessToken);
+        }
       }
     }
   };
@@ -348,10 +350,8 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
                 stage={stage}
                 opportunities={opportunities
                   .filter((opportunity) => {
-                    // Handle stage mapping - if opportunity has salesPipelineStageRef, use that
-                    // Otherwise fall back to stageId for backwards compatibility
-                    const opportunityStageId = opportunity.salesPipelineStageRef || opportunity.stageId;
-                    return opportunityStageId === stage.id;
+                    // Use only salesPipelineStageRef from catalog (stage field is deprecated)
+                    return opportunity.salesPipelineStageRef === stage.id;
                   })
                   .sort((a, b) => (a.position || 0) - (b.position || 0))
                 }
