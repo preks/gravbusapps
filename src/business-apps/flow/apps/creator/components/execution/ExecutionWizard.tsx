@@ -21,6 +21,10 @@ interface ExecutionWizardProps {
   template: FlowTemplate;
   onExecute: (executionConfig: ExecutionConfiguration) => Promise<void>;
   onCancel: () => void;
+  launchingUser?: {
+    id: string;
+    name?: string;
+  };
   'data-testid'?: string;
 }
 
@@ -42,6 +46,7 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
   template,
   onExecute,
   onCancel,
+  launchingUser,
   'data-testid': testId = 'execution-wizard'
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -139,6 +144,12 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
           resolvedAssignments[`step_${index}`] = step.assignment;
         } else if (config?.assignment) {
           executionTimeAssignments[`step_${index}`] = config.assignment;
+        } else if (launchingUser?.id) {
+          // Auto-assign to launching user if no assignment is configured
+          executionTimeAssignments[`step_${index}`] = {
+            targets: [{ entity: 'user', id: launchingUser.id }],
+            allowReassignment: true
+          };
         }
         
         if (config?.inputValues) {
@@ -269,7 +280,8 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
             stepType: previewStep.type,
             links: previewStep.links || [],
             inputs: previewStep.inputs || [],
-            ...(previewStep.assignment?.assignmentMode && { assignmentMode: previewStep.assignment.assignmentMode })
+            assignee: launchingUser?.name || launchingUser?.id || 'Current User',
+            allowReassignment: previewStep.assignment?.allowReassignment || false
           }}
           onComplete={async () => {}} // No-op for preview
           onCancel={() => setPreviewModalVisible(false)}

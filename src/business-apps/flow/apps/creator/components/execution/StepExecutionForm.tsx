@@ -1,12 +1,24 @@
 import React, { useState } from 'react';
 import { Card, Input, Button, Switch, Tooltip, Typography, Divider, Tag } from 'antd';
 import { EditOutlined, CheckOutlined, CloseOutlined, UserOutlined, FormOutlined, PaperClipOutlined } from '@ant-design/icons';
-import { FlowStep } from '../../types/flowTemplate';
+import { FlowStep, AssignmentTarget } from '../../types/flowTemplate';
 import { AssignmentSelector } from '../shared/AssignmentSelector';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { useMockData } from '../../../../providers/MockDataProvider';
 
 const { TextArea, } = Input;
 const { Text, Title } = Typography;
+
+// Helper function to get entity type color
+const getEntityTypeColor = (entityType: string): string => {
+  switch (entityType) {
+    case 'user': return 'blue';
+    case 'department': return 'green';
+    case 'capability': return 'orange';
+    case 'role': return 'purple';
+    default: return 'default';
+  }
+};
 
 interface StepExecutionFormProps {
   step: FlowStep;
@@ -29,6 +41,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
   onConfigurationChange,
   'data-testid': testId = 'step-execution-form'
 }) => {
+  const { resolveEntityName } = useMockData();
   const [showAdvancedInputs, setShowAdvancedInputs] = useState(false);
   const [editTitleMessage, setEditTitleMessage] = useState(false);
   const [editedTitle, setEditedTitle] = useState<string | null>(null);
@@ -177,9 +190,9 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
           >
             <div className="gba:space-y-3 gba:p-2">
               <div className="gba:flex gba:items-center gba:gap-2">
-                <span className="gba:text-sm gba:text-gray-500 gba:font-medium">Mode:</span>
-                <Tag color="blue" data-testid="step-execution-assignment-mode">
-                  {step.assignment.assignmentMode || 'N/A'}
+                <span className="gba:text-sm gba:text-gray-500 gba:font-medium">Assignment:</span>
+                <Tag color="blue" data-testid="step-execution-assignment-info">
+                  {step.assignment?.targets?.length || 0} targets
                 </Tag>
               </div>
               <div className="gba:flex gba:items-start gba:gap-2">
@@ -188,8 +201,12 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
                   {Array.isArray(step.assignment.targets) && step.assignment.targets.length > 0 ? (
                     <div className="gba:flex gba:flex-wrap gba:gap-1">
                       {step.assignment.targets.map((target, idx) => (
-                        <Tag color="purple" key={idx} data-testid="step-execution-assignment-target">
-                          {target.entity}:{target.id}
+                        <Tag 
+                          color={getEntityTypeColor(target.entity)} 
+                          key={idx} 
+                          data-testid="step-execution-assignment-target"
+                        >
+                          {resolveEntityName(target.entity, target.id)}
                         </Tag>
                       ))}
                     </div>
@@ -227,12 +244,9 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
                     {link.name || link.url}
                   </a>
                 ) : (
-                  <span className="gba:text-sm gba:flex-1">{link.name || link.url}</span>
-                )}
-                {link.type && (
-                  <span className="gba:text-xs gba:text-gray-500 gba:bg-gray-200 gba:px-2 gba:py-1 gba:rounded">
-                    {link.type}
-                  </span>
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <span>{link.name}</span>
+                  </div>
                 )}
               </div>
             ))}

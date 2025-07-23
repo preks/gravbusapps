@@ -50,37 +50,37 @@ const ICON_MAP: Record<string, LucideIcon> = {
 const CATEGORY_INFO = {
   [BusinessPatternCategory.APPROVAL]: {
     title: 'Approval Workflows',
-    description: 'I need approval(s) to proceed',
+    description: 'Get authorization and sign-offs from stakeholders',
     icon: 'Shield',
     color: '#3B82F6'
   },
   [BusinessPatternCategory.INFORMATION]: {
     title: 'Information Distribution',
-    description: 'I need to inform/notify people',
+    description: 'Share announcements and updates across teams',
     icon: 'Megaphone',
     color: '#10B981'
   },
   [BusinessPatternCategory.TASK_COORDINATION]: {
     title: 'Task Coordination',
-    description: 'I need work to get done',
+    description: 'Assign and track work across team members',
     icon: 'Target',
     color: '#F59E0B'
   },
   [BusinessPatternCategory.DECISION_MAKING]: {
     title: 'Decision Making',
-    description: 'I need input to make a decision',
+    description: 'Gather insights and feedback for informed decisions',
     icon: 'MessageSquare',
     color: '#8B5CF6'
   },
   [BusinessPatternCategory.REVIEW_FEEDBACK]: {
     title: 'Review & Feedback',
-    description: 'I need things reviewed or evaluated',
+    description: 'Collect evaluations and quality assessments',
     icon: 'FileText',
     color: '#EF4444'
   },
   [BusinessPatternCategory.REQUEST_RESPONSE]: {
     title: 'Request & Response',
-    description: 'I need to request something',
+    description: 'Submit requests and manage responses efficiently',
     icon: 'HandHeart',
     color: '#06B6D4'
   }
@@ -283,24 +283,12 @@ export const PatternSelector: React.FC<PatternSelectorProps> = ({
                 <h4 className="gba:font-semibold gba:text-gray-900 gba:mb-2">Configuration</h4>
                 <div className="gba:space-y-2 gba:text-sm">
                   <div className="gba:flex gba:justify-between gba:items-center">
-                    <span>Execution Strategy:</span>
-                    <Badge variant="outline">
-                      Sequential
-                    </Badge>
-                  </div>
-                  <div className="gba:flex gba:justify-between gba:items-center">
                     <span>Steps:</span>
                     <Badge variant="outline">
                       {selectedPattern.configuration.minSteps === selectedPattern.configuration.maxSteps
                         ? `${selectedPattern.configuration.minSteps} step${selectedPattern.configuration.minSteps > 1 ? 's' : ''}`
                         : `${selectedPattern.configuration.minSteps}-${selectedPattern.configuration.maxSteps} steps`
                       }
-                    </Badge>
-                  </div>
-                  <div className="gba:flex gba:justify-between gba:items-center">
-                    <span>Requires Assignment:</span>
-                    <Badge variant={selectedPattern.configuration.requiresAssignment ? 'default' : 'outline'}>
-                      {selectedPattern.configuration.requiresAssignment ? 'Yes' : 'No'}
                     </Badge>
                   </div>
                 </div>

@@ -77,7 +77,7 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
         return selectedPattern !== null;
       
       case 'basic-info':
-        return !!(configuration.title && configuration.description);
+        return !!(configuration.title);
       
       case 'step-configuration':
         return configuration.steps && configuration.steps.length > 0;
@@ -100,9 +100,7 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
         return 'Please select a workflow pattern to continue.';
       
       case 'basic-info':
-        if (!configuration.title) return 'Please enter a workflow title.';
-        if (!configuration.description) return 'Please enter a workflow description.';
-        return '';
+        return 'Please provide a workflow title';
       
       case 'step-configuration':
         if (!configuration.steps || configuration.steps.length === 0) return 'Please add at least one workflow step.';

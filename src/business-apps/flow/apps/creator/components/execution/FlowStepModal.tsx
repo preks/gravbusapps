@@ -1,22 +1,21 @@
 import React, { useState } from 'react';
-import { Modal, Card, Button, Space, Typography, Form, Input, Select, Upload, message, Tag, Divider } from 'antd';
+import { Modal, Card, Button, Space, Typography, Form, message, Tag, Divider } from 'antd';
 import { 
   CheckOutlined,
   CloseOutlined,
   UserOutlined,
   MessageOutlined,
   FormOutlined,
-  PaperClipOutlined,
   InfoCircleOutlined,
   CheckCircleOutlined,
   SettingOutlined
 } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { FlowStepType, InputType } from '../../types/flowTemplate';
+import { FlowStepType } from '../../types/flowTemplate';
+import { InputRenderer } from '../shared/InputRenderer';
+import { LinksRenderer } from '../shared/LinksRenderer';
 
 const { Title, Text, Paragraph } = Typography;
-const { TextArea } = Input;
-const { Option } = Select;
 
 interface FlowStepModalProps {
   visible: boolean;
@@ -117,99 +116,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
     }
   };
 
-  const renderInputField = (input: any, index: number) => {
-    const fieldName = `input_${index}`;
-    
-    switch (input.type) {
-      case InputType.TEXTAREA:
-        return (
-          <Form.Item
-            key={index}
-            name={fieldName}
-            label={input.label}
-            rules={[{ required: input.required, message: `${input.label} is required` }]}
-          >
-            <TextArea
-              rows={4}
-              placeholder={input.placeholder}
-              data-testid={`${testId}-input-${index}`}
-            />
-          </Form.Item>
-        );
-        
-      case InputType.SELECT:
-        return (
-          <Form.Item
-            key={index}
-            name={fieldName}
-            label={input.label}
-            rules={[{ required: input.required, message: `${input.label} is required` }]}
-          >
-            <Select
-              placeholder={input.placeholder || `Select ${input.label}`}
-              data-testid={`${testId}-input-${index}`}
-            >
-              {input.options?.map((option: string, optIndex: number) => (
-                <Option key={optIndex} value={option}>{option}</Option>
-              ))}
-            </Select>
-          </Form.Item>
-        );
-        
-      case InputType.NUMBER:
-        return (
-          <Form.Item
-            key={index}
-            name={fieldName}
-            label={input.label}
-            rules={[
-              { required: input.required, message: `${input.label} is required` },
-              { type: 'number', message: 'Please enter a valid number' }
-            ]}
-          >
-            <Input
-              type="number"
-              placeholder={input.placeholder}
-              data-testid={`${testId}-input-${index}`}
-            />
-          </Form.Item>
-        );
-        
-      case InputType.FILE:
-        return (
-          <Form.Item
-            key={index}
-            name={fieldName}
-            label={input.label}
-            rules={[{ required: input.required, message: `${input.label} is required` }]}
-          >
-            <Upload
-              beforeUpload={() => false} // Prevent auto upload
-              data-testid={`${testId}-input-${index}`}
-            >
-              <Button icon={<PaperClipOutlined />}>
-                {getTranslationFromI18nKeyAndLabel('flow.step.selectFile', 'Select File')}
-              </Button>
-            </Upload>
-          </Form.Item>
-        );
-        
-      default:
-        return (
-          <Form.Item
-            key={index}
-            name={fieldName}
-            label={input.label}
-            rules={[{ required: input.required, message: `${input.label} is required` }]}
-          >
-            <Input
-              placeholder={input.placeholder}
-              data-testid={`${testId}-input-${index}`}
-            />
-          </Form.Item>
-        );
-    }
-  };
+
 
   const getActionButtons = () => {
     if (readOnly) {
@@ -305,27 +212,10 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
         )}
 
         {/* Links */}
-        {task.links && task.links.length > 0 && (
-          <Card 
-            size="small" 
-            title={
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <PaperClipOutlined />
-                <span>{getTranslationFromI18nKeyAndLabel('flow.step.links', 'Links')}</span>
-              </div>
-            }
-          >
-            <div className="gba:space-y-2">
-              {task.links.map((link, index) => (
-                <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:bg-gray-50 gba:rounded">
-                  <PaperClipOutlined className="gba:text-gray-500" />
-                  <span className="gba:text-sm">{link.name || link.url}</span>
-                  <Tag className="gba:ml-auto">{link.type}</Tag>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
+        <LinksRenderer 
+          links={task.links || []} 
+          testId={`${testId}-links`} 
+        />
 
         {/* Input Form */}
         {task.inputs && task.inputs.length > 0 && (
@@ -343,7 +233,15 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
               layout="vertical"
               data-testid={`${testId}-form`}
             >
-              {task.inputs.map((input, index) => renderInputField(input, index))}
+              {task.inputs.map((input, index) => (
+                <InputRenderer 
+                  key={index}
+                  input={input} 
+                  index={index} 
+                  testId={testId}
+                  readOnly={readOnly}
+                />
+              ))}
             </Form>
           </Card>
         )}

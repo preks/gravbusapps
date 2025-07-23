@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
-import { Button, Input, Label, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
+import { Button, Input, Label, Textarea, Switch } from '@newwork/nw-design-system';
+import { Select, Space } from 'antd';
 import { Trash2, Settings, FileText, FormInput, User, ChevronDown, ChevronUp, Link } from 'lucide-react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore';
@@ -83,6 +84,43 @@ export const StepItem: React.FC<StepItemProps> = ({
               
               {/* Basic Tab */}
               <TabsContent value="basic" data-testid={`${testId}-basic-tab-content`}>
+                <div className="gba:space-y-2 gba:mb-4" data-testid={`${testId}-type-field`}>
+                    <Label data-testid={`${testId}-type-label`}>
+                      {getTranslationFromI18nKeyAndLabel('flow.creator.stepType', 'Step Type')}:
+                    </Label>
+                    <Select 
+                      value={step.type} 
+                      onChange={(value) => handleUpdateStep({ type: value })}
+                      style={{ width: '100%' }}
+                      data-testid={`${testId}-type-select`}
+                    >
+                      <Select.Option value={FlowStepType.TASK}>
+                        <Space>
+                          <User className="gba:h-4 gba:w-4" />
+                          {getTranslationFromI18nKeyAndLabel('flow.creator.task', 'Task')}
+                        </Space>
+                      </Select.Option>
+                      <Select.Option value={FlowStepType.APPROVAL}>
+                        <Space>
+                          <Settings className="gba:h-4 gba:w-4" />
+                          {getTranslationFromI18nKeyAndLabel('flow.creator.approval', 'Approval')}
+                        </Space>
+                      </Select.Option>
+                      <Select.Option value={FlowStepType.INFORMATION}>
+                        <Space>
+                          <FileText className="gba:h-4 gba:w-4" />
+                          {getTranslationFromI18nKeyAndLabel('flow.creator.information', 'Information')}
+                        </Space>
+                      </Select.Option>
+                      <Select.Option value={FlowStepType.ACKNOWLEDGE}>
+                        <Space>
+                          <FormInput className="gba:h-4 gba:w-4" />
+                          {getTranslationFromI18nKeyAndLabel('flow.creator.acknowledge', 'Acknowledge')}
+                        </Space>
+                      </Select.Option>
+                    </Select>
+                  </div>
+                
                 <div className="gba:space-y-4">
                   <div className="gba:space-y-2" data-testid={`${testId}-title-field`}>
                     <Label htmlFor={`step-${stepIndex}-title`} data-testid={`${testId}-title-label`}>
@@ -97,58 +135,50 @@ export const StepItem: React.FC<StepItemProps> = ({
                     />
                   </div>
                   
-                  <div className="gba:space-y-2" data-testid={`${testId}-type-field`}>
-                    <Label data-testid={`${testId}-type-label`}>
-                      {getTranslationFromI18nKeyAndLabel('flow.creator.stepType', 'Step Type')}:
-                    </Label>
-                    <Select 
-                      value={step.type} 
-                      onValueChange={(value) => handleUpdateStep({ type: value })}
-                      data-testid={`${testId}-type-select`}
-                    >
-                      <SelectTrigger className="gba:w-full">
-                        <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.selectFlowStepType', 'Select step type')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={FlowStepType.TASK}>
-                          {getTranslationFromI18nKeyAndLabel('flow.creator.task', 'Task')}
-                        </SelectItem>
-                        <SelectItem value={FlowStepType.APPROVAL}>
-                          {getTranslationFromI18nKeyAndLabel('flow.creator.approval', 'Approval')}
-                        </SelectItem>
-                        <SelectItem value={FlowStepType.INFORMATION}>
-                          {getTranslationFromI18nKeyAndLabel('flow.creator.information', 'Information')}
-                        </SelectItem>
-                        <SelectItem value={FlowStepType.ACKNOWLEDGE}>
-                          {getTranslationFromI18nKeyAndLabel('flow.creator.acknowledge', 'Acknowledge')}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
                   <div className="gba:space-y-2" data-testid={`${testId}-message-field`}>
                     <Label htmlFor={`step-${stepIndex}-message`} data-testid={`${testId}-message-label`}>
                       {getTranslationFromI18nKeyAndLabel('flow.creator.message', 'Message')}:
                     </Label>
                     <Textarea
                       id={`step-${stepIndex}-message`}
-                      value={step.message || step.description}
-                      onChange={(e) => handleUpdateStep({ message: e.target.value, description: e.target.value })}
+                      value={step.message || ''}
+                      onChange={(e) => handleUpdateStep({ message: e.target.value })}
                       className="gba:w-full gba:min-h-[100px]"
                       data-testid={`${testId}-message-input`}
                     />
                   </div>
                   
-                  {/* Assignment Selector */}
-                  <div className="gba:space-y-2" data-testid={`${testId}-assignment-field`}>
-                    <Label data-testid={`${testId}-assignment-label`}>
-                      {getTranslationFromI18nKeyAndLabel('flow.creator.assignment', 'Assignment')}:
-                    </Label>
-                    <AssignmentSelector
-                      value={step.assignment}
-                      onChange={(assignment) => handleUpdateStep({ assignment })}
-                      data-testid={`${testId}-assignment-selector`}
-                    />
+                  {/* Assignment Section */}
+                  <div className="gba:space-y-3" data-testid={`${testId}-assignment-section`}>
+                    <div className="gba:flex gba:items-center gba:justify-between">
+                      <Label data-testid={`${testId}-assignment-label`}>
+                        {getTranslationFromI18nKeyAndLabel('flow.creator.assignment', 'Assignment')}:
+                      </Label>
+                      <Switch
+                        checked={!!step.assignment}
+                        onChange={(checked) => {
+                          if (checked) {
+                            handleUpdateStep({ 
+                              assignment: { 
+                                targets: [], 
+                                assignmentMode: 'CLAIM' as any 
+                              } 
+                            });
+                          } else {
+                            handleUpdateStep({ assignment: undefined });
+                          }
+                        }}
+                        data-testid={`${testId}-assignment-switch`}
+                      />
+                    </div>
+                    
+                    {step.assignment && (
+                      <AssignmentSelector
+                        value={step.assignment}
+                        onChange={(assignment) => handleUpdateStep({ assignment })}
+                        data-testid={`${testId}-assignment-selector`}
+                      />
+                    )}
                   </div>
                 </div>
               </TabsContent>
@@ -164,7 +194,7 @@ export const StepItem: React.FC<StepItemProps> = ({
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        const newLinks = [...(step.links || []), { name: '', url: '', type: 'URL' }];
+                        const newLinks = [...(step.links || []), { name: '', url: '' }];
                         handleUpdateStep({ links: newLinks });
                       }}
                       data-testid={`${testId}-add-link`}
@@ -184,7 +214,6 @@ export const StepItem: React.FC<StepItemProps> = ({
                             newLinks[index] = { ...newLinks[index], name: e.target.value };
                             handleUpdateStep({ links: newLinks });
                           }}
-                          className="gba:flex-1"
                           data-testid={`${testId}-link-name-${index}`}
                         />
                         <Input
@@ -195,7 +224,6 @@ export const StepItem: React.FC<StepItemProps> = ({
                             newLinks[index] = { ...newLinks[index], url: e.target.value };
                             handleUpdateStep({ links: newLinks });
                           }}
-                          className="gba:flex-1"
                           data-testid={`${testId}-link-url-${index}`}
                         />
                         <Button
@@ -218,7 +246,7 @@ export const StepItem: React.FC<StepItemProps> = ({
               {/* Input Fields Tab */}
               <TabsContent value="input" data-testid={`${testId}-input-tab-content`}>
                 <InputBlocksList 
-                  taskId={step.id} 
+                  taskId={stepIndex.toString()} 
                   blocks={step.inputs} 
                   data-testid={`${testId}-input-blocks`}
                 />

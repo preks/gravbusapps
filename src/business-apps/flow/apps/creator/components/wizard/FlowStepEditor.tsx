@@ -21,7 +21,7 @@ import {
   CloseOutlined
 } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { FlowStep, Link, InputType, InputBlock, FlowStepType, TaskAssignment } from '../../types/flowTemplate';
+import { FlowStep, Link, InputType, InputBlock, FlowStepType, TaskAssignment, AssignmentMode } from '../../types/flowTemplate';
 import { AssignmentSelector } from '../shared/AssignmentSelector';
 
 const { TextArea } = Input;
@@ -30,6 +30,7 @@ interface FlowStepEditorProps {
   step: FlowStep;
   stepIndex: number;
   onStepChange: (stepIndex: number, updatedStep: FlowStep) => void;
+  assignmentMode: AssignmentMode;
   isNewStep?: boolean;
   'data-testid'?: string;
 }
@@ -95,8 +96,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
   const addLink = () => {
     const newLink: Link = {
       name: '',
-      url: '',
-      type: 'URL' as any
+      url: ''
     };
     const currentLinks = step.links || [];
     updateStep({
@@ -105,22 +105,18 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
   };
 
   const handleFileUpload = (file: File) => {
-    // Create a temporary URL for the file (in real implementation, this would be uploaded to server)
+    // Create a URL for the uploaded file (in a real app, this would be uploaded to a server)
     const fileUrl = URL.createObjectURL(file);
     
     const newLink: Link = {
       name: file.name,
-      url: fileUrl,
-      type: 'FILE' as any
+      url: fileUrl
     };
 
     const currentLinks = step.links || [];
     updateStep({
       links: [...currentLinks, newLink]
     });
-
-    message.success(`${file.name} uploaded successfully`);
-    return false; // Prevent default upload
   };
 
   const updateLink = (index: number, updates: Partial<Link>) => {
@@ -159,9 +155,8 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
 
   const removeInputBlock = (index: number) => {
     const currentInputs = step.inputs || [];
-    updateStep({
-      inputs: currentInputs.filter((_, i) => i !== index)
-    });
+    const updatedInputs = currentInputs.filter((_, i) => i !== index);
+    updateStep({ inputs: updatedInputs });
   };
 
   const updateAssignment = (assignment: TaskAssignment | undefined) => {
@@ -385,12 +380,14 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                             data-testid={`${testId}-remove-link-${index}`}
                           />
                         </div>
-                        <Input
-                          value={link.url}
-                          onChange={(e) => updateLink(index, { url: e.target.value })}
-                          placeholder="URL"
-                          data-testid={`${testId}-link-url-${index}`}
-                        />
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Input
+                            value={link.url}
+                            onChange={(e) => updateLink(index, { url: e.target.value })}
+                            placeholder="URL"
+                            data-testid={`${testId}-link-url-${index}`}
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>

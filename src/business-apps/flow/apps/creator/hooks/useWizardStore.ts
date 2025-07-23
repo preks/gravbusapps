@@ -177,7 +177,6 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
     
     // Create steps from pattern's pre-configured steps
     const steps: FlowStep[] = pattern.preConfiguredSteps.map((preStep, index) => ({
-      id: `step-${index}`,
       title: preStep.title,
       message: preStep.description, // Use description as message
       links: preStep.links || [], // Use pre-configured links or empty array
@@ -204,7 +203,8 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
     const template: FlowTemplate = {
       type: 'TEMPLATE',
       name: configuration.title || `${pattern.title} Workflow`,
-      description: configuration.description || pattern.description,
+      description: configuration.description || '',
+      assignmentMode: configuration.assignmentMode || AssignmentMode.CLAIM, // Default to CLAIM mode
       steps
     };
     
@@ -223,7 +223,7 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
         return !!selectedPattern;
       
       case 'basic-info':
-        return !!(configuration.title && configuration.description);
+        return !!(configuration.title);
       
       case 'step-configuration':
         if (!selectedPattern) return false;

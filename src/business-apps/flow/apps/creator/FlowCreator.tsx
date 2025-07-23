@@ -17,6 +17,7 @@ import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateCli
 import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient';
 import { Spin, Alert, Modal, Button, Card, Typography, Space } from 'antd';
 import { StarOutlined, ToolOutlined } from '@ant-design/icons';
+import { MockDataProvider } from '../../providers/MockDataProvider';
 
 /**
  * Flow Creator App component for defining workflow templates
@@ -49,7 +50,7 @@ export const FlowCreator: React.FC<BusinessAppContextProps> = ({
     try {
       setIsLoading(true);
       setError(null);
-      const templates = await flowTemplateClient.getAllTemplates();
+      const templates = await flowTemplateClient.getTemplates();
       setTemplates(templates);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load templates');
@@ -71,10 +72,10 @@ export const FlowCreator: React.FC<BusinessAppContextProps> = ({
     try {
       if (template.id) {
         // Update existing template
-        await flowTemplateClient.updateTemplate(template.id, template, isDraft);
+        await flowTemplateClient.updateTemplate(template.id, template);
       } else {
         // Create new template
-        await flowTemplateClient.createTemplate(template, isDraft);
+        await flowTemplateClient.createTemplate(template);
       }
       
       // Reload templates to get updated list
@@ -106,11 +107,11 @@ export const FlowCreator: React.FC<BusinessAppContextProps> = ({
 
   const handleEdit = async (template: FlowTemplate) => {
     try {
-      // Try to get the original template for better editing experience
+      // Try to get the template for better editing experience
       if (template.id) {
-        const originalTemplate = await flowTemplateClient.getOriginalTemplate(template.id);
-        initializeTemplate(originalTemplate);
-        setSelectedTemplate(originalTemplate);
+        const fullTemplate = await flowTemplateClient.getTemplate(template.id);
+        initializeTemplate(fullTemplate);
+        setSelectedTemplate(fullTemplate);
       } else {
         initializeTemplate(template);
         setSelectedTemplate(template);
@@ -126,7 +127,8 @@ export const FlowCreator: React.FC<BusinessAppContextProps> = ({
   };
 
   return (
-    <div className="gba:flex gba:flex-col gba:gap-6 gba:p-6" data-testid={testId}>
+    <MockDataProvider>
+      <div className="gba:flex gba:flex-col gba:gap-6 gba:p-6" data-testid={testId}>
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-4" data-testid={`${testId}-header`}>
         <h1 className="gba:text-2xl gba:font-bold" data-testid={`${testId}-title`}>
           {getTranslationFromI18nKeyAndLabel('flow.creator.listTitle', 'Flow Templates')}
@@ -234,10 +236,17 @@ export const FlowCreator: React.FC<BusinessAppContextProps> = ({
          destroyOnClose
        >
          <div style={{ minHeight: '70vh', maxHeight: '80vh', overflow: 'auto' }}>
-           <FlowTemplateForm />
+           <FlowTemplateForm 
+             accessToken={accessToken}
+             onSaved={async (template) => {
+               await loadTemplates(); // Refresh the template list
+               setIsCustomFormOpen(false); // Close the modal
+             }}
+           />
          </div>
        </Modal>
-    </div>
+      </div>
+    </MockDataProvider>
   );
 };
 

@@ -238,7 +238,7 @@ function validateSingleApproverRules(
     });
   }
 
-  if (step && step.assignment && step.assignment.assignmentMode === 'ASSIGN') {
+  if (step && step.assignment && step.assignment.targets && step.assignment.targets.length > 0) {
     warnings.push({
       field: 'steps[0].assignment',
       message: 'Single approver should not assign to all targets',
@@ -487,7 +487,7 @@ function validateServiceRequestRules(
     });
   }
 
-  if (step && step.assignment && step.assignment.assignmentMode === 'ASSIGN') {
+  if (step && step.assignment && step.assignment.targets && step.assignment.targets.length > 0) {
     warnings.push({
       field: 'steps[0].assignment',
       message: 'Service request typically assigns to any available provider',

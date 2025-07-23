@@ -1,0 +1,1091 @@
+import React, { useState, useEffect } from 'react';
+import { Select, Card, List, Button, Badge, Tag, Spin, Alert, Modal, Typography, Space, Divider, Form, Input, message, Tabs } from 'antd';
+import { 
+  UserOutlined, 
+  ClockCircleOutlined, 
+  CheckCircleOutlined, 
+  ExclamationCircleOutlined,
+  FileTextOutlined,
+  InfoCircleOutlined,
+  OrderedListOutlined,
+  EyeOutlined,
+  FileOutlined,
+  PictureOutlined,
+  LinkOutlined,
+  EditOutlined,
+  CalendarOutlined,
+  NumberOutlined,
+  UnorderedListOutlined,
+  CheckSquareOutlined,
+  ReloadOutlined,
+  SwapOutlined,
+  CloseCircleOutlined,
+  MessageOutlined,
+  SettingOutlined,
+  FormOutlined,
+  UserAddOutlined,
+  LikeOutlined,
+  DislikeOutlined,
+  WarningOutlined
+} from '@ant-design/icons';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { env } from '@/common/env/EnvUtils';
+import { InputRenderer } from '../creator/components/shared/InputRenderer';
+import { LinksRenderer } from '../creator/components/shared/LinksRenderer';
+
+const { Option } = Select;
+const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
+
+interface TaskInboxProps extends BusinessAppContextProps {
+  prefixDataTestId?: string;
+}
+
+interface TaskAction {
+  action: string;
+  label: string;
+  icon: React.ReactNode;
+  variant: 'primary' | 'default' | 'dashed' | 'text' | 'link';
+  danger?: boolean;
+}
+
+interface Task {
+  id: string;
+  flowId: string;
+  referenceTaskName: string;
+  stepType: string; // APPROVAL, ACKNOWLEDGE, TASK, INFORMATION
+  name: string;
+  status: string;
+  priority?: number;
+  // Flattened input data (moved from inputData to top level)
+  title?: string;
+  message?: string;
+  stepIndex?: number;
+  inputs?: any[];
+  links?: any[];
+  taskCategory?: string;
+  
+  // NEW: Due date fields (computed by workflow lambda in ISO format)
+  dueDate?: string; // ISO string - when task is due
+  scheduledAt?: string; // ISO string - when task became available
+  
+  // Available actions for this task
+  availableActions?: {
+    canClaim: boolean;
+    canComplete: boolean;
+    canReassign: boolean;
+    canReject: boolean;
+    canUnclaim: boolean;
+  };
+  // Unified assignment object containing assignment-related data
+  assignment?: {
+    assignmentMode: string;
+    currentStatus: string;
+    assignedTo?: string;
+    assignedAt?: string;
+    isUserOwner: boolean;
+    allowReassignment: boolean;
+    targets?: any;
+    assignmentHistory?: Array<{
+      action: string;
+      userId: string;
+      changedBy: string;
+      changedAt: string;
+    }>;
+    assignmentAction?: string;
+    assignmentIteration?: number;
+  };
+}
+
+interface TaskStats {
+  assigned: number;
+  claimable: number;
+  inProgress: number;
+  scheduled: number;
+  completed: number;
+  total: number;
+  overdue: number; // NEW: Track overdue tasks
+  dueSoon: number; // NEW: Track tasks due soon (within 24 hours)
+  userName?: string;
+}
+
+// Due Date Utility Functions
+const formatDueDate = (dueDateISO?: string): string => {
+  if (!dueDateISO) return 'No due date';
+  
+  try {
+    const dueDate = new Date(dueDateISO);
+    const now = new Date();
+    const diffMs = dueDate.getTime() - now.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    // Format the date
+    const dateStr = dueDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    // Add relative time if within reasonable range
+    if (diffMs < 0) {
+      return `${dateStr} (overdue)`;
+    } else if (diffHours < 24) {
+      return `${dateStr} (${diffHours}h remaining)`;
+    } else if (diffDays < 7) {
+      return `${dateStr} (${diffDays}d remaining)`;
+    }
+    
+    return dateStr;
+  } catch (error) {
+    return dueDateISO;
+  }
+};
+
+const isTaskOverdue = (dueDateISO?: string): boolean => {
+  if (!dueDateISO) return false;
+  try {
+    return new Date() > new Date(dueDateISO);
+  } catch (error) {
+    return false;
+  }
+};
+
+// Helper function to determine if a task is due soon (within 2 hours)
+const isTaskDueSoon = (dueDate?: string): boolean => {
+  if (!dueDate) return false;
+  const due = new Date(dueDate);
+  const now = new Date();
+  const diffHours = (due.getTime() - now.getTime()) / (1000 * 60 * 60);
+  return diffHours > 0 && diffHours <= 2; // Due within 2 hours
+};
+
+// Helper function to determine if a task is just claimable (only CLAIM action available)
+const isJustClaimable = (task: Task): boolean => {
+  const actions = task.availableActions;
+  if (!actions) return false;
+  
+  // Check if only CLAIM is available and no other actions
+  return actions.canClaim && 
+         !actions.canComplete && 
+         !actions.canReject && 
+         !actions.canReassign && 
+         !actions.canUnclaim;
+};
+
+// Helper function to get due date tag with appropriate styling
+const getDueDateTag = (task: Task): React.ReactNode => {
+  if (!task.dueDate) return null;
+  
+  const overdue = isTaskOverdue(task.dueDate);
+  const dueSoon = isTaskDueSoon(task.dueDate);
+  
+  if (overdue) {
+    return (
+      <Tag color="red" icon={<WarningOutlined />}>
+        Overdue
+      </Tag>
+    );
+  } else if (dueSoon) {
+    return (
+      <Tag color="orange" icon={<ClockCircleOutlined />}>
+        Due Soon
+      </Tag>
+    );
+  } else {
+    return (
+      <Tag color="blue" icon={<CalendarOutlined />}>
+        {formatDueDate(task.dueDate)}
+      </Tag>
+    );
+  }
+};
+
+// Import centralized mock users data
+import { mockUsers, type User as MockUser } from '../../data/mockUsers';
+
+const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' }) => {
+  const [selectedUserId, setSelectedUserId] = useState<string>('user-001');
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskStats, setTaskStats] = useState<TaskStats | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isTaskModalVisible, setIsTaskModalVisible] = useState(false);
+  const [taskFormData, setTaskFormData] = useState<any>({});
+  const [reassignUserId, setReassignUserId] = useState<string>('');
+  const [rejectionComment, setRejectionComment] = useState<string>('');
+  const [form] = Form.useForm();
+
+  // Use the custom flow engine API
+  const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000') + '/api';
+
+  // Fetch tasks and stats for selected user
+  const fetchUserData = async (userId: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const [tasksResponse, statsResponse] = await Promise.all([
+        fetch(`${API_BASE}/tasks/user/${userId}`),
+        fetch(`${API_BASE}/tasks/user/${userId}/stats`)
+      ]);
+
+      if (tasksResponse.ok) {
+        const tasksData = await tasksResponse.json();
+        setTasks(tasksData.tasks || []);
+      } else {
+        throw new Error('Failed to fetch tasks');
+      }
+
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json();
+        setTaskStats(statsData.data || statsData);
+      }
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch tasks');
+      console.error('Error fetching tasks:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedUserId) {
+      fetchUserData(selectedUserId);
+    }
+  }, [selectedUserId]);
+
+  const performTaskAction = async (taskId: string, action: string, payload: any = {}) => {
+    setActionLoading(taskId + action);
+    try {
+      let endpoint = '';
+      let body: any = { userId: selectedUserId, ...payload };
+
+      switch (action) {
+        case 'CLAIM':
+          endpoint = `${API_BASE}/tasks/${taskId}/claim`;
+          break;
+        case 'UNCLAIM':
+          endpoint = `${API_BASE}/tasks/${taskId}/unclaim`;
+          break;
+        case 'REASSIGN':
+          endpoint = `${API_BASE}/tasks/${taskId}/reassign`;
+          body = { currentUserId: selectedUserId, newUserId: reassignUserId, ...payload };
+          break;
+        case 'REJECT':
+          endpoint = `${API_BASE}/tasks/${taskId}/reject`;
+          body = { currentUserId: selectedUserId, rejectionComment, ...payload };
+          break;
+        case 'COMPLETE':
+          endpoint = `${API_BASE}/tasks/${taskId}/complete`;
+          body = { 
+            userId: selectedUserId,
+            action: 'COMPLETE',
+            formData: taskFormData,
+            ...payload
+          };
+          break;
+        default:
+          throw new Error(`Unknown action: ${action}`);
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (response.ok) {
+        message.success(`Task ${action.toLowerCase()}ed successfully`);
+        await fetchUserData(selectedUserId);
+        
+        // Only close modal and reset form if the modal is open
+        if (isTaskModalVisible) {
+          setIsTaskModalVisible(false);
+          setTaskFormData({});
+          setReassignUserId('');
+          setRejectionComment('');
+          form.resetFields();
+        }
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to ${action.toLowerCase()} task`);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : `Failed to ${action.toLowerCase()} task`;
+      setError(errorMessage);
+      message.error(errorMessage);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleTaskClick = async (task: Task) => {
+    setSelectedTask(task);
+    setIsTaskModalVisible(true);
+    
+    // Initialize form data for input blocks
+    const initialFormData: any = {};
+    task.inputs?.forEach((input: any) => {
+      initialFormData[input.name] = input.type === 'checkbox' ? [] : '';
+    });
+    setTaskFormData(initialFormData);
+    form.setFieldsValue(initialFormData);
+  };
+
+  const getTaskActions = (task: Task): TaskAction[] => {
+    const actions: TaskAction[] = [];
+    const availableActions = task.availableActions;
+
+    if (availableActions?.canClaim) {
+      actions.push({
+        action: 'CLAIM',
+        label: 'Claim Task',
+        icon: <UserAddOutlined />,
+        variant: 'primary'
+      });
+    }
+
+    if (availableActions?.canUnclaim) {
+      actions.push({
+        action: 'UNCLAIM',
+        label: 'Release Task',
+        icon: <CloseCircleOutlined />,
+        variant: 'default'
+      });
+    }
+
+    if (availableActions?.canReassign) {
+      actions.push({
+        action: 'REASSIGN',
+        label: 'Reassign Task',
+        icon: <SwapOutlined />,
+        variant: 'default'
+      });
+    }
+
+          if (availableActions?.canComplete) {
+        const stepType = task.stepType || 'TASK';
+      let completeLabel = 'Complete Task';
+      let completeIcon = <CheckCircleOutlined />;
+
+      switch (stepType) {
+        case 'APPROVAL':
+          completeLabel = 'Approve';
+                     completeIcon = <LikeOutlined />;
+          break;
+        case 'ACKNOWLEDGE':
+          completeLabel = 'Acknowledge';
+          completeIcon = <EyeOutlined />;
+          break;
+        case 'INFORMATION':
+          completeLabel = 'Mark as Read';
+          completeIcon = <InfoCircleOutlined />;
+          break;
+        default:
+          completeLabel = 'Complete Task';
+          completeIcon = <CheckCircleOutlined />;
+      }
+
+      actions.push({
+        action: 'COMPLETE',
+        label: completeLabel,
+        icon: completeIcon,
+        variant: 'primary'
+      });
+    }
+
+          if (availableActions?.canReject) {
+        const stepType = task.stepType || 'TASK';
+      let rejectLabel = 'Reject';
+      
+      switch (stepType) {
+        case 'APPROVAL':
+          rejectLabel = 'Reject Approval';
+          break;
+        case 'ACKNOWLEDGE':
+          rejectLabel = 'Cannot Acknowledge';
+          break;
+        default:
+          rejectLabel = 'Reject Task';
+      }
+
+      actions.push({
+        action: 'REJECT',
+        label: rejectLabel,
+                 icon: <DislikeOutlined />,
+        variant: 'default',
+        danger: true
+      });
+    }
+
+    return actions;
+  };
+
+  const getTaskStatusColor = (status: string) => {
+    switch (status) {
+      case 'IN_PROGRESS': return 'processing';
+      case 'SCHEDULED': return 'default';
+      case 'COMPLETED': return 'success';
+      case 'FAILED': return 'error';
+      default: return 'default';
+    }
+  };
+
+  const getTaskTypeIcon = (task: Task) => {
+    // Use stepType for specific icons
+    switch (task.stepType) {
+      case 'APPROVAL': return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+      case 'ACKNOWLEDGE': return <EyeOutlined style={{ color: '#1890ff' }} />;
+      case 'TASK': return <OrderedListOutlined style={{ color: '#722ed1' }} />;
+      case 'INFORMATION': return <InfoCircleOutlined style={{ color: '#faad14' }} />;
+      default: return <ClockCircleOutlined style={{ color: '#8c8c8c' }} />;
+    }
+  };
+
+  const getStepTypeColor = (stepType: string) => {
+    switch (stepType) {
+      case 'APPROVAL': return 'green';
+      case 'ACKNOWLEDGE': return 'blue';
+      case 'TASK': return 'purple';
+      case 'INFORMATION': return 'orange';
+      default: return 'default';
+    }
+  };
+
+  const getAssignmentStatusColor = (status: string) => {
+    switch (status) {
+      case 'assigned': return 'blue';
+      case 'claimed': return 'green';
+      case 'claimable': return 'orange';
+      case 'completed': return 'success';
+      default: return 'default';
+    }
+  };
+
+  const renderTaskModal = () => {
+    if (!selectedTask) return null;
+
+    const hasInputBlocks = selectedTask.inputs && selectedTask.inputs.length > 0;
+    const hasLinks = selectedTask.links && selectedTask.links.length > 0;
+    const taskActions = getTaskActions(selectedTask);
+    const stepType = selectedTask.stepType || 'TASK';
+
+    return (
+      <Modal
+        title={
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {getTaskTypeIcon(selectedTask)}
+              <span>{selectedTask.title || selectedTask.name}</span>
+            </div>
+            <span style={{ fontSize: '12px', color: '#8c8c8c', fontWeight: 'normal' }}>
+              Task ID: {selectedTask.id}
+            </span>
+          </div>
+        }
+        open={isTaskModalVisible}
+        onCancel={() => {
+          setIsTaskModalVisible(false);
+          setTaskFormData({});
+          setReassignUserId('');
+          setRejectionComment('');
+          form.resetFields();
+        }}
+        width={800}
+        footer={null}
+      >
+        <Tabs 
+          defaultActiveKey="details"
+          items={[
+            {
+              key: 'details',
+              label: 'Task Details',
+              children: (
+                <div>
+                  <div style={{ marginBottom: '16px' }}>
+                    <Space wrap>
+                      <Tag color={getTaskStatusColor(selectedTask.status)}>
+                        {selectedTask.status}
+                      </Tag>
+                      {stepType && (
+                        <Tag color={getStepTypeColor(stepType)}>
+                          {stepType}
+                        </Tag>
+                      )}
+                      {selectedTask.assignment?.currentStatus && (
+                        <Tag color={getAssignmentStatusColor(selectedTask.assignment.currentStatus)}>
+                          {selectedTask.assignment.currentStatus}
+                        </Tag>
+                      )}
+                      {selectedTask.assignment?.assignmentMode && (
+                        <Tag color="cyan">
+                          {selectedTask.assignment.assignmentMode} Mode
+                        </Tag>
+                      )}
+                      
+                      {/* Due Date Tag in Modal */}
+                      {getDueDateTag(selectedTask)}
+                    </Space>
+                  </div>
+
+                  {selectedTask.message && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <Paragraph>{selectedTask.message}</Paragraph>
+                    </div>
+                  )}
+
+                  {/* Task Assignment Info */}
+                  {selectedTask.assignment?.assignedTo && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <Text strong>Assigned to: </Text>
+                      <Text>{selectedTask.assignment.assignedTo}</Text>
+                    </div>
+                  )}
+
+                  {/* Due Date Information */}
+                  {(selectedTask.dueDate || selectedTask.scheduledAt) && (
+                    <div style={{ marginBottom: '16px' }}>
+                      {selectedTask.dueDate && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <Text strong>Due Date: </Text>
+                          <Text style={{ 
+                            color: isTaskOverdue(selectedTask.dueDate) ? '#ff4d4f' : 
+                                   isTaskDueSoon(selectedTask.dueDate) ? '#faad14' : '#262626'
+                          }}>
+                            {formatDueDate(selectedTask.dueDate)}
+                          </Text>
+                          {isTaskOverdue(selectedTask.dueDate) && (
+                            <Text type="danger" style={{ marginLeft: '8px' }}>
+                              <WarningOutlined /> This task is overdue
+                            </Text>
+                          )}
+                        </div>
+                      )}
+                      {selectedTask.scheduledAt && (
+                        <div>
+                          <Text strong>Scheduled at: </Text>
+                          <Text type="secondary">
+                            {new Date(selectedTask.scheduledAt).toLocaleString()}
+                          </Text>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Links Section */}
+                  {hasLinks && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <Title level={5}>Attachments</Title>
+                      <LinksRenderer links={selectedTask.links!} />
+                    </div>
+                  )}
+
+                  {/* Input Form Section - Only show for tasks that aren't just claimable */}
+                  {hasInputBlocks && !isJustClaimable(selectedTask) && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <Title level={5}>Form Fields</Title>
+                      <Form
+                        form={form}
+                        layout="vertical"
+                        onValuesChange={(changedValues, allValues) => {
+                          setTaskFormData(allValues);
+                        }}
+                      >
+                        {selectedTask.inputs!.map((input: any, index: number) => (
+                          <InputRenderer 
+                            key={input.name || index}
+                            input={input}
+                            index={index}
+                            testId={`${prefixDataTestId}-input`}
+                            readOnly={false}
+                          />
+                        ))}
+                      </Form>
+                    </div>
+                  )}
+
+                  {/* Show message for claimable tasks with forms */}
+                  {hasInputBlocks && isJustClaimable(selectedTask) && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <Alert
+                        message="Form Available After Claiming"
+                        description="This task has form fields that will become available after you claim the task. Click 'Claim' to start working on this task."
+                        type="info"
+                        showIcon
+                        icon={<InfoCircleOutlined />}
+                      />
+                    </div>
+                  )}
+
+                  {/* Reassign Section */}
+                  {taskActions.some(action => action.action === 'REASSIGN') && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <Title level={5}>Reassign Task</Title>
+                      <Select
+                        value={reassignUserId}
+                        onChange={setReassignUserId}
+                        placeholder="Select user to reassign to"
+                        style={{ width: '100%', marginBottom: '8px' }}
+                      >
+                        {mockUsers.filter(user => user.id !== selectedUserId).map((user: MockUser) => (
+                          <Option key={user.id} value={user.id}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <UserOutlined />
+                              <div>
+                                <div style={{ fontWeight: 'bold' }}>{user.name}</div>
+                                <div style={{ fontSize: '12px', color: '#666' }}>
+                                  {user.role} • {user.department}
+                                </div>
+                              </div>
+                            </div>
+                          </Option>
+                        ))}
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Rejection Section */}
+                  {taskActions.some(action => action.action === 'REJECT') && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <Title level={5}>Rejection Reason</Title>
+                      <TextArea
+                        value={rejectionComment}
+                        onChange={(e) => setRejectionComment(e.target.value)}
+                        placeholder="Please provide a reason for rejection..."
+                        rows={3}
+                      />
+                    </div>
+                  )}
+                </div>
+              )
+            },
+            {
+              key: 'history',
+              label: 'Assignment History',
+              children: (
+                <div>
+                  {selectedTask.assignment?.assignmentHistory && selectedTask.assignment.assignmentHistory.length > 0 ? (
+                    <div>
+                      <div style={{ marginBottom: '16px' }}>
+                        <Text strong>Current Status: </Text>
+                        <Tag color={getAssignmentStatusColor(selectedTask.assignment.currentStatus)}>
+                          {selectedTask.assignment.currentStatus}
+                        </Tag>
+                        <Text style={{ marginLeft: '8px' }}>
+                          (Iteration {selectedTask.assignment.assignmentIteration || 0})
+                        </Text>
+                      </div>
+                      
+                      <Title level={5}>Action History</Title>
+                      <List
+                        dataSource={selectedTask.assignment.assignmentHistory}
+                        renderItem={(historyItem: any, index: number) => (
+                          <List.Item>
+                            <div style={{ width: '100%' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <Tag color={historyItem.action === 'claim' ? 'green' : historyItem.action === 'release' ? 'orange' : 'blue'}>
+                                    {historyItem.action.toUpperCase()}
+                                  </Tag>
+                                  <Text strong>{historyItem.changedBy}</Text>
+                                  {historyItem.userId && historyItem.userId !== historyItem.changedBy && (
+                                    <Text type="secondary">→ {historyItem.userId}</Text>
+                                  )}
+                                </div>
+                                <Text type="secondary" style={{ fontSize: '12px' }}>
+                                  {new Date(historyItem.changedAt).toLocaleString()}
+                                </Text>
+                              </div>
+                            </div>
+                          </List.Item>
+                        )}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '40px' }}>
+                      <Text type="secondary">No assignment history available</Text>
+                    </div>
+                  )}
+                </div>
+              )
+            }
+          ]}
+        />
+
+        <Divider />
+
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {taskActions.map((taskAction) => {
+            const isActionLoading = actionLoading === selectedTask.id + taskAction.action;
+            let disabled = isActionLoading;
+
+            // Add specific validation for each action
+            if (taskAction.action === 'REASSIGN' && !reassignUserId) {
+              disabled = true;
+            }
+            if (taskAction.action === 'REJECT' && !rejectionComment.trim()) {
+              disabled = true;
+            }
+
+            return (
+              <Button
+                key={taskAction.action}
+                type={taskAction.variant as any}
+                danger={taskAction.danger}
+                icon={taskAction.icon}
+                loading={isActionLoading}
+                disabled={disabled}
+                onClick={() => {
+                                     if (taskAction.action === 'COMPLETE' && hasInputBlocks) {
+                     // Validate form before completing
+                     form.validateFields().then(() => {
+                       performTaskAction(selectedTask.id, taskAction.action);
+                     }).catch(() => {
+                       message.error('Please fill in all required fields');
+                     });
+                   } else {
+                     performTaskAction(selectedTask.id, taskAction.action);
+                   }
+                }}
+              >
+                {taskAction.label}
+              </Button>
+            );
+          })}
+        </div>
+      </Modal>
+    );
+  };
+
+  const renderTaskListItem = (task: Task) => {
+    const hasInputBlocks = task.inputs && task.inputs.length > 0;
+    const hasLinks = task.links && task.links.length > 0;
+    const stepType = task.stepType;
+    const assignmentStatus = task.assignment?.currentStatus;
+    const isClaimable = task.availableActions?.canClaim && !task.assignment?.assignedTo;
+
+    const handleQuickClaim = async (e: React.MouseEvent, taskId: string) => {
+      e.stopPropagation(); // Prevent modal from opening
+      await performTaskAction(taskId, 'CLAIM');
+    };
+
+    return (
+      <List.Item
+        key={task.id}
+        onClick={() => handleTaskClick(task)}
+        style={{ cursor: 'pointer' }}
+        actions={isClaimable ? [
+          <Button
+            key="quick-claim"
+            type="primary"
+            size="small"
+            icon={<UserAddOutlined />}
+            loading={actionLoading === task.id + 'CLAIM'}
+            onClick={(e) => handleQuickClaim(e, task.id)}
+            data-testid={`${prefixDataTestId}-quick-claim-${task.id}`}
+          >
+            Claim
+          </Button>
+        ] : undefined}
+      >
+        <List.Item.Meta
+          avatar={getTaskTypeIcon(task)}
+          title={
+            <Space wrap>
+              <span>{task.title || task.name}</span>
+              <Tag color={getTaskStatusColor(task.status)}>
+                {task.status}
+              </Tag>
+              {stepType && (
+                <Tag color={getStepTypeColor(stepType)}>
+                  {stepType}
+                </Tag>
+              )}
+              {assignmentStatus && (
+                <Tag color={getAssignmentStatusColor(assignmentStatus)}>
+                  {assignmentStatus}
+                </Tag>
+              )}
+              
+              {/* Due Date Tag */}
+              {getDueDateTag(task)}
+              
+              {hasInputBlocks && (
+                <Tag color="orange">
+                  <FormOutlined /> {task.inputs!.length} Fields
+                </Tag>
+              )}
+              {hasLinks && (
+                <Tag color="cyan">
+                  <LinkOutlined /> {task.links!.length} Links
+                </Tag>
+              )}
+            </Space>
+          }
+          description={
+            <div>
+              <div>{task.message || 'No description available'}</div>
+              {task.assignment?.assignedTo && (
+                <Text type="secondary" style={{ fontSize: '12px' }}>
+                  Assigned to: {task.assignment.assignedTo}
+                </Text>
+              )}
+              {task.dueDate && (
+                <div style={{ marginTop: '4px' }}>
+                  <Text 
+                    type="secondary" 
+                    style={{ 
+                      fontSize: '12px',
+                      color: isTaskOverdue(task.dueDate) ? '#ff4d4f' : 
+                             isTaskDueSoon(task.dueDate) ? '#faad14' : '#8c8c8c'
+                    }}
+                  >
+                    <CalendarOutlined /> Due: {formatDueDate(task.dueDate)}
+                  </Text>
+                </div>
+              )}
+            </div>
+          }
+        />
+      </List.Item>
+    );
+  };
+
+  // Separate tasks by assignment status using available actions and assignment object
+  const assignedTasks = tasks.filter(task => 
+    task.assignment?.isUserOwner || 
+    task.assignment?.currentStatus === 'assigned' || 
+    task.assignment?.currentStatus === 'claimed'
+  );
+  const claimableTasks = tasks.filter(task => 
+    // Only truly claimable tasks for THIS user (not assigned to someone else)
+    task.availableActions?.canClaim && 
+    !task.assignment?.assignedTo // Must not be assigned to anyone
+  );
+
+  // Sort tasks by due date and priority
+  const sortTasksByDueDate = (tasks: Task[]): Task[] => {
+    return [...tasks].sort((a, b) => {
+      // First priority: overdue tasks (most overdue first)
+      const aOverdue = isTaskOverdue(a.dueDate);
+      const bOverdue = isTaskOverdue(b.dueDate);
+      if (aOverdue && !bOverdue) return -1;
+      if (!aOverdue && bOverdue) return 1;
+      
+      // Second priority: due soon tasks
+      const aDueSoon = isTaskDueSoon(a.dueDate);
+      const bDueSoon = isTaskDueSoon(b.dueDate);
+      if (aDueSoon && !bDueSoon) return -1;
+      if (!aDueSoon && bDueSoon) return 1;
+      
+      // Third priority: by actual due date (closest first)
+      if (a.dueDate && b.dueDate) {
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      }
+      if (a.dueDate && !b.dueDate) return -1;
+      if (!a.dueDate && b.dueDate) return 1;
+      
+      // Finally: by step index or creation order
+      return (a.stepIndex || 0) - (b.stepIndex || 0);
+    });
+  };
+
+  // Apply sorting to task lists
+  const sortedAssignedTasks = sortTasksByDueDate(assignedTasks);
+  const sortedClaimableTasks = sortTasksByDueDate(claimableTasks);
+
+  return (
+    <div 
+      data-testid={prefixDataTestId}
+      style={{ 
+        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
+        minHeight: '100%',
+        padding: '24px',
+        borderRadius: '8px'
+      }}
+    >
+      {/* Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <Title level={3} style={{ margin: 0, color: '#1f2937' }}>
+          Task Inbox
+        </Title>
+        <Text type="secondary">Manage your assigned and claimable tasks from the custom flow engine</Text>
+      </div>
+
+      {/* User Selection */}
+      <Card style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Text strong>Select User:</Text>
+          <Select
+            value={selectedUserId}
+            onChange={setSelectedUserId}
+            style={{ width: 400 }}
+            optionLabelProp="label"
+            listHeight={300}
+            data-testid={`${prefixDataTestId}-UserSelect`}
+          >
+            {mockUsers.map((user: MockUser) => (
+              <Option key={user.id} value={user.id} label={user.name}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <UserOutlined />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <div style={{ fontWeight: 'bold' }}>{user.name}</div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>
+                      {user.role} • {user.department}
+                    </div>
+                  </div>
+                </div>
+              </Option>
+            ))}
+          </Select>
+          <Button 
+            onClick={() => fetchUserData(selectedUserId)} 
+            loading={loading}
+            icon={<ReloadOutlined />}
+            data-testid={`${prefixDataTestId}-RefreshButton`}
+          >
+            Refresh
+          </Button>
+        </div>
+      </Card>
+
+      {/* Task Statistics */}
+      {taskStats && (
+        <Card style={{ marginBottom: '16px' }}>
+          <Title level={5}>Task Statistics for {taskStats.userName || mockUsers.find(u => u.id === selectedUserId)?.name}</Title>
+          <Space size="large">
+            <div>
+              <Badge count={taskStats.assigned || 0} color="blue">
+                <Tag color="blue">Assigned</Tag>
+              </Badge>
+            </div>
+            <div>
+              <Badge count={taskStats.claimable || 0} color="orange">
+                <Tag color="orange">Claimable</Tag>
+              </Badge>
+            </div>
+            <div>
+              <Badge count={taskStats.inProgress || 0} color="processing">
+                <Tag color="processing">In Progress</Tag>
+              </Badge>
+            </div>
+            <div>
+              <Badge count={taskStats.scheduled || 0} color="default">
+                <Tag color="default">Scheduled</Tag>
+              </Badge>
+            </div>
+            <div>
+              <Badge count={taskStats.completed || 0} color="green">
+                <Tag color="green">Completed</Tag>
+              </Badge>
+            </div>
+            
+            {/* NEW: Overdue and Due Soon Statistics */}
+            <div>
+              <Badge count={taskStats.overdue || 0} color="red">
+                <Tag color="red" icon={<WarningOutlined />}>Overdue</Tag>
+              </Badge>
+            </div>
+            <div>
+              <Badge count={taskStats.dueSoon || 0} color="orange">
+                <Tag color="orange" icon={<ClockCircleOutlined />}>Due Soon</Tag>
+              </Badge>
+            </div>
+            
+            <div>
+              <Text strong>Total: {taskStats.total || 0}</Text>
+            </div>
+          </Space>
+        </Card>
+      )}
+
+      {/* Error Display */}
+      {error && (
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          closable
+          onClose={() => setError(null)}
+          style={{ marginBottom: '16px' }}
+        />
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '50px' }}>
+          <Spin size="large" />
+          <div style={{ marginTop: '16px' }}>
+            <Text>Loading tasks...</Text>
+          </div>
+        </div>
+      )}
+
+      {/* Tasks Display */}
+      {!loading && (
+        <div style={{ display: 'flex', gap: '16px' }}>
+          {/* Assigned Tasks */}
+          <Card 
+            title={
+              <Space>
+                <UserOutlined />
+                <span>My Assigned Tasks</span>
+                <Badge count={sortedAssignedTasks.length} color="blue" />
+              </Space>
+            } 
+            style={{ flex: 1 }}
+          >
+            {sortedAssignedTasks.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+                <FileTextOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+                <div>No assigned tasks</div>
+              </div>
+            ) : (
+              <List
+                dataSource={sortedAssignedTasks}
+                renderItem={renderTaskListItem}
+                size="small"
+              />
+            )}
+          </Card>
+
+          {/* Claimable Tasks */}
+          <Card 
+            title={
+              <Space>
+                <ExclamationCircleOutlined />
+                <span>Claimable Tasks</span>
+                <Badge count={sortedClaimableTasks.length} color="orange" />
+              </Space>
+            } 
+            style={{ flex: 1 }}
+          >
+            {sortedClaimableTasks.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+                <CheckCircleOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+                <div>No claimable tasks</div>
+              </div>
+            ) : (
+              <List
+                dataSource={sortedClaimableTasks}
+                renderItem={renderTaskListItem}
+                size="small"
+              />
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Task Modal */}
+      {renderTaskModal()}
+    </div>
+  );
+};
+
+export default TaskInbox; 

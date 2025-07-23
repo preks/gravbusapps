@@ -76,12 +76,6 @@ export const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
         return null;
       
       case 'description':
-        if (!value.trim()) {
-          return 'Description is required';
-        }
-        if (value.length < 10) {
-          return 'Description must be at least 10 characters';
-        }
         if (value.length > 500) {
           return 'Description must be less than 500 characters';
         }
@@ -126,16 +120,6 @@ export const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
     ];
     
     return suggestions[0];
-  };
-
-  // Generate suggested description based on pattern
-  const getSuggestedDescription = (): string => {
-    if (!selectedPattern) return '';
-    
-    const baseDescription = selectedPattern.description;
-    const useCases = selectedPattern.useCases.slice(0, 2).join(' or ');
-    
-    return `${baseDescription}. Common use cases include: ${useCases}.`;
   };
 
   return (
@@ -226,46 +210,18 @@ export const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
         <div className="gba:space-y-2" data-testid={`${testId}-description-field`}>
           <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700">
             {getTranslationFromI18nKeyAndLabel('flow.wizard.description', 'Workflow Description')}
-            <span className="gba:text-red-500 gba:ml-1">*</span>
           </label>
-          
           <Textarea
             value={localDescription}
             onChange={(e) => handleDescriptionChange(e.target.value)}
-            placeholder={getSuggestedDescription() || "Describe what this workflow does..."}
-            rows={4}
-            className={`gba:w-full gba:resize-none ${errors.description ? 'gba:border-red-500' : ''}`}
+            placeholder="Enter workflow description (optional)"
+            className={`gba:w-full ${errors.description ? 'gba:border-red-500' : ''}`}
             data-testid={`${testId}-description-input`}
           />
-          
           {errors.description && (
             <Alert variant="destructive" data-testid={`${testId}-description-error`}>
               <AlertDescription>{errors.description}</AlertDescription>
             </Alert>
-          )}
-          
-          {/* Character Count */}
-          <div className="gba:flex gba:justify-between gba:text-xs gba:text-gray-500">
-            <span>
-              {localDescription.length}/500 characters
-            </span>
-            <span>
-              {localDescription.length >= 10 ? '✓' : 'Minimum 10 characters'}
-            </span>
-          </div>
-          
-          {/* Description Suggestions */}
-          {selectedPattern && !localDescription && (
-            <div className="gba:mt-2">
-              <p className="gba:text-xs gba:text-gray-500 gba:mb-2">Suggestion:</p>
-              <button
-                onClick={() => handleDescriptionChange(getSuggestedDescription())}
-                className="gba:w-full gba:p-3 gba:bg-gray-50 gba:text-gray-700 gba:text-sm gba:rounded gba:hover:bg-gray-100 gba:transition-colors gba:text-left"
-                data-testid={`${testId}-description-suggestion`}
-              >
-                {getSuggestedDescription()}
-              </button>
-            </div>
           )}
         </div>
       </div>
@@ -315,7 +271,7 @@ export const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
 
       {/* Validation Summary */}
       <div className="gba:mt-6" data-testid={`${testId}-validation`}>
-        {Object.keys(errors).length === 0 && localTitle && localDescription && (
+        {Object.keys(errors).length === 0 && localTitle && (
           <Alert className="gba:bg-green-50 gba:border-green-200" data-testid={`${testId}-success`}>
             <AlertDescription className="gba:text-green-800">
               ✓ Basic information is complete. You can proceed to the next step.

@@ -1,7 +1,7 @@
 import React from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFlowTemplateStore } from '../../../hooks/useFlowTemplateStore';
-import { Input, InputType } from '../../../types/flowTemplate';
+import { InputBlock, InputType } from '../../../types/flowTemplate';
 import { TextInputBlock } from './TextInputBlock';
 import { SelectInputBlock } from './SelectInputBlock';
 import { DatetimeInputBlock } from './DatetimeInputBlock';
@@ -10,7 +10,7 @@ import { SignatureBlock } from './SignatureBlock';
 
 interface InputBlocksListProps {
   taskId: string;
-  blocks: Input[];
+  blocks: InputBlock[];
   'data-testid'?: string;
 }
 
@@ -28,11 +28,11 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
     addInputBlock(taskId, type);
   };
 
-  const renderBlock = (block: Input, index: number) => {
+  const renderBlock = (block: InputBlock, index: number) => {
     switch (block.type) {
-      case 'text':
-      case 'textarea':
-      case 'number':
+      case InputType.TEXT:
+      case InputType.TEXTAREA:
+      case InputType.NUMBER:
         return (
           <TextInputBlock
             key={block.id}
@@ -42,9 +42,9 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
             data-testid={`${testId}-text-${index}`}
           />
         );
-      case 'dropdown':
-      case 'radio':
-      case 'checkbox':
+      case InputType.SELECT:
+      case InputType.RADIO:
+      case InputType.CHECKBOX:
         return (
           <SelectInputBlock
             key={block.id}
@@ -54,7 +54,7 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
             data-testid={`${testId}-select-${index}`}
           />
         );
-      case 'datetime':
+      case InputType.DATETIME:
         return (
           <DatetimeInputBlock
             key={block.id}
@@ -64,7 +64,7 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
             data-testid={`${testId}-datetime-${index}`}
           />
         );
-      case 'file':
+      case InputType.FILE:
         return (
           <FileUploadBlock
             key={block.id}
@@ -74,7 +74,7 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
             data-testid={`${testId}-file-${index}`}
           />
         );
-      case 'signature':
+      case InputType.SIGNATURE:
         return (
           <SignatureBlock
             key={block.id}
@@ -97,21 +97,21 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
             {getTranslationFromI18nKeyAndLabel('flow.creator.textInput', 'Text:')}
           </span>
           <button
-            onClick={() => handleAddBlock('text')}
+            onClick={() => handleAddBlock(InputType.TEXT)}
             className="gba:px-2 gba:py-0.5 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-sm"
             data-testid={`${testId}-add-text-button`}
           >
             {getTranslationFromI18nKeyAndLabel('flow.creator.text', 'Text')}
           </button>
           <button
-            onClick={() => handleAddBlock('textarea')}
+            onClick={() => handleAddBlock(InputType.TEXTAREA)}
             className="gba:px-2 gba:py-0.5 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-sm"
             data-testid={`${testId}-add-textarea-button`}
           >
             {getTranslationFromI18nKeyAndLabel('flow.creator.textarea', 'Textarea')}
           </button>
           <button
-            onClick={() => handleAddBlock('number')}
+            onClick={() => handleAddBlock(InputType.NUMBER)}
             className="gba:px-2 gba:py-0.5 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-sm"
             data-testid={`${testId}-add-number-button`}
           >
@@ -124,21 +124,21 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
             {getTranslationFromI18nKeyAndLabel('flow.creator.selectInput', 'Select:')}
           </span>
           <button
-            onClick={() => handleAddBlock('dropdown')}
+            onClick={() => handleAddBlock(InputType.SELECT)}
             className="gba:px-2 gba:py-0.5 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-sm"
             data-testid={`${testId}-add-dropdown-button`}
           >
             {getTranslationFromI18nKeyAndLabel('flow.creator.dropdown', 'Dropdown')}
           </button>
           <button
-            onClick={() => handleAddBlock('radio')}
+            onClick={() => handleAddBlock(InputType.RADIO)}
             className="gba:px-2 gba:py-0.5 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-sm"
             data-testid={`${testId}-add-radio-button`}
           >
             {getTranslationFromI18nKeyAndLabel('flow.creator.radio', 'Radio')}
           </button>
           <button
-            onClick={() => handleAddBlock('checkbox')}
+            onClick={() => handleAddBlock(InputType.CHECKBOX)}
             className="gba:px-2 gba:py-0.5 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-sm"
             data-testid={`${testId}-add-checkbox-button`}
           >
@@ -151,21 +151,21 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
             {getTranslationFromI18nKeyAndLabel('flow.creator.other', 'Other:')}
           </span>
           <button
-            onClick={() => handleAddBlock('datetime')}
+            onClick={() => handleAddBlock(InputType.DATETIME)}
             className="gba:px-2 gba:py-0.5 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-sm"
             data-testid={`${testId}-add-datetime-button`}
           >
             {getTranslationFromI18nKeyAndLabel('flow.creator.datetime', 'DateTime')}
           </button>
           <button
-            onClick={() => handleAddBlock('file')}
+            onClick={() => handleAddBlock(InputType.FILE)}
             className="gba:px-2 gba:py-0.5 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-sm"
             data-testid={`${testId}-add-file-button`}
           >
             {getTranslationFromI18nKeyAndLabel('flow.creator.file', 'File')}
           </button>
           <button
-            onClick={() => handleAddBlock('signature')}
+            onClick={() => handleAddBlock(InputType.SIGNATURE)}
             className="gba:px-2 gba:py-0.5 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-sm"
             data-testid={`${testId}-add-signature-button`}
           >

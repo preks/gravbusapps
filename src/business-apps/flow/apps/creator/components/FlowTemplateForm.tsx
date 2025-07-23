@@ -1,20 +1,82 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
+import { Button, message } from 'antd';
+import { SaveOutlined, SendOutlined } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFlowTemplateStore } from '../hooks/useFlowTemplateStore';
+import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient';
 import { GeneralConfigSection } from './general-config/GeneralConfigSection';
+import { InitStepSection } from './general-config/InitStepSection';
 import { StepsSection } from './steps/StepsSection';
 import { JsonPreviewSection } from './advanced/JsonPreviewSection';
 import { Tabs, TabsList, TabsTrigger, TabsContent, Card } from '@newwork/nw-design-system';
 
+interface FlowTemplateFormProps {
+  accessToken: string;
+  'data-testid'?: string;
+  onSaved?: (template: any) => void;
+}
+
 /**
  * Main form component for configuring a flow template
  */
-export const FlowTemplateForm: React.FC = () => {
-  // Using the hook to ensure we're connected to the store, but components handle their own state
-  useFlowTemplateStore();
+export const FlowTemplateForm: React.FC<FlowTemplateFormProps> = ({ 
+  accessToken,
+  'data-testid': testId = 'flow-template-form',
+  onSaved
+}) => {
+  const { 
+    flowTemplate, 
+    isSaving, 
+    isValid,
+    saveTemplate, 
+    validateTemplate
+  } = useFlowTemplateStore();
+  
+  // Get the client for API calls
+  const flowTemplateClient = useFlowTemplateClient(accessToken);
+
+  const handleSaveDraft = useCallback(async () => {
+    try {
+      // Call the API directly with the client
+      const templateData = {
+        ...flowTemplate,
+        type: 'TEMPLATE' as const
+      };
+      
+      const savedTemplate = await flowTemplateClient.createTemplate(templateData);
+      message.success('Template saved as draft successfully!');
+      
+      if (onSaved) {
+        onSaved(savedTemplate);
+      }
+    } catch (error) {
+      console.error('Error saving template as draft:', error);
+      message.error('Failed to save template as draft');
+    }
+  }, [flowTemplate, flowTemplateClient, onSaved]);
+
+  const handlePublish = useCallback(async () => {
+    try {
+      // Call the API directly with the client
+      const templateData = {
+        ...flowTemplate,
+        type: 'TEMPLATE' as const
+      };
+      
+      const publishedTemplate = await flowTemplateClient.createTemplate(templateData);
+      message.success('Template published successfully!');
+      
+      if (onSaved) {
+        onSaved(publishedTemplate);
+      }
+    } catch (error) {
+      console.error('Error publishing template:', error);
+      message.error('Failed to publish template');
+    }
+  }, [flowTemplate, flowTemplateClient, onSaved]);
 
   return (
-    <div className="gba:w-full" data-testid="flow-template-form">
+    <div className="gba:w-full" data-testid={testId}>
       <Tabs defaultValue="general" className="gba:w-full" data-testid="flow-template-tabs">
         <TabsList className="gba:mb-6" data-testid="flow-template-tabs-list">
           <TabsTrigger value="general" data-testid="general-config-tab">
@@ -32,6 +94,9 @@ export const FlowTemplateForm: React.FC = () => {
           <Card className="gba:p-6">
             <GeneralConfigSection />
           </Card>
+          
+          {/* Init Step Section - only shown for SELF_SERVICE flows */}
+          <InitStepSection />
         </TabsContent>
         
         <TabsContent value="steps" className="gba:space-y-6" data-testid="steps-content">
@@ -46,6 +111,29 @@ export const FlowTemplateForm: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Save/Publish Actions */}
+      <div className="gba:flex gba:justify-end gba:gap-4 gba:mt-8 gba:pt-6 gba:border-t gba:border-gray-200" data-testid="form-actions">
+        <Button
+          icon={<SaveOutlined />}
+          onClick={handleSaveDraft}
+          loading={isSaving}
+          data-testid="save-draft-button"
+        >
+          {getTranslationFromI18nKeyAndLabel('flow.creator.saveDraft', 'Save Draft')}
+        </Button>
+        
+        <Button
+          type="primary"
+          icon={<SendOutlined />}
+          onClick={handlePublish}
+          loading={isSaving}
+          disabled={!isValid}
+          data-testid="publish-button"
+        >
+          {getTranslationFromI18nKeyAndLabel('flow.creator.publish', 'Publish')}
+        </Button>
+      </div>
     </div>
   );
 };

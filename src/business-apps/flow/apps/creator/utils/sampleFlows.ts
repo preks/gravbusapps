@@ -1,4 +1,4 @@
-import { FlowTemplate, FlowStep, FlowStepType, InputType, AssignmentMode, LinkType } from '../types/flowTemplate';
+import { FlowTemplate, FlowStepType, InputType, AssignmentMode } from '../types/flowTemplate';
 
 /**
  * Sample flow templates for testing the simplified flow creator
@@ -9,6 +9,7 @@ export const employeeOnboardingFlow: FlowTemplate = {
   type: 'TEMPLATE',
   name: 'Employee Onboarding Process',
   description: 'A comprehensive onboarding process for new employees covering orientation, equipment setup, and initial training.',
+  assignmentMode: AssignmentMode.CLAIM, // Template-level assignment mode
   steps: [
     {
       id: 'step-1',
@@ -18,124 +19,98 @@ export const employeeOnboardingFlow: FlowTemplate = {
       links: [
         {
           name: 'Employee Handbook',
-          url: '/documents/employee-handbook.pdf',
-          type: LinkType.DOCUMENT
+          url: '/documents/employee-handbook.pdf'
         },
         {
-          name: 'Organization Chart',
-          url: '/documents/org-chart.pdf',
-          type: LinkType.DOCUMENT
+          name: 'Company Policies',
+          url: '/documents/company-policies.pdf'
         }
       ],
-      inputs: [],
-      assignment: {
-        targets: [
-          { entity: 'department', id: 'dept-001' } // HR Department
-        ],
-        assignmentMode: AssignmentMode.CLAIM,
-        allowReassignment: false
-      }
+      inputs: []
     },
     {
       id: 'step-2',
-      title: 'Equipment Setup Request',
-      message: 'Please provide details about the equipment and access you need to get started in your role.',
+      title: 'Equipment Setup',
+      message: 'Let\'s get your workspace and equipment ready. Please complete the equipment request form and schedule your IT setup appointment.',
       type: FlowStepType.TASK,
-      links: [
-        {
-          name: 'Equipment Catalog',
-          url: '/documents/equipment-catalog.pdf',
-          type: LinkType.DOCUMENT
-        }
-      ],
       inputs: [
         {
           type: InputType.SELECT,
-          name: 'laptopType',
-          label: 'Laptop Type',
+          name: 'laptop_type',
+          label: 'Preferred Laptop Type',
           required: true,
           options: [
-            { value: 'macbook-pro', label: 'MacBook Pro' },
-            { value: 'macbook-air', label: 'MacBook Air' },
-            { value: 'windows-laptop', label: 'Windows Laptop' },
-            { value: 'linux-workstation', label: 'Linux Workstation' }
+            { value: 'macbook_pro', label: 'MacBook Pro' },
+            { value: 'macbook_air', label: 'MacBook Air' },
+            { value: 'thinkpad', label: 'ThinkPad' },
+            { value: 'surface', label: 'Surface Laptop' }
           ]
         },
         {
-          type: InputType.SELECT,
-          name: 'monitorSetup',
-          label: 'Monitor Setup',
-          required: true,
+          type: InputType.MULTISELECT,
+          name: 'accessories',
+          label: 'Required Accessories',
+          required: false,
           options: [
-            { value: 'single-24', label: 'Single 24"' },
-            { value: 'dual-24', label: 'Dual 24"' },
-            { value: 'single-27', label: 'Single 27"' },
-            { value: 'dual-27', label: 'Dual 27"' },
-            { value: 'none', label: 'No additional monitor' }
+            { value: 'monitor', label: 'External Monitor' },
+            { value: 'keyboard', label: 'Wireless Keyboard' },
+            { value: 'mouse', label: 'Wireless Mouse' },
+            { value: 'headset', label: 'Headset' },
+            { value: 'webcam', label: 'Webcam' }
           ]
         },
         {
           type: InputType.TEXTAREA,
-          name: 'additionalEquipment',
-          label: 'Additional Equipment Needs',
-          required: false
-        },
-        {
-          type: InputType.TEXTAREA,
-          name: 'systemAccess',
-          label: 'System Access Requirements',
-          required: true
-        }
-      ]
-    },
-    {
-      id: 'step-3',
-      title: 'IT Setup Approval',
-      message: 'Review and approve the equipment and access requests for the new employee.',
-      type: FlowStepType.APPROVAL,
-      links: [],
-      inputs: [
-        {
-          type: InputType.TEXTAREA,
-          name: 'approvalNotes',
-          label: 'Approval Notes',
+          name: 'special_requirements',
+          label: 'Special Requirements',
           required: false
         }
       ],
       assignment: {
         targets: [
-          { entity: 'department', id: 'dept-003' } // IT Department
+          { entity: 'department', id: 'it-department' }
         ],
-        assignmentMode: AssignmentMode.CLAIM,
         allowReassignment: true
       }
     },
     {
-      id: 'step-4',
-      title: 'Complete Initial Training',
-      message: 'Complete the required initial training modules and acknowledge that you understand your role and responsibilities.',
-      type: FlowStepType.ACKNOWLEDGE,
-      links: [
-        {
-          name: 'Initial Training Modules',
-          url: 'https://training.company.com/initial-modules',
-          type: LinkType.URL
-        }
-      ],
+      id: 'step-3',
+      title: 'Initial Training Schedule',
+      message: 'Schedule your mandatory training sessions. These sessions are required to be completed within your first two weeks.',
+      type: FlowStepType.TASK,
       inputs: [
         {
-          type: InputType.TEXT,
-          name: 'trainingCompletionDate',
-          label: 'Training Completion Date',
+          type: InputType.DATE,
+          name: 'security_training_date',
+          label: 'Security Training Date',
           required: true
         },
         {
-          type: InputType.TEXTAREA,
-          name: 'keyTakeaways',
-          label: 'Key Takeaways',
+          type: InputType.DATE,
+          name: 'compliance_training_date',
+          label: 'Compliance Training Date',
+          required: true
+        },
+        {
+          type: InputType.CHECKBOX,
+          name: 'training_acknowledgment',
+          label: 'I acknowledge that I understand the training requirements',
           required: true
         }
-      ]
+      ],
+      assignment: {
+        targets: [
+          { entity: 'department', id: 'hr-department' }
+        ],
+        allowReassignment: false
+      }
+    },
+    {
+      id: 'step-4',
+      title: 'Onboarding Complete',
+      message: 'Congratulations! You have successfully completed the onboarding process. Welcome to the team!',
+      type: FlowStepType.ACKNOWLEDGE,
+      inputs: []
     }
   ]
 };
@@ -144,322 +119,411 @@ export const employeeOnboardingFlow: FlowTemplate = {
 export const documentApprovalFlow: FlowTemplate = {
   type: 'TEMPLATE',
   name: 'Document Review & Approval',
-  description: 'Standard process for reviewing and approving important documents before publication or implementation.',
+  description: 'Standard document review and approval process with multiple approval levels and version control.',
+  assignmentMode: AssignmentMode.CLAIM, // Template-level assignment mode
   steps: [
     {
       id: 'step-1',
-      title: 'Submit Document for Review',
-      message: 'Please upload the document and provide necessary context for the review process.',
+      title: 'Document Submission',
+      message: 'Submit your document for review and approval. Please ensure all required information is provided.',
       type: FlowStepType.TASK,
-      links: [
-        {
-          name: 'Review Checklist',
-          url: '/templates/review-checklist.pdf',
-          type: LinkType.DOCUMENT
-        }
-      ],
       inputs: [
         {
           type: InputType.TEXT,
-          name: 'documentTitle',
+          name: 'document_title',
           label: 'Document Title',
           required: true
         },
         {
-          type: InputType.SELECT,
-          name: 'documentType',
-          label: 'Document Type',
-          required: true,
-          options: [
-            { value: 'policy', label: 'Policy' },
-            { value: 'procedure', label: 'Procedure' },
-            { value: 'guidelines', label: 'Guidelines' },
-            { value: 'manual', label: 'Manual' },
-            { value: 'report', label: 'Report' },
-            { value: 'other', label: 'Other' }
-          ]
-        },
-        {
           type: InputType.FILE,
-          name: 'documentFile',
+          name: 'document_file',
           label: 'Document File',
           required: true
         },
         {
-          type: InputType.TEXTAREA,
-          name: 'reviewContext',
-          label: 'Review Context',
-          required: true
+          type: InputType.SELECT,
+          name: 'document_type',
+          label: 'Document Type',
+          required: true,
+          options: [
+            { value: 'policy', label: 'Policy Document' },
+            { value: 'procedure', label: 'Procedure' },
+            { value: 'guideline', label: 'Guideline' },
+            { value: 'specification', label: 'Technical Specification' }
+          ]
         },
         {
-          type: InputType.TEXT,
-          name: 'targetPublicationDate',
-          label: 'Target Publication Date',
+          type: InputType.TEXTAREA,
+          name: 'submission_notes',
+          label: 'Submission Notes',
           required: false
         }
       ],
       assignment: {
         targets: [
-          { entity: 'capability', id: 'cap-005' }, // Software Development
-          { entity: 'capability', id: 'cap-006' }  // System Architecture
+          { entity: 'role', id: 'document-submitter' }
         ],
-        assignmentMode: AssignmentMode.CLAIM,
         allowReassignment: true
       }
     },
     {
       id: 'step-2',
-      title: 'Technical Review',
-      message: 'Conduct a thorough technical review of the submitted document for accuracy, completeness, and compliance.',
+      title: 'Initial Review',
+      message: 'Conduct initial review of the submitted document. Check for completeness, formatting, and basic requirements.',
       type: FlowStepType.APPROVAL,
-      links: [
-        {
-          name: 'Technical Review Standards',
-          url: '/standards/technical-review-standards.pdf',
-          type: LinkType.DOCUMENT
-        }
-      ],
       inputs: [
         {
           type: InputType.SELECT,
-          name: 'technicalAccuracy',
-          label: 'Technical Accuracy',
+          name: 'review_status',
+          label: 'Review Status',
           required: true,
           options: [
-            { value: 'excellent', label: 'Excellent' },
-            { value: 'good', label: 'Good' },
-            { value: 'needs-minor-changes', label: 'Needs Minor Changes' },
-            { value: 'needs-major-changes', label: 'Needs Major Changes' },
-            { value: 'inaccurate', label: 'Inaccurate' }
-          ]
-        },
-        {
-          type: InputType.SELECT,
-          name: 'completeness',
-          label: 'Completeness',
-          required: true,
-          options: [
-            { value: 'complete', label: 'Complete' },
-            { value: 'minor-gaps', label: 'Minor Gaps' },
-            { value: 'major-gaps', label: 'Major Gaps' },
-            { value: 'incomplete', label: 'Incomplete' }
+            { value: 'approved', label: 'Approved' },
+            { value: 'needs_revision', label: 'Needs Revision' },
+            { value: 'rejected', label: 'Rejected' }
           ]
         },
         {
           type: InputType.TEXTAREA,
-          name: 'technicalComments',
-          label: 'Technical Comments',
-          required: false
-        },
-        {
-          type: InputType.TEXTAREA,
-          name: 'recommendedChanges',
-          label: 'Recommended Changes',
-          required: false
-        }
-      ],
-      assignment: {
-        targets: [
-          { entity: 'capability', id: 'cap-005' }, // Software Development
-          { entity: 'capability', id: 'cap-006' }  // System Architecture
-        ],
-        assignmentMode: AssignmentMode.CLAIM,
-        allowReassignment: true
-      }
-    },
-    {
-      id: 'step-3',
-      title: 'Management Approval',
-      message: 'Final management approval for document publication and implementation.',
-      type: FlowStepType.APPROVAL,
-      links: [],
-      inputs: [
-        {
-          type: InputType.TEXTAREA,
-          name: 'managementComments',
-          label: 'Management Comments',
-          required: false
-        },
-        {
-          type: InputType.TEXT,
-          name: 'approvedPublicationDate',
-          label: 'Approved Publication Date',
+          name: 'review_comments',
+          label: 'Review Comments',
           required: true
         }
       ],
       assignment: {
         targets: [
-          { entity: 'role', id: 'role-001' }, // HR Manager
-          { entity: 'role', id: 'role-003' }  // Finance Manager
+          { entity: 'role', id: 'document-reviewer' }
         ],
-        assignmentMode: AssignmentMode.ASSIGN, // All managers must approve
-        allowReassignment: false
+        allowReassignment: true
       }
-    }
-  ]
-};
-
-// Sample 3: Simple Information Flow
-export const companyAnnouncementFlow: FlowTemplate = {
-  type: 'TEMPLATE',
-  name: 'Company Announcement',
-  description: 'Share important company news and updates with all employees.',
-  steps: [
+    },
     {
-      id: 'step-1',
-      title: 'Important Company Update',
-      message: `Dear Team,
-
-We have an important update to share with everyone. Please read through the attached information carefully and acknowledge that you have received and understood this communication.
-
-This announcement contains information that may affect your work and our company operations. If you have any questions, please don't hesitate to reach out to your manager or HR.
-
-Thank you for your attention to this matter.
-
-Best regards,
-Management Team`,
-      type: FlowStepType.ACKNOWLEDGE,
-      links: [
-        {
-          name: 'Company Update Details',
-          url: '/announcements/company-update.pdf',
-          type: LinkType.DOCUMENT
-        },
-        {
-          name: 'Frequently Asked Questions',
-          url: 'https://intranet.company.com/faq',
-          type: LinkType.URL
-        }
-      ],
+      id: 'step-3',
+      title: 'Final Approval',
+      message: 'Final approval step for the document. This approval will publish the document to the organization.',
+      type: FlowStepType.APPROVAL,
       inputs: [
         {
+          type: InputType.SELECT,
+          name: 'final_decision',
+          label: 'Final Decision',
+          required: true,
+          options: [
+            { value: 'approved', label: 'Approved for Publication' },
+            { value: 'rejected', label: 'Rejected' }
+          ]
+        },
+        {
           type: InputType.TEXTAREA,
-          name: 'questionsOrComments',
-          label: 'Questions or Comments',
+          name: 'approval_notes',
+          label: 'Approval Notes',
           required: false
         }
       ],
       assignment: {
         targets: [
-          { entity: 'department', id: 'dept-001' }, // HR
-          { entity: 'department', id: 'dept-002' }, // Finance
-          { entity: 'department', id: 'dept-003' }, // Engineering
-          { entity: 'department', id: 'dept-004' }, // Sales
-          { entity: 'department', id: 'dept-005' }  // Marketing
+          { entity: 'role', id: 'document-approver' }
         ],
-        assignmentMode: AssignmentMode.ASSIGN, // All departments must acknowledge
         allowReassignment: false
       }
     }
   ]
 };
 
-// Sample 4: Mixed Assignment Flow
-export const projectKickoffFlow: FlowTemplate = {
-  type: 'TEMPLATE',
-  name: 'Project Kickoff Process',
-  description: 'Complete process for initiating a new project including planning, resource allocation, and team setup.',
+// Sample 3: Self-Service Expense Report
+export const selfServiceExpenseReport: FlowTemplate = {
+  type: 'SELF_SERVICE',
+  name: 'Expense Report Submission',
+  description: 'Quick self-service expense report submission with automatic approval routing.',
+  assignmentMode: AssignmentMode.ASSIGN,
+  initStep: {
+    title: 'Submit Expense Report',
+    message: 'Please fill out your expense report details. All fields marked with * are required.',
+    links: [
+      {
+        name: 'Expense Policy',
+        url: '/documents/expense-policy.pdf'
+      },
+      {
+        name: 'Expense Guidelines',
+        url: '/documents/expense-guidelines.pdf'
+      }
+    ],
+    inputs: [
+      {
+        type: InputType.TEXT,
+        name: 'report_title',
+        label: 'Report Title',
+        required: true
+      },
+      {
+        type: InputType.DATE,
+        name: 'expense_date',
+        label: 'Expense Date',
+        required: true
+      },
+      {
+        type: InputType.SELECT,
+        name: 'expense_category',
+        label: 'Expense Category',
+        required: true,
+        options: [
+          { value: 'travel', label: 'Travel' },
+          { value: 'meals', label: 'Meals & Entertainment' },
+          { value: 'supplies', label: 'Office Supplies' },
+          { value: 'training', label: 'Training & Education' },
+          { value: 'other', label: 'Other' }
+        ]
+      },
+      {
+        type: InputType.NUMBER,
+        name: 'amount',
+        label: 'Amount',
+        required: true
+      },
+      {
+        type: InputType.TEXTAREA,
+        name: 'description',
+        label: 'Description',
+        required: true
+      },
+      {
+        type: InputType.FILE,
+        name: 'receipt',
+        label: 'Receipt',
+        required: true
+      }
+    ]
+  },
   steps: [
     {
       id: 'step-1',
-      title: 'Project Planning',
-      message: 'Define the project scope, objectives, timeline, and initial requirements.',
+      title: 'Manager Approval',
+      message: 'Review and approve the expense report submitted by your team member.',
+      type: FlowStepType.APPROVAL,
+      inputs: [
+        {
+          type: InputType.SELECT,
+          name: 'approval_status',
+          label: 'Approval Status',
+          required: true,
+          options: [
+            { value: 'approved', label: 'Approved' },
+            { value: 'rejected', label: 'Rejected' },
+            { value: 'needs_info', label: 'Needs More Information' }
+          ]
+        },
+        {
+          type: InputType.TEXTAREA,
+          name: 'approval_comments',
+          label: 'Comments',
+          required: false
+        }
+      ],
+      assignment: {
+        targets: [
+          { entity: 'role', id: 'manager' }
+        ],
+        allowReassignment: true
+      }
+    },
+    {
+      id: 'step-2',
+      title: 'Finance Processing',
+      message: 'Process the approved expense report for reimbursement.',
       type: FlowStepType.TASK,
-      links: [
-        {
-          name: 'Project Charter Template',
-          url: '/templates/project-charter-template.docx',
-          type: LinkType.DOCUMENT
-        }
-      ],
       inputs: [
         {
-          type: InputType.TEXT,
-          name: 'projectName',
-          label: 'Project Name',
-          required: true
-        },
-        {
-          type: InputType.TEXTAREA,
-          name: 'projectObjectives',
-          label: 'Project Objectives',
+          type: InputType.DATE,
+          name: 'processing_date',
+          label: 'Processing Date',
           required: true
         },
         {
           type: InputType.TEXT,
-          name: 'expectedDuration',
-          label: 'Expected Duration (weeks)',
+          name: 'reference_number',
+          label: 'Reference Number',
           required: true
         },
         {
-          type: InputType.SELECT,
-          name: 'projectPriority',
-          label: 'Project Priority',
-          required: true,
-          options: [
-            { value: 'high', label: 'High' },
-            { value: 'medium', label: 'Medium' },
-            { value: 'low', label: 'Low' }
-          ]
-        },
-        {
-          type: InputType.FILE,
-          name: 'projectCharter',
-          label: 'Project Charter',
+          type: InputType.CHECKBOX,
+          name: 'processed_confirmation',
+          label: 'I confirm this expense has been processed for reimbursement',
           required: true
         }
       ],
       assignment: {
         targets: [
-          { entity: 'role', id: 'role-003' } // Finance Manager
+          { entity: 'department', id: 'finance' }
         ],
-        assignmentMode: AssignmentMode.CLAIM,
         allowReassignment: true
       }
-    },
+    }
+  ]
+};
+
+// Sample 4: Self-Service IT Support Request
+export const selfServiceITSupport: FlowTemplate = {
+  type: 'SELF_SERVICE',
+  name: 'IT Support Request',
+  description: 'Self-service IT support request with automatic ticket creation and routing.',
+  assignmentMode: AssignmentMode.CLAIM,
+  initStep: {
+    title: 'Submit IT Support Request',
+    message: 'Describe your IT issue or request. Please provide as much detail as possible to help our team assist you quickly.',
+    links: [
+      {
+        name: 'IT Self-Help Portal',
+        url: '/it-portal'
+      },
+      {
+        name: 'Common IT Issues',
+        url: '/it-portal/common-issues'
+      }
+    ],
+    inputs: [
+      {
+        type: InputType.SELECT,
+        name: 'request_type',
+        label: 'Request Type',
+        required: true,
+        options: [
+          { value: 'hardware', label: 'Hardware Issue' },
+          { value: 'software', label: 'Software Issue' },
+          { value: 'access', label: 'Access Request' },
+          { value: 'account', label: 'Account Issue' },
+          { value: 'other', label: 'Other' }
+        ]
+      },
+      {
+        type: InputType.SELECT,
+        name: 'priority',
+        label: 'Priority Level',
+        required: true,
+        options: [
+          { value: 'low', label: 'Low - Can wait' },
+          { value: 'medium', label: 'Medium - Impacting work' },
+          { value: 'high', label: 'High - Blocking work' },
+          { value: 'urgent', label: 'Urgent - Critical system down' }
+        ]
+      },
+      {
+        type: InputType.TEXT,
+        name: 'subject',
+        label: 'Subject',
+        required: true
+      },
+      {
+        type: InputType.TEXTAREA,
+        name: 'description',
+        label: 'Detailed Description',
+        required: true
+      },
+      {
+        type: InputType.FILE,
+        name: 'attachment',
+        label: 'Screenshot or Attachment',
+        required: false
+      }
+    ]
+  },
+  steps: [
     {
-      id: 'step-2',
-      title: 'Resource Approval',
-      message: 'Review and approve the resource requirements for the project.',
-      type: FlowStepType.APPROVAL,
-      links: [],
+      id: 'step-1',
+      title: 'IT Technician Assignment',
+      message: 'Assign this ticket to an available IT technician based on the request type and priority.',
+      type: FlowStepType.TASK,
       inputs: [
         {
+          type: InputType.SELECT,
+          name: 'assigned_technician',
+          label: 'Assigned Technician',
+          required: true,
+          options: [
+            { value: 'tech1', label: 'John Smith (Hardware)' },
+            { value: 'tech2', label: 'Jane Doe (Software)' },
+            { value: 'tech3', label: 'Mike Johnson (Network)' },
+            { value: 'tech4', label: 'Sarah Wilson (General)' }
+          ]
+        },
+        {
           type: InputType.TEXTAREA,
-          name: 'resourceComments',
-          label: 'Resource Comments',
+          name: 'assignment_notes',
+          label: 'Assignment Notes',
           required: false
         }
       ],
       assignment: {
         targets: [
-          { entity: 'role', id: 'role-003' } // Finance Manager
+          { entity: 'role', id: 'it-coordinator' }
         ],
-        assignmentMode: AssignmentMode.CLAIM,
+        allowReassignment: true
+      }
+    },
+    {
+      id: 'step-2',
+      title: 'Resolve Issue',
+      message: 'Work on resolving the IT issue. Update the ticket with your progress and final resolution.',
+      type: FlowStepType.TASK,
+      inputs: [
+        {
+          type: InputType.SELECT,
+          name: 'resolution_status',
+          label: 'Resolution Status',
+          required: true,
+          options: [
+            { value: 'resolved', label: 'Resolved' },
+            { value: 'escalated', label: 'Escalated' },
+            { value: 'pending_user', label: 'Pending User Response' },
+            { value: 'cannot_resolve', label: 'Cannot Resolve' }
+          ]
+        },
+        {
+          type: InputType.TEXTAREA,
+          name: 'resolution_details',
+          label: 'Resolution Details',
+          required: true
+        },
+        {
+          type: InputType.NUMBER,
+          name: 'time_spent',
+          label: 'Time Spent (hours)',
+          required: true
+        }
+      ],
+      assignment: {
+        targets: [
+          { entity: 'role', id: 'it-technician' }
+        ],
         allowReassignment: true
       }
     },
     {
       id: 'step-3',
-      title: 'Team Notification',
-      message: 'Notify all team members about the new project and their involvement.',
-      type: FlowStepType.INFORMATION,
-      links: [
+      title: 'User Confirmation',
+      message: 'Please confirm that your IT issue has been resolved to your satisfaction.',
+      type: FlowStepType.ACKNOWLEDGE,
+      inputs: [
         {
-          name: 'Project Dashboard',
-          url: 'https://project.company.com/dashboard',
-          type: LinkType.URL
+          type: InputType.SELECT,
+          name: 'satisfaction_rating',
+          label: 'Satisfaction Rating',
+          required: true,
+          options: [
+            { value: '5', label: '5 - Excellent' },
+            { value: '4', label: '4 - Good' },
+            { value: '3', label: '3 - Average' },
+            { value: '2', label: '2 - Poor' },
+            { value: '1', label: '1 - Very Poor' }
+          ]
+        },
+        {
+          type: InputType.TEXTAREA,
+          name: 'feedback',
+          label: 'Additional Feedback',
+          required: false
         }
-      ],
-      inputs: [],
-      assignment: {
-        targets: [
-          { entity: 'department', id: 'dept-003' }, // Engineering
-          { entity: 'department', id: 'dept-004' }  // Sales
-        ],
-        assignmentMode: AssignmentMode.ASSIGN, // All team members must be notified
-        allowReassignment: false
-      }
+      ]
     }
   ]
 };
@@ -468,8 +532,8 @@ export const projectKickoffFlow: FlowTemplate = {
 export const sampleFlows = [
   employeeOnboardingFlow,
   documentApprovalFlow,
-  companyAnnouncementFlow,
-  projectKickoffFlow
+  selfServiceExpenseReport,
+  selfServiceITSupport
 ];
 
 // Utility function to get a sample flow by ID
@@ -486,6 +550,6 @@ export const getSampleFlowSummaries = () => {
     stepCount: flow.steps.length,
     hasAssignments: flow.steps.some(step => step.assignment?.targets?.length || 0 > 0),
     hasInputForms: flow.steps.some(step => step.inputs?.length || 0 > 0),
-    stepTypes: [...new Set(flow.steps.map(step => step.type))]
+    stepTypes: Array.from(new Set(flow.steps.map(step => step.type)))
   }));
 }; 

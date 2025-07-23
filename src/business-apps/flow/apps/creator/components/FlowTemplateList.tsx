@@ -79,9 +79,6 @@ export const FlowTemplateList: React.FC<FlowTemplateListProps> = ({
                 <TableHead data-testid={`${testId}-header-description`}>
                   {getTranslationFromI18nKeyAndLabel('flow.creator.description', 'Description')}
                 </TableHead>
-                <TableHead data-testid={`${testId}-header-execution`}>
-                  {getTranslationFromI18nKeyAndLabel('flow.creator.executionMode', 'Execution')}
-                </TableHead>
                 <TableHead data-testid={`${testId}-header-steps`}>
                   {getTranslationFromI18nKeyAndLabel('flow.creator.steps', 'Steps')}
                 </TableHead>
@@ -98,11 +95,6 @@ export const FlowTemplateList: React.FC<FlowTemplateListProps> = ({
                   </TableCell>
                   <TableCell data-testid={`${testId}-description-${index}`}>
                     {template.description || 'No description'}
-                  </TableCell>
-                  <TableCell data-testid={`${testId}-execution-${index}`}>
-                    <Badge variant="default">
-                      {getTranslationFromI18nKeyAndLabel('flow.creator.sequential', 'Sequential')}
-                    </Badge>
                   </TableCell>
                   <TableCell data-testid={`${testId}-steps-${index}`}>
                     <Badge variant="outline">{template.steps?.length || 0}</Badge>

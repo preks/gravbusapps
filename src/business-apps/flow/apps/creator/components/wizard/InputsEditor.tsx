@@ -57,11 +57,6 @@ const INPUT_BLOCK_CONFIG = {
     color: '#fa8c16',
     description: 'Select multiple options'
   },
-  [InputType.RADIO]: {
-    icon: <Radio className="gba:w-4 gba:h-4" />,
-    color: '#eb2f96',
-    description: 'Single choice selection'
-  },
   [InputType.CHECKBOX]: {
     icon: <CheckSquare className="gba:w-4 gba:h-4" />,
     color: '#722ed1',
@@ -72,20 +67,10 @@ const INPUT_BLOCK_CONFIG = {
     color: '#faad14',
     description: 'Date picker'
   },
-  [InputType.DATETIME]: {
-    icon: <Calendar className="gba:w-4 gba:h-4" />,
-    color: '#faad14',
-    description: 'Date and time picker'
-  },
   [InputType.FILE]: {
     icon: <Upload className="gba:w-4 gba:h-4" />,
     color: '#f5222d',
     description: 'File upload functionality'
-  },
-  [InputType.SIGNATURE]: {
-    icon: <PenTool className="gba:w-4 gba:h-4" />,
-    color: '#531dab',
-    description: 'Digital signature capture'
   }
 };
 
@@ -122,11 +107,9 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
     { value: InputType.NUMBER, label: 'Number' },
     { value: InputType.SELECT, label: 'Select' },
     { value: InputType.MULTISELECT, label: 'Multi-Select' },
-    { value: InputType.RADIO, label: 'Radio' },
     { value: InputType.CHECKBOX, label: 'Checkbox' },
-    { value: InputType.DATETIME, label: 'Date/Time' },
-    { value: InputType.FILE, label: 'File Upload' },
-    { value: InputType.SIGNATURE, label: 'Signature' }
+    { value: InputType.DATE, label: 'Date' },
+    { value: InputType.FILE, label: 'File Upload' }
   ];
 
   return (

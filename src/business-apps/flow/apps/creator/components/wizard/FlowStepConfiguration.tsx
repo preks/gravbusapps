@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Button, Alert, Card } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { FlowStep, FlowStepType } from '../../types/flowTemplate';
+import { FlowStep, FlowStepType, AssignmentMode } from '../../types/flowTemplate';
 import { FlowStepEditor } from './FlowStepEditor';
 
 interface FlowStepConfigurationProps {
   steps: FlowStep[];
   onStepsChange: (steps: FlowStep[]) => void;
+  assignmentMode: AssignmentMode;
   'data-testid'?: string;
 }
 
@@ -23,6 +24,7 @@ const createEmptyStep = (): FlowStep => ({
 export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
   steps,
   onStepsChange,
+  assignmentMode,
   'data-testid': testId = 'simplified-step-configuration'
 }) => {
   const [localSteps, setLocalSteps] = useState<FlowStep[]>(steps);
@@ -182,6 +184,7 @@ export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
               stepIndex={index}
               onStepChange={updateStep}
               isNewStep={newlyCreatedSteps.has(index)}
+              assignmentMode={assignmentMode}
               data-testid={`${testId}-step-editor`}
             />
             
@@ -260,7 +263,7 @@ export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
             <p className="gba:text-xs gba:text-gray-600">
               {localSteps.length} {getTranslationFromI18nKeyAndLabel('flow.creator.steps', 'steps')} • 
               {localSteps.filter(s => s.inputs && s.inputs.length > 0).length} {getTranslationFromI18nKeyAndLabel('flow.creator.withInput', 'with input')} • 
-              {localSteps.filter(s => s.assignment && s.assignment.targets.length > 0).length} {getTranslationFromI18nKeyAndLabel('flow.creator.withAssignment', 'with predefined assignment')}
+              {localSteps.filter(s => s.assignment && s.assignment.target).length} {getTranslationFromI18nKeyAndLabel('flow.creator.withAssignment', 'with predefined assignment')}
             </p>
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">

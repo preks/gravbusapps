@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Select, Card, List, Button, Badge, Tag, Spin, Alert, Modal, Typography, Space, Divider, Form, Input, InputNumber, DatePicker, Radio, Checkbox, Upload } from 'antd';
+import { Select, Card, List, Button, Badge, Tag, Spin, Alert, Modal, Typography, Space, Divider, Form, Input, message, Tabs } from 'antd';
 import { 
   UserOutlined, 
   ClockCircleOutlined, 
@@ -9,91 +9,182 @@ import {
   InfoCircleOutlined,
   OrderedListOutlined,
   EyeOutlined,
-  FileOutlined,
-  PictureOutlined,
-  LinkOutlined,
-  UploadOutlined,
-  EditOutlined,
-  CalendarOutlined,
-  NumberOutlined,
-  UnorderedListOutlined,
-  CheckSquareOutlined,
   ReloadOutlined,
-  SwapOutlined,
-  CloseCircleOutlined
+  WarningOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { env } from '@/common/env/EnvUtils';
+import { TaskDetailsTab, AssignmentHistoryTab, FlowProgressTab, TaskListCard } from './components';
 
 const { Option } = Select;
-const { Title, Text, Paragraph } = Typography;
-const { TextArea } = Input;
+const { Title, Text } = Typography;
 
 interface TaskInboxProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
 interface Task {
-  taskId: string;
-  title: string;
-  description: string;
-  status: string;
-  taskType: string;
-  priority: number;
-  assignedTo?: string;
-  assignedToName?: string;
-  templateTitle?: string;
-  stepTitle?: string;
-  stepType?: string; // APPROVAL, ACKNOWLEDGE, TASK, INFORMATION
-  inputs?: any[];
-  canClaim?: boolean;
-  canComplete?: boolean;
-  canRelease?: boolean;
-  canReassign?: boolean;
-  workflowInstanceId?: string;
-  updateTime?: number;
-}
-
-interface User {
   id: string;
+  flowId: string;
+  referenceTaskName: string;
+  stepType: string;
   name: string;
-  email: string;
-  department: string;
-  role: string;
+  status: string;
+  priority?: number;
+  title?: string;
+  message?: string;
+  stepIndex?: number;
+  inputs?: any[];
+  links?: any[];
+  taskCategory?: string;
+  dueDate?: string;
+  scheduledAt?: string;
+  availableActions?: {
+    canClaim: boolean;
+    canComplete: boolean;
+    canReassign: boolean;
+    canReject: boolean;
+    canUnclaim: boolean;
+  };
+  assignment?: {
+    assignmentMode: string;
+    currentStatus: string;
+    assignedTo?: string;
+    assignedAt?: string;
+    isUserOwner: boolean;
+    allowReassignment: boolean;
+    targets?: any;
+    assignmentHistory?: Array<{
+      action: string;
+      userId: string;
+      changedBy: string;
+      changedAt: string;
+    }>;
+    assignmentAction?: string;
+    assignmentIteration?: number;
+  };
+  workflowMeta?: {
+    rootWorkflowId: string;
+  };
 }
 
 interface TaskStats {
-  userId: string;
-  userName: string;
+  assigned: number;
+  claimable: number;
   inProgress: number;
   scheduled: number;
   completed: number;
-  claimable: number;
   total: number;
+  overdue: number;
+  dueSoon: number;
+  userName?: string;
 }
 
-// Mock users for testing - cross-functional organization matching backend exactly
-const mockUsers: User[] = [
-  { id: 'user-001', name: 'Alice Johnson', email: 'alice.johnson@newwork.com', department: 'Human Resources', role: 'HR Manager' },
-  { id: 'user-002', name: 'Bob Smith', email: 'bob.smith@newwork.com', department: 'Finance', role: 'Finance Manager' },
-  { id: 'user-007', name: 'Grace Lee', email: 'grace.lee@newwork.com', department: 'Engineering', role: 'Senior Software Engineer' },
-  { id: 'user-008', name: 'Henry Taylor', email: 'henry.taylor@newwork.com', department: 'Sales', role: 'Sales Manager' },
-  { id: 'user-009', name: 'Ivy Chen', email: 'ivy.chen@newwork.com', department: 'Marketing', role: 'Marketing Manager' }
-];
+// Utility Functions
+const formatDueDate = (dueDateISO?: string): string => {
+  if (!dueDateISO) return 'No due date';
+  
+  try {
+    const dueDate = new Date(dueDateISO);
+    const now = new Date();
+    const diffMs = dueDate.getTime() - now.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    const dateStr = dueDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    if (diffMs < 0) {
+      return `${dateStr} (overdue)`;
+    } else if (diffHours < 24) {
+      return `${dateStr} (${diffHours}h remaining)`;
+    } else if (diffDays < 7) {
+      return `${dateStr} (${diffDays}d remaining)`;
+    }
+    
+    return dateStr;
+  } catch (error) {
+    return dueDateISO;
+  }
+};
 
-const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' }) => {
+const isTaskOverdue = (dueDateISO?: string): boolean => {
+  if (!dueDateISO) return false;
+  try {
+    return new Date() > new Date(dueDateISO);
+  } catch (error) {
+    return false;
+  }
+};
+
+const isTaskDueSoon = (dueDate?: string): boolean => {
+  if (!dueDate) return false;
+  const due = new Date(dueDate);
+  const now = new Date();
+  const diffHours = (due.getTime() - now.getTime()) / (1000 * 60 * 60);
+  return diffHours > 0 && diffHours <= 2;
+};
+
+const isJustClaimable = (task: Task): boolean => {
+  const actions = task.availableActions;
+  if (!actions) return false;
+  
+  return actions.canClaim && 
+         !actions.canComplete && 
+         !actions.canReject && 
+         !actions.canReassign && 
+         !actions.canUnclaim;
+};
+
+const getDueDateTag = (task: Task): React.ReactNode => {
+  if (!task.dueDate) return null;
+  
+  const overdue = isTaskOverdue(task.dueDate);
+  const dueSoon = isTaskDueSoon(task.dueDate);
+  
+  if (overdue) {
+    return (
+      <Tag color="red" icon={<WarningOutlined />}>
+        Overdue
+      </Tag>
+    );
+  } else if (dueSoon) {
+    return (
+      <Tag color="orange" icon={<ClockCircleOutlined />}>
+        Due Soon
+      </Tag>
+    );
+  } else {
+    return (
+      <Tag color="blue" icon={<ClockCircleOutlined />}>
+        {formatDueDate(task.dueDate)}
+      </Tag>
+    );
+  }
+};
+
+// Import mock users data
+import { mockUsers, type User as MockUser } from '../../data/mockUsers';
+
+const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', ...context }) => {
   const [selectedUserId, setSelectedUserId] = useState<string>('user-001');
-  const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
-  const [claimableTasks, setClaimableTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [taskStats, setTaskStats] = useState<TaskStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalVisible, setIsTaskModalVisible] = useState(false);
   const [taskFormData, setTaskFormData] = useState<any>({});
+  const [reassignUserId, setReassignUserId] = useState<string>('');
+  const [rejectionComment, setRejectionComment] = useState<string>('');
   const [form] = Form.useForm();
 
-  const API_BASE = (env('NEXT_PUBLIC_BUSINESS_FLOWS_API_URL') || 'http://localhost:3000') + '/api';
+  const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000') + '/api';
 
   // Fetch tasks and stats for selected user
   const fetchUserData = async (userId: string) => {
@@ -101,25 +192,21 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
     setError(null);
 
     try {
-      const [assignedResponse, claimableResponse, statsResponse] = await Promise.all([
+      const [tasksResponse, statsResponse] = await Promise.all([
         fetch(`${API_BASE}/tasks/user/${userId}`),
-        fetch(`${API_BASE}/tasks/claimable?userId=${userId}`),
         fetch(`${API_BASE}/tasks/user/${userId}/stats`)
       ]);
 
-      if (assignedResponse.ok) {
-        const assignedData = await assignedResponse.json();
-        setAssignedTasks(assignedData.data || []);
-      }
-
-      if (claimableResponse.ok) {
-        const claimableData = await claimableResponse.json();
-        setClaimableTasks(claimableData.data || []);
+      if (tasksResponse.ok) {
+        const tasksData = await tasksResponse.json();
+        setTasks(tasksData.tasks || []);
+      } else {
+        throw new Error('Failed to fetch tasks');
       }
 
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
-        setTaskStats(statsData.data);
+        setTaskStats(statsData.data || statsData);
       }
 
     } catch (err) {
@@ -136,102 +223,80 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
     }
   }, [selectedUserId]);
 
-  const handleTaskClick = (task: Task) => {
-    // Map stepType from inputData if available, or fallback to flowType
-    const enhancedTask = {
-      ...task,
-      stepType: (task as any).inputData?.stepType || 
-               task.stepType || 
-               (task as any).inputData?.flowType || 
-               (task as any).inputData?.flowData?.flowType
-    };
-    
-    setSelectedTask(enhancedTask);
+  const performTaskAction = async (taskId: string, action: string, payload: any = {}) => {
+    setActionLoading(taskId + action);
+    try {
+      let endpoint = '';
+      let body: any = { userId: selectedUserId, ...payload };
+
+      switch (action) {
+        case 'CLAIM':
+          endpoint = `${API_BASE}/tasks/${taskId}/claim`;
+          break;
+        case 'UNCLAIM':
+          endpoint = `${API_BASE}/tasks/${taskId}/unclaim`;
+          break;
+        case 'REASSIGN':
+          endpoint = `${API_BASE}/tasks/${taskId}/reassign`;
+          body = { currentUserId: selectedUserId, newUserId: reassignUserId, ...payload };
+          break;
+        case 'REJECT':
+          endpoint = `${API_BASE}/tasks/${taskId}/reject`;
+          body = { currentUserId: selectedUserId, rejectionComment, ...payload };
+          break;
+        case 'COMPLETE':
+          endpoint = `${API_BASE}/tasks/${taskId}/complete`;
+          body = { 
+            userId: selectedUserId,
+            action: 'COMPLETE',
+            formData: taskFormData,
+            ...payload
+          };
+          break;
+        default:
+          throw new Error(`Unknown action: ${action}`);
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (response.ok) {
+        message.success(`Task ${action.toLowerCase()}ed successfully`);
+        await fetchUserData(selectedUserId);
+        
+        if (isTaskModalVisible) {
+          setIsTaskModalVisible(false);
+          setTaskFormData({});
+          setReassignUserId('');
+          setRejectionComment('');
+          form.resetFields();
+        }
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to ${action.toLowerCase()} task`);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : `Failed to ${action.toLowerCase()} task`;
+      setError(errorMessage);
+      message.error(errorMessage);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleTaskClick = async (task: Task) => {
+    setSelectedTask(task);
     setIsTaskModalVisible(true);
     
-    // Initialize form data for input blocks
     const initialFormData: any = {};
-    enhancedTask.inputs?.forEach((block: any) => {
-      initialFormData[block.id] = block.type === 'checkbox' ? [] : '';
+    task.inputs?.forEach((input: any) => {
+      initialFormData[input.name] = input.type === 'checkbox' ? [] : '';
     });
     setTaskFormData(initialFormData);
     form.setFieldsValue(initialFormData);
-  };
-
-  const handleClaimTask = async (taskId: string) => {
-    try {
-      const response = await fetch(`${API_BASE}/tasks/${taskId}/claim`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: selectedUserId })
-      });
-
-      if (response.ok) {
-        // Refresh tasks after claiming
-        await fetchUserData(selectedUserId);
-        setIsTaskModalVisible(false);
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to claim task');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to claim task');
-    }
-  };
-
-  const handleReleaseTask = async (taskId: string) => {
-    try {
-      const response = await fetch(`${API_BASE}/tasks/${taskId}/release`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: selectedUserId })
-      });
-
-      if (response.ok) {
-        // Refresh tasks after releasing
-        await fetchUserData(selectedUserId);
-        setIsTaskModalVisible(false);
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to release task');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to release task');
-    }
-  };
-
-  const handleCompleteTask = async (taskId: string, action: string = 'completed') => {
-    try {
-      // Validate form if there are input blocks
-      if (selectedTask?.inputs && selectedTask.inputs.length > 0) {
-        await form.validateFields();
-      }
-
-      const response = await fetch(`${API_BASE}/tasks/${taskId}/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          outputData: {
-            result: action,
-            formData: taskFormData,
-            completedAt: new Date().toISOString()
-          }
-        })
-      });
-
-      if (response.ok) {
-        // Refresh tasks after completing
-        await fetchUserData(selectedUserId);
-        setIsTaskModalVisible(false);
-        setTaskFormData({});
-        form.resetFields();
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to complete task');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to complete task');
-    }
   };
 
   const getTaskStatusColor = (status: string) => {
@@ -245,26 +310,16 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
   };
 
   const getTaskTypeIcon = (task: Task) => {
-    // First check step type for more specific icons
-    if (task.stepType) {
-      switch (task.stepType) {
-        case 'APPROVAL': return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
-        case 'ACKNOWLEDGE': return <EyeOutlined style={{ color: '#1890ff' }} />;
-        case 'TASK': return <OrderedListOutlined style={{ color: '#722ed1' }} />;
-        case 'INFORMATION': return <InfoCircleOutlined style={{ color: '#faad14' }} />;
-        default: break;
-      }
-    }
-    
-    // Fall back to task type
-    switch (task.taskType) {
-      case 'HUMAN': return <UserOutlined style={{ color: '#1890ff' }} />;
-      case 'CLAIM': return <ExclamationCircleOutlined style={{ color: '#fa541c' }} />;
+    switch (task.stepType) {
+      case 'APPROVAL': return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+      case 'ACKNOWLEDGE': return <EyeOutlined style={{ color: '#1890ff' }} />;
+      case 'TASK': return <OrderedListOutlined style={{ color: '#722ed1' }} />;
+      case 'INFORMATION': return <InfoCircleOutlined style={{ color: '#faad14' }} />;
       default: return <ClockCircleOutlined style={{ color: '#8c8c8c' }} />;
     }
   };
 
-  const getFlowStepTypeColor = (stepType: string) => {
+  const getStepTypeColor = (stepType: string) => {
     switch (stepType) {
       case 'APPROVAL': return 'green';
       case 'ACKNOWLEDGE': return 'blue';
@@ -274,386 +329,68 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
     }
   };
 
-  const getInputBlockIcon = (type: string) => {
-    switch (type) {
-      case 'text': return <EditOutlined />;
-      case 'textarea': return <FileTextOutlined />;
-      case 'number': return <NumberOutlined />;
-      case 'dropdown': return <UnorderedListOutlined />;
-      case 'radio': return <CheckCircleOutlined />;
-      case 'checkbox': return <CheckSquareOutlined />;
-      case 'datetime': return <CalendarOutlined />;
-      case 'file': return <UploadOutlined />;
-      case 'signature': return <EditOutlined />;
-      default: return <EditOutlined />;
+  const getAssignmentStatusColor = (status: string) => {
+    switch (status) {
+      case 'assigned': return 'blue';
+      case 'claimed': return 'green';
+      case 'claimable': return 'orange';
+      case 'completed': return 'success';
+      default: return 'default';
     }
   };
 
-  const renderInputBlock = (block: any, index: number) => {
-    const commonProps = {
-      value: taskFormData[block.id],
-      onChange: (value: any) => {
-        const newFormData = { ...taskFormData, [block.id]: value };
-        setTaskFormData(newFormData);
-        form.setFieldValue(block.id, value);
+  const handleQuickClaim = async (e: React.MouseEvent, taskId: string) => {
+    e.stopPropagation();
+    await performTaskAction(taskId, 'CLAIM');
+  };
+
+  // Task handlers for component callbacks
+  const taskHandlers = {
+    onComplete: () => performTaskAction(selectedTask!.id, 'COMPLETE'),
+    onClaim: () => performTaskAction(selectedTask!.id, 'CLAIM'),
+    onRelease: () => performTaskAction(selectedTask!.id, 'UNCLAIM'),
+    onReassign: () => performTaskAction(selectedTask!.id, 'REASSIGN'),
+    onReject: () => performTaskAction(selectedTask!.id, 'REJECT'),
+    setReassignUserId,
+    setRejectionComment,
+  };
+
+  // Filter and sort tasks
+  const assignedTasks = tasks.filter(task => 
+    task.assignment?.isUserOwner || 
+    task.assignment?.currentStatus === 'assigned' || 
+    task.assignment?.currentStatus === 'claimed'
+  );
+  
+  const claimableTasks = tasks.filter(task => 
+    task.availableActions?.canClaim && 
+    !task.assignment?.assignedTo
+  );
+
+  const sortTasksByDueDate = (tasks: Task[]): Task[] => {
+    return [...tasks].sort((a, b) => {
+      const aOverdue = isTaskOverdue(a.dueDate);
+      const bOverdue = isTaskOverdue(b.dueDate);
+      if (aOverdue && !bOverdue) return -1;
+      if (!aOverdue && bOverdue) return 1;
+      
+      const aDueSoon = isTaskDueSoon(a.dueDate);
+      const bDueSoon = isTaskDueSoon(b.dueDate);
+      if (aDueSoon && !bDueSoon) return -1;
+      if (!aDueSoon && bDueSoon) return 1;
+      
+      if (a.dueDate && b.dueDate) {
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       }
-    };
-
-    const renderInputField = () => {
-      switch (block.type) {
-        case 'text':
-          return (
-            <Input 
-              {...commonProps}
-              placeholder={block.placeholder || 'Enter text'}
-              onChange={(e) => commonProps.onChange(e.target.value)}
-            />
-          );
-        case 'textarea':
-          return (
-            <TextArea 
-              {...commonProps}
-              placeholder={block.placeholder || 'Enter text'}
-              rows={3}
-              onChange={(e) => commonProps.onChange(e.target.value)}
-            />
-          );
-        case 'number':
-          return (
-            <InputNumber 
-              {...commonProps}
-              placeholder={block.placeholder || 'Enter number'}
-              style={{ width: '100%' }}
-            />
-          );
-        case 'dropdown':
-          return (
-            <Select 
-              {...commonProps}
-              placeholder={block.placeholder || 'Select option'}
-              style={{ width: '100%' }}
-            >
-              {block.options?.map((option: any) => (
-                <Option key={option.value} value={option.value}>
-                  {option.label}
-                </Option>
-              ))}
-            </Select>
-          );
-        case 'radio':
-          return (
-            <Radio.Group 
-              {...commonProps}
-            >
-              {block.options?.map((option: any) => (
-                <Radio key={option.value} value={option.value}>
-                  {option.label}
-                </Radio>
-              ))}
-            </Radio.Group>
-          );
-        case 'checkbox':
-          return (
-            <Checkbox.Group 
-              {...commonProps}
-              options={block.options?.map((option: any) => ({
-                label: option.label,
-                value: option.value
-              }))}
-            />
-          );
-        case 'datetime':
-          return (
-            <DatePicker 
-              {...commonProps}
-              showTime
-              placeholder={block.placeholder || 'Select date and time'}
-              style={{ width: '100%' }}
-            />
-          );
-        case 'file':
-          return (
-            <Upload
-              beforeUpload={() => false}
-              onChange={(info) => commonProps.onChange(info.fileList)}
-            >
-              <Button icon={<UploadOutlined />}>
-                {block.placeholder || 'Click to upload'}
-              </Button>
-            </Upload>
-          );
-        default:
-          return (
-            <Input 
-              {...commonProps}
-              placeholder={block.placeholder || 'Enter value'}
-              onChange={(e) => commonProps.onChange(e.target.value)}
-            />
-          );
-      }
-    };
-
-    return (
-      <Card key={index} size="small" style={{ marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          {getInputBlockIcon(block.type)}
-          <Text strong>{block.label || `Input ${index + 1}`}</Text>
-          {block.required && <Tag color="red">Required</Tag>}
-        </div>
-        {block.description && (
-          <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: 8 }}>
-            {block.description}
-          </Text>
-        )}
-        <Form.Item
-          name={block.id}
-          rules={[
-            { required: block.required, message: `${block.label || 'This field'} is required` }
-          ]}
-          style={{ marginBottom: 0 }}
-        >
-          {renderInputField()}
-        </Form.Item>
-      </Card>
-    );
+      if (a.dueDate && !b.dueDate) return -1;
+      if (!a.dueDate && b.dueDate) return 1;
+      
+      return (a.stepIndex || 0) - (b.stepIndex || 0);
+    });
   };
 
-  const renderTaskModal = () => {
-    if (!selectedTask) return null;
-
-          const hasInputBlocks = selectedTask.inputs && selectedTask.inputs.length > 0;
-
-    return (
-      <Modal
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {getTaskTypeIcon(selectedTask)}
-            <span>{selectedTask.title}</span>
-          </div>
-        }
-        open={isTaskModalVisible}
-        onCancel={() => {
-          setIsTaskModalVisible(false);
-          setTaskFormData({});
-          form.resetFields();
-        }}
-        footer={null}
-        width={800}
-        data-testid={`${prefixDataTestId}-TaskModal`}
-      >
-        <Form form={form} layout="vertical">
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            {/* Task Header */}
-            <div>
-              <Space wrap>
-                <Tag color={getTaskStatusColor(selectedTask.status)}>{selectedTask.status}</Tag>
-                <Tag color="blue">{selectedTask.taskType}</Tag>
-                {selectedTask.stepType && (
-                  <Tag color={getFlowStepTypeColor(selectedTask.stepType)}>
-                    {selectedTask.stepType}
-                  </Tag>
-                )}
-                {selectedTask.templateTitle && <Tag color="purple">{selectedTask.templateTitle}</Tag>}
-              </Space>
-            </div>
-
-            {/* Task Description */}
-            <div>
-              <Title level={5}>Description</Title>
-              <Paragraph>{selectedTask.description}</Paragraph>
-            </div>
-
-            {/* Input Blocks */}
-            {hasInputBlocks && (
-              <div>
-                <Title level={5}>Required Input</Title>
-                {selectedTask.inputs!.map((block: any, index: number) => renderInputBlock(block, index))}
-              </div>
-            )}
-
-            <Divider />
-
-            {/* Task Actions */}
-            <div>
-              <Title level={5}>Actions</Title>
-              <Space wrap>
-                {selectedTask.canClaim && (
-                  <Button 
-                    type="primary" 
-                    icon={<ExclamationCircleOutlined />}
-                    onClick={() => handleClaimTask(selectedTask.taskId)}
-                    data-testid={`${prefixDataTestId}-ClaimButton`}
-                  >
-                    Claim Task
-                  </Button>
-                )}
-                
-                {/* Step-type specific actions */}
-                {selectedTask.canComplete && selectedTask.stepType === 'APPROVAL' && (
-                  <>
-                    <Button 
-                      type="primary" 
-                      icon={<CheckCircleOutlined />}
-                      onClick={() => handleCompleteTask(selectedTask.taskId, 'approved')}
-                      data-testid={`${prefixDataTestId}-ApproveButton`}
-                      style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-                    >
-                      Approve
-                    </Button>
-                    <Button 
-                      danger
-                      icon={<CloseCircleOutlined />}
-                      onClick={() => handleCompleteTask(selectedTask.taskId, 'rejected')}
-                      data-testid={`${prefixDataTestId}-RejectButton`}
-                    >
-                      Reject
-                    </Button>
-                  </>
-                )}
-                
-                {selectedTask.canComplete && selectedTask.stepType === 'ACKNOWLEDGE' && (
-                  <Button 
-                    type="primary" 
-                    icon={<EyeOutlined />}
-                    onClick={() => handleCompleteTask(selectedTask.taskId, 'acknowledged')}
-                    data-testid={`${prefixDataTestId}-AcknowledgeButton`}
-                    style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
-                  >
-                    Acknowledge
-                  </Button>
-                )}
-                
-                {selectedTask.canComplete && selectedTask.stepType === 'TASK' && (
-                  <Button 
-                    type="primary" 
-                    icon={<CheckCircleOutlined />}
-                    onClick={() => handleCompleteTask(selectedTask.taskId, 'completed')}
-                    data-testid={`${prefixDataTestId}-CompleteButton`}
-                    style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}
-                  >
-                    Complete
-                  </Button>
-                )}
-                
-                {selectedTask.canComplete && selectedTask.stepType === 'INFORMATION' && (
-                  <Button 
-                    type="primary" 
-                    icon={<InfoCircleOutlined />}
-                    onClick={() => handleCompleteTask(selectedTask.taskId, 'reviewed')}
-                    data-testid={`${prefixDataTestId}-CloseButton`}
-                    style={{ backgroundColor: '#faad14', borderColor: '#faad14' }}
-                  >
-                    Close
-                  </Button>
-                )}
-                
-                {/* Generic complete for tasks without specific step types */}
-                {selectedTask.canComplete && !selectedTask.stepType && (
-                  <Button 
-                    type="primary" 
-                    icon={<CheckCircleOutlined />}
-                    onClick={() => handleCompleteTask(selectedTask.taskId, 'completed')}
-                    data-testid={`${prefixDataTestId}-CompleteButton`}
-                  >
-                    Complete Task
-                  </Button>
-                )}
-                
-                {selectedTask.canRelease && (
-                  <Button 
-                    icon={<ReloadOutlined />}
-                    onClick={() => handleReleaseTask(selectedTask.taskId)}
-                    data-testid={`${prefixDataTestId}-ReleaseButton`}
-                  >
-                    Release Task
-                  </Button>
-                )}
-                {selectedTask.canReassign && (
-                  <Button 
-                    icon={<SwapOutlined />}
-                    data-testid={`${prefixDataTestId}-ReassignButton`}
-                  >
-                    Reassign Task
-                  </Button>
-                )}
-                
-                {/* Cancel/Close button - only show if not INFORMATION type (which has its own Close) */}
-                {selectedTask.stepType !== 'INFORMATION' && (
-                  <Button onClick={() => {
-                    setIsTaskModalVisible(false);
-                    setTaskFormData({});
-                    form.resetFields();
-                  }}>
-                    Cancel
-                  </Button>
-                )}
-              </Space>
-            </div>
-
-            {/* Task Details */}
-            <div style={{ marginTop: 16, padding: 16, backgroundColor: '#f5f5f5', borderRadius: 4 }}>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                Task ID: {selectedTask.taskId} | 
-                Workflow: {selectedTask.workflowInstanceId} | 
-                Priority: {selectedTask.priority} |
-                Updated: {selectedTask.updateTime ? new Date(selectedTask.updateTime).toLocaleString() : 'Unknown'}
-              </Text>
-            </div>
-          </Space>
-        </Form>
-      </Modal>
-    );
-  };
-
-  const renderTaskListItem = (task: Task) => {
-          const hasInputBlocks = task.inputs && task.inputs.length > 0;
-    
-    // Get stepType from inputData if available, or fallback to flowType
-    const stepType = (task as any).inputData?.stepType || 
-                    task.stepType || 
-                    (task as any).inputData?.flowType || 
-                    (task as any).inputData?.flowData?.flowType;
-    
-    // Enhanced task for icon display
-    const enhancedTask = { ...task, stepType };
-
-    return (
-      <List.Item.Meta
-        avatar={getTaskTypeIcon(enhancedTask)}
-        title={
-          <Space wrap>
-            <span>{task.title}</span>
-            <Tag color={getTaskStatusColor(task.status)}>
-              {task.status}
-            </Tag>
-            {stepType && (
-              <Tag color={getFlowStepTypeColor(stepType)}>
-                {stepType}
-              </Tag>
-            )}
-            {task.templateTitle && (
-              <Tag color="purple">{task.templateTitle}</Tag>
-            )}
-            {hasInputBlocks && (
-              <Tag color="orange">
-                {task.inputs!.length} Input
-              </Tag>
-            )}
-          </Space>
-        }
-        description={
-          <div>
-            <div>{task.description}</div>
-            {task.stepTitle && task.stepTitle !== task.title && (
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                Step: {task.stepTitle}
-              </Text>
-            )}
-          </div>
-        }
-      />
-    );
-  };
+  const sortedAssignedTasks = sortTasksByDueDate(assignedTasks);
+  const sortedClaimableTasks = sortTasksByDueDate(claimableTasks);
 
   return (
     <div 
@@ -670,7 +407,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
         <Title level={3} style={{ margin: 0, color: '#1f2937' }}>
           Task Inbox
         </Title>
-        <Text type="secondary">Manage your assigned and claimable tasks</Text>
+        <Text type="secondary">Manage your assigned and claimable tasks from the custom flow engine</Text>
       </div>
 
       {/* User Selection */}
@@ -681,10 +418,12 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
             value={selectedUserId}
             onChange={setSelectedUserId}
             style={{ width: 400 }}
+            optionLabelProp="label"
+            listHeight={300}
             data-testid={`${prefixDataTestId}-UserSelect`}
           >
-            {mockUsers.map(user => (
-              <Option key={user.id} value={user.id}>
+            {mockUsers.map((user: MockUser) => (
+              <Option key={user.id} value={user.id} label={user.name}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <UserOutlined />
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
@@ -700,6 +439,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
           <Button 
             onClick={() => fetchUserData(selectedUserId)} 
             loading={loading}
+            icon={<ReloadOutlined />}
             data-testid={`${prefixDataTestId}-RefreshButton`}
           >
             Refresh
@@ -710,31 +450,16 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
       {/* Task Statistics */}
       {taskStats && (
         <Card style={{ marginBottom: '16px' }}>
-          <Title level={5}>Task Statistics for {taskStats.userName}</Title>
+          <Title level={5}>Task Statistics for {taskStats.userName || mockUsers.find(u => u.id === selectedUserId)?.name}</Title>
           <Space size="large">
-            <div>
-              <Badge count={taskStats.inProgress} color="blue">
-                <Tag color="blue">In Progress</Tag>
-              </Badge>
-            </div>
-            <div>
-              <Badge count={taskStats.scheduled} color="orange">
-                <Tag color="orange">Scheduled</Tag>
-              </Badge>
-            </div>
-            <div>
-              <Badge count={taskStats.completed} color="green">
-                <Tag color="green">Completed</Tag>
-              </Badge>
-            </div>
-            <div>
-              <Badge count={taskStats.claimable} color="purple">
-                <Tag color="purple">Claimable</Tag>
-              </Badge>
-            </div>
-            <div>
-              <Text strong>Total: {taskStats.total}</Text>
-            </div>
+            <div><Badge count={taskStats.assigned || 0} color="blue"><Tag color="blue">Assigned</Tag></Badge></div>
+            <div><Badge count={taskStats.claimable || 0} color="orange"><Tag color="orange">Claimable</Tag></Badge></div>
+            <div><Badge count={taskStats.inProgress || 0} color="processing"><Tag color="processing">In Progress</Tag></Badge></div>
+            <div><Badge count={taskStats.scheduled || 0} color="default"><Tag color="default">Scheduled</Tag></Badge></div>
+            <div><Badge count={taskStats.completed || 0} color="green"><Tag color="green">Completed</Tag></Badge></div>
+            <div><Badge count={taskStats.overdue || 0} color="red"><Tag color="red" icon={<WarningOutlined />}>Overdue</Tag></Badge></div>
+            <div><Badge count={taskStats.dueSoon || 0} color="orange"><Tag color="orange" icon={<ClockCircleOutlined />}>Due Soon</Tag></Badge></div>
+            <div><Text strong>Total: {taskStats.total || 0}</Text></div>
           </Space>
         </Card>
       )}
@@ -753,7 +478,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
 
       {/* Loading State */}
       {loading && (
-        <div style={{ textAlign: 'center', padding: '40px' }}>
+        <div style={{ textAlign: 'center', padding: '50px' }}>
           <Spin size="large" />
           <div style={{ marginTop: '16px' }}>
             <Text>Loading tasks...</Text>
@@ -766,68 +491,184 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
         <div style={{ display: 'flex', gap: '16px' }}>
           {/* Assigned Tasks */}
           <Card 
-            title={`Assigned Tasks (${assignedTasks.length})`} 
+            title={
+              <Space>
+                <UserOutlined />
+                <span>My Assigned Tasks</span>
+                <Badge count={sortedAssignedTasks.length} color="blue" />
+              </Space>
+            } 
             style={{ flex: 1 }}
-            extra={<UserOutlined />}
           >
-            <List
-              dataSource={assignedTasks}
-              renderItem={(task) => (
-                <List.Item
-                  actions={[
-                    <Button 
-                      type="link" 
-                      onClick={() => handleTaskClick(task)}
-                      data-testid={`${prefixDataTestId}-ViewTask-${task.taskId}`}
-                    >
-                      View
-                    </Button>
-                  ]}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => handleTaskClick(task)}
-                >
-                  {renderTaskListItem(task)}
-                </List.Item>
-              )}
-              locale={{ emptyText: 'No assigned tasks' }}
-            />
+            {sortedAssignedTasks.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+                <FileTextOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+                <div>No assigned tasks</div>
+              </div>
+            ) : (
+              <List
+                dataSource={sortedAssignedTasks}
+                renderItem={(task) => (
+                  <TaskListCard
+                    key={task.id}
+                    task={task}
+                    stepType={task.stepType}
+                    assignmentStatus={task.assignment?.currentStatus}
+                    hasInputBlocks={!!(task.inputs && task.inputs.length > 0)}
+                    hasLinks={!!(task.links && task.links.length > 0)}
+                    actionLoading={actionLoading}
+                    prefixDataTestId={prefixDataTestId}
+                    onTaskClick={handleTaskClick}
+                    onQuickClaim={handleQuickClaim}
+                    getTaskTypeIcon={getTaskTypeIcon}
+                    getTaskStatusColor={getTaskStatusColor}
+                    getStepTypeColor={getStepTypeColor}
+                    getAssignmentStatusColor={getAssignmentStatusColor}
+                    getDueDateTag={getDueDateTag}
+                    isTaskOverdue={isTaskOverdue}
+                    isTaskDueSoon={isTaskDueSoon}
+                    formatDueDate={formatDueDate}
+                    {...context}
+                  />
+                )}
+                size="small"
+              />
+            )}
           </Card>
 
           {/* Claimable Tasks */}
           <Card 
-            title={`Claimable Tasks (${claimableTasks.length})`} 
+            title={
+              <Space>
+                <ExclamationCircleOutlined />
+                <span>Claimable Tasks</span>
+                <Badge count={sortedClaimableTasks.length} color="orange" />
+              </Space>
+            } 
             style={{ flex: 1 }}
-            extra={<ExclamationCircleOutlined />}
           >
-            <List
-              dataSource={claimableTasks}
-              renderItem={(task) => (
-                <List.Item
-                  actions={[
-                    <Button 
-                      type="link" 
-                      onClick={() => handleTaskClick(task)}
-                      data-testid={`${prefixDataTestId}-ViewClaimableTask-${task.taskId}`}
-                    >
-                      View
-                    </Button>
-                  ]}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => handleTaskClick(task)}
-                >
-                  {renderTaskListItem(task)}
-                </List.Item>
-              )}
-              locale={{ emptyText: 'No claimable tasks' }}
-            />
+            {sortedClaimableTasks.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+                <CheckCircleOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+                <div>No claimable tasks</div>
+              </div>
+            ) : (
+              <List
+                dataSource={sortedClaimableTasks}
+                renderItem={(task) => (
+                  <TaskListCard
+                    key={task.id}
+                    task={task}
+                    stepType={task.stepType}
+                    assignmentStatus={task.assignment?.currentStatus}
+                    hasInputBlocks={!!(task.inputs && task.inputs.length > 0)}
+                    hasLinks={!!(task.links && task.links.length > 0)}
+                    actionLoading={actionLoading}
+                    prefixDataTestId={prefixDataTestId}
+                    onTaskClick={handleTaskClick}
+                    onQuickClaim={handleQuickClaim}
+                    getTaskTypeIcon={getTaskTypeIcon}
+                    getTaskStatusColor={getTaskStatusColor}
+                    getStepTypeColor={getStepTypeColor}
+                    getAssignmentStatusColor={getAssignmentStatusColor}
+                    getDueDateTag={getDueDateTag}
+                    isTaskOverdue={isTaskOverdue}
+                    isTaskDueSoon={isTaskDueSoon}
+                    formatDueDate={formatDueDate}
+                    {...context}
+                  />
+                )}
+                size="small"
+              />
+            )}
           </Card>
         </div>
       )}
 
-      {/* Task Detail Modal */}
-      {renderTaskModal()}
+      {/* Task Modal using modular components */}
+      {selectedTask && (
+        <Modal
+          title={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {getTaskTypeIcon(selectedTask)}
+                <span>{selectedTask.title || selectedTask.name}</span>
+              </div>
+              <span style={{ fontSize: '12px', color: '#8c8c8c', fontWeight: 'normal' }}>
+                Task ID: {selectedTask.id}
+              </span>
+            </div>
+          }
+          open={isTaskModalVisible}
+          onCancel={() => {
+            setIsTaskModalVisible(false);
+            setTaskFormData({});
+            setReassignUserId('');
+            setRejectionComment('');
+            form.resetFields();
+          }}
+          width={800}
+          footer={null}
+        >
+          <Tabs 
+            defaultActiveKey="details"
+            items={[
+              {
+                key: 'details',
+                label: 'Task Details',
+                children: (
+                  <TaskDetailsTab
+                    task={selectedTask}
+                    stepType={selectedTask.stepType}
+                    hasLinks={!!(selectedTask.links && selectedTask.links.length > 0)}
+                    hasInputBlocks={!!(selectedTask.inputs && selectedTask.inputs.length > 0)}
+                    taskFormData={taskFormData}
+                    reassignUserId={reassignUserId}
+                    rejectionComment={rejectionComment}
+                    form={form}
+                    actionLoading={actionLoading}
+                    prefixDataTestId={prefixDataTestId}
+                    {...taskHandlers}
+                    getTaskStatusColor={getTaskStatusColor}
+                    getStepTypeColor={getStepTypeColor}
+                    getAssignmentStatusColor={getAssignmentStatusColor}
+                    getDueDateTag={getDueDateTag}
+                    isTaskOverdue={isTaskOverdue}
+                    isTaskDueSoon={isTaskDueSoon}
+                    formatDueDate={formatDueDate}
+                    isJustClaimable={isJustClaimable}
+                    {...context}
+                  />
+                )
+              },
+              {
+                key: 'history',
+                label: 'Assignment History',
+                children: (
+                  <AssignmentHistoryTab
+                    task={selectedTask}
+                    getAssignmentStatusColor={getAssignmentStatusColor}
+                    {...context}
+                  />
+                )
+              },
+              {
+                key: 'flowProgress',
+                label: 'Flow Progress',
+                children: (
+                  <FlowProgressTab
+                    task={selectedTask}
+                    data-testid={`${prefixDataTestId}-flow-progress-tab`}
+                    {...context}
+                  />
+                )
+              }
+            ]}
+          />
+        </Modal>
+      )}
     </div>
   );
 };
 
-export default TaskInbox; 
+export default TaskInbox;

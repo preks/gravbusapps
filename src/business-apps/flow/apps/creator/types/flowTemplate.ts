@@ -2,7 +2,8 @@
  * Flow template types for defining workflow configurations
  */
 
-// Flow Template Types for Creator App
+// Flow template types for the frontend
+
 export enum FlowStepType {
   TASK = 'TASK',
   APPROVAL = 'APPROVAL',
@@ -18,10 +19,12 @@ export enum InputType {
   NUMBER = 'NUMBER',
   DATE = 'DATE',
   CHECKBOX = 'CHECKBOX',
-  FILE = 'FILE',
-  RADIO = 'RADIO',
-  DATETIME = 'DATETIME',
-  SIGNATURE = 'SIGNATURE'
+  FILE = 'FILE'
+}
+
+export enum AssignmentMode {
+  CLAIM = 'CLAIM',
+  ASSIGN = 'ASSIGN'
 }
 
 export interface InputOption {
@@ -37,51 +40,58 @@ export interface InputBlock {
   options?: InputOption[];
 }
 
-export enum LinkType {
-  FILE = 'FILE',
-  URL = 'URL',
-  IMAGE = 'IMAGE',
-  DOCUMENT = 'DOCUMENT'
-}
-
 export interface Link {
   name: string;
   url: string;
-  type: LinkType
 }
 
-export enum AssignmentMode {
-  CLAIM = 'CLAIM',
-  ASSIGN = 'ASSIGN'
-}
+export const ANY_SELECTOR = "ANY" as const;
+export type ANY_SELECTOR = typeof ANY_SELECTOR;
 
-export type AssignmentTarget = {
-  entity: 'user' | 'department' | 'capability' | 'role';
-  id: string;
-};
+export interface AssignmentTarget {
+  userIds?: string[];
+  organizationalUnits?: string[]; // former department Id
+  matrixTeams?: string[]; // new field
+  companies?: string[]; // former legalEntities
+  siteLocations?: string[]; // former locations
+  costCenters?: string[]; // new field
+  capabilities?: string[]; // flattened from nested array structure
+}
 
 export type TaskAssignment = {
-  targets: AssignmentTarget[];
-  assignmentMode: AssignmentMode;
+  target: AssignmentTarget; // Single target instead of array
   allowReassignment?: boolean;
 };
 
 export interface FlowStep {
-  id: string;
-  type: FlowStepType;
+  id?: string;
   title: string;
-  description?: string;
   message?: string;
+  type: FlowStepType;
   inputs?: InputBlock[];
   links?: Link[];
   assignment?: TaskAssignment;
 }
 
+// Simplified init step for self-service flows
+export interface InitStep {
+  title: string;
+  message?: string;
+  links?: Link[];
+  inputs?: InputBlock[];
+}
+
 export interface FlowTemplate {
-  type: 'TEMPLATE' | 'INSTANCE' | 'DRAFT';
+  id?: string;
+  type: 'TEMPLATE' | 'SELF_SERVICE'; // Removed INSTANCE and DRAFT
   name: string;
   description?: string;
+  version?: number;
+  assignmentMode: AssignmentMode; // Moved from TaskAssignment and made mandatory
   steps: FlowStep[];
+  
+  // Self-service specific: simplified to just the init step
+  initStep?: InitStep;
 }
 
 export interface ExecutionConfiguration {
