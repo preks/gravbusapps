@@ -247,6 +247,33 @@ async function handleResourceUrlSynchronization(screenPath, azureDestinationPath
   }
 }
 
+// Helper function to read resource URL from dev only (no sync to prod)
+async function handleResourceUrlSynchronizationReadOnly(screenPath, azureDestinationPath) {
+  console.log("🔍 Reading resource URL from dev (no synchronization to prod)...");
+  
+  // Create OAuth configuration for dev only
+  const devOauthConfig = {};  // Use dev environment variables (default)
+  
+  try {
+    // Search for resource URL in dev using progressive strategy
+    const devResourceUrl = await searchResourceUrlInDev(azureDestinationPath, devOauthConfig);
+    
+    if (!devResourceUrl) {
+      console.log("   No resource URL found in dev with any strategy");
+      return { success: true, operation: 'skip_read_only', resourceUrl: null };
+    }
+    
+    console.log(`   ✅ Found resource URL in dev: ${devResourceUrl.url} (code: ${devResourceUrl.code})`);
+    console.log("   📋 Resource URL info will be used for correct screen key generation");
+    
+    return { success: true, operation: 'read_only', resourceUrl: devResourceUrl };
+    
+  } catch (error) {
+    console.error("❌ Error during resource URL read from dev:", error.message);
+    return { success: false, operation: 'error', error: error.message, resourceUrl: null };
+  }
+}
+
 // Helper function to handle screen management registration for production
 async function handleScreenManagement(screenPath, azureDestinationPath, resourceUrlInfo = null) {
   console.log("📋 Registering screen in Screen Management system...");
@@ -816,20 +843,32 @@ async function publishScreen(screenPath) {
   
   // Handle both forms and regular screens with resource URL synchronization
   
-  // Synchronize resource URLs from dev to prod (before screen registration)
-  const resourceUrlResult = await handleResourceUrlSynchronization(screenPath, azureDestinationPath);
+  // Check if resource URL sync should be skipped
+  const skipResourceUrlSync = process.env.SKIP_RESOURCE_URL_SYNC === 'true';
+  let resourceUrlResult;
+  
+  if (skipResourceUrlSync) {
+    console.log("🚫 Skipping resource URL synchronization to prod (SKIP_RESOURCE_URL_SYNC=true)");
+    console.log("🔍 Still reading resource URL from dev for correct screen key generation...");
+    resourceUrlResult = await handleResourceUrlSynchronizationReadOnly(screenPath, azureDestinationPath);
+  } else {
+    // Synchronize resource URLs from dev to prod (before screen registration)
+    resourceUrlResult = await handleResourceUrlSynchronization(screenPath, azureDestinationPath);
+  }
   
   if (resourceUrlResult.success) {
     const operationText = {
       'skip': 'skipped (no dev resource URL)',
       'exists': 'already exists in prod',
-      'created': 'created in prod'
+      'created': 'created in prod',
+      'read_only': 'read from dev (sync skipped)',
+      'skip_read_only': 'skipped (no dev resource URL found)'
     }[resourceUrlResult.operation] || resourceUrlResult.operation;
     
-    console.log(`✅ Resource URL synchronization ${operationText}`);
+    console.log(`✅ Resource URL operation ${operationText}`);
   } else {
-    console.error(`❌ Resource URL synchronization failed: ${resourceUrlResult.error}`);
-    // Don't fail the entire process if resource URL sync fails
+    console.error(`❌ Resource URL operation failed: ${resourceUrlResult.error}`);
+    // Don't fail the entire process if resource URL operation fails
   }
   
   // Register screen in Screen Management system with build number
@@ -891,6 +930,7 @@ async function main() {
   console.log("🚀 Starting production screen publishing...");
   console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`);
   console.log(`🎯 Publish version: ${PUBLISH_VERSION}`);
+  console.log(`🔗 Resource URL sync: ${process.env.SKIP_RESOURCE_URL_SYNC === 'true' ? 'DISABLED' : 'ENABLED'}`);
   
   // Check if manual screen list file is provided as command line argument
   const manualScreensFile = process.argv[2];
@@ -959,6 +999,7 @@ async function main() {
   console.log(`${'='.repeat(80)}`);
   console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`);
   console.log(`🎯 Publish version: ${PUBLISH_VERSION}`);
+  console.log(`🔗 Resource URL sync: ${process.env.SKIP_RESOURCE_URL_SYNC === 'true' ? 'DISABLED' : 'ENABLED'}`);
   console.log(`📈 Total screens processed: ${changedScreens.length}`);
   console.log(`✅ Successfully published: ${successCount}`);
   console.log(`❌ Failed: ${failedScreens.length}`);

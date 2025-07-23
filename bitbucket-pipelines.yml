@@ -1,15 +1,20 @@
 # Manual Publishing with Custom Screen Selection:
 # 
-# Both `publish-manual` and `publish-manual-prod` pipelines support an optional
-# SCREENS_TO_PUBLISH variable that allows you to specify which screens to publish
-# instead of using automatic change detection.
+# Both `publish-manual` and `publish-manual-prod` pipelines support optional variables:
 # 
-# Usage:
-# 1. Leave SCREENS_TO_PUBLISH empty (default) to use change detection
-# 2. Set SCREENS_TO_PUBLISH to a comma-separated list of screen paths:
-#    Example: "crm/common/apps/lead-record,hr/core/apps/employee-record,fin/expenses/forms/expense-form"
+# SCREENS_TO_PUBLISH:
+# - Allows you to specify which screens to publish instead of using automatic change detection
+# - Leave empty (default) to use change detection
+# - Set to a comma-separated list of screen paths:
+#   Example: "crm/common/apps/lead-record,hr/core/apps/employee-record,fin/expenses/forms/expense-form"
+# - Screen paths should be relative to src/business-apps/ directory
 #
-# Screen paths should be relative to src/business-apps/ directory.
+# SKIP_RESOURCE_URL_SYNC (production only):
+# - Controls whether resource URL synchronization from dev to prod should be skipped
+# - Default: "false" (full resource URL sync enabled)
+# - Set to "true" to skip resource URL creation/update in prod while still reading from dev
+# - When enabled: reads resource URL from dev for correct screen key generation but skips prod sync
+# - This can speed up deployment when resource URLs already exist in prod or sync is not needed
 
 image: node:20.18.0
 definitions:
@@ -168,5 +173,7 @@ pipelines:
       - variables:
           - name: SCREENS_TO_PUBLISH
             default: ""
+          - name: SKIP_RESOURCE_URL_SYNC
+            default: "false"
       - step: *install_dependencies
       - step: *publish-manual-prod-screens

@@ -38,8 +38,44 @@ extract_app_paths() {
   done < "$input_file" | sort -u > "$output_file"
 }
 
-# Determine target branch (for PRs this is auto-set, otherwise use develop)
-TARGET_BRANCH="${BITBUCKET_PR_DESTINATION_BRANCH:-develop}"
+# Function to detect the default branch
+detect_default_branch() {
+  # Try to get the default branch from origin/HEAD
+  local default_branch
+  default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "")
+  
+  if [[ -n "$default_branch" ]]; then
+    echo "$default_branch"
+    return 0
+  fi
+  
+  # If origin/HEAD is not set, try to detect from remote
+  default_branch=$(git ls-remote --symref origin HEAD 2>/dev/null | awk '/^ref:/ {sub("refs/heads/", "", $2); print $2}' || echo "")
+  
+  if [[ -n "$default_branch" ]]; then
+    echo "$default_branch"
+    return 0
+  fi
+  
+  # Fallback: check for common default branch names
+  for branch in main master develop; do
+    if git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+      echo "$branch"
+      return 0
+    fi
+  done
+  
+  # Ultimate fallback
+  echo "develop"
+}
+
+# Determine target branch (for PRs this is auto-set, otherwise detect default)
+if [[ -n "${BITBUCKET_PR_DESTINATION_BRANCH:-}" ]]; then
+  TARGET_BRANCH="$BITBUCKET_PR_DESTINATION_BRANCH"
+else
+  TARGET_BRANCH=$(detect_default_branch)
+  echo "Detected default branch: $TARGET_BRANCH"
+fi
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 # Create temporary file for raw tsx files
