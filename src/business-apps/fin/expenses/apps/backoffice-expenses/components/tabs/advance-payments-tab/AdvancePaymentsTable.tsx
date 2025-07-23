@@ -12,9 +12,10 @@ import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { Alert, Spinner } from '@newwork/nw-design-system';
 
 import { getAdvancePaymentStatusDisplay } from '../../../utils/utils';
-import ExpenseDetailDrawer from '../../details/ExpenseDetailDrawer';
+import AdvancePaymentDetails from './AdvancePaymentDetails';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import Pill from '@/components/pill/Pill';
+import { FileTextOutlined } from '@ant-design/icons';
 
 
 const ADVANCE_PAYMENT_COLUMNS = {
@@ -61,6 +62,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
 
   // Selection states
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedActionType, setSelectedActionType] = useState<'advance-payment' | 'plan' | 'request'>('advance-payment');
 
   const { payments, totalCount, isLoading, error, fetchPayments, searchReporters, searchStatuses } = useAdvancePayments(context);
 
@@ -149,12 +151,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     };
   }, []);
 
-  const handleSelectItem = useCallback((item: any) => {
-    setSelectedItem(item);
-  }, []);
-
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null);
+    setSelectedActionType('advance-payment');
   }, []);
 
   // Column factory following OCP
@@ -195,7 +194,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             const isActionButton = target.closest('[class*="ant-dropdown-trigger"]');
 
             if (!isActionButton) {
-              handleSelectItem(record);
+              setSelectedItem(record);
             }
           },
           style: { cursor: 'pointer' }
@@ -217,24 +216,50 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             key: 'actions',
             align: 'center',
             width: 60,
-            render: (_: any, record: any) => (
-              <ActionButton
-                onClick={(e) => e.stopPropagation()}
-                flowData={[
-                  {
-                    category: 'Actions',
-                    key: 'view',
-                    label: 'View Details',
-                    onClick: () => {
-                      handleSelectItem(record);
-                    }
+            render: (_: any, record: any) => {
+              const hasExpenseRequest = record.expensePlan?.expenseRequest?.id;
+              
+              const flowData = [
+                {
+                  category: 'Actions',
+                  key: 'view-advance-payment',
+                  label: 'View Advance Payment Details',
+                  onClick: () => {
+                    setSelectedItem(record);
+                    setSelectedActionType('advance-payment');
                   }
-                ]}
-                portalContainer={document.body}
-                data-testid={`actions-${record.id}`}
-                size="md"
-              />
-            )
+                },
+                {
+                  category: 'Actions',
+                  key: 'view-plan',
+                  label: 'View Plan Details',
+                  onClick: () => {
+                    setSelectedItem(record);
+                    setSelectedActionType('plan');
+                  }
+                },
+                ...(hasExpenseRequest ? [{
+                  category: 'Actions',
+                  key: 'view-request',
+                  label: 'View Request Details',
+                  onClick: () => {
+                    setSelectedItem(record);
+                    setSelectedActionType('request');
+                  }
+                }] : [])
+              ];
+
+              return (
+                <div className="gba:flex gba:justify-center gba:items-center gba:w-full gba:h-full">
+                  <ActionButton
+                    onClick={(e) => e.stopPropagation()}
+                    flowData={flowData}
+                    data-testid={`actions-${record.id}`}
+                    size="md"
+                  />
+                </div>
+              );
+            }
           },
           createColumn('title', 'Title', (text: any, record: any) => {
             const title = record.title || record.description || 'N/A';
@@ -300,22 +325,21 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         ] as any}
       />
     );
-  }, [payments, isLoading, error, totalCount, currentPage, pageSize, handleSelectItem, createColumn]);
+  }, [payments, isLoading, error, totalCount, currentPage, pageSize, createColumn]);
 
   const renderAdvancePaymentDetails = useMemo(() => {
     if (!selectedItem) return null;
 
     return (
-      <ExpenseDetailDrawer
-        visible={!!selectedItem}
-        expenseId={null}
+      <AdvancePaymentDetails
+        selectedItem={selectedItem}
         onClose={handleCloseDetails}
         accessToken={props.accessToken}
-        type="advance-payment"
-        advancePaymentData={selectedItem}
+        userInfo={props.userInfo}
+        type={selectedActionType}
       />
     );
-  }, [selectedItem, handleCloseDetails, props.accessToken]);
+  }, [selectedItem, handleCloseDetails, props.accessToken, props.userInfo, selectedActionType]);
 
   // Enhanced table change handler for sorting
   const handleEnhancedTableChange = (pagination: any, _filters: any, sorter: any) => {
@@ -520,7 +544,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
           listAmount: totalCount ? `${totalCount}` : undefined,
           search: searchText,
           setSearch: handleSearchChange,
-          placeholder: 'Search by code, description, or employee...',
+          placeholder: 'Search in Advance Payments',
           filter: selectedFilters,
           setFilter: setFilters,
           filterLabelMap: filterLabelMap,
@@ -531,8 +555,17 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
           onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void,
         }}
         dataBody={renderDataBody()}
+        dataDetails={selectedItem ? {
+          title: selectedActionType === 'advance-payment' 
+            ? (selectedItem.title || selectedItem.description || 'Advance Payment Details')
+            : selectedActionType === 'plan'
+            ? (selectedItem.expensePlan?.title || 'Plan Details')
+            : (selectedItem.expensePlan?.expenseRequest?.title || 'Request Details'),
+          icon: <FileTextOutlined />,
+          content: renderAdvancePaymentDetails,
+          onClose: handleCloseDetails
+        } : undefined}
       />
-      {renderAdvancePaymentDetails}
     </>
   );
 };

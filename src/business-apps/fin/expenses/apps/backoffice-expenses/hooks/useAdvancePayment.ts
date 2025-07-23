@@ -214,17 +214,40 @@ export const useAdvancePayments = (
             payment.expensePlan.employee.lastName || ""
           }`.trim()
         : "N/A",
-      employeeFullName: payment.expensePlan?.employee
-        ? `${payment.expensePlan.employee.firstName || ""} ${
-            payment.expensePlan.employee.lastName || ""
-          }`.trim()
-        : "N/A",
+      employeeFullName:
+        payment.expensePlan?.employee?.fullName ||
+        (payment.expensePlan?.employee
+          ? `${payment.expensePlan.employee.firstName || ""} ${
+              payment.expensePlan.employee.lastName || ""
+            }`.trim()
+          : "N/A"),
       amount: payment.amount,
       startDate: payment.expensePlan?.startDate,
       paymentMethod: payment.paymentMethod,
       currency: payment.currency,
       costCenter: payment.costCenter,
-      expensePlan: payment.expensePlan,
+      expensePlan: {
+        ...payment.expensePlan,
+        // Ensure all fields are properly mapped
+        id: payment.expensePlan?.id,
+        code: payment.expensePlan?.code,
+        title: payment.expensePlan?.title,
+        startDate: payment.expensePlan?.startDate,
+        endDate: payment.expensePlan?.endDate,
+        planDate: payment.expensePlan?.planDate,
+        decisionDate: payment.expensePlan?.decisionDate,
+        description: payment.expensePlan?.description,
+        totalAmount: payment.expensePlan?.totalAmount,
+        advancePaymentPaidAmount: payment.expensePlan?.advancePaymentPaidAmount,
+        status: payment.expensePlan?.status,
+        requestType: payment.expensePlan?.requestType,
+        additionalProperties: payment.expensePlan?.additionalProperties,
+        employee: payment.expensePlan?.employee,
+        costCenter: payment.expensePlan?.costCenter,
+        project: payment.expensePlan?.project,
+        currency: payment.expensePlan?.currency,
+        expenseRequest: payment.expensePlan?.expenseRequest,
+      },
     }));
   };
 
