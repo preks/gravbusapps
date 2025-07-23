@@ -22,18 +22,17 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   const totalAmount = useMemo(() => 
     payments?.reduce((sum, item) => sum + (item.amount ?? 0), 0) ?? 0, 
   [payments]);
-  
   const pendingPayments = useMemo(() => 
     payments?.filter(item => 
-      item.status.toLowerCase() === 'pending' || 
-      item.status.toLowerCase() === 'submitted'
+      item.status?.toLowerCase() === 'pending' || 
+      item.status?.toLowerCase() === 'submitted'
     ).length ?? 0, 
   [payments]);
   
   const approvedPayments = useMemo(() => 
     payments?.filter(item => 
-      item.status.toLowerCase() === 'approved' || 
-      item.status.toLowerCase() === 'paid'
+      item.status?.toLowerCase() === 'approved' || 
+      item.status?.toLowerCase() === 'paid'
     ).length ?? 0, 
   [payments]);
 

@@ -13,7 +13,12 @@ import { fileURLToPath } from "url";
 import dotenv from "@dotenvx/dotenvx";
 import { BlobServiceClient } from "@azure/storage-blob";
 import { glob } from "glob";
+import axios from "axios";
 import {
+  OAuthClient,
+  getResourceUrls,
+  getResourceUrlByPath,
+  addAppResourceUrl,
   addScreenConfigToScreenManagement,
   updateScreenConfigInScreenManagement,
   getScreenByKey,
@@ -27,21 +32,16 @@ const __dirname = dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 
-// Read package.json to get the version
-const packageJsonPath = path.resolve(__dirname, "..", "package.json");
-const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
-const packageVersion = packageJson.version;
-
 const AZURE_STORAGE_ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT_PROD;
 const AZURE_STORAGE_SAS_TOKEN = process.env.AZURE_STORAGE_SAS_TOKEN_PROD;
 const AZURE_CONTAINER_NAME = process.env.AZURE_BLOB_CONTAINER_NAME_PROD;
 const BITBUCKET_BUILD_NUMBER = process.env.BITBUCKET_BUILD_NUMBER;
 const SCREEN_MANAGEMENT_SERVICE_API_PROD = process.env.SCREEN_MANAGEMENT_SERVICE_API_PROD;
+const NAVIGATION_SERVICE_API_PROD = process.env.NAVIGATION_SERVICE_API_PROD;
 
-// Create combined version string: package.version-buildNumber (e.g., "0.0.0-1")
-const PUBLISH_VERSION = `${packageVersion}-${BITBUCKET_BUILD_NUMBER}`;
+// Use only the Bitbucket build number as the publish version
+const PUBLISH_VERSION = BITBUCKET_BUILD_NUMBER;
 
-console.log(`📦 Package version: ${packageVersion}`);
 console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`);
 console.log(`🎯 Publish version: ${PUBLISH_VERSION}`);
 
@@ -58,6 +58,7 @@ const requiredEnvVars = [
   { name: 'AZURE_BLOB_CONTAINER_NAME_PROD', value: AZURE_CONTAINER_NAME },
   { name: 'BITBUCKET_BUILD_NUMBER', value: BITBUCKET_BUILD_NUMBER },
   { name: 'SCREEN_MANAGEMENT_SERVICE_API_PROD', value: SCREEN_MANAGEMENT_SERVICE_API_PROD },
+  { name: 'NAVIGATION_SERVICE_API_PROD', value: NAVIGATION_SERVICE_API_PROD },
   { name: 'OAUTH_CLIENT_ID', value: OAUTH_CLIENT_ID_PROD },
   { name: 'OAUTH_CLIENT_SECRET', value: OAUTH_CLIENT_SECRET_PROD }
 ];
@@ -88,8 +89,166 @@ function camelCaseToNaturalLanguageWithWhiteSpaces(camelCase) {
   return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1);
 }
 
+// Helper function to search for resource URLs with progressive search strategy
+async function searchResourceUrlInDev(componentPath, devOauthConfig) {
+  const devNavigationApi = process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API;
+  
+  // Strategy 1: Search with full component path
+  console.log(`   Strategy 1: Searching with full component path: ${componentPath}`);
+  try {
+    const resourceUrls = await getResourceUrls(devNavigationApi, devOauthConfig, {
+      search: componentPath,
+      sort: '-updatedAt'
+    });
+    if (resourceUrls.length > 0) {
+      const foundResource = resourceUrls[0]; // Take the first (most recently updated) result
+      console.log(`   ✅ Found with full path: ${foundResource.url}`);
+      return foundResource;
+    }
+  } catch (error) {
+    console.log(`   Strategy 1 failed: ${error.message}`);
+  }
+  
+  // Strategy 2: Search without "apps" or "forms" terms
+  const pathWithoutAppsOrForms = componentPath
+    .replace(/\/apps\//g, '/')
+    .replace(/^apps\//, '')
+    .replace(/\/forms\//g, '/')
+    .replace(/^forms\//, '');
+  if (pathWithoutAppsOrForms !== componentPath) {
+    console.log(`   Strategy 2: Searching without 'apps'/'forms' terms: ${pathWithoutAppsOrForms}`);
+    try {
+      const resourceUrls = await getResourceUrls(devNavigationApi, devOauthConfig, {
+        search: pathWithoutAppsOrForms,
+        sort: '-updatedAt'
+      });
+      if (resourceUrls.length > 0) {
+        const foundResource = resourceUrls[0]; // Take the first (most recently updated) result
+        console.log(`   ✅ Found without 'apps'/'forms': ${foundResource.url}`);
+        return foundResource;
+      }
+    } catch (error) {
+      console.log(`   Strategy 2 failed: ${error.message}`);
+    }
+  }
+  
+  // Strategy 3: Search with only component name (last segment)
+  const pathSegments = componentPath.split('/');
+  const componentName = pathSegments[pathSegments.length - 1];
+  console.log(`   Strategy 3: Searching with component name only: ${componentName}`);
+  try {
+    const resourceUrls = await getResourceUrls(devNavigationApi, devOauthConfig, {
+      search: componentName,
+      sort: '-updatedAt'
+    });
+    if (resourceUrls.length > 0) {
+      const foundResource = resourceUrls[0]; // Take the first (most recently updated) result
+      console.log(`   ✅ Found with component name: ${foundResource.url}`);
+      return foundResource;
+    }
+  } catch (error) {
+    console.log(`   Strategy 3 failed: ${error.message}`);
+  }
+  
+  console.log("   ❌ No resource URL found with any search strategy");
+  return null;
+}
+
+// Helper function to generate screen key from URL
+function generateScreenKeyFromUrl(url) {
+  // Remove /platform or platform prefix and replace / with ~
+  let cleanUrl = url.replace(/^\/platform\//, '').replace(/^platform\//, '');
+  return `url_${cleanUrl.replace(/\//g, '~')}`;
+}
+
+// Helper function to synchronize resource URLs from dev to prod
+async function handleResourceUrlSynchronization(screenPath, azureDestinationPath) {
+  console.log("🔗 Checking resource URL synchronization from dev to prod...");
+  
+  // Create OAuth configurations
+  const devOauthConfig = {};  // Use dev environment variables (default)
+  const prodOauthConfig = {
+    clientId: OAUTH_CLIENT_ID_PROD,
+    clientSecret: OAUTH_CLIENT_SECRET_PROD,
+    oauthUrl: OAUTH_URL_PROD,
+    realm: OAUTH_REALM_PROD
+  };
+  
+  try {
+    // Search for resource URL in dev using progressive strategy
+    const devResourceUrl = await searchResourceUrlInDev(azureDestinationPath, devOauthConfig);
+    
+    if (!devResourceUrl) {
+      console.log("   No resource URL found in dev with any strategy, skipping synchronization");
+      return { success: true, operation: 'skip', resourceUrl: null };
+    }
+    
+    console.log(`   Found resource URL in dev: ${devResourceUrl.url} (code: ${devResourceUrl.code})`);
+    
+    // Check if the same resource URL already exists in prod
+    console.log("   Checking if resource URL already exists in prod...");
+    const prodResourceUrl = await getResourceUrlByPath(
+      devResourceUrl.url,
+      NAVIGATION_SERVICE_API_PROD,
+      prodOauthConfig
+    );
+    
+    if (prodResourceUrl) {
+      console.log(`   ✅ Resource URL already exists in prod (ID: ${prodResourceUrl.id || 'unknown'})`);
+      console.log("   ⏩ Skipping resource URL registration - proceeding to screen config");
+      return { success: true, operation: 'exists', resourceUrl: devResourceUrl };
+    }
+    
+    // Resource URL doesn't exist in prod, proceed with registration
+    console.log("   Resource URL not found in prod, proceeding with registration...");
+    
+    try {
+      const prodNavigationApi = NAVIGATION_SERVICE_API_PROD;
+      const oauthClient = new OAuthClient(prodOauthConfig);
+      const accessToken = await oauthClient.getAccessToken();
+      
+      const payload = {
+        code: devResourceUrl.code,
+        name: devResourceUrl.name,
+        url: devResourceUrl.url,
+        roles: devResourceUrl.roles || [],
+        features: devResourceUrl.features || [],
+        name_i18n: devResourceUrl.name_i18n || {},
+        description_i18n: devResourceUrl.description_i18n || {},
+        isSearchable: devResourceUrl.isSearchable || false,
+      };
+      
+      console.log(`   Registering resource URL: ${devResourceUrl.url}`);
+      await axios.post(
+        `${prodNavigationApi}/resource-url`,
+        payload,
+        {
+          headers: {
+            accept: "application/json",
+            authorization: `Bearer ${accessToken}`,
+            "content-type": "application/json",
+          },
+        }
+      );
+      
+      console.log(`   ✅ Resource URL successfully registered in prod: ${devResourceUrl.url}`);
+      return { success: true, operation: 'created', resourceUrl: devResourceUrl };
+      
+    } catch (error) {
+      console.error(`   ❌ Failed to register resource URL in prod: ${error.message}`);
+      // Even if resource URL registration fails, continue with screen config
+      console.log("   ⚠️  Continuing with screen config despite resource URL registration failure");
+      return { success: false, operation: 'error', error: error.message, resourceUrl: devResourceUrl };
+    }
+    
+  } catch (error) {
+    console.error("❌ Error during resource URL synchronization:", error.message);
+    return { success: false, operation: 'error', error: error.message, resourceUrl: null };
+  }
+}
+
 // Helper function to handle screen management registration for production
-async function handleScreenManagement(screenPath, azureDestinationPath) {
+async function handleScreenManagement(screenPath, azureDestinationPath, resourceUrlInfo = null) {
   console.log("📋 Registering screen in Screen Management system...");
   
   // Create OAuth configuration for production
@@ -102,7 +261,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath) {
   
   try {
     if (isFormScreen(screenPath)) {
-      // For forms, register as landing screen (production deployment)
+      // Handle form screens with resource URL info
       console.log("   Detected form - registering as production form screen");
       
       // Extract process name from path for forms
@@ -110,46 +269,114 @@ async function handleScreenManagement(screenPath, azureDestinationPath) {
       const formName = pathParts[pathParts.length - 1]; // Get the form name
       const processName = formName.replace(/-form$/, ""); // Remove "-form" suffix if present
       
-            // Get the form screen key for lookup
-      const formScreenKey = `frm_${processName}`;
+      // Generate screen name and key
+      let screenName, screenKey;
+      
+      if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
+        // Use resource URL info if available
+        screenName = resourceUrlInfo.resourceUrl.name;
+        screenKey = generateScreenKeyFromUrl(resourceUrlInfo.resourceUrl.url);
+        console.log(`   Using resource URL info for form - Name: ${screenName}, Key: ${screenKey}`);
+      } else {
+        // Fallback to form-specific generation
+        screenName = camelCaseToNaturalLanguageWithWhiteSpaces(processName);
+        screenKey = `frm_${processName}`;
+        console.log(`   Using form-based generation - Name: ${screenName}, Key: ${screenKey}`);
+      }
       
       // First, check if the form already exists
-      console.log(`🔍 Checking if form exists with key: ${formScreenKey}`);
+      console.log(`🔍 Checking if form exists with key: ${screenKey}`);
       try {
-        const existingForm = await getScreenByKey(formScreenKey, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
+        const existingForm = await getScreenByKey(screenKey, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
         
         if (existingForm && existingForm.id) {
           // Form exists, update it
           console.log(`📝 Form exists with ID: ${existingForm.id}, updating version to ${PUBLISH_VERSION}`);
           
           const updateData = {
-              screenKey: formScreenKey,
-              name: camelCaseToNaturalLanguageWithWhiteSpaces(processName),
-              type: "SCREEN",
-              screenComponents: {
-                key: formScreenKey,
-                name: camelCaseToNaturalLanguageWithWhiteSpaces(processName),
-                builderType: "NATIVE_SCREEN",
-                formDefinition: {
-                  componentPath: `/${azureDestinationPath}`,
-                  version: PUBLISH_VERSION,
-                },
-                release: PUBLISH_VERSION,
+            screenKey: screenKey,
+            name: screenName,
+            type: "SCREEN",
+            screenComponents: {
+              key: screenKey,
+              name: screenName,
+              builderType: "NATIVE_SCREEN",
+              formDefinition: {
+                componentPath: `/${azureDestinationPath}`,
+                version: PUBLISH_VERSION,
               },
-            };
-            
-            const updateSuccess = await updateScreenConfigInScreenManagement(existingForm.id, updateData, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
-            if (updateSuccess) {
-              console.log(`✅ Form version updated to ${PUBLISH_VERSION}`);
-              return { success: true, operation: 'update' };
-            } else {
-              console.error(`❌ Form version update failed`);
-              return { success: false, operation: 'update', error: 'Form version update failed' };
-            }
+              release: PUBLISH_VERSION,
+            },
+          };
+          
+          const updateSuccess = await updateScreenConfigInScreenManagement(existingForm.id, updateData, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
+          if (updateSuccess) {
+            console.log(`✅ Form version updated to ${PUBLISH_VERSION}`);
+            return { success: true, operation: 'update' };
+          } else {
+            console.error(`❌ Form version update failed`);
+            return { success: false, operation: 'update', error: 'Form version update failed' };
+          }
         } else {
           // Form doesn't exist, create it
-          console.log(`🆕 Form doesn't exist, creating new form with key: ${formScreenKey}`);
+          console.log(`🆕 Form doesn't exist, creating new form with key: ${screenKey}`);
           
+          if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
+            // Create form using screen management API directly when we have resource URL info
+            // Use the resource URL path without /platform/ prefix as customUrlPath
+            const customUrlPath = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '');
+            const result = await addScreenConfigToScreenManagement(
+              azureDestinationPath,
+              customUrlPath,
+              PUBLISH_VERSION,
+              SCREEN_MANAGEMENT_SERVICE_API_PROD,
+              oauthConfig
+            );
+            
+            if (result.success) {
+              console.log(`✅ Form screen created successfully with ID: ${result.id}`);
+              return { success: true, operation: 'add' };
+            } else {
+              console.error(`❌ Form screen creation failed`);
+              return { success: false, operation: 'add', error: 'Form screen creation failed' };
+            }
+          } else {
+            // Use traditional form creation method when no resource URL info
+            const result = await addFormAsLandingScreen(processName, azureDestinationPath, PUBLISH_VERSION, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
+            if (result.success) {
+              console.log(`✅ Form screen created successfully with ID: ${result.id}`);
+              return { success: true, operation: 'add' };
+            } else {
+              console.error(`❌ Form screen creation failed`);
+              return { success: false, operation: 'add', error: 'Form screen creation failed' };
+            }
+          }
+        }
+      } catch (error) {
+        console.log(`⚠️  Error checking existing form: ${error.message}, attempting to create new form`);
+        
+        // If lookup fails, try to create the form
+        if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
+          // Create form using screen management API directly when we have resource URL info
+          // Use the resource URL path without /platform/ prefix as customUrlPath
+          const customUrlPath = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '');
+          const result = await addScreenConfigToScreenManagement(
+            azureDestinationPath,
+            customUrlPath,
+            PUBLISH_VERSION,
+            SCREEN_MANAGEMENT_SERVICE_API_PROD,
+            oauthConfig
+          );
+          
+          if (result.success) {
+            console.log(`✅ Form screen created successfully with ID: ${result.id}`);
+            return { success: true, operation: 'add' };
+          } else {
+            console.error(`❌ Form screen creation failed`);
+            return { success: false, operation: 'add', error: 'Form screen creation failed' };
+          }
+        } else {
+          // Use traditional form creation method when no resource URL info
           const result = await addFormAsLandingScreen(processName, azureDestinationPath, PUBLISH_VERSION, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
           if (result.success) {
             console.log(`✅ Form screen created successfully with ID: ${result.id}`);
@@ -159,29 +386,26 @@ async function handleScreenManagement(screenPath, azureDestinationPath) {
             return { success: false, operation: 'add', error: 'Form screen creation failed' };
           }
         }
-      } catch (error) {
-        console.log(`⚠️  Error checking existing form: ${error.message}, attempting to create new form`);
-        
-        // If lookup fails, try to create the form
-        const result = await addFormAsLandingScreen(processName, azureDestinationPath, PUBLISH_VERSION, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig);
-        if (result.success) {
-          console.log(`✅ Form screen created successfully with ID: ${result.id}`);
-          return { success: true, operation: 'add' };
-        } else {
-          console.error(`❌ Form screen creation failed`);
-          return { success: false, operation: 'add', error: 'Form screen creation failed' };
-        }
       }
     } else {
       // For regular screens, register with build number as version
       console.log("   Detected app screen - registering as production app screen");
       
-      // Generate custom URL path from screen path
-      const customUrlPath = `apps/${azureDestinationPath}`;
+      // Generate screen name and key
+      let screenName, screenKey;
       
-            // Get the screen name and key for lookup
-      const screenName = formatScreenNameFromPath(customUrlPath);
-      const screenKey = generateScreenKeyFromPath(customUrlPath);
+      if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
+        // Use resource URL info if available
+        screenName = resourceUrlInfo.resourceUrl.name;
+        screenKey = generateScreenKeyFromUrl(resourceUrlInfo.resourceUrl.url);
+        console.log(`   Using resource URL info - Name: ${screenName}, Key: ${screenKey}`);
+      } else {
+        // Fallback to path-based generation
+        const customUrlPath = `apps/${azureDestinationPath}`;
+        screenName = formatScreenNameFromPath(customUrlPath);
+        screenKey = generateScreenKeyFromPath(customUrlPath);
+        console.log(`   Using path-based generation - Name: ${screenName}, Key: ${screenKey}`);
+      }
       
       // First, check if the screen already exists
       console.log(`🔍 Checking if screen exists with key: ${screenKey}`);
@@ -220,9 +444,19 @@ async function handleScreenManagement(screenPath, azureDestinationPath) {
           // Screen doesn't exist, create it
           console.log(`🆕 Screen doesn't exist, creating new screen with key: ${screenKey}`);
           
+          // Generate custom URL path for screen creation
+          let customUrlPathForCreation;
+          if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
+            // Use resource URL path without /platform/ prefix
+            customUrlPathForCreation = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '');
+          } else {
+            // Use traditional apps path
+            customUrlPathForCreation = `apps/${azureDestinationPath}`;
+          }
+          
           const result = await addScreenConfigToScreenManagement(
             azureDestinationPath, 
-            customUrlPath,
+            customUrlPathForCreation,
             PUBLISH_VERSION,
             SCREEN_MANAGEMENT_SERVICE_API_PROD,
             oauthConfig
@@ -240,9 +474,19 @@ async function handleScreenManagement(screenPath, azureDestinationPath) {
         console.log(`⚠️  Error checking existing screen: ${error.message}, attempting to create new screen`);
         
         // If lookup fails, try to create the screen
+        // Generate custom URL path for screen creation
+        let customUrlPathForCreation;
+        if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
+          // Use resource URL path without /platform/ prefix
+          customUrlPathForCreation = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '');
+        } else {
+          // Use traditional apps path
+          customUrlPathForCreation = `apps/${azureDestinationPath}`;
+        }
+        
         const result = await addScreenConfigToScreenManagement(
           azureDestinationPath, 
-          customUrlPath,
+          customUrlPathForCreation,
           PUBLISH_VERSION,
           SCREEN_MANAGEMENT_SERVICE_API_PROD,
           oauthConfig
@@ -570,8 +814,26 @@ async function publishScreen(screenPath) {
     console.log("   No CSS files found");
   }
   
+  // Handle both forms and regular screens with resource URL synchronization
+  
+  // Synchronize resource URLs from dev to prod (before screen registration)
+  const resourceUrlResult = await handleResourceUrlSynchronization(screenPath, azureDestinationPath);
+  
+  if (resourceUrlResult.success) {
+    const operationText = {
+      'skip': 'skipped (no dev resource URL)',
+      'exists': 'already exists in prod',
+      'created': 'created in prod'
+    }[resourceUrlResult.operation] || resourceUrlResult.operation;
+    
+    console.log(`✅ Resource URL synchronization ${operationText}`);
+  } else {
+    console.error(`❌ Resource URL synchronization failed: ${resourceUrlResult.error}`);
+    // Don't fail the entire process if resource URL sync fails
+  }
+  
   // Register screen in Screen Management system with build number
-  const registrationResult = await handleScreenManagement(screenPath, azureDestinationPath);
+  const registrationResult = await handleScreenManagement(screenPath, azureDestinationPath, resourceUrlResult);
   
   if (registrationResult.success) {
     console.log(`✅ Screen Management registration successful for ${screenPath}`);
@@ -627,7 +889,6 @@ async function renameCssFilesInDirectory(targetDir, version) {
 
 async function main() {
   console.log("🚀 Starting production screen publishing...");
-  console.log(`📦 Package version: ${packageVersion}`);
   console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`);
   console.log(`🎯 Publish version: ${PUBLISH_VERSION}`);
   
@@ -674,7 +935,6 @@ async function main() {
   }
 
   console.log(`\n🎉 Production publishing completed!`);
-  console.log(`📦 Package version: ${packageVersion}`);
   console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`);
   console.log(`🎯 Publish version: ${PUBLISH_VERSION}`);
 }

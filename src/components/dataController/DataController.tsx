@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useDebounce } from "@/common/hooks/useDebounce";
 import {
   PiFunnelSimple,
@@ -107,12 +107,11 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   hideFilter = false,
   dateRange,
 }) => {
+  const [localSearch, setLocalSearch] = useState(search);
   const [showSearchInput, setShowSearchInput] = useState(false);
-  const inputRef = React.useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   
   // Local state for immediate UI feedback
-  const [localSearch, setLocalSearch] = useState<string>(search || "");
-  
   // Keep local search in sync with external changes to search prop
   useEffect(() => {
     setLocalSearch(search || "");
@@ -172,6 +171,12 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
     }
     return '';
   }, []);
+
+  // Helper function to format text with only first letter uppercase
+  const formatFilterText = (text: string): string => {
+    if (!text) return text;
+    return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+  };
 
   // Check if date range filter is active
   const hasDateRangeFilter = dateRange && (dateRange.createdAfter || dateRange.createdBefore);

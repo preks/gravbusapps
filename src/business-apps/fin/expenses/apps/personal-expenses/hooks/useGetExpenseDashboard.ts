@@ -1,15 +1,36 @@
+import dayjs from 'dayjs';
+import quarterOfYear from 'dayjs/plugin/quarterOfYear';
+dayjs.extend(quarterOfYear);
 import { useState, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_DASHBOARD_BY_EMPLOYEE } from '../queries/expenseDashboard';
-import { env } from '@/common/env/EnvUtils';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 
 export interface ExpenseDashboard {
   pendingPayouts: number;
+  bookedExpenseRequests: number;
+  pendingAdvancePayments: number;
   currentMonthExpenses: {
     total: number;
     count: number;
   };
-  lastMonthExpenses: {
+  previousMonthExpenses: {
+    total: number;
+    count: number;
+  };
+  currentQuarterExpenses: {
+    total: number;
+    count: number;
+  };
+  previousQuarterExpenses: {
+    total: number;
+    count: number;
+  };
+  currentYearExpenses: {
+    total: number;
+    count: number;
+  };
+  previousYearExpenses: {
     total: number;
     count: number;
   };
@@ -24,7 +45,9 @@ export interface ExpenseDashboard {
     expenseType?: string;
     expenseDate?: string;
   }>;
-  expensesByType: Record<string, number>;
+  expensesByTypeMonth: Record<string, number>;
+  expensesByTypeQuarter: Record<string, number>;
+  expensesByTypeYear: Record<string, number>;
   expenseItemsWithoutReceipts: number;
 }
 
@@ -38,21 +61,13 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
   const [stats, setStats] = useState<ExpenseDashboard | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
+  const graphqlClient = useGraphqlClient(context?.accessToken ?? '');
 
   useEffect(() => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
-    const accessToken = context?.accessToken;
 
-    if (!employeeId) {
-      setError(new Error('Employee ID not found. Cannot fetch dashboard statistics.'));
-      setStats(null);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!accessToken) {
-      setError(new Error('Access token not found. Cannot fetch dashboard statistics.'));
-      setStats(null);
+    if (!employeeId || !context?.accessToken) {
+      setError(new Error('Employee ID or Access Token not found.'));
       setIsLoading(false);
       return;
     }
@@ -61,49 +76,79 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            query: GET_EXPENSE_DASHBOARD_BY_EMPLOYEE,
-            variables: { employeeId },
-          }),
-        });
+        const now = dayjs();
+        const variables = {
+          employeeId,
+          currency: 'Currency:v1:EUR',
+          currentDate: now.toISOString(),
+          currentMonthStart: now.startOf('month').toISOString(),
+          currentMonthEnd: now.endOf('month').toISOString(),
+          previousMonthStart: now.subtract(1, 'month').startOf('month').toISOString(),
+          previousMonthEnd: now.subtract(1, 'month').endOf('month').toISOString(),
+          currentQuarterStart: now.startOf('quarter').toISOString(),
+          currentQuarterEnd: now.endOf('quarter').toISOString(),
+          previousQuarterStart: now.subtract(1, 'quarter').startOf('quarter').toISOString(),
+          previousQuarterEnd: now.subtract(1, 'quarter').endOf('quarter').toISOString(),
+          currentYearStart: now.startOf('year').toISOString(),
+          currentYearEnd: now.endOf('year').toISOString(),
+          previousYearStart: now.subtract(1, 'year').startOf('year').toISOString(),
+          previousYearEnd: now.subtract(1, 'year').endOf('year').toISOString(),
+          currentMonthStartTz: now.startOf('month').toISOString(),
+          currentMonthEndTz: now.endOf('month').toISOString(),
+          currentQuarterStartTz: now.startOf('quarter').toISOString(),
+          currentQuarterEndTz: now.endOf('quarter').toISOString(),
+          currentYearStartTz: now.startOf('year').toISOString(),
+          currentYearEndTz: now.endOf('year').toISOString(),
+        };
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-        }
+        const data = await graphqlClient.request(GET_EXPENSE_DASHBOARD_BY_EMPLOYEE, variables);
 
-        const result = await response.json();
+        const processExpensesByType = (expenseData: any[]): Record<string, number> => {
+          const expenseTypes: Record<string, number> = {};
+          expenseData?.forEach((item: any) => {
+            const type = item.expenseGroup?.value || 'Other';
+            if (!expenseTypes[type]) {
+              expenseTypes[type] = 0;
+            }
+            expenseTypes[type] += item.totalAmount || 0;
+          });
+          return expenseTypes;
+        };
 
-        if (result.errors && result.errors.length > 0) {
-          throw new Error(result.errors.map((e: any) => e.message).join(', '));
-        }
-        
-        const data = result.data;
-        
-        // Process expenses by type to create a summary object
-        const expenseTypes: Record<string, number> = {};
-        data?.expensesByType?.forEach((item: any) => {
-          const type = item.expenseClass?.value || 'Other';
-          if (!expenseTypes[type]) {
-            expenseTypes[type] = 0;
-          }
-          expenseTypes[type] += item.totalAmount || 0;
-        });
-        
+        const expensesByTypeMonth = processExpensesByType(data?.expensesByTypeMonth);
+        const expensesByTypeQuarter = processExpensesByType(data?.expensesByTypeQuarter);
+        const expensesByTypeYear = processExpensesByType(data?.expensesByTypeYear);
+
+        const bookedExpenseRequests = data?.bookedExpenseRequests?.aggregate?.sum?.totalAmount ?? 0;
+        const pendingAdvancePayments = data?.pendingAdvancePayments?.aggregate?.sum?.amount ?? 0;
+
         const expenseDashboard: ExpenseDashboard = {
-          pendingPayouts: data?.pendingPayouts?.aggregate?.sum?.totalAmount ?? 0,
+          pendingPayouts: bookedExpenseRequests + pendingAdvancePayments,
+          bookedExpenseRequests: bookedExpenseRequests,
+          pendingAdvancePayments: pendingAdvancePayments,
           currentMonthExpenses: {
             total: data?.currentMonthExpenses?.aggregate?.sum?.totalAmount ?? 0,
             count: data?.currentMonthExpenses?.aggregate?.count ?? 0,
           },
-          lastMonthExpenses: {
-            total: data?.lastMonthExpenses?.aggregate?.sum?.totalAmount ?? 0,
-            count: data?.lastMonthExpenses?.aggregate?.count ?? 0,
+          previousMonthExpenses: {
+            total: data?.previousMonthExpenses?.aggregate?.sum?.totalAmount ?? 0,
+            count: data?.previousMonthExpenses?.aggregate?.count ?? 0,
+          },
+          currentQuarterExpenses: {
+            total: data?.currentQuarterExpenses?.aggregate?.sum?.totalAmount ?? 0,
+            count: data?.currentQuarterExpenses?.aggregate?.count ?? 0,
+          },
+          previousQuarterExpenses: {
+            total: data?.previousQuarterExpenses?.aggregate?.sum?.totalAmount ?? 0,
+            count: data?.previousQuarterExpenses?.aggregate?.count ?? 0,
+          },
+          currentYearExpenses: {
+            total: data?.currentYearExpenses?.aggregate?.sum?.totalAmount ?? 0,
+            count: data?.currentYearExpenses?.aggregate?.count ?? 0,
+          },
+          previousYearExpenses: {
+            total: data?.previousYearExpenses?.aggregate?.sum?.totalAmount ?? 0,
+            count: data?.previousYearExpenses?.aggregate?.count ?? 0,
           },
           flaggedItems: data?.flaggedItems?.aggregate?.count ?? 0,
           upcomingTrips: data?.upcomingTrips?.aggregate?.count ?? 0,
@@ -116,7 +161,9 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
             expenseType: item.expenseClass?.value ?? 'General',
             expenseDate: item.expenseDate ? new Date(item.expenseDate).toLocaleDateString() : 'N/A',
           })) ?? [],
-          expensesByType: expenseTypes,
+          expensesByTypeMonth,
+          expensesByTypeQuarter,
+          expensesByTypeYear,
           expenseItemsWithoutReceipts: data?.itemsWithoutReceipts?.aggregate?.count ?? 0,
         };
         
@@ -130,7 +177,7 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
     };
 
     fetchStats();
-  }, [context]); // Re-run effect if context changes
+  }, [graphqlClient, context?.accessToken, context?.userInfo?.employeeDetails?.employeeId]);
 
   return { stats, isLoading, error: error?.message ?? null };
 };

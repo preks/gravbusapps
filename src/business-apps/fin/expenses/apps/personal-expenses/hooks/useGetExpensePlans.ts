@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_PLANS_BY_EMPLOYEE } from '../queries/expensePlans';
 import { env } from '@/common/env/EnvUtils';
@@ -12,33 +12,55 @@ export interface Translation {
 // Catalog entry interface for dropdown values
 export interface CatalogEntry {
   value: string;
+  code?: string;
   translations: Translation[];
+  catalog?: {
+    defaultLocale: string;
+  };
 }
 
 // Type for expense plan data
 export interface ExpensePlan {
   id: string;
   code: string;
-  title: string;
-  description: string;
+  reimbursableAmount: number;
   startDate: string | null;
   endDate: string | null;
   planDate: string | null;
-  totalAmount: number;
-  advancePaymentPaidAmount: number;
-  advancePaymentTotalAmount: number;
-  costCenter: {
-    name: string;
-    id: string;
-  };
+  decisionDate: string | null;
   status: string;
+  title: string;
+  totalAmount: number;
+  requestTypeRef: any;
+  createdAt: string;
+  employeeDocumentId: string | null;
+  advancePaymentPaidAmount: number;
+  advancePaymentInTransitAmount: number;
+  employeeDocument: any | null;
+  currency: CatalogEntry | null;
+  currencyRef: any;
+  description: string;
+  requestType: CatalogEntry | null;
+  expensePlanItem: any[];
+  advancePayment: any[] | null;
+  expenseRequestTrip: any[] | null;
+  // expenseRequest: any[] | null;
   employee: {
-    fullName: string;
+    id: string;
+    code: string;
+    firstName: string;
+    lastName: string;
+    employeePosition: any;
   };
-  additionalProperties?: Record<string, any> | null;
-  requestType?: CatalogEntry;
-  currency?: CatalogEntry;
+  expenseRequest: {
+    id: string;
+    code: string;
+    status: string;
+    totalAmount: number;
+  };
 }
+
+export type ExpensePlanFilter = Record<string, any>;
 
 // Type for the hook return value
 export interface ExpensePlansDataView {
@@ -46,20 +68,23 @@ export interface ExpensePlansDataView {
   isLoading: boolean;
   error: string | null;
   totalCount: number;
-  fetchItems: (searchTerm?: string, page?: number, pageSize?: number) => Promise<void>;
+  fetchItems: (filters: ExpensePlanFilter, page?: number, pageSize?: number) => Promise<void>;
 }
 
 export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePlansDataView => {
+  const accessToken = context?.accessToken;
+  const employeeId = context?.userInfo?.employeeDetails?.employeeId;
   const [items, setItems] = useState<ExpensePlan[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
 
-  // Function to fetch items with search and pagination
-  const fetchItems = useCallback(async (searchTerm: string = '%', page: number = 1, pageSize: number = 10) => {
-    const employeeId = context?.userInfo?.employeeDetails?.employeeId;
-    const accessToken = context?.accessToken;
-
+  // Function to fetch items with search and pagination (client-side sorting)
+  const fetchItems = useCallback(async (
+    filters: ExpensePlanFilter = {}, 
+    page: number = 1, 
+    pageSize: number = 10
+  ) => {
     if (!employeeId) {
       setError(new Error('Employee ID not found. Cannot fetch expense plans.'));
       setItems([]);
@@ -80,9 +105,10 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
     setError(null);
     
     try {
-      // Add % wildcard for LIKE query if not already present
-      const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`;
       const offset = (page - 1) * pageSize;
+      
+      // Use default sorting by creation date (newest first) on server
+      const orderBy = [{ createdAt: 'DESC' }];
       
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
@@ -94,9 +120,10 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
           query: GET_EXPENSE_PLANS_BY_EMPLOYEE,
           variables: { 
             employeeId,
-            searchTerm: formattedSearchTerm,
+            filters,
             limit: pageSize,
-            offset: offset
+            offset: offset,
+            orderBy: orderBy
           },
         }),
       });
@@ -125,12 +152,9 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
     } finally {
       setIsLoading(false);
     }
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]);
+  }, [employeeId, accessToken]);
 
-  // Initial fetch on component mount
-  useEffect(() => {
-    fetchItems();
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]); // Only re-run when employeeId or accessToken changes
+ // We only want to run this once when the component mounts and has the required IDs.
 
   return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems };
 };

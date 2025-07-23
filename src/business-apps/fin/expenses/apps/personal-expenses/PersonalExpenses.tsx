@@ -177,7 +177,7 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
     <PageLayout
       headerIcon={<PiWalletDuotone color="#c92559"/>}
       headerLabel="My Expenses"
-      pageHeaderCenter={<ExpenseAi />}
+      // pageHeaderCenter={<ExpenseAi />}
       pageController={
           <Tabs
             activeKey={activeTab}

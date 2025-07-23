@@ -75,7 +75,7 @@ export const getExpenseItemStatusDisplay = (status: string): StatusDisplayConfig
       };
     default:
       return {
-        label: status,
+        label: status.charAt(0) + status.slice(1).toLowerCase(),
         type: "error"
       };
   }
@@ -108,7 +108,7 @@ export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig
         label: 'Approved',
         type: "completed"
       };
-    case ExpenseStatus.RETURNED:
+    case ExpenseStatus.REJECTED:
       return {
         label: 'Revision Required',
         type: "task"
@@ -118,11 +118,11 @@ export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig
         label: 'Closed',
         type: "completed"
       };
-    case ExpenseStatus.REJECTED:
-      return {
-        label: 'Rejected',
-        type: "error"
-      };
+    // case ExpenseStatus.REJECTED:
+    //   return {
+    //     label: 'Rejected',
+    //     type: "error"
+    //   };
     default:
       return {
         label: status,
@@ -171,11 +171,11 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
         label: 'Closed',
         type: "completed"
       };
-    case ExpenseStatus.REJECTED:
-      return {
-        label: 'Rejected',
-        type: "error"
-      };
+    // case ExpenseStatus.REJECTED:
+    //   return {
+    //     label: 'Rejected',
+    //     type: "error"
+    //   };
     default:
       return {
         label: status,
