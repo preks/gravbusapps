@@ -418,7 +418,7 @@ async function getScreenByKey(screenKey, apiEndpoint = null, oauthConfig = {}) {
             builderType: "NATIVE_SCREEN",
             sort: "updatedAt",
             order: "DESC",
-            limit: 1,
+            limit: 10,
             offset: 0,
           }
         }

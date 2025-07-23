@@ -892,32 +892,45 @@ async function main() {
   console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`);
   console.log(`🎯 Publish version: ${PUBLISH_VERSION}`);
   
-  // First, run the detect script to find changed screens
-  console.log("🔍 Detecting changed screens...");
+  // Check if manual screen list file is provided as command line argument
+  const manualScreensFile = process.argv[2];
+  let screensFile;
   
-  try {
-    execSync("bash scripts/detect-changed-screens.sh", { stdio: "inherit" });
-  } catch (error) {
-    console.error("❌ Failed to detect changed screens:", error.message);
-    process.exit(1);
+  if (manualScreensFile && fs.existsSync(manualScreensFile)) {
+    console.log(`📋 Using manually specified screens from: ${manualScreensFile}`);
+    screensFile = manualScreensFile;
+  } else {
+    console.log("🔍 Using change detection to find screens to publish...");
+    
+    try {
+      execSync("bash scripts/detect-changed-screens.sh", { stdio: "inherit" });
+    } catch (error) {
+      console.error("❌ Failed to detect changed screens:", error.message);
+      process.exit(1);
+    }
+    
+    screensFile = "changed-tsx.txt";
   }
 
   // Check if any screens were found
-  const changedScreensFile = "changed-tsx.txt";
-  if (!fs.existsSync(changedScreensFile) || !fs.statSync(changedScreensFile).size) {
-    console.log("✅ No changed screens detected. Nothing to publish.");
+  if (!fs.existsSync(screensFile) || !fs.statSync(screensFile).size) {
+    console.log("✅ No screens found to publish. Nothing to publish.");
     return;
   }
 
-  // Read the changed screens
-  const changedScreens = fs.readFileSync(changedScreensFile, "utf8")
+  // Read the screens to publish
+  const changedScreens = fs.readFileSync(screensFile, "utf8")
     .split("\n")
     .map(line => line.trim())
     .filter(line => line.length > 0)
     .map(line => line.replace(/^src\/business-apps\//, ""));
 
-  console.log(`📋 Found ${changedScreens.length} changed screen(s):`);
+  console.log(`📋 Found ${changedScreens.length} screen(s) to publish:`);
   changedScreens.forEach(screen => console.log(`   - ${screen}`));
+
+  // Track failed screens and their errors
+  const failedScreens = [];
+  let successCount = 0;
 
   // Publish each changed screen
   for (const screenPath of changedScreens) {
@@ -928,15 +941,47 @@ async function main() {
     try {
       await publishScreen(screenPath);
       console.log(`✅ Successfully published: ${screenPath}`);
+      successCount++;
     } catch (error) {
       console.error(`❌ Failed to publish ${screenPath}:`, error.message);
+      failedScreens.push({
+        screen: screenPath,
+        error: error.message,
+        stack: error.stack
+      });
       // Continue with next screen instead of failing entire process
     }
   }
 
-  console.log(`\n🎉 Production publishing completed!`);
+  // Print final summary
+  console.log(`\n${'='.repeat(80)}`);
+  console.log(`📊 PRODUCTION PUBLISHING SUMMARY`);
+  console.log(`${'='.repeat(80)}`);
   console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`);
   console.log(`🎯 Publish version: ${PUBLISH_VERSION}`);
+  console.log(`📈 Total screens processed: ${changedScreens.length}`);
+  console.log(`✅ Successfully published: ${successCount}`);
+  console.log(`❌ Failed: ${failedScreens.length}`);
+
+  if (failedScreens.length > 0) {
+    console.log(`\n❌ FAILED SCREENS:`);
+    console.log(`${'='.repeat(50)}`);
+    
+    failedScreens.forEach((failure, index) => {
+      console.log(`\n${index + 1}. Screen: ${failure.screen}`);
+      console.log(`   Error: ${failure.error}`);
+      console.log(`   ${'─'.repeat(40)}`);
+    });
+    
+    console.log(`\n💥 Production publishing completed with ${failedScreens.length} failure(s)!`);
+    console.log(`🚨 Please review the failed screens and fix the issues before next deployment.`);
+    
+    // Exit with error code to fail the pipeline
+    process.exit(1);
+  } else {
+    console.log(`\n🎉 Production publishing completed successfully!`);
+    console.log(`✨ All ${successCount} screen(s) were published without errors.`);
+  }
 }
 
 main().catch((error) => {
