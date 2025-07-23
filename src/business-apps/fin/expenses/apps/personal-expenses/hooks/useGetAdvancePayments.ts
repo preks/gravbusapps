@@ -1,15 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { GET_ADVANCE_PAYMENTS_BY_EMPLOYEE, GET_ADVANCE_PAYMENTS_BY_EMPLOYEE_WITH_STATUS } from '../queries/advancePayments';
 import { env } from '@/common/env/EnvUtils';
+import { 
+  buildAdvancePaymentsQuery,
+  validateFilters,
+  AdvancePaymentFilters
+} from '../queries/advancePayments';
 
-// Type for advance payment data
 export interface AdvancePayment {
   id: string;
   code: string;
-  description: string;
+  description: string | null;
   amount: number;
-  advance: number;
   currencyRef: string;
   currency: {
     code: string;
@@ -17,52 +19,46 @@ export interface AdvancePayment {
   costCenter: {
     name: string;
   };
-  status: string; 
-  paymentMethod: string | null;
+  status: string;
+  paymentMethod: string;
   expensePlan: {
     code: string;
-    title: string;  
+    title: string;
     totalAmount: number;
     currency: {
       code: string;
     };
-  };
+  } | null;
   expensePlanId: string;
 }
 
-// Type for the hook return value
 export interface AdvancePaymentsDataView {
   items: AdvancePayment[];
   isLoading: boolean;
   error: string | null;
   totalCount: number;
-  fetchItems: (searchTerm?: string, page?: number, pageSize?: number, statusFilter?: string[]) => Promise<void>;
+  fetchItems: (searchTerm?: string, page?: number, pageSize?: number, statusFilter?: string[], amountRange?: { min?: number; max?: number } | null, advanceRange?: { min?: number; max?: number } | null) => Promise<void>;
 }
 
 export const useGetAdvancePayments = (context?: BusinessAppContextProps): AdvancePaymentsDataView => {
   const [items, setItems] = useState<AdvancePayment[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalCount, setTotalCount] = useState(0);
 
-  // Function to fetch items with search, pagination, and status filtering
-  const fetchItems = useCallback(async (searchTerm: string = '%', page: number = 1, pageSize: number = 10, statusFilter?: string[]) => {
+  const fetchItems = useCallback(async (
+    searchTerm: string = '',
+    page: number = 1,
+    pageSize: number = 20,
+    statusFilter: string[] = [],
+    amountRange: { min?: number; max?: number } | null = null,
+    advanceRange: { min?: number; max?: number } | null = null
+  ) => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
     const accessToken = context?.accessToken;
 
-    if (!employeeId) {
-      setError(new Error('Employee ID not found. Cannot fetch advance payments.'));
-      setItems([]);
-      setTotalCount(0);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!accessToken) {
-      setError(new Error('Access token not found. Cannot fetch advance payments.'));
-      setItems([]);
-      setTotalCount(0);
-      setIsLoading(false);
+    if (!employeeId || !accessToken) {
+      console.warn('Missing employeeId or accessToken for advance payments query');
       return;
     }
 
@@ -74,21 +70,52 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`;
       const offset = (page - 1) * pageSize;
       
-      // Choose the appropriate query based on whether status filtering is needed
-      const hasStatusFilter = Boolean(statusFilter && statusFilter.length > 0);
-      const query = hasStatusFilter ? GET_ADVANCE_PAYMENTS_BY_EMPLOYEE_WITH_STATUS : GET_ADVANCE_PAYMENTS_BY_EMPLOYEE;
+      // Create filters object
+      const filters: AdvancePaymentFilters = {
+        statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
+        amountRange: amountRange || undefined,
+        advanceRange: advanceRange || undefined
+      };
       
-      const variables: any = {
+      // Get active filters using utility function
+      const filterState = validateFilters(filters);
+      
+      // Use dynamic query builder for better error handling
+      const query = buildAdvancePaymentsQuery(filters);
+      
+      let variables: any = {
         employeeId,
         searchTerm: formattedSearchTerm,
         limit: pageSize,
         offset: offset,
       };
 
-      // Add status filter only when there are active filters
-      if (hasStatusFilter) {
-        variables.statusFilter = statusFilter;
+      // Add filter variables only if they exist
+      if (filterState.hasStatusFilter && filters.statusFilter) {
+        variables.statusFilter = filters.statusFilter;
       }
+      
+      if (filterState.hasAmountRange && filters.amountRange) {
+        const { min, max } = filters.amountRange;
+        if (min !== undefined) {
+          variables.amountMin = min;
+        }
+        if (max !== undefined) {
+          variables.amountMax = max;
+        }
+      }
+      
+      if (filterState.hasAdvanceRange && filters.advanceRange) {
+        const { min, max } = filters.advanceRange;
+        if (min !== undefined) {
+          variables.advanceMin = min;
+        }
+        if (max !== undefined) {
+          variables.advanceMax = max;
+        }
+      }
+      
+      console.log('GraphQL Variables:', variables);
       
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
@@ -109,17 +136,18 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       const result = await response.json();
 
       if (result.errors && result.errors.length > 0) {
+        console.error('GraphQL Errors:', result.errors);
         throw new Error(result.errors.map((e: any) => e.message).join(', '));
       }
       
-      // Get total count from aggregate query
-      const count = result.data?.AdvancePaymentAggregate?.aggregate?.count ?? 0;
-      setTotalCount(count);
+      // Get the items and count
+      let fetchedItems = result.data?.AdvancePayment ?? [];
+      let count = result.data?.AdvancePaymentAggregate?.aggregate?.count ?? 0;
       
-      // Get the items
-      const fetchedItems = result.data?.AdvancePayment ?? [];
+      setTotalCount(count);
       setItems(fetchedItems);
     } catch (err) {
+      console.error('Error fetching advance payments:', err);
       setError(err instanceof Error ? err : new Error(String(err)));
       setItems([]); // Clear items on error
       setTotalCount(0);
@@ -128,12 +156,11 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     }
   }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]);
 
-  // Initial fetch on component mount
-  useEffect(() => {
-    if (context?.userInfo?.employeeDetails?.employeeId && context?.accessToken) {
-      fetchItems();
-    }
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]); // Only re-run when employeeId or accessToken changes
-
-  return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems };
+  return {
+    items,
+    isLoading,
+    error: error?.message || null,
+    totalCount,
+    fetchItems,
+  };
 };

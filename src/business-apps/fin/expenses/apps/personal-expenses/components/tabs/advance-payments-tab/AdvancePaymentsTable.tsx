@@ -3,20 +3,20 @@ import { Typography, Alert, Spin } from 'antd';
 import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
 import { startProcess } from '@/common/utils/start-process';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetAdvancePayments, AdvancePayment } from '../../../hooks/useGetAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../../utils';
 import Pill from '@/components/pill';
 import { DollarOutlined } from '@ant-design/icons';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
+import { formatNumber } from '../expense-dashboard-tab/utils/formatters';
 
 const { Text } = Typography;
 
 // Helper function to format currency
-const formatCurrency = (value: number): string => {
-  return value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
+// const formatCurrency = (value: number): string => {
+//   return value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// };
 
 export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string;
@@ -27,6 +27,8 @@ export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   filterGroups?: any[];
   handleFilterChange?: (filterId: string, selected: boolean) => void;
   filterLabelMap?: Record<string, string>;
+  amountRange?: { min?: number; max?: number } | null;
+  advanceRange?: { min?: number; max?: number } | null;
 }
 
 const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
@@ -45,57 +47,48 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
 
   // Use filter props from parent with stable references
   const currentStatusFilter = useMemo(() => props.activeFilter || [], [props.activeFilter]);
+  const currentAmountRange = useMemo(() => props.amountRange || null, [props.amountRange]);
+  const currentAdvanceRange = useMemo(() => props.advanceRange || null, [props.advanceRange]);
   const filterGroups = useMemo(() => props.filterGroups || [], [props.filterGroups]);
   const filterLabelMap = useMemo(() => props.filterLabelMap || {}, [props.filterLabelMap]);
+  
+
 
   // Sync search with parent component
   useEffect(() => {
     if (props.search !== undefined && props.search !== searchText) {
       setSearchText(props.search);
       setCurrentPage(1);
-      fetchItems(props.search, 1, pageSize);
+      fetchItems(props.search, 1, pageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange);
     }
-  }, [props.search, searchText, pageSize]);
+  }, [props.search, searchText, pageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange]);
 
   // Initial data load
   useEffect(() => {
     if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
-      fetchItems(searchText, currentPage, pageSize);
+      fetchItems(searchText, currentPage, pageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange);
     }
-  }, [contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId, fetchItems]);
+  }, [contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId, fetchItems, searchText, currentPage, pageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange]);
 
   // Create a memoized setSearch function to prevent re-renders
   const handleSearchChange = useCallback((value: string) => {
     setSearchText(value);
     setCurrentPage(1); // Reset to first page on new search
-    fetchItems(value, 1, pageSize);
+    fetchItems(value, 1, pageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange);
     
     // Notify parent component of search change
     if (props.onSearchChange) {
       props.onSearchChange(value);
     }
-  }, [fetchItems, pageSize, props.onSearchChange]);
+  }, [fetchItems, pageSize, props.onSearchChange, currentStatusFilter, currentAmountRange, currentAdvanceRange]);
   
-  // Handle filter changes with debouncing to prevent infinite loops
-  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    if (props.handleFilterChange) {
-      props.handleFilterChange(filterId, selected);
-    }
-  }, [props.handleFilterChange]);
-
-  // Handle clearing all filters
-  const handleClearFilters = useCallback(() => {
-    if (props.onClearFilters) {
-      props.onClearFilters();
-    }
-  }, [props.onClearFilters]);
 
   // Handle filter changes - only trigger when filters actually change
   useEffect(() => {
     if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
-      fetchItems(searchText, 1, pageSize, currentStatusFilter);
+      fetchItems(searchText, 1, pageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange);
     }
-  }, [currentStatusFilter, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId, searchText, pageSize, fetchItems]);
+  }, [currentStatusFilter, currentAmountRange, currentAdvanceRange, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId, searchText, pageSize, fetchItems]);
   
   // Handle adding a new advance payment
   const handleAddAdvancePayment = useCallback(() => {
@@ -116,11 +109,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     setCurrentPage(current ?? 1);
     if (newPageSize !== pageSize) {
       setPageSize(newPageSize);
-      fetchItems(searchText, 1, newPageSize);
+      fetchItems(searchText, 1, newPageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange);
     } else {
-      fetchItems(searchText, current ?? 1, pageSize);
+      fetchItems(searchText, current ?? 1, pageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange);
     }
-  }, [fetchItems, searchText, pageSize]);
+  }, [fetchItems, searchText, pageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange]);
 
   // Handle row selection
   const handleRowSelectionChange = useCallback((selectedKeys: React.Key[]) => {
@@ -272,7 +265,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             key: 'amount',
             render: (text: any, record: any) => (
               <div className="gba:text-right" data-testid="advance-payment-amount">
-                {formatCurrency(record.expensePlan?.totalAmount ?? 0)} {record.expensePlan?.currency?.code ?? 'EUR'}
+                {formatNumber(record.expensePlan?.totalAmount ?? 0)} {record.expensePlan?.currency?.code ?? 'EUR'}
               </div>
             )
           },
@@ -282,7 +275,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             key: 'advance',
             render: (amount: any, record: any) => (
               <div className="gba:text-right" data-testid="advance-payment-advance">
-                {formatCurrency(amount ?? 0)} {record.currency?.code ?? 'EUR'}
+                {formatNumber(amount ?? 0)} {record.currency?.code ?? 'EUR'}
               </div>
             )
           },
@@ -325,8 +318,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         filter: currentStatusFilter,
         setSearch: handleSearchChange,
         setFilter: (newFilters) => {
+          // Handle status filter changes
           if (props.onFilterChange) {
             props.onFilterChange(newFilters as string[]);
+          }
+          // If clearing all filters (empty array), also clear range filters
+          if (newFilters.length === 0 && props.onClearFilters) {
+            props.onClearFilters();
           }
         },
         addButton: {
@@ -337,15 +335,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         listTitle: "My Advance Payments",
         listAmount: totalCount ? `${totalCount}` : undefined,
         filterLabelMap: filterLabelMap,
-        actions: currentStatusFilter.length > 0 ? (
-          <button
-            onClick={handleClearFilters}
-            className="gba:px-3 gba:py-1 gba:text-sm gba:text-gray-600 gba:hover:text-gray-800 gba:border gba:border-gray-300 gba:rounded gba:hover:bg-gray-50"
-            data-testid="clear-filters-button"
-          >
-            Clear Filters
-          </button>
-        ) : undefined,
       }}
       dataFilterProps={{
         filterGroups: filterGroups,
