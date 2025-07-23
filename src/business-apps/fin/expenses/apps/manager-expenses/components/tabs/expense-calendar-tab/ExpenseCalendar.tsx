@@ -68,11 +68,12 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
     requests: expenseRequests,
     isLoading: isLoadingRequests,
     error: requestsError,
-    fetchRequests, // Assuming we might want to trigger refetch
   } = useGetExpenseRequests({
     accessToken,
-    // pageSize for requests can also be high for calendar view if needed
+    userInfo
   });
+  
+
 
   // Add debugging logs for calendar data loading
   React.useEffect(() => {

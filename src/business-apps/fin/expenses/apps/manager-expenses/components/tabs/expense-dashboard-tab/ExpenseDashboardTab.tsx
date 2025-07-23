@@ -10,6 +10,7 @@ import { useCurrencyStore } from '../../../store/useCurrencyStore';
 import { useCurrencyFilter } from '../../../hooks/useCurrencyFilter';
 import { useGetExpenseDashboard } from '../../../hooks/useGetExpenseDashboard';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import CurrencyFilter from '../../../components/currency-filter';
 
 import ExpenseTrendsChart from './components/ExpenseTrendsChart';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -62,15 +63,18 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       // Convert recent requests to a format compatible with getMostUsedCurrency
       const transactions = dashboardData.recentRequests.map(req => ({
         amount: typeof req.totalAmount === 'number' ? req.totalAmount : 0,
-        currency: 'EUR' // Default to EUR since the API doesn't provide currency per request
+        currency: primaryCurrency // Use primary currency since the API doesn't provide currency per request
       }));
-      return getMostUsedCurrency(transactions, 'currency', 'amount', 'EUR');
+      return getMostUsedCurrency(transactions, 'currency', 'amount', primaryCurrency);
     }
     return null;
-  }, [dashboardData?.recentRequests]);
+  }, [dashboardData?.recentRequests, primaryCurrency]);
   
   // Use the selected currency filter, or most used currency, or fall back to primary currency
   const displayCurrency = currencyFilter || mostUsedCurrency || primaryCurrency;
+  
+  // For chart display, prioritize most used currency if no filter is explicitly selected
+  const chartCurrency = currencyFilter || mostUsedCurrency || primaryCurrency;
 
   // Quick actions data
   const quickActions = [
@@ -155,21 +159,17 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   return (
     <div className="gba:h-full gba:flex gba:flex-col">
       {/* Currency Filter */}
-      <div className="gba:flex gba:justify-end gba:mb-4" data-testid="expense-dashboard-currency-filter-container">
+      <div className="gba:flex gba:justify-start gba:mb-4 gba:px-6" data-testid="expense-dashboard-currency-filter-container">
         <div className="gba:flex gba:items-center gba:gap-2">
           <span className="gba:text-sm gba:font-medium">
             {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.currency_filter', 'Currency:')}
           </span>
-          <select 
-            className="gba:border gba:border-gray-300 gba:rounded gba:px-2 gba:py-1 gba:text-sm" 
-            value={currencyFilter || primaryCurrency}
-            onChange={(e) => setCurrencyFilter(e.target.value)}
+          <CurrencyFilter
+            value={currencyFilter}
+            onChange={(value) => setCurrencyFilter(value || primaryCurrency)}
+            currencies={['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN']}
             data-testid="expense-dashboard-currency-select"
-          >
-            {['EUR', 'USD', 'GBP'].map(currency => (
-              <option key={currency} value={currency}>{currency}</option>
-            ))}
-          </select>
+          />
         </div>
       </div>
       {/* Statistics Cards using WidgetGroup */}
@@ -315,7 +315,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           <ExpenseTrendsChart 
             data={dashboardData?.monthlyTrends || []} 
             title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', 'Monthly Expense Trends')}
-            currencyFilter={currencyFilter}
+            currencyFilter={chartCurrency}
           />
         </div>
       </div>

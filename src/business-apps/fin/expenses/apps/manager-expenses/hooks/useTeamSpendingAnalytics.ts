@@ -162,7 +162,8 @@ export interface DepartmentFilter {
 
 export const useTeamSpendingAnalytics = (
   accessToken: string,
-  managerId: string
+  managerId: string,
+  currencyFilter?: string | null
 ) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -404,7 +405,7 @@ export const useTeamSpendingAnalytics = (
   const handleDepartmentSearchTermChange = (term: string) => {
     setDepartmentSearchTerm(term);
   };
-  
+
   // Filter locations by search term
   const filteredLocationFilters = useMemo(() => {
     if (!searchTerm) return locationFilters;
@@ -423,46 +424,176 @@ export const useTeamSpendingAnalytics = (
     );
   }, [departmentFilters, departmentSearchTerm]);
   
-  // Process raw data into chart-friendly formats
+  // Apply filters to raw data
   const processedData: ProcessedAnalyticsData | null = useMemo(() => {
     if (!rawData) return null;
-    
+
     // Get selected location IDs for filtering
     const selectedLocationIds = locationFilters
       .filter(location => location.selected)
       .map(location => location.id);
-    
+
     // Get selected department IDs for filtering
     const selectedDepartmentIds = departmentFilters
       .filter(department => department.selected)
       .map(department => department.id);
-    
-    // Apply location filters if any are selected
-    const filterByLocation = (items: any[]) => {
-      if (selectedLocationIds.length === 0) return items;
-      
-      return items.filter(item => {
-        const locationId = item.employee?.employeePosition?.siteLocation?.id;
-        return locationId && selectedLocationIds.includes(locationId);
-      });
+
+    // Function to check if date is within selected range
+    const isDateInRange = (dateStr: string | undefined) => {
+      if (!dateStr) return false;
+      const date = dayjs(dateStr);
+
+      // Get date range based on selected option
+      let startDate: dayjs.Dayjs | null = null;
+      let endDate: dayjs.Dayjs | null = null;
+
+      const today = dayjs();
+
+      switch (dateRange) {
+        case DateRangeOption.LAST_30_DAYS:
+          startDate = today.subtract(30, 'day');
+          endDate = today;
+          break;
+        case DateRangeOption.LAST_90_DAYS:
+          startDate = today.subtract(90, 'day');
+          endDate = today;
+          break;
+        case DateRangeOption.LAST_6_MONTHS:
+          startDate = today.subtract(6, 'month');
+          endDate = today;
+          break;
+        case DateRangeOption.LAST_YEAR:
+          startDate = today.subtract(1, 'year');
+          endDate = today;
+          break;
+        case DateRangeOption.YEAR_TO_DATE:
+          startDate = dayjs().startOf('year');
+          endDate = today;
+          break;
+        case DateRangeOption.ALL_TIME:
+          return true; // No date filtering
+        case DateRangeOption.CUSTOM:
+          if (customDateRange.startDate) {
+            startDate = dayjs(customDateRange.startDate);
+          }
+          if (customDateRange.endDate) {
+            endDate = dayjs(customDateRange.endDate);
+          }
+          break;
+      }
+
+      // Check if date is within range
+      if (startDate && !date.isAfter(startDate)) {
+        return false;
+      }
+
+      if (endDate && !date.isBefore(endDate)) {
+        return false;
+      }
+
+      return true;
     };
-    
-    // Apply department filters if any are selected
-    const filterByDepartment = (items: any[]) => {
-      if (selectedDepartmentIds.length === 0) return items;
-      
-      return items.filter(item => {
-        const departmentId = item.employee?.employeePosition?.organizationalUnit?.id;
-        return departmentId && selectedDepartmentIds.includes(departmentId);
-      });
-    };
-    
-    // Apply filters to all data types
-    const filteredExpenseItems = filterByDepartment(filterByLocation(rawData.expenseItems));
-    const filteredExpenseRequests = filterByDepartment(filterByLocation(rawData.expenseRequests));
-    const filteredExpensePlans = filterByDepartment(filterByLocation(rawData.expensePlans));
-    const filteredAdvancePayments = filterByDepartment(filterByLocation(rawData.advancePayments));
-    
+
+    // Filter expense items
+    const filteredExpenseItems = rawData.expenseItems ? rawData.expenseItems.filter(item => {
+      // Check if date is within range
+      if (!isDateInRange(item.expenseDate || item.createdAt)) return false;
+
+      // Check if employee's location is selected
+      const locationId = item.employee?.employeePosition?.siteLocation?.id;
+      if (locationId && selectedLocationIds.length > 0 && !selectedLocationIds.includes(locationId)) {
+        return false;
+      }
+
+      // Check if employee's department is selected
+      const departmentId = item.employee?.employeePosition?.organizationalUnit?.id;
+      if (departmentId && selectedDepartmentIds.length > 0 && !selectedDepartmentIds.includes(departmentId)) {
+        return false;
+      }
+
+      // Check if currency matches filter
+      if (currencyFilter && item.currencyRef !== currencyFilter) {
+        return false;
+      }
+
+      return true;
+    }) : [];
+
+    // Filter expense requests
+    const filteredExpenseRequests = rawData.expenseRequests ? rawData.expenseRequests.filter(item => {
+      // Check if date is within range
+      if (!isDateInRange(item.createdAt)) return false;
+
+      // Check if employee's location is selected
+      const locationId = item.employee?.employeePosition?.siteLocation?.id;
+      if (locationId && selectedLocationIds.length > 0 && !selectedLocationIds.includes(locationId)) {
+        return false;
+      }
+
+      // Check if employee's department is selected
+      const departmentId = item.employee?.employeePosition?.organizationalUnit?.id;
+      if (departmentId && selectedDepartmentIds.length > 0 && !selectedDepartmentIds.includes(departmentId)) {
+        return false;
+      }
+
+      // Check if currency matches filter
+      if (currencyFilter && item.currencyRef !== currencyFilter) {
+        return false;
+      }
+
+      return true;
+    }) : [];
+
+    // Filter expense plans
+    const filteredExpensePlans = rawData.expensePlans ? rawData.expensePlans.filter(item => {
+      // Check if date is within range
+      if (!isDateInRange(item.createdAt)) return false;
+
+      // Check if employee's location is selected
+      const locationId = item.employee?.employeePosition?.siteLocation?.id;
+      if (locationId && selectedLocationIds.length > 0 && !selectedLocationIds.includes(locationId)) {
+        return false;
+      }
+
+      // Check if employee's department is selected
+      const departmentId = item.employee?.employeePosition?.organizationalUnit?.id;
+      if (departmentId && selectedDepartmentIds.length > 0 && !selectedDepartmentIds.includes(departmentId)) {
+        return false;
+      }
+
+      // Check if currency matches filter
+      if (currencyFilter && item.currencyRef !== currencyFilter) {
+        return false;
+      }
+
+      return true;
+    }) : [];
+
+    // Filter advance payments
+    const filteredAdvancePayments = rawData.advancePayments ? rawData.advancePayments.filter(item => {
+      // Check if date is within range
+      if (!isDateInRange(item.transactionDate || item.createdAt)) return false;
+
+      // Check if employee's location is selected
+      const locationId = item.expensePlan?.employee?.employeePosition?.siteLocation?.id;
+      if (locationId && selectedLocationIds.length > 0 && !selectedLocationIds.includes(locationId)) {
+        return false;
+      }
+
+      // Check if employee's department is selected
+      const departmentId = item.expensePlan?.employee?.employeePosition?.organizationalUnit?.id;
+      if (departmentId && selectedDepartmentIds.length > 0 && !selectedDepartmentIds.includes(departmentId)) {
+        return false;
+      }
+
+      // Check if currency matches filter
+      if (currencyFilter && item.currencyRef !== currencyFilter) {
+        return false;
+      }
+
+      return true;
+    }) : [];
+
     // Process expense items by category
     const categoryMap = new Map<string, number>();
     filteredExpenseItems.forEach((item: ExpenseItem) => {
@@ -639,6 +770,7 @@ export const useTeamSpendingAnalytics = (
     departmentFilters: filteredDepartmentFilters,
     toggleDepartmentFilter,
     departmentSearchTerm,
-    setDepartmentSearchTerm: handleDepartmentSearchTermChange
+    setDepartmentSearchTerm: handleDepartmentSearchTermChange,
+    currencyFilter
   };
 };

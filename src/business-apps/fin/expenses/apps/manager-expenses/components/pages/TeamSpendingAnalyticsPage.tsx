@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useCurrencyStore } from '../../store/useCurrencyStore';
 import { 
   Card,
@@ -27,7 +27,7 @@ import { useExpenseGroupCatalog } from '../../hooks/useExpenseGroupCatalog';
 import { LineChartComponent, PieChartComponent, BarChartComponent } from '../modals/charts';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-// No icons needed as we're using text for currency code
+import CurrencyFilter from '../../components/currency-filter';
 
 interface TeamSpendingAnalyticsPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void;
@@ -41,6 +41,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   // Use the global currency store
   const { primaryCurrency } = useCurrencyStore();
   const [activeTab, setActiveTab] = React.useState<string>('expense-items');
+  const [currencyFilter, setCurrencyFilter] = useState<string | null>(null);
   
   // Use the team spending analytics hook
   const { 
@@ -48,7 +49,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
     error, 
     data, 
     dateRange, 
-    setDateRange,
+    setDateRange, 
     locationFilters,
     toggleLocationFilter,
     searchTerm,
@@ -59,7 +60,8 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
     setDepartmentSearchTerm
   } = useTeamSpendingAnalytics(
     accessToken,
-    userInfo?.employeeDetails?.employeeId || '00000000-0000-0000-0000-000000000000'
+    userInfo?.employeeDetails?.employeeId || '00000000-0000-0000-0000-000000000000',
+    currencyFilter
   );
   
   // Use the expense group catalog hook to get category names
@@ -505,6 +507,21 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <div className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2">No locations found</div>
             )}
           </div>
+        </div>
+
+        <Separator className="gba:my-6" />
+
+        {/* Currency Filter */}
+        <div className="gba:space-y-4">
+          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.currency_filter', 'Currency')}
+          </Label>
+          <CurrencyFilter
+            value={currencyFilter}
+            onChange={(value) => setCurrencyFilter(value)}
+            currencies={['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN']}
+            data-testid="team-spending-analytics-currency-select"
+          />
         </div>
 
         <Separator className="gba:my-6" />

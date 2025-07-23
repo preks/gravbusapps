@@ -15,6 +15,7 @@ export interface ExpensePlan {
   endDate: string;
   planDate: string;
   totalAmount: number;
+  currencyRef?: string;
   createdAt: string;
   updatedAt: string;
   employee: {
@@ -44,6 +45,7 @@ export interface ExpensePlanResponse {
 interface UseCalendarExpensePlansProps extends BusinessAppContextProps {
   pageSize?: number;
   searchTerm?: string;
+  currencyFilter?: string | null;
 }
 
 export const useCalendarExpensePlans = ({
@@ -51,6 +53,7 @@ export const useCalendarExpensePlans = ({
   userInfo,
   pageSize = 1000, // Default to a larger page size for calendar view
   searchTerm,
+  currencyFilter,
 }: UseCalendarExpensePlansProps) => {
   // Get managerId from userInfo or use a fallback for development
   const managerId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
@@ -63,7 +66,7 @@ export const useCalendarExpensePlans = ({
   const [totalCount, setTotalCount] = useState<number>(0);
 
   const fetchPlans = useCallback(async () => {
-    console.log('fetchCalendarPlans called with accessToken:', !!accessToken, 'managerId:', managerId);
+    console.log('fetchCalendarPlans called with accessToken:', !!accessToken, 'managerId:', managerId, 'currencyFilter:', currencyFilter);
     
     if (!accessToken) {
       setError(new Error('Access token not found. Cannot fetch expense plans.'));
@@ -83,7 +86,7 @@ export const useCalendarExpensePlans = ({
     try {
       const searchValue = searchTerm ? `%${searchTerm}%` : '%%'; 
       
-      console.log('Fetching calendar expense plans with managerId:', managerId);
+      console.log('Fetching calendar expense plans with managerId:', managerId, 'currencyFilter:', currencyFilter);
       
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
@@ -113,10 +116,21 @@ export const useCalendarExpensePlans = ({
         plansCount: data.ExpensePlan?.length,
         totalCount: data.ExpensePlanAggregate?.aggregate?.count,
         firstPlan: data.ExpensePlan?.[0],
-        managerId
+        managerId,
+        currencyFilter
       });
       
-      setPlans(data.ExpensePlan);
+      // Filter plans by currency if a currency filter is provided
+      let filteredPlans = data.ExpensePlan;
+      if (currencyFilter) {
+        filteredPlans = data.ExpensePlan.filter(plan => {
+          const planCurrency = plan.currencyRef ? plan.currencyRef.replace('Currency:v1:', '') : 'EUR';
+          return planCurrency === currencyFilter;
+        });
+        console.log(`Filtered expense plans by currency ${currencyFilter}:`, filteredPlans.length);
+      }
+      
+      setPlans(filteredPlans);
       setTotalCount(data.ExpensePlanAggregate.aggregate.count);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch calendar expense plans'));
@@ -125,10 +139,10 @@ export const useCalendarExpensePlans = ({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, managerId, pageSize, searchTerm]);
+  }, [accessToken, managerId, pageSize, searchTerm, currencyFilter]);
 
   // Track the last fetch parameters to avoid redundant requests
-  const lastFetchParams = useRef<{ managerId: string; searchTerm?: string } | null>(null);
+  const lastFetchParams = useRef<{ managerId: string; searchTerm?: string; currencyFilter?: string | null } | null>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch plans when the component mounts or when dependencies change
@@ -145,13 +159,14 @@ export const useCalendarExpensePlans = ({
       // Check if this is a duplicate request with the same parameters
       if (lastFetchParams.current && 
           lastFetchParams.current.managerId === managerId &&
-          lastFetchParams.current.searchTerm === searchTerm) {
+          lastFetchParams.current.searchTerm === searchTerm &&
+          lastFetchParams.current.currencyFilter === currencyFilter) {
         console.log('Skipping duplicate calendar expense plans fetch with same parameters');
         return;
       }
       
       // Update last fetch parameters
-      lastFetchParams.current = { managerId, searchTerm };
+      lastFetchParams.current = { managerId, searchTerm, currencyFilter };
       
       fetchPlans();
     }, 300); // 300ms debounce delay
@@ -162,7 +177,7 @@ export const useCalendarExpensePlans = ({
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [fetchPlans, managerId, searchTerm]);
+  }, [fetchPlans, managerId, searchTerm, currencyFilter]);
 
   return {
     plans,
