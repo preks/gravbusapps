@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { TaskAssignment, AssignmentTarget, AssignmentMode, ANY_SELECTOR } from '../../types/flowTemplate';
+import { TaskAssignment, AssignmentTarget, AssignmentMode } from '../../types/flowTemplate';
 import { transformAssignmentTargetForUI, validateClaimAssignmentForUI, getAssignmentFieldLabel, createDefaultAssignmentTarget } from '../../utils/assignmentUtils';
 import { Button, Input, Badge, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Alert, Card, CardHeader, CardContent } from '@newwork/nw-design-system';
 import { X, Plus, UserCircle, Users, Building2, MapPin, DollarSign, FileCheck, AlertTriangle } from 'lucide-react';
@@ -23,6 +23,9 @@ interface FieldConfig {
   placeholder: string;
   dataSource: string;
 }
+
+// Define ANY_SELECTOR constant
+const ANY_SELECTOR = "ANY" as const;
 
 // Field configurations for different assignment target types
 const fieldConfigs: FieldConfig[] = [
@@ -289,25 +292,28 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
   assignmentMode,
   'data-testid': testId = 'assignment-selector'
 }) => {
-  // Initialize assignment target
+  // Initialize assignment with targets array (use first target for editing)
   const assignment = value || {
-    target: createDefaultAssignmentTarget(assignmentMode),
+    targets: [createDefaultAssignmentTarget(assignmentMode)],
     allowReassignment: true
   };
+
+  // Get the first target for editing (simplified UI handles single target for now)
+  const currentTarget = assignment.targets?.[0] || createDefaultAssignmentTarget(assignmentMode);
 
   // Validate assignment for CLAIM mode
   const validation = useMemo(() => {
     if (assignmentMode === AssignmentMode.CLAIM) {
-      return validateClaimAssignmentForUI(assignment.target);
+      return validateClaimAssignmentForUI(currentTarget);
     }
     return { valid: true, errors: [] };
-  }, [assignment.target, assignmentMode]);
+  }, [currentTarget, assignmentMode]);
 
   // Ensure default assignment is set if none provided
   useEffect(() => {
     if (!value) {
       onChange({
-        target: createDefaultAssignmentTarget(assignmentMode),
+        targets: [createDefaultAssignmentTarget(assignmentMode)],
         allowReassignment: true
       });
     }
@@ -315,7 +321,7 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
 
   // Handle adding a value to a field
   const handleAddValue = (field: AssignmentField, value: string) => {
-    const currentValues = assignment.target[field] || [];
+    const currentValues = currentTarget[field] || [];
     
     // Check if value already exists
     if (currentValues.includes(value)) return;
@@ -330,12 +336,14 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
       newValues = [...currentValues, value];
     }
 
+    const newTarget: AssignmentTarget = {
+      ...currentTarget,
+      [field]: newValues
+    };
+
     const newAssignment: TaskAssignment = {
       ...assignment,
-      target: {
-        ...assignment.target,
-        [field]: newValues
-      }
+      targets: [newTarget] // Update the first target
     };
 
     onChange(newAssignment);
@@ -343,15 +351,17 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
 
   // Handle removing a value from a field
   const handleRemoveValue = (field: AssignmentField, value: string) => {
-    const currentValues = assignment.target[field] || [];
+    const currentValues = currentTarget[field] || [];
     const newValues = currentValues.filter(v => v !== value);
+
+    const newTarget: AssignmentTarget = {
+      ...currentTarget,
+      [field]: newValues.length > 0 ? newValues : (assignmentMode === AssignmentMode.CLAIM ? [ANY_SELECTOR] : [])
+    };
 
     const newAssignment: TaskAssignment = {
       ...assignment,
-      target: {
-        ...assignment.target,
-        [field]: newValues.length > 0 ? newValues : (assignmentMode === AssignmentMode.CLAIM ? [ANY_SELECTOR] : [])
-      }
+      targets: [newTarget] // Update the first target
     };
 
     onChange(newAssignment);
@@ -400,7 +410,7 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
           {/* Assignment Fields */}
           <div className="gba:space-y-4">
             {fieldConfigs.map(config => {
-              const fieldValues = assignment.target[config.field] || [];
+              const fieldValues = currentTarget[config.field] || [];
               
               return (
                 <div key={config.field} className="gba:space-y-2">

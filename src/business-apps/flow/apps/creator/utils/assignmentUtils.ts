@@ -1,4 +1,7 @@
-import { AssignmentTarget, AssignmentMode, ANY_SELECTOR } from '../types/flowTemplate';
+import { AssignmentTarget, AssignmentMode } from '../types/flowTemplate';
+
+// Define ANY_SELECTOR constant locally
+const ANY_SELECTOR = "ANY" as const;
 
 /**
  * Transform assignment target for UI display and processing

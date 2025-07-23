@@ -669,8 +669,8 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                 label: 'Flow Progress',
                 children: (
                   <FlowProgressTab
-                    task={selectedTask}
-                    data-testid={`${prefixDataTestId}-flow-progress-tab`}
+                    taskId={selectedTask.id}
+                    flowId={selectedTask.flowId}
                     {...context}
                   />
                 )

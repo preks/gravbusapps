@@ -7,11 +7,13 @@ import {
   CheckCircleOutlined,
   EyeOutlined,
   LikeOutlined,
-  MessageOutlined
+  MessageOutlined,
+  UserOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { InputRenderer } from '../../creator/components/shared/InputRenderer';
 import { LinksRenderer } from '../../creator/components/shared/LinksRenderer';
+import { mockUsers, type User as MockUser } from '../../../data/mockUsers';
 
 const { Text, Paragraph, Title } = Typography;
 const { TextArea } = Input;
@@ -111,13 +113,8 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
     setRejectionComment(comment);
   }, [comment, setRejectionComment]);
 
-  // Mock users for reassignment - in real app this would come from API
-  const availableUsers = [
-    { id: 'emp-001', name: 'John Doe' },
-    { id: 'emp-002', name: 'Jane Smith' },
-    { id: 'emp-003', name: 'Bob Wilson' },
-    { id: 'emp-004', name: 'Alice Brown' }
-  ];
+  // Use the same mock users as the main TaskInbox component
+  const availableUsers = mockUsers;
 
   return (
     <div>
@@ -235,9 +232,17 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               onChange={(value) => setReassignUserId(value)}
               allowClear
             >
-              {availableUsers.map(user => (
+              {availableUsers.map((user: MockUser) => (
                 <Option key={user.id} value={user.id}>
-                  {user.name} ({user.id})
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <UserOutlined />
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                      <div style={{ fontWeight: 'bold' }}>{user.name}</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>
+                        {user.role} • {user.department}
+                      </div>
+                    </div>
+                  </div>
                 </Option>
               ))}
             </Select>

@@ -27,6 +27,20 @@ export const mockUsers: User[] = [
     role: 'HR Manager'
   },
   {
+    id: 'user-007',
+    name: 'David Wilson',
+    email: 'david.wilson@newwork.com',
+    department: 'IT',
+    role: 'IT Manager'
+  },
+  {
+    id: 'emp-001',
+    name: 'John NewHire',
+    email: 'john.newhire@newwork.com',
+    department: 'Engineering',
+    role: 'Senior Software Engineer'
+  },
+  {
     id: 'user-002',
     name: 'Bob Smith',
     email: 'bob.smith@newwork.com',
@@ -55,13 +69,6 @@ export const mockUsers: User[] = [
     role: 'Marketing Manager'
   },
   {
-    id: 'user-007',
-    name: 'David Wilson',
-    email: 'david.wilson@newwork.com',
-    department: 'Engineering',
-    role: 'Engineering Manager'
-  },
-  {
     id: 'user-008',
     name: 'Emma Davis',
     email: 'emma.davis@newwork.com',
@@ -74,13 +81,6 @@ export const mockUsers: User[] = [
     email: 'frank.martinez@newwork.com',
     department: 'Marketing',
     role: 'Marketing Director'
-  },
-  {
-    id: 'emp-001',
-    name: 'John NewHire',
-    email: 'john.newhire@newwork.com',
-    department: 'Engineering',
-    role: 'Senior Software Engineer'
   }
 ];
 

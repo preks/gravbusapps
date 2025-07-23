@@ -43,23 +43,21 @@ export interface InputBlock {
 export interface Link {
   name: string;
   url: string;
+  type?: string;
 }
-
-export const ANY_SELECTOR = "ANY" as const;
-export type ANY_SELECTOR = typeof ANY_SELECTOR;
 
 export interface AssignmentTarget {
   userIds?: string[];
-  organizationalUnits?: string[]; // former department Id
-  matrixTeams?: string[]; // new field
-  companies?: string[]; // former legalEntities
-  siteLocations?: string[]; // former locations
-  costCenters?: string[]; // new field
-  capabilities?: string[]; // flattened from nested array structure
+  organizationalUnits?: string[];
+  matrixTeams?: string[];
+  companies?: string[];
+  siteLocations?: string[];
+  costCenters?: string[];
+  capabilities?: string[];
 }
 
 export type TaskAssignment = {
-  target: AssignmentTarget; // Single target instead of array
+  targets: AssignmentTarget[]; // Array of targets to match backend structure
   allowReassignment?: boolean;
 };
 
@@ -68,6 +66,7 @@ export interface FlowStep {
   title: string;
   message?: string;
   type: FlowStepType;
+  dueInMinutes?: number;
   inputs?: InputBlock[];
   links?: Link[];
   assignment?: TaskAssignment;
@@ -83,11 +82,11 @@ export interface InitStep {
 
 export interface FlowTemplate {
   id?: string;
-  type: 'TEMPLATE' | 'SELF_SERVICE'; // Removed INSTANCE and DRAFT
+  type: 'TEMPLATE' | 'SELF_SERVICE';
   name: string;
   description?: string;
   version?: number;
-  assignmentMode: AssignmentMode; // Moved from TaskAssignment and made mandatory
+  assignmentMode?: AssignmentMode; // Optional to match backend
   steps: FlowStep[];
   
   // Self-service specific: simplified to just the init step

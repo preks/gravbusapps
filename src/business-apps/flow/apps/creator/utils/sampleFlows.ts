@@ -67,9 +67,15 @@ export const employeeOnboardingFlow: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [
-          { entity: 'department', id: 'it-department' }
-        ],
+        targets: [{
+          userIds: [],
+          organizationalUnits: ['it-department'],
+          matrixTeams: [],
+          companies: [],
+          siteLocations: [],
+          costCenters: [],
+          capabilities: []
+        }],
         allowReassignment: true
       }
     },
@@ -99,9 +105,15 @@ export const employeeOnboardingFlow: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [
-          { entity: 'department', id: 'hr-department' }
-        ],
+        targets: [{
+          userIds: [],
+          organizationalUnits: ['hr-department'],
+          matrixTeams: [],
+          companies: [],
+          siteLocations: [],
+          costCenters: [],
+          capabilities: []
+        }],
         allowReassignment: false
       }
     },
@@ -119,13 +131,13 @@ export const employeeOnboardingFlow: FlowTemplate = {
 export const documentApprovalFlow: FlowTemplate = {
   type: 'TEMPLATE',
   name: 'Document Review & Approval',
-  description: 'Standard document review and approval process with multiple approval levels and version control.',
-  assignmentMode: AssignmentMode.CLAIM, // Template-level assignment mode
+  description: 'A streamlined document review and approval process with multiple approval levels for sensitive documents.',
+  assignmentMode: AssignmentMode.CLAIM,
   steps: [
     {
       id: 'step-1',
       title: 'Document Submission',
-      message: 'Submit your document for review and approval. Please ensure all required information is provided.',
+      message: 'Submit your document for review and approval. Please provide all required information and attach the document file.',
       type: FlowStepType.TASK,
       inputs: [
         {
@@ -147,9 +159,10 @@ export const documentApprovalFlow: FlowTemplate = {
           required: true,
           options: [
             { value: 'policy', label: 'Policy Document' },
-            { value: 'procedure', label: 'Procedure' },
-            { value: 'guideline', label: 'Guideline' },
-            { value: 'specification', label: 'Technical Specification' }
+            { value: 'procedure', label: 'Procedure Manual' },
+            { value: 'guideline', label: 'Guidelines' },
+            { value: 'contract', label: 'Contract' },
+            { value: 'other', label: 'Other' }
           ]
         },
         {
@@ -158,19 +171,13 @@ export const documentApprovalFlow: FlowTemplate = {
           label: 'Submission Notes',
           required: false
         }
-      ],
-      assignment: {
-        targets: [
-          { entity: 'role', id: 'document-submitter' }
-        ],
-        allowReassignment: true
-      }
+      ]
     },
     {
       id: 'step-2',
       title: 'Initial Review',
-      message: 'Conduct initial review of the submitted document. Check for completeness, formatting, and basic requirements.',
-      type: FlowStepType.APPROVAL,
+      message: 'Conduct initial review of the submitted document. Check for completeness, accuracy, and compliance.',
+      type: FlowStepType.TASK,
       inputs: [
         {
           type: InputType.SELECT,
@@ -191,27 +198,29 @@ export const documentApprovalFlow: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [
-          { entity: 'role', id: 'document-reviewer' }
-        ],
+        targets: [{
+          userIds: [],
+          organizationalUnits: [],
+          matrixTeams: [],
+          companies: [],
+          siteLocations: [],
+          costCenters: [],
+          capabilities: ['document-reviewer']
+        }],
         allowReassignment: true
       }
     },
     {
       id: 'step-3',
-      title: 'Final Approval',
-      message: 'Final approval step for the document. This approval will publish the document to the organization.',
+      title: 'Manager Approval',
+      message: 'Final approval from department manager required before document publication.',
       type: FlowStepType.APPROVAL,
       inputs: [
         {
-          type: InputType.SELECT,
-          name: 'final_decision',
-          label: 'Final Decision',
-          required: true,
-          options: [
-            { value: 'approved', label: 'Approved for Publication' },
-            { value: 'rejected', label: 'Rejected' }
-          ]
+          type: InputType.CHECKBOX,
+          name: 'approval_confirmation',
+          label: 'I approve this document for publication',
+          required: true
         },
         {
           type: InputType.TEXTAREA,
@@ -221,142 +230,184 @@ export const documentApprovalFlow: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [
-          { entity: 'role', id: 'document-approver' }
-        ],
+        targets: [{
+          userIds: [],
+          organizationalUnits: ['management'],
+          matrixTeams: [],
+          companies: [],
+          siteLocations: [],
+          costCenters: [],
+          capabilities: []
+        }],
         allowReassignment: false
       }
     }
   ]
 };
 
-// Sample 3: Self-Service Expense Report
-export const selfServiceExpenseReport: FlowTemplate = {
-  type: 'SELF_SERVICE',
-  name: 'Expense Report Submission',
-  description: 'Quick self-service expense report submission with automatic approval routing.',
+// Sample 3: Project Approval Process
+export const projectApprovalFlow: FlowTemplate = {
+  type: 'TEMPLATE',
+  name: 'Project Approval Process',
+  description: 'Multi-step project approval workflow including budget approval, resource allocation, and stakeholder sign-off.',
   assignmentMode: AssignmentMode.ASSIGN,
-  initStep: {
-    title: 'Submit Expense Report',
-    message: 'Please fill out your expense report details. All fields marked with * are required.',
-    links: [
-      {
-        name: 'Expense Policy',
-        url: '/documents/expense-policy.pdf'
-      },
-      {
-        name: 'Expense Guidelines',
-        url: '/documents/expense-guidelines.pdf'
-      }
-    ],
-    inputs: [
-      {
-        type: InputType.TEXT,
-        name: 'report_title',
-        label: 'Report Title',
-        required: true
-      },
-      {
-        type: InputType.DATE,
-        name: 'expense_date',
-        label: 'Expense Date',
-        required: true
-      },
-      {
-        type: InputType.SELECT,
-        name: 'expense_category',
-        label: 'Expense Category',
-        required: true,
-        options: [
-          { value: 'travel', label: 'Travel' },
-          { value: 'meals', label: 'Meals & Entertainment' },
-          { value: 'supplies', label: 'Office Supplies' },
-          { value: 'training', label: 'Training & Education' },
-          { value: 'other', label: 'Other' }
-        ]
-      },
-      {
-        type: InputType.NUMBER,
-        name: 'amount',
-        label: 'Amount',
-        required: true
-      },
-      {
-        type: InputType.TEXTAREA,
-        name: 'description',
-        label: 'Description',
-        required: true
-      },
-      {
-        type: InputType.FILE,
-        name: 'receipt',
-        label: 'Receipt',
-        required: true
-      }
-    ]
-  },
   steps: [
     {
       id: 'step-1',
-      title: 'Manager Approval',
-      message: 'Review and approve the expense report submitted by your team member.',
+      title: 'Project Proposal',
+      message: 'Submit your project proposal with detailed scope, timeline, and resource requirements.',
+      type: FlowStepType.TASK,
+      inputs: [
+        {
+          type: InputType.TEXT,
+          name: 'project_name',
+          label: 'Project Name',
+          required: true
+        },
+        {
+          type: InputType.TEXTAREA,
+          name: 'project_description',
+          label: 'Project Description',
+          required: true
+        },
+        {
+          type: InputType.DATE,
+          name: 'start_date',
+          label: 'Planned Start Date',
+          required: true
+        },
+        {
+          type: InputType.DATE,
+          name: 'end_date',
+          label: 'Planned End Date',
+          required: true
+        },
+        {
+          type: InputType.NUMBER,
+          name: 'estimated_budget',
+          label: 'Estimated Budget (USD)',
+          required: true
+        },
+        {
+          type: InputType.MULTISELECT,
+          name: 'required_skills',
+          label: 'Required Skills',
+          required: true,
+          options: [
+            { value: 'project_management', label: 'Project Management' },
+            { value: 'software_development', label: 'Software Development' },
+            { value: 'design', label: 'Design' },
+            { value: 'marketing', label: 'Marketing' },
+            { value: 'finance', label: 'Finance' }
+          ]
+        }
+      ]
+    },
+    {
+      id: 'step-2',
+      title: 'Budget Approval',
+      message: 'Review project budget and financial implications. Approve or request modifications.',
       type: FlowStepType.APPROVAL,
       inputs: [
         {
           type: InputType.SELECT,
-          name: 'approval_status',
-          label: 'Approval Status',
+          name: 'budget_decision',
+          label: 'Budget Decision',
           required: true,
           options: [
-            { value: 'approved', label: 'Approved' },
-            { value: 'rejected', label: 'Rejected' },
-            { value: 'needs_info', label: 'Needs More Information' }
+            { value: 'approved', label: 'Approved as Submitted' },
+            { value: 'approved_modified', label: 'Approved with Modifications' },
+            { value: 'rejected', label: 'Rejected' }
           ]
         },
         {
+          type: InputType.NUMBER,
+          name: 'approved_budget',
+          label: 'Approved Budget (USD)',
+          required: false
+        },
+        {
           type: InputType.TEXTAREA,
-          name: 'approval_comments',
-          label: 'Comments',
+          name: 'budget_comments',
+          label: 'Budget Comments',
           required: false
         }
       ],
       assignment: {
-        targets: [
-          { entity: 'role', id: 'manager' }
-        ],
+        targets: [{
+          userIds: [],
+          organizationalUnits: ['finance'],
+          matrixTeams: [],
+          companies: [],
+          siteLocations: [],
+          costCenters: [],
+          capabilities: []
+        }],
         allowReassignment: true
       }
     },
     {
-      id: 'step-2',
-      title: 'Finance Processing',
-      message: 'Process the approved expense report for reimbursement.',
+      id: 'step-3',
+      title: 'Resource Allocation',
+      message: 'Assign team members and allocate necessary resources for the project.',
       type: FlowStepType.TASK,
       inputs: [
         {
-          type: InputType.DATE,
-          name: 'processing_date',
-          label: 'Processing Date',
-          required: true
+          type: InputType.MULTISELECT,
+          name: 'team_members',
+          label: 'Assigned Team Members',
+          required: true,
+          options: [
+            { value: 'john_doe', label: 'John Doe (PM)' },
+            { value: 'jane_smith', label: 'Jane Smith (Developer)' },
+            { value: 'bob_johnson', label: 'Bob Johnson (Designer)' },
+            { value: 'alice_brown', label: 'Alice Brown (Analyst)' }
+          ]
         },
         {
-          type: InputType.TEXT,
-          name: 'reference_number',
-          label: 'Reference Number',
-          required: true
-        },
+          type: InputType.TEXTAREA,
+          name: 'resource_allocation_notes',
+          label: 'Resource Allocation Notes',
+          required: false
+        }
+      ],
+      assignment: {
+        targets: [{
+          userIds: [],
+          organizationalUnits: [],
+          matrixTeams: [],
+          companies: [],
+          siteLocations: [],
+          costCenters: [],
+          capabilities: ['resource-manager']
+        }],
+        allowReassignment: true
+      }
+    },
+    {
+      id: 'step-4',
+      title: 'Final Stakeholder Approval',
+      message: 'Final approval from key stakeholders before project initiation.',
+      type: FlowStepType.ACKNOWLEDGE,
+      inputs: [
         {
           type: InputType.CHECKBOX,
-          name: 'processed_confirmation',
-          label: 'I confirm this expense has been processed for reimbursement',
+          name: 'stakeholder_approval',
+          label: 'All stakeholders approve project initiation',
           required: true
         }
       ],
       assignment: {
-        targets: [
-          { entity: 'department', id: 'finance' }
-        ],
-        allowReassignment: true
+        targets: [{
+          userIds: [],
+          organizationalUnits: ['executive'],
+          matrixTeams: [],
+          companies: [],
+          siteLocations: [],
+          costCenters: [],
+          capabilities: []
+        }],
+        allowReassignment: false
       }
     }
   ]
@@ -454,9 +505,15 @@ export const selfServiceITSupport: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [
-          { entity: 'role', id: 'it-coordinator' }
-        ],
+        targets: [{
+          userIds: [],
+          organizationalUnits: [],
+          matrixTeams: [],
+          companies: [],
+          siteLocations: [],
+          costCenters: [],
+          capabilities: ['it-coordinator']
+        }],
         allowReassignment: true
       }
     },
@@ -492,9 +549,15 @@ export const selfServiceITSupport: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [
-          { entity: 'role', id: 'it-technician' }
-        ],
+        targets: [{
+          userIds: [],
+          organizationalUnits: [],
+          matrixTeams: [],
+          companies: [],
+          siteLocations: [],
+          costCenters: [],
+          capabilities: ['it-technician']
+        }],
         allowReassignment: true
       }
     },
@@ -528,12 +591,151 @@ export const selfServiceITSupport: FlowTemplate = {
   ]
 };
 
+// Sample 5: Performance Review Process
+export const performanceReviewFlow: FlowTemplate = {
+  type: 'TEMPLATE',
+  name: 'Annual Performance Review',
+  description: 'Comprehensive annual performance review process including self-assessment, manager review, and goal setting.',
+  assignmentMode: AssignmentMode.ASSIGN,
+  steps: [
+    {
+      id: 'step-1',
+      title: 'Employee Self-Assessment',
+      message: 'Complete your self-assessment by reflecting on your achievements, challenges, and goals for the past year.',
+      type: FlowStepType.TASK,
+      inputs: [
+        {
+          type: InputType.TEXTAREA,
+          name: 'achievements',
+          label: 'Key Achievements',
+          required: true
+        },
+        {
+          type: InputType.TEXTAREA,
+          name: 'challenges',
+          label: 'Challenges Faced',
+          required: true
+        },
+        {
+          type: InputType.TEXTAREA,
+          name: 'skills_developed',
+          label: 'Skills Developed',
+          required: true
+        },
+        {
+          type: InputType.TEXTAREA,
+          name: 'future_goals',
+          label: 'Goals for Next Year',
+          required: true
+        },
+        {
+          type: InputType.SELECT,
+          name: 'overall_satisfaction',
+          label: 'Overall Job Satisfaction',
+          required: true,
+          options: [
+            { value: '5', label: 'Very Satisfied' },
+            { value: '4', label: 'Satisfied' },
+            { value: '3', label: 'Neutral' },
+            { value: '2', label: 'Dissatisfied' },
+            { value: '1', label: 'Very Dissatisfied' }
+          ]
+        }
+      ]
+    },
+    {
+      id: 'step-2',
+      title: 'Manager Review',
+      message: 'Review employee performance, provide feedback, and rate performance across different areas.',
+      type: FlowStepType.TASK,
+      inputs: [
+        {
+          type: InputType.SELECT,
+          name: 'performance_rating',
+          label: 'Overall Performance Rating',
+          required: true,
+          options: [
+            { value: 'exceptional', label: 'Exceptional' },
+            { value: 'exceeds', label: 'Exceeds Expectations' },
+            { value: 'meets', label: 'Meets Expectations' },
+            { value: 'below', label: 'Below Expectations' },
+            { value: 'unsatisfactory', label: 'Unsatisfactory' }
+          ]
+        },
+        {
+          type: InputType.TEXTAREA,
+          name: 'manager_feedback',
+          label: 'Manager Feedback',
+          required: true
+        },
+        {
+          type: InputType.TEXTAREA,
+          name: 'development_areas',
+          label: 'Areas for Development',
+          required: true
+        },
+        {
+          type: InputType.TEXTAREA,
+          name: 'next_year_objectives',
+          label: 'Objectives for Next Year',
+          required: true
+        }
+      ],
+      assignment: {
+        targets: [{
+          userIds: [],
+          organizationalUnits: [],
+          matrixTeams: [],
+          companies: [],
+          siteLocations: [],
+          costCenters: [],
+          capabilities: ['manager']
+        }],
+        allowReassignment: false
+      }
+    },
+    {
+      id: 'step-3',
+      title: 'HR Review & Documentation',
+      message: 'HR review of the performance evaluation and documentation for employee records.',
+      type: FlowStepType.ACKNOWLEDGE,
+      inputs: [
+        {
+          type: InputType.CHECKBOX,
+          name: 'review_complete',
+          label: 'Performance review completed and documented',
+          required: true
+        },
+        {
+          type: InputType.TEXTAREA,
+          name: 'hr_notes',
+          label: 'HR Notes',
+          required: false
+        }
+      ],
+      assignment: {
+        targets: [{
+          userIds: [],
+          organizationalUnits: ['hr'],
+          matrixTeams: [],
+          companies: [],
+          siteLocations: [],
+          costCenters: [],
+          capabilities: []
+        }],
+        allowReassignment: true
+      }
+    }
+  ]
+};
+
 // Export all sample flows
 export const sampleFlows = [
   employeeOnboardingFlow,
   documentApprovalFlow,
-  selfServiceExpenseReport,
-  selfServiceITSupport
+  projectApprovalFlow,
+  selfServiceITSupport,
+  performanceReviewFlow
 ];
 
 // Utility function to get a sample flow by ID
