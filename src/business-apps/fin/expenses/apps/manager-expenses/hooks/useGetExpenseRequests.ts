@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
   GET_EXPENSE_REQUESTS_BY_MANAGER, 
@@ -36,7 +36,6 @@ export interface ExpenseRequest {
     additionalProperties?: Record<string, any>;
   };
 }
-
 
 export interface ExpenseRequestStatisticsData {
   pendingCount: number;
@@ -77,7 +76,7 @@ export interface ExpenseRequestsResult {
  */
 export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRequestsProps): ExpenseRequestsResult => {
   const [requests, setRequests] = useState<ExpenseRequest[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [requestStats, setRequestStats] = useState<ExpenseRequestStatisticsData | null>(null);
@@ -87,7 +86,23 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
   // Get supervisor employee ID from user info
   const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
   
-
+  // Track the last fetch parameters to avoid redundant requests
+  const lastFetchParams = useRef<{
+    searchTerm: string;
+    page: number;
+    pageSize: number;
+    sortBy: string;
+    status: string[];
+    requestDateStart?: string;
+    currencyFilter?: string | null;
+  } | null>(null);
+  
+  // Track the last statistics fetch parameters
+  const lastStatsFetchParams = useRef<{ currencyFilter?: string | null } | null>(null);
+  
+  // Debounce timers
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const statsDebounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * Helper function to map API response to ExpenseRequest objects
@@ -102,6 +117,8 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
         title: request.title ?? 'Untitled Request',
         description: request.description,
         requestDate: request.requestDate,
+        startDate: request.startDate,
+        endDate: request.endDate,
         amount: request.totalAmount ?? 0,
         currency: request.currencyRef ? request.currencyRef.replace('Currency:v1:', '') : 'EUR',
         status: request.status ?? 'PENDING',
@@ -116,13 +133,11 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
           department: request.employee.employeePosition?.organizationalUnit?.name,
           pictureThumbnail: request.employee.pictureThumbnail,
           additionalProperties: request.employee.additionalProperties
-        } : undefined,
-        startDate: request.startDate,
-        endDate: request.endDate,
+        } : undefined
       };
     });
   };
-  
+
   // Function to fetch requests with search, pagination, and filtering
   const fetchRequests = useCallback(async (
     searchTerm: string = '', 
@@ -139,6 +154,35 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
       return;
     }
     
+    // Check if this is a duplicate request with the same parameters
+    const currentParams = {
+      searchTerm,
+      page,
+      pageSize,
+      sortBy,
+      status,
+      requestDateStart,
+      currencyFilter
+    };
+    
+    // Compare current parameters with last fetch parameters
+    const isDuplicateRequest = lastFetchParams.current && 
+      lastFetchParams.current.searchTerm === currentParams.searchTerm &&
+      lastFetchParams.current.page === currentParams.page &&
+      lastFetchParams.current.pageSize === currentParams.pageSize &&
+      lastFetchParams.current.sortBy === currentParams.sortBy &&
+      JSON.stringify(lastFetchParams.current.status) === JSON.stringify(currentParams.status) &&
+      lastFetchParams.current.requestDateStart === currentParams.requestDateStart &&
+      lastFetchParams.current.currencyFilter === currentParams.currencyFilter;
+      
+    if (isDuplicateRequest) {
+      console.log('Skipping duplicate expense requests fetch with same parameters');
+      return;
+    }
+    
+    // Update last fetch parameters
+    lastFetchParams.current = currentParams;
+    
     console.log('Fetching expense requests with:', {
       managerId: supervisorEmployeeId,
       searchTerm,
@@ -151,7 +195,6 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
       query: GET_EXPENSE_REQUESTS_BY_MANAGER.substring(0, 100) + '...' // Log first 100 chars of query
     });
     
-
     setIsLoading(true);
     setError(null);
     
@@ -266,25 +309,25 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
   // Function to approve an expense request
   const approveRequest = useCallback(async (requestId: string): Promise<boolean> => {
     if (!accessToken) {
-      setError('Access token not found. Cannot approve expense request.');
+      setError('Access token not available for approval.');
       return false;
     }
-
+    
     try {
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({
           query: APPROVE_EXPENSE_REQUEST,
-          variables: { id: requestId },
+          variables: { requestId }
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
@@ -301,7 +344,6 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
             : request
         )
       );
-      
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -312,28 +354,28 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
   // Function to reject an expense request
   const rejectRequest = useCallback(async (requestId: string, rejectionReason?: string): Promise<boolean> => {
     if (!accessToken) {
-      setError('Access token not found. Cannot reject expense request.');
+      setError('Access token not available for rejection.');
       return false;
     }
-
+    
     try {
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({
           query: REJECT_EXPENSE_REQUEST,
           variables: { 
-            id: requestId,
-            rejectionReason: rejectionReason ?? undefined,
-          },
+            requestId,
+            rejectionReason: rejectionReason || ''
+          }
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
@@ -357,11 +399,23 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     }
   }, [accessToken, setError, setRequests]);
 
+  // Function to fetch request statistics
   const fetchRequestStatistics = useCallback(async (currencyFilter?: string | null) => {
     if (!accessToken) {
       setRequestStatsError('Access token not available for statistics.');
+      setRequestStatsLoading(false);
       return;
     }
+    
+    // Check if this is a duplicate request with the same parameters
+    if (lastStatsFetchParams.current && 
+        lastStatsFetchParams.current.currencyFilter === currencyFilter) {
+      console.log('Skipping duplicate expense request statistics fetch with same parameters');
+      return;
+    }
+    
+    // Update last fetch parameters
+    lastStatsFetchParams.current = { currencyFilter };
     
     setRequestStatsLoading(true);
     setRequestStatsError(null);
@@ -406,13 +460,51 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     }
   }, [accessToken, supervisorEmployeeId, setRequestStats, setRequestStatsLoading, setRequestStatsError]);
 
-  // Initial data fetch (requests)
+  // Initial data fetch (requests) with debouncing
   useEffect(() => {
-    if (accessToken) {
-      fetchRequests(); // Fetches the first page of requests with default parameters
+    if (!accessToken) return;
+    
+    // Clear any existing timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    
+    // Set a new timer to debounce the fetch
+    debounceTimer.current = setTimeout(() => {
+      console.log('Executing debounced fetchRequests() for calendar');
+      fetchRequests('', 1, 1000); // Use larger page size for calendar view
+    }, 300); // 300ms debounce delay
+    
+    // Cleanup function to clear the timer if the component unmounts
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [accessToken, fetchRequests]);
+  
+  // Initial data fetch (statistics) with debouncing
+  useEffect(() => {
+    if (!accessToken) return;
+    
+    // Clear any existing timer
+    if (statsDebounceTimer.current) {
+      clearTimeout(statsDebounceTimer.current);
+    }
+    
+    // Set a new timer to debounce the fetch
+    statsDebounceTimer.current = setTimeout(() => {
+      console.log('Executing debounced fetchRequestStatistics()');
+      fetchRequestStatistics();
+    }, 300); // 300ms debounce delay
+    
+    // Cleanup function to clear the timer if the component unmounts
+    return () => {
+      if (statsDebounceTimer.current) {
+        clearTimeout(statsDebounceTimer.current);
+      }
+    };
+  }, [accessToken, fetchRequestStatistics]);
 
   return {
     requests,
@@ -420,11 +512,11 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     error,
     totalCount,
     fetchRequests,
+    approveRequest,
+    rejectRequest,
     requestStats,
     requestStatsLoading,
     requestStatsError,
-    fetchRequestStatistics,
-    approveRequest,
-    rejectRequest
+    fetchRequestStatistics
   };
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { message } from 'antd';
 import { GET_CALENDAR_EXPENSE_PLANS } from '../queries/calendarExpensePlans';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -127,10 +127,42 @@ export const useCalendarExpensePlans = ({
     }
   }, [accessToken, managerId, pageSize, searchTerm]);
 
+  // Track the last fetch parameters to avoid redundant requests
+  const lastFetchParams = useRef<{ managerId: string; searchTerm?: string } | null>(null);
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+
   // Fetch plans when the component mounts or when dependencies change
   useEffect(() => {
-    fetchPlans();
-  }, [fetchPlans]);
+    // Clear any existing timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    
+    // Set a new timer to debounce the fetch
+    debounceTimer.current = setTimeout(() => {
+      console.log('Executing debounced fetchPlans() for calendar');
+      
+      // Check if this is a duplicate request with the same parameters
+      if (lastFetchParams.current && 
+          lastFetchParams.current.managerId === managerId &&
+          lastFetchParams.current.searchTerm === searchTerm) {
+        console.log('Skipping duplicate calendar expense plans fetch with same parameters');
+        return;
+      }
+      
+      // Update last fetch parameters
+      lastFetchParams.current = { managerId, searchTerm };
+      
+      fetchPlans();
+    }, 300); // 300ms debounce delay
+    
+    // Cleanup function to clear the timer if the component unmounts
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [fetchPlans, managerId, searchTerm]);
 
   return {
     plans,
