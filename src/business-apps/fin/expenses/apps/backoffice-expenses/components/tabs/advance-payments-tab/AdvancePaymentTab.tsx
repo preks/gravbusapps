@@ -4,12 +4,10 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Alert } from 'antd';
+import { Alert } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import AdvancePaymentsTable from './AdvancePaymentsTable';
 import { useAdvancePayments } from '../../../hooks/useAdvancePayment';
-
-
 
 interface AdvancePaymentTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: React.ReactNode) => void;
@@ -43,13 +41,14 @@ const AdvancePaymentTab: React.FC<AdvancePaymentTabProps> = (props) => {
     if (onContentHeaderChange) {
       const header = (
         <div className="gba:mb-4" data-testid="advance-payment-stats-header">
-          <Alert
-            message={`${totalCount || 0} Advance Payments`}
-            description={advancePaymentStats?.totalAmount ? `Total Amount: ${advancePaymentStats.totalAmount}` : 'Loading statistics...'}
-            type="info"
-            showIcon
-            data-testid="advance-payment-stats-alert"
-          />
+          <Alert variant="default" data-testid="advance-payment-stats-alert">
+            <div>
+              <h4 className="gba:font-semibold">{totalCount || 0} Advance Payments</h4>
+              <p className="gba:text-sm gba:mt-1">
+                {advancePaymentStats?.totalAmount ? `Total Amount: ${advancePaymentStats.totalAmount}` : 'Loading statistics...'}
+              </p>
+            </div>
+          </Alert>
         </div>
       );
       onContentHeaderChange(header);

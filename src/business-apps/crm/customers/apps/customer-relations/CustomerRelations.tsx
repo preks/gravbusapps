@@ -1,7 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Tabs, TabsContent, TabsList, TabsTrigger, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system';
-import { Spinner } from '@newwork/nw-design-system';
-import { ToggleGroup, ToggleGroupItem, PageLayout } from '@newwork/nw-design-system';
+import React, { useState, useEffect } from "react";
+import {
+  Button,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+} from "@newwork/nw-design-system";
+import { Spinner } from "@newwork/nw-design-system";
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+  PageLayout,
+} from "@newwork/nw-design-system";
 import {
   DashboardOutlined,
   ReloadOutlined,
@@ -13,61 +26,66 @@ import {
   ContactsOutlined,
   DollarCircleOutlined,
   AppstoreOutlined,
-  UnorderedListOutlined
-} from '@ant-design/icons';
-import { Handshake } from '@phosphor-icons/react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { OverviewTab } from './components/tabs/sales-dashboard/components/OverviewTab';
-import { PipelineDetailsTab } from './components/tabs/sales-dashboard/components/PipelineDetailsTab';
-import { useSalesDashboard } from './components/tabs/sales-dashboard/hooks/useSalesDashboard';
-import { DateRange } from './components/tabs/sales-dashboard/types/dashboardTypes';
-import { LeadList } from '@/business-apps/crm/common/components/lead-list';
-import { AccountList } from '@/business-apps/crm/common/components/account-list';
-import { ContactList } from '@/business-apps/crm/common/components/contact-list';
-import { OpportunityList } from '@/business-apps/crm/common/components/opportunity-list';
-import { OpportunityBoard } from '@/business-apps/crm/common/components/opportunity-board';
-import { Account } from '@/business-apps/crm/common/components/account-list/types';
-import { Contact } from '@/business-apps/crm/common/components/contact-list/types';
-import { Opportunity } from '@/business-apps/crm/common/components/opportunity-list/types';
+  UnorderedListOutlined,
+} from "@ant-design/icons";
+import { Handshake } from "@phosphor-icons/react";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { OverviewTab } from "./components/tabs/sales-dashboard/components/OverviewTab";
+import { PipelineDetailsTab } from "./components/tabs/sales-dashboard/components/PipelineDetailsTab";
+import { useSalesDashboard } from "./components/tabs/sales-dashboard/hooks/useSalesDashboard";
+import { DateRange } from "./components/tabs/sales-dashboard/types/dashboardTypes";
+import { LeadList } from "@/business-apps/crm/common/components/lead-list";
+import { AccountList } from "@/business-apps/crm/common/components/account-list";
+import { ContactList } from "@/business-apps/crm/common/components/contact-list";
+import { OpportunityList } from "@/business-apps/crm/common/components/opportunity-list";
+import { OpportunityBoard } from "@/business-apps/crm/common/components/opportunity-board";
+import { Account } from "@/business-apps/crm/common/components/account-list/types";
+import { Contact } from "@/business-apps/crm/common/components/contact-list/types";
+import { Opportunity } from "@/business-apps/crm/common/components/opportunity-list/types";
 
-export interface CustomerRelationsProps extends BusinessAppContextProps { }
+export interface CustomerRelationsProps extends BusinessAppContextProps {}
 
-export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => {
+export const CustomerRelations: React.FC<CustomerRelationsProps> = (
+  context
+) => {
   const viewOptions = [
     {
-      key: 'dashboard',
+      key: "dashboard",
       icon: <DashboardOutlined />,
-      label: 'Dashboard'
+      label: "Dashboard",
     },
     {
-      key: 'leads',
+      key: "leads",
       icon: <TeamOutlined />,
-      label: 'Leads'
+      label: "Leads",
     },
     {
-      key: 'accounts',
+      key: "accounts",
       icon: <BankOutlined />,
-      label: 'Accounts'
+      label: "Accounts",
     },
     {
-      key: 'contacts',
+      key: "contacts",
       icon: <ContactsOutlined />,
-      label: 'Contacts'
+      label: "Contacts",
     },
     {
-      key: 'opportunities',
+      key: "opportunities",
       icon: <DollarCircleOutlined />,
-      label: 'Opportunities'
-    }
+      label: "Opportunities",
+    },
   ];
 
   // Get initial view from URL or default to first view
   const getInitialView = () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const viewFromUrl = urlParams.get('view');
+    const viewFromUrl = urlParams.get("view");
 
     // Validate that the view exists in our options
-    if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
+    if (
+      viewFromUrl &&
+      viewOptions.some((option) => option.key === viewFromUrl)
+    ) {
       return viewFromUrl;
     }
 
@@ -76,29 +94,28 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
   };
 
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
-  const [dashboardSubTab, setDashboardSubTab] = useState<string>('overview');
-  const [opportunitiesSubTab, setOpportunitiesSubTab] = useState<string>('list');
+  const [dashboardSubTab, setDashboardSubTab] = useState<string>("overview");
+  const [opportunitiesSubTab, setOpportunitiesSubTab] =
+    useState<string>("list");
   const [dateRange] = useState<DateRange>({
     startDate: new Date(new Date().getFullYear() - 2, 0, 1),
-    endDate: new Date()
+    endDate: new Date(),
   });
 
-  const {
-    pipelines,
-    isLoading,
-    error,
-    refetch
-  } = useSalesDashboard(context, dateRange);
+  const { pipelines, isLoading, error, refetch } = useSalesDashboard(
+    context,
+    dateRange
+  );
 
   // Update URL when view changes
   const updateUrl = (view: string) => {
     const urlParams = new URLSearchParams(window.location.search);
 
     // Always set the view parameter (including for default)
-    urlParams.set('view', view);
+    urlParams.set("view", view);
 
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
-    window.history.replaceState({}, '', newUrl);
+    window.history.replaceState({}, "", newUrl);
   };
 
   const handleTabChange = (key: string) => {
@@ -113,7 +130,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    if (!urlParams.has('view')) {
+    if (!urlParams.has("view")) {
       updateUrl(activeTab);
     }
   }, []);
@@ -125,8 +142,8 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
       setActiveTab(newView);
     };
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   const renderDashboardContent = () => {
@@ -212,27 +229,27 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'dashboard':
+      case "dashboard":
         return renderDashboardContent();
-      case 'leads':
+      case "leads":
         return (
           <div data-testid="leads-tab-content">
             <LeadList {...context} sourceApp="CRM" />
           </div>
         );
-      case 'accounts':
+      case "accounts":
         return (
           <div data-testid="accounts-tab-content">
             <AccountList {...context} sourceApp="CRM" />
           </div>
         );
-      case 'contacts':
+      case "contacts":
         return (
           <div data-testid="contacts-tab-content">
             <ContactList {...context} sourceApp="CRM" />
           </div>
         );
-      case 'opportunities':
+      case "opportunities":
         return renderOpportunitiesContent();
       default:
         return null;
@@ -246,7 +263,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
           icon: Handshake,
           variant: "strategy",
           size: "lg",
-          label: "Customer Relations"
+          label: "Customer Relations",
         }}
         headerTitle="Customer Relations"
         headerDescription="Manage customer relationships, track leads, accounts, contacts, and sales opportunities"
@@ -256,17 +273,15 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (context) => 
           items: viewOptions.map((option) => ({
             value: option.key,
             label: option.label,
-            icon: option.icon
-          }))
+            icon: option.icon,
+          })),
         }}
         className="gba:min-h-screen"
       >
-        <div className="gba:h-full gba:overflow-auto">
-          {renderTabContent()}
-        </div>
+        <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>
       </PageLayout>
     </div>
   );
 };
 
-export default CustomerRelations; 
+export default CustomerRelations;

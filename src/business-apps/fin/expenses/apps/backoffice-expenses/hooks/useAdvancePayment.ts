@@ -4,6 +4,12 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { GET_ADVANCE_PAYMENTS, GET_ADVANCE_PAYMENT_STATISTICS } from '../queries/advancePayment.queries';
 import { AdvancePaymentItem, AdvancePaymentStatisticsData } from '../types';
 
+// ⚡ BEST PRACTICE: Query limit enforcement for safety (like leads)
+const MAX_QUERY_LIMIT = 1000;
+const enforceQueryLimit = (limit: number): number => {
+  return Math.min(limit, MAX_QUERY_LIMIT);
+};
+
 export interface AdvancePaymentsResult {
   payments: AdvancePaymentItem[];
   isLoading: boolean;
@@ -33,44 +39,71 @@ export const useAdvancePayments = (context?: BusinessAppContextProps): AdvancePa
 
   const client = useGraphqlClient(context?.accessToken ?? '');
 
+  // ⚡ OPTIMIZED: Build proper where clause for better performance
   const buildQueryVariables = (
     searchTerm: string,
     page: number,
     pageSize: number,
     status?: string
   ) => {
-    const formattedSearchTerm = searchTerm === '' ? undefined : `%${searchTerm}%`;
     const offset = (page - 1) * pageSize;
+    
+    // Build conditions array like expense requests
+    const conditions: any[] = [];
+    
+    // Base conditions
+    conditions.push({ isDeleted: { _eq: false } });
+    conditions.push({ status: { _nin: ["CREATED", "PREPARED", "RETURNED", "REJECTED", "DISCARDED"] } });
+    
+    // Add status filter if provided
+    if (status && status !== 'all' && status !== '') {
+      conditions.push({ status: { _eq: status } });
+    }
+    
+    // Add search conditions if provided
+    if (searchTerm && searchTerm.trim() !== '') {
+      const searchValue = `%${searchTerm.trim()}%`;
+      conditions.push({
+        _or: [
+          { code: { _ilike: searchValue } },
+          { description: { _ilike: searchValue } },
+          { expensePlan: { code: { _ilike: searchValue } } },
+          { expensePlan: { title: { _ilike: searchValue } } },
+          { expensePlan: { employee: { firstName: { _ilike: searchValue } } } },
+          { expensePlan: { employee: { lastName: { _ilike: searchValue } } } },
+        ]
+      });
+    }
+    
+    // Build final where clause
+    const where = conditions.length === 1 ? conditions[0] : { _and: conditions };
 
-    const variables: Record<string, any> = {
-      limit: pageSize,
+    // ⚡ BEST PRACTICE: Enforce query limit for safety (like leads)
+    const safePageSize = enforceQueryLimit(pageSize);
+    
+    return {
+      where,
+      limit: safePageSize,
       offset: offset,
     };
-
-    if (formattedSearchTerm) {
-      variables.searchTerm = formattedSearchTerm;
-    }
-
-    if (status && status !== 'all') {
-      variables.status = status;
-    }
-    return variables;
   };
 
   const mapResponseToPayments = (data: any): AdvancePaymentItem[] => {
     const fetchedPayments = data?.AdvancePayment ?? [];
     return fetchedPayments.map((payment: any) => ({
       id: payment.id,
-      code: payment.code,
+      code: payment.expensePlan?.code || payment.code, // Use expense plan code first, fallback to payment code
       description: payment.description,
       status: payment.status ?? 'PENDING',
       title: payment.expensePlan?.title,
-      employeeDisplayName: payment.expensePlan?.employee?.displayName,
-      employeeFullName: payment.expensePlan?.employee?.fullName,
-      employeePictureThumbnail: payment.expensePlan?.employee?.pictureThumbnail,
+      employeeDisplayName: payment.expensePlan?.employee 
+        ? `${payment.expensePlan.employee.firstName || ''} ${payment.expensePlan.employee.lastName || ''}`.trim()
+        : 'N/A',
+      employeeFullName: payment.expensePlan?.employee 
+        ? `${payment.expensePlan.employee.firstName || ''} ${payment.expensePlan.employee.lastName || ''}`.trim()
+        : 'N/A',
       amount: payment.amount,
       startDate: payment.expensePlan?.startDate,
-      endDate: payment.expensePlan?.endDate,
     }));
   };
 

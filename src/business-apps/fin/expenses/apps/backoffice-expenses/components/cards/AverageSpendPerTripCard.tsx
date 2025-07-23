@@ -1,5 +1,6 @@
 import React from 'react';
-import { Card, Statistic, Spin, Alert } from 'antd';
+import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system';
+import { getExpenseIconColor } from '../../utils/colorConstants';
 
 export interface AverageSpendPerTripCardProps {
   loading: boolean;
@@ -9,34 +10,46 @@ export interface AverageSpendPerTripCardProps {
 }
 
 const AverageSpendPerTripCard: React.FC<AverageSpendPerTripCardProps> = ({ loading, error, avgSpendPerTrip, travelExpensesCount }) => {
-  if (error) {
+  if (loading) {
     return (
-      <Card title="Average Spend per Trip" style={{ height: '100%' }}>
-        <Alert message={`Error: ${error.message}`} type="error" showIcon />
-      </Card>
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-32" data-testid="average-spend-per-trip-loading">
+        <Spinner size="lg" />
+      </div>
     );
   }
 
-  return (
-    <Card title="Average Spend per Trip" className="gba:bg-blue-50" style={{ height: '100%' }}>
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          <Spin size="large" />
-        </div>
-      ) : (
-        <>
-          <Statistic
-            value={avgSpendPerTrip}
-            precision={2}
-            suffix="USD"
-            valueStyle={{ color: '#1890ff' }}
-          />
-          <div className="gba:mt-2 gba:text-sm gba:text-gray-600">
-            Based on {travelExpensesCount} travel expenses
+  if (error) {
+    return (
+      <div className="gba:p-4" data-testid="average-spend-per-trip-error">
+        <Alert variant="destructive">
+          <div>
+            <h4 className="gba:font-semibold">Average Spend per Trip</h4>
+            <p className="gba:text-sm gba:mt-1">Error: {error.message}</p>
           </div>
-        </>
-      )}
-    </Card>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Create KPI card data
+  const kpiCardData: KpiCardData = {
+    id: 'average-spend-per-trip',
+    title: 'Average Spend per Trip',
+    value: avgSpendPerTrip.toString(),
+    suffix: 'USD',
+    decimalPlaces: 2,
+    footer: `Based on ${travelExpensesCount} travel expenses`,
+    icon: 'plane',
+          iconColor: getExpenseIconColor.averageSpend()
+  };
+
+  return (
+    <div data-testid="average-spend-per-trip-card">
+      <SectionKpiCards 
+        cards={[kpiCardData]} 
+        data-testid="average-spend-per-trip-kpi-cards"
+      />
+    </div>
   );
 };
 
