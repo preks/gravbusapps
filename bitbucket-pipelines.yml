@@ -149,7 +149,7 @@ pipelines:
       - step: *install_dependencies
       - step: *publish-changed-screens
 
-    master:
+    main:
       - step: *install_dependencies
       - step: *publish-changed-prod-screens
 
