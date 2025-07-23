@@ -6,28 +6,28 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useAdvancePayments } from '../../../hooks/useAdvancePayment';
-import {
-  Button,
-  Alert,
-  Badge,
-  Spinner,
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-  Card,
-  CardContent,
-} from '@newwork/nw-design-system';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
+import { DataFilterGroup } from '@/components/data-filter/DataFilter';
+import { Alert, Spinner } from '@newwork/nw-design-system';
 
-import {  getAdvancePaymentStatusDisplay } from '../../../utils/utils';
+import { getAdvancePaymentStatusDisplay } from '../../../utils/utils';
 import ExpenseDetailDrawer from '../../details/ExpenseDetailDrawer';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import Pill from '@/components/pill/Pill';
+
+
+const ADVANCE_PAYMENT_COLUMNS = {
+  title: { key: 'description' as keyof any, type: 'string' as const },
+  employeeFullName: { key: 'expensePlan.employee.firstName' as keyof any, type: 'string' as const },
+  orgUnit: { key: 'expensePlan.employee.employeePosition.organizationalUnit.name' as keyof any, type: 'string' as const },
+  costCenter: { key: 'costCenter.name' as keyof any, type: 'string' as const },
+  planCode: { key: 'expensePlan.code' as keyof any, type: 'string' as const },
+  status: { key: 'status' as keyof any, type: 'string' as const },
+  totalAmount: { key: 'expensePlan.totalAmount' as keyof any, type: 'number' as const, nullable: true },
+  amount: { key: 'amount' as keyof any, type: 'number' as const, nullable: true },
+  paymentMethod: { key: 'paymentMethod' as keyof any, type: 'string' as const },
+} as const;
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string;
@@ -35,45 +35,34 @@ interface AdvancePaymentsTableProps extends BusinessAppContextProps {
 }
 
 const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
-  const { search, onSearchChange, accessToken } = props;
-  
-  // Get advance payments data using the hook with optimized parameters
-  const { 
-    payments, 
-    isLoading, 
-    error, 
-    totalCount, 
-    fetchPayments,
-    searchReporters,
-    searchStatuses
-  } = useAdvancePayments({ accessToken });
+  const { search, onSearchChange, ...context } = props;
 
-  // Local state management
-  const [searchText, setSearchText] = useState<string>(search ?? '');
-  const [selectedPayment, setSelectedPayment] = useState<any>(null);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
-  const [reporterFilter, setReporterFilter] = useState<string>('');
-  const [reporterSearchText, setReporterSearchText] = useState<string>('');
-  const [selectedReporters, setSelectedReporters] = useState<string[]>([]);
-  const [showReporterDropdown, setShowReporterDropdown] = useState<boolean>(false);
-  const [reporterSearchResults, setReporterSearchResults] = useState<string[]>([]);
-  const [reporterSearchLoading, setReporterSearchLoading] = useState<boolean>(false);
-  const [amountMinFilter, setAmountMinFilter] = useState<string>('');
-  const [amountMaxFilter, setAmountMaxFilter] = useState<string>('');
-  const [advanceMinFilter, setAdvanceMinFilter] = useState<string>('');
-  const [advanceMaxFilter, setAdvanceMaxFilter] = useState<string>('');
+  const [searchText, setSearchText] = useState(search || '');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20); // ⚡ BEST PRACTICE: Match leads default (20)
-  
-  // ⚡ PERFORMANCE: Properly memoized debounced function to prevent recreation on every render
-  const debouncedFetchPayments = useMemo(() => 
-    debounce((searchTerm: string, page: number, size: number, status?: string, amountMin?: string, amountMax?: string, advanceMin?: string, advanceMax?: string, reporter?: string) => {
-      fetchPayments(searchTerm, page, size, status, amountMin, amountMax, advanceMin, advanceMax, reporter);
-    }, 300),
-    [] // Stable - no dependencies needed as fetchPayments is already stable
-  );
+  const [pageSize, setPageSize] = useState(20);
+
+  // Filter states
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [amountMinFilter, setAmountMinFilter] = useState('');
+  const [amountMaxFilter, setAmountMaxFilter] = useState('');
+  const [advanceMinFilter, setAdvanceMinFilter] = useState('');
+  const [advanceMaxFilter, setAdvanceMaxFilter] = useState('');
+  const [reporterFilter, setReporterFilter] = useState('');
+
+  // Reporter search states
+  const [reporterSearchText, setReporterSearchText] = useState('');
+  const [showReporterDropdown, setShowReporterDropdown] = useState(false);
+  const [reporterSearchResults, setReporterSearchResults] = useState<string[]>([]);
+  const [reporterSearchLoading, setReporterSearchLoading] = useState(false);
+  const [selectedReporters, setSelectedReporters] = useState<string[]>([]);
+
+  // Status filter states
+  const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
+
+  // Selection states
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  const { payments, totalCount, isLoading, error, fetchPayments, searchReporters, searchStatuses } = useAdvancePayments(context);
 
   // Debounced search for reporters
   const debouncedSearchReporters = useMemo(() => 
@@ -97,10 +86,18 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     [searchReporters]
   );
 
-  // Initial data fetch on component mount - optimized
+  // ⚡ PERFORMANCE: Properly memoized debounced function to prevent recreation on every render
+  const debouncedFetchPayments = useMemo(() => 
+    debounce((searchTerm: string, page: number, size: number, status?: string, amountMin?: string, amountMax?: string, advanceMin?: string, advanceMax?: string, reporter?: string, sortField?: string, sortOrder?: 'ascend' | 'descend' | null) => {
+      fetchPayments(searchTerm, page, size, status, amountMin, amountMax, advanceMin, advanceMax, reporter);
+    }, 300),
+    [] // Stable - no dependencies needed as fetchPayments is already stable
+  );
+
+  
   useEffect(() => {
-    debouncedFetchPayments(searchText, currentPage, pageSize, statusFilter !== '' ? statusFilter : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
-  }, []); // Only run once on mount
+    debouncedFetchPayments(searchText, currentPage, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter, undefined, undefined);
+  }, [debouncedFetchPayments, searchText, currentPage, pageSize, statusFilter, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter]);
 
   // Load available statuses from backend
   useEffect(() => {
@@ -121,7 +118,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     if (search !== undefined && search !== searchText) {
       setSearchText(search);
       setCurrentPage(1);
-      debouncedFetchPayments(search, 1, pageSize, statusFilter !== '' ? statusFilter : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
+      debouncedFetchPayments(search, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter, undefined, undefined);
     }
   }, [search, debouncedFetchPayments, pageSize, statusFilter, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter]);
 
@@ -129,7 +126,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   const handleSearchChange = useCallback((value: string) => {
     setSearchText(value);
     setCurrentPage(1);
-    debouncedFetchPayments(value, 1, pageSize, statusFilter !== '' ? statusFilter : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
+    debouncedFetchPayments(value, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter, undefined, undefined);
     
     // Notify parent if callback exists
     if (onSearchChange) {
@@ -140,8 +137,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   // Handle clicking outside dropdown to close it
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      if (!target.closest('[data-testid="reporter-search-input"]') && !target.closest('[data-testid^="reporter-option-"]')) {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.reporter-search-container')) {
         setShowReporterDropdown(false);
       }
     };
@@ -152,391 +149,247 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     };
   }, []);
 
-  // Removed handleStatusChange - now using handleFilterChange
-
-  // Handle payment selection
-  const handleSelectPayment = useCallback((payment: any) => {
-    setSelectedPayment(payment);
-    setSelectedRowKeys([payment.id]);
+  const handleSelectItem = useCallback((item: any) => {
+    setSelectedItem(item);
   }, []);
 
-  // Handle row selection change
-  const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
-    
-    // If a single row is selected, find and set the selected payment
-    if (newSelectedRowKeys.length === 1) {
-      const selectedPaymentId = newSelectedRowKeys[0];
-      const payment = payments?.find(payment => payment.id === selectedPaymentId);
-      if (payment) {
-        setSelectedPayment(payment);
-      }
-    } else {
-      // If multiple or no rows selected, clear the selected payment
-      setSelectedPayment(null);
+  const handleCloseDetails = useCallback(() => {
+    setSelectedItem(null);
+  }, []);
+
+  // Column factory following OCP
+  const createColumn = useCallback((key: keyof typeof ADVANCE_PAYMENT_COLUMNS, title: string, render?: (value: any, record: any) => React.ReactNode, additionalProps?: any) => {
+    return {
+      title,
+      key: key,
+      render,
+      ...additionalProps,
+    };
+  }, []);
+
+  const renderDataBody = useCallback(() => {
+    if (isLoading && !payments?.length) {
+      return <div style={{ padding: 24, textAlign: 'center' }}><div className="gba:flex gba:justify-center"><Spinner /></div></div>;
     }
-  }, [payments]);
 
-  const handleViewDetails = useCallback((record: any) => {
-    setSelectedPayment(record);
-    setSelectedRowKeys([record.id]);
-  }, []);
-
-  // Helper function to get payment method display text
-  const getPaymentMethodDisplay = useCallback((paymentMethod: string | null | undefined) => {
-    if (!paymentMethod) return 'N/A';
-    
-    if (paymentMethod === 'DIRECT_DEPOSIT') {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-        'Direct Deposit'
-      );
-    } else {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-        'Cash Payment'
-      );
-    }
-  }, []);
-
-  // Column definitions removed - now building table manually with Table components
-
-  // Render data body with optimized loading states
-  const renderDataBody = () => {
     if (error) {
-      return (
-        <Alert variant="destructive" data-testid="advance-payment-error-alert">
-          <div>
-            <h4 className="gba:font-semibold">API Error</h4>
-            <p className="gba:text-sm gba:mt-1">{String(error)}</p>
-          </div>
-        </Alert>
-      );
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return <Alert variant="destructive">{errorMessage}</Alert>;
     }
 
-    if (!payments || payments.length === 0 && !isLoading) {
+    if (!payments || payments.length === 0) {
       return (
-        <div className="gba:text-center gba:p-5" data-testid="advance-payments-empty">
-          <p className="gba:text-muted-foreground">
-            {statusFilter || reporterFilter || amountMinFilter || amountMaxFilter || advanceMinFilter || advanceMaxFilter
-              ? "No advance payments found matching the current filters."
-              : "No advance payments found."}
-          </p>
-          {(statusFilter || reporterFilter || amountMinFilter || amountMaxFilter || advanceMinFilter || advanceMaxFilter) && (
-            <button
-              onClick={() => {
-                setStatusFilter('');
-                setReporterFilter('');
-                setSelectedReporters([]);
-                setAmountMinFilter('');
-                setAmountMaxFilter('');
-                setAdvanceMinFilter('');
-                setAdvanceMaxFilter('');
-                setCurrentPage(1);
-                debouncedFetchPayments(searchText, 1, pageSize);
-              }}
-              className="gba:mt-2 gba:text-sm gba:text-blue-600 gba:hover:text-blue-800 gba:underline"
-              data-testid="clear-filters-button"
-            >
-              Clear all filters
-            </button>
-          )}
-        </div>
-      );
-    }
-
-    if (isLoading) {
-      return (
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-32" data-testid="advance-payments-loading">
-          <Spinner size="lg" />
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <div>No advance payments found matching the current filters. Clear all filters to see all payments.</div>
         </div>
       );
     }
 
     return (
-      <Card data-testid="advance-payments-table">
-        <CardContent className="gba:p-0">
-          {isLoading && (
-            <div className="gba:flex gba:justify-center gba:p-4">
-              <Spinner />
-            </div>
-          )}
-          
-          <div className="gba:overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="gba:border-b gba:bg-gray-50">
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:w-[60px]"></TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Title</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Reporter</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Org Unit</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Cost Center</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Plan Id</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Status</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Amount</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Advance</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Payment Method</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payments?.map((record) => (
-                  <TableRow 
-                    key={record.id}
-                    className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors"
-                    data-testid={`advance-payment-row-${record.id}`}
-                  >
-                    <TableCell className="gba:py-4 gba:px-6">
-                      <div className="gba:flex gba:justify-start gba:gap-2">
-                        <AppActionButton
-                          data-testid={`advance-payments-update-button-${record.id}`}
-                          variant="secondary"
-                          contextsArray={[FlowContextName.leadEntity]}
-                          externalContextData={{
-                            paymentId: record.id
-                          }}
-                          prefixDataTestId="advance-payments-update"
-                          accessToken={accessToken}
-                          emptyStateBehavior="disable"
-                          deferMainContextRequestsUntilClick
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6">
-                      <button
-                        onClick={() => handleViewDetails(record)}
-                        className="gba:cursor-pointer gba:hover:bg-gray-100 gba:p-1 gba:rounded"
-                        data-testid={`advance-payment-title-${record.id}`}
-                      >
-                        {record.title || 'N/A'}
-                      </button>
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6" data-testid={`advance-payment-reporter-${record.id}`}>
-                      {record.employeeFullName || 'N/A'}
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6" data-testid={`advance-payment-org-unit-${record.id}`}>
-                      {record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A'}
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6" data-testid={`advance-payment-cost-center-${record.id}`}>
-                      {record.costCenter?.name || 'N/A'}
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6" data-testid={`advance-payment-plan-id-${record.id}`}>
-                      {record.expensePlan?.code || 'N/A'}
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6">
-                      {(() => {
-                        const { label, type } = getAdvancePaymentStatusDisplay(record.status);
-                        return (
-                          <Pill type={type} label={label} data-testid={`status-pill-${record.status?.toLowerCase()}`} />
-                        );
-                      })()}
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`advance-payment-amount-${record.id}`}>
-                      {record.expensePlan?.totalAmount ? `${formatNumberFunction(record.expensePlan.totalAmount.toString())} ${record.expensePlan?.currency?.code || 'EUR'}` : 'N/A'}
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`advance-payment-advance-${record.id}`}>
-                      {record.amount ? `${formatNumberFunction(record.amount.toString())} ${record.currency?.code || 'EUR'}` : 'N/A'}
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6" data-testid={`advance-payment-method-${record.id}`}>
-                      {getPaymentMethodDisplay(record.paymentMethod)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+      <DataTable
+        dataSource={payments}
+        rowKey="id"
+        onRow={(record: any) => ({
+          onClick: (event) => {
+            const target = event.target as HTMLElement;
+            const isActionButton = target.closest('[class*="ant-dropdown-trigger"]');
 
-          {/* Pagination */}
-          <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4">
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {totalCount > 0 
-                ? `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} advance payments`
-                : '0-0 of 0 advance payments'}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">Rows per page</p>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    const newPageSize = Number(e.target.value);
-                    setPageSize(newPageSize);
-                    setCurrentPage(1);
-                    debouncedFetchPayments(searchText, 1, newPageSize, statusFilter !== 'all' ? statusFilter : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
-                  }}
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                  data-testid="advance-payments-page-size-select"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-              <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
-                Page {currentPage} of {Math.max(1, Math.ceil((totalCount || 0) / pageSize))}
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <Button 
-                  variant="outline" 
-                  className="gba:h-8 gba:w-8 gba:p-0" 
-                  disabled={currentPage === 1}
-                  onClick={() => {
-                    setCurrentPage(1);
-                    debouncedFetchPayments(searchText, 1, pageSize, statusFilter !== 'all' ? statusFilter : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
-                  }}
-                  data-testid="advance-payments-first-page"
-                >
-                  ⟨⟨
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="gba:h-8 gba:w-8 gba:p-0" 
-                  disabled={currentPage === 1}
-                  onClick={() => {
-                    const newPage = currentPage - 1;
-                    setCurrentPage(newPage);
-                    debouncedFetchPayments(searchText, newPage, pageSize, statusFilter !== 'all' ? statusFilter : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
-                  }}
-                  data-testid="advance-payments-prev-page"
-                >
-                  ⟨
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="gba:h-8 gba:w-8 gba:p-0" 
-                  disabled={currentPage === Math.max(1, Math.ceil((totalCount || 0) / pageSize))}
-                  onClick={() => {
-                    const newPage = currentPage + 1;
-                    setCurrentPage(newPage);
-                    debouncedFetchPayments(searchText, newPage, pageSize, statusFilter !== 'all' ? statusFilter : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
-                  }}
-                  data-testid="advance-payments-next-page"
-                >
-                  ⟩
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="gba:h-8 gba:w-8 gba:p-0" 
-                  disabled={currentPage === Math.max(1, Math.ceil((totalCount || 0) / pageSize))}
-                  onClick={() => {
-                    const totalPages = Math.max(1, Math.ceil((totalCount || 0) / pageSize));
-                    setCurrentPage(totalPages);
-                    debouncedFetchPayments(searchText, totalPages, pageSize, statusFilter !== 'all' ? statusFilter : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
-                  }}
-                  data-testid="advance-payments-last-page"
-                >
-                  ⟩⟩
-                </Button>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            if (!isActionButton) {
+              handleSelectItem(record);
+            }
+          },
+          style: { cursor: 'pointer' }
+        })}
+        pagination={{
+          current: currentPage,
+          pageSize: pageSize,
+          total: totalCount,
+          showSizeChanger: true,
+          pageSizeOptions: ['10', '20', '50', '100'],
+          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
+        }}
+        onChange={handleEnhancedTableChange}
+        loading={isLoading}
+        data-testid="advance-payments-data-table"
+        columns={[
+          {
+            title: '',
+            key: 'actions',
+            align: 'center',
+            width: 60,
+            render: (_: any, record: any) => (
+              <ActionButton
+                onClick={(e) => e.stopPropagation()}
+                flowData={[
+                  {
+                    category: 'Actions',
+                    key: 'view',
+                    label: 'View Details',
+                    onClick: () => {
+                      handleSelectItem(record);
+                    }
+                  }
+                ]}
+                portalContainer={document.body}
+                data-testid={`actions-${record.id}`}
+                size="md"
+              />
+            )
+          },
+          createColumn('title', 'Title', (text: any, record: any) => {
+            const title = record.title || record.description || 'N/A';
+            return <div style={{ fontWeight: 'normal' }} data-testid="advance-payment-title-cell">{title}</div>;
+          }),
+          createColumn('employeeFullName', 'Reporter', (text: any, record: any) => {
+            const reporter = record.employeeFullName || 'N/A';
+            return <div data-testid="advance-payment-reporter-cell">{reporter}</div>;
+          }),
+          createColumn('orgUnit', 'Org Unit', (text: any, record: any) => {
+            const orgUnit = record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A';
+            return <div data-testid="advance-payment-org-unit-cell">{orgUnit}</div>;
+          }),
+          createColumn('costCenter', 'Cost Center', (text: any, record: any) => {
+            const costCenter = record.costCenter?.name || 'N/A';
+            return <div data-testid="advance-payment-cost-center-cell">{costCenter}</div>;
+          }),
+          createColumn('planCode', 'Plan Id', (text: any, record: any) => {
+            const planCode = record.expensePlan?.code || 'N/A';
+            return <div data-testid="advance-payment-plan-id-cell">{planCode}</div>;
+          }),
+          createColumn('status', 'Status', (text: any, record: any) => {
+            const statusValue = record.status || 'N/A';
+            const { label, type } = getAdvancePaymentStatusDisplay(statusValue);
+            return <Pill label={label} type={type} className="gba:text-center" data-testid="advance-payment-status-cell" />;
+          }),
+          createColumn('totalAmount', 'Amount', (text: any, record: any) => {
+            const totalAmount = record.expensePlan?.totalAmount || 0;
+            const currency = record.currency?.code || record.expensePlan?.currency?.code || '';
+            return (
+              <span data-testid="advance-payment-amount-cell" className="gba:text-right">
+                {formatNumberFunction(String(totalAmount ?? '0'))} {currency}
+              </span>
+            );
+          }, { onCell: () => ({ className: 'gba:text-right' }) }),
+          createColumn('amount', 'Advance', (text: any, record: any) => {
+            const advanceAmount = record.amount || 0;
+            const currency = record.currency?.code || '';
+            return (
+              <span data-testid="advance-payment-advance-cell" className="gba:text-right">
+                {formatNumberFunction(String(advanceAmount ?? '0'))} {currency}
+              </span>
+            );
+          }, { onCell: () => ({ className: 'gba:text-right' }) }),
+          createColumn('paymentMethod', 'Payment Method', (text: any, record: any) => {
+            const paymentMethod = record.paymentMethod;
+            let translatedMethod = 'N/A';
+            
+            if (paymentMethod === 'DIRECT_DEPOSIT') {
+              translatedMethod = getTranslationFromI18nKeyAndLabel(
+                'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
+                'Direct Deposit'
+              );
+            } else if (paymentMethod) {
+              translatedMethod = getTranslationFromI18nKeyAndLabel(
+                'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
+                'Cash Payment'
+              );
+            }
+            
+            return <div data-testid="advance-payment-method-cell">{translatedMethod}</div>;
+          }),
+        ] as any}
+      />
     );
+  }, [payments, isLoading, error, totalCount, currentPage, pageSize, handleSelectItem, createColumn]);
+
+  const renderAdvancePaymentDetails = useMemo(() => {
+    if (!selectedItem) return null;
+
+    return (
+      <ExpenseDetailDrawer
+        visible={!!selectedItem}
+        expenseId={null}
+        onClose={handleCloseDetails}
+        accessToken={props.accessToken}
+        type="advance-payment"
+        advancePaymentData={selectedItem}
+      />
+    );
+  }, [selectedItem, handleCloseDetails, props.accessToken]);
+
+  // Enhanced table change handler for sorting
+  const handleEnhancedTableChange = (pagination: any, _filters: any, sorter: any) => {
+    setCurrentPage(pagination.current);
+    setPageSize(pagination.pageSize);
   };
 
-  // Create proper filter groups using advance payment status config mappings
-  const filterGroups = [
+  // Filter groups for DataContainer
+  const filterGroups: DataFilterGroup[] = [
     {
       id: 'status',
       title: 'Status',
-      filters: useMemo(() => {
-        // Use statuses from backend, not just current page
-        return availableStatuses.map(status => {
-          const { label } = getAdvancePaymentStatusDisplay(status);
-          return {
-            id: status,
-            label: label,
-            selected: statusFilter === status
-          };
-        });
-      }, [availableStatuses, statusFilter])
+      type: 'checkbox',
+      filters: availableStatuses.map(status => ({
+        id: status,
+        label: getAdvancePaymentStatusDisplay(status).label,
+        selected: statusFilter.includes(status)
+      }))
     },
     {
       id: 'reporter',
       title: 'Reporter',
+      type: 'custom',
       customComponent: (
-        <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
-          <div className="gba:relative">
-            <input
-              type="text"
-              value={reporterSearchText}
-              onChange={(e) => {
-                setReporterSearchText(e.target.value);
-                setShowReporterDropdown(true);
-                debouncedSearchReporters(e.target.value);
-              }}
-              onFocus={() => setShowReporterDropdown(true)}
-              className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder="Search reporter..."
-              data-testid="reporter-search-input"
-            />
-            
-            {/* Dropdown with search results */}
-            {showReporterDropdown && reporterSearchText.trim() && (
-              <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-white gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
-                {reporterSearchLoading ? (
-                  <div className="gba:p-2 gba:text-sm gba:text-gray-500">
-                    Loading reporters...
-                  </div>
-                ) : reporterSearchResults.length === 0 ? (
-                  <div className="gba:p-2 gba:text-sm gba:text-gray-500">
-                    No reporters found
-                  </div>
-                ) : (
-                  reporterSearchResults.map((reporter) => (
-                    <button
-                      key={reporter}
-                      className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-gray-100 gba:transition-colors ${
-                        selectedReporters.includes(reporter) ? 'gba:bg-blue-50 gba:text-blue-700' : 'gba:text-gray-700'
-                      }`}
-                      onClick={() => {
-                        const newSelected = selectedReporters.includes(reporter)
-                          ? selectedReporters.filter(r => r !== reporter)
-                          : [...selectedReporters, reporter];
-                        setSelectedReporters(newSelected);
-                        setReporterFilter(newSelected.join(','));
-                        
-                        // Reset to page 1 when applying filters to ensure results are visible
-                        setCurrentPage(1);
-                        debouncedFetchPayments(searchText, 1, pageSize, statusFilter !== '' ? statusFilter : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, newSelected.join(','));
-                      }}
-                      data-testid={`reporter-option-${reporter}`}
-                    >
-                      {reporter}
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
+        <div className="reporter-search-container gba:relative gba:p-2">
+          <input
+            type="text"
+            value={reporterSearchText}
+            onChange={(e) => {
+              setReporterSearchText(e.target.value);
+              setShowReporterDropdown(true);
+              debouncedSearchReporters(e.target.value);
+            }}
+            onFocus={() => setShowReporterDropdown(true)}
+            className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+            placeholder="Search reporter..."
+            data-testid="reporter-search-input"
+          />
           
-          {/* Selected reporters display */}
-          {selectedReporters.length > 0 && (
-            <div className="gba:flex gba:flex-wrap gba:gap-1">
-              {selectedReporters.map((reporter) => (
-                <span
-                  key={reporter}
-                  className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:bg-blue-100 gba:text-blue-700 gba:text-xs gba:rounded gba:border"
-                >
-                  {reporter}
+          {/* Dropdown with search results */}
+          {showReporterDropdown && reporterSearchText.trim() && (
+            <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-white gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
+              {reporterSearchLoading ? (
+                <div className="gba:p-2 gba:text-sm gba:text-gray-500">
+                  Loading reporters...
+                </div>
+              ) : reporterSearchResults.length === 0 ? (
+                <div className="gba:p-2 gba:text-sm gba:text-gray-500">
+                  No reporters found
+                </div>
+              ) : (
+                reporterSearchResults.map((reporter) => (
                   <button
+                    key={reporter}
+                    className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-gray-100 gba:transition-colors ${
+                      selectedReporters.includes(reporter) ? 'gba:bg-blue-50 gba:text-blue-700' : 'gba:text-gray-700'
+                    }`}
                     onClick={() => {
-                      const newSelected = selectedReporters.filter(r => r !== reporter);
+                      const newSelected = selectedReporters.includes(reporter)
+                        ? selectedReporters.filter(r => r !== reporter)
+                        : [...selectedReporters, reporter];
                       setSelectedReporters(newSelected);
                       setReporterFilter(newSelected.join(','));
-                      // Reset to page 1 when removing filters to ensure results are visible
+                      
+                      // Reset to page 1 when applying filters to ensure results are visible
                       setCurrentPage(1);
-                      debouncedFetchPayments(searchText, 1, pageSize, statusFilter !== '' ? statusFilter : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, newSelected.join(','));
+                      debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, newSelected.join(','), undefined, undefined);
                     }}
-                    className="gba:ml-1 gba:text-blue-500 gba:hover:text-blue-700"
-                    data-testid={`remove-reporter-${reporter}`}
+                    data-testid={`reporter-option-${reporter}`}
                   >
-                    ×
+                    {reporter}
                   </button>
-                </span>
-              ))}
+                ))
+              )}
             </div>
           )}
         </div>
@@ -545,6 +398,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     {
       id: 'amount',
       title: 'Amount',
+      type: 'custom',
       customComponent: (
         <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
           <div className="gba:flex gba:items-center gba:gap-2">
@@ -555,7 +409,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               onChange={(e) => {
                 setAmountMinFilter(e.target.value);
                 setCurrentPage(1);
-                debouncedFetchPayments(searchText, 1, pageSize, statusFilter !== '' ? statusFilter : undefined, e.target.value, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
+                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, e.target.value, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter, undefined, undefined);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               placeholder="Min"
@@ -570,7 +424,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               onChange={(e) => {
                 setAmountMaxFilter(e.target.value);
                 setCurrentPage(1);
-                debouncedFetchPayments(searchText, 1, pageSize, statusFilter !== '' ? statusFilter : undefined, amountMinFilter, e.target.value, advanceMinFilter, advanceMaxFilter, reporterFilter);
+                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, e.target.value, advanceMinFilter, advanceMaxFilter, reporterFilter, undefined, undefined);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               placeholder="Max"
@@ -583,6 +437,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     {
       id: 'advance',
       title: 'Advance',
+      type: 'custom',
       customComponent: (
         <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
           <div className="gba:flex gba:items-center gba:gap-2">
@@ -593,7 +448,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               onChange={(e) => {
                 setAdvanceMinFilter(e.target.value);
                 setCurrentPage(1);
-                debouncedFetchPayments(searchText, 1, pageSize, statusFilter !== '' ? statusFilter : undefined, amountMinFilter, amountMaxFilter, e.target.value, advanceMaxFilter, reporterFilter);
+                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, e.target.value, advanceMaxFilter, reporterFilter, undefined, undefined);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               placeholder="Min"
@@ -608,7 +463,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               onChange={(e) => {
                 setAdvanceMaxFilter(e.target.value);
                 setCurrentPage(1);
-                debouncedFetchPayments(searchText, 1, pageSize, statusFilter !== '' ? statusFilter : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, e.target.value, reporterFilter);
+                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, e.target.value, reporterFilter, undefined, undefined);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               placeholder="Max"
@@ -620,56 +475,69 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     }
   ];
 
-  // Handle filter changes like leads table
+  const selectedFilters: string[] = [
+    ...(statusFilter.length > 0 ? ['status'] : []),
+    ...(reporterFilter ? ['reporter'] : []),
+    ...(amountMinFilter || amountMaxFilter ? ['amount'] : []),
+    ...(advanceMinFilter || advanceMaxFilter ? ['advance'] : [])
+  ];
+
+  const filterLabelMap: Record<string, string> = {
+    status: statusFilter.length > 0 ? `Status: ${statusFilter.map(status => getAdvancePaymentStatusDisplay(status).label).join(', ')}` : 'Status: All',
+    reporter: `Reporter: ${selectedReporters.join(', ')}`,
+    amount: `Amount: ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
+    advance: `Advance: ${advanceMinFilter || '0'} - ${advanceMaxFilter || '∞'}`
+  };
+
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    // Status filters - check if it's one of the available statuses from backend
+    // Check if this is a status filter (any of the available statuses)
     if (availableStatuses.includes(filterId)) {
-      const newStatusFilter = selected ? filterId : '';
+      const newStatusFilter = selected ? [...statusFilter, filterId] : statusFilter.filter(status => status !== filterId);
       setStatusFilter(newStatusFilter);
       setCurrentPage(1);
-      debouncedFetchPayments(searchText, 1, pageSize, newStatusFilter !== '' ? newStatusFilter : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
+      debouncedFetchPayments(searchText, 1, pageSize, newStatusFilter.length > 0 ? newStatusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter, undefined, undefined);
     }
-  }, [availableStatuses, searchText, pageSize, debouncedFetchPayments, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter]);
+  }, [availableStatuses, searchText, pageSize, debouncedFetchPayments, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter, statusFilter]);
+
+  const setFilters = useCallback((filters: string[]) => {
+    // Clear all filters
+    setStatusFilter([]);
+    setReporterFilter('');
+    setSelectedReporters([]);
+    setAmountMinFilter('');
+    setAmountMaxFilter('');
+    setAdvanceMinFilter('');
+    setAdvanceMaxFilter('');
+    setCurrentPage(1);
+    debouncedFetchPayments(searchText, 1, pageSize, undefined, '', '', '', '', '', undefined, undefined);
+  }, [searchText, pageSize, debouncedFetchPayments]);
 
   return (
     <>
       <DataContainer
         dataControllerProps={{
+          listTitle: 'Advance Payments',
+          listAmount: totalCount ? `${totalCount}` : undefined,
           search: searchText,
           setSearch: handleSearchChange,
-          placeholder: 'Search advance payments...',
-          filter: [],
-          setFilter: () => { /* Placeholder for DataContainer prop */ },
-          listTitle: 'Advance Payments',
-          listAmount: totalCount || 0,
-          debounceDelay: 300,
+          placeholder: 'Search by code, description, or employee...',
+          filter: selectedFilters,
+          setFilter: setFilters,
+          filterLabelMap: filterLabelMap,
+          actions: [],
         }}
         dataFilterProps={{
           filterGroups: filterGroups,
-          onFilterChange: handleFilterChange,
+          onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void,
         }}
         dataBody={renderDataBody()}
-        contentBackground="white"
-        data-testid="advance-payments-container"
       />
-      
-      {/* Use ExpenseDetailDrawer component for consistency */}
-      <ExpenseDetailDrawer
-        visible={!!selectedPayment}
-        onClose={() => {
-          setSelectedPayment(null);
-          setSelectedRowKeys([]);
-        }}
-        expenseId={null} // Not needed for advance payments
-        accessToken={accessToken}
-        type="advance-payment"
-        advancePaymentData={selectedPayment}
-      />
+      {renderAdvancePaymentDetails}
     </>
   );
 };
 
-// Simple debounce utility for performance optimization
+// Debounce utility function
 function debounce<T extends (...args: any[]) => any>(
   func: T,
   wait: number

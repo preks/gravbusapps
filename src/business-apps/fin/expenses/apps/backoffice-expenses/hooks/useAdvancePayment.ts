@@ -79,7 +79,18 @@ export const useAdvancePayments = (
 
     // Add status filter if provided
     if (status && status !== "all" && status !== "") {
-      conditions.push({ status: { _eq: status } });
+      // Check if status contains multiple values (comma-separated)
+      if (status.includes(",")) {
+        const statusArray = status
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (statusArray.length > 0) {
+          conditions.push({ status: { _in: statusArray } });
+        }
+      } else {
+        conditions.push({ status: { _eq: status } });
+      }
     }
 
     // Add search conditions if provided
@@ -168,31 +179,25 @@ export const useAdvancePayments = (
             };
           });
 
-          // All parts of the name must match (AND logic)
-          return namePartConditions.length === 1
-            ? namePartConditions[0]
-            : { _and: namePartConditions };
+          return {
+            _and: namePartConditions,
+          };
         });
 
-        if (reporterConditions.length === 1) {
-          conditions.push(reporterConditions[0]);
-        } else {
-          conditions.push({ _or: reporterConditions });
-        }
+        conditions.push({
+          _or: reporterConditions,
+        });
       }
     }
 
-    // Build final where clause
-    const where =
-      conditions.length === 1 ? conditions[0] : { _and: conditions };
-
-    // ⚡ BEST PRACTICE: Enforce query limit for safety (like leads)
-    const safePageSize = enforceQueryLimit(pageSize);
+    // Build the where clause
+    const whereClause = conditions.length > 0 ? { _and: conditions } : {};
 
     return {
-      where,
-      limit: safePageSize,
+      where: whereClause,
+      limit: enforceQueryLimit(pageSize),
       offset: offset,
+      orderBy: [{ createdAt: "DESC" }], // Default sorting
     };
   };
 
