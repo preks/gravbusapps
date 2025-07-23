@@ -1,8 +1,8 @@
 import React from 'react';
 import { Row, Col, Card, Typography, Statistic, Tooltip, Spin, Alert } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined, ClockCircleOutlined, WarningOutlined, GlobalOutlined } from '@ant-design/icons';
+import { ArrowUpOutlined, ArrowDownOutlined, GlobalOutlined } from '@ant-design/icons';
 import { PiCurrencyCircleDollar } from 'react-icons/pi';
-import { formatCurrency, calculatePercentChange } from '../utils/formatters';
+import { formatNumber, calculatePercentChange } from '../utils/formatters';
 import { DashboardStats } from '../types';
 
 const { Text } = Typography;
@@ -40,18 +40,17 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
   if (!stats) return null;
   
   const currentTotal = stats.currentMonthExpenses?.total || 0;
-  const previousTotal = stats.lastMonthExpenses?.total || 0;
+  const previousTotal = stats.previousMonthExpenses?.total || 0;
   const percentChange = calculatePercentChange(currentTotal, previousTotal);
   const isPositiveChange = percentChange >= 0;
 
   return (
     <Row gutter={[16, 16]} className="gba:summary-stats">
-      <Col xs={24} sm={12} md={6}>
-        <Card bordered={true}>
+      <Col xs={24} sm={12} md={8}>
+        <Card variant="outlined">
             <Statistic
               title="Current Month Expenses"
               value={currentTotal}
-              precision={2}
               valueStyle={{ color: isPositiveChange ? '#cf1322' : '#3f8600' }}
               prefix={<PiCurrencyCircleDollar size={24} />}
               suffix={
@@ -62,26 +61,25 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
                   }
                 </Tooltip>
               }
-              formatter={(value) => formatCurrency(Number(value))}
+              formatter={(value) => formatNumber(Number(value))}
             />
-            <Text type="secondary">{stats?.currentMonthExpenses?.count || 0} expense items</Text>
+            <Text type="secondary">{stats?.currentMonthExpenses?.count || 0} expense requests</Text>
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card bordered={true}>
+        <Col xs={24} sm={12} md={8}>
+          <Card variant="outlined">
             <Statistic
               title="Pending Payouts"
               value={stats?.pendingPayouts || 0}
-              precision={2}
               valueStyle={{ color: '#1890ff' }}
-              prefix={<ClockCircleOutlined />}
-              formatter={(value) => formatCurrency(Number(value))}
+              prefix={<PiCurrencyCircleDollar size={24} />}
+              formatter={(value) => formatNumber(Number(value))}
             />
             <Text type="secondary">Awaiting payment</Text>
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card bordered={true}>
+        {/* <Col xs={24} sm={12} md={8}>
+          <Card variant="outlined">
             <Statistic
               title="Flagged Items"
               value={stats?.flaggedItems || 0}
@@ -90,9 +88,9 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
             />
             <Text type="secondary">Requiring attention</Text>
           </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card bordered={true}>
+        </Col> */}
+        <Col xs={24} sm={12} md={8}>
+          <Card variant="outlined">
             <Statistic
               title="Upcoming Trips"
               value={stats?.upcomingTrips || 0}
@@ -102,6 +100,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
             <Text type="secondary">Planned business trips</Text>
           </Card>
         </Col>
+        
       </Row>
   );
 };

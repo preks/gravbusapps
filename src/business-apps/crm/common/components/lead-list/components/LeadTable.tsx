@@ -1,15 +1,46 @@
 "use client";
 
-import React, { useCallback, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Avatar, AvatarImage, AvatarFallback, Button, Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Card, CardContent } from '@newwork/nw-design-system';
-import { PiUser, PiEnvelope, PiPhone, PiBuilding, PiCalendar, PiMapPin, PiArrowUp, PiArrowDown } from 'react-icons/pi';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { Lead } from '../types';
-import dayjs from 'dayjs';
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { getLeadStatusBadgeVariant, getLeadRatingBadgeVariant } from '@/common/utils/badgeUtils';
+import React, { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Button,
+  Badge,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  Spinner,
+  Card,
+  CardContent,
+} from "@newwork/nw-design-system";
+import {
+  PiUser,
+  PiEnvelope,
+  PiPhone,
+  PiBuilding,
+  PiCalendar,
+  PiMapPin,
+  PiArrowUp,
+  PiArrowDown,
+} from "react-icons/pi";
+import { AppActionButton } from "@/components/app-action-button/AppActionButton";
+import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+import { Lead } from "../types";
+import dayjs from "dayjs";
+import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
+import {
+  getLeadStatusBadgeVariant,
+  getLeadRatingBadgeVariant,
+} from "@/common/utils/badgeUtils";
 
 interface LeadTableProps {
   leads: Lead[];
@@ -23,16 +54,16 @@ interface LeadTableProps {
   currentPage: number;
   pageSize: number;
   sortField: string;
-  sortOrder: 'ASC' | 'DESC' | '';
+  sortOrder: "ASC" | "DESC" | "";
   onSelectLead?: (lead: Lead) => void;
   onPaginationChange: (page: number, pageSize?: number) => void;
-  onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void;
+  onSortingChange: (field: string, order: "ASC" | "DESC" | "") => void;
   selectedLeadId?: string;
   accessToken: string;
   sourceApp?: string;
 }
 
-const DATA_TEST_ID_PREFIX = 'LeadTable';
+const DATA_TEST_ID_PREFIX = "LeadTable";
 
 /**
  * Table component for displaying leads with pagination and actions
@@ -55,26 +86,30 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   onSortingChange,
   selectedLeadId,
   accessToken,
-  sourceApp
+  sourceApp,
 }) => {
   const { t } = useTranslation();
 
   // Get contact display name
   const getContactName = (lead: Lead) => {
-    if (lead.firstName || lead.lastName) {
-      return `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
+    // First try to use contact information if available
+    if (lead.contact?.firstName || lead.contact?.lastName) {
+      return `${lead.contact.firstName || ""} ${
+        lead.contact.lastName || ""
+      }`.trim();
     }
-    return '-';
+
+    return "-";
   };
 
   // Get contact email
   const getContactEmail = (lead: Lead) => {
-    return lead.email || '-';
+    return lead.email || "-";
   };
 
   // Get contact phone
   const getContactPhone = (lead: Lead) => {
-    return lead.phoneNumber || '-';
+    return lead.phoneNumber || "-";
   };
 
   // Get owner display name
@@ -83,9 +118,11 @@ export const LeadTable: React.FC<LeadTableProps> = ({
       return lead.ownerEmployee.displayName;
     }
     if (lead.ownerEmployee?.firstName || lead.ownerEmployee?.lastName) {
-      return `${lead.ownerEmployee.firstName || ''} ${lead.ownerEmployee.lastName || ''}`.trim();
+      return `${lead.ownerEmployee.firstName || ""} ${
+        lead.ownerEmployee.lastName || ""
+      }`.trim();
     }
-    return '-';
+    return "-";
   };
 
   // Parse profile picture from JSON
@@ -99,43 +136,45 @@ export const LeadTable: React.FC<LeadTableProps> = ({
     }
   };
 
-
-
   // Handle row click
-  const handleRowClick = useCallback((record: Lead) => {
-    // Determine source based on sourceApp
-    const source = (sourceApp === 'investment-relations' || sourceApp === 'IRM') ? 'investments' : 'customer-relations';
-    
-    // Navigate to lead record page
-    const url = buildPlatformUrl('/platform/crm/lead-record', { 
-      leadId: record.id, 
-      source: source 
-    });
-    navigateTo(url);
-    
-    // Also call the selection callback if provided
-    onSelectLead?.(record);
-  }, [onSelectLead, sourceApp]);
+  const handleRowClick = useCallback(
+    (record: Lead) => {
+      // Determine source based on sourceApp
+      const source =
+        sourceApp === "investment-relations" || sourceApp === "IRM"
+          ? "investments"
+          : "customer-relations";
+
+      // Navigate to lead record page
+      const url = buildPlatformUrl("/platform/crm/lead-record", {
+        leadId: record.id,
+        source: source,
+      });
+      navigateTo(url);
+
+      // Also call the selection callback if provided
+      onSelectLead?.(record);
+    },
+    [onSelectLead, sourceApp]
+  );
 
   // Show error state
   if (error) {
     return (
-      <div 
+      <div
         className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
         data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
       >
         <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
-          {t('lead.error.title', 'Error Loading Leads')}
+          {t("lead.error.title", "Error Loading Leads")}
         </div>
-        <div className="gba:text-gray-600 gba:mb-4">
-          {error.message}
-        </div>
+        <div className="gba:text-gray-600 gba:mb-4">{error.message}</div>
         <Button
           variant="default"
           onClick={retry}
           data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
         >
-          {t('common.retry', 'Retry')}
+          {t("common.retry", "Retry")}
         </Button>
       </div>
     );
@@ -145,23 +184,25 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   const handleSort = (field: string) => {
     if (sortField === field) {
       // Cycle through: ASC -> DESC -> clear
-      if (sortOrder === 'ASC') {
-        onSortingChange(field, 'DESC');
-      } else if (sortOrder === 'DESC') {
-        onSortingChange('', '');
+      if (sortOrder === "ASC") {
+        onSortingChange(field, "DESC");
+      } else if (sortOrder === "DESC") {
+        onSortingChange("", "");
       } else {
-        onSortingChange(field, 'ASC');
+        onSortingChange(field, "ASC");
       }
     } else {
-      onSortingChange(field, 'ASC');
+      onSortingChange(field, "ASC");
     }
   };
 
   // Helper function to render sort icon
   const renderSortIcon = (field: string) => {
     if (sortField !== field) return null;
-    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
-    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === "ASC")
+      return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === "DESC")
+      return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
     return null;
   };
 
@@ -173,89 +214,99 @@ export const LeadTable: React.FC<LeadTableProps> = ({
             <Spinner />
           </div>
         )}
-        
+
         <div className="gba:overflow-x-auto">
           <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
-                <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}>ACTIONS</TableHead>
-                <TableHead 
+                <TableHead
+                  className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
+                  data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
+                >
+                  ACTIONS
+                </TableHead>
+                <TableHead
                   className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort('firstName')}
+                  onClick={() => handleSort("firstName")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('lead.contact', 'Lead Contact')}
-                    {renderSortIcon('firstName')}
+                    {t("lead.contact", "Lead Contact")}
+                    {renderSortIcon("firstName")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort('accountName')}
+                  onClick={() => handleSort("accountName")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('lead.company', 'Lead Company')}
-                    {renderSortIcon('accountName')}
+                    {t("lead.company", "Lead Company")}
+                    {renderSortIcon("accountName")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort('createdAt')}
+                  onClick={() => handleSort("createdAt")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('lead.created', 'Created')}
-                    {renderSortIcon('createdAt')}
+                    {t("lead.created", "Created")}
+                    {renderSortIcon("createdAt")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort('ownerEmployeeId')}
+                  onClick={() => handleSort("ownerEmployeeId")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('lead.owner', 'Owner')}
-                    {renderSortIcon('ownerEmployeeId')}
+                    {t("lead.owner", "Owner")}
+                    {renderSortIcon("ownerEmployeeId")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort('leadStatusRef')}
+                  onClick={() => handleSort("leadStatusRef")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('lead.status', 'Status')}
-                    {renderSortIcon('leadStatusRef')}
+                    {t("lead.status", "Status")}
+                    {renderSortIcon("leadStatusRef")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort('leadRatingRef')}
+                  onClick={() => handleSort("leadRatingRef")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-rating-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('lead.rating', 'Rating')}
-                    {renderSortIcon('leadRatingRef')}
+                    {t("lead.rating", "Rating")}
+                    {renderSortIcon("leadRatingRef")}
                   </div>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {leads.map((record) => (
-                <TableRow 
+                <TableRow
                   key={record.id}
-                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${selectedLeadId === record.id ? 'gba:bg-blue-50' : ''}`}
+                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${
+                    selectedLeadId === record.id ? "gba:bg-blue-50" : ""
+                  }`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
                 >
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+                  >
                     <div className="gba:flex gba:justify-start gba:gap-2">
                       <AppActionButton
                         data-testid={`${DATA_TEST_ID_PREFIX}-update-lead-button-${record.id}`}
                         variant="secondary"
                         contextsArray={[FlowContextName.leadEntity]}
                         externalContextData={{
-                          leadId: record.id
+                          leadId: record.id,
                         }}
                         prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-lead`}
                         accessToken={accessToken}
@@ -265,8 +316,11 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       />
                     </div>
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-cell-${record.id}`}>
-                    <div 
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-cell-${record.id}`}
+                  >
+                    <div
                       className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -275,10 +329,20 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-name-${record.id}`}
                     >
                       <Avatar size="sm">
+                        {record.contact?.pictureUrl && (
+                          <AvatarImage
+                            src={record.contact.pictureUrl}
+                            alt={getContactName(record)}
+                          />
+                        )}
                         <AvatarFallback>
-                          {getContactName(record) !== '-' 
-                            ? getContactName(record).split(' ').map((n: string) => n[0]).join('').toUpperCase()
-                            : 'L'}
+                          {getContactName(record) !== "-"
+                            ? getContactName(record)
+                                .split(" ")
+                                .map((n: string) => n[0])
+                                .join("")
+                                .toUpperCase()
+                            : ""}
                         </AvatarFallback>
                       </Avatar>
                       <div>
@@ -293,63 +357,129 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-cell-${record.id}`}>
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-cell-${record.id}`}
+                  >
                     <div className="gba:flex gba:flex-col gba:gap-1">
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiBuilding size={14} className="gba:text-gray-400" />
-                        <span className="gba:font-medium gba:text-sm">{record.companyName || record.account?.name || '-'}</span>
+                        {record.account?.id ? (
+                          <span
+                            className="gba:font-medium gba:text-sm gba:cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!record.account?.id) return;
+                              const source =
+                                sourceApp === "investment-relations" ||
+                                sourceApp === "IRM"
+                                  ? "investments"
+                                  : "customer-relations";
+                              const url = buildPlatformUrl(
+                                "/platform/crm/account-record",
+                                {
+                                  accountId: record.account.id,
+                                  source,
+                                  fromEntity: "leads",
+                                }
+                              );
+                              console.log(
+                                "Navigating from leads to account:",
+                                url
+                              );
+                              navigateTo(url);
+                            }}
+                            data-testid={`${DATA_TEST_ID_PREFIX}-company-name-${record.id}`}
+                          >
+                            {record.account?.name || record.companyName || "-"}
+                          </span>
+                        ) : (
+                          <span className="gba:font-medium gba:text-sm">
+                            {record.companyName || record.account?.name || "-"}
+                          </span>
+                        )}
                       </div>
                       {record.companyEmail && (
                         <div className="gba:flex gba:items-center gba:gap-1">
                           <PiEnvelope size={12} className="gba:text-gray-400" />
-                          <span className="gba:text-xs gba:text-gray-600">{record.companyEmail}</span>
+                          <span className="gba:text-xs gba:text-gray-600">
+                            {record.companyEmail}
+                          </span>
                         </div>
                       )}
                       {record.companyWebsite && (
                         <div className="gba:flex gba:items-center gba:gap-1">
-                          <span className="gba:text-xs gba:text-gray-600">{record.companyWebsite}</span>
+                          <span className="gba:text-xs gba:text-gray-600">
+                            {record.companyWebsite}
+                          </span>
                         </div>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}>
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}
+                  >
                     {record.createdAt ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiCalendar size={16} className="gba:text-gray-400" />
                         <span className="gba:text-sm">
-                          {dayjs(record.createdAt).format('MMM DD, YYYY')}
+                          {dayjs(record.createdAt).format("MMM DD, YYYY")}
                         </span>
                       </div>
-                    ) : '-'}
+                    ) : (
+                      "-"
+                    )}
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}>
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}
+                  >
                     <div className="gba:flex gba:items-center gba:gap-3">
                       <Avatar size="sm">
                         {record.ownerEmployee?.pictureThumbnail && (
-                          <AvatarImage 
-                            src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`} 
-                            alt={getOwnerName(record)} 
+                          <AvatarImage
+                            src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
+                            alt={getOwnerName(record)}
                           />
                         )}
                         <AvatarFallback>
                           {!record.ownerEmployee?.pictureThumbnail
-                            ? (getOwnerName(record) !== '-' ? getOwnerName(record).split(' ').map(n => n[0]).join('').toUpperCase() : 'U')
+                            ? getOwnerName(record) !== "-"
+                              ? getOwnerName(record)
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")
+                                  .toUpperCase()
+                              : "U"
                             : undefined}
                         </AvatarFallback>
                       </Avatar>
                       <div className="gba:flex gba:flex-col">
-                        <span className="gba:font-medium gba:text-sm">{getOwnerName(record)}</span>
+                        <span className="gba:font-medium gba:text-sm">
+                          {getOwnerName(record)}
+                        </span>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
-                    <Badge variant={getLeadStatusBadgeVariant(record.leadStatus)}>
-                      {record.leadStatus?.value || '-'}
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
+                  >
+                    <Badge
+                      variant={getLeadStatusBadgeVariant(record.leadStatus)}
+                    >
+                      {record.leadStatus?.value || "-"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-rating-cell-${record.id}`}>
-                    <Badge variant={getLeadRatingBadgeVariant(record.leadRating)}>
-                      {record.leadRating?.value || '-'}
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-rating-cell-${record.id}`}
+                  >
+                    <Badge
+                      variant={getLeadRatingBadgeVariant(record.leadRating)}
+                    >
+                      {record.leadRating?.value || "-"}
                     </Badge>
                   </TableCell>
                 </TableRow>
@@ -360,9 +490,18 @@ export const LeadTable: React.FC<LeadTableProps> = ({
       </CardContent>
 
       {/* Pagination */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
-        <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
-          {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} leads`}
+      <div
+        className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4"
+        data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
+      >
+        <div
+          className="gba:text-sm gba:text-muted-foreground"
+          data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
+        >
+          {`${(currentPage - 1) * pageSize + 1}-${Math.min(
+            currentPage * pageSize,
+            total
+          )} of ${total} leads`}
         </div>
         <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
           <div className="gba:flex gba:items-center gba:space-x-2">
@@ -379,7 +518,10 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               <option value={100}>100</option>
             </select>
           </div>
-          <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
+          <div
+            className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
+            data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}
+          >
             Page {currentPage} of {Math.ceil(total / pageSize)}
           </div>
           <div className="gba:flex gba:items-center gba:space-x-2">
@@ -400,8 +542,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               disabled={currentPage === 1}
               data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
             >
-              <span className="gba:sr-only">Go to previous page</span>
-              ⟨
+              <span className="gba:sr-only">Go to previous page</span>⟨
             </Button>
             <Button
               variant="outline"
@@ -410,8 +551,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               disabled={currentPage >= Math.ceil(total / pageSize)}
               data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
             >
-              <span className="gba:sr-only">Go to next page</span>
-              ⟩
+              <span className="gba:sr-only">Go to next page</span>⟩
             </Button>
             <Button
               variant="outline"
@@ -428,4 +568,4 @@ export const LeadTable: React.FC<LeadTableProps> = ({
       </div>
     </Card>
   );
-}; 
+};
