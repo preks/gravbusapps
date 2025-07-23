@@ -26,8 +26,8 @@ export function useAiSummary(leadId: string, accessToken: string): UseAiSummaryR
     const { fetchSalesTasks } = useGetSalesTasks({accessToken});
 
     const generateInputData = async () => {
-        // get opportunity data
-        const opportunity = await graphQLClient.request<GetLeadByIdResponse>(
+        // get lead data
+        const lead = await graphQLClient.request<GetLeadByIdResponse>(
             GET_LEAD_BY_ID,
             { id: leadId }
         );
@@ -51,7 +51,7 @@ export function useAiSummary(leadId: string, accessToken: string): UseAiSummaryR
         );
 
         let inputData = 
-`Opportunity Info: ${JSON.stringify(opportunity)}
+`Lead Info: ${JSON.stringify(lead)}
 Activities: ${JSON.stringify(sortedActivities)}
 Notes: ${JSON.stringify(sortedNotes)}
 Tasks: ${JSON.stringify(sortedTasks)}`;
