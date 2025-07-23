@@ -411,7 +411,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                         className="gba:hover:bg-gray-100 gba:w-full"
                         data-testid="request-absence-button"
                         onClick={() => {
-                          navigateTo('/?tab=absences&app=EmployeeRecord');
+                          navigateTo('/platform/employee-record?tab=absences');
                         }}
                       >
                         <span data-testid="request-absence-button-text">Request Absence</span>

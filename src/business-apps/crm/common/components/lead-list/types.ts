@@ -53,8 +53,7 @@ export interface Lead {
     id: string;
     firstName: string;
     lastName: string;
-    email: string;
-    phone: string;
+    pictureUrl: string;
   };
 }
 
@@ -72,4 +71,4 @@ export interface LeadListResponse {
       count: number;
     };
   };
-} 
+}
