@@ -19,65 +19,84 @@ export interface ExpenseData {
   paymentMethod: string;
   employeeId: string;
   version: string;
-  currency: string;
+  currency: { code?: string };
   currencyRef: string;
   typeRef: string;
   totalRemainingAmount: number | string;
   userId: string;
   expenseRuleId: string;
   totalAmount: number;
+  nonReimbursableAmount?: number;
   employeeDocumentId: string | null;
   documentData: any;
   department?: string;
+  expensePlan?: {
+    advancePaymentTotalAmount?: number;
+    code?: string;
+    advancePaymentAggregate?: {
+      aggregate: {
+        sum: {
+          amount: number;
+        };
+      };
+    };
+    advancePayment?: Array<{
+      amount: number;
+      currency?: {
+        value?: string;
+        code?: string;
+      };
+    }>;
+  };
 }
 
 export interface ExpenseRequest {
-    id: string;
-    version?: number;
+  id: string;
+  version?: number;
+  code?: string;
+  currencyRef?: string;
+  requestDate?: string;
+  requestTypeRef?: string;
+  createdAt?: string;
+  status?: string;
+  title?: string;
+  totalAmount?: number;
+  nonReimbursableAmount?: number;
+  totalRemainingAmount?: number;
+  endDate?: string;
+  startDate?: string;
+  decisionDate?: string;
+  updatedAt?: string;
+  employeeId?: string;
+  currency?: { code?: string };
+  employee?: {
+    firstName?: string;
+    lastName?: string;
     code?: string;
-    currencyRef?: string;
-    requestDate?: string;
-    requestTypeRef?: string;
-    createdAt?: string;
-    status?: string;
-    title?: string;
-    totalAmount?: number;
-    nonReimbursableAmount?: number;
-    totalRemainingAmount?: number;
-    endDate?: string;
-    startDate?: string;
-    decisionDate?: string;
-    updatedAt?: string;
-    employeeId?: string;
-    currency?: { code?: string };
-    employee?: {
+    id?: string;
+    userId?: string;
+    additionalProperties?: any;
+    employeePosition?: {
       firstName?: string;
       lastName?: string;
-      code?: string;
-      id?: string;
-      userId?: string;
-      additionalProperties?: any;
-      employeePosition?: {
-        firstName?: string;
-        lastName?: string;
-        costCenter?: {
-            id: string;
-            name: string;
-        }
+      costCenter?: {
+        id: string;
+        name: string;
       };
     };
-    employeeDocumentId?: string;
-    employeeDocument?: any;
-    expenseRuleId?: string;
-    expensePlan?: any;
-    requestType?: any;
+  };
+  employeeDocumentId?: string;
+  employeeDocument?: any;
+  expenseRuleId?: string;
+  expensePlan?: any;
+  requestType?: any;
 }
 
 export interface ExpenseRequestQueryData {
-    ExpenseRequest: ExpenseRequest[];
-    total: {
-      aggregate: {
-        count: number;
-      }
-    }
+  ExpenseRequest: ExpenseRequest[];
+  total: {
+    aggregate: {
+      count: number;
+    };
+  };
 }

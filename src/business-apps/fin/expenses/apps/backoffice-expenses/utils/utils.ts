@@ -43,37 +43,36 @@ export const getExpenseRequestStatusDisplay = (
   status: string
 ): StatusDisplayConfig => {
   switch (status) {
+    case ExpenseStatus.CREATED:
+      return {
+        label: "Draft",
+        type: "draft",
+      };
+
+    case ExpenseStatus.PREPARED:
+      return { label: "Prepared", type: "preparing" };
+
+    case ExpenseStatus.ASSIGNED:
+      return { label: "Assigned", type: "task" };
+
     case ExpenseStatus.PENDING:
-      return {
-        label: "Pending Approval",
-        type: "task",
-      };
+      return { label: "In Approval", type: "waiting" };
+
     case ExpenseStatus.APPROVED:
+      return { label: "Verification Required", type: "task" };
+
     case ExpenseStatus.VERIFIED:
-      return {
-        label: "Approved",
-        type: "completed",
-      };
+      return { label: "Booking Required", type: "task" };
+
     case ExpenseStatus.BOOKED:
-      return {
-        label: "Booked",
-        type: "completed",
-      };
-    case ExpenseStatus.REJECTED:
-      return {
-        label: "Rejected",
-        type: "error",
-      };
-    case ExpenseStatus.RETURNED:
-      return {
-        label: "Returned",
-        type: "waiting",
-      };
+      return { label: "Transfer Required", type: "task" };
+
+    case ExpenseStatus.CLOSED:
+      return { label: "Closed", type: "completed" };
+
     case ExpenseStatus.PAID:
-      return {
-        label: "Paid",
-        type: "completed",
-      };
+      return { label: "Paid", type: "completed" };
+
     default:
       return {
         label: status,

@@ -6,46 +6,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useExpenseRequests } from '../../../hooks/useExpenseRequests';
-import {
-  Button,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-  Alert,
-  Badge,
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-  Card,
-  CardContent,
-  Spinner,
-} from '@newwork/nw-design-system';
+import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
+import { Alert, Spinner } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-
+import { DataFilterGroup } from '@/components/data-filter/DataFilter';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { ExpenseData } from '../../../types';
-import ExpenseDetailDrawer from '../../details/ExpenseDetailDrawer';
-import { getExpenseRequestStatusConfig } from '../../../utils/badgeUtils';
-import { ExpenseStatus } from '../../../utils/utils';
-
-// Move outside component to prevent re-creation on every render
-const AVAILABLE_FILTER_STATUSES: ExpenseStatus[] = [
-  ExpenseStatus.PREPARED,
-  ExpenseStatus.CREATED,
-  ExpenseStatus.ASSIGNED,
-  ExpenseStatus.PENDING,
-  ExpenseStatus.APPROVED,
-  ExpenseStatus.VERIFIED,
-  ExpenseStatus.BOOKED,
-  ExpenseStatus.TRANSFERRED,
-  ExpenseStatus.PAID,
-  ExpenseStatus.REJECTED,
-  ExpenseStatus.CLOSED,
-  ExpenseStatus.DISCARDED,
-];
+import { getExpenseRequestStatusDisplay } from '../../../utils/utils';
+import Pill from '@/components/pill/Pill';
 
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   search?: string;
@@ -127,340 +95,366 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       }
     }
 
-    const newURL = `${window.location.pathname}?${newSearchParams.toString()}`;
+    const newURL = `${window.location.pathname}${newSearchParams.toString() ? `?${newSearchParams.toString()}` : ''}`;
     window.history.replaceState({}, '', newURL);
   }, []);
-  
-  // Get expense requests data using the hook
-  const { 
-    expenses, 
-    loading, 
+
+  // ⚡ BEST PRACTICE: Use the hook with proper error handling
+  const {
+    expenses,
+    loading,
     error,
-    departments,
+    totalItems,
+    currentPage,
+    pageSize,
+    searchTerm,
+    statusFilter,
+    departmentFilter,
+    fetchData,
     handleTableChange,
     handleSearch,
     handleStatusFilter,
     handleDepartmentFilter,
-    totalItems,
-    currentPage,
-    pageSize,
-    searchTerm: hookSearchTerm,
-    statusFilter: hookStatusFilter,
-    departmentFilter: hookDepartmentFilter,
   } = useExpenseRequests(contextProps);
 
-  // Sync with parent search prop if provided
+  // ⚡ BEST PRACTICE: Load data on mount and when dependencies change
   useEffect(() => {
-    if (search !== undefined && search !== searchText) {
-      setSearchText(search);
+    // Only fetch data if we have an access token and the component is mounted
+    if (contextProps.accessToken) {
+      fetchData();
     }
-  }, [search, searchText]);
+  }, [contextProps.accessToken]); // Only depend on accessToken to prevent excessive calls
 
-  // Handle search changes
+  // ⚡ BEST PRACTICE: Sync URL params with state
+  useEffect(() => {
+    if (searchText !== initialParams.search) {
+      updateURLParams({ search: searchText });
+    }
+  }, [searchText, initialParams.search, updateURLParams]);
+
+  // ⚡ BEST PRACTICE: Handle search changes
   const handleSearchChange = useCallback((value: string) => {
     setSearchText(value);
-    handleSearch(value); // Pass to hook for API call
-    
-    // Notify parent if callback exists
-    if (onSearchChange) {
-      onSearchChange(value);
-    }
-  }, [onSearchChange, handleSearch]);
+    handleSearch(value);
+    onSearchChange?.(value);
+  }, [handleSearch, onSearchChange]);
 
-  // Removed old handlers - now using handleFilterChange
-
-  // Handle expense selection
-  const handleSelectExpense = useCallback((expense: ExpenseData) => {
-    setSelectedExpense(expense);
-    setSelectedRowKeys([expense.id]);
-  }, []);
-
-  // Handle row selection change
-  const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
-    
-    // If a single row is selected, find and set the selected expense
-    if (newSelectedRowKeys.length === 1) {
-      const selectedExpenseId = newSelectedRowKeys[0];
-      const expense = expenses?.find(expense => expense.id === selectedExpenseId);
-      if (expense) {
-        setSelectedExpense(expense);
-      }
+  // ⚡ BEST PRACTICE: Handle row selection
+  const handleRowSelection = useCallback((selectedRowKeys: React.Key[], selectedRows: any[]) => {
+    setSelectedRowKeys(selectedRowKeys);
+    if (selectedRows.length === 1) {
+      setSelectedExpense(selectedRows[0] as ExpenseData);
     } else {
-      // If multiple or no rows selected, clear the selected expense
       setSelectedExpense(null);
     }
-  }, [expenses]);
-
-  const handleViewDetails = useCallback((record: ExpenseData) => {
-    setSelectedExpense(record);
-    setSelectedRowKeys([record.id]);
   }, []);
 
-  // Column definitions removed - now building table manually with Table components
+  // ⚡ BEST PRACTICE: Handle row click
+  const handleRowClick = useCallback((record: any) => {
+    setSelectedExpense(record as ExpenseData);
+  }, []);
 
-  // Render data body with DataTable
-  const renderDataBody = () => {
-    if (error) {
-      return (
-        <div 
-          className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
-          data-testid="expense-requests-error-state"
-        >
-          <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
-            Error Loading Expense Requests
-          </div>
-          <div className="gba:text-gray-600 gba:mb-4">
-            {error}
-          </div>
-          <Button
-            variant="default"
-            onClick={() => window.location.reload()}
-            data-testid="expense-requests-retry-button"
-          >
-            Retry
-          </Button>
-        </div>
-      );
-    }
+  // ⚡ BEST PRACTICE: Handle close details
+  const handleCloseDetails = useCallback(() => {
+    setSelectedExpense(null);
+    setSelectedRowKeys([]);
+  }, []);
 
-    if (!expenses || expenses.length === 0 && !loading) {
-      return (
-        <div className="gba:text-center gba:p-5" data-testid="expense-requests-empty">
-          <p className="gba:text-muted-foreground">No expense requests found.</p>
-        </div>
-      );
-    }
-
-    if (loading) {
-      return (
-        <div className="gba:text-center gba:p-5" data-testid="expense-requests-loading">
-          <div className="gba:inline-block gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-gray-900"></div>
-          <p className="gba:mt-2 gba:text-muted-foreground">Loading expense requests...</p>
-        </div>
-      );
-    }
-
-    return (
-      <Card data-testid="expense-requests-table">
-        <CardContent className="gba:p-0">
-          {loading && (
-            <div className="gba:flex gba:justify-center gba:p-4">
-              <Spinner />
-            </div>
-          )}
-          
-          <div className="gba:overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="gba:border-b gba:bg-gray-50">
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Request Number</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Employee</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">SAP Number</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Title</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Status</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Department</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Total Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {expenses?.map((record) => (
-                  <TableRow 
-                    key={record.id}
-                    className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors"
-                    data-testid={`expense-request-row-${record.id}`}
-                  >
-                    <TableCell className="gba:py-4 gba:px-6">
-                      <button
-                        onClick={() => handleViewDetails(record)}
-                        className="gba:cursor-pointer gba:hover:bg-gray-100 gba:p-1 gba:rounded"
-                        data-testid={`request-number-${record.id}`}
-                      >
-                        {record.code}
-                      </button>
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6">{record.employee}</TableCell>
-                    <TableCell className="gba:py-4 gba:px-6">{record.sapNumber}</TableCell>
-                    <TableCell className="gba:py-4 gba:px-6">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="gba:max-w-[200px] gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap">
-                              {record.title}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{record.title}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6">
-                      {(() => {
-                        const { label, variant } = getExpenseRequestStatusConfig(record.status);
-                        return (
-                          <Badge variant={variant} data-testid={`status-badge-${record.status?.toLowerCase()}`}>
-                            {label}
-                          </Badge>
-                        );
-                      })()}
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6">{record.department}</TableCell>
-                    <TableCell className="gba:py-4 gba:px-6">{record.amount}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4">
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {totalItems > 0 
-                ? `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalItems)} of ${totalItems} expense requests`
-                : '0-0 of 0 expense requests'}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">Rows per page</p>
-                <select
-                  value={pageSize}
-                  onChange={(e) => handleTableChange(
-                    { current: 1, pageSize: Number(e.target.value) },
-                    {},
-                    {}
-                  )}
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                  data-testid="expense-requests-page-size-select"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-              <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
-                Page {currentPage} of {Math.max(1, Math.ceil(totalItems / pageSize))}
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <Button 
-                  variant="outline" 
-                  className="gba:h-8 gba:w-8 gba:p-0" 
-                  disabled={currentPage === 1}
-                  onClick={() => handleTableChange({ current: 1, pageSize }, {}, {})}
-                  data-testid="expense-requests-first-page"
-                >
-                  ⟨⟨
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="gba:h-8 gba:w-8 gba:p-0" 
-                  disabled={currentPage === 1}
-                  onClick={() => handleTableChange({ current: currentPage - 1, pageSize }, {}, {})}
-                  data-testid="expense-requests-prev-page"
-                >
-                  ⟨
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="gba:h-8 gba:w-8 gba:p-0" 
-                  disabled={currentPage === Math.max(1, Math.ceil(totalItems / pageSize))}
-                  onClick={() => handleTableChange({ current: currentPage + 1, pageSize }, {}, {})}
-                  data-testid="expense-requests-next-page"
-                >
-                  ⟩
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="gba:h-8 gba:w-8 gba:p-0" 
-                  disabled={currentPage === Math.max(1, Math.ceil(totalItems / pageSize))}
-                  onClick={() => handleTableChange({ current: Math.max(1, Math.ceil(totalItems / pageSize)), pageSize }, {}, {})}
-                  data-testid="expense-requests-last-page"
-                >
-                  ⟩⟩
-                </Button>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  // Create proper filter groups using status config mappings
-  const filterGroups = [
+  // ⚡ BEST PRACTICE: Create filter groups
+  const filterGroups: DataFilterGroup[] = useMemo(() => [
     {
       id: 'status',
-      title: 'Status',
-      filters: AVAILABLE_FILTER_STATUSES.map(status => {
-        const { label } = getExpenseRequestStatusConfig(status);
-        return {
-          id: status,
-          label: label,
-          selected: hookStatusFilter === status
-        };
-      })
+      title: getTranslationFromI18nKeyAndLabel('expense.request.filter.status', 'Status'),
+      filters: [
+        { id: '', label: getTranslationFromI18nKeyAndLabel('expense.request.filter.all', 'All'), selected: !statusFilter },
+        { id: 'CREATED', label: getTranslationFromI18nKeyAndLabel('expense.request.status.created', 'Created'), selected: statusFilter === 'CREATED' },
+        { id: 'SUBMITTED', label: getTranslationFromI18nKeyAndLabel('expense.request.status.submitted', 'Submitted'), selected: statusFilter === 'SUBMITTED' },
+        { id: 'APPROVED', label: getTranslationFromI18nKeyAndLabel('expense.request.status.approved', 'Approved'), selected: statusFilter === 'APPROVED' },
+        { id: 'REJECTED', label: getTranslationFromI18nKeyAndLabel('expense.request.status.rejected', 'Rejected'), selected: statusFilter === 'REJECTED' },
+        { id: 'BOOKED', label: getTranslationFromI18nKeyAndLabel('expense.request.status.booked', 'Booked'), selected: statusFilter === 'BOOKED' },
+      ]
     },
     {
-      id: 'department', 
-      title: 'Department',
-      filters: (departments || []).filter((dept): dept is string => typeof dept === 'string' && dept.length > 0).map(dept => ({
-        id: dept,
-        label: dept,
-        selected: hookDepartmentFilter === dept
-      }))
-    }
-  ];
+      id: 'department',
+      title: getTranslationFromI18nKeyAndLabel('expense.request.filter.department', 'Department'),
+      filters: [
+        { id: '', label: getTranslationFromI18nKeyAndLabel('expense.request.filter.all', 'All'), selected: !departmentFilter },
+        // Add department options here if available
+      ]
+    },
+  ], [statusFilter, departmentFilter]);
 
-  // Handle filter changes like leads table
-  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    // Status filters - check if it's one of our available status values
-    if (AVAILABLE_FILTER_STATUSES.includes(filterId as ExpenseStatus)) {
-      handleStatusFilter(selected ? filterId : '');
-    } 
-    // Department filters (any other filterId that's not a status)
-    else if (departments?.includes(filterId)) {
-      handleDepartmentFilter(selected ? filterId : '');
-    }
-  }, [departments, handleStatusFilter, handleDepartmentFilter]);
+  // ⚡ BEST PRACTICE: Create filter label map
+  const filterLabelMap = useMemo(() => ({
+    status: getTranslationFromI18nKeyAndLabel('expense.request.filter.status', 'Status'),
+    department: getTranslationFromI18nKeyAndLabel('expense.request.filter.department', 'Department'),
+  }), []);
+
+  // ⚡ BEST PRACTICE: Create filter getters and setters
+  const getFilters = useCallback((filtersToApply?: string[]) => {
+    const filters: Record<string, any> = {};
+    if (statusFilter) filters.status = statusFilter;
+    if (departmentFilter) filters.department = departmentFilter;
+    return filters;
+  }, [statusFilter, departmentFilter]);
+
+  const setFilters = useCallback((filters: string[]) => {
+    // Handle filter updates if needed
+  }, []);
+
+  // ⚡ BEST PRACTICE: Handle table change
+  const handleEnhancedTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
+    handleTableChange(pagination, _filters, sorter);
+  }, [handleTableChange]);
+
+  // ⚡ BEST PRACTICE: Create column helper function
+  const createColumn = (key: string, title: string, render: (text: any, record: any) => React.ReactNode, options?: any) => ({
+    key,
+    title,
+    dataIndex: key,
+    render,
+    ...options
+  });
+
+  // ⚡ BEST PRACTICE: Show loading state
+  if (loading && expenses.length === 0) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  // ⚡ BEST PRACTICE: Show error state
+  if (error) {
+    return (
+      <div className="gba:p-4">
+        <Alert
+          variant="destructive"
+          data-testid="expense-requests-error"
+        >
+          <div className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('expense.request.error.title', 'Error Loading Data')}
+          </div>
+          <div className="gba:text-sm">{error}</div>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <DataContainer
       dataControllerProps={{
         search: searchText,
         setSearch: handleSearchChange,
-        placeholder: 'Search by request number, employee, title...',
         filter: [],
-        setFilter: () => { /* Placeholder for DataContainer prop */ },
-        listTitle: 'Expense Requests',
-        listAmount: totalItems,
-        debounceDelay: 300,
+        setFilter: () => {},
       }}
       dataFilterProps={{
         filterGroups: filterGroups,
-        onFilterChange: handleFilterChange,
+        onFilterChange: (filterId: string, selected: boolean) => {
+          if (filterId === '') {
+            // Handle "All" selection
+            if (selected) {
+              handleStatusFilter('');
+              handleDepartmentFilter('');
+            }
+          } else {
+            // Handle specific filter selection
+            if (filterId === 'CREATED' || filterId === 'SUBMITTED' || filterId === 'APPROVED' || filterId === 'REJECTED' || filterId === 'BOOKED') {
+              handleStatusFilter(selected ? filterId : '');
+            } else {
+              handleDepartmentFilter(selected ? filterId : '');
+            }
+          }
+        },
       }}
-      dataBody={renderDataBody()}
-      contentBackground="white"
-      dataDetails={selectedExpense ? {
-        title: 'Expense Request Details',
-        content: (
-          <ExpenseDetailDrawer
-            visible={true}
-            onClose={() => {
-              setSelectedExpense(null);
-              setSelectedRowKeys([]);
-            }}
-            expenseId={selectedExpense.id}
-            accessToken={accessToken}
-          />
-        ),
-      } : undefined}
-      onDetailsPanelClose={() => {
-        setSelectedExpense(null);
-        setSelectedRowKeys([]);
-      }}
-      data-testid="expense-requests-container"
+      dataBody={
+        <DataTable
+          rowKey="id"
+          dataSource={expenses}
+          columns={[
+            {
+              title: '',
+              key: 'actions',
+              align: 'center',
+              width: 60,
+              render: (_: any, record: any) => {
+                const flowData = [
+                  {
+                    category: 'Actions',
+                    key: 'view-expense-request',
+                    label: 'View Expense Request Details',
+                    onClick: () => {
+                      setSelectedExpense(record);
+                    }
+                  }
+                ];
+
+                return (
+                  <div className="gba:flex gba:justify-center gba:items-center gba:w-full gba:h-full">
+                    <ActionButton
+                      onClick={(e) => e.stopPropagation()}
+                      flowData={flowData}
+                      data-testid={`actions-${record.id}`}
+                      size="md"
+                    />
+                  </div>
+                );
+              }
+            },
+            createColumn('employee', 'Employee', (text: any, record: any) => {
+              const employee = record.employee || 'N/A';
+              return <div data-testid="expense-request-employee-cell">{employee}</div>;
+            }),
+            createColumn('employeeCode', 'Employee Code', (text: any, record: any) => {
+              const employeeCode = record.employeeCode || 'N/A';
+              return <div data-testid="expense-request-employee-code-cell">{employeeCode}</div>;
+            }),
+            createColumn('sapNumber', 'SAP Number', (text: any, record: any) => {
+              const sapNumber = record.sapNumber || 'N/A';
+              return <div data-testid="expense-request-sap-number-cell">{sapNumber}</div>;
+            }),
+            createColumn('code', 'Request Number', (text: any, record: any) => {
+              const code = record.code || 'N/A';
+              return <div data-testid="expense-request-code-cell">{code}</div>;
+            }),
+            createColumn('title', 'Title', (text: any, record: any) => {
+              const title = record.title || 'N/A';
+              return <div style={{ fontWeight: 'normal' }} data-testid="expense-request-title-cell">{title}</div>;
+            }),
+            createColumn('startDate', 'Start Date', (text: any, record: any) => {
+              const startDate = record.startDate;
+              const formattedDate = startDate && startDate !== 'N/A' ? formatDate(startDate, 'date.short') : 'N/A';
+              return <div data-testid="expense-request-start-date-cell">{formattedDate}</div>;
+            }),
+            createColumn('endDate', 'End Date', (text: any, record: any) => {
+              const endDate = record.endDate;
+              const formattedDate = endDate && endDate !== 'N/A' ? formatDate(endDate, 'date.short') : 'N/A';
+              return <div data-testid="expense-request-end-date-cell">{formattedDate}</div>;
+            }),
+            createColumn('creationDate', 'Creation Date', (text: any, record: any) => {
+              const creationDate = record.creationDate;
+              const formattedDate = creationDate && creationDate !== 'N/A' ? formatDate(creationDate, 'date.short') : 'N/A';
+              return <div data-testid="expense-request-creation-date-cell">{formattedDate}</div>;
+            }),
+            createColumn('status', 'Status', (text: any, record: any) => {
+              const statusValue = record.status || 'N/A';
+              const { label, type } = getExpenseRequestStatusDisplay(statusValue);
+              return <Pill label={label} type={type} className="gba:text-center" data-testid="expense-request-status-cell" />;
+            }),
+            createColumn('totalRemainingAmount', 'Remaining Amount', (text: any, record: any) => {
+              const remainingAmount = record.totalRemainingAmount || 0;
+              const currencyCode = record.currency || '';
+              
+              return (
+                <span data-testid="expense-request-remaining-amount-cell" className="gba:text-right">
+                  {remainingAmount > 0 ? formatNumberFunction(String(remainingAmount)) : '-'}
+                </span>
+              );
+            }, { 
+              onCell: () => ({ className: 'gba:text-right' }), 
+              title: <div className="gba:text-right">Remaining Amount</div>
+            }),
+            createColumn('totalAmount', 'Total Amount', (text: any, record: any) => {
+              const totalAmount = record.totalAmount || '-';
+              return (
+                <span data-testid="expense-request-total-amount-cell" className="gba:text-right">
+                  {formatNumberFunction(String(totalAmount))} {record.currency}
+                </span>
+              );
+            }, { 
+              onCell: () => ({ className: 'gba:text-right' }), 
+              title: <div className="gba:text-right">Total Amount</div>
+            }),
+          ]}
+          rowSelection={{
+            selectedRowKeys,
+            onChange: handleRowSelection,
+          }}
+          onRow={(record) => ({
+            onClick: () => handleRowClick(record),
+            style: { cursor: 'pointer' }
+          })}
+          pagination={{
+            current: currentPage,
+            pageSize: pageSize,
+            total: totalItems,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
+          }}
+          onChange={handleEnhancedTableChange}
+          loading={loading}
+          data-testid="expense-requests-data-table"
+        />
+      }
+      dataDetails={
+        selectedExpense ? {
+          title: getTranslationFromI18nKeyAndLabel('expense.request.details.title', 'Expense Request Details'),
+          content: (
+            <div className="gba:p-4">
+              <div className="gba:mb-4">
+                <h3 className="gba:text-lg gba:font-semibold">{selectedExpense.title}</h3>
+                <p className="gba:text-sm gba:text-gray-600">{selectedExpense.code}</p>
+              </div>
+              <div className="gba:space-y-2">
+                <div className="gba:flex gba:justify-between">
+                  <span className="gba:font-medium">Employee:</span>
+                  <span>{selectedExpense.employee}</span>
+                </div>
+                <div className="gba:flex gba:justify-between">
+                  <span className="gba:font-medium">Employee Code:</span>
+                  <span>{selectedExpense.employeeCode}</span>
+                </div>
+                <div className="gba:flex gba:justify-between">
+                  <span className="gba:font-medium">SAP Number:</span>
+                  <span>{selectedExpense.sapNumber}</span>
+                </div>
+                <div className="gba:flex gba:justify-between">
+                  <span className="gba:font-medium">Request Number:</span>
+                  <span>{selectedExpense.code}</span>
+                </div>
+                <div className="gba:flex gba:justify-between">
+                  <span className="gba:font-medium">Title:</span>
+                  <span>{selectedExpense.title}</span>
+                </div>
+                <div className="gba:flex gba:justify-between">
+                  <span className="gba:font-medium">Start Date:</span>
+                  <span>{selectedExpense.startDate && selectedExpense.startDate !== 'N/A' ? formatDate(selectedExpense.startDate, 'date.long') : 'N/A'}</span>
+                </div>
+                <div className="gba:flex gba:justify-between">
+                  <span className="gba:font-medium">End Date:</span>
+                  <span>{selectedExpense.endDate && selectedExpense.endDate !== 'N/A' ? formatDate(selectedExpense.endDate, 'date.long') : 'N/A'}</span>
+                </div>
+                <div className="gba:flex gba:justify-between">
+                  <span className="gba:font-medium">Creation Date:</span>
+                  <span>{selectedExpense.creationDate && selectedExpense.creationDate !== 'N/A' ? formatDate(selectedExpense.creationDate, 'date.long') : 'N/A'}</span>
+                </div>
+                <div className="gba:flex gba:justify-between">
+                  <span className="gba:font-medium">Status:</span>
+                  <span>{selectedExpense.status}</span>
+                </div>
+                <div className="gba:flex gba:justify-between">
+                  <span className="gba:font-medium">Remaining Amount:</span>
+                  <span>
+                    {(() => {
+                      const remainingAmount = Number(selectedExpense.totalRemainingAmount) || 0;
+                      const currencyCode = selectedExpense.currency || '';
+                      return remainingAmount > 0 ? `${formatNumberFunction(String(remainingAmount))} ${currencyCode}` : '-';
+                    })()}
+                  </span>
+                </div>
+                <div className="gba:flex gba:justify-between">
+                  <span className="gba:font-medium">Total Amount:</span>
+                  <span>{formatNumberFunction(String(selectedExpense.totalAmount))}</span>
+                </div>
+              </div>
+            </div>
+          ),
+          onClose: handleCloseDetails,
+        } : undefined
+      }
     />
   );
 };
