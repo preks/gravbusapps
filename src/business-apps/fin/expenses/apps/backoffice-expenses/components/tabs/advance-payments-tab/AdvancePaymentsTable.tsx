@@ -297,16 +297,22 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 {formatNumberFunction(String(totalAmount ?? '0'))} {currency}
               </span>
             );
-          }, { onCell: () => ({ className: 'gba:text-right' }) }),
+          }, { 
+            onCell: () => ({ className: 'gba:text-right' }), 
+            title: <div className="gba:text-right">Amount</div>
+          }),
           createColumn('amount', 'Advance', (text: any, record: any) => {
             const advanceAmount = record.amount || 0;
-            const currency = record.currency?.code || '';
+            const currency = record.currency?.code || record.expensePlan?.currency?.code || '';
             return (
               <span data-testid="advance-payment-advance-cell" className="gba:text-right">
                 {formatNumberFunction(String(advanceAmount ?? '0'))} {currency}
               </span>
             );
-          }, { onCell: () => ({ className: 'gba:text-right' }) }),
+          }, { 
+            onCell: () => ({ className: 'gba:text-right' }), 
+            title: <div className="gba:text-right">Advance</div>
+          }),
           createColumn('paymentMethod', 'Payment Method', (text: any, record: any) => {
             const paymentMethod = record.paymentMethod;
             let translatedMethod = 'N/A';
