@@ -8,9 +8,6 @@ import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/commo
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { PiArrowRight, PiCalendarDuotone, PiClock, PiPath } from 'react-icons/pi';
 import dayjs from 'dayjs';
-import { getExpenseRequestStatusDisplay } from '../../../../personal-expenses/utils';
-
-const { Text } = Typography;
 
 export interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
   selectedItem: any | null;
@@ -213,59 +210,95 @@ export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
     );
   };
 
-  const renderRequestDetails = () => (
-    <div className="gba:p-4 gba:relative gba:mb-6">
-      {/* Header: Title, Code, Status Pill */}
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
-        <div>
-          <Typography.Title level={4} className="gba:mb-1">
-            {selectedItem.expensePlan?.expenseRequest?.title || 'Expense Request'}
-          </Typography.Title>
-          <Typography.Text type="secondary">
-            {selectedItem.expensePlan?.expenseRequest?.code || 'N/A'}
-          </Typography.Text>
-        </div>
-        <Pill
-          type={getAdvancePaymentStatusDisplay(selectedItem.status).type}
-          label={getAdvancePaymentStatusDisplay(selectedItem.status).label}
-          className="gba:text-base"
-          data-testid="request-status-pill"
-        />
-      </div>
+  const renderRequestDetails = () => {
+    const expenseRequests = selectedItem.expensePlan?.expenseRequest;
+    const request = Array.isArray(expenseRequests) && expenseRequests.length > 0 ? expenseRequests[0] : null;
+    if (!request?.id) return null;
 
-      {/* Details Section */}
-      <Descriptions size="small" column={1}>
-        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('advance.payment.reporter', 'Reporter')}>
-          {selectedItem.employeeFullName || 'N/A'}
-        </Descriptions.Item>
-        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('advance.payment.status', 'Status')}>
-          {getAdvancePaymentStatusDisplay(selectedItem.status).label}
-        </Descriptions.Item>
-        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('advance.payment.amount', 'Amount')}>
-          <span style={{ fontWeight: 'bold' }}>
-            {formatNumberFunction(String(selectedItem.expensePlan?.totalAmount || '0'))} {selectedItem.currency?.code || selectedItem.expensePlan?.currency?.code || ''}
-          </span>
-        </Descriptions.Item>
-        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('advance.payment.advance', 'Advance')}>
-          <span style={{ fontWeight: 'bold' }}>
-            {formatNumberFunction(String(selectedItem.amount || '0'))} {selectedItem.currency?.code || ''}
-          </span>
-        </Descriptions.Item>
-        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('advance.payment.paymentMethod', 'Payment Method')}>
-          {selectedItem.paymentMethod === 'DIRECT_DEPOSIT' 
-            ? getTranslationFromI18nKeyAndLabel(
-                'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-                'Direct Deposit'
-              )
-            : getTranslationFromI18nKeyAndLabel(
-                'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-                'Cash Payment'
-              )
-          }
-        </Descriptions.Item>
-      </Descriptions>
-    </div>
-  );
+    return (
+      <div className="gba:p-4 gba:relative gba:mb-6">
+        {/* Header: Title, Code, Status Pill */}
+        <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+          <div>
+            <Typography.Title level={4} className="gba:mb-1">
+              {request.title || 'Expense Request'}
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              {request.code || 'N/A'}
+            </Typography.Text>
+          </div>
+          <Pill
+            type={getAdvancePaymentStatusDisplay(request.status).type}
+            label={getAdvancePaymentStatusDisplay(request.status).label}
+            className="gba:text-base"
+            data-testid="request-status-pill"
+          />
+        </div>
+
+        {/* Description */}
+        {request.description && (
+          <Typography.Text className="gba:block gba:mb-4">
+            {request.description}
+          </Typography.Text>
+        )}
+
+        {/* Details Section */}
+        <Descriptions size="small" column={1}>
+          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.requester', 'Requester')}>
+            {selectedItem.employeeFullName || 'N/A'}
+          </Descriptions.Item>
+          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.status', 'Status')}>
+            {getAdvancePaymentStatusDisplay(request.status).label}
+          </Descriptions.Item>
+          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.amount', 'Request Amount')}>
+            <span style={{ fontWeight: 'bold' }}>
+              {formatNumberFunction(String(request.totalAmount || '0'))} {request.currency?.code || selectedItem.currency?.code || ''}
+            </span>
+          </Descriptions.Item>
+          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.type', 'Request Type')}>
+            {request.requestType?.value || request.requestType || 'N/A'}
+          </Descriptions.Item>
+          {request.costCenter && (
+            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.costCenter', 'Cost Center')}>
+              {request.costCenter.name || request.costCenter}
+            </Descriptions.Item>
+          )}
+          {request.project && (
+            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.project', 'Project')}>
+              {request.project.name || request.project}
+            </Descriptions.Item>
+          )}
+          {request.startDate && (
+            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.startDate', 'Start Date')}>
+              {dayjs(request.startDate).format('DD.MM.YYYY')}
+            </Descriptions.Item>
+          )}
+          {request.endDate && (
+            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.endDate', 'End Date')}>
+              {dayjs(request.endDate).format('DD.MM.YYYY')}
+            </Descriptions.Item>
+          )}
+        </Descriptions>
+
+        <Divider />
+        
+        <div className="gba:flex gba:justify-end gba:mt-4">
+          <Button
+            type="primary"
+            icon={<PiArrowRight />}
+            onClick={() => {
+              // Navigate to the expense request record page
+              const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', { expenseRequestId: request.id });
+              navigateTo(url);
+            }}
+            data-testid="view-expense-request-details-button"
+          >
+            {getTranslationFromI18nKeyAndLabel('expense.request.details.view', 'View Full Details')}
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   const renderContent = () => {
     switch (type) {

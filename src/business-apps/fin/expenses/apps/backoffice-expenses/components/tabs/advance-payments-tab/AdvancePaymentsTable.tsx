@@ -217,7 +217,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             align: 'center',
             width: 60,
             render: (_: any, record: any) => {
-              const hasExpenseRequest = record.expensePlan?.expenseRequest?.id;
+              const hasExpenseRequest = record.expensePlan && 
+                Array.isArray(record.expensePlan.expenseRequest) && 
+                record.expensePlan.expenseRequest.length > 0 && 
+                record.expensePlan.expenseRequest[0]?.id;
               
               const flowData = [
                 {
