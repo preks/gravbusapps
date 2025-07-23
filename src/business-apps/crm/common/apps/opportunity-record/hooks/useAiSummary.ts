@@ -50,12 +50,11 @@ export function useAiSummary(opportunityId: string, accessToken: string): UseAiS
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
 
-        let inputData = `
-        Opportunity Info: ${JSON.stringify(opportunity)}
-        Activities: ${JSON.stringify(sortedActivities)}
-        Notes: ${JSON.stringify(sortedNotes)}
-        Tasks: ${JSON.stringify(sortedTasks)}
-        `;
+        let inputData = 
+`Opportunity Info: ${JSON.stringify(opportunity)}
+Activities: ${JSON.stringify(sortedActivities)}
+Notes: ${JSON.stringify(sortedNotes)}
+Tasks: ${JSON.stringify(sortedTasks)}`;
     
         return inputData;
     }
