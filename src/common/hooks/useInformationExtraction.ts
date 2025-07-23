@@ -33,6 +33,7 @@ export default function useInformationExtraction<T>(
   taskDescription: string,
   responseModel: z.ZodType<T>,
   generateInputData: () => Promise<string>,
+  accessToken: string,
   llmModel: AvailableLlmModels = "gpt-4.1",
 ): UseInformationExtractionReturn<T> {
   const [state, setState] = useState<InformationExtractionState<T> | null>(null);
@@ -57,6 +58,9 @@ export default function useInformationExtraction<T>(
       const res = await fetch(endpointUrl, {
         method: "POST",
         body: form,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
       if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`);

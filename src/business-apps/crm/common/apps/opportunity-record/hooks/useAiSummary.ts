@@ -60,5 +60,5 @@ export function useAiSummary(opportunityId: string, accessToken: string): UseAiS
         return inputData;
     }
 
-    return useInformationExtraction(taskDescription, summarySchema, generateInputData);
+    return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken);
 }

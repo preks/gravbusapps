@@ -13,7 +13,7 @@ const summarySchema = z.object({
 type SummarySchema = z.infer<typeof summarySchema>
 type UseAiTranslationReturn = UseInformationExtractionReturn<SummarySchema>
 
-export function useAiTranslation(targetLanguage: string, inputTexts: string[]): UseAiTranslationReturn {
+export function useAiTranslation(targetLanguage: string, inputTexts: string[], accessToken: string): UseAiTranslationReturn {
     const generateInputData = async () => {
         return JSON.stringify({
             targetLanguage,
@@ -21,5 +21,5 @@ export function useAiTranslation(targetLanguage: string, inputTexts: string[]): 
         })
     }
     
-    return useInformationExtraction(taskDescription, summarySchema, generateInputData);
+    return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken);
 }
