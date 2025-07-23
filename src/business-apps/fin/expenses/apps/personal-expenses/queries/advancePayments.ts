@@ -46,6 +46,9 @@ export const buildQueryParameters = (filterState: FilterState): string => {
     parameters.push('$advanceMin: numeric, $advanceMax: numeric');
   }
   
+  // Note: AdvancePayment doesn't support dynamic orderBy, using hardcoded sorting
+  // parameters.push('$orderBy: [AdvancePaymentOrderBy!]');
+  
   return parameters.join(', ');
 };
 

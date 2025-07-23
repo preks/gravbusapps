@@ -19,6 +19,36 @@ export interface UseAdvancePaymentFiltersReturn {
   filterLabelMap: Record<string, string>;
 }
 
+// Move these outside the component to make them truly stable
+const AVAILABLE_FILTER_STATUSES: ExpenseStatus[] = [
+  ExpenseStatus.PREPARED,
+  ExpenseStatus.CREATED,
+  ExpenseStatus.ASSIGNED,
+  ExpenseStatus.PENDING,
+  ExpenseStatus.APPROVED,
+  ExpenseStatus.VERIFIED,
+  ExpenseStatus.BOOKED,
+  ExpenseStatus.TRANSFERRED,
+  ExpenseStatus.PAID,
+  ExpenseStatus.REJECTED,
+  ExpenseStatus.CLOSED,
+];
+
+// Map of status to display label - using exact same labels as the table
+const STATUS_DISPLAY_MAP: Partial<Record<ExpenseStatus, string>> = {
+  [ExpenseStatus.PREPARED]: 'Prepared',
+  [ExpenseStatus.CREATED]: 'Draft (Created)',
+  [ExpenseStatus.ASSIGNED]: 'Assigned',
+  [ExpenseStatus.PENDING]: 'In Approval (Pending)',
+  [ExpenseStatus.APPROVED]: 'In Transit (Approved)',
+  [ExpenseStatus.VERIFIED]: 'In Transit (Verified)',
+  [ExpenseStatus.BOOKED]: 'In Transit (Booked)',
+  [ExpenseStatus.TRANSFERRED]: 'In Transit (Transferred)',
+  [ExpenseStatus.PAID]: 'Paid',
+  [ExpenseStatus.REJECTED]: 'Revision Required (Rejected)',
+  [ExpenseStatus.CLOSED]: 'Closed',
+};
+
 export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string[]>([ExpenseStatus.PREPARED, ExpenseStatus.PENDING]);
@@ -45,44 +75,13 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     // Note: Amount and advance ranges are now handled by custom components
   }, []);
 
-  // Define the statuses that should be used for filtering with the correct mappings
-  // These should match the actual status values in the database
-  const availableFilterStatuses: ExpenseStatus[] = [
-    ExpenseStatus.PREPARED,
-    ExpenseStatus.CREATED,
-    ExpenseStatus.ASSIGNED,
-    ExpenseStatus.PENDING,
-    ExpenseStatus.APPROVED,
-    ExpenseStatus.VERIFIED,
-    ExpenseStatus.BOOKED,
-    ExpenseStatus.TRANSFERRED,
-    ExpenseStatus.PAID,
-    ExpenseStatus.REJECTED,
-    ExpenseStatus.CLOSED,
-  ];
-  
-  // Map of status to display label - using exact same labels as the table
-  const statusDisplayMap: Partial<Record<ExpenseStatus, string>> = {
-    [ExpenseStatus.PREPARED]: 'Prepared',
-    [ExpenseStatus.CREATED]: 'Draft (Created)',
-    [ExpenseStatus.ASSIGNED]: 'Assigned',
-    [ExpenseStatus.PENDING]: 'In Approval (Pending)',
-    [ExpenseStatus.APPROVED]: 'In Transit (Approved)',
-    [ExpenseStatus.VERIFIED]: 'In Transit (Verified)',
-    [ExpenseStatus.BOOKED]: 'In Transit (Booked)',
-    [ExpenseStatus.TRANSFERRED]: 'In Transit (Transferred)',
-    [ExpenseStatus.PAID]: 'Paid',
-    [ExpenseStatus.REJECTED]: 'Revision Required (Rejected)',
-    [ExpenseStatus.CLOSED]: 'Closed',
-  };
-
   // Create a mapping of filter IDs to their display labels
   const filterLabelMap = useMemo(() => {
     const map: Record<string, string> = {};
     
     // Status filters - map both filter IDs and raw status values
-    availableFilterStatuses.forEach((status) => {
-      const displayLabel = statusDisplayMap[status] || getAdvancePaymentStatusDisplay(status).label;
+    AVAILABLE_FILTER_STATUSES.forEach((status) => {
+      const displayLabel = STATUS_DISPLAY_MAP[status] || getAdvancePaymentStatusDisplay(status).label;
       // Map filter IDs (for DataFilter component)
       map[`status-${status}`] = displayLabel;
       // Map raw status values (for DataController pills)
@@ -90,7 +89,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     });
     
     return map;
-  }, []); // Empty dependency array since availableFilterStatuses is now stable
+  }, []); // Empty dependency array since AVAILABLE_FILTER_STATUSES and STATUS_DISPLAY_MAP are now truly stable
 
   // Create the custom components for range filters
   const amountRangeComponent = useMemo(() => (
@@ -115,7 +114,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
 
   // Create filter groups for the DataFilter component
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
-    const statusItems: DataFilter[] = availableFilterStatuses.map(
+    const statusItems: DataFilter[] = AVAILABLE_FILTER_STATUSES.map(
       (status) => ({
         id: `status-${status}`,
         label: filterLabelMap[`status-${status}`],
