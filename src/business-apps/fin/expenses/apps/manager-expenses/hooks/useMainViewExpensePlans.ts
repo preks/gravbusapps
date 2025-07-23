@@ -115,14 +115,17 @@ export const useMainViewExpensePlans = ({
   const [statsLoading, setStatsLoading] = useState<boolean>(false);
   const [statsError, setStatsError] = useState<Error | null>(null);
 
-  const fetchPlans = useCallback(async (forceFilter?: string[] | null) => {
+  const fetchPlans = useCallback(async (forceFilter?: string[] | null, forceCurrencyFilter?: string | null) => {
     // Use forced filter or current filter - this prevents stale closure issues
     const activeFilter = forceFilter !== undefined ? forceFilter : currentStatusFilter;
+    const activeCurrencyFilter = forceCurrencyFilter !== undefined ? forceCurrencyFilter : currentCurrencyFilter;
     const timestamp = new Date().getTime();
     console.log(`📊 FETCHPLANS START HOOK-${hookId}:`, { 
       'activeFilter (will be used)': activeFilter, 
       'forceFilter (passed in)': forceFilter,
       'currentStatusFilter (from props)': currentStatusFilter,
+      'currentCurrencyFilter (from props)': currentCurrencyFilter,
+      'activeCurrencyFilter (will be used)': activeCurrencyFilter,
       'pageSize': pageSize
     });
     
@@ -148,7 +151,7 @@ export const useMainViewExpensePlans = ({
 
       
       // Build the where clause for filtering
-      const whereClause: any = {
+      const whereClause: Record<string, any> = {
         employee: {
           employeePosition: {
             supervisorEmployeeId: { _eq: managerId }
@@ -156,6 +159,11 @@ export const useMainViewExpensePlans = ({
         },
         isDeleted: { _eq: false }
       };
+
+      // Add currency filter if specified
+      if (activeCurrencyFilter) {
+        whereClause.currencyRef = { _eq: `Currency:v1:${activeCurrencyFilter}` };
+      }
 
       // Add search functionality
       if (searchTerm && searchTerm.trim() !== '') {
@@ -185,14 +193,6 @@ export const useMainViewExpensePlans = ({
         console.log(`❌ NO FILTER APPLIED HOOK-${hookId} - activeFilter:`, activeFilter, 'length:', activeFilter?.length);
       }
       
-      // Add currency filter if provided
-      if (currentCurrencyFilter) {
-        console.log(`💰 APPLYING CURRENCY FILTER HOOK-${hookId}:`, currentCurrencyFilter);
-        // Format the currency reference for the database query (Currency:v1:CODE format)
-        const formattedCurrencyRef = `Currency:v1:${currentCurrencyFilter}`;
-        whereClause.currencyRef = { _eq: formattedCurrencyRef };
-      }
-
       const variables = {
         where: whereClause,
         limit: pageSize,
@@ -286,7 +286,7 @@ export const useMainViewExpensePlans = ({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, managerId, currentPage, pageSize, searchTerm, currentStatusFilter, employeeFilter, hookId]);
+  }, [accessToken, managerId, currentPage, pageSize, searchTerm, currentStatusFilter, employeeFilter, hookId, currentCurrencyFilter]);
 
   useEffect(() => {
     console.log(`🔥🔥🔥 USEEFFECT TRIGGERED HOOK-${hookId}:`, {
@@ -304,17 +304,21 @@ export const useMainViewExpensePlans = ({
     }
   }, [fetchPlans, statisticsOnly, hookId, currentStatusFilter]);
 
-  const fetchPlanStatistics = useCallback(async () => {
-    if (!accessToken || !managerId) {
-      setStatsError(new Error('Missing required parameters'));
-      setStatsLoading(false);
+  const fetchPlanStatistics = useCallback(async (forceCurrencyFilter?: string | null) => {
+    if (!accessToken) {
+      setStatsError(new Error('Access token not available for statistics.'));
       return;
     }
-
+    
+    // Use forced currency filter or current filter
+    const activeCurrencyFilter = forceCurrencyFilter !== undefined ? forceCurrencyFilter : currentCurrencyFilter;
+    
     setStatsLoading(true);
     setStatsError(null);
-
     try {
+      const currencyRefValue = activeCurrencyFilter ? `Currency:v1:${activeCurrencyFilter}` : null;
+      console.log(`Fetching expense plan statistics with currency filter: ${activeCurrencyFilter || 'none'}`);      
+      
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
@@ -323,7 +327,10 @@ export const useMainViewExpensePlans = ({
         },
         body: JSON.stringify({
           query: GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS,
-          variables: { managerId }
+          variables: { 
+            managerId,
+            currencyRef: currencyRefValue
+          }
         })
       });
       const result = await response.json();
@@ -352,9 +359,9 @@ export const useMainViewExpensePlans = ({
 
   useEffect(() => {
     const timestamp = new Date().getTime();
-    console.log(`🔥 [${timestamp}] STATISTICS FETCH HOOK-${hookId}: Calling fetchPlanStatistics() - statisticsOnly:`, statisticsOnly);
+    console.log(`🔥 [${timestamp}] STATISTICS FETCH HOOK-${hookId}: Calling fetchPlanStatistics() - statisticsOnly:`, statisticsOnly, 'with currency filter:', currentCurrencyFilter);
     fetchPlanStatistics();
-  }, [fetchPlanStatistics, statisticsOnly, hookId]);
+  }, [fetchPlanStatistics, statisticsOnly, currentCurrencyFilter, hookId]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -391,8 +398,8 @@ export const useMainViewExpensePlans = ({
       }
 
       message.success('Expense plan approved successfully');
-      fetchPlans(currentStatusFilter); // Pass current filter to refresh with same filter
-      fetchPlanStatistics();
+      fetchPlans(currentStatusFilter, currentCurrencyFilter); // Pass current filters to refresh with same filters
+      fetchPlanStatistics(currentCurrencyFilter);
     } catch (err) {
       console.error('Error approving expense plan:', err);
       message.error('Failed to approve expense plan');
@@ -423,8 +430,8 @@ export const useMainViewExpensePlans = ({
       });
 
       message.success('Expense plan rejected successfully');
-      fetchPlans(currentStatusFilter); // Pass current filter to refresh with same filter
-      fetchPlanStatistics();
+      fetchPlans(currentStatusFilter, currentCurrencyFilter); // Pass current filters to refresh with same filters
+      fetchPlanStatistics(currentCurrencyFilter);
     } catch (err) {
       console.error('Error rejecting expense plan:', err);
       message.error('Failed to reject expense plan');

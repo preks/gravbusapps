@@ -67,6 +67,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     console.log('ExpenseRequestsTable useEffect triggered');
     console.log('Current selectedFilters:', selectedFilters);
     console.log('Current searchText:', searchText);
+    console.log('Current currencyFilter:', currencyFilter);
     const filters = getFilters();
     console.log('getFilters() result:', filters);
     fetchRequests(
@@ -75,9 +76,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       pageSize,
       'requestDate:desc', // Default sort by request date, newest first
       filters.status || [], // status filter - now an array
-      filters.requestDateStart
+      filters.requestDateStart,
+      currencyFilter // Pass currency filter to fetch requests
     );
-  }, [searchText, currentPage, pageSize, selectedFilters, fetchRequests, getFilters]);
+  }, [searchText, currentPage, pageSize, selectedFilters, currencyFilter, fetchRequests, getFilters]);
 
   // Handle search changes
   const handleSearchChange = useCallback((value: string) => {
@@ -403,9 +405,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       pageSize,
       undefined, // sortBy
       filters.status || [], // status filter - now an array
-      filters.requestDateStart
+      filters.requestDateStart,
+      currencyFilter // Pass currency filter to fetch requests
     );
-  }, [selectedFilters, searchText, currentPage, pageSize, getFilters, fetchRequests]);
+  }, [selectedFilters, searchText, currentPage, pageSize, currencyFilter, getFilters, fetchRequests]);
 
   return (
     <DataContainer

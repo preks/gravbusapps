@@ -138,18 +138,21 @@ export const useMainViewAdvancePayments = ({
       });
     }
 
-    // Add status filter condition if statusFilter is provided
+    // Add status filter if provided
     if (currentStatusFilter && currentStatusFilter.length > 0) {
-      conditions.push({
-        status: { _in: currentStatusFilter }
-      });
+      if (currentStatusFilter.length === 1) {
+        conditions.push({ status: { _eq: currentStatusFilter[0] } });
+      } else {
+        conditions.push({
+          status: { _in: currentStatusFilter }
+        });
+      }
     }
     
-    // Add currency filter condition if currencyFilter is provided
+    // Add currency filter if provided
     if (currencyFilter) {
-      conditions.push({
-        currencyRef: { _eq: currencyFilter }
-      });
+      console.log(`Applying currency filter: ${currencyFilter}`);
+      conditions.push({ currencyRef: { _eq: `Currency:v1:${currencyFilter}` } });
     }
 
     // If no conditions, return an empty object to show all records
@@ -252,19 +255,25 @@ export const useMainViewAdvancePayments = ({
 
   useEffect(() => {
     fetchPayments();
-  }, [fetchPayments]);
+  }, [fetchPayments, currentCurrencyFilter]);
 
-  const fetchPaymentStatistics = useCallback(async () => {
+  const fetchPaymentStatistics = useCallback(async (forceCurrencyFilter?: string | null) => {
     if (!accessToken || !managerId) {
       setStatsError(new Error('Missing required parameters'));
       setStatsLoading(false);
       return;
     }
+    
+    // Use forced currency filter or current filter
+    const activeCurrencyFilter = forceCurrencyFilter !== undefined ? forceCurrencyFilter : currencyFilter;
 
     setStatsLoading(true);
     setStatsError(null);
 
     try {
+      const currencyRefValue = activeCurrencyFilter ? `Currency:v1:${activeCurrencyFilter}` : null;
+      console.log(`Fetching advance payment statistics with currency filter: ${activeCurrencyFilter || 'none'}`);
+      
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
@@ -273,7 +282,10 @@ export const useMainViewAdvancePayments = ({
         },
         body: JSON.stringify({
           query: GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS,
-          variables: { managerId }
+          variables: { 
+            managerId,
+            currencyRef: currencyRefValue 
+          }
         })
       });
       const result = await response.json();
@@ -310,7 +322,7 @@ export const useMainViewAdvancePayments = ({
 
   useEffect(() => {
     fetchPaymentStatistics();
-  }, [fetchPaymentStatistics]);
+  }, [fetchPaymentStatistics, currencyFilter]);
 
   const handlePageChange = (page: number) => {
     setInternalCurrentPage(page);
@@ -325,7 +337,7 @@ export const useMainViewAdvancePayments = ({
       // For now, just show a success message and refresh the data
       message.success('Advance payment approved successfully');
       fetchPayments();
-      fetchPaymentStatistics();
+      fetchPaymentStatistics(currencyFilter);
     } catch (err) {
       console.error('Error approving advance payment:', err);
       message.error('Failed to approve advance payment');
@@ -343,7 +355,7 @@ export const useMainViewAdvancePayments = ({
       // For now, just show a success message and refresh the data
       message.success('Advance payment rejected successfully');
       fetchPayments();
-      fetchPaymentStatistics();
+      fetchPaymentStatistics(currencyFilter);
     } catch (err) {
       console.error('Error rejecting advance payment:', err);
       message.error('Failed to reject advance payment');

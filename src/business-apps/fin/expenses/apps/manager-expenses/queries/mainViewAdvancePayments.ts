@@ -94,7 +94,7 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
 
 // Query for advance payment statistics in the main view
 export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
-  query GetMainViewAdvancePaymentStatistics($managerId: uuid!) {
+  query GetMainViewAdvancePaymentStatistics($managerId: uuid!, $currencyRef: String) {
     allPaymentsStats: AdvancePaymentAggregate(
       where: {
         expensePlan: {
@@ -104,7 +104,8 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
             }
           },
           isDeleted: {_eq: false}
-        }
+        },
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
@@ -124,7 +125,8 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
           },
           isDeleted: {_eq: false}
         },
-        status: {_eq: "PENDING"}
+        status: {_eq: "PENDING"},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {

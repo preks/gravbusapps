@@ -52,7 +52,7 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
 
 // Query for expense plan statistics in the main view
 export const GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS = `
-  query GetMainViewExpensePlanStatistics($managerId: uuid!) {
+  query GetMainViewExpensePlanStatistics($managerId: uuid!, $currencyRef: String) {
     allPlansStats: ExpensePlanAggregate(
       where: {
         employee: {
@@ -78,7 +78,8 @@ export const GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS = `
           }
         },
         isDeleted: {_eq: false},
-        status: {_eq: "PENDING"}
+        status: {_eq: "PENDING"},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
