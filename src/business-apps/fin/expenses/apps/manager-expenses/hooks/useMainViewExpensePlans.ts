@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { message } from 'antd';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
@@ -304,6 +304,10 @@ export const useMainViewExpensePlans = ({
     }
   }, [fetchPlans, statisticsOnly, hookId, currentStatusFilter]);
 
+  // Track the last statistics fetch parameters to avoid redundant requests
+  const lastStatsFetchParams = useRef<{ currencyFilter: string | null } | null>(null);
+  const statsDebounceTimer = useRef<NodeJS.Timeout | null>(null);
+
   const fetchPlanStatistics = useCallback(async (forceCurrencyFilter?: string | null) => {
     if (!accessToken) {
       setStatsError(new Error('Access token not available for statistics.'));
@@ -312,6 +316,16 @@ export const useMainViewExpensePlans = ({
     
     // Use forced currency filter or current filter
     const activeCurrencyFilter = forceCurrencyFilter !== undefined ? forceCurrencyFilter : currentCurrencyFilter;
+    
+    // Check if this is a duplicate request with the same parameters
+    if (lastStatsFetchParams.current && 
+        lastStatsFetchParams.current.currencyFilter === activeCurrencyFilter) {
+      console.log('Skipping duplicate statistics fetch with same parameters:', { activeCurrencyFilter });
+      return;
+    }
+    
+    // Update last fetch parameters
+    lastStatsFetchParams.current = { currencyFilter: activeCurrencyFilter };
     
     setStatsLoading(true);
     setStatsError(null);
@@ -359,8 +373,25 @@ export const useMainViewExpensePlans = ({
 
   useEffect(() => {
     const timestamp = new Date().getTime();
-    console.log(`🔥 [${timestamp}] STATISTICS FETCH HOOK-${hookId}: Calling fetchPlanStatistics() - statisticsOnly:`, statisticsOnly, 'with currency filter:', currentCurrencyFilter);
-    fetchPlanStatistics();
+    console.log(`🔥 [${timestamp}] STATISTICS FETCH HOOK-${hookId}: Debouncing fetchPlanStatistics() - statisticsOnly:`, statisticsOnly, 'with currency filter:', currentCurrencyFilter);
+    
+    // Clear any existing timer
+    if (statsDebounceTimer.current) {
+      clearTimeout(statsDebounceTimer.current);
+    }
+    
+    // Set a new timer to debounce the fetch
+    statsDebounceTimer.current = setTimeout(() => {
+      console.log(`🔥 [${timestamp}] STATISTICS FETCH HOOK-${hookId}: Executing debounced fetchPlanStatistics()`);
+      fetchPlanStatistics();
+    }, 300); // 300ms debounce delay
+    
+    // Cleanup function to clear the timer if the component unmounts
+    return () => {
+      if (statsDebounceTimer.current) {
+        clearTimeout(statsDebounceTimer.current);
+      }
+    };
   }, [fetchPlanStatistics, statisticsOnly, currentCurrencyFilter, hookId]);
 
   const handlePageChange = (page: number) => {

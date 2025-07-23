@@ -106,8 +106,8 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       }))
     };
     
-    // Currency filter items
-    const currencyOptions = ['EUR', 'USD', 'GBP'];
+    // Currency filter items - expanded to include RON and other common currencies
+    const currencyOptions = ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK'];
     const currencyGroup: DataFilterGroup = {
       id: 'currencyGroup',
       title: getTranslationFromI18nKeyAndLabel('expense_request_currency_filter_title', 'Currency'),
@@ -141,8 +141,8 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
 
   // Add a filter to the selected filters
   const addFilter = useCallback((filterId: string) => {
-    // Check if this is a currency filter (EUR, USD, GBP)
-    const currencyOptions = ['EUR', 'USD', 'GBP'];
+    // Check if this is a currency filter - expanded to include RON and other common currencies
+    const currencyOptions = ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK'];
     
     if (currencyOptions.includes(filterId)) {
       // Handle currency filter selection

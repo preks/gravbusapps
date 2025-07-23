@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { message } from 'antd';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
@@ -257,6 +257,10 @@ export const useMainViewAdvancePayments = ({
     fetchPayments();
   }, [fetchPayments, currentCurrencyFilter]);
 
+  // Track the last statistics fetch parameters to avoid redundant requests
+  const lastStatsFetchParams = useRef<{ currencyFilter: string | null } | null>(null);
+  const statsDebounceTimer = useRef<NodeJS.Timeout | null>(null);
+
   const fetchPaymentStatistics = useCallback(async (forceCurrencyFilter?: string | null) => {
     if (!accessToken || !managerId) {
       setStatsError(new Error('Missing required parameters'));
@@ -266,6 +270,16 @@ export const useMainViewAdvancePayments = ({
     
     // Use forced currency filter or current filter
     const activeCurrencyFilter = forceCurrencyFilter !== undefined ? forceCurrencyFilter : currencyFilter;
+    
+    // Check if this is a duplicate request with the same parameters
+    if (lastStatsFetchParams.current && 
+        lastStatsFetchParams.current.currencyFilter === activeCurrencyFilter) {
+      console.log('Skipping duplicate advance payment statistics fetch with same parameters:', { activeCurrencyFilter });
+      return;
+    }
+    
+    // Update last fetch parameters
+    lastStatsFetchParams.current = { currencyFilter: activeCurrencyFilter };
 
     setStatsLoading(true);
     setStatsError(null);
@@ -321,7 +335,23 @@ export const useMainViewAdvancePayments = ({
   }, [accessToken, managerId]);
 
   useEffect(() => {
-    fetchPaymentStatistics();
+    // Clear any existing timer
+    if (statsDebounceTimer.current) {
+      clearTimeout(statsDebounceTimer.current);
+    }
+    
+    // Set a new timer to debounce the fetch
+    statsDebounceTimer.current = setTimeout(() => {
+      console.log('Executing debounced fetchPaymentStatistics()');
+      fetchPaymentStatistics();
+    }, 300); // 300ms debounce delay
+    
+    // Cleanup function to clear the timer if the component unmounts
+    return () => {
+      if (statsDebounceTimer.current) {
+        clearTimeout(statsDebounceTimer.current);
+      }
+    };
   }, [fetchPaymentStatistics, currencyFilter]);
 
   const handlePageChange = (page: number) => {

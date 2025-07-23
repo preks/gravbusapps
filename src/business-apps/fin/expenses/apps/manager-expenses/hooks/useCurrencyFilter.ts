@@ -17,8 +17,8 @@ export interface UseCurrencyFilterReturn {
 export const useCurrencyFilter = (): UseCurrencyFilterReturn => {
   const { primaryCurrency, setPrimaryCurrency } = useCurrencyStore();
   
-  // Available currencies
-  const availableCurrencies = ['EUR', 'USD', 'GBP'];
+  // Available currencies - expanded to include RON and other common currencies
+  const availableCurrencies = ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK'];
   
   // Create filter groups for the DataFilter component
   const filterGroups = useMemo<DataFilterGroup[]>(() => {

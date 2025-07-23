@@ -29,10 +29,42 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     fetchRequestStatistics
   } = useGetExpenseRequests(contextProps);
   
+  // Use a ref to track the last currency used for statistics fetching
+  const lastStatsCurrency = React.useRef<string | null>(null);
+  
+  // Debounced statistics fetch to prevent redundant requests
+  const debouncedFetchStats = React.useCallback(
+    (() => {
+      let timeoutId: NodeJS.Timeout | null = null;
+      
+      return (currency: string | null) => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        
+        timeoutId = setTimeout(() => {
+          console.log('Fetching statistics with currency:', currency);
+          fetchRequestStatistics(currency);
+          timeoutId = null;
+        }, 300); // 300ms debounce time
+      };
+    })(),
+    [fetchRequestStatistics]
+  );
+  
   // Fetch statistics on component mount and when primary currency changes
   useEffect(() => {
-    fetchRequestStatistics(primaryCurrency);
-  }, [fetchRequestStatistics, primaryCurrency]);
+    // Skip redundant fetches with the same currency
+    if (lastStatsCurrency.current === primaryCurrency) {
+      return;
+    }
+    
+    // Update last currency ref
+    lastStatsCurrency.current = primaryCurrency;
+    
+    // Use debounced fetch
+    debouncedFetchStats(primaryCurrency);
+  }, [primaryCurrency, debouncedFetchStats]);
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col">

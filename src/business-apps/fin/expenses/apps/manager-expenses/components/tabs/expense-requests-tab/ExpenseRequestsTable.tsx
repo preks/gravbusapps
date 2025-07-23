@@ -54,32 +54,110 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     handleDataFilterChange
   } = useExpenseRequestFilters();
   
+  // Track if this is the first render
+  const isFirstRender = React.useRef(true);
+  
   // Set default filter for "Approval Required" status on initial load
   useEffect(() => {
-    if (selectedFilters.length === 0) {
+    if (selectedFilters.length === 0 && isFirstRender.current) {
       // Apply default filter for "Approval Required" (IN_APPROVAL)
       addFilter(ExpenseRequestStatus.IN_APPROVAL.toLowerCase());
     }
   }, [addFilter, selectedFilters]);
 
-  // Fetch requests when filters or pagination changes
+  // Use a ref to track the last fetch parameters to avoid redundant fetches
+  const lastFetchParams = React.useRef({
+    searchText: '',
+    currentPage: 1,
+    pageSize: 10,
+    selectedFilters: [] as string[],
+    currencyFilter: ''
+  });
+  
+  // Debounced fetch function to prevent multiple rapid requests
+  const debouncedFetch = React.useCallback(
+    (() => {
+      let timeoutId: NodeJS.Timeout | null = null;
+      
+      return (params: {
+        searchText: string;
+        currentPage: number;
+        pageSize: number;
+        filters: any;
+        currencyFilter: string | null;
+      }) => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        
+        timeoutId = setTimeout(() => {
+          console.log('Executing debounced fetch with params:', params);
+          fetchRequests(
+            params.searchText,
+            params.currentPage,
+            params.pageSize,
+            'requestDate:desc',
+            params.filters.status || [],
+            params.filters.requestDateStart,
+            params.currencyFilter
+          );
+          timeoutId = null;
+        }, 300); // 300ms debounce time
+      };
+    })(),
+    [fetchRequests]
+  );
+  
+  // Consolidated fetch requests when filters or pagination changes
   useEffect(() => {
+    // Skip the first render to avoid duplicate fetches with default filters
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    
     console.log('ExpenseRequestsTable useEffect triggered');
     console.log('Current selectedFilters:', selectedFilters);
     console.log('Current searchText:', searchText);
     console.log('Current currencyFilter:', currencyFilter);
+    
     const filters = getFilters();
     console.log('getFilters() result:', filters);
-    fetchRequests(
+    
+    // Check if this is a redundant fetch with the same parameters
+    const currentParams = {
       searchText,
       currentPage,
       pageSize,
-      'requestDate:desc', // Default sort by request date, newest first
-      filters.status || [], // status filter - now an array
-      filters.requestDateStart,
-      currencyFilter // Pass currency filter to fetch requests
-    );
-  }, [searchText, currentPage, pageSize, selectedFilters, currencyFilter, fetchRequests, getFilters]);
+      selectedFilters: [...selectedFilters],
+      currencyFilter: currencyFilter || ''
+    };
+    
+    const lastParams = lastFetchParams.current;
+    const isRedundantFetch = 
+      currentParams.searchText === lastParams.searchText &&
+      currentParams.currentPage === lastParams.currentPage &&
+      currentParams.pageSize === lastParams.pageSize &&
+      currentParams.currencyFilter === lastParams.currencyFilter &&
+      JSON.stringify(currentParams.selectedFilters) === JSON.stringify(lastParams.selectedFilters);
+    
+    if (isRedundantFetch) {
+      console.log('Skipping redundant fetch with same parameters');
+      return;
+    }
+    
+    // Update last fetch params
+    lastFetchParams.current = currentParams;
+    
+    // Use debounced fetch to prevent multiple rapid requests
+    debouncedFetch({
+      searchText,
+      currentPage,
+      pageSize,
+      filters,
+      currencyFilter
+    });
+  }, [searchText, currentPage, pageSize, selectedFilters, currencyFilter, fetchRequests, getFilters, debouncedFetch]);
 
   // Handle search changes
   const handleSearchChange = useCallback((value: string) => {
@@ -421,9 +499,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
           const filtersToRemove = selectedFilters.filter(f => !newFilters.includes(f));
           const filtersToAdd = newFilters.filter(f => !selectedFilters.includes(f));
           
+          // Apply filter changes
           filtersToRemove.forEach(removeFilter);
           filtersToAdd.forEach(addFilter);
+          
+          // Reset to first page when filters change
           setCurrentPage(1);
+          
+          // No need to force reload data here - the useEffect with dependencies on
+          // selectedFilters will handle the data fetching with debouncing
         },
         filterLabelMap: filterLabelMap,
         listTitle: (

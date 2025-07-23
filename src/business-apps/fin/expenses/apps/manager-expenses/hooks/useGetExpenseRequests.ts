@@ -173,6 +173,10 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
       if (currencyFilter) {
         console.log(`Applying currency filter: ${currencyFilter}`);
         whereClause.currencyRef = { _eq: `Currency:v1:${currencyFilter}` };
+      } else {
+        // When no currency filter is specified, don't add any currency filter to the query
+        // This ensures all currencies are included
+        console.log('No currency filter applied');
       }
 
       // Add search functionality

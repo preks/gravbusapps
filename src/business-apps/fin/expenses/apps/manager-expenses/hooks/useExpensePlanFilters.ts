@@ -94,8 +94,8 @@ export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
       })
     );
 
-    // Currency filter items
-    const availableCurrencies = ['EUR', 'USD', 'GBP', 'CHF', 'JPY'];
+    // Currency filter items - expanded to include RON and other common currencies
+    const availableCurrencies = ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK', 'JPY'];
     const currencyItems: DataFilter[] = availableCurrencies.map(
       (currency) => ({
         id: `currency:${currency}`,

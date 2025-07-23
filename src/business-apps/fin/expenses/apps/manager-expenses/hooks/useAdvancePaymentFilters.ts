@@ -37,8 +37,8 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
   }, [setStatusFilter]);
 
   const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
-    // Check if this is a currency filter (EUR, USD, GBP)
-    const currencyOptions = ['EUR', 'USD', 'GBP'];
+    // Check if this is a currency filter (expanded to include RON and other common currencies)
+    const currencyOptions = ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK'];
     
     if (currencyOptions.includes(filterId)) {
       // Handle currency filter selection
@@ -96,10 +96,11 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
       map[status] = statusDisplayMap[status] || getAdvancePaymentStatusDisplay(status).label;
     });
     
-    // Add currency filters
-    map['EUR'] = 'EUR';
-    map['USD'] = 'USD';
-    map['GBP'] = 'GBP';
+    // Add currency filters - expanded to include RON and other common currencies
+    const currencyOptions = ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK'];
+    currencyOptions.forEach(currency => {
+      map[currency] = currency;
+    });
     
     return map;
   }, [availableFilterStatuses]);
@@ -116,8 +117,8 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
       })
     );
     
-    // Currency filter items
-    const currencyOptions = ['EUR', 'USD', 'GBP'];
+    // Currency filter items - expanded to include RON and other common currencies
+    const currencyOptions = ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK'];
     const currencyItems: DataFilter[] = currencyOptions.map(
       (currency) => ({
         id: currency,

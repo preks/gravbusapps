@@ -216,7 +216,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 </TableCell>
                 <TableCell className="gba:text-right" data-testid={`advance-payments-amount-cell-${record.id}`}>
                   <span className="gba:font-medium gba:text-sm">
-                    {typeof record.amount === 'number' ? formatCurrency(record.amount, record.currencyRef || currencyFilter) : 'N/A'}
+                    {typeof record.amount === 'number' ? formatCurrency(
+                      record.amount, 
+                      (record.currencyRef || currencyFilter || '').replace('Currency:v1:', '')
+                    ) : 'N/A'}
                   </span>
                 </TableCell>
                 <TableCell>
