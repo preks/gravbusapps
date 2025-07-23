@@ -59,5 +59,5 @@ Tasks: ${JSON.stringify(sortedTasks)}`;
         return inputData;
     }
 
-    return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken);
+    return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken, "gpt-4.1-mini");
 }
