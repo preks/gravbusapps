@@ -66,6 +66,7 @@ interface ProfileInfoItemProps {
   value: string;
   linkTo?: string;
   onClick?: () => void;
+  openInNewTab?: boolean;
 }
 
 interface TagItemProps {
@@ -102,6 +103,7 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
   value,
   linkTo,
   onClick,
+  openInNewTab = false,
 }) => {
   return (
     <div className="gba:flex gba:items-center gba:gap-2">
@@ -112,6 +114,8 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
           <a
             href={linkTo}
             className="gba:text-sm gba:text-blue-600 gba:inline-flex gba:items-baseline gba:flex-wrap"
+            target={openInNewTab ? "_blank" : undefined}
+            rel={openInNewTab ? "noopener noreferrer" : undefined}
           >
             <span className="gba:whitespace-normal">{value}</span>
             <svg
@@ -194,7 +198,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
       notification.error({
         message: 'Cannot start chat',
         description: 'No email address associated with this employee',
-        className: 'employee-chat-error-notification'
+        className: 'employee-chat-error-notification',
+        placement: "bottomRight"
       });
       return;
     }
@@ -212,7 +217,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
       notification.error({
         message: 'Cannot start audio call',
         description: 'No email address associated with this employee',
-        className: 'employee-audio-call-error-notification'
+        className: 'employee-audio-call-error-notification',
+        placement: "bottomRight"
       });
       return;
     }
@@ -230,7 +236,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
       notification.error({
         message: 'Cannot start video call',
         description: 'No email address associated with this employee',
-        className: 'employee-video-call-error-notification'
+        className: 'employee-video-call-error-notification',
+        
       });
       return;
     }
@@ -449,6 +456,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                       ? `/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}`
                       : undefined
                   }
+                  openInNewTab={true}
                 />
  
                 {/* Location */}
@@ -460,6 +468,12 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                     employee.employeePosition?.siteLocation?.name ||
                     "Not assigned"
                   }
+                  linkTo={
+                    employee.employeePosition?.siteLocation?.id
+                      ? `/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}`
+                      : undefined
+                  }
+                  openInNewTab={true}
                 />
                 {/* Email */}
                   <ProfileInfoItem
@@ -510,7 +524,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                       : undefined
                   }
                 />
-
+                
                 {/* Job Position */}
                 <ProfileInfoItem
                   icon={<PiMapPin className="gba:h-4 gba:w-4" />}
