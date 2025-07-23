@@ -33,8 +33,8 @@ export const GET_CRM_NOTES = (variables: CrmNoteQueryVariables): string => {
   `;
 };
 
-export const useGetCrmNotes = (accessToken: string) => {
-  const graphQLClient = useGraphQLClient(accessToken);
+export const useGetCrmNotes = (context: BusinessAppContextProps) => {
+  const graphQLClient = useGraphQLClient(context.accessToken);
   
   const fetchCrmNotes = async (variables: CrmNoteQueryVariables) => {
     const query = GET_CRM_NOTES(variables);

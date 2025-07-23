@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CalendarOutlined, CloudUploadOutlined, RobotOutlined } from '@ant-design/icons';
-import { Button, List, Avatar, Spin, Alert, Empty, Tag, message, Timeline, Typography, Modal } from 'antd';
+import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CloudUploadOutlined, RobotOutlined } from '@ant-design/icons';
+import { Button, List, Spin, Alert, Empty, message, Timeline, Typography, Modal } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { NotesSection } from './NotesSection';
 import { useGetSalesActivities, SalesActivityData } from '../queries/OpportunityActivityQueries';
 import { useGetCrmDocuments, CrmDocumentData } from '../queries/CrmDocumentQueries';
 import { useRestClient } from '@/common/network/rest/useRestClient';
-import { useFileClient } from '@/common/network/files/useFileClient';
 import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
@@ -41,10 +40,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
   const [translating, setTranslating] = useState(false);
   const originalActivitiesRef = useRef<SalesActivityData[]>([]);
 
-  const { fetchSalesActivities } = useGetSalesActivities(context.accessToken);
+  const { fetchSalesActivities } = useGetSalesActivities(context);
   const { fetchCrmDocuments } = useGetCrmDocuments(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const fileClient = useFileClient(context);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
   const { state: aiSummaryState, generateSummary } = useAiSummary(opportunityId, context.accessToken);
 

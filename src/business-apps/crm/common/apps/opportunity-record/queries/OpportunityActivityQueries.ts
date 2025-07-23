@@ -47,8 +47,8 @@ export const GET_SALES_ACTIVITIES = (variables: SalesActivityQueryVariables): st
   `;
 };
 
-export const useGetSalesActivities = (accessToken: string) => {
-  const graphQLClient = useGraphQLClient(accessToken);
+export const useGetSalesActivities = (context: BusinessAppContextProps) => {
+  const graphQLClient = useGraphQLClient(context.accessToken);
   
   const fetchSalesActivities = async (variables: SalesActivityQueryVariables) => {
     const query = GET_SALES_ACTIVITIES(variables);

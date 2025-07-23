@@ -20,7 +20,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
   const [tasks, setTasks] = useState<SalesTaskData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { fetchSalesTasks } = useGetSalesTasks(context.accessToken);
+  const { fetchSalesTasks } = useGetSalesTasks(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 

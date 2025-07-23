@@ -21,9 +21,9 @@ type UseAiSummaryReturn = UseInformationExtractionReturn<SummarySchema>
 
 export function useAiSummary(opportunityId: string, accessToken: string): UseAiSummaryReturn {
     const graphQLClient = useGraphQLClient(accessToken);
-    const { fetchSalesActivities } = useGetSalesActivities(accessToken);
-    const { fetchCrmNotes } = useGetCrmNotes(accessToken);
-    const { fetchSalesTasks } = useGetSalesTasks(accessToken);
+    const { fetchSalesActivities } = useGetSalesActivities({accessToken});
+    const { fetchCrmNotes } = useGetCrmNotes({accessToken});
+    const { fetchSalesTasks } = useGetSalesTasks({accessToken});
 
     const generateInputData = async () => {
         // get opportunity data
@@ -59,5 +59,5 @@ Tasks: ${JSON.stringify(sortedTasks)}`;
         return inputData;
     }
 
-    return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken, "gpt-4.1-mini");
+    return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken, "gpt-4.1");
 }
