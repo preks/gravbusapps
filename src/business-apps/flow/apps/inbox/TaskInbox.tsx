@@ -14,7 +14,7 @@ import {
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { env } from '@/common/env/EnvUtils';
-import { TaskDetailsTab, AssignmentHistoryTab, FlowProgressTab, TaskListCard } from './components';
+import { TaskDetailsTab, FlowProgressTab, TaskListCard, FlowHistoryTab, FlowDataTab } from './components';
 
 const { Option } = Select;
 const { Title, Text } = Typography;
@@ -257,6 +257,11 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
           throw new Error(`Unknown action: ${action}`);
       }
 
+      // Include comment if provided (from the comment field in TaskDetailsTab)
+      if (rejectionComment && rejectionComment.trim()) {
+        body.comment = rejectionComment.trim();
+      }
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -293,7 +298,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
     
     const initialFormData: any = {};
     task.inputs?.forEach((input: any) => {
-      initialFormData[input.name] = input.type === 'checkbox' ? [] : '';
+      initialFormData[input.name] = input.type === 'CHECKBOX' ? [] : '';
     });
     setTaskFormData(initialFormData);
     form.setFieldsValue(initialFormData);
@@ -628,7 +633,14 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                     form={form}
                     actionLoading={actionLoading}
                     prefixDataTestId={prefixDataTestId}
-                    {...taskHandlers}
+                    onComplete={taskHandlers.onComplete}
+                    onClaim={taskHandlers.onClaim}
+                    onRelease={taskHandlers.onRelease}
+                    onReassign={taskHandlers.onReassign}
+                    onReject={taskHandlers.onReject}
+                    setReassignUserId={taskHandlers.setReassignUserId}
+                    setRejectionComment={taskHandlers.setRejectionComment}
+                    setTaskFormData={setTaskFormData}
                     getTaskStatusColor={getTaskStatusColor}
                     getStepTypeColor={getStepTypeColor}
                     getAssignmentStatusColor={getAssignmentStatusColor}
@@ -642,12 +654,12 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                 )
               },
               {
-                key: 'history',
-                label: 'Assignment History',
+                key: 'flowData',
+                label: 'Flow Data',
                 children: (
-                  <AssignmentHistoryTab
+                  <FlowDataTab
                     task={selectedTask}
-                    getAssignmentStatusColor={getAssignmentStatusColor}
+                    prefixDataTestId={prefixDataTestId}
                     {...context}
                   />
                 )
@@ -659,6 +671,18 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                   <FlowProgressTab
                     task={selectedTask}
                     data-testid={`${prefixDataTestId}-flow-progress-tab`}
+                    {...context}
+                  />
+                )
+              },
+              {
+                key: 'flowHistory',
+                label: 'Flow History',
+                children: (
+                  <FlowHistoryTab
+                    task={selectedTask}
+                    getAssignmentStatusColor={getAssignmentStatusColor}
+                    prefixDataTestId={prefixDataTestId}
                     {...context}
                   />
                 )

@@ -93,17 +93,9 @@ export const TaskListCard: React.FC<TaskListCardProps> = ({
         title={
           <Space wrap>
             <span>{task.title || task.name}</span>
-            <Tag color={getTaskStatusColor(task.status)}>
-              {task.status}
-            </Tag>
             {stepType && (
               <Tag color={getStepTypeColor(stepType)}>
                 {stepType}
-              </Tag>
-            )}
-            {assignmentStatus && (
-              <Tag color={getAssignmentStatusColor(assignmentStatus)}>
-                {assignmentStatus}
               </Tag>
             )}
             

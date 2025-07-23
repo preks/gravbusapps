@@ -1,5 +1,5 @@
 import React from 'react';
-import { Form, Input, Select, Upload, Button } from 'antd';
+import { Form, Input, Select, Upload, Button, Checkbox } from 'antd';
 import { PaperClipOutlined } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { InputType } from '../../types/flowTemplate';
@@ -77,6 +77,34 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
           </Upload>
         );
         
+      case InputType.CHECKBOX:
+        // Handle checkbox group with options
+        if (input.options && input.options.length > 0) {
+          return (
+            <Checkbox.Group
+              data-testid={`${testId}-input-${index}`}
+              disabled={readOnly}
+            >
+              {input.options.map((option: any, optIndex: number) => (
+                <div key={optIndex} style={{ marginBottom: '8px' }}>
+                  <Checkbox value={option.value} disabled={readOnly}>
+                    {option.label}
+                  </Checkbox>
+                </div>
+              ))}
+            </Checkbox.Group>
+          );
+        }
+        // Single checkbox fallback
+        return (
+          <Checkbox
+            data-testid={`${testId}-input-${index}`}
+            disabled={readOnly}
+          >
+            {input.placeholder || input.label}
+          </Checkbox>
+        );
+        
       default:
         return (
           <Input
@@ -92,9 +120,26 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
     <Form.Item
       key={index}
       name={fieldName}
-      label={input.label}
+      label={input.type === InputType.CHECKBOX ? undefined : input.label}
+      valuePropName={input.type === InputType.CHECKBOX ? "checked" : "value"}
       rules={[
-        { required: input.required && !readOnly, message: `${input.label} is required` },
+        ...(input.type === InputType.CHECKBOX && input.required && !readOnly 
+          ? [{ validator: (_: any, value: boolean | string[]) => {
+              // For checkbox groups (multiple options), check if at least one is selected
+              if (input.options && input.options.length > 0) {
+                return (Array.isArray(value) && value.length > 0) 
+                  ? Promise.resolve() 
+                  : Promise.reject(new Error(`${input.label} is required`));
+              }
+              // For single checkbox, check if it's checked
+              return value ? Promise.resolve() : Promise.reject(new Error(`${input.label} is required`));
+            }}]
+          : []
+        ),
+        ...(input.type !== InputType.CHECKBOX && input.required && !readOnly 
+          ? [{ required: true, message: `${input.label} is required` }]
+          : []
+        ),
         ...(input.type === InputType.NUMBER ? [{ type: 'number' as const, message: 'Please enter a valid number' }] : [])
       ]}
     >

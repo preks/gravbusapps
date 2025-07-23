@@ -1,11 +1,21 @@
-import React from 'react';
-import { Space, Tag, Typography, Form, Button } from 'antd';
-import { UserAddOutlined, SwapOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import React, { useState } from 'react';
+import { Space, Tag, Typography, Form, Button, Switch, Input, Select } from 'antd';
+import { 
+  UserAddOutlined, 
+  SwapOutlined, 
+  CloseCircleOutlined, 
+  CheckCircleOutlined,
+  EyeOutlined,
+  LikeOutlined,
+  MessageOutlined
+} from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { InputRenderer } from '../../creator/components/shared/InputRenderer';
 import { LinksRenderer } from '../../creator/components/shared/LinksRenderer';
 
 const { Text, Paragraph, Title } = Typography;
+const { TextArea } = Input;
+const { Option } = Select;
 
 interface Task {
   id: string;
@@ -30,6 +40,7 @@ interface Task {
     canRelease?: boolean;
     canReassign?: boolean;
     canReject?: boolean;
+    canUnclaim?: boolean;
   };
 }
 
@@ -51,6 +62,7 @@ interface TaskDetailsTabProps extends BusinessAppContextProps {
   onReject: () => void;
   setReassignUserId: (value: string) => void;
   setRejectionComment: (value: string) => void;
+  setTaskFormData: (data: any) => void;
   getTaskStatusColor: (status: string) => string;
   getStepTypeColor: (stepType: string) => string;
   getAssignmentStatusColor: (status: string) => string;
@@ -79,6 +91,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
   onReject,
   setReassignUserId,
   setRejectionComment,
+  setTaskFormData,
   getTaskStatusColor,
   getStepTypeColor,
   getAssignmentStatusColor,
@@ -89,75 +102,58 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
   isJustClaimable,
   ...context
 }) => {
+  const [showComment, setShowComment] = useState(false);
+  const [comment, setComment] = useState('');
+  const [showReassignUI, setShowReassignUI] = useState(false);
+
+  // Update parent comment state when local comment changes
+  React.useEffect(() => {
+    setRejectionComment(comment);
+  }, [comment, setRejectionComment]);
+
+  // Mock users for reassignment - in real app this would come from API
+  const availableUsers = [
+    { id: 'emp-001', name: 'John Doe' },
+    { id: 'emp-002', name: 'Jane Smith' },
+    { id: 'emp-003', name: 'Bob Wilson' },
+    { id: 'emp-004', name: 'Alice Brown' }
+  ];
+
   return (
     <div>
+      {/* Task Info Header */}
       <div style={{ marginBottom: '16px' }}>
         <Space wrap>
-          <Tag color={getTaskStatusColor(task.status)}>
-            {task.status}
-          </Tag>
           {stepType && (
             <Tag color={getStepTypeColor(stepType)}>
               {stepType}
             </Tag>
           )}
-          {task.assignment?.currentStatus && (
-            <Tag color={getAssignmentStatusColor(task.assignment.currentStatus)}>
-              {task.assignment.currentStatus}
-            </Tag>
-          )}
-          {task.assignment?.assignmentMode && (
-            <Tag color="cyan">
-              {task.assignment.assignmentMode} Mode
+          {task.assignment?.assignedTo && (
+            <Tag color="blue">
+              Assigned to: {task.assignment.assignedTo}
             </Tag>
           )}
           
-          {/* Due Date Tag in Modal */}
-          {getDueDateTag(task)}
+          {/* Due Date and Scheduled Time */}
+          {task.dueDate && (
+            <Tag color={isTaskOverdue(task.dueDate) ? 'red' : isTaskDueSoon(task.dueDate) ? 'orange' : 'green'}>
+              Due: {new Date(task.dueDate).toLocaleDateString()} {new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+            </Tag>
+          )}
+          {task.scheduledAt && (
+            <Tag color="purple">
+              Scheduled: {new Date(task.scheduledAt).toLocaleDateString()} {new Date(task.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+            </Tag>
+          )}
         </Space>
       </div>
 
+      {/* Task Message/Description */}
       {task.message && (
         <div style={{ marginBottom: '16px' }}>
+          <Title level={5}>Description</Title>
           <Paragraph>{task.message}</Paragraph>
-        </div>
-      )}
-
-      {/* Task Assignment Info */}
-      {task.assignment?.assignedTo && (
-        <div style={{ marginBottom: '16px' }}>
-          <Text strong>Assigned to: </Text>
-          <Text>{task.assignment.assignedTo}</Text>
-        </div>
-      )}
-
-      {/* Due Date Information */}
-      {(task.dueDate || task.scheduledAt) && (
-        <div style={{ marginBottom: '16px' }}>
-          {task.dueDate && (
-            <div style={{ marginBottom: '8px' }}>
-              <Text strong>Due Date: </Text>
-              <Text style={{ 
-                color: isTaskOverdue(task.dueDate) ? '#ff4d4f' : 
-                       isTaskDueSoon(task.dueDate) ? '#faad14' : '#262626'
-              }}>
-                {formatDueDate(task.dueDate)}
-              </Text>
-              {isTaskOverdue(task.dueDate) && (
-                <Text type="danger" style={{ marginLeft: '8px' }}>
-                  ⚠️ This task is overdue
-                </Text>
-              )}
-            </div>
-          )}
-          {task.scheduledAt && (
-            <div>
-              <Text strong>Scheduled at: </Text>
-              <Text type="secondary">
-                {new Date(task.scheduledAt).toLocaleString()}
-              </Text>
-            </div>
-          )}
         </div>
       )}
 
@@ -177,20 +173,110 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
             form={form}
             layout="vertical"
             onValuesChange={(changedValues, allValues) => {
-              // Handle form changes
+              setTaskFormData(allValues);
             }}
           >
             {task.inputs!.map((input: any, index: number) => (
               <InputRenderer 
                 key={index}
                 input={input}
-                value={taskFormData[input.id]}
-                onChange={(value) => {
-                  // Handle input changes
-                }}
+                index={index}
               />
             ))}
           </Form>
+        </div>
+      )}
+
+      {/* Comment Field */}
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <MessageOutlined />
+          <Text>Add Comment (Optional)</Text>
+          <Switch
+            checked={showComment}
+            onChange={(checked) => {
+              setShowComment(checked);
+              if (!checked) {
+                setComment('');
+              }
+            }}
+            size="small"
+          />
+        </div>
+        {showComment && (
+          <TextArea
+            rows={3}
+            placeholder={
+              stepType === 'APPROVAL' 
+                ? "Add approval comment or rejection reason..." 
+                : "Add comment about this action..."
+            }
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            maxLength={500}
+            showCount
+            style={{ marginBottom: '8px' }}
+          />
+        )}
+      </div>
+
+      {/* Reassignment UI */}
+      {task.availableActions?.canReassign && showReassignUI && (
+        <div style={{ marginBottom: '16px', padding: '12px', border: '1px solid #d9d9d9', borderRadius: '6px', backgroundColor: '#fafafa' }}>
+          <div style={{ marginBottom: '12px' }}>
+            <Text strong>Reassign Task</Text>
+          </div>
+          <div style={{ marginBottom: '12px' }}>
+            <Text>Select a user to reassign this task to:</Text>
+            <Select
+              style={{ width: '100%', marginTop: '8px' }}
+              placeholder="Select user to reassign to..."
+              value={reassignUserId}
+              onChange={(value) => setReassignUserId(value)}
+              allowClear
+            >
+              {availableUsers.map(user => (
+                <Option key={user.id} value={user.id}>
+                  {user.name} ({user.id})
+                </Option>
+              ))}
+            </Select>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button
+              type="primary"
+              size="small"
+              disabled={!reassignUserId}
+              loading={actionLoading === task.id + 'REASSIGN'}
+              onClick={() => {
+                onReassign();
+                setShowReassignUI(false);
+              }}
+            >
+              Reassign to User
+            </Button>
+            <Button
+              type="default"
+              size="small"
+              loading={actionLoading === task.id + 'REASSIGN'}
+              onClick={() => {
+                setReassignUserId(''); // Clear user to release back to pool
+                onReassign();
+                setShowReassignUI(false);
+              }}
+            >
+              Release to Pool
+            </Button>
+            <Button
+              size="small"
+              onClick={() => {
+                setShowReassignUI(false);
+                setReassignUserId('');
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       )}
 
@@ -201,9 +287,10 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
             type="primary"
             loading={actionLoading === task.id + 'COMPLETE'}
             onClick={onComplete}
+            icon={getCompleteButtonIcon(stepType)}
             data-testid={`${prefixDataTestId}-complete-button`}
           >
-            Complete Task
+            {getCompleteButtonLabel(stepType)}
           </Button>
         )}
         
@@ -234,15 +321,27 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
           <Button
             type="default"
             icon={<SwapOutlined />}
-            loading={actionLoading === task.id + 'REASSIGN'}
-            onClick={onReassign}
+            onClick={() => setShowReassignUI(true)}
             data-testid={`${prefixDataTestId}-reassign-button`}
           >
             Reassign
           </Button>
         )}
         
-        {task.availableActions?.canReject && (
+        {task.availableActions?.canUnclaim && (
+          <Button
+            type="default"
+            icon={<CloseCircleOutlined />}
+            loading={actionLoading === task.id + 'UNCLAIM'}
+            onClick={onRelease} // Assuming unclaim is a rejection action
+            data-testid={`${prefixDataTestId}-unclaim-button`}
+          >
+            Unclaim
+          </Button>
+        )}
+
+        {/* Reject button - show for APPROVAL tasks when canReject is true */}
+        {task.availableActions?.canReject && stepType === 'APPROVAL' && (
           <Button
             danger
             icon={<CloseCircleOutlined />}
@@ -256,4 +355,33 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
       </div>
     </div>
   );
+};
+
+// Helper functions for context-aware button labels and icons
+const getCompleteButtonLabel = (stepType?: string): string => {
+  switch (stepType) {
+    case 'APPROVAL':
+      return 'Approve';
+    case 'INFORMATION':
+      return 'Mark as Read';
+    case 'ACKNOWLEDGE':
+      return 'Acknowledge';
+    case 'TASK':
+    default:
+      return 'Complete';
+  }
+};
+
+const getCompleteButtonIcon = (stepType?: string) => {
+  switch (stepType) {
+    case 'APPROVAL':
+      return <LikeOutlined />;
+    case 'INFORMATION':
+      return <EyeOutlined />;
+    case 'ACKNOWLEDGE':
+      return <CheckCircleOutlined />;
+    case 'TASK':
+    default:
+      return <CheckCircleOutlined />;
+  }
 }; 

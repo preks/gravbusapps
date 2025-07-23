@@ -46,7 +46,7 @@ export const PreviousStepData: React.FC<PreviousStepDataProps> = ({
       
       const dataMap = new Map<number, StepDataResponse>();
       
-      // Load data for all previous steps
+      // Load data for all previous steps (stepIndex is already 0-based for API)
       for (let stepIndex = 0; stepIndex < currentStepIndex; stepIndex++) {
         try {
           const stepData = await flowClient.getStepDataJson(flowId, stepIndex, {
@@ -71,6 +71,7 @@ export const PreviousStepData: React.FC<PreviousStepDataProps> = ({
   };
 
   const handleExportStep = (stepIndex: number) => {
+    // stepIndex is already 0-based for API calls
     const exportUrl = flowClient.getExportUrl(flowId, stepIndex);
     window.open(exportUrl, '_blank');
   };
@@ -138,7 +139,7 @@ export const PreviousStepData: React.FC<PreviousStepDataProps> = ({
             return (
               <div className="gba:space-y-1">
                 {value.map((item, idx) => (
-                  <Tag key={idx} size="small">{String(item)}</Tag>
+                  <Tag key={idx}>{String(item)}</Tag>
                 ))}
               </div>
             );

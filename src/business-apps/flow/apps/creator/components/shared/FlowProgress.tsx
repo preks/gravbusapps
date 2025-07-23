@@ -10,6 +10,7 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useFlowProgressClient, FlowOverview } from '@/common/network/flows/useFlowProgressClient';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import { PreviousStepData } from './PreviousStepData';
 
 const { Title, Text } = Typography;
 const { Step } = Steps;
@@ -33,6 +34,7 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
   const [flowData, setFlowData] = useState<FlowOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
   
   const flowClient = useFlowProgressClient(context);
   const prefixDataTestId = formatDataTestId(testId);
@@ -131,7 +133,7 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
         <div className="gba:space-y-3">
           <div className="gba:flex gba:justify-between gba:items-center">
             <Text strong className="gba:text-sm">{flowData.name}</Text>
-            <Tag color={flowData.status === 'RUNNING' ? 'processing' : 'default'} size="small">
+            <Tag color={flowData.status === 'RUNNING' ? 'processing' : 'default'}>
               {flowData.status}
             </Tag>
           </div>
@@ -218,62 +220,36 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
         {flowData.steps.length > 0 && (
           <div data-testid={`${prefixDataTestId}-steps`}>
             <Title level={5}>Step Progress</Title>
-            <Steps direction="vertical" size="small">
-              {flowData.steps.map((step, index) => (
-                <Step
+            <div className="gba:space-y-3">
+              {flowData.steps.map((step) => (
+                <div 
                   key={step.stepIndex}
-                  title={step.title}
-                  status={getStepStatus(step.status)}
-                  icon={getStepIcon(step.status)}
-                  description={
-                    <div className="gba:space-y-1" data-testid={`${prefixDataTestId}-step-${step.stepIndex}`}>
-                      <div className="gba:space-x-1">
-                        <Tag color="blue" size="small">{step.type}</Tag>
-                        <Tag color="default" size="small">{step.assignmentMode}</Tag>
-                        <Tag 
-                          color={
-                            step.status === 'COMPLETED' ? 'success' :
-                            step.status === 'IN_PROGRESS' ? 'processing' :
-                            step.status === 'SCHEDULED' ? 'warning' : 'default'
-                          }
-                          size="small"
-                        >
-                          {step.status}
-                        </Tag>
-                      </div>
-                      
-                      {/* Status-specific info */}
-                      {step.status === 'COMPLETED' && step.completedBy && (
-                        <Text type="secondary" className="gba:text-xs gba:block">
-                          ✅ Completed by {step.completedBy} 
-                          {step.completedAt && ` on ${new Date(step.completedAt).toLocaleDateString()}`}
-                          {step.executionTime && ` (${step.executionTime})`}
-                        </Text>
-                      )}
-                      
-                      {step.status === 'IN_PROGRESS' && step.assignedTo?.length && (
-                        <Text type="secondary" className="gba:text-xs gba:block">
-                          👤 Assigned to: {step.assignedTo.join(', ')}
-                        </Text>
-                      )}
-                      
-                      {step.status === 'SCHEDULED' && step.eligibleUsers?.length && (
-                        <Text type="secondary" className="gba:text-xs gba:block">
-                          👥 Available to: {step.eligibleUsers.slice(0, 3).join(', ')}
-                          {step.eligibleUsers.length > 3 && ` +${step.eligibleUsers.length - 3} more`}
-                        </Text>
-                      )}
-                      
-                      {step.status === 'QUEUED' && (
-                        <Text type="secondary" className="gba:text-xs gba:block">
-                          ⏳ Waiting for previous steps to complete
-                        </Text>
-                      )}
+                  className="gba:border gba:border-gray-200 gba:rounded-lg gba:p-3"
+                  data-testid={`${prefixDataTestId}-step-${step.stepIndex}`}
+                >
+                  {/* Clean Step Header Only */}
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      {getStepIcon(step.status)}
+                      <Text strong>{step.title}</Text>
+                      <Tag color="blue">{step.type}</Tag>
+                      <Tag 
+                        color={
+                          step.status === 'COMPLETED' ? 'success' :
+                          step.status === 'IN_PROGRESS' ? 'processing' :
+                          step.status === 'SCHEDULED' ? 'warning' : 'default'
+                        }
+                      >
+                        {step.status}
+                      </Tag>
                     </div>
-                  }
-                />
+                    <Text className="gba:text-xs gba:text-gray-500">
+                      Step {step.stepIndex + 1}
+                    </Text>
+                  </div>
+                </div>
               ))}
-            </Steps>
+            </div>
           </div>
         )}
       </div>

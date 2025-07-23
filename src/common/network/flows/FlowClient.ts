@@ -2,6 +2,9 @@ import { RestClient, RequestOptions } from '../rest/RestClient';
 import { env } from '../../env/EnvUtils';
 import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils';
 import { FlowPathParams, FlowPayload, FlowResponse } from '../../types/FlowTypes';
+import { AssignmentTarget, AssignmentMode } from './FlowTemplateClient';
+import { buildClaimableTaskQuery } from './assignmentUtils';
+import { elasticsearchService } from './elasticsearchService';
 
 // Flow response interfaces
 export interface FlowInitiationResponse {
@@ -160,6 +163,84 @@ export class FlowClient extends RestClient {
       return await this.post<FlowTaskCompletionResponse>(url, submitData);
     } catch (error) {
       console.error('FlowClient: Error completing task flow:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Search for claimable tasks based on user's assignment criteria
+   * @param userAssignments User's organizational assignments for filtering
+   * @returns Promise with claimable tasks
+   */
+  public async searchClaimableTasks(userAssignments: AssignmentTarget): Promise<FlowTask[]> {
+    if (!this.headers?.['Authorization']) {
+      throw new Error('FlowClient: Access token not set. Call setAccessToken before searching tasks.');
+    }
+
+    try {
+      // Build Elasticsearch query for CLAIM mode filtering
+      const query = buildClaimableTaskQuery(userAssignments);
+      
+      // Search using Elasticsearch service
+      const searchResult = await elasticsearchService.searchClaimableTasks(query);
+      
+      if (searchResult && searchResult.hits) {
+        return searchResult.hits.hits.map((hit: any) => hit._source);
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('FlowClient: Error searching claimable tasks:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get tasks assigned to specific targets (ASSIGN mode)
+   * @param assignmentTargets The assignment targets to search for
+   * @param userId User ID for the request
+   * @returns Promise with assigned tasks
+   */
+  public async getAssignedTasks(
+    assignmentTargets: AssignmentTarget,
+    userId: string
+  ): Promise<FlowTask[]> {
+    if (!this.headers?.['Authorization']) {
+      throw new Error('FlowClient: Access token not set. Call setAccessToken before getting assigned tasks.');
+    }
+
+    try {
+      // For ASSIGN mode, we use OR logic - build query differently
+      const orClauses: any[] = [];
+      
+      Object.entries(assignmentTargets).forEach(([field, values]) => {
+        if (values && values.length > 0) {
+          orClauses.push({
+            terms: {
+              [`input.assignment.${field}`]: values
+            }
+          });
+        }
+      });
+
+      const query = {
+        query: {
+          bool: {
+            should: orClauses,
+            minimum_should_match: 1
+          }
+        }
+      };
+
+      const searchResult = await elasticsearchService.searchClaimableTasks(query);
+      
+      if (searchResult && searchResult.hits) {
+        return searchResult.hits.hits.map((hit: any) => hit._source);
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('FlowClient: Error getting assigned tasks:', error);
       throw error;
     }
   }
