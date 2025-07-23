@@ -116,6 +116,16 @@ export const getAdvancePaymentStatusDisplay = (
         label: "Rejected",
         type: "error",
       };
+    case ExpenseStatus.TRANSFERRED:
+      return {
+        label: "Payment Required",
+        type: "task",
+      };
+    case ExpenseStatus.VERIFIED:
+      return {
+        label: "Booking Required",
+        type: "task",
+      };
     case ExpenseStatus.PAID:
       return {
         label: "Paid",
