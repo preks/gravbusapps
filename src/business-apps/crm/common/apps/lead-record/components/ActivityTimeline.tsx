@@ -59,7 +59,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   // Function to update tab and URL
   const updateActiveTab = (newTab: 'activities' | 'notes' | 'documents' | 'ai-summary') => {
     setActiveTab(newTab);
-    
+
     // Update URL parameter
     const url = new URL(window.location.href);
     url.searchParams.set('tab', newTab);
@@ -68,17 +68,17 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
 
   const loadActivities = async () => {
     if (!leadId) return;
-    
+
     setActivitiesLoading(true);
     setActivitiesError(null);
-    
+
     try {
       const result = await fetchSalesActivities({ leadId });
       // Sort activities by createdAt in descending order (newest first)
-      const sortedActivities = (result.SalesActivity || []).sort((a, b) => 
+      const sortedActivities = (result.SalesActivity || []).sort((a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-      
+
       // Store original activities for translation reference
       originalActivitiesRef.current = sortedActivities;
       setActivities(sortedActivities);
@@ -93,7 +93,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   useEffect(() => {
     const translateActivities = async () => {
       const originalActivities = originalActivitiesRef.current;
-      
+
       if (selectedLanguage === 'Original' || originalActivities.length === 0) {
         // Reset to original text for Original language or no activities
         setActivities(originalActivities);
@@ -101,25 +101,25 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
       }
 
       setTranslating(true);
-      
+
       try {
         // Collect all text to translate from original activities
         const textsToTranslate: string[] = [];
         const activityMapping: Array<{ activityIndex: number, titleIndex: number, descriptionIndex: number }> = [];
-        
+
         originalActivities.forEach((activity, activityIndex) => {
           const titleIndex = textsToTranslate.length;
           textsToTranslate.push(activity.title);
-          
+
           const descriptionIndex = textsToTranslate.length;
           textsToTranslate.push(activity.description);
-          
+
           activityMapping.push({ activityIndex, titleIndex, descriptionIndex });
         });
 
         // Translate all texts at once
         const translatedTexts = await translateMultipleTexts(textsToTranslate, selectedLanguage, context.accessToken);
-        
+
         // Create translated activities based on original activities
         const translatedActivities: TranslatedActivity[] = originalActivities.map((originalActivity, activityIndex) => {
           const mapping = activityMapping[activityIndex];
@@ -130,7 +130,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             isTranslating: false
           };
         });
-        
+
         setActivities(translatedActivities);
       } catch (err) {
         console.error('Translation error:', err);
@@ -149,10 +149,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
 
   const loadDocuments = async () => {
     if (!leadId) return;
-    
+
     setDocumentsLoading(true);
     setDocumentsError(null);
-    
+
     try {
       const result = await fetchCrmDocuments({ leadId });
       setDocuments(result.CrmDocument || []);
@@ -224,7 +224,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
           loadActivities();
           loadDocuments();
           refreshNotes();
-          
+
           return
         }
       } catch (err) {
@@ -271,12 +271,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     eventNames.forEach(eventName => {
       window.addEventListener(eventName, handleProcessCompletion as EventListener);
     });
-    
+
     window.addEventListener('message', handlePostMessage);
 
     // Add a universal listener for debugging
     const originalDispatchEvent = window.dispatchEvent;
-    window.dispatchEvent = function(event: Event) {
+    window.dispatchEvent = function (event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
         console.log('Custom Event dispatched:', event.type, event);
         handleAllEvents(event);
@@ -289,7 +289,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
       window.removeEventListener('message', handlePostMessage);
-      
+
       // Restore original dispatchEvent
       window.dispatchEvent = originalDispatchEvent;
     };
@@ -300,7 +300,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
       // Store current tab to preserve state
       const currentUrl = new URL(window.location.href);
       currentUrl.searchParams.set('tab', 'activities');
-      
+
       startProcess({
         domain: 'customer-relations',
         processName: 'saveSalesActivity',
@@ -318,7 +318,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
       // Store current tab to preserve state
       const currentUrl = new URL(window.location.href);
       currentUrl.searchParams.set('tab', 'documents');
-      
+
       startProcess({
         domain: 'customer-relations',
         processName: 'saveCrmDocument',
@@ -350,15 +350,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
           }, {
             headers: { Authorization: `Bearer ${context.accessToken}` }
           });
-          
+
           // Remove the activity from both states
-          setActivities(prevActivities => 
+          setActivities(prevActivities =>
             prevActivities.filter(a => a.id !== activity.id)
           );
-          
+
           // Also remove from original activities ref
           originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== activity.id);
-          
+
           message.success('Activity deleted successfully');
         } catch (error) {
           console.error('Error deleting activity:', error);
@@ -398,12 +398,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
           }, {
             headers: { Authorization: `Bearer ${context.accessToken}` }
           });
-          
+
           // Remove the document from the local state
-          setDocuments(prevDocuments => 
+          setDocuments(prevDocuments =>
             prevDocuments.filter(d => d.id !== document.id)
           );
-          
+
           message.success('Document deleted successfully');
         } catch (error) {
           console.error('Error deleting document:', error);
@@ -414,7 +414,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   };
 
   return (
-    <div 
+    <div
       style={{
         backgroundColor: 'white',
         borderRadius: '8px',
@@ -424,84 +424,84 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
       }}
     >
       {/* Tab Navigation */}
-      <div 
+      <div
         style={{
           borderBottom: '1px solid #f0f0f0',
           backgroundColor: '#fafafa'
         }}
       >
         <div style={{ display: 'flex' }}>
-        <div 
-          className={`gba:activity-tab${activeTab === 'activities' ? '-active' : ''}`}
-          data-testid="activities-tab"
-          style={{
-            padding: '12px 24px',
-            fontWeight: '500',
-            color: activeTab === 'activities' ? '#1890ff' : '#8c8c8c',
-            backgroundColor: activeTab === 'activities' ? 'white' : 'transparent',
-            flex: 1,
-            textAlign: 'center',
-            cursor: 'pointer'
-          }}
-          onClick={() => updateActiveTab('activities')}
-        >
-          Activities
-        </div>
-        <div 
-          className={`gba:activity-tab${activeTab === 'notes' ? '-active' : ''}`}
-          data-testid="notes-tab"
-          style={{
-            padding: '12px 24px',
-            fontWeight: '500',
-            color: activeTab === 'notes' ? '#1890ff' : '#8c8c8c',
-            backgroundColor: activeTab === 'notes' ? 'white' : 'transparent',
-            flex: 1,
-            textAlign: 'center',
-            cursor: 'pointer'
-          }}
-          onClick={() => updateActiveTab('notes')}
-        >
-          Notes
-        </div>
-        <div 
-          className={`gba:activity-tab${activeTab === 'documents' ? '-active' : ''}`}
-          data-testid="documents-tab"
-          style={{
-            padding: '12px 24px',
-            fontWeight: '500',
-            color: activeTab === 'documents' ? '#1890ff' : '#8c8c8c',
-            backgroundColor: activeTab === 'documents' ? 'white' : 'transparent',
-            flex: 1,
-            textAlign: 'center',
-            cursor: 'pointer'
-          }}
-          onClick={() => updateActiveTab('documents')}
-        >
-          Documents
-        </div>
-        <div 
-          className={`gba:activity-tab${activeTab === 'ai-summary' ? '-active' : ''}`}
-          data-testid="ai-summary-tab"
-          style={{
-            padding: '12px 24px',
-            fontWeight: '500',
-            color: activeTab === 'ai-summary' ? '#1890ff' : '#8c8c8c',
-            backgroundColor: activeTab === 'ai-summary' ? 'white' : 'transparent',
-            flex: 1,
-            textAlign: 'center',
-            cursor: 'pointer'
-          }}
-          onClick={() => updateActiveTab('ai-summary')}
-        >
-          AI Summary
-        </div>
+          <div
+            className={`gba:activity-tab${activeTab === 'activities' ? '-active' : ''}`}
+            data-testid="activities-tab"
+            style={{
+              padding: '12px 24px',
+              fontWeight: '500',
+              color: activeTab === 'activities' ? '#1890ff' : '#8c8c8c',
+              backgroundColor: activeTab === 'activities' ? 'white' : 'transparent',
+              flex: 1,
+              textAlign: 'center',
+              cursor: 'pointer'
+            }}
+            onClick={() => updateActiveTab('activities')}
+          >
+            Activities
+          </div>
+          <div
+            className={`gba:activity-tab${activeTab === 'notes' ? '-active' : ''}`}
+            data-testid="notes-tab"
+            style={{
+              padding: '12px 24px',
+              fontWeight: '500',
+              color: activeTab === 'notes' ? '#1890ff' : '#8c8c8c',
+              backgroundColor: activeTab === 'notes' ? 'white' : 'transparent',
+              flex: 1,
+              textAlign: 'center',
+              cursor: 'pointer'
+            }}
+            onClick={() => updateActiveTab('notes')}
+          >
+            Notes
+          </div>
+          <div
+            className={`gba:activity-tab${activeTab === 'documents' ? '-active' : ''}`}
+            data-testid="documents-tab"
+            style={{
+              padding: '12px 24px',
+              fontWeight: '500',
+              color: activeTab === 'documents' ? '#1890ff' : '#8c8c8c',
+              backgroundColor: activeTab === 'documents' ? 'white' : 'transparent',
+              flex: 1,
+              textAlign: 'center',
+              cursor: 'pointer'
+            }}
+            onClick={() => updateActiveTab('documents')}
+          >
+            Documents
+          </div>
+          <div
+            className={`gba:activity-tab${activeTab === 'ai-summary' ? '-active' : ''}`}
+            data-testid="ai-summary-tab"
+            style={{
+              padding: '12px 24px',
+              fontWeight: '500',
+              color: activeTab === 'ai-summary' ? '#1890ff' : '#8c8c8c',
+              backgroundColor: activeTab === 'ai-summary' ? 'white' : 'transparent',
+              flex: 1,
+              textAlign: 'center',
+              cursor: 'pointer'
+            }}
+            onClick={() => updateActiveTab('ai-summary')}
+          >
+            AI Summary
+          </div>
         </div>
       </div>
 
       {/* Activities Tab Content */}
       {activeTab === 'activities' && (
         <div>
-          <div 
+          <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -510,8 +510,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div 
-                className="gba:activities-title" 
+              <div
+                className="gba:activities-title"
                 style={{ fontSize: '18px', fontWeight: '500' }}
               >
                 Activities
@@ -521,13 +521,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 onChange={handleLanguageChange}
               />
               {translating && (
-                <Spin 
-                  indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} 
-                  size="small" 
+                <Spin
+                  indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />}
+                  size="small"
                 />
               )}
             </div>
-            <Button 
+            <Button
               type="primary"
               icon={<PlusCircleOutlined />}
               onClick={handleAddActivity}
@@ -588,11 +588,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                       </div>
                       {getActivityTypeValue(activity.activityType) && (
                         <div style={{ marginTop: '4px', marginBottom: '4px' }}>
-                          <span style={{ 
-                            backgroundColor: '#f0f0f0', 
-                            color: '#333', 
-                            padding: '2px 8px', 
-                            borderRadius: '4px', 
+                          <span style={{
+                            backgroundColor: '#f0f0f0',
+                            color: '#333',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
                             fontSize: '12px',
                             fontWeight: '500'
                           }}>
@@ -603,13 +603,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                       <div style={{ marginTop: '4px' }}>
                         <div>{activity.translatedDescription || activity.description}</div>
                       </div>
-                      <Button 
-                        type="text" 
-                        icon={<CloseOutlined />} 
+                      <Button
+                        type="text"
+                        icon={<CloseOutlined />}
                         size="small"
-                        style={{ 
-                          position: 'absolute', 
-                          right: 0, 
+                        style={{
+                          position: 'absolute',
+                          right: 0,
                           top: 0,
                           padding: '4px',
                           lineHeight: 1
@@ -634,7 +634,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
       {/* Documents Tab Content */}
       {activeTab === 'documents' && (
         <div>
-          <div 
+          <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -642,13 +642,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               padding: '16px 24px'
             }}
           >
-            <div 
-              className="gba:documents-title" 
+            <div
+              className="gba:documents-title"
               style={{ fontSize: '18px', fontWeight: '500' }}
             >
               Documents
             </div>
-            <Button 
+            <Button
               type="primary"
               icon={<CloudUploadOutlined />}
               onClick={handleAddDocument}
@@ -714,13 +714,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                           </Text>
                         )}
                       </div>
-                      <Button 
-                        type="text" 
-                        icon={<CloseOutlined />} 
+                      <Button
+                        type="text"
+                        icon={<CloseOutlined />}
                         size="small"
-                        style={{ 
-                          position: 'absolute', 
-                          right: 0, 
+                        style={{
+                          position: 'absolute',
+                          right: 0,
                           top: 0,
                           padding: '4px',
                           lineHeight: 1
@@ -740,7 +740,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
       {/* AI Summary Tab Content */}
       {activeTab === 'ai-summary' && (
         <div>
-          <div 
+          <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -748,13 +748,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               padding: '16px 24px'
             }}
           >
-            <div 
-              className="gba:ai-summary-title" 
+            <div
+              className="gba:ai-summary-title"
               style={{ fontSize: '18px', fontWeight: '500' }}
             >
               AI Summary
             </div>
-            <Button 
+            <Button
               type="primary"
               icon={<RobotOutlined />}
               onClick={generateSummary}
@@ -806,16 +806,16 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               <div>
                 {/* Executive Summary */}
                 <div style={{ marginBottom: '24px' }}>
-                  <div style={{ 
-                    fontSize: '16px', 
-                    fontWeight: '500', 
+                  <div style={{
+                    fontSize: '16px',
+                    fontWeight: '500',
                     marginBottom: '12px',
                     color: '#262626'
                   }}>
                     Executive Summary
                   </div>
-                  <div style={{ 
-                    fontSize: '14px', 
+                  <div style={{
+                    fontSize: '14px',
                     lineHeight: '1.6',
                     color: '#595959',
                     backgroundColor: '#fafafa',
@@ -830,9 +830,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 {/* Key Insights */}
                 {aiSummaryState.content.keyInsights && aiSummaryState.content.keyInsights.length > 0 && (
                   <div>
-                    <div style={{ 
-                      fontSize: '16px', 
-                      fontWeight: '500', 
+                    <div style={{
+                      fontSize: '16px',
+                      fontWeight: '500',
                       marginBottom: '12px',
                       color: '#262626'
                     }}>
@@ -843,7 +843,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                       renderItem={(insight, index) => (
                         <List.Item style={{ padding: '8px 0', border: 'none' }}>
                           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                            <div style={{ 
+                            <div style={{
                               minWidth: '20px',
                               height: '20px',
                               backgroundColor: '#1890ff',
@@ -858,8 +858,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                             }}>
                               {index + 1}
                             </div>
-                            <div style={{ 
-                              fontSize: '14px', 
+                            <div style={{
+                              fontSize: '14px',
                               lineHeight: '1.5',
                               color: '#595959'
                             }}>

@@ -21,9 +21,9 @@ type UseAiSummaryReturn = UseInformationExtractionReturn<SummarySchema>
 
 export function useAiSummary(leadId: string, accessToken: string): UseAiSummaryReturn {
     const graphQLClient = useGraphQLClient(accessToken);
-    const { fetchSalesActivities } = useGetSalesActivities({accessToken});
-    const { fetchCrmNotes } = useGetCrmNotes({accessToken});
-    const { fetchSalesTasks } = useGetSalesTasks({accessToken});
+    const { fetchSalesActivities } = useGetSalesActivities({ accessToken });
+    const { fetchCrmNotes } = useGetCrmNotes({ accessToken });
+    const { fetchSalesTasks } = useGetSalesTasks({ accessToken });
 
     const generateInputData = async () => {
         // get lead data
@@ -46,16 +46,16 @@ export function useAiSummary(leadId: string, accessToken: string): UseAiSummaryR
 
         // get task data
         const tasksResult = await fetchSalesTasks({ leadId });
-        const sortedTasks = (tasksResult.SalesTask || []).sort((a, b) => 
+        const sortedTasks = (tasksResult.SalesTask || []).sort((a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
 
-        let inputData = 
-`Lead Info: ${JSON.stringify(lead)}
+        let inputData =
+            `Lead Info: ${JSON.stringify(lead)}
 Activities: ${JSON.stringify(sortedActivities)}
 Notes: ${JSON.stringify(sortedNotes)}
 Tasks: ${JSON.stringify(sortedTasks)}`;
-    
+
         return inputData;
     }
 

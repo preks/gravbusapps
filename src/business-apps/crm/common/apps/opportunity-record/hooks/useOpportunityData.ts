@@ -16,7 +16,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
   const [error, setError] = useState<string | null>(null);
   const [opportunityStatuses, setOpportunityStatuses] = useState<ReferenceData[]>([]);
   const [loadingStatuses, setLoadingStatuses] = useState(false);
-  
+
   // New states for activities, tasks, notes, and documents
   const [activities, setActivities] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -29,39 +29,39 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
 
   const graphQLClient = useGraphQLClient(accessToken);
   const catalogClient = useCatalogManagerClient(accessToken);
-  
+
   // Use the new pipeline stages hook
   const {
     pipelineStages: opportunityStages,
     loadingPipelineStages: loadingStages,
     errorPipelineStages: stagesError
   } = useSalesPipelineStages(opportunityData?.salesPipelineRef, accessToken);
-  
+
   // Initialize the new query hooks
-  const { fetchSalesActivities } = useGetSalesActivities(accessToken);
-  const { fetchSalesTasks } = useGetSalesTasks(accessToken);
-  const { fetchCrmNotes } = useGetCrmNotes(accessToken);
+  const { fetchSalesActivities } = useGetSalesActivities({ accessToken });
+  const { fetchSalesTasks } = useGetSalesTasks({ accessToken });
+  const { fetchCrmNotes } = useGetCrmNotes({ accessToken });
   const { fetchCrmDocuments } = useGetCrmDocuments({ accessToken });
 
   const fetchOpportunityData = async () => {
     // Use a fallback ID if none provided
     const safeOpportunityId = opportunityId || '2cabb386-82b8-4a9b-8a91-e8d008b4b2e8';
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       console.log('Fetching opportunity data for ID:', safeOpportunityId);
-      
+
       const result = await graphQLClient.request<GetOpportunityByIdResponse>(
         GET_OPPORTUNITY_BY_ID,
         { id: safeOpportunityId }
       );
-      
+
       if (result && result.Opportunity && result.Opportunity.length > 0) {
         const rawOpportunityData = result.Opportunity[0];
         setOpportunityData(rawOpportunityData);
-        
+
         // Transform the data for the UI
         const transformedOpportunity: Opportunity = {
           id: rawOpportunityData.id,
@@ -165,7 +165,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
             recommendations: []
           }
         };
-        
+
         setOpportunity(transformedOpportunity);
       } else {
         setError('Opportunity not found');
@@ -185,7 +185,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
         { catalogIdentifier: 'OpportunityStatus', version: 'v1' },
         { limit: 100, offset: 0, returnTotalRecords: true }
       );
-      
+
       if (response && response.data) {
         const statusData = response.data.map((entry: any) => ({
           id: entry.id,
