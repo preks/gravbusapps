@@ -55,28 +55,53 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   // Pending item count from API
   const pendingItemCount = pendingItemCountFromApi ?? 0;
 
-  const comparisonDescription = useMemo(() => {
+  // Calculate percentage changes for trend data
+  const totalExpensesPercentageChange = useMemo(() => {
+    const current = totalExpenses ?? 0;
+    const previous = previousMonthTotalExpenses ?? 0;
+
+    if (previous === 0) {
+      return current > 0 ? 100 : 0;
+    }
+    return ((current - previous) / previous) * 100;
+  }, [totalExpenses, previousMonthTotalExpenses]);
+
+  // Generate trend data for total expenses
+  const totalExpensesTrend = useMemo(() => {
     const previousMonthName = dayjs().subtract(1, 'month').format('MMMM');
     const current = totalExpenses ?? 0;
     const previous = previousMonthTotalExpenses ?? 0;
 
-
-    if (previous === 0) {
-      if (current > 0) {
-        return `+100.0% from ${previousMonthName}`;
-      }
-      return 'No expenses recorded';
+    if (previous === 0 && current > 0) {
+      return {
+        value: '+100%',
+        positive: true,
+        description: `from ${previousMonthName}`
+      };
     }
-
-    const percentageChange = ((current - previous) / previous) * 100;
-
-    if (Math.abs(percentageChange) < 0.01) {
-      return `No change vs ${previousMonthName}`;
+    if (totalExpensesPercentageChange === 0) {
+      return {
+        value: '0%',
+        positive: true,
+        description: `from ${previousMonthName}`
+      };
     }
+    const sign = totalExpensesPercentageChange > 0 ? '+' : '';
+    return {
+      value: `${sign}${totalExpensesPercentageChange.toFixed(0)}%`,
+      positive: totalExpensesPercentageChange >= 0,
+      description: `from ${previousMonthName}`
+    };
+  }, [totalExpensesPercentageChange, totalExpenses, previousMonthTotalExpenses]);
 
-    const sign = percentageChange > 0 ? '+' : '';
-    return `${sign}${percentageChange.toFixed(1)}% from ${previousMonthName}`;
-  }, [totalExpenses, previousMonthTotalExpenses]);
+  // Generate trend data for pending reimbursement (placeholder - you may want to add previous month data)
+  const pendingReimbursementTrend = useMemo(() => {
+    return {
+      value: `${pendingItemCount} items`,
+      positive: true,
+      description: 'pending reimbursement'
+    };
+  }, [pendingItemCount]);
 
   // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback((widgetKey: string) => {
@@ -119,7 +144,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
       // Set status filter to only show PENDING items
       if (onStatusFilterChange) {
         // Clear all existing status filters first
-        const allStatuses = ['CREATED', 'ASSIGNED', 'PREPARED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'CLOSED', 'TRANSFERRED'];
+        const allStatuses = ['CREATED', 'ASSIGNED', 'PREPARED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'CLOSED', 'TRANSFERRED'];
         allStatuses.forEach(status => {
           onStatusFilterChange(status, false);
         });
@@ -139,8 +164,10 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
       prefix: <EuroOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 8, lg: 8 },
-      description: comparisonDescription,
-      active: activeWidgetKey === 'total-expenses'
+      description: 'Current month expenses',
+      trend: totalExpensesTrend,
+      active: activeWidgetKey === 'total-expenses',
+      onClick: () => handleWidgetClick('total-expenses')
     },
     {
       key: 'pending-reimbursement',
@@ -150,8 +177,10 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
       prefix: <WalletOutlined />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 8, lg: 8 },
-      description: `${pendingItemCount} items pending`,
-      active: activeWidgetKey === 'pending-reimbursement'
+      description: 'Awaiting processing',
+      trend: pendingReimbursementTrend,
+      active: activeWidgetKey === 'pending-reimbursement',
+      onClick: () => handleWidgetClick('pending-reimbursement')
     },
     // {
     //   key: 'missing-receipts',
@@ -172,7 +201,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     //   span: { xs: 24, sm: 12, md: 8, lg: 8 },
     //   description: 'Across all expenses'
     // }
-  ], [currentMonthName, totalExpenses, previousMonthTotalExpenses, pendingReimbursement, pendingItemCount, activeWidgetKey, comparisonDescription]);
+  ], [currentMonthName, totalExpenses, previousMonthTotalExpenses, pendingReimbursement, pendingItemCount, activeWidgetKey, totalExpensesTrend, pendingReimbursementTrend, handleWidgetClick]);
 
   return (
     <div data-testid="expense-item-statistics-container" className="gba:w-full">
