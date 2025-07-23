@@ -52,12 +52,56 @@ export interface ExpensePlan {
     lastName: string;
     employeePosition: any;
   };
-  expenseRequest: {
+  expenseRequest: Array<{
     id: string;
     code: string;
-    status: string;
+    title: string;
+    description: string;
+    startDate: string | null;
+    endDate: string | null;
+    requestDate: string | null;
+    decisionDate: string | null;
     totalAmount: number;
-  };
+    currencyRef: string;
+    status: string;
+    reimbursableAmount: number;
+    nonReimbursableAmount: number;
+    additionalProperties: any;
+    currency: {
+      value: string;
+      translations: Array<{
+        localeCode: string;
+        value: string;
+      }>;
+      catalog: {
+        defaultLocale: string;
+      };
+    };
+    requestType: {
+      value: string;
+      translations: Array<{
+        localeCode: string;
+        value: string;
+      }>;
+      catalog: {
+        defaultLocale: string;
+      };
+    };
+    costCenter: {
+      name: string;
+    };
+    project: {
+      name: string;
+    };
+    employee: {
+      fullName: string;
+      employeePosition: {
+        supervisor: {
+          fullName: string;
+        };
+      };
+    };
+  }>;
 }
 
 export type ExpensePlanFilter = Record<string, any>;

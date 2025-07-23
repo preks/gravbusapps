@@ -62,27 +62,51 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     return ((statistics.currentMonthAmount - statistics.previousMonthAmount) / statistics.previousMonthAmount) * 100;
   }, [statistics.currentMonthAmount, statistics.previousMonthAmount]);
 
-  // Generate descriptions
-  const paymentsDescription = useMemo(() => {
+  // Generate trend data
+  const paymentsTrend = useMemo(() => {
     if (statistics.previousMonthPayments === 0 && statistics.currentMonthPayments > 0) {
-      return 'New payments this month';
+      return {
+        value: '+100%',
+        positive: true,
+        description: 'from last month'
+      };
     }
     if (paymentsPercentageChange === 0) {
-      return 'No change from last month';
+      return {
+        value: '0%',
+        positive: true,
+        description: 'from last month'
+      };
     }
     const sign = paymentsPercentageChange > 0 ? '+' : '';
-    return `${sign}${paymentsPercentageChange.toFixed(0)}% from last month`;
+    return {
+      value: `${sign}${paymentsPercentageChange.toFixed(0)}%`,
+      positive: paymentsPercentageChange >= 0,
+      description: 'from last month'
+    };
   }, [paymentsPercentageChange, statistics.currentMonthPayments, statistics.previousMonthPayments]);
 
-  const amountDescription = useMemo(() => {
+  const amountTrend = useMemo(() => {
     if (statistics.previousMonthAmount === 0 && statistics.currentMonthAmount > 0) {
-      return 'New amount this month';
+      return {
+        value: '+100%',
+        positive: true,
+        description: 'from last month'
+      };
     }
     if (amountPercentageChange === 0) {
-      return 'No change from last month';
+      return {
+        value: '0%',
+        positive: true,
+        description: 'from last month'
+      };
     }
     const sign = amountPercentageChange > 0 ? '+' : '';
-    return `${sign}${amountPercentageChange.toFixed(0)}% from last month`;
+    return {
+      value: `${sign}${amountPercentageChange.toFixed(0)}%`,
+      positive: amountPercentageChange >= 0,
+      description: 'from last month'
+    };
   }, [amountPercentageChange, statistics.currentMonthAmount, statistics.previousMonthAmount]);
 
   // Handle widget clicks
@@ -105,7 +129,8 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       prefix: <FileTextOutlined />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 6 },
-      description: paymentsDescription,
+      description: 'Submitted advance payments',
+      trend: paymentsTrend,
       active: activeWidgetKey === 'total-payments',
       onClick: () => handleWidgetClick('total-payments')
     },
@@ -116,7 +141,8 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       prefix: <DollarOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 6 },
-      description: amountDescription,
+      description: 'Across all payments',
+      trend: amountTrend,
       valueIsString: true,
       active: activeWidgetKey === 'total-amount',
       onClick: () => handleWidgetClick('total-amount')
@@ -143,7 +169,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       active: activeWidgetKey === 'approved-payments',
       onClick: () => handleWidgetClick('approved-payments')
     }
-  ], [currentMonthName, statistics, paymentsDescription, amountDescription, activeWidgetKey, handleWidgetClick]);
+  ], [currentMonthName, statistics, paymentsTrend, amountTrend, activeWidgetKey, handleWidgetClick]);
 
   return (
     <WidgetGroup

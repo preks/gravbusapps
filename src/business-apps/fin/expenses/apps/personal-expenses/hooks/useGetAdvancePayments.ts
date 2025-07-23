@@ -22,11 +22,135 @@ export interface AdvancePayment {
   status: string;
   paymentMethod: string;
   expensePlan: {
+    id: string;
     code: string;
+    reimbursableAmount: number;
+    startDate: string | null;
+    endDate: string | null;
+    planDate: string | null;
+    decisionDate: string | null;
+    status: string;
     title: string;
     totalAmount: number;
+    requestTypeRef: any;
+    createdAt: string;
+    employeeDocumentId: string | null;
+    advancePaymentPaidAmount: number;
+    advancePaymentInTransitAmount: number;
+    currencyRef: any;
+    description: string;
     currency: {
+      type: string;
+      translations: Array<{
+        localeCode: string;
+        value: string;
+      }>;
+      catalog: {
+        defaultLocale: string;
+      };
+      value: string;
+      id: string;
       code: string;
+    };
+    requestType: {
+      value: string;
+      translations: Array<{
+        localeCode: string;
+        value: string;
+      }>;
+      catalog: {
+        defaultLocale: string;
+      };
+    };
+    expensePlanItem: Array<{
+      title: string;
+      status: string;
+      totalAmount: number;
+      expenseDate: string;
+    }>;
+    advancePayment: Array<{
+      id: string;
+      amount: number;
+      status: string;
+      currency: {
+        code: string;
+        translations: Array<{
+          localeCode: string;
+          value: string;
+        }>;
+        catalog: {
+          defaultLocale: string;
+        };
+      };
+    }>;
+    expenseRequestTrip: Array<{
+      tripDateTime: string;
+    }>;
+    expenseRequest?: Array<{
+      id: string;
+      code: string;
+      title: string;
+      description: string;
+      startDate: string | null;
+      endDate: string | null;
+      requestDate: string | null;
+      decisionDate: string | null;
+      totalAmount: number;
+      currencyRef: string;
+      status: string;
+      reimbursableAmount: number;
+      nonReimbursableAmount: number;
+      additionalProperties: any;
+      currency: {
+        value: string;
+        translations: Array<{
+          localeCode: string;
+          value: string;
+        }>;
+        catalog: {
+          defaultLocale: string;
+        };
+      };
+      requestType: {
+        value: string;
+        translations: Array<{
+          localeCode: string;
+          value: string;
+        }>;
+        catalog: {
+          defaultLocale: string;
+        };
+      };
+      costCenter: {
+        name: string;
+      };
+      project: {
+        name: string;
+      };
+      employee: {
+        fullName: string;
+        employeePosition: {
+          supervisor: {
+            fullName: string;
+          };
+        };
+      };
+    }>;
+    employee: {
+      id: string;
+      code: string;
+      firstName: string;
+      lastName: string;
+      employeePosition: {
+        siteLocation: {
+          name: string;
+        };
+        organizationalUnit: {
+          name: string;
+        };
+        firstName: string;
+        lastName: string;
+      };
     };
   } | null;
   expensePlanId: string;
@@ -115,7 +239,6 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         }
       }
       
-      console.log('GraphQL Variables:', variables);
       
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',

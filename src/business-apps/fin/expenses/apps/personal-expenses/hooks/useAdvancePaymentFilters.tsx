@@ -21,7 +21,7 @@ export interface UseAdvancePaymentFiltersReturn {
 
 export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string[]>([ExpenseStatus.PREPARED, ExpenseStatus.PENDING]);
   const [amountRange, setAmountRange] = useState<{ min?: number; max?: number } | null>(null);
   const [advanceRange, setAdvanceRange] = useState<{ min?: number; max?: number } | null>(null);
 
@@ -61,7 +61,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     ExpenseStatus.CLOSED,
   ];
   
-  // Map of status to display label with backend labels in parentheses
+  // Map of status to display label - using exact same labels as the table
   const statusDisplayMap: Partial<Record<ExpenseStatus, string>> = {
     [ExpenseStatus.PREPARED]: 'Prepared',
     [ExpenseStatus.CREATED]: 'Draft (Created)',

@@ -23,6 +23,22 @@ export interface AdvancePaymentData {
     title: string;
     totalAmount: number;
     currency: { code: string };
+    id: string;
+    reimbursableAmount: number;
+    startDate: string;
+    endDate: string;
+    planDate: string;
+    decisionDate: string; 
+    status: string;
+    requestTypeRef: string;
+    createdAt: string;
+    employeeDocumentId: string;
+    expenseRequest: {
+      id: string;
+      code: string;
+      status: string;
+      totalAmount: number;
+    };
   };
   expensePlanId: string;
 }

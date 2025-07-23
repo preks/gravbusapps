@@ -7,9 +7,11 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetAdvancePayments, AdvancePayment } from '../../../hooks/useGetAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../../utils';
 import Pill from '@/components/pill';
-import { DollarOutlined } from '@ant-design/icons';
+import { DollarOutlined, FileTextOutlined } from '@ant-design/icons';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
-import { formatNumber } from '../expense-dashboard-tab/utils/formatters';
+import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails';
+import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails';
+import { formatNumberFunction } from '@/common/utils/windowUtils';
 
 const { Text } = Typography;
 
@@ -43,6 +45,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
   const [selectedItem, setSelectedItem] = useState<AdvancePayment | null>(null);
+  const [selectedExpensePlan, setSelectedExpensePlan] = useState<any>(null);
+  const [selectedExpenseRequest, setSelectedExpenseRequest] = useState<any>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   // Use filter props from parent with stable references
@@ -128,6 +132,24 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   // Handle closing the details panel
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null);
+    setSelectedExpensePlan(null);
+    setSelectedExpenseRequest(null);
+  }, []);
+  
+
+  // Handle viewing expense plan details
+  const handleViewExpensePlanDetails = useCallback((record: AdvancePayment) => {
+    if (record.expensePlan) {
+      setSelectedExpensePlan(record.expensePlan);
+    }
+  }, []);
+
+  // Handle viewing expense request details
+  const handleViewExpenseRequestDetails = useCallback((record: AdvancePayment) => {
+    // For advance payments, we need to get the expense request from the expense plan
+    if (record.expensePlan && record.expensePlan.expenseRequest) {
+      setSelectedExpenseRequest(record.expensePlan.expenseRequest[0]);
+    }
   }, []);
   
   // Render the data body with memoization
@@ -191,32 +213,32 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 onClick={(e) => e.stopPropagation()}
                 flowData={[
                   {
-                    category: 'Actions',
-                    key: 'edit',
-                    label: 'Edit',
-                    onClick: (e?: React.MouseEvent) => {
-                      e?.stopPropagation();
-                      console.log('Edit advance payment:', record.id);
-                    }
-                  },
-                  {
                     category: 'Navigations',
-                    key: 'view',
-                    label: 'View Details',
+                    key: 'view-advance-payment',
+                    label: 'View Advance Payment Details',
                     onClick: (e?: React.MouseEvent) => {
                       e?.stopPropagation();
                       handleSelectItem(record);
                     }
                   },
-                  {
-                    category: 'Actions',
-                    key: 'delete',
-                    label: 'Delete',
+                  ...(record.expensePlanId ? [{
+                    category: 'Navigations',
+                    key: 'view-plan-details',
+                    label: 'View Plan Details',
                     onClick: (e?: React.MouseEvent) => {
                       e?.stopPropagation();
-                      console.log('Delete advance payment:', record.id);
+                      handleViewExpensePlanDetails(record);
                     }
-                  }
+                  }] : []),
+                  ...(record.expensePlan?.expenseRequest && (record.expensePlan?.expenseRequest as unknown as any[]).length > 0 && (record.expensePlan?.expenseRequest as unknown as any[])[0].id !== null ? [{
+                    category: 'Navigations',
+                    key: 'view-request-details',
+                    label: 'View Request Details',
+                    onClick: (e?: React.MouseEvent) => {
+                      e?.stopPropagation();
+                      handleViewExpenseRequestDetails(record);
+                    }
+                  }] : [])
                 ]}
                 portalContainer={document.body}
                 data-testid="advance-payment-actions"
@@ -265,7 +287,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             key: 'amount',
             render: (text: any, record: any) => (
               <div className="gba:text-right" data-testid="advance-payment-amount">
-                {formatNumber(record.expensePlan?.totalAmount ?? 0)} {record.expensePlan?.currency?.code ?? 'EUR'}
+                {formatNumberFunction(record.expensePlan?.totalAmount, "0.00[,]00")} {record.expensePlan?.currency?.code ?? 'EUR'}
               </div>
             )
           },
@@ -275,7 +297,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             key: 'advance',
             render: (amount: any, record: any) => (
               <div className="gba:text-right" data-testid="advance-payment-advance">
-                {formatNumber(amount ?? 0)} {record.currency?.code ?? 'EUR'}
+                {formatNumberFunction(amount, "0.00[,]00")} {record.currency?.code ?? 'EUR'}
               </div>
             )
           },
@@ -310,6 +332,32 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     if (!selectedItem) return null;
     return <AdvancePaymentDetails payment={selectedItem} onClose={handleCloseDetails} {...contextProps} />;
   }, [selectedItem, handleCloseDetails, contextProps]);
+
+  // Render expense plan details panel
+  const renderExpensePlanDetails = useMemo(() => {
+    if (!selectedExpensePlan) return null;
+    return (
+      <ExpensePlanDetails
+        selectedItem={selectedExpensePlan}
+        onClose={handleCloseDetails}
+        accessToken={props.accessToken}
+        userInfo={props.userInfo}
+      />
+    );
+  }, [selectedExpensePlan, handleCloseDetails, props.accessToken, props.userInfo]);
+
+  // Render expense request details panel
+  const renderExpenseRequestDetails = useMemo(() => {
+    if (!selectedExpenseRequest) return null;
+    return (
+      <ExpenseRequestDetails
+        selectedItem={selectedExpenseRequest}
+        onClose={handleCloseDetails}
+        accessToken={props.accessToken}
+        userInfo={props.userInfo}
+      />
+    );
+  }, [selectedExpenseRequest, handleCloseDetails, props.accessToken, props.userInfo]);
 
   return (
     <DataContainer
@@ -353,6 +401,16 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         content: renderAdvancePaymentDetails,
         onClose: handleCloseDetails,
         footer: null // Remove footer close button as it's now in the details component
+      } : selectedExpensePlan ? {
+        title: selectedExpensePlan.title || 'Expense Plan Details',
+        icon: <FileTextOutlined />,
+        content: renderExpensePlanDetails,
+        onClose: handleCloseDetails,
+      } : selectedExpenseRequest ? {
+        title: selectedExpenseRequest.title || 'Expense Request Details',
+        icon: <FileTextOutlined />,
+        content: renderExpenseRequestDetails,
+        onClose: handleCloseDetails,
       } : undefined}
     />
   );

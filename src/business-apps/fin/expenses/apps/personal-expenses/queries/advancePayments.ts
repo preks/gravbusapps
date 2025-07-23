@@ -169,11 +169,135 @@ export const buildAdvancePaymentsQuery = (filters: AdvancePaymentFilters): strin
         status
         paymentMethod
         expensePlan {
+          id
           code
+          reimbursableAmount
+          startDate
+          endDate
+          planDate
+          decisionDate
+          status
           title
           totalAmount
+          requestTypeRef
+          createdAt
+          employeeDocumentId
+          advancePaymentPaidAmount
+          advancePaymentInTransitAmount
+          currencyRef
+          description
           currency {
+            type
+            translations(where: {localeCode: {_eq: "en"}}) {
+              localeCode
+              value
+            }
+            catalog {
+              defaultLocale
+            }
+            value
+            id
             code
+          }
+          requestType {
+            value
+            translations(where: {localeCode: {_eq: "en"}}) {
+              localeCode
+              value
+            }
+            catalog {
+              defaultLocale
+            }
+          }
+          expensePlanItem {
+            title
+            status
+            totalAmount
+            expenseDate
+          }
+          advancePayment {
+            id
+            amount
+            status
+            currency {
+              code
+              translations(where: {localeCode: {_eq: "en"}}) {
+                localeCode
+                value
+              }
+              catalog {
+                defaultLocale
+              }
+            }
+          }
+          expenseRequestTrip {
+            tripDateTime
+          }
+          expenseRequest {
+            id
+            code
+            title
+            description
+            startDate
+            endDate
+            requestDate
+            decisionDate
+            totalAmount
+            currencyRef
+            status
+            reimbursableAmount
+            nonReimbursableAmount
+            additionalProperties
+            currency {
+              value
+              translations(where: {localeCode: {_eq: "en"}}) {
+                localeCode
+                value
+              }
+              catalog {
+                defaultLocale
+              }
+            }
+            requestType {
+              value
+              translations(where: {localeCode: {_eq: "en"}}) {
+                localeCode
+                value
+              }
+              catalog {
+                defaultLocale
+              }
+            }
+            costCenter {
+              name
+            }
+            project {
+              name
+            }
+            employee {
+              fullName
+              employeePosition {
+                supervisor {
+                  fullName
+                }
+              }
+            }
+          }
+          employee {
+            id
+            code
+            firstName
+            lastName
+            employeePosition {
+              siteLocation {
+                name
+              }
+              organizationalUnit {
+                name
+              }
+              firstName
+              lastName
+            }
           }
         }
         expensePlanId
@@ -456,11 +580,31 @@ export const GET_ADVANCE_PAYMENTS_BY_EMPLOYEE = `
       status
       paymentMethod
       expensePlan {
+        id
         code
         title
         totalAmount
         currency {
           code
+        }
+        id
+        code
+        reimbursableAmount
+        startDate
+        endDate
+        planDate
+        decisionDate
+        status    
+        requestTypeRef
+        createdAt
+        employeeDocumentId
+        advancePaymentPaidAmount
+        advancePaymentInTransitAmount 
+        expenseRequest {
+          id
+          code
+          status
+          totalAmount
         }
       }
       expensePlanId
@@ -497,6 +641,7 @@ export const GET_ADVANCE_PAYMENT_STATISTICS = `
         expensePlan: {employeeId: {_eq: $employeeId}},
         isDeleted: {_eq: false},
         createdAt: {_gte: $startDate, _lte: $endDate}
+        status: {_in: ["APPROVED", "PAID", "BOOKED"]}
       }
     ) {
       aggregate {
@@ -510,7 +655,7 @@ export const GET_ADVANCE_PAYMENT_STATISTICS = `
       where: {
         expensePlan: {employeeId: {_eq: $employeeId}},
         isDeleted: {_eq: false},
-        status: {_in: ["PENDING"]}
+        status: {_in: ["PENDING", "PREPARED"]}
       }
     ) {
       aggregate {
@@ -521,7 +666,7 @@ export const GET_ADVANCE_PAYMENT_STATISTICS = `
       where: {
         expensePlan: {employeeId: {_eq: $employeeId}},
         isDeleted: {_eq: false},
-        status: {_in: ["APPROVED", "PAID"]}
+        status: {_in: ["APPROVED", "PAID", "BOOKED"]}
       }
     ) {
       aggregate {

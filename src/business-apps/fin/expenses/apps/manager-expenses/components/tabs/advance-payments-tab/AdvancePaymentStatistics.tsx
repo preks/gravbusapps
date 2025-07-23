@@ -23,7 +23,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     {
       key: 'total-count',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments', 'Total Advance Payments'),
-      value: formatNumberFunction(advancePaymentStats.totalCount.toString(), "0.00[,]00"),
+      value: advancePaymentStats.totalCount.toString(),
       prefix: <CurrencyEur />,
       color: '#3f8600',
       valueIsString: true, // Mark as pre-formatted string
