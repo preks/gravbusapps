@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CalendarOutlined, CloudUploadOutlined } from '@ant-design/icons';
-import { Button, List, Avatar, Spin, Alert, Empty, Tag, message, Timeline, Typography, Modal } from 'antd';
+import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CloudUploadOutlined, RobotOutlined } from '@ant-design/icons';
+import { Button, List, Spin, Alert, Empty, message, Timeline, Typography, Modal } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { NotesSection } from './NotesSection';
 import { useGetSalesActivities, SalesActivityData } from '../queries/SalesActivityQueries';
 import { useGetCrmDocuments, CrmDocumentData } from '../queries/CrmDocumentQueries';
 import { useRestClient } from '@/common/network/rest/useRestClient';
-import { useFileClient } from '@/common/network/files/useFileClient';
 import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
+import { useAiSummary } from '../hooks/useAiSummary';
 
 const { Text } = Typography;
 
@@ -29,16 +29,16 @@ interface TranslatedActivity extends SalesActivityData {
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, context }) => {
   // Read initial tab from URL parameters
-  const getInitialTab = (): 'activities' | 'notes' | 'documents' => {
+  const getInitialTab = (): 'activities' | 'notes' | 'documents' | 'ai-summary' => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
-    if (tabParam === 'activities' || tabParam === 'notes' || tabParam === 'documents') {
-      return tabParam;
+    if (tabParam === 'activities' || tabParam === 'notes' || tabParam === 'documents' || tabParam === 'ai-summary') {
+      return tabParam as 'activities' | 'notes' | 'documents' | 'ai-summary';
     }
     return 'activities';
   };
 
-  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'documents'>(getInitialTab);
+  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'documents' | 'ai-summary'>(getInitialTab);
   const [activities, setActivities] = useState<TranslatedActivity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
@@ -53,11 +53,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   const { fetchSalesActivities } = useGetSalesActivities(context);
   const { fetchCrmDocuments } = useGetCrmDocuments(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const fileClient = useFileClient(context);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
+  const { state: aiSummaryState, generateSummary } = useAiSummary(leadId || '', context.accessToken);
 
   // Function to update tab and URL
-  const updateActiveTab = (newTab: 'activities' | 'notes' | 'documents') => {
+  const updateActiveTab = (newTab: 'activities' | 'notes' | 'documents' | 'ai-summary') => {
     setActiveTab(newTab);
     
     // Update URL parameter
@@ -479,6 +479,22 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
         >
           Documents
         </div>
+        <div 
+          className={`gba:activity-tab${activeTab === 'ai-summary' ? '-active' : ''}`}
+          data-testid="ai-summary-tab"
+          style={{
+            padding: '12px 24px',
+            fontWeight: '500',
+            color: activeTab === 'ai-summary' ? '#1890ff' : '#8c8c8c',
+            backgroundColor: activeTab === 'ai-summary' ? 'white' : 'transparent',
+            flex: 1,
+            textAlign: 'center',
+            cursor: 'pointer'
+          }}
+          onClick={() => updateActiveTab('ai-summary')}
+        >
+          AI Summary
+        </div>
         </div>
       </div>
 
@@ -716,6 +732,146 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                   </Timeline.Item>
                 ))}
               </Timeline>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AI Summary Tab Content */}
+      {activeTab === 'ai-summary' && (
+        <div>
+          <div 
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 24px'
+            }}
+          >
+            <div 
+              className="gba:ai-summary-title" 
+              style={{ fontSize: '18px', fontWeight: '500' }}
+            >
+              AI Summary
+            </div>
+            <Button 
+              type="primary"
+              icon={<RobotOutlined />}
+              onClick={generateSummary}
+              loading={aiSummaryState?.type === 'loading'}
+              data-testid="generate-summary-button"
+            >
+              Generate Summary
+            </Button>
+          </div>
+
+          <div style={{ padding: '0 24px 24px' }}>
+            {aiSummaryState?.type === 'loading' && (
+              <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                <Spin size="large" />
+                <div style={{ marginTop: '16px', color: '#8c8c8c' }}>
+                  Generating AI summary...
+                </div>
+              </div>
+            )}
+
+            {aiSummaryState?.type === 'error' && (
+              <Alert
+                message="Error Generating Summary"
+                description="Failed to generate AI summary. Please try again."
+                type="error"
+                showIcon
+                style={{ marginBottom: '16px' }}
+                action={
+                  <Button size="small" onClick={generateSummary}>
+                    Retry
+                  </Button>
+                }
+              />
+            )}
+
+            {!aiSummaryState && (
+              <Empty
+                description="No summary generated yet"
+                style={{ padding: '40px 0' }}
+                data-testid="empty-ai-summary"
+              >
+                <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
+                  Click "Generate Summary" to create an AI-powered summary of this lead
+                </div>
+              </Empty>
+            )}
+
+            {aiSummaryState?.type === 'success' && (
+              <div>
+                {/* Executive Summary */}
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{ 
+                    fontSize: '16px', 
+                    fontWeight: '500', 
+                    marginBottom: '12px',
+                    color: '#262626'
+                  }}>
+                    Executive Summary
+                  </div>
+                  <div style={{ 
+                    fontSize: '14px', 
+                    lineHeight: '1.6',
+                    color: '#595959',
+                    backgroundColor: '#fafafa',
+                    padding: '16px',
+                    borderRadius: '6px',
+                    border: '1px solid #f0f0f0'
+                  }}>
+                    {aiSummaryState.content.summary}
+                  </div>
+                </div>
+
+                {/* Key Insights */}
+                {aiSummaryState.content.keyInsights && aiSummaryState.content.keyInsights.length > 0 && (
+                  <div>
+                    <div style={{ 
+                      fontSize: '16px', 
+                      fontWeight: '500', 
+                      marginBottom: '12px',
+                      color: '#262626'
+                    }}>
+                      Key Insights & Next Steps
+                    </div>
+                    <List
+                      dataSource={aiSummaryState.content.keyInsights}
+                      renderItem={(insight, index) => (
+                        <List.Item style={{ padding: '8px 0', border: 'none' }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                            <div style={{ 
+                              minWidth: '20px',
+                              height: '20px',
+                              backgroundColor: '#1890ff',
+                              color: 'white',
+                              borderRadius: '50%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px',
+                              fontWeight: '500',
+                              marginTop: '2px'
+                            }}>
+                              {index + 1}
+                            </div>
+                            <div style={{ 
+                              fontSize: '14px', 
+                              lineHeight: '1.5',
+                              color: '#595959'
+                            }}>
+                              {insight}
+                            </div>
+                          </div>
+                        </List.Item>
+                      )}
+                    />
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
