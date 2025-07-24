@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useCurrencyStore } from '../../store/useCurrencyStore';
+import { useCurrencyData } from '../../hooks/useCurrencyData';
 import { 
   Card,
   CardContent,
@@ -42,48 +43,24 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   const { primaryCurrency } = useCurrencyStore();
   const [activeTab, setActiveTab] = React.useState<string>('expense-items');
   
-  // Function to determine the most used currency from expense data
-  const getMostUsedCurrency = (data: any): string | null => {
-    if (!data) return null;
-    
-    // Combine all expense types that have currency information
-    const allItems = [
-      ...(data.expenseItems || []),
-      ...(data.expenseRequests || []),
-      ...(data.expensePlans || []),
-      ...(data.advancePayments || [])
-    ];
-    
-    // Count occurrences of each currency
-    const currencyCounts: Record<string, number> = {};
-    
-    allItems.forEach(item => {
-      if (!item || !item.currencyRef) return;
-      
-      // Extract currency code from the reference (format: Currency:v1:CODE)
-      const currencyMatch = item.currencyRef.match(/Currency:v1:([A-Z]{3})/);
-      if (currencyMatch && currencyMatch[1]) {
-        const currencyCode = currencyMatch[1];
-        currencyCounts[currencyCode] = (currencyCounts[currencyCode] || 0) + 1;
-      }
-    });
-    
-    // Find the most used currency
-    let mostUsed = null;
-    let highestCount = 0;
-    
-    Object.entries(currencyCounts).forEach(([currency, count]) => {
-      if (count > highestCount) {
-        mostUsed = currency;
-        highestCount = count;
-      }
-    });
-    
-    return mostUsed;
-  };
+  // Use the currency data hook to get dynamic currency information
+  const { 
+    availableCurrencies, 
+    defaultCurrency, 
+    isLoading: isCurrencyLoading,
+    standardizeCurrencyRef
+  } = useCurrencyData(
+    accessToken,
+    userInfo?.employeeDetails?.employeeId || '00000000-0000-0000-0000-000000000000'
+  );
   
   // Initialize currency filter with null, will be set after data is loaded
   const [currencyFilter, setCurrencyFilter] = useState<string | null>(null);
+  
+  // Create a standardized currency reference for GraphQL queries
+  const standardizedCurrencyRef = useMemo(() => {
+    return currencyFilter ? standardizeCurrencyRef(currencyFilter) : null;
+  }, [currencyFilter, standardizeCurrencyRef]);
   
   // Use the team spending analytics hook
   const { 
@@ -103,29 +80,19 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   } = useTeamSpendingAnalytics(
     accessToken,
     userInfo?.employeeDetails?.employeeId || '00000000-0000-0000-0000-000000000000',
-    currencyFilter
+    standardizedCurrencyRef // Use standardized currency reference instead of raw currencyFilter
   );
   
   // Use the expense group catalog hook to get category names
   const { expenseGroups } = useExpenseGroupCatalog(accessToken);
   
-  // Calculate the most used currency from the data
-  const mostUsedCurrency = useMemo(() => {
-    if (!data) return null;
-    return getMostUsedCurrency(data);
-  }, [data]);
-
   // Set the default currency when data is loaded
   useEffect(() => {
-    if (data && !currencyFilter && mostUsedCurrency) {
-      console.log('Setting default currency to most used currency:', mostUsedCurrency);
-      // Set the most used currency, or fall back to primary currency if no data
-      setCurrencyFilter(mostUsedCurrency);
-    } else if (data && !currencyFilter) {
-      console.log('No most used currency found, using primary currency:', primaryCurrency);
-      setCurrencyFilter(primaryCurrency);
+    if (!currencyFilter && defaultCurrency) {
+      console.log('Setting default currency to:', defaultCurrency);
+      setCurrencyFilter(defaultCurrency);
     }
-  }, [data, mostUsedCurrency, primaryCurrency, currencyFilter]);
+  }, [defaultCurrency, currencyFilter]);
 
   // Transform expense items by category data to use actual category names
   const expenseItemsByCategoryWithNames = useMemo(() => {
@@ -587,11 +554,13 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.currency_filter', 'Currency')}
           </Label>
           <CurrencyFilter
+            data-testid="team-analytics-currency-filter"
             value={currencyFilter}
-            onChange={(value) => setCurrencyFilter(value)}
-            currencies={['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN']}
-            data-testid="team-spending-analytics-currency-select"
-            className="gba:w-full"
+            onChange={setCurrencyFilter}
+            currencies={availableCurrencies}
+            showAllOption={false}
+            placeholder="Select Currency"
+            isLoading={isCurrencyLoading}
           />
         </div>
 
