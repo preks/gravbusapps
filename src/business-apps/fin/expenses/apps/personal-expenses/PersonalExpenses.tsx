@@ -1,6 +1,7 @@
-import React, { useState, useEffect, ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, ReactNode } from 'react';
 import { PageLayout } from '@newwork/nw-design-system';
 import { Wallet } from "@phosphor-icons/react";
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 // Create a global API for tab navigation
 interface TabNavigationState {
@@ -15,8 +16,6 @@ declare global {
   }
 }
 
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-
 // Import tab components (placeholders for now, will be created next)
 import ExpenseDashboardTab from './components/tabs/expense-dashboard-tab';
 import ExpenseItemsTab from './components/tabs/expense-items-tab';
@@ -24,7 +23,6 @@ import ExpensePlansTab from './components/tabs/expense-plans-tab';
 import AdvancePaymentsTab from './components/tabs/advance-payments-tab';
 import ExpenseRequestsTab from './components/tabs/expense-requests-tab';
 import ExpenseCalendarTab from './components/tabs/expense-calendar-tab';
-import ExpenseAi from './components/expense-ai';
 
 export interface PersonalExpensesProps extends BusinessAppContextProps {}
 

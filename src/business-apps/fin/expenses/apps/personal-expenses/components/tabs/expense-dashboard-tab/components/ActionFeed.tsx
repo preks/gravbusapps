@@ -2,13 +2,32 @@ import React, { useState } from 'react';
 import { Card, CardHeader, CardContent, CardTitle, Button, Alert, Spinner, Badge } from '@newwork/nw-design-system';
 import { EyeOutlined, EyeInvisibleOutlined, DollarCircleOutlined } from '@ant-design/icons';
 import { DashboardStats, RecentActivity } from '../types';
-import { formatNumber, getStatusColor } from '../utils/formatters';
+import { formatNumber } from '../utils/formatters';
 
 interface ActionFeedProps {
   stats: DashboardStats | undefined;
   isLoading: boolean;
   error: Error | null;
 }
+
+// Status badge variant function (same pattern as manager absences)
+const getStatusBadgeVariant = (status: string) => {
+  switch (status.toUpperCase()) {
+    case 'APPROVED':
+      return 'success' as const;
+    case 'PENDING':
+      return 'warning' as const;
+    case 'REJECTED':
+      return 'destructive' as const;
+    case 'PAID':
+      return 'success' as const;
+    case 'DRAFT':
+    case 'CREATED':
+      return 'secondary' as const;
+    default:
+      return 'default' as const;
+  }
+};
 
 export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error }) => {
   const [showAll, setShowAll] = useState(false);
@@ -71,33 +90,51 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
             className={showAll ? "gba:max-h-[300px] gba:overflow-y-auto gba:pr-2" : ""}
             data-testid="activity-list"
           >
+            {/* Header Row */}
+            <div className="gba:grid gba:grid-cols-12 gba:gap-2 gba:items-center gba:py-1 gba:border-b gba:border-gray-200 gba:mb-2">
+              <div className="gba:col-span-5 gba:text-xs gba:font-semibold gba:text-gray-600">
+                Description
+              </div>
+              <div className="gba:col-span-2 gba:text-xs gba:font-semibold gba:text-gray-600 gba:text-center">
+                Status
+              </div>
+              <div className="gba:col-span-2 gba:text-xs gba:font-semibold gba:text-gray-600 gba:text-center">
+                Type
+              </div>
+              <div className="gba:col-span-3 gba:text-xs gba:font-semibold gba:text-gray-600 gba:text-right">
+                Amount
+              </div>
+            </div>
             <div className="gba:space-y-1">
               {activitiesToShow.map((item: RecentActivity, index: number) => (
                 <div 
                   key={index} 
-                  className="gba:flex gba:items-center gba:justify-between gba:py-1"
+                  className="gba:grid gba:grid-cols-12 gba:gap-2 gba:items-center gba:py-1"
                   data-testid={`activity-item-${index}`}
                 >
-                  <div className="gba:text-xs gba:font-medium gba:truncate gba:flex-1 gba:mr-2">
+                  <div className="gba:col-span-5 gba:text-xs gba:font-medium gba:truncate">
                     {item.title}
                   </div>
-                  <div className="gba:flex gba:items-center gba:space-x-1 gba:flex-shrink-0">
+                  <div className="gba:col-span-2 gba:flex gba:justify-center">
                     <Badge 
-                      variant="secondary" 
+                      variant={getStatusBadgeVariant(item.status)} 
                       className="gba:text-xs gba:px-1 gba:py-0"
-                      style={{ backgroundColor: getStatusColor(item.status), color: 'white' }}
                     >
                       {item.status}
                     </Badge>
-                    {item.expenseType && (
+                  </div>
+                  <div className="gba:col-span-2 gba:flex gba:justify-center">
+                    {item.expenseType ? (
                       <Badge variant="outline" className="gba:text-xs gba:px-1 gba:py-0">
                         {item.expenseType}
                       </Badge>
+                    ) : (
+                      <div className="gba:text-xs gba:text-gray-400">-</div>
                     )}
-                    <div className="gba:text-xs gba:text-gray-500 gba:flex gba:items-center">
-                      <DollarCircleOutlined className="gba:mr-1" />
-                      {formatNumber(Number(item.totalAmount))}
-                    </div>
+                  </div>
+                  <div className="gba:col-span-3 gba:text-xs gba:text-gray-500 gba:flex gba:items-center gba:justify-end">
+                    <DollarCircleOutlined className="gba:mr-1" />
+                    {formatNumber(Number(item.totalAmount))}
                   </div>
                 </div>
               ))}

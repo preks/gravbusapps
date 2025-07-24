@@ -1,7 +1,6 @@
 import React, { useCallback } from 'react';
 import { Card, Button, CardContent } from '@newwork/nw-design-system';
 import { PlusCircleOutlined, SendOutlined, ExperimentOutlined } from '@ant-design/icons';
-import { message } from 'antd';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { startProcess } from '@/common/utils/start-process';
 
@@ -12,7 +11,8 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
     const employeeId = userInfo?.employeeDetails?.employeeId;
     if (!employeeId) {
       console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
-      message.warning('User information not loaded yet. Please wait a moment and try again.');
+      // TODO: Replace with nw-design-system toast when available
+      console.warn('User information not loaded yet. Please wait a moment and try again.');
       return;
     }
     
@@ -31,7 +31,8 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
     const employeeId = userInfo?.employeeDetails?.employeeId;
     if (!employeeId) {
       console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
-      message.warning('User information not loaded yet. Please wait a moment and try again.');
+      // TODO: Replace with nw-design-system toast when available
+      console.warn('User information not loaded yet. Please wait a moment and try again.');
       return;
     }
     
