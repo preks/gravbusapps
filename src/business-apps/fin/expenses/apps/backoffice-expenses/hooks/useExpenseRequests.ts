@@ -25,6 +25,8 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [employeeFilter, setEmployeeFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [amountMinFilter, setAmountMinFilter] = useState<string>("");
+  const [amountMaxFilter, setAmountMaxFilter] = useState<string>("");
 
   const transformExpenseRequest = (item: any): ExpenseData => {
     return {
@@ -73,7 +75,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
     };
   };
 
-  const fetchData = async (status?: string) => {
+  const fetchData = async () => {
     if (!accessToken || !client) {
       setError("Access token and GraphQL client are required.");
       setLoading(false);
@@ -88,8 +90,8 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
 
       conditions.push({ status: { _neq: "DISCARDED" } });
 
-      if (status && status !== "") {
-        const statusArray = status
+      if (statusFilter && statusFilter !== "") {
+        const statusArray = statusFilter
           .split(",")
           .map((s) => s.trim())
           .filter((s) => s);
@@ -108,6 +110,21 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
             _or: employeeIds.map((id) => ({
               employee: { id: { _eq: id } },
             })),
+          });
+        }
+      }
+
+      if (amountMinFilter || amountMaxFilter) {
+        const amountConditions: any = {};
+        if (amountMinFilter) {
+          amountConditions._gte = parseFloat(amountMinFilter);
+        }
+        if (amountMaxFilter) {
+          amountConditions._lte = parseFloat(amountMaxFilter);
+        }
+        if (Object.keys(amountConditions).length > 0) {
+          conditions.push({
+            totalAmount: amountConditions,
           });
         }
       }
@@ -194,7 +211,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
   // ⚡ PERFORMANCE OPTIMIZATION: Add debouncing for search and filters
   useEffect(() => {
     if (accessToken && client) {
-      fetchData(statusFilter);
+      fetchData();
     }
   }, [
     accessToken,
@@ -204,6 +221,8 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
     searchTerm,
     employeeFilter,
     statusFilter,
+    amountMinFilter,
+    amountMaxFilter,
   ]);
 
   const handleTableChange = (pagination: any, _filters: any, sorter: any) => {
@@ -226,6 +245,15 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
     setStatusFilter(statuses);
     setCurrentPage(1);
   }, []);
+
+  const handleAmountFilter = useCallback(
+    (amountMin: string, amountMax: string) => {
+      setAmountMinFilter(amountMin);
+      setAmountMaxFilter(amountMax);
+      setCurrentPage(1);
+    },
+    []
+  );
 
   const departments = useMemo(() => {
     const deptSet = new Set<string>();
@@ -388,7 +416,10 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
     searchStatuses,
     handleEmployeeFilter,
     handleStatusFilter,
+    handleAmountFilter,
     handleTableChange,
     handleSearch,
+    amountMinFilter,
+    amountMaxFilter,
   };
 };

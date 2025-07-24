@@ -117,13 +117,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     error, 
     currentPage, 
     pageSize, 
+    searchTerm,
     fetchData,
     searchEmployees, 
     searchStatuses,
     handleEmployeeFilter,
     handleStatusFilter,
+    handleAmountFilter,
     handleTableChange, 
-    handleSearch 
+    handleSearch,
+    amountMinFilter,
+    amountMaxFilter,
   } = useExpenseRequests(contextProps);
 
   useEffect(() => {
@@ -155,32 +159,58 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const [employeeSearchLoading, setEmployeeSearchLoading] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<Array<{id: string, name: string}>>([]);
 
+  // Status filter states
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
 
+  // Local amount filter states for immediate UI updates
+  const [localAmountMin, setLocalAmountMin] = useState(amountMinFilter);
+  const [localAmountMax, setLocalAmountMax] = useState(amountMaxFilter);
+
 
   const debouncedSearchEmployees = useMemo(() => 
-    debounce(async (searchTerm: string) => {
-      if (!searchTerm.trim()) {
+    debounce(async (searchText: string) => {
+      if (searchText.trim().length >= 2) {
+        setEmployeeSearchLoading(true);
+        try {
+          const results = await searchEmployees(searchText);
+          setEmployeeSearchResults(results);
+        } catch (error) {
+          console.error('Error searching employees:', error);
+          setEmployeeSearchResults([]);
+        } finally {
+          setEmployeeSearchLoading(false);
+        }
+      } else {
         setEmployeeSearchResults([]);
-        return;
       }
-      
-      setEmployeeSearchLoading(true);
-      try {
-        const results = await searchEmployees(searchTerm);
-        setEmployeeSearchResults(results);
-      } catch (error) {
-        console.error('Error searching employees:', error);
-        setEmployeeSearchResults([]);
-      } finally {
-        setEmployeeSearchLoading(false);
-      }
-    }, 300),
+    }, 300), 
     [searchEmployees]
   );
 
- 
+  const debouncedAmountFilter = useMemo(() => 
+    debounce((min: string, max: string) => {
+      handleAmountFilter(min, max);
+    }, 500), 
+    [handleAmountFilter]
+  );
+
+  // Sync local amount state with hook state
+  useEffect(() => {
+    setLocalAmountMin(amountMinFilter);
+    setLocalAmountMax(amountMaxFilter);
+  }, [amountMinFilter, amountMaxFilter]);
+
+  // Handle status filter changes
+  const handleStatusFilterChange = useCallback((status: string, selected: boolean) => {
+    const newStatusFilter = selected
+      ? [...statusFilter, status]
+      : statusFilter.filter(s => s !== status);
+    
+    setStatusFilter(newStatusFilter);
+    handleStatusFilter(newStatusFilter.join(','));
+  }, [statusFilter, handleStatusFilter]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -195,14 +225,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     };
   }, []);
 
-  
   useEffect(() => {
-   
     if (contextProps.accessToken) {
       fetchData();
     }
   }, [contextProps.accessToken]);
-
 
   useEffect(() => {
     if (searchText !== initialParams.search) {
@@ -210,13 +237,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     }
   }, [searchText, initialParams.search, updateURLParams]);
 
-
   const handleSearchChange = useCallback((value: string) => {
     setSearchText(value);
     handleSearch(value);
     onSearchChange?.(value);
   }, [handleSearch, onSearchChange]);
-
 
   const handleRowSelection = useCallback((selectedRowKeys: React.Key[], selectedRows: any[]) => {
     setSelectedRowKeys(selectedRowKeys);
@@ -235,15 +260,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     setSelectedExpense(null);
     setSelectedRowKeys([]);
   }, []);
-
-  const handleStatusFilterChange = useCallback((status: string, selected: boolean) => {
-    const newStatusFilter = selected
-      ? [...statusFilter, status]
-      : statusFilter.filter(s => s !== status);
-    
-    setStatusFilter(newStatusFilter);
-    handleStatusFilter(newStatusFilter.join(','));
-  }, [statusFilter, handleStatusFilter]);
 
   const filterGroups: DataFilterGroup[] = useMemo(() => {
     return [
@@ -315,9 +331,52 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
             )}
           </div>
         )
+      },
+      {
+        id: 'amount',
+        title: getTranslationFromI18nKeyAndLabel('expense.request.filter.amount', 'Amount'),
+        type: 'custom',
+        customComponent: (
+          <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2" onClick={(e) => e.stopPropagation()}>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-sm gba:text-gray-600 gba:w-8">Min</span>
+              <input
+                type="number"
+                value={localAmountMin}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  const value = e.target.value;
+                  setLocalAmountMin(value);
+                  debouncedAmountFilter(value, localAmountMax);
+                }}
+                onFocus={(e) => e.stopPropagation()}
+                className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                placeholder="Min"
+                data-testid="amount-min-filter-input"
+              />
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-sm gba:text-gray-600 gba:w-8">Max</span>
+              <input
+                type="number"
+                value={localAmountMax}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  const value = e.target.value;
+                  setLocalAmountMax(value);
+                  debouncedAmountFilter(localAmountMin, value);
+                }}
+                onFocus={(e) => e.stopPropagation()}
+                className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                placeholder="Max"
+                data-testid="amount-max-filter-input"
+              />
+            </div>
+          </div>
+        )
       }
     ];
-  }, [availableStatuses, statusFilter, employeeSearchText, showEmployeeDropdown, employeeSearchResults, employeeSearchLoading, selectedEmployees, handleEmployeeFilter]);
+  }, [availableStatuses, statusFilter, employeeSearchText, showEmployeeDropdown, employeeSearchResults, employeeSearchLoading, selectedEmployees, handleEmployeeFilter, handleAmountFilter, amountMinFilter, amountMaxFilter, localAmountMin, localAmountMax, debouncedAmountFilter]);
 
   const getFilters = useCallback((filtersToApply?: string[]) => {
     const filters: Record<string, any> = {};
@@ -326,14 +385,19 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   }, [employeeFilter]);
 
   const setFilters = useCallback((filters: string[]) => {
+    // Clear all filters
     setEmployeeFilter('');
     setSelectedEmployees([]);
     setEmployeeSearchText('');
     setStatusFilter([]);
+    setLocalAmountMin('');
+    setLocalAmountMax('');
     
+    // Trigger data refresh by calling the handler functions
     handleEmployeeFilter('');
     handleStatusFilter('');
-  }, [handleEmployeeFilter, handleStatusFilter]);
+    handleAmountFilter('', '');
+  }, [handleEmployeeFilter, handleStatusFilter, handleAmountFilter]);
 
 
   const handleEnhancedTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
@@ -389,6 +453,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
           filterLabelMap: {
             status: statusFilter.length > 0 ? `Status: ${statusFilter.map(s => getExpenseRequestStatusDisplay(s).label).join(', ')}` : 'Status: All',
             employee: employeeFilter ? `Employee: ${selectedEmployees.map(e => e.name).join(', ')}` : 'Employee: All',
+            amount: `Amount: ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
           },
           actions: [],
         }}
@@ -396,22 +461,25 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
           filterGroups: filterGroups,
           onFilterChange: (filterId: string, selected: boolean) => {
             if (filterId === '') {
-             
+              // Handle "All" selection
               if (selected) {
                 setEmployeeFilter('');
                 setSelectedEmployees([]);
                 setEmployeeSearchText('');
                 setStatusFilter([]);
+                setLocalAmountMin('');
+                setLocalAmountMax('');
                 
                 // Trigger data refresh
                 handleEmployeeFilter('');
                 handleStatusFilter('');
+                handleAmountFilter('', '');
               }
             } else {
-             
+              // Handle specific filter selection
               if (filterId === 'employee') {
                 if (selected) {
-                  
+                  // This is handled by the employee selection logic above
                 } else {
                   setEmployeeFilter('');
                   setSelectedEmployees([]);
@@ -419,7 +487,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   handleEmployeeFilter('');
                 }
               } else if (availableStatuses.includes(filterId)) {
-               
+                // Handle status filter changes
                 handleStatusFilterChange(filterId, selected);
               }
             }
