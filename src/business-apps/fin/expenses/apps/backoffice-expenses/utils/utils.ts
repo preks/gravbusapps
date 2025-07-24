@@ -72,6 +72,8 @@ export const getExpenseRequestStatusDisplay = (
 
     case ExpenseStatus.PAID:
       return { label: "Paid", type: "completed" };
+    case ExpenseStatus.REJECTED:
+      return { label: "Reject", type: "error" };
 
     default:
       return {

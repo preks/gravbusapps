@@ -15,7 +15,7 @@ import { ExpenseData } from '../../../types';
 import { getExpenseRequestStatusDisplay } from '../../../utils/utils';
 import Pill from '@/components/pill/Pill';
 
-// Simple debounce function to avoid lodash dependency
+
 function debounce<T extends (...args: any[]) => any>(
   func: T,
   wait: number
@@ -34,13 +34,12 @@ interface ExpenseRequestsTableProps extends BusinessAppContextProps {
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const { search, onSearchChange, accessToken } = props;
-  
-  // Extract only the necessary props to prevent unnecessary re-renders
+ 
   const contextProps = useMemo(() => ({
     accessToken: props.accessToken,
   }), [props.accessToken]);
   
-  // ⚡ BEST PRACTICE: Get initial values from URL parameters (like leads)
+
   const [initialParams] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
     return {
@@ -52,12 +51,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     };
   });
   
-  // Local state management with URL initialization
+
   const [searchText, setSearchText] = useState<string>(search ?? initialParams.search);
   const [selectedExpense, setSelectedExpense] = useState<ExpenseData | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   
-  // ⚡ BEST PRACTICE: Update URL parameters (like leads)
   const updateURLParams = useCallback((params: {
     search?: string;
     page?: number;
@@ -111,23 +109,45 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     window.history.replaceState({}, '', newURL);
   }, []);
 
-  // ⚡ BEST PRACTICE: Use the hook with proper error handling
-  const {
-    expenses,
-    loading,
-    error,
-    totalItems,
-    currentPage,
-    pageSize,
-    searchTerm,
+
+  const { 
+    expenses, 
+    totalItems, 
+    loading, 
+    error, 
+    currentPage, 
+    pageSize, 
     fetchData,
-    handleTableChange,
-    handleSearch,
+    searchEmployees, 
+    searchStatuses,
     handleEmployeeFilter,
-    searchEmployees,
+    handleStatusFilter,
+    handleTableChange, 
+    handleSearch 
   } = useExpenseRequests(contextProps);
 
-  // Employee filter states
+  useEffect(() => {
+    const loadAvailableStatuses = async () => {
+      try {
+        const statuses = await searchStatuses();
+        
+        if (statuses.length === 0) {
+          const defaultStatuses = ['CREATED', 'PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 'CLOSED', 'PAID', 'REJECTED'];
+          setAvailableStatuses(defaultStatuses);
+        } else {
+          setAvailableStatuses(statuses);
+        }
+      } catch (error) {
+        console.error('Error loading available statuses:', error);
+        const defaultStatuses = ['CREATED', 'PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 'CLOSED', 'PAID', 'REJECTED'];
+        setAvailableStatuses(defaultStatuses);
+      }
+    };
+
+    loadAvailableStatuses();
+  }, [searchStatuses]);
+
+
   const [employeeFilter, setEmployeeFilter] = useState('');
   const [employeeSearchText, setEmployeeSearchText] = useState('');
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
@@ -135,7 +155,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const [employeeSearchLoading, setEmployeeSearchLoading] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<Array<{id: string, name: string}>>([]);
 
-  // Debounced search for employees
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
+
+
   const debouncedSearchEmployees = useMemo(() => 
     debounce(async (searchTerm: string) => {
       if (!searchTerm.trim()) {
@@ -157,7 +180,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     [searchEmployees]
   );
 
-  // Handle clicking outside dropdown to close it
+ 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -172,29 +195,29 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     };
   }, []);
 
-  // ⚡ BEST PRACTICE: Load data on mount and when dependencies change
+  
   useEffect(() => {
-    // Only fetch data if we have an access token and the component is mounted
+   
     if (contextProps.accessToken) {
       fetchData();
     }
-  }, [contextProps.accessToken]); // Only depend on accessToken to prevent excessive calls
+  }, [contextProps.accessToken]);
 
-  // ⚡ BEST PRACTICE: Sync URL params with state
+
   useEffect(() => {
     if (searchText !== initialParams.search) {
       updateURLParams({ search: searchText });
     }
   }, [searchText, initialParams.search, updateURLParams]);
 
-  // ⚡ BEST PRACTICE: Handle search changes
+
   const handleSearchChange = useCallback((value: string) => {
     setSearchText(value);
     handleSearch(value);
     onSearchChange?.(value);
   }, [handleSearch, onSearchChange]);
 
-  // ⚡ BEST PRACTICE: Handle row selection
+
   const handleRowSelection = useCallback((selectedRowKeys: React.Key[], selectedRows: any[]) => {
     setSelectedRowKeys(selectedRowKeys);
     if (selectedRows.length === 1) {
@@ -204,81 +227,98 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     }
   }, []);
 
-  // ⚡ BEST PRACTICE: Handle row click
   const handleRowClick = useCallback((record: any) => {
     setSelectedExpense(record as ExpenseData);
   }, []);
 
-  // ⚡ BEST PRACTICE: Handle close details
   const handleCloseDetails = useCallback(() => {
     setSelectedExpense(null);
     setSelectedRowKeys([]);
   }, []);
 
-  // ⚡ BEST PRACTICE: Create filter groups
-  const filterGroups: DataFilterGroup[] = useMemo(() => [
-    {
-      id: 'employee',
-      title: getTranslationFromI18nKeyAndLabel('expense.request.filter.employee', 'Employee'),
-      type: 'custom',
-      customComponent: (
-        <div className="employee-search-container gba:relative gba:p-2">
-          <input
-            type="text"
-            value={employeeSearchText}
-            onChange={(e) => {
-              setEmployeeSearchText(e.target.value);
-              setShowEmployeeDropdown(true);
-              debouncedSearchEmployees(e.target.value);
-            }}
-            onFocus={() => setShowEmployeeDropdown(true)}
-            className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-            placeholder="Search employee..."
-            data-testid="employee-search-input"
-          />
-          
-          {/* Dropdown with search results */}
-          {showEmployeeDropdown && employeeSearchText.trim() && (
-            <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-white gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
-              {employeeSearchLoading ? (
-                <div className="gba:p-2 gba:text-sm gba:text-gray-500">
-                  Loading employees...
-                </div>
-              ) : employeeSearchResults.length === 0 ? (
-                <div className="gba:p-2 gba:text-sm gba:text-gray-500">
-                  No employees found
-                </div>
-              ) : (
-                employeeSearchResults.map((employee) => (
-                  <button
-                    key={employee.id}
-                    className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-gray-100 gba:transition-colors ${
-                      selectedEmployees.some(e => e.id === employee.id) ? 'gba:bg-blue-50 gba:text-blue-700' : 'gba:text-gray-700'
-                    }`}
-                    onClick={() => {
-                      const newSelected = selectedEmployees.some(e => e.id === employee.id)
-                        ? selectedEmployees.filter(e => e.id !== employee.id)
-                        : [...selectedEmployees, employee];
-                      setSelectedEmployees(newSelected);
-                      setEmployeeFilter(newSelected.map(e => e.id).join(','));
-                      
-                      // Apply the employee filter to trigger data fetching
-                      handleEmployeeFilter(newSelected.map(e => e.id).join(','));
-                    }}
-                    data-testid={`employee-option-${employee.id}`}
-                  >
-                    {employee.name}
-                  </button>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      )
-    },
-  ], [employeeSearchText, showEmployeeDropdown, employeeSearchResults, employeeSearchLoading, selectedEmployees, handleEmployeeFilter]);
+  const handleStatusFilterChange = useCallback((status: string, selected: boolean) => {
+    const newStatusFilter = selected
+      ? [...statusFilter, status]
+      : statusFilter.filter(s => s !== status);
+    
+    setStatusFilter(newStatusFilter);
+    handleStatusFilter(newStatusFilter.join(','));
+  }, [statusFilter, handleStatusFilter]);
 
-  // ⚡ BEST PRACTICE: Create filter label map
+  const filterGroups: DataFilterGroup[] = useMemo(() => {
+    return [
+      {
+        id: 'status',
+        title: getTranslationFromI18nKeyAndLabel('expense.request.filter.status', 'Status'),
+        type: 'checkbox',
+        filters: availableStatuses.map(status => ({
+          id: status,
+          label: getExpenseRequestStatusDisplay(status).label,
+          selected: statusFilter.includes(status)
+        }))
+      },
+      {
+        id: 'employee',
+        title: getTranslationFromI18nKeyAndLabel('expense.request.filter.employee', 'Employee'),
+        type: 'custom',
+        customComponent: (
+          <div className="employee-search-container gba:relative gba:p-2">
+            <input
+              type="text"
+              value={employeeSearchText}
+              onChange={(e) => {
+                setEmployeeSearchText(e.target.value);
+                setShowEmployeeDropdown(true);
+                debouncedSearchEmployees(e.target.value);
+              }}
+              onFocus={() => setShowEmployeeDropdown(true)}
+              className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+              placeholder="Search employee..."
+              data-testid="employee-search-input"
+            />
+            
+            {/* Dropdown with search results */}
+            {showEmployeeDropdown && employeeSearchText.trim() && (
+              <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-white gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
+                {employeeSearchLoading ? (
+                  <div className="gba:p-2 gba:text-sm gba:text-gray-500">
+                    Loading employees...
+                  </div>
+                ) : employeeSearchResults.length === 0 ? (
+                  <div className="gba:p-2 gba:text-sm gba:text-gray-500">
+                    No employees found
+                  </div>
+                ) : (
+                  employeeSearchResults.map((employee) => (
+                    <button
+                      key={employee.id}
+                      className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-gray-100 gba:transition-colors ${
+                        selectedEmployees.some(e => e.id === employee.id) ? 'gba:bg-blue-50 gba:text-blue-700' : 'gba:text-gray-700'
+                      }`}
+                      onClick={() => {
+                        const newSelected = selectedEmployees.some(e => e.id === employee.id)
+                          ? selectedEmployees.filter(e => e.id !== employee.id)
+                          : [...selectedEmployees, employee];
+                        setSelectedEmployees(newSelected);
+                        setEmployeeFilter(newSelected.map(e => e.id).join(','));
+                        
+                        // Apply the employee filter to trigger data fetching
+                        handleEmployeeFilter(newSelected.map(e => e.id).join(','));
+                      }}
+                      data-testid={`employee-option-${employee.id}`}
+                    >
+                      {employee.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )
+      }
+    ];
+  }, [availableStatuses, statusFilter, employeeSearchText, showEmployeeDropdown, employeeSearchResults, employeeSearchLoading, selectedEmployees, handleEmployeeFilter]);
+
   const getFilters = useCallback((filtersToApply?: string[]) => {
     const filters: Record<string, any> = {};
     if (employeeFilter) filters.employee = employeeFilter;
@@ -286,18 +326,21 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   }, [employeeFilter]);
 
   const setFilters = useCallback((filters: string[]) => {
-    // Clear all filters
     setEmployeeFilter('');
     setSelectedEmployees([]);
     setEmployeeSearchText('');
-  }, []);
+    setStatusFilter([]);
+    
+    handleEmployeeFilter('');
+    handleStatusFilter('');
+  }, [handleEmployeeFilter, handleStatusFilter]);
 
-  // ⚡ BEST PRACTICE: Handle table change
+
   const handleEnhancedTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
     handleTableChange(pagination, _filters, sorter);
   }, [handleTableChange]);
 
-  // ⚡ BEST PRACTICE: Create column helper function
+
   const createColumn = useCallback((key: string, title: string, render?: (value: any, record: any) => React.ReactNode, additionalProps?: any) => {
     return {
       title,
@@ -307,7 +350,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     };
   }, []);
 
-  // ⚡ BEST PRACTICE: Show loading state
+
   if (loading && expenses.length === 0) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
@@ -316,7 +359,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     );
   }
 
-  // ⚡ BEST PRACTICE: Show error state
   if (error) {
     return (
       <div className="gba:p-4">
@@ -345,6 +387,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
           filter: Object.keys(getFilters()),
           setFilter: setFilters,
           filterLabelMap: {
+            status: statusFilter.length > 0 ? `Status: ${statusFilter.map(s => getExpenseRequestStatusDisplay(s).label).join(', ')}` : 'Status: All',
             employee: employeeFilter ? `Employee: ${selectedEmployees.map(e => e.name).join(', ')}` : 'Employee: All',
           },
           actions: [],
@@ -353,22 +396,31 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
           filterGroups: filterGroups,
           onFilterChange: (filterId: string, selected: boolean) => {
             if (filterId === '') {
-              // Handle "All" selection
+             
               if (selected) {
                 setEmployeeFilter('');
                 setSelectedEmployees([]);
                 setEmployeeSearchText('');
+                setStatusFilter([]);
+                
+                // Trigger data refresh
+                handleEmployeeFilter('');
+                handleStatusFilter('');
               }
             } else {
-              // Handle specific filter selection
+             
               if (filterId === 'employee') {
                 if (selected) {
-                  // This is handled by the employee selection logic above
+                  
                 } else {
                   setEmployeeFilter('');
                   setSelectedEmployees([]);
                   setEmployeeSearchText('');
+                  handleEmployeeFilter('');
                 }
+              } else if (availableStatuses.includes(filterId)) {
+               
+                handleStatusFilterChange(filterId, selected);
               }
             }
           },
