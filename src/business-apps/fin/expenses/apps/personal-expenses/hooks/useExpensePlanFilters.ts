@@ -4,6 +4,7 @@ import { ExpenseStatus } from '../utils';
 import { DateRangeFilter } from '../components/tabs/expense-plans-tab/DateRangeFilter';
 import { EndDateRangeFilter } from '../components/tabs/expense-plans-tab/EndDateRangeFilter';
 import PlanDateRangeFilter from '../components/tabs/expense-plans-tab/PlanDateRangeFilter';
+import dayjs from 'dayjs';
 
 export enum DataFilterType {
   CHECKBOX_GROUP = 'checkbox-group',
@@ -21,7 +22,7 @@ export const useExpensePlanFilters = () => {
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
     {
       id: 'planDateRange',
-      title: 'Filter by Plan Date',
+      title: 'Plan Date',
       type: DataFilterType.DATE_RANGE,
       customComponent: React.createElement(PlanDateRangeFilter, {
         planDateRange: planDateRange,
@@ -32,7 +33,7 @@ export const useExpensePlanFilters = () => {
     },
     {
       id: 'startDateRange',
-      title: 'Filter by Start Date',
+      title: 'Start Date',
       type: DataFilterType.DATE_RANGE,
       customComponent: React.createElement(DateRangeFilter, {
         startDateRange: startDateRange,
@@ -43,7 +44,7 @@ export const useExpensePlanFilters = () => {
     },
     {
       id: 'endDateRange',
-      title: 'Filter by End Date Range',
+      title: 'End Date Range',
       type: DataFilterType.DATE_RANGE,
       customComponent: React.createElement(EndDateRangeFilter, {
         endDateRange: endDateRange,
@@ -79,32 +80,49 @@ export const useExpensePlanFilters = () => {
   const getFilters = useCallback(() => {
     const conditions: any[] = [];
 
+    // Helper function to format date for start of range (beginning of day)
+    const formatStartDate = (date: Date): string => {
+      return dayjs(date).startOf('day').format('YYYY-MM-DD HH:mm:ss');
+    };
+
+    // Helper function to format date for end of range (end of day)
+    const formatEndDate = (date: Date): string => {
+      return dayjs(date).endOf('day').format('YYYY-MM-DD HH:mm:ss');
+    };
+
     if (search) {
       conditions.push({ _or: [
         { code: { _ilike: `%${search}%` } },
         { title: { _ilike: `%${search}%` } }
       ] });
     }
-    if (selectedFilters.length > 0) {
-      conditions.push({ status: { _in: selectedFilters } });
+    
+    // Process status filters (exclude date range filter IDs from the original selectedFilters)
+    const statusFilters = selectedFilters.filter(f => 
+      !['planDateRange', 'startDateRange', 'endDateRange'].includes(f)
+    );
+    if (statusFilters.length > 0) {
+      conditions.push({ status: { _in: statusFilters } });
     }
+    
+    // Process all date ranges independently with proper formatting
     if (planDateRange?.[0]) {
-      conditions.push({ planDate: { _gte: planDateRange[0] } });
+      conditions.push({ planDate: { _gte: formatStartDate(planDateRange[0]) } });
     }
     if (planDateRange?.[1]) {
-      conditions.push({ planDate: { _lte: planDateRange[1] } });
+      conditions.push({ planDate: { _lte: formatEndDate(planDateRange[1]) } });
     }
     if (startDateRange?.[0]) {
-      conditions.push({ startDate: { _gte: startDateRange[0] } });
+      conditions.push({ startDate: { _gte: formatStartDate(startDateRange[0]) } });
     }
     if (startDateRange?.[1]) {
-      conditions.push({ startDate: { _lte: startDateRange[1] } });
+      conditions.push({ startDate: { _lte: formatEndDate(startDateRange[1]) } });
     }
     if (endDateRange?.[0]) {
-      conditions.push({ endDate: { _gte: endDateRange[0] } });
+      conditions.push({ endDate: { _gte: formatStartDate(endDateRange[0]) } });
     }
     if (endDateRange?.[1]) {
-      conditions.push({ endDate: { _lte: endDateRange[1] } });
+      conditions.push({ endDate: { _lte: formatEndDate(endDateRange[1]) } });
     }
 
     // Always exclude DISCARDED plans at backend level for correct pagination
@@ -127,17 +145,142 @@ export const useExpensePlanFilters = () => {
     );
   }, []);
 
+  // Helper function to format date range for display
+  const formatDateRangeLabel = useCallback((dateRange: [Date | null, Date | null] | null): string => {
+    if (!dateRange || (!dateRange[0] && !dateRange[1])) return '';
+    
+    const startDate = dateRange[0];
+    const endDate = dateRange[1];
+    
+    if (startDate && endDate) {
+      return `${startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })} - ${endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`;
+    } else if (startDate) {
+      return `From ${startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`;
+    } else if (endDate) {
+      return `To ${endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`;
+    }
+    
+    return '';
+  }, []);
+
+  // Get all selected filters including active date ranges
+  const getAllSelectedFilters = useMemo(() => {
+    const filters = [...selectedFilters]; // Use the original state
+    
+    // Add date ranges as filters if they're active
+    if (planDateRange && (planDateRange[0] || planDateRange[1])) {
+      filters.push('planDateRange');
+    }
+    if (startDateRange && (startDateRange[0] || startDateRange[1])) {
+      filters.push('startDateRange');
+    }
+    if (endDateRange && (endDateRange[0] || endDateRange[1])) {
+      filters.push('endDateRange');
+    }
+    
+    return filters;
+  }, [selectedFilters, planDateRange, startDateRange, endDateRange]);
+
+  // Create filter label map including all active date ranges
+  const filterLabelMap = useMemo<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    
+    // Add standard filter labels
+    filterGroups.forEach(group => {
+      if (group.filters) {
+        group.filters.forEach(filter => {
+          map[filter.id] = filter.label;
+        });
+      }
+    });
+    
+    // Add date range labels if active
+    const planDateLabel = formatDateRangeLabel(planDateRange);
+    if (planDateLabel) {
+      map['planDateRange'] = `Plan Date: ${planDateLabel}`;
+    }
+    
+    const startDateLabel = formatDateRangeLabel(startDateRange);
+    if (startDateLabel) {
+      map['startDateRange'] = `Start Date: ${startDateLabel}`;
+    }
+    
+    const endDateLabel = formatDateRangeLabel(endDateRange);
+    if (endDateLabel) {
+      map['endDateRange'] = `End Date: ${endDateLabel}`;
+    }
+    
+    return map;
+  }, [filterGroups, formatDateRangeLabel, planDateRange, startDateRange, endDateRange]);
+
+  // Remove filter function that handles all date ranges
+  const removeFilter = useCallback((filterId: string) => {
+    if (filterId === 'planDateRange') {
+      setPlanDateRange(null);
+    } else if (filterId === 'startDateRange') {
+      setStartDateRange(null);
+    } else if (filterId === 'endDateRange') {
+      setEndDateRange(null);
+    } else {
+      setSelectedFilters(prev => prev.filter(id => id !== filterId));
+    }
+  }, []);
+
+  // Enhanced setFilters function that properly handles clearing all filters
+  const setFilters = useCallback((filters: string[]) => {
+    // If the filters array is empty or contains only date range IDs, clear everything
+    if (filters.length === 0) {
+      setSelectedFilters([]);
+      setPlanDateRange(null);
+      setStartDateRange(null);
+      setEndDateRange(null);
+      setSearch('');
+      return;
+    }
+    
+    // Separate date range filters from regular filters
+    const dateRangeFilters = ['planDateRange', 'startDateRange', 'endDateRange'];
+    const regularFilters = filters.filter(f => !dateRangeFilters.includes(f));
+    const newDateRangeFilters = filters.filter(f => dateRangeFilters.includes(f));
+    
+    // Set regular filters
+    setSelectedFilters(regularFilters);
+    
+    // Clear date ranges that are not in the new filter list
+    if (!newDateRangeFilters.includes('planDateRange')) {
+      setPlanDateRange(null);
+    }
+    if (!newDateRangeFilters.includes('startDateRange')) {
+      setStartDateRange(null);
+    }
+    if (!newDateRangeFilters.includes('endDateRange')) {
+      setEndDateRange(null);
+    }
+  }, []);
+
+  // Clear all filters including all date ranges
+  const clearAllFilters = useCallback(() => {
+    setSelectedFilters([]);
+    setPlanDateRange(null);
+    setStartDateRange(null);
+    setEndDateRange(null);
+    setSearch('');
+  }, []);
+
   return {
     search,
     setSearch,
-    selectedFilters,
-    setFilters: setSelectedFilters,
+    selectedFilters: getAllSelectedFilters, // Return the enhanced list including date ranges
+    setFilters, // Use the enhanced setFilters function
     filterGroups,
+    filterLabelMap,
     handleFilterChange,
-    clearFilters,
+    clearFilters: clearAllFilters,
     getFilters,
     setStartDateRange,
     setEndDateRange,
     setPlanDateRange,
+    addFilter: handleFilterChange, // Add this for compatibility
+    removeFilter, // Use the enhanced removeFilter
   };
 };
