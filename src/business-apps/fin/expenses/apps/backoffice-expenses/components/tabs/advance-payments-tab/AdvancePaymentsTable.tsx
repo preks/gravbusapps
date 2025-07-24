@@ -6,10 +6,27 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useAdvancePayments } from '../../../hooks/useAdvancePayment';
-import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
+import { 
+  Table, 
+  TableHeader, 
+  TableBody, 
+  TableHead, 
+  TableRow, 
+  TableCell,
+  Alert, 
+  Spinner,
+  Button,
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious
+} from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
-import { Alert, Spinner } from '@newwork/nw-design-system';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 import { getAdvancePaymentStatusDisplay } from '../../../utils/utils';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
@@ -156,19 +173,15 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     setSelectedActionType('advance-payment');
   }, []);
 
-  // Column factory following OCP
-  const createColumn = useCallback((key: keyof typeof ADVANCE_PAYMENT_COLUMNS, title: string, render?: (value: any, record: any) => React.ReactNode, additionalProps?: any) => {
-    return {
-      title,
-      key: key,
-      render,
-      ...additionalProps,
-    };
-  }, []);
+  // Enhanced table change handler for sorting
+  const handleEnhancedTableChange = (pagination: any, _filters: any, sorter: any) => {
+    setCurrentPage(pagination.current);
+    setPageSize(pagination.pageSize);
+  };
 
   const renderDataBody = useCallback(() => {
     if (isLoading && !payments?.length) {
-      return <div style={{ padding: 24, textAlign: 'center' }}><div className="gba:flex gba:justify-center"><Spinner /></div></div>;
+      return <div className="gba:flex gba:justify-center gba:p-8"><Spinner /></div>;
     }
 
     if (error) {
@@ -178,45 +191,31 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
 
     if (!payments || payments.length === 0) {
       return (
-        <div style={{ padding: 24, textAlign: 'center' }}>
+        <div className="gba:p-8 gba:text-center gba:text-gray-500">
           <div>No advance payments found matching the current filters. Clear all filters to see all payments.</div>
         </div>
       );
     }
 
     return (
-      <DataTable
-        dataSource={payments}
-        rowKey="id"
-        onRow={(record: any) => ({
-          onClick: (event) => {
-            const target = event.target as HTMLElement;
-            const isActionButton = target.closest('[class*="ant-dropdown-trigger"]');
-
-            if (!isActionButton) {
-              setSelectedItem(record);
-            }
-          },
-          style: { cursor: 'pointer' }
-        })}
-        pagination={{
-          current: currentPage,
-          pageSize: pageSize,
-          total: totalCount,
-          showSizeChanger: true,
-          pageSizeOptions: ['10', '20', '50', '100'],
-          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
-        }}
-        onChange={handleEnhancedTableChange}
-        loading={isLoading}
-        data-testid="advance-payments-data-table"
-        columns={[
-          {
-            title: '',
-            key: 'actions',
-            align: 'center',
-            width: 60,
-            render: (_: any, record: any) => {
+      <div data-testid="advance-payments-data-table">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="gba:w-[60px]">Actions</TableHead>
+              <TableHead>Title</TableHead>
+              <TableHead>Reporter</TableHead>
+              <TableHead>Org Unit</TableHead>
+              <TableHead>Cost Center</TableHead>
+              <TableHead>Plan Id</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="gba:text-right">Amount</TableHead>
+              <TableHead className="gba:text-right">Advance</TableHead>
+              <TableHead>Payment Method</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {payments.map((record: any) => {
               const hasExpenseRequest = record.expensePlan && 
                 Array.isArray(record.expensePlan.expenseRequest) && 
                 record.expensePlan.expenseRequest.length > 0 && 
@@ -253,88 +252,142 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               ];
 
               return (
-                <div className="gba:flex gba:justify-center gba:items-center gba:w-full gba:h-full">
-                  <ActionButton
-                    onClick={(e) => e.stopPropagation()}
-                    flowData={flowData}
-                    data-testid={`actions-${record.id}`}
-                    size="md"
+                <TableRow 
+                  key={record.id}
+                  onClick={(event: React.MouseEvent<HTMLTableRowElement>) => {
+                    const target = event.target as HTMLElement;
+                    const isActionButton = target.closest('[data-testid*="actions"]');
+                    if (!isActionButton) {
+                      setSelectedItem(record);
+                    }
+                  }}
+                  className="gba:cursor-pointer gba:hover:bg-gray-50"
+                >
+                  <TableCell className="gba:w-[60px]">
+                    <div className="gba:flex gba:justify-center gba:items-center">
+                      <AppActionButton
+                        data-testid={`actions-${record.id}`}
+                        contextsArray={[FlowContextName.advancePayments]}
+                        externalContextData={{ advancePaymentId: record.id }}
+                        prefixDataTestId={`advance-payment-actions-${record.id}`}
+                        accessToken={props.accessToken}
+                        emptyStateBehavior="disable"
+                        deferMainContextRequestsUntilClick
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div data-testid="advance-payment-title-cell">
+                      {record.title || record.description || 'N/A'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div data-testid="advance-payment-reporter-cell">
+                      {record.employeeFullName || 'N/A'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div data-testid="advance-payment-org-unit-cell">
+                      {record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div data-testid="advance-payment-cost-center-cell">
+                      {record.costCenter?.name || 'N/A'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div data-testid="advance-payment-plan-id-cell">
+                      {record.expensePlan?.code || 'N/A'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div data-testid="advance-payment-status-cell">
+                      <Pill 
+                        label={getAdvancePaymentStatusDisplay(record.status || 'N/A').label} 
+                        type={getAdvancePaymentStatusDisplay(record.status || 'N/A').type} 
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell className="gba:text-right">
+                    <span data-testid="advance-payment-amount-cell">
+                      {formatNumberFunction(String(record.expensePlan?.totalAmount ?? '0'))} {record.currency?.code || record.expensePlan?.currency?.code || ''}
+                    </span>
+                  </TableCell>
+                  <TableCell className="gba:text-right">
+                    <span data-testid="advance-payment-advance-cell">
+                      {formatNumberFunction(String(record.amount ?? '0'))} {record.currency?.code || record.expensePlan?.currency?.code || ''}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div data-testid="advance-payment-method-cell">
+                      {record.paymentMethod === 'DIRECT_DEPOSIT' 
+                        ? getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
+                            'Direct Deposit'
+                          )
+                        : record.paymentMethod 
+                        ? getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
+                            'Cash Payment'
+                          )
+                        : 'N/A'
+                      }
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        
+        {/* Pagination */}
+        {totalCount > 0 && (
+          <div className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4">
+            <div className="gba:text-sm gba:text-gray-600">
+              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} items`}
+            </div>
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize }, {}, {})}
+                    className={currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
                   />
-                </div>
-              );
-            }
-          },
-          createColumn('title', 'Title', (text: any, record: any) => {
-            const title = record.title || record.description || 'N/A';
-            return <div style={{ fontWeight: 'normal' }} data-testid="advance-payment-title-cell">{title}</div>;
-          }),
-          createColumn('employeeFullName', 'Reporter', (text: any, record: any) => {
-            const reporter = record.employeeFullName || 'N/A';
-            return <div data-testid="advance-payment-reporter-cell">{reporter}</div>;
-          }),
-          createColumn('orgUnit', 'Org Unit', (text: any, record: any) => {
-            const orgUnit = record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A';
-            return <div data-testid="advance-payment-org-unit-cell">{orgUnit}</div>;
-          }),
-          createColumn('costCenter', 'Cost Center', (text: any, record: any) => {
-            const costCenter = record.costCenter?.name || 'N/A';
-            return <div data-testid="advance-payment-cost-center-cell">{costCenter}</div>;
-          }),
-          createColumn('planCode', 'Plan Id', (text: any, record: any) => {
-            const planCode = record.expensePlan?.code || 'N/A';
-            return <div data-testid="advance-payment-plan-id-cell">{planCode}</div>;
-          }),
-          createColumn('status', 'Status', (text: any, record: any) => {
-            const statusValue = record.status || 'N/A';
-            const { label, type } = getAdvancePaymentStatusDisplay(statusValue);
-            return <Pill label={label} type={type} className="gba:text-center" data-testid="advance-payment-status-cell" />;
-          }),
-          createColumn('totalAmount', 'Amount', (text: any, record: any) => {
-            const totalAmount = record.expensePlan?.totalAmount || 0;
-            const currency = record.currency?.code || record.expensePlan?.currency?.code || '';
-            return (
-              <span data-testid="advance-payment-amount-cell" className="gba:text-right">
-                {formatNumberFunction(String(totalAmount ?? '0'))} {currency}
-              </span>
-            );
-          }, { 
-            onCell: () => ({ className: 'gba:text-right' }), 
-            title: <div className="gba:text-right">Amount</div>
-          }),
-          createColumn('amount', 'Advance', (text: any, record: any) => {
-            const advanceAmount = record.amount || 0;
-            const currency = record.currency?.code || record.expensePlan?.currency?.code || '';
-            return (
-              <span data-testid="advance-payment-advance-cell" className="gba:text-right">
-                {formatNumberFunction(String(advanceAmount ?? '0'))} {currency}
-              </span>
-            );
-          }, { 
-            onCell: () => ({ className: 'gba:text-right' }), 
-            title: <div className="gba:text-right">Advance</div>
-          }),
-          createColumn('paymentMethod', 'Payment Method', (text: any, record: any) => {
-            const paymentMethod = record.paymentMethod;
-            let translatedMethod = 'N/A';
-            
-            if (paymentMethod === 'DIRECT_DEPOSIT') {
-              translatedMethod = getTranslationFromI18nKeyAndLabel(
-                'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-                'Direct Deposit'
-              );
-            } else if (paymentMethod) {
-              translatedMethod = getTranslationFromI18nKeyAndLabel(
-                'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-                'Cash Payment'
-              );
-            }
-            
-            return <div data-testid="advance-payment-method-cell">{translatedMethod}</div>;
-          }),
-        ] as any}
-      />
+                </PaginationItem>
+                {Array.from({ length: Math.ceil(totalCount / pageSize) }, (_, i) => i + 1)
+                  .filter(page => page === 1 || page === Math.ceil(totalCount / pageSize) || Math.abs(page - currentPage) <= 1)
+                  .map((page, index, array) => (
+                    <React.Fragment key={page}>
+                      {index > 0 && array[index - 1] !== page - 1 && (
+                        <PaginationItem>
+                          <span className="gba:px-2">...</span>
+                        </PaginationItem>
+                      )}
+                      <PaginationItem>
+                        <PaginationLink
+                          onClick={() => handleEnhancedTableChange({ current: page, pageSize }, {}, {})}
+                          className={page === currentPage ? 'gba:bg-blue-500 gba:text-white' : 'gba:cursor-pointer'}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    </React.Fragment>
+                  ))}
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize }, {}, {})}
+                    className={currentPage >= Math.ceil(totalCount / pageSize) ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
+      </div>
     );
-  }, [payments, isLoading, error, totalCount, currentPage, pageSize, createColumn]);
+  }, [payments, isLoading, error, totalCount, currentPage, pageSize, handleEnhancedTableChange, props.accessToken]);
 
   const renderAdvancePaymentDetails = useMemo(() => {
     if (!selectedItem) return null;
@@ -349,12 +402,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       />
     );
   }, [selectedItem, handleCloseDetails, props.accessToken, props.userInfo, selectedActionType]);
-
-  // Enhanced table change handler for sorting
-  const handleEnhancedTableChange = (pagination: any, _filters: any, sorter: any) => {
-    setCurrentPage(pagination.current);
-    setPageSize(pagination.pageSize);
-  };
 
   // Filter groups for DataContainer
   const filterGroups: DataFilterGroup[] = [

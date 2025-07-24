@@ -6,14 +6,30 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useExpenseRequests } from '../../../hooks/useExpenseRequests';
-import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
-import { Alert, Spinner } from '@newwork/nw-design-system';
+import { 
+  Table, 
+  TableHeader, 
+  TableBody, 
+  TableHead, 
+  TableRow, 
+  TableCell,
+  Alert, 
+  Spinner,
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious
+} from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { ExpenseData } from '../../../types';
 import { getExpenseRequestStatusDisplay } from '../../../utils/utils';
 import Pill from '@/components/pill/Pill';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 
 function debounce<T extends (...args: any[]) => any>(
@@ -405,16 +421,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   }, [handleTableChange]);
 
 
-  const createColumn = useCallback((key: string, title: string, render?: (value: any, record: any) => React.ReactNode, additionalProps?: any) => {
-    return {
-      title,
-      key: key,
-      render,
-      ...additionalProps,
-    };
-  }, []);
-
-
   if (loading && expenses.length === 0) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
@@ -507,125 +513,156 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
               No expense requests found matching the current filters.
             </div>
           ) : (
-            <DataTable
-              dataSource={expenses}
-              rowKey="id"
-              columns={[
-                {
-                  title: '',
-                  key: 'actions',
-                  width: 60,
-                  render: (_: any, record: ExpenseData) => (
-                    <div className="gba:flex gba:justify-start gba:gap-2">
-                      <ActionButton
-                        data-testid={`expense-request-actions-${record.id}`}
-                        flowData={[
-                          {
-                            category: 'Actions',
-                            key: 'view-expense-request',
-                            label: 'View Expense Request Details',
-                            onClick: () => handleRowClick(record)
-                          }
-                        ]}
-                        size="sm"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  ),
-                },
-                createColumn('employee', 'Employee', (text: any, record: ExpenseData) => (
-                  <div data-testid={`expense-request-employee-${record.id}`}>
-                    {record.employee}
+            <div data-testid="expense-requests-data-table">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="gba:w-[60px]">Actions</TableHead>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Employee Code</TableHead>
+                    <TableHead>SAP Number</TableHead>
+                    <TableHead>Request Number</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Start Date</TableHead>
+                    <TableHead>End Date</TableHead>
+                    <TableHead>Creation Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="gba:text-right">Remaining Amount</TableHead>
+                    <TableHead className="gba:text-right">Total Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {expenses.map((record: ExpenseData) => (
+                    <TableRow 
+                      key={record.id}
+                      onClick={() => handleRowClick(record)}
+                      className="gba:cursor-pointer gba:hover:bg-gray-50"
+                    >
+                      <TableCell className="gba:w-[60px]">
+                        <div className="gba:flex gba:justify-start gba:gap-2">
+                          <AppActionButton
+                            data-testid={`expense-request-actions-${record.id}`}
+                            contextsArray={[FlowContextName.expenseRequests]}
+                            externalContextData={{ expenseRequestId: record.id }}
+                            prefixDataTestId={`expense-request-actions-${record.id}`}
+                            accessToken={accessToken}
+                            emptyStateBehavior="disable"
+                            deferMainContextRequestsUntilClick
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid={`expense-request-employee-${record.id}`}>
+                          {record.employee}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid={`expense-request-employee-code-${record.id}`}>
+                          {record.employeeCode}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid={`expense-request-sap-number-${record.id}`}>
+                          {record.sapNumber}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid={`expense-request-code-${record.id}`}>
+                          {record.code}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid={`expense-request-title-${record.id}`}>
+                          {record.title}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid={`expense-request-start-date-${record.id}`}>
+                          {record.startDate && record.startDate !== 'N/A' ? formatDate(record.startDate, 'date.short') : '-'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid={`expense-request-end-date-${record.id}`}>
+                          {record.endDate && record.endDate !== 'N/A' ? formatDate(record.endDate, 'date.short') : '-'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid={`expense-request-creation-date-${record.id}`}>
+                          {record.creationDate && record.creationDate !== 'N/A' ? formatDate(record.creationDate, 'date.short') : '-'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid={`expense-request-status-${record.id}`}>
+                          <Pill
+                            label={getExpenseRequestStatusDisplay(record.status).label}
+                            type={getExpenseRequestStatusDisplay(record.status).type}
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="gba:text-right">
+                        <span data-testid={`expense-request-remaining-amount-${record.id}`}>
+                          {(() => {
+                            const remainingAmount = Number(record.totalRemainingAmount) || 0;
+                            const currencyCode = record.currency?.code || '';
+                            return remainingAmount > 0 ? `${formatNumberFunction(String(remainingAmount))} ${currencyCode}` : '-';
+                          })()}
+                        </span>
+                      </TableCell>
+                      <TableCell className="gba:text-right">
+                        <span data-testid={`expense-request-total-amount-${record.id}`}>
+                          {formatNumberFunction(String(record.totalAmount))} {record.currency?.code || ''}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              {/* Pagination */}
+              {totalItems > 0 && (
+                <div className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4">
+                  <div className="gba:text-sm gba:text-gray-600">
+                    {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalItems)} of ${totalItems} items`}
                   </div>
-                )),
-                createColumn('employeeCode', 'Employee Code', (text: any, record: ExpenseData) => (
-                  <div data-testid={`expense-request-employee-code-${record.id}`}>
-                    {record.employeeCode}
-                  </div>
-                )),
-                createColumn('sapNumber', 'SAP Number', (text: any, record: ExpenseData) => (
-                  <div data-testid={`expense-request-sap-number-${record.id}`}>
-                    {record.sapNumber}
-                  </div>
-                )),
-                createColumn('code', 'Request Number', (text: any, record: ExpenseData) => (
-                  <div data-testid={`expense-request-code-${record.id}`}>
-                    {record.code}
-                  </div>
-                )),
-                createColumn('title', 'Title', (text: any, record: ExpenseData) => (
-                  <div data-testid={`expense-request-title-${record.id}`}>
-                    {record.title}
-                  </div>
-                )),
-                createColumn('startDate', 'Start Date', (text: any, record: ExpenseData) => (
-                  <div data-testid={`expense-request-start-date-${record.id}`}>
-                    {record.startDate && record.startDate !== 'N/A' ? formatDate(record.startDate, 'date.short') : '-'}
-                  </div>
-                )),
-                createColumn('endDate', 'End Date', (text: any, record: ExpenseData) => (
-                  <div data-testid={`expense-request-end-date-${record.id}`}>
-                    {record.endDate && record.endDate !== 'N/A' ? formatDate(record.endDate, 'date.short') : '-'}
-                  </div>
-                )),
-                createColumn('creationDate', 'Creation Date', (text: any, record: ExpenseData) => (
-                  <div data-testid={`expense-request-creation-date-${record.id}`}>
-                    {record.creationDate && record.creationDate !== 'N/A' ? formatDate(record.creationDate, 'date.short') : '-'}
-                  </div>
-                )),
-                createColumn('status', 'Status', (text: any, record: ExpenseData) => (
-                  <div data-testid={`expense-request-status-${record.id}`}>
-                    <Pill
-                      label={getExpenseRequestStatusDisplay(record.status).label}
-                      type={getExpenseRequestStatusDisplay(record.status).type}
-                    />
-                  </div>
-                )),
-                createColumn('totalRemainingAmount', 'Remaining Amount', (text: any, record: ExpenseData) => {
-                  const remainingAmount = Number(record.totalRemainingAmount) || 0;
-                  const currencyCode = record.currency?.code || '';
-                  return (
-                    <span data-testid={`expense-request-remaining-amount-${record.id}`} className="gba:text-right">
-                      {remainingAmount > 0 ? `${formatNumberFunction(String(remainingAmount))} ${currencyCode}` : '-'}
-                    </span>
-                  );
-                }, { 
-                  onCell: () => ({ className: 'gba:text-right' }), 
-                  title: <div className="gba:text-right">Remaining Amount</div>
-                }),
-                createColumn('totalAmount', 'Total Amount', (text: any, record: ExpenseData) => {
-                  const totalAmount = record.totalAmount || 0;
-                  const currencyCode = record.currency?.code || '';
-                  return (
-                    <span data-testid={`expense-request-total-amount-${record.id}`} className="gba:text-right">
-                      {formatNumberFunction(String(totalAmount))} {currencyCode}
-                    </span>
-                  );
-                }, { 
-                  onCell: () => ({ className: 'gba:text-right' }), 
-                  title: <div className="gba:text-right">Total Amount</div>
-                }),
-              ]}
-              rowSelection={{
-                selectedRowKeys,
-                onChange: handleRowSelection,
-              }}
-              onRow={(record) => ({
-                onClick: () => handleRowClick(record),
-                style: { cursor: 'pointer' }
-              })}
-              pagination={{
-                current: currentPage,
-                pageSize: pageSize,
-                total: totalItems,
-                showSizeChanger: true,
-                pageSizeOptions: ['10', '20', '50', '100'],
-                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
-              }}
-              onChange={handleEnhancedTableChange}
-              loading={loading}
-              data-testid="expense-requests-data-table"
-            />
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize }, {}, {})}
+                          className={currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: Math.ceil(totalItems / pageSize) }, (_, i) => i + 1)
+                        .filter(page => page === 1 || page === Math.ceil(totalItems / pageSize) || Math.abs(page - currentPage) <= 1)
+                        .map((page, index, array) => (
+                          <React.Fragment key={page}>
+                            {index > 0 && array[index - 1] !== page - 1 && (
+                              <PaginationItem>
+                                <span className="gba:px-2">...</span>
+                              </PaginationItem>
+                            )}
+                            <PaginationItem>
+                              <PaginationLink
+                                onClick={() => handleEnhancedTableChange({ current: page, pageSize }, {}, {})}
+                                className={page === currentPage ? 'gba:bg-blue-500 gba:text-white' : 'gba:cursor-pointer'}
+                              >
+                                {page}
+                              </PaginationLink>
+                            </PaginationItem>
+                          </React.Fragment>
+                        ))}
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize }, {}, {})}
+                          className={currentPage >= Math.ceil(totalItems / pageSize) ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </div>
           )
         }
         dataDetails={
