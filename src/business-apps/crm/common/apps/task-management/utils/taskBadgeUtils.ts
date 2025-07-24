@@ -1,4 +1,4 @@
-type BadgeVariant = "default" | "destructive" | "outline" | "secondary" | "accent" | "success" | "warning" | "info" | "pending" | "running" | "paid" | "overdue" | "offline" | "aiGenerated" | "aiModified" | "action";
+type BadgeVariant = "default" | "destructive" | "outline" | "secondary" | "success" | "warning" | "info" | "pending" | "running" | "paid" | "overdue" | "offline" | "aiGenerated" | "aiModified" | "action" | "ext1" | "ext2" | "ext3" | "ext4" | "ext5" | "ext6" | "ext7" | "ext8";
 
 /**
  * Get badge variant for task status
@@ -62,7 +62,7 @@ export const getReferenceTypeBadgeVariant = (type: string): BadgeVariant => {
     case 'lead':
       return 'warning';
     case 'contact':
-      return 'accent';
+      return 'secondary';
     default:
       return 'default';
   }

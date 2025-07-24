@@ -2,18 +2,18 @@ import { SalesTaskQueryVariables } from '../types/SalesTaskTypes';
 import { buildQueryArguments, buildCountQueryArguments } from '../utils/salesTaskQueryBuilder';
 
 /**
- * Combined GraphQL query to fetch sales tasks with full details AND count in one call
+ * GraphQL query to fetch sales tasks with full details
  */
-/**
- * Original GraphQL query to fetch sales tasks with full details (for backward compatibility)
- */
-export const GET_SALES_TASKS = (variables: SalesTaskQueryVariables): string => {
+export const GET_SALES_TASKS = (variables: SalesTaskQueryVariables): { query: string; variables: any } => {
   const args = buildQueryArguments(variables);
 
-  return `
-    query GetSalesTasks {
+  const query = `
+    query GetSalesTasks($where: SalesTaskBoolExp, $orderBy: [SalesTaskOrderBy!], $limit: Int, $offset: Int) {
       SalesTask(
-        ${args.join(',\n        ')}
+        where: $where
+        orderBy: $orderBy
+        limit: $limit
+        offset: $offset
       ) {
         id
         name
@@ -21,6 +21,7 @@ export const GET_SALES_TASKS = (variables: SalesTaskQueryVariables): string => {
         dueDate
         createdAt
         updatedAt
+        version
         statusRef
         priorityRef
         typeRef
@@ -56,19 +57,38 @@ export const GET_SALES_TASKS = (variables: SalesTaskQueryVariables): string => {
       }
     }
   `;
+
+  return { 
+    query, 
+    variables: {
+      where: args.where,
+      orderBy: args.orderBy,
+      limit: args.limit,
+      offset: args.offset
+    }
+  };
 };
 
 /**
  * Combined GraphQL query to fetch sales tasks with full details AND count in one call
  */
-export const GET_SALES_TASKS_WITH_COUNT = (variables: SalesTaskQueryVariables): string => {
+export const GET_SALES_TASKS_WITH_COUNT = (variables: SalesTaskQueryVariables): { query: string; variables: any } => {
   const args = buildQueryArguments(variables);
   const countArgs = buildCountQueryArguments(variables);
 
-  return `
-    query GetSalesTasksWithCount {
+  const query = `
+    query GetSalesTasksWithCount(
+      $where: SalesTaskBoolExp, 
+      $orderBy: [SalesTaskOrderBy!], 
+      $limit: Int, 
+      $offset: Int,
+      $countWhere: SalesTaskBoolExp
+    ) {
       SalesTask(
-        ${args.join(',\n        ')}
+        where: $where
+        orderBy: $orderBy
+        limit: $limit
+        offset: $offset
       ) {
         id
         name
@@ -76,6 +96,7 @@ export const GET_SALES_TASKS_WITH_COUNT = (variables: SalesTaskQueryVariables): 
         dueDate
         createdAt
         updatedAt
+        version
         statusRef
         priorityRef
         typeRef
@@ -110,7 +131,7 @@ export const GET_SALES_TASKS_WITH_COUNT = (variables: SalesTaskQueryVariables): 
         recordState
       }
       SalesTaskAggregate(
-        ${countArgs.join(',\n        ')}
+        where: $countWhere
       ) {
         aggregate {
           count
@@ -118,21 +139,104 @@ export const GET_SALES_TASKS_WITH_COUNT = (variables: SalesTaskQueryVariables): 
       }
     }
   `;
+
+  return { 
+    query, 
+    variables: {
+      where: args.where,
+      orderBy: args.orderBy,
+      limit: args.limit,
+      offset: args.offset,
+      countWhere: countArgs.where
+    }
+  };
 };
 
 /**
  * GraphQL query to count sales tasks (for pagination)
  */
-export const GET_SALES_TASKS_COUNT = (variables: SalesTaskQueryVariables): string => {
+export const GET_SALES_TASKS_COUNT = (variables: SalesTaskQueryVariables): { query: string; variables: any } => {
   const args = buildCountQueryArguments(variables);
 
-  return `
-    query GetSalesTasksCount {
+  const query = `
+    query GetSalesTasksCount($where: SalesTaskBoolExp, $limit: Int) {
       SalesTask(
-        ${args.join(',\n        ')}
+        where: $where
+        limit: $limit
       ) {
         id
       }
     }
   `;
+
+  return { 
+    query, 
+    variables: {
+      where: args.where,
+      limit: args.limit
+    }
+  };
+};
+
+/**
+ * GraphQL query to fetch historical task statistics for growth comparison
+ */
+export const GET_HISTORICAL_TASK_STATISTICS = (daysAgo: number = 30): { query: string; variables: any } => {
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - daysAgo);
+  
+  const previousFromDate = new Date(fromDate.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
+  
+  const query = `
+    query GetHistoricalTaskStatistics($fromDate: timestamptz!, $previousFromDate: timestamptz!) {
+      # Current period tasks
+      currentTasks: SalesTask(
+        where: {
+          recordState: { _neq: "DELETED" }
+          createdAt: { _gte: $fromDate }
+        }
+      ) {
+        id
+        statusRef
+        dueDate
+        createdAt
+      }
+      
+      # Previous period tasks (for comparison)
+      previousTasks: SalesTask(
+        where: {
+          recordState: { _neq: "DELETED" }
+          createdAt: { 
+            _gte: $previousFromDate
+            _lt: $fromDate
+          }
+        }
+      ) {
+        id
+        statusRef
+        dueDate
+        createdAt
+      }
+      
+      # All tasks for totals
+      allTasks: SalesTask(
+        where: {
+          recordState: { _neq: "DELETED" }
+        }
+      ) {
+        id
+        statusRef
+        dueDate
+        createdAt
+      }
+    }
+  `;
+
+  return { 
+    query, 
+    variables: { 
+      fromDate: fromDate.toISOString(),
+      previousFromDate: previousFromDate.toISOString()
+    }
+  };
 }; 

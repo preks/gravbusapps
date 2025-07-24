@@ -27,11 +27,21 @@ export interface Task {
   scheduleDate?: string;
   createdAt: string;
   updatedAt: string;
+  version?: number;
+  // Raw sales task data for updates
+  rawSalesTask?: any;
+}
+
+export interface TaskStatisticItem {
+  value: number;
+  previousValue?: number;
+  growth?: number; // Growth percentage (positive = growth, negative = decline)
+  growthDirection?: 'up' | 'down' | 'stable';
 }
 
 export interface TaskStatistics {
-  totalTasks: number;
-  inProgress: number;
-  completed: number;
-  overdue: number;
+  totalTasks: TaskStatisticItem;
+  inProgress: TaskStatisticItem;
+  completed: TaskStatisticItem;
+  overdue: TaskStatisticItem;
 } 

@@ -9,7 +9,6 @@ import {
   CardContent, 
   CardHeader, 
   CardTitle,
-  Separator
 } from '@newwork/nw-design-system';
 import { Task } from '../types/TaskTypes';
 import { 
@@ -35,11 +34,15 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({
   sourceApp
 }) => {
   const formatDate = (dateString: string) => {
-    return dayjs(dateString).format('MMM DD, YYYY');
+    if (!dateString) return '-';
+    const date = dayjs(dateString);
+    return date.isValid() ? date.format('MMM DD, YYYY') : '-';
   };
 
   const formatDateTime = (dateString: string) => {
-    return dayjs(dateString).format('MMM DD, YYYY h:mm A');
+    if (!dateString) return '-';
+    const date = dayjs(dateString);
+    return date.isValid() ? date.format('MMM DD, YYYY h:mm A') : '-';
   };
 
   const getInitials = (firstName: string, lastName: string): string => {

@@ -29,6 +29,7 @@ export interface SalesTask {
   dueDate?: string;
   createdAt: string;
   updatedAt?: string;
+  version?: number;
   statusRef?: string;
   priorityRef?: string;
   typeRef?: string;

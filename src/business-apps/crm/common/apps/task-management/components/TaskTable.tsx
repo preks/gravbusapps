@@ -3,9 +3,10 @@
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Avatar, AvatarFallback, Button, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Card, CardContent } from '@newwork/nw-design-system';
-import { PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi';
+import { PiUser, PiArrowUp, PiArrowDown, PiLightning } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { startProcess } from '@/common/utils/start-process';
 import { Task } from '../types/TaskTypes';
 import { 
   getTaskStatusBadgeVariant,
@@ -76,6 +77,20 @@ export const TaskTable: React.FC<TaskTableProps> = ({
   const handleEmployeeClick = useCallback((employee: Task['assignedTo']) => {
     const url = buildPlatformUrl('/platform/employee-record', { employeeId: employee.id });
     navigateTo(url);
+  }, []);
+
+  // Handle task update
+  const handleUpdateTask = useCallback((task: Task) => {
+    console.log('TaskTable - Updating task:', task);
+    console.log('TaskTable - Raw sales task data:', task.rawSalesTask);
+    startProcess({
+      domain: 'customer-relations',
+      processName: 'saveSalesTask',
+      payload: {
+        taskData: task.rawSalesTask // Pass the raw sales task data
+      },
+      builderType: 'NATIVE_SCREEN',
+    });
   }, []);
 
   // Handle reference record navigation
@@ -271,11 +286,21 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                         variant="secondary"
                         contextsArray={[FlowContextName.taskInstance]}
                         externalContextData={{
-                          taskId: record.id
+                          taskId: record.id,
+                          taskData: record.rawSalesTask
                         }}
+                        staticFlowData={[
+                          {
+                            key: `update-task-${record.id}`,
+                            label: 'Update Task',
+                            icon: 'PiLightning',
+                            category: 'ACTION',
+                            onClick: () => handleUpdateTask(record)
+                          }
+                        ]}
                         prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-task`}
                         accessToken={accessToken}
-                        emptyStateBehavior="disable"
+                        emptyStateBehavior="enabled"
                         deferMainContextRequestsUntilClick
                         onClick={(e) => e.stopPropagation()}
                       />

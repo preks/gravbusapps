@@ -11,8 +11,8 @@ import { useTaskStatistics } from './hooks/useTaskStatistics';
 import { TaskTable } from './components/TaskTable';
 import { TaskDetails } from './components/TaskDetails';
 import TaskStatistics from './components/TaskStatistics';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { startProcess } from '@/common/utils/start-process';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Task } from './types/TaskTypes';
 
 export interface TaskManagementProps extends BusinessAppContextProps {
@@ -125,16 +125,12 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
 
   // Handle adding a new task
   const handleAddTask = useCallback(() => {
-    // TODO: Implement task creation process
-    console.log('Add task clicked');
-    /*
     startProcess({
-      domain: 'task-management',
-      processName: 'createTask',
+      domain: 'customer-relations',
+      processName: 'saveSalesTask',
+      payload: {},
       builderType: 'NATIVE_SCREEN',
-      payload: {}
     });
-    */
   }, []);
 
   // Adapter function for DataFilter component
@@ -184,30 +180,139 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     accessToken
   });
 
-  // Trigger initial data loading when component mounts
+  // Throttle refetch to prevent excessive requests
+  const lastRefetchTime = useRef(0);
+  const REFETCH_THROTTLE_MS = 2000; // Reduced to 2 seconds for better UX
+
+  const throttledRefresh = useCallback(() => {
+    const now = Date.now();
+    if (now - lastRefetchTime.current < REFETCH_THROTTLE_MS) {
+      return; // Skip if too recent
+    }
+    lastRefetchTime.current = now;
+    retry();
+    refetchStatistics();
+  }, [retry, refetchStatistics]);
+
+
+
+  // Listen for process completion events to refresh tasks (following established CRM pattern)
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        console.log('TaskManagement - Process completion event:', event.type, event.detail);
+        
+        if (event.detail?.resolution === 'success') {
+          console.log('TaskManagement - Process success, refreshing tasks...');
+          loadPage(currentPage, pageSize);
+          refetchStatistics();
+          return;
+        }
+        
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === 'success') {
+          console.log('TaskManagement - Response success, refreshing tasks...');
+          loadPage(currentPage, pageSize);
+          refetchStatistics();
+        }
+      } catch (err) {
+        console.error('Error handling process completion:', err);
+      }
+    };
+
+    // Universal event listener to capture all events (like other CRM components)
+    const handleAllEvents = (event: any) => {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        console.log('TaskManagement - Detected process/task event:', event.type, event);
+        handleProcessCompletion(event);
+      }
+    };
+
+    // Comprehensive event list (same as other CRM TasksSections)
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
+
+    // Add universal listener for debugging (like other CRM components)
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event: Event) {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        console.log('TaskManagement - Custom Event dispatched:', event.type, event);
+        handleAllEvents(event);
+      }
+      return originalDispatchEvent.call(this, event);
+    };
+
+    return () => {
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
+      window.dispatchEvent = originalDispatchEvent;
+    };
+  }, [currentPage, pageSize, loadPage, refetchStatistics]);
+
+  // REMOVED: Excessive focus/visibility event listeners
+  // These were causing too many requests when users click around
+
+  // Trigger initial data loading when component mounts - ONLY ONCE
   useEffect(() => {
     if (!initialLoadDone.current && accessToken) {
       initialLoadDone.current = true;
       loadPage(currentPage, pageSize);
     }
-  }, [accessToken, currentPage, pageSize]);
+  }, [accessToken]); // FIXED: Remove currentPage and pageSize to prevent re-runs
 
-  // Trigger search when search term changes
-  useEffect(() => {
-    if (initialLoadDone.current) {
-      setCurrentPage(1);
-      updateURLParams({ search, page: 1 });
-      loadPage(1, pageSize); // Reset to first page when search changes
+  // Debounced data loading to prevent excessive requests
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const debouncedLoadData = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
     }
-  }, [search, pageSize]);
+    
+    debounceTimerRef.current = setTimeout(() => {
+      if (initialLoadDone.current) {
+        setCurrentPage(1);
+        updateURLParams({ search, page: 1 });
+        loadPage(1, pageSize);
+      }
+    }, 300); // 300ms debounce
+  }, [search, pageSize, updateURLParams, loadPage]);
 
-  // Trigger reload when filters change
+  // Trigger search when search term changes (DEBOUNCED) - SKIP INITIAL LOAD
+  useEffect(() => {
+    if (initialLoadDone.current) { // Only after initial load is done
+      debouncedLoadData();
+    }
+    
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [search]);
+
+  // Trigger reload when filters change (OPTIMIZED) - SKIP INITIAL LOAD
   useEffect(() => {
     if (initialLoadDone.current) {
       setCurrentPage(1);
       loadPage(1, pageSize);
     }
-  }, [JSON.stringify(selectedFilters), filterCreatedAfter, filterCreatedBefore, pageSize]);
+  }, [selectedFilters.length, filterCreatedAfter, filterCreatedBefore]); // FIXED: Don't stringify entire array
 
   // Handle task selection
   const handleSelectTask = useCallback((task: Task) => {
@@ -224,8 +329,18 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     setSearch(value);
   }, [setSearch]);
 
-  // Handle pagination change
+  // Throttled pagination to prevent rapid requests
+  const lastPaginationTime = useRef(0);
+  const PAGINATION_THROTTLE_MS = 500; // 500ms throttle for pagination
+
+  // Handle pagination change (THROTTLED)
   const handlePaginationChange = useCallback((page: number, newPageSize?: number) => {
+    const now = Date.now();
+    if (now - lastPaginationTime.current < PAGINATION_THROTTLE_MS) {
+      return; // Skip if too recent
+    }
+    lastPaginationTime.current = now;
+
     const targetPageSize = newPageSize || pageSize;
     setCurrentPage(page);
     setPageSize(targetPageSize);
@@ -233,8 +348,14 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     loadPage(page, targetPageSize);
   }, [pageSize, updateURLParams, loadPage]);
 
-  // Handle sorting change
+  // Handle sorting change (THROTTLED)
   const handleSortingChange = useCallback((field: string, order: 'ASC' | 'DESC' | '') => {
+    const now = Date.now();
+    if (now - lastPaginationTime.current < PAGINATION_THROTTLE_MS) {
+      return; // Use same throttle for sorting
+    }
+    lastPaginationTime.current = now;
+
     // When order is empty, clear sorting completely
     if (order === '') {
       setSortField('');
@@ -259,22 +380,22 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     loadPage(1, pageSize);
   }, [pageSize, updateURLParams, loadPage]);
 
-    return (
-    <div data-testid="task-management-content">
+  return (
+    <div className="gba:p-6" data-testid="task-management-content">
       {/* Header */}
       <div 
-        className="gba:mb-6"
+        className="gba:mb-8"
         data-testid="task-management-header"
       >
         <div data-testid="task-management-title-section">
           <h1 
-            className="gba:text-3xl gba:font-bold gba:text-gray-900 gba:mb-2"
+            className="gba:text-4xl gba:font-bold gba:text-black gba:mb-3 gba:tracking-tight"
             data-testid="task-management-title"
           >
             Task Management
           </h1>
           <p 
-            className="gba:text-gray-600"
+            className="gba:text-lg gba:text-gray-500 gba:font-normal gba:leading-relaxed"
             data-testid="task-management-subtitle"
           >
             Manage and track your team's tasks and deadlines
@@ -283,7 +404,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
       </div>
 
       {/* Statistics Cards */}
-      <div className="gba:mb-6" data-testid="task-statistics-section">
+      <div className="gba:mb-6 gba:pb-6 gba:border-b gba:border-gray-200" data-testid="task-statistics-section">
         <TaskStatistics
           statistics={statistics}
           isLoading={statisticsLoading}
@@ -364,8 +485,10 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           </div>
         </SheetContent>
       </Sheet>
+
+      
     </div>
   );
- };
+};
 
 export default TaskManagement; 

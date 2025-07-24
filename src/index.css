@@ -163,3 +163,82 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* Sales Task Form Clean Styling */
+.gba-sales-task-form .ant-form-item {
+  margin-bottom: 1.5rem !important;
+}
+
+.gba-sales-task-form .ant-form-item-label > label {
+  font-weight: 500 !important;
+  color: #374151 !important;
+  font-size: 0.875rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.gba-sales-task-form .ant-input,
+.gba-sales-task-form .ant-select-selector,
+.gba-sales-task-form .ant-picker,
+.gba-sales-task-form .ant-input-affix-wrapper,
+.gba-sales-task-form .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+  border: none !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 0 0 1px #e5e7eb, 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  transition: all 0.2s ease-in-out !important;
+  background-color: #ffffff !important;
+}
+
+.gba-sales-task-form .ant-input:focus,
+.gba-sales-task-form .ant-select-focused .ant-select-selector,
+.gba-sales-task-form .ant-picker:hover,
+.gba-sales-task-form .ant-picker-focused,
+.gba-sales-task-form .ant-input-affix-wrapper:focus,
+.gba-sales-task-form .ant-input-affix-wrapper-focused {
+  border: none !important;
+  box-shadow: 0 0 0 1px #3b82f6, 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+  outline: none !important;
+}
+
+.gba-sales-task-form .ant-select-dropdown {
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+}
+
+.gba-sales-task-form .ant-upload-drag {
+  border: 2px dashed #d1d5db;
+  border-radius: 0.75rem;
+  background-color: #f9fafb;
+  transition: all 0.2s ease-in-out;
+}
+
+.gba-sales-task-form .ant-upload-drag:hover {
+  border-color: #3b82f6;
+  background-color: #eff6ff;
+}
+
+.gba-sales-task-form .ant-form-item-required::before {
+  color: #ef4444;
+}
+
+.gba-sales-task-form .ant-select-selection-placeholder,
+.gba-sales-task-form .ant-input::placeholder,
+.gba-sales-task-form .ant-picker-input input::placeholder {
+  color: #9ca3af;
+}
+
+.gba-sales-task-form textarea,
+.gba-sales-task-form .ant-input {
+  border: none !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 0 0 1px #e5e7eb, 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  transition: all 0.2s ease-in-out !important;
+  background-color: #ffffff !important;
+}
+
+.gba-sales-task-form textarea:focus,
+.gba-sales-task-form .ant-input:focus {
+  border: none !important;
+  box-shadow: 0 0 0 1px #3b82f6, 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+  outline: none !important;
+}

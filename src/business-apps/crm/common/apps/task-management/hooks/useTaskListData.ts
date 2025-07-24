@@ -153,7 +153,9 @@ const transformSalesTaskToTask = (salesTask: SalesTask): Task | null => {
     dueDate: salesTask.dueDate || salesTask.createdAt,
     scheduleDate: salesTask.createdAt,
     createdAt: salesTask.createdAt,
-    updatedAt: salesTask.updatedAt || salesTask.createdAt
+    updatedAt: salesTask.updatedAt || salesTask.createdAt,
+    version: salesTask.version,
+    rawSalesTask: salesTask
   };
 };
 
@@ -301,24 +303,9 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
     await loadData(currentPage, pageSize);
   }, [loadData, currentPage, pageSize]);
 
-  // Auto-reload when filters change (NOT when sorting changes)
-  useEffect(() => {
-    if (accessToken) {
-      loadData(1, pageSize);
-    }
-  }, [
-    search,
-    JSON.stringify(statusRefs),
-    JSON.stringify(priorityRefs),
-    JSON.stringify(taskTypes),
-    JSON.stringify(assignedEmployeeIds),
-    JSON.stringify(referenceTypes),
-    createdAfter,
-    createdBefore,
-    // NOTE: sortField and sortOrder removed - sorting handled by explicit loadPage calls
-    accessToken,
-    pageSize
-  ]);
+  // REMOVED: This useEffect was causing duplicate fetches!
+  // TaskManagement component handles all data loading via loadPage()
+  // This hook only provides the loadPage, retry, and loadMore functions
 
   return {
     tasks,

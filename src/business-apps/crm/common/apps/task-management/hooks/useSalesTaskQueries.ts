@@ -1,7 +1,13 @@
+import { useCallback } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { SalesTaskQueryVariables, SalesTaskResponse } from '../types/SalesTaskTypes';
-import { GET_SALES_TASKS, GET_SALES_TASKS_COUNT, GET_SALES_TASKS_WITH_COUNT } from '../queries/SalesTaskQueries';
+import { 
+  GET_SALES_TASKS, 
+  GET_SALES_TASKS_COUNT, 
+  GET_SALES_TASKS_WITH_COUNT, 
+  GET_HISTORICAL_TASK_STATISTICS 
+} from '../queries/SalesTaskQueries';
 
 export interface UseSalesTaskQueriesProps {
   accessToken: string;
@@ -15,10 +21,17 @@ export interface SalesTaskWithCountResponse extends SalesTaskResponse {
   };
 }
 
+export interface HistoricalTaskStatisticsResponse {
+  currentTasks: any[];
+  previousTasks: any[];
+  allTasks: any[];
+}
+
 export interface UseSalesTaskQueriesReturn {
   fetchSalesTasks: (variables?: SalesTaskQueryVariables) => Promise<SalesTaskResponse>;
   fetchSalesTasksCount: (variables?: SalesTaskQueryVariables) => Promise<number>;
   fetchSalesTasksWithCount: (variables?: SalesTaskQueryVariables) => Promise<SalesTaskWithCountResponse>;
+  fetchHistoricalStatistics: (daysAgo?: number) => Promise<HistoricalTaskStatisticsResponse>;
 }
 
 /**
@@ -28,43 +41,55 @@ export interface UseSalesTaskQueriesReturn {
 export const useSalesTaskQueries = ({ accessToken }: UseSalesTaskQueriesProps): UseSalesTaskQueriesReturn => {
   const graphqlClient = useGraphQLClient(accessToken);
 
-  const fetchSalesTasks = async (variables: SalesTaskQueryVariables = {}): Promise<SalesTaskResponse> => {
-    const query = GET_SALES_TASKS(variables);
+  const fetchSalesTasks = useCallback(async (variables: SalesTaskQueryVariables = {}): Promise<SalesTaskResponse> => {
+    const { query, variables: queryVariables } = GET_SALES_TASKS(variables);
     try {
-      const result = await graphqlClient.request<SalesTaskResponse>(query);
+      const result = await graphqlClient.request<SalesTaskResponse>(query, queryVariables);
       return result;
     } catch (error) {
       console.error('Error fetching sales tasks:', error);
       throw error;
     }
-  };
+  }, [graphqlClient]);
 
-  const fetchSalesTasksCount = async (variables: SalesTaskQueryVariables = {}): Promise<number> => {
-    const query = GET_SALES_TASKS_COUNT(variables);
+  const fetchSalesTasksCount = useCallback(async (variables: SalesTaskQueryVariables = {}): Promise<number> => {
+    const { query, variables: queryVariables } = GET_SALES_TASKS_COUNT(variables);
     try {
-      const result = await graphqlClient.request<{ SalesTask: { id: string }[] }>(query);
+      const result = await graphqlClient.request<{ SalesTask: { id: string }[] }>(query, queryVariables);
       return result.SalesTask.length;
     } catch (error) {
       console.error('Error fetching sales tasks count:', error);
       throw error;
     }
-  };
+  }, [graphqlClient]);
 
-  const fetchSalesTasksWithCount = async (variables: SalesTaskQueryVariables = {}): Promise<SalesTaskWithCountResponse> => {
-    const query = GET_SALES_TASKS_WITH_COUNT(variables);
+  const fetchSalesTasksWithCount = useCallback(async (variables: SalesTaskQueryVariables = {}): Promise<SalesTaskWithCountResponse> => {
+    const { query, variables: queryVariables } = GET_SALES_TASKS_WITH_COUNT(variables);
     try {
-      const result = await graphqlClient.request<SalesTaskWithCountResponse>(query);
+      const result = await graphqlClient.request<SalesTaskWithCountResponse>(query, queryVariables);
       return result;
     } catch (error) {
       console.error('Error fetching sales tasks with count:', error);
       throw error;
     }
-  };
+  }, [graphqlClient]);
+
+  const fetchHistoricalStatistics = useCallback(async (daysAgo: number = 30): Promise<HistoricalTaskStatisticsResponse> => {
+    const { query, variables: queryVariables } = GET_HISTORICAL_TASK_STATISTICS(daysAgo);
+    try {
+      const result = await graphqlClient.request<HistoricalTaskStatisticsResponse>(query, queryVariables);
+      return result;
+    } catch (error) {
+      console.error('Error fetching historical task statistics:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
 
   return {
     fetchSalesTasks,
     fetchSalesTasksCount,
-    fetchSalesTasksWithCount
+    fetchSalesTasksWithCount,
+    fetchHistoricalStatistics
   };
 };
 
