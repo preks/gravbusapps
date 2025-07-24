@@ -1,6 +1,6 @@
-import React from 'react';
-import { Button } from '@newwork/nw-design-system';
-import { Settings, PieChart } from 'lucide-react';
+import React from "react";
+import { Button } from "@newwork/nw-design-system";
+import { Settings, PieChart } from "lucide-react";
 
 const DashboardHeader: React.FC = () => {
   return (
@@ -10,7 +10,10 @@ const DashboardHeader: React.FC = () => {
           <div className="gba:p-2 gba:bg-blue-100 gba:rounded-lg">
             <PieChart className="gba:h-6 gba:w-6 gba:text-blue-600" />
           </div>
-          <h1 className="gba:text-2xl gba:font-semibold gba:text-gray-900" data-testid="dashboard-title">
+          <h1
+            className="gba:text-2xl gba:font-semibold gba:text-gray-900"
+            data-testid="dashboard-title"
+          >
             Investment Portfolio
           </h1>
         </div>
@@ -19,4 +22,4 @@ const DashboardHeader: React.FC = () => {
   );
 };
 
-export default DashboardHeader; 
+export default DashboardHeader;

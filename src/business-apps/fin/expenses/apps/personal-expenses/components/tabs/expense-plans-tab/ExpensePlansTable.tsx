@@ -1,151 +1,195 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetExpensePlans, ExpensePlan } from '../../../hooks/useGetExpensePlans';
+import { ExpensePlan } from '../../../hooks/useGetExpensePlans';
 import { getExpensePlanStatusDisplay } from '../../../utils';
 import ExpensePlanDetails from './ExpensePlanDetails';
+import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails';
 import { startProcess } from '@/common/utils/start-process';
-import { 
-  Spin, 
-  Alert, 
-  Typography
-} from 'antd';
+import { Spin, Alert, Typography, Modal } from 'antd';
+import { formatDate, formatNumberFunction } from '@/common/utils/windowUtils';
 import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
-import { 
-  FileTextOutlined
-} from '@ant-design/icons';
+import { FileTextOutlined } from '@ant-design/icons';
 import Pill from '@/components/pill/Pill';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
+import { DataFilterGroup } from '@/components/data-filter/DataFilter';
+import { useExpensePlanFileService } from '../../../utils/expensePlanFileService';
 
 const { Text } = Typography;
 
-// Helper function to format currency values
-const formatCurrency = (value: number): string => {
-  if (typeof value !== 'number') {
-    return '-';
-  }
-  return value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
-
-export interface ExpensePlansTableProps extends BusinessAppContextProps {
-  search?: string;
-  onSearchChange?: (search: string) => void;
+// Sorting utilities following SOLID principles
+interface SortableField<T> {
+  key: keyof T;
+  type: 'string' | 'number' | 'date';
+  nullable?: boolean;
 }
 
-const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
-  // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = useMemo(() => ({
-    accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
-  
-  const { items: plans, isLoading, error, totalCount, fetchItems } = useGetExpensePlans(contextProps);
-  
-  // Search and pagination states
-  const [search, setSearch] = useState<string>(props.search ?? '');
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(20);
-  
-  // Selected item and row states
+class SortingService {
+  static createSorter<T>(field: SortableField<T>) {
+    return (a: T, b: T) => {
+      const aValue = a[field.key];
+      const bValue = b[field.key];
+      
+      // Handle nullable values
+      const aSafe = field.nullable ? (aValue ?? 0) : aValue;
+      const bSafe = field.nullable ? (bValue ?? 0) : bValue;
+      
+      switch (field.type) {
+        case 'string':
+          return String(aSafe).localeCompare(String(bSafe));
+        case 'number':
+          return Number(aSafe) - Number(bSafe);
+        case 'date':
+          const aDate = aSafe ? new Date(String(aSafe)).getTime() : 0;
+          const bDate = bSafe ? new Date(String(bSafe)).getTime() : 0;
+          return aDate - bDate;
+        default:
+          return 0;
+      }
+    };
+  }
+}
+
+// Column configuration following SRP
+const EXPENSE_PLAN_COLUMNS = {
+  code: { key: 'code' as keyof ExpensePlan, type: 'string' as const },
+  title: { key: 'title' as keyof ExpensePlan, type: 'string' as const },
+  planDate: { key: 'planDate' as keyof ExpensePlan, type: 'date' as const, nullable: true },
+  startDate: { key: 'startDate' as keyof ExpensePlan, type: 'date' as const, nullable: true },
+  endDate: { key: 'endDate' as keyof ExpensePlan, type: 'date' as const, nullable: true },
+  status: { key: 'status' as keyof ExpensePlan, type: 'string' as const },
+  reimbursableAmount: { key: 'reimbursableAmount' as keyof ExpensePlan, type: 'number' as const, nullable: true },
+  advancePaymentPaidAmount: { key: 'advancePaymentPaidAmount' as keyof ExpensePlan, type: 'number' as const, nullable: true },
+} as const;
+
+export interface ExpensePlansTableProps extends BusinessAppContextProps {
+  items: ExpensePlan[] | undefined;
+  isLoading: boolean;
+  error: string | null;
+  totalCount: number;
+  currentPage: number;
+  pageSize: number;
+  onTableChange: (pagination: any, filters: any, sorter: any) => void;
+  search: string;
+  onSearchChange: (search: string) => void;
+  selectedFilters: string[];
+  setFilters: (filters: string[]) => void;
+  filterGroups: DataFilterGroup[];
+  handleFilterChange: (filterId: string, selected: boolean) => void;
+  clearFilters: () => void;
+  filterLabelMap?: Record<string, string>;
+}
+
+const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) => {
+  const {
+    items: plans,
+    isLoading,
+    error,
+    totalCount,
+    currentPage,
+    pageSize,
+    onTableChange,
+    ...contextProps
+  } = props;
+
+  // Internal sorting state - managed locally like expense items table
+  const [sortField, setSortField] = useState<string>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
+
   const [selectedItem, setSelectedItem] = useState<ExpensePlan | null>(null);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [selectedExpenseRequest, setSelectedExpenseRequest] = useState<any>(null);
+  const [printModalOpen, setPrintModalOpen] = useState<boolean>(false);
+  const [printPdfUrl, setPrintPdfUrl] = useState<string>('');
+  const [printLoading, setPrintLoading] = useState<boolean>(false);
+  
+  // Use the file service hook
+  const { printExpensePlan, isMounted } = useExpensePlanFileService(props);
 
-  // Initial data loading
-  useEffect(() => {
-    if (contextProps.accessToken && (!plans || plans.length === 0)) {
-      fetchItems(search, currentPage, pageSize);
+  const handleSelectItem = useCallback((item: ExpensePlan) => {
+    setSelectedItem(item);
+  }, []);
+
+  const handleCloseDetails = useCallback(() => {
+    setSelectedItem(null);
+    setSelectedExpenseRequest(null);
+  }, []);
+
+  const handlePrintPlan = useCallback(async (record: ExpensePlan) => {
+    setPrintLoading(true);
+    setPrintModalOpen(true);
+
+    try {
+      const result = await printExpensePlan(record);
+      
+      if (result.success && result.pdfUrl && isMounted.current) {
+        setPrintPdfUrl(result.pdfUrl);
+      } else if (!result.success) {
+        console.error('Error printing plan:', result.error);
+      }
+    } catch (error) {
+      console.error('Error fetching print PDF:', error);
+    } finally {
+      if (isMounted.current) {
+        setPrintLoading(false);
+      }
     }
-  }, [contextProps.accessToken, plans]);
+  }, [printExpensePlan, isMounted]);
 
-  // Handle add expense plan
   const handleAddExpensePlan = useCallback(() => {
     if (contextProps.userInfo?.employeeDetails?.employeeId) {
       startProcess({
         domain: 'employee-expense',
         processName: 'changeExpensePlan',
         payload: {
-          employeeId: contextProps.userInfo.employeeDetails.employeeId
-        }
+          employeeId: contextProps.userInfo.employeeDetails.employeeId,
+        },
       });
     }
-  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
-
-  // Handle search change
-  const handleSearchChange = useCallback((value: string) => {
-    setSearch(value);
-    setCurrentPage(1); // Reset to first page on new search
-    fetchItems(value, 1, pageSize);
-    
-    // Notify parent component
-    if (props.onSearchChange) {
-      props.onSearchChange(value);
-    }
-  }, [fetchItems, pageSize, props]);
-
-  // Handle filter change (placeholder for future use)
-  const handleFilterChange = useCallback(() => {
-    // Placeholder for filter functionality
-  }, []);
-
-  // Handle table change for pagination
-  const handleTableChange = useCallback((pagination: any, _filters: any, _sorter: any) => {
-    console.log('Pagination changed:', { 
-      current: pagination.current, 
-      pageSize: pagination.pageSize,
-      total: pagination.total 
-    });
-    
-    // Update state
-    setCurrentPage(pagination.current);
-    setPageSize(pagination.pageSize);
-    
-    // Load the data for the selected page with the new page size
-    fetchItems(search, pagination.current, pagination.pageSize);
-  }, [fetchItems, search]);
-
-  // Handle item selection
-  const handleSelectItem = useCallback((item: ExpensePlan) => {
-    setSelectedItem(item);
-    setSelectedRowKeys([item.id]);
-  }, []);
+  }, [contextProps.userInfo]);
   
-  // Handle row selection change
-  const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
+  const handleViewExpenseRequestDetails = useCallback((record: ExpensePlan) => {
+    if (record.expenseRequest) {
+      setSelectedExpenseRequest(record.expenseRequest[0]);
+    }
+  }, []);
+
+  // Enhanced table change handler for sorting - manages state internally
+  const handleEnhancedTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
+    // Handle pagination
+    onTableChange(pagination, _filters, sorter);
     
-    // If a single row is selected, find and set the selected item
-    if (newSelectedRowKeys.length === 1) {
-      const selectedItemId = newSelectedRowKeys[0];
-      const item = plans?.find(plan => plan.id === selectedItemId);
-      if (item) {
-        setSelectedItem(item);
-      }
+    // Handle sorting - update internal state only
+    if (sorter && sorter.field) {
+      setSortField(sorter.field);
+      setSortOrder(sorter.order);
     } else {
-      // If multiple or no rows selected, clear the selected item
-      setSelectedItem(null);
+      // Reset to default sorting (creation date descending)
+      setSortField('createdAt');
+      setSortOrder('descend');
     }
-  }, [plans]);
-  
-  // Handle closing the details panel
-  const handleCloseDetails = useCallback(() => {
-    setSelectedItem(null);
-    setSelectedRowKeys([]);
-  }, []);
+  }, [onTableChange]);
 
-  // Render the data body
-  const renderDataBody = useCallback(() => {
+  // Column factory following OCP
+  const createColumn = useCallback((key: keyof typeof EXPENSE_PLAN_COLUMNS, title: string, render?: (value: any, record: ExpensePlan) => React.ReactNode) => {
+    const field = EXPENSE_PLAN_COLUMNS[key];
+    return {
+      title,
+      dataIndex: field.key,
+      key: field.key,
+      sorter: SortingService.createSorter(field),
+      sortOrder: sortField === field.key ? sortOrder : null,
+      render,
+    };
+  }, [sortField, sortOrder]);
+
+  const renderDataBody = useMemo(() => {
     if (isLoading) {
       return <div style={{ padding: 24, textAlign: 'center' }}><Spin size="large" /></div>;
     }
-    
+
     if (error) {
-      return <Alert 
-        message="Error Loading Expense Plans" 
-        description={error}
-        type="error" 
-        showIcon 
-      />;
+      return <Alert message="Error Loading Expense Plans" description={error} type="error" showIcon />;
     }
-    
+
     if (!plans || plans.length === 0) {
       return (
         <div style={{ padding: 24, textAlign: 'center' }}>
@@ -153,26 +197,15 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
         </div>
       );
     }
-    
+
     return (
-      <DataTable 
-        dataSource={plans} 
+      <DataTable
+        dataSource={plans}
         rowKey="id"
         loading={isLoading}
-        rowSelection={{
-          type: 'checkbox',
-          selectedRowKeys,
-          onChange: handleRowSelectionChange,
-          columnWidth: 48,
-        }}
         onRow={(record: any) => ({
-          onClick: (event) => {
-            // Prevent row click from triggering when clicking on checkbox
-            if ((event.target as HTMLElement).tagName !== 'INPUT') {
-              handleSelectItem(record as ExpensePlan);
-            }
-          },
-          style: { cursor: 'pointer' }
+          onClick: () => handleSelectItem(record),
+          style: { cursor: 'pointer' },
         })}
         pagination={{
           current: currentPage,
@@ -180,70 +213,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
           total: totalCount,
           showSizeChanger: true,
           pageSizeOptions: ['10', '20', '50', '100'],
-          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
+          showTotal: (total: number, range: [number, number]) => `${range[0]}-${range[1]} of ${total} items`,
         }}
-        onChange={handleTableChange}
+        onChange={handleEnhancedTableChange}
         data-testid="expense-plans-data-table"
         columns={[
-          {
-            title: 'Title',
-            dataIndex: 'title',
-            key: 'title',
-            render: (text: string, record: ExpensePlan) => (
-              <div>
-                <div style={{ fontWeight: 'bold' }}>{text}</div>
-                {(record.startDate && record.endDate) && (
-                  <div style={{ fontSize: '12px', color: '#666' }}>
-                    {`${new Date(record.startDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})} - ${new Date(record.endDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})}`}
-                  </div>
-                )}
-              </div>
-            )
-          },
-          {
-            title: 'Cost Center',
-            dataIndex: ['costCenter', 'name'],
-            key: 'costCenter',
-            render: (text: string) => (
-              <div>
-                {text ?? 'No Cost Center'}
-              </div>
-            )
-          },
-          {
-            title: 'Trip Type',
-            key: 'tripType',
-            render: (_: any, record: ExpensePlan) => {
-              // Try to get request type from the new field structure
-              if (record.requestType?.value) {
-                return <span>{String(record.requestType.value)}</span>;
-              }
-              // Fall back to the old structure using additionalProperties
-              return <span>{record.requestType?.value ? String(record.requestType.value) : 'Unknown'}</span>;
-            }
-          },
-          {
-            title: 'Amount',
-            dataIndex: 'totalAmount',
-            key: 'amount',
-            align: 'right',
-            render: (amount: number, record: ExpensePlan) => {
-              let currencySymbol = '€'; // Default to Euro symbol
-              if (record.currency?.value) {
-                currencySymbol = record.currency.value === 'European euro' ? '€' : record.currency.value.charAt(0);
-              }
-              return `${currencySymbol}${formatCurrency(amount ?? 0)}`;
-            }
-          },
-          {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            render: (status: string) => {
-              const statusConfig = getExpensePlanStatusDisplay(status);
-              return <Pill type={statusConfig.type} label={statusConfig.label} />;
-            }
-          },
           {
             title: '',
             key: 'actions',
@@ -253,88 +227,212 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
               <ActionButton
                 onClick={(e) => e.stopPropagation()}
                 flowData={[
-                  {
+                  ...(record.status === 'CREATED' || record.status === 'REJECTED') ? [
+                        {
+                          category: 'Actions',
+                          key: 'update-plan',
+                          label: 'Update Plan',
+                          onClick: () => {
+                            startProcess({
+                              domain: 'employee-expense',
+                              processName: 'changeExpensePlan',
+                              payload: {
+                                employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                                expensePlanId: record.id
+                              },
+                            });
+                          }
+                        }] : [],
+                        ...(record.status === 'APPROVED' || record.status === 'CLOSED' || record.employeeDocumentId !== null) ? [
+                           {
+                          category: 'Actions',
+                          key: 'print',
+                          label: 'Print',
+                          onClick: () => {
+                            handlePrintPlan(record);
+                          }
+                        }] : [],
+                        ...(record.status === 'CREATED' || record.status === 'CLOSED') ? [
+                        {
+                          category: 'Actions',
+                          key: 'request-advance',
+                          label: 'Request Advance Payment',
+                          onClick: () => {
+                            startProcess({
+                              domain: 'employee-expense',
+                              processName: 'changeAdvancePayment',
+                              payload: {
+                                employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                                expensePlan: record.id
+                              },
+                            });
+                          }
+                        }] : [],
+                        ...(record.status === 'APPROVED' || record.expenseRequest.id !== null) ? [
+                        {
+                          category: 'Actions',
+                          key: 'create-expense-request',
+                          label: 'Create Expense Request',
+                          onClick: () => {
+                            startProcess({
+                              domain: 'employee-expense',
+                              processName: 'changeExpenseRequest',
+                              payload: {
+                                employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                                expensePlanId: record.id
+                              },
+                            });
+                          }
+                        }] : [],
+                    {
                     category: 'Navigations',
-                    key: 'view-details',
-                    label: 'View Details',
+                    key: 'view-plan-details',
+                    label: 'View Plan Details',
                     onClick: (e?: React.MouseEvent) => {
                       e?.stopPropagation();
                       handleSelectItem(record);
-                    }
+                    },
                   },
-                  {
+                  ...(record.expenseRequest && (record.expenseRequest as unknown as any[]).length > 0 && (record.expenseRequest as unknown as any[])[0].id !== null) ? [ {
                     category: 'Navigations',
-                    key: 'view-documents',
-                    label: 'View Documents',
+                    key: 'view-request-details',
+                    label: 'View Request Details',
                     onClick: (e?: React.MouseEvent) => {
                       e?.stopPropagation();
-                      console.log('View documents for', record.id);
-                    }
-                  },
-                  {
-                    category: 'Actions',
-                    key: 'edit',
-                    label: 'Edit',
-                    onClick: (e?: React.MouseEvent) => {
-                      e?.stopPropagation();
-                      console.log('Edit expense plan:', record.id);
-                    }
-                  }
+                      handleViewExpenseRequestDetails(record);
+                    },
+                  }] : [],
                 ]}
                 portalContainer={document.body}
                 data-testid={`actions-${record.id}`}
                 size="md"
               />
-            )
-          }
+            ),
+          },
+          createColumn('code', 'Plan Number'),
+          createColumn('title', 'Title'),
+          createColumn('planDate', 'Plan Date', (date: string) => (date ? formatDate(date, 'date.long') : '-')),
+          createColumn('startDate', 'Start Date', (date: string) => (date ? formatDate(date, 'date.long') : '-')),
+          createColumn('endDate', 'End Date', (date: string) => (date ? formatDate(date, 'date.long') : '-')),
+          createColumn('status', 'Status', (status: string) => {
+            const statusConfig = getExpensePlanStatusDisplay(status);
+            return <Pill type={statusConfig.type} label={statusConfig.label} />;
+          }),
+          {
+            ...createColumn('reimbursableAmount', 'Reimbursable Amount', (amount: number, record: ExpensePlan) => {
+              const currencyCode = record.currency?.code || '';
+              return `${formatNumberFunction(String(amount ?? '0'))} ${currencyCode}`;
+            }),
+            align: 'right' as const,
+          },
+          {
+            ...createColumn('advancePaymentPaidAmount', 'Paid Advance', (amount: number, record: ExpensePlan) => {
+              const currencyCode = record.currency?.code || '';
+              return `${formatNumberFunction(String(amount ?? '0'))} ${currencyCode}`;
+            }),
+            align: 'right' as const,
+          },
         ] as any}
       />
     );
-  }, [plans, isLoading, error, currentPage, pageSize, totalCount, selectedRowKeys, handleRowSelectionChange, handleSelectItem, handleTableChange]);
+  }, [plans, isLoading, error, currentPage, pageSize, totalCount, handleEnhancedTableChange, handleSelectItem, createColumn, contextProps.userInfo, handlePrintPlan, handleViewExpenseRequestDetails]);
 
-  // Render expense plan details using the separate component
   const renderExpensePlanDetails = useMemo(() => {
     if (!selectedItem) return null;
 
     return (
-      <ExpensePlanDetails 
-        selectedItem={selectedItem} 
-        onClose={handleCloseDetails} 
+      <ExpensePlanDetails
+        selectedItem={selectedItem}
+        onClose={handleCloseDetails}
         accessToken={props.accessToken}
         userInfo={props.userInfo}
       />
     );
   }, [selectedItem, handleCloseDetails, props.accessToken, props.userInfo]);
 
+  const renderExpenseRequestDetails = useMemo(() => {
+    if (!selectedExpenseRequest) return null;
+
+    return (
+      <ExpenseRequestDetails
+        selectedItem={selectedExpenseRequest}
+        onClose={handleCloseDetails}
+        accessToken={props.accessToken}
+        userInfo={props.userInfo}
+      />
+    );
+  }, [selectedExpenseRequest, handleCloseDetails, props.accessToken, props.userInfo]);
+  
+  
+
   return (
+    <div>
       <DataContainer
         dataControllerProps={{
-          search: search,
-          filter: [],
-          setSearch: handleSearchChange,
-          setFilter: handleFilterChange,
+          search: props.search,
+          setSearch: props.onSearchChange,
+          filter: props.selectedFilters,
+          setFilter: props.setFilters,
+          filterLabelMap: props.filterLabelMap,
           addButton: {
             onClick: handleAddExpensePlan,
             label: 'Add',
-            'data-testid': 'add-expense-plan-button'
+            'data-testid': 'add-expense-plan-button',
           },
-          listTitle: "My Expense Plans",
-          listAmount: totalCount ? `${totalCount}` : undefined
+          listTitle: 'My Expense Plans',
+          listAmount: totalCount ? `${totalCount}` : undefined,
         }}
-        dataFilterProps={{}}
-        hideFilter={true}
+        dataFilterProps={{
+          filterGroups: props.filterGroups,
+          onFilterChange: props.handleFilterChange,
+
+        }}
+        hideFilter={false}
         floatingDetails={true}
-        dataBody={renderDataBody()}
+        dataBody={renderDataBody}
         contentBackground="white"
         dataDetails={selectedItem ? {
           title: selectedItem.title,
           icon: <FileTextOutlined />,
           content: renderExpensePlanDetails,
           onClose: handleCloseDetails,
-          footer: null // Remove footer close button as it's now in the details component
+        } : selectedExpenseRequest ? {
+          title: selectedExpenseRequest.title || 'Expense Request Details',
+          icon: <FileTextOutlined />,
+          content: renderExpenseRequestDetails,
+          onClose: handleCloseDetails,
         } : undefined}
       />
+
+      {/* Print Modal */}
+      <Modal
+        open={printModalOpen}
+        title="Print Expense Plan"
+        footer={null}
+        onCancel={() => {
+          setPrintModalOpen(false);
+          setPrintPdfUrl('');
+        }}
+        width="90vw"
+        style={{ top: 20 }}
+        destroyOnHidden={true}
+        data-testid="print-plan-modal"
+      >
+        {printLoading ? (
+          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+            <Spin size="large" />
+          </div>
+        ) : (
+          <iframe
+            src={printPdfUrl}
+            style={{ width: '100%', height: 'calc(90vh - 55px)', border: 'none' }}
+            title="Print Preview"
+            data-testid="print-plan-iframe"
+          />
+        )}
+      </Modal>
+    </div>
   );
-};
+});
 
 export default ExpensePlansTable;

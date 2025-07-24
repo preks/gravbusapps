@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCallback } from "react";
+import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
 export interface AccountQueryVariables {
   offset?: number;
@@ -25,6 +25,7 @@ export interface AccountData {
   };
   accountContacts: {
     contact: {
+      id: string;
       firstName: string;
       lastName: string;
       email: string;
@@ -98,6 +99,7 @@ export const GET_ACCOUNTS_DATA = `
       }
       accountContacts(where:{contactType:{_eq:"PRIMARY_CONTACT"}}) {
         contact{
+          id
           firstName
           lastName
           phone
@@ -143,17 +145,23 @@ export const GET_ACCOUNTS_DATA = `
 
 export const useGetAccountsData = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchAccountsData = useCallback(async (variables: AccountQueryVariables = {}) => {
-    const query = GET_ACCOUNTS_DATA;
-    try {
-      const result = await graphqlClient.request<GetAccountsResponse>(query, variables);
-      return result;
-    } catch (error) {
-      console.error('Error fetching accounts data:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+
+  const fetchAccountsData = useCallback(
+    async (variables: AccountQueryVariables = {}) => {
+      const query = GET_ACCOUNTS_DATA;
+      try {
+        const result = await graphqlClient.request<GetAccountsResponse>(
+          query,
+          variables
+        );
+        return result;
+      } catch (error) {
+        console.error("Error fetching accounts data:", error);
+        throw error;
+      }
+    },
+    [graphqlClient]
+  );
 
   return { fetchAccountsData };
-}; 
+};

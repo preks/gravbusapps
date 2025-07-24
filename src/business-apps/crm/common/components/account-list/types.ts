@@ -6,6 +6,7 @@ export interface Account {
   email?: string;
   contactFirstName?: string;
   contactLastName?: string;
+  contactId?: string;
   industry?: {
     id: string;
     value: string;
@@ -42,7 +43,11 @@ export interface UseAccountListDataReturn {
   error: Error | null;
   hasMore: boolean;
   loadMore: () => void;
-  loadPage: (page: number, pageSize?: number, additionalFilters?: any) => Promise<void>;
+  loadPage: (
+    page: number,
+    pageSize?: number,
+    additionalFilters?: any
+  ) => Promise<void>;
   retry: () => void;
 }
 
@@ -60,4 +65,4 @@ export interface AccountListResponse {
       count: number;
     };
   };
-} 
+}

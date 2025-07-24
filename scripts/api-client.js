@@ -112,18 +112,118 @@ function generateScreenKeyFromPath(path) {
 }
 
 /**
+ * Get resource URLs from Navigation service
+ * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
+ * @param {Object} oauthConfig - OAuth configuration for production (optional)
+ * @param {Object} searchParams - Search parameters (optional)
+ * @param {string} searchParams.search - Search term to filter by URL or title
+ * @param {string} searchParams.sort - Comma-separated list of fields to define the sort order
+ * @returns {Promise<Array>} Array of resource URL objects
+ */
+async function getResourceUrls(apiEndpoint = null, oauthConfig = {}, searchParams = {}) {
+  try {
+    const oauthClient = new OAuthClient(oauthConfig);
+    const accessToken = await oauthClient.getAccessToken();
+    const navigationServiceApi = apiEndpoint || process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API;
+
+    // Use search endpoint if search parameters are provided
+    const endpoint = searchParams.search || searchParams.sort 
+      ? `${navigationServiceApi}/resource-url/search`
+      : `${navigationServiceApi}/resource-url`;
+
+    // Build query parameters
+    const params = {};
+    if (searchParams.search) {
+      params.search = searchParams.search;
+    }
+    if (searchParams.sort) {
+      params.sort = searchParams.sort;
+    }
+
+    // Build the full URL with parameters for logging
+    const urlParams = new URLSearchParams(params).toString();
+    const fullUrl = urlParams ? `${endpoint}?${urlParams}` : endpoint;
+    console.log("🔍 Full resource request URL:", fullUrl);
+    
+    const response = await axios.get(endpoint, {
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${accessToken}`,
+      },
+      params: params
+    });
+
+    // Handle different response structures
+    let results = [];
+    if (Array.isArray(response.data)) {
+      results = response.data;
+    } else if (response.data && Array.isArray(response.data.data)) {
+      results = response.data.data;
+    } else if (response.data && response.data.content && Array.isArray(response.data.content)) {
+      results = response.data.content;
+    }
+    
+    console.log("🔍 Results count:", results.length);
+    
+    return results;
+  } catch (error) {
+    console.error("❌ Failed to get resource URLs:", error.message);
+    throw error;
+  }
+}
+
+/**
+ * Check if a resource URL exists for a given URL path
+ * @param {string} urlPath - The URL path to check (e.g., "/platform/apps/hr/core/apps/employee-record")
+ * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
+ * @param {Object} oauthConfig - OAuth configuration for production (optional)
+ * @returns {Promise<Object|null>} The resource URL object if found, null if not found
+ */
+async function getResourceUrlByPath(urlPath, apiEndpoint = null, oauthConfig = {}) {
+  try {
+    // Extract just the path part for searching (remove /platform/ prefix)
+    const searchTerm = urlPath.replace(/^\/platform\//, '');
+    
+    // Use search to find the specific resource URL
+    const resourceUrls = await getResourceUrls(apiEndpoint, oauthConfig, {
+      search: searchTerm,
+      sort: '-updatedAt'
+    });
+    
+    // Look for exact URL match
+    const foundResource = resourceUrls.find(resource => resource.url === urlPath);
+    
+    if (foundResource) {
+      console.log(`🔍 Found existing resource URL: ${urlPath}`);
+      return foundResource;
+    } else {
+      console.log(`🔍 Resource URL not found: ${urlPath} (searched for: ${searchTerm})`);
+      return null;
+    }
+  } catch (error) {
+    console.error("❌ Failed to check resource URL:", error.message);
+    throw error;
+  }
+}
+
+/**
  * Add an app resource URL to Navigation service
  * @param {string} azureDestinationPath - The path where the app is deployed
  * @param {boolean} addIfExistsResponse - Whether to respond if the URL exists
+ * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
+ * @param {Object} oauthConfig - OAuth configuration for production (optional)
  * @returns {Promise<void>}
  */
 async function addAppResourceUrl(
   azureDestinationPath,
-  addIfExistsResponse = true
+  addIfExistsResponse = true,
+  apiEndpoint = null,
+  oauthConfig = {}
 ) {
   try {
-    const oauthClient = new OAuthClient();
+    const oauthClient = new OAuthClient(oauthConfig);
     const accessToken = await oauthClient.getAccessToken();
+    const navigationServiceApi = apiEndpoint || process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API;
 
     const { code, name } = formatPathForResource(azureDestinationPath);
 
@@ -140,7 +240,7 @@ async function addAppResourceUrl(
 
     try {
       await axios.post(
-        `${process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API}/resource-url`,
+        `${navigationServiceApi}/resource-url`,
         payload,
         {
           headers: {
@@ -166,14 +266,16 @@ async function addAppResourceUrl(
 
 /**
  * Add a custom resource URL to Navigation service
- * @param {string} azureDestinationPath - The path where the app is deployed
  * @param {string} customUrlPath - The custom URL path provided by user
+ * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
+ * @param {Object} oauthConfig - OAuth configuration for production (optional)
  * @returns {Promise<void>}
  */
-async function addCustomResourceUrl(customUrlPath) {
+async function addCustomResourceUrl(customUrlPath, apiEndpoint = null, oauthConfig = {}) {
   try {
-    const oauthClient = new OAuthClient();
+    const oauthClient = new OAuthClient(oauthConfig);
     const accessToken = await oauthClient.getAccessToken();
+    const navigationServiceApi = apiEndpoint || process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API;
 
     const { code, name } = formatPathForResource(customUrlPath);
 
@@ -190,7 +292,7 @@ async function addCustomResourceUrl(customUrlPath) {
 
     try {
       await axios.post(
-        `${process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API}/resource-url`,
+        `${navigationServiceApi}/resource-url`,
         payload,
         {
           headers: {
@@ -316,7 +418,7 @@ async function getScreenByKey(screenKey, apiEndpoint = null, oauthConfig = {}) {
             builderType: "NATIVE_SCREEN",
             sort: "updatedAt",
             order: "DESC",
-            limit: 1,
+            limit: 10,
             offset: 0,
           }
         }
@@ -591,8 +693,257 @@ async function addFormAsUserTaskScreen(
   }
 }
 
+/**
+ * Get all NATIVE_SCREEN screens from Screen Management service with pagination
+ * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
+ * @param {Object} oauthConfig - OAuth configuration for production (optional)
+ * @returns {Promise<Array>} Array of all NATIVE_SCREEN application screen objects
+ */
+async function getAllNativeScreens(apiEndpoint = null, oauthConfig = {}) {
+  try {
+    const oauthClient = new OAuthClient(oauthConfig);
+    const accessToken = await oauthClient.getAccessToken();
+    const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API;
+
+    let allScreens = [];
+    let offset = 0;
+    const limit = 100;
+    let hasMore = true;
+
+    console.log("🔍 Fetching all NATIVE_SCREEN screens with pagination...");
+
+    while (hasMore) {
+      console.log(`   Fetching screens: offset=${offset}, limit=${limit}`);
+      
+      try {
+        const response = await axios.get(
+          `${screenManagementApi}/screen`,
+          {
+            headers: {
+              accept: "application/json",
+              authorization: `Bearer ${accessToken}`,
+            },
+            params: {
+              builderType: "NATIVE_SCREEN",
+              limit: limit,
+              offset: offset,
+              returnTotalRecords: offset === 0, // Only get total on first request
+            }
+          }
+        );
+
+        if (response.data && response.data.data && Array.isArray(response.data.data)) {
+          const screens = response.data.data;
+          allScreens = allScreens.concat(screens);
+          
+          console.log(`   Found ${screens.length} screens in this batch`);
+          
+          // Check if we have more data
+          if (screens.length < limit) {
+            hasMore = false;
+          } else {
+            offset += limit;
+          }
+          
+          // Log total on first request
+          if (offset === limit && response.data.paging && response.data.paging.totalRecords) {
+            console.log(`   Total NATIVE_SCREEN screens available: ${response.data.paging.totalRecords}`);
+          }
+        } else {
+          console.log("   No screens data in response");
+          hasMore = false;
+        }
+      } catch (error) {
+        console.error(`❌ Failed to fetch screens at offset ${offset}:`, error.message);
+        throw error;
+      }
+    }
+
+    console.log(`✅ Successfully fetched ${allScreens.length} total NATIVE_SCREEN screens`);
+    return allScreens;
+  } catch (error) {
+    console.error("❌ Failed to get all native screens:", error.message);
+    throw error;
+  }
+}
+
+/**
+ * Convert screen key to platform URL
+ * @param {string} screenKey - The screen key (e.g., "url_path1~path2~path3")
+ * @returns {string|null} Platform URL (e.g., "/platform/path1/path2/path3") or null if invalid
+ */
+function convertScreenKeyToUrl(screenKey) {
+  if (!screenKey || typeof screenKey !== 'string') {
+    return null;
+  }
+
+  // Check if screenKey starts with "url_"
+  if (!screenKey.startsWith('url_')) {
+    return null;
+  }
+
+  // Remove "url_" prefix and split by "~"
+  const pathParts = screenKey.substring(4).split('~');
+  
+  // Join path parts and add /platform prefix
+  const url = `/platform/${pathParts.join('/')}`;
+  
+  return url;
+}
+
+/**
+ * Sync resource URL from dev to prod with same ID
+ * @param {Object} devResourceUrl - The resource URL object from dev environment
+ * @param {string} prodNavigationApi - Production navigation API endpoint
+ * @param {Object} prodOauthConfig - Production OAuth configuration
+ * @returns {Promise<Object>} Result object with success status and operation type
+ */
+async function syncResourceUrlWithSameId(devResourceUrl, prodNavigationApi, prodOauthConfig) {
+  try {
+    const oauthClient = new OAuthClient(prodOauthConfig);
+    const accessToken = await oauthClient.getAccessToken();
+
+    // Check if resource URL already exists in prod
+    console.log(`   Checking if resource URL exists in prod: ${devResourceUrl.url}`);
+    const existingProdResourceUrl = await getResourceUrlByPath(
+      devResourceUrl.url,
+      prodNavigationApi,
+      prodOauthConfig
+    );
+
+    if (existingProdResourceUrl) {
+      console.log(`   ✅ Resource URL already exists in prod (ID: ${existingProdResourceUrl.id})`);
+      return { success: true, operation: 'exists', resourceUrl: devResourceUrl };
+    }
+
+    // Create payload with same ID as dev
+    const payload = {
+      id: devResourceUrl.id, // Use same ID from dev
+      code: devResourceUrl.code,
+      name: devResourceUrl.name,
+      url: devResourceUrl.url,
+      roles: devResourceUrl.roles || [],
+      features: devResourceUrl.features || [],
+      name_i18n: devResourceUrl.name_i18n || {},
+      description_i18n: devResourceUrl.description_i18n || {},
+      isSearchable: devResourceUrl.isSearchable || false,
+    };
+
+    console.log(`   Creating resource URL in prod with same ID: ${devResourceUrl.id}`);
+    await axios.post(
+      `${prodNavigationApi}/resource-url`,
+      payload,
+      {
+        headers: {
+          accept: "application/json",
+          authorization: `Bearer ${accessToken}`,
+          "content-type": "application/json",
+        },
+      }
+    );
+
+    console.log(`   ✅ Resource URL synced to prod with same ID: ${devResourceUrl.url}`);
+    return { success: true, operation: 'created', resourceUrl: devResourceUrl };
+
+  } catch (error) {
+    console.error(`   ❌ Failed to sync resource URL to prod: ${error.message}`);
+    return { success: false, operation: 'error', error: error.message, resourceUrl: devResourceUrl };
+  }
+}
+
+/**
+ * Sync screen from dev to prod environment
+ * @param {Object} devScreen - The screen object from dev environment  
+ * @param {string} prodScreenManagementApi - Production screen management API endpoint
+ * @param {Object} prodOauthConfig - Production OAuth configuration
+ * @param {string} buildVersion - Build version to use
+ * @returns {Promise<Object>} Result object with success status and operation type
+ */
+async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodOauthConfig, buildVersion) {
+  try {
+    const oauthClient = new OAuthClient(prodOauthConfig);
+    const accessToken = await oauthClient.getAccessToken();
+
+    // Check if screen already exists in prod
+    console.log(`   Checking if screen exists in prod: ${devScreen.screenKey}`);
+    const existingProdScreen = await getScreenByKey(devScreen.screenKey, prodScreenManagementApi, prodOauthConfig);
+
+    if (existingProdScreen) {
+      // Update existing screen with new version
+      console.log(`   📝 Screen exists in prod (ID: ${existingProdScreen.id}), updating version to ${buildVersion}`);
+      
+      const updateData = {
+        ...devScreen,
+        screenComponents: {
+          ...devScreen.screenComponents,
+          formDefinition: {
+            ...devScreen.screenComponents.formDefinition,
+            version: buildVersion,
+          },
+          release: buildVersion,
+        },
+      };
+
+      const updateSuccess = await updateScreenConfigInScreenManagement(
+        existingProdScreen.id, 
+        updateData, 
+        prodScreenManagementApi, 
+        prodOauthConfig
+      );
+
+      if (updateSuccess) {
+        console.log(`   ✅ Screen updated in prod: ${devScreen.screenKey}`);
+        return { success: true, operation: 'update', screenId: existingProdScreen.id };
+      } else {
+        console.error(`   ❌ Failed to update screen in prod: ${devScreen.screenKey}`);
+        return { success: false, operation: 'update', error: 'Screen update failed' };
+      }
+    } else {
+      // Create new screen in prod with same ID as dev
+      console.log(`   🆕 Screen doesn't exist in prod, creating: ${devScreen.screenKey}`);
+      
+      const payload = {
+        ...devScreen,
+        screenComponents: {
+          ...devScreen.screenComponents,
+          formDefinition: {
+            ...devScreen.screenComponents.formDefinition,
+            version: buildVersion,
+          },
+          release: buildVersion,
+        },
+      };
+
+      try {
+        await axios.post(
+          `${prodScreenManagementApi}/screen`,
+          payload,
+          {
+            headers: {
+              accept: "application/json",
+              authorization: `Bearer ${accessToken}`,
+              "content-type": "application/json",
+            },
+          }
+        );
+
+        console.log(`   ✅ Screen created in prod: ${devScreen.screenKey}`);
+        return { success: true, operation: 'create', screenId: devScreen.id };
+      } catch (error) {
+        console.error(`   ❌ Failed to create screen in prod: ${error.message}`);
+        return { success: false, operation: 'create', error: error.message };
+      }
+    }
+  } catch (error) {
+    console.error(`   ❌ Error syncing screen to prod: ${error.message}`);
+    return { success: false, operation: 'error', error: error.message };
+  }
+}
+
 export {
   OAuthClient,
+  getResourceUrls,
+  getResourceUrlByPath,
   addAppResourceUrl,
   addCustomResourceUrl,
   addScreenConfigToScreenManagement,
@@ -602,4 +953,8 @@ export {
   addFormAsUserTaskScreen,
   formatScreenNameFromPath,
   generateScreenKeyFromPath,
+  getAllNativeScreens,
+  convertScreenKeyToUrl,
+  syncResourceUrlWithSameId,
+  syncScreenFromDevToProd,
 };

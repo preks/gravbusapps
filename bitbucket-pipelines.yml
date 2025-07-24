@@ -1,3 +1,21 @@
+# Manual Publishing with Custom Screen Selection:
+# 
+# Both `publish-manual` and `publish-manual-prod` pipelines support optional variables:
+# 
+# SCREENS_TO_PUBLISH:
+# - Allows you to specify which screens to publish instead of using automatic change detection
+# - Leave empty (default) to use change detection
+# - Set to a comma-separated list of screen paths:
+#   Example: "crm/common/apps/lead-record,hr/core/apps/employee-record,fin/expenses/forms/expense-form"
+# - Screen paths should be relative to src/business-apps/ directory
+#
+# SKIP_RESOURCE_URL_SYNC (production only):
+# - Controls whether resource URL synchronization from dev to prod should be skipped
+# - Default: "false" (full resource URL sync enabled)
+# - Set to "true" to skip resource URL creation/update in prod while still reading from dev
+# - When enabled: reads resource URL from dev for correct screen key generation but skips prod sync
+# - This can speed up deployment when resource URLs already exist in prod or sync is not needed
+
 image: node:20.18.0
 definitions:
   services:
@@ -72,6 +90,56 @@ definitions:
           artifacts:
             - changed-tsx.txt
 
+    - step: &publish-manual-screens
+        name: Publish Manual Screens
+        size: 2x
+        caches:
+          - nodecustom
+        services:
+          - docker
+        script:
+          - npm install @rollup/rollup-linux-x64-gnu || true
+          - npm rebuild rollup
+          - npm install lightningcss-linux-x64-gnu || true
+          - npm rebuild lightningcss
+          - |
+            if [ -n "$SCREENS_TO_PUBLISH" ]; then
+              echo "Publishing specified screens: $SCREENS_TO_PUBLISH"
+              echo "$SCREENS_TO_PUBLISH" | tr ',' '\n' > manual-screens.txt
+              bash scripts/detect-and-publish-changed-screens.sh manual-screens.txt
+            else
+              echo "No screens specified, using change detection"
+              bash scripts/detect-and-publish-changed-screens.sh
+            fi
+        artifacts:
+          - changed-tsx.txt
+          - manual-screens.txt
+
+    - step: &publish-manual-prod-screens
+        name: Publish Manual Production Screens
+        size: 2x
+        caches:
+          - nodecustom
+        services:
+          - docker
+        script:
+          - npm install @rollup/rollup-linux-x64-gnu || true
+          - npm rebuild rollup
+          - npm install lightningcss-linux-x64-gnu || true
+          - npm rebuild lightningcss
+          - |
+            if [ -n "$SCREENS_TO_PUBLISH" ]; then
+              echo "Publishing specified screens: $SCREENS_TO_PUBLISH"
+              echo "$SCREENS_TO_PUBLISH" | tr ',' '\n' > manual-screens.txt
+              node scripts/publish-prod-screens.js manual-screens.txt
+            else
+              echo "No screens specified, using change detection"
+              node scripts/publish-prod-screens.js
+            fi
+        artifacts:
+          - changed-tsx.txt
+          - manual-screens.txt
+
 pipelines:
   pull-requests:
     '**':
@@ -86,7 +154,7 @@ pipelines:
       - step: *install_dependencies
       - step: *publish-changed-screens
 
-    master:
+    main:
       - step: *install_dependencies
       - step: *publish-changed-prod-screens
 
@@ -95,9 +163,17 @@ pipelines:
       - step: *detect-changed-screens
 
     publish-manual:
+      - variables:
+          - name: SCREENS_TO_PUBLISH
+            default: ""
       - step: *install_dependencies
-      - step: *publish-changed-screens
+      - step: *publish-manual-screens
 
     publish-manual-prod:
+      - variables:
+          - name: SCREENS_TO_PUBLISH
+            default: ""
+          - name: SKIP_RESOURCE_URL_SYNC
+            default: "false"
       - step: *install_dependencies
-      - step: *publish-changed-prod-screens
+      - step: *publish-manual-prod-screens

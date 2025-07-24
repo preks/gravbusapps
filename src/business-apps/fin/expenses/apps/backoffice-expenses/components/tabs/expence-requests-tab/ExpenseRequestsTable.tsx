@@ -31,6 +31,22 @@ import ExpenseDetailDrawer from '../../details/ExpenseDetailDrawer';
 import { getExpenseRequestStatusConfig } from '../../../utils/badgeUtils';
 import { ExpenseStatus } from '../../../utils/utils';
 
+// Move outside component to prevent re-creation on every render
+const AVAILABLE_FILTER_STATUSES: ExpenseStatus[] = [
+  ExpenseStatus.PREPARED,
+  ExpenseStatus.CREATED,
+  ExpenseStatus.ASSIGNED,
+  ExpenseStatus.PENDING,
+  ExpenseStatus.APPROVED,
+  ExpenseStatus.VERIFIED,
+  ExpenseStatus.BOOKED,
+  ExpenseStatus.TRANSFERRED,
+  ExpenseStatus.PAID,
+  ExpenseStatus.REJECTED,
+  ExpenseStatus.CLOSED,
+  ExpenseStatus.DISCARDED,
+];
+
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   search?: string;
   onSearchChange?: (search: string) => void;
@@ -371,28 +387,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     );
   };
 
-  // Define available filter statuses with comprehensive mapping
-  const availableFilterStatuses = [
-    ExpenseStatus.PREPARED,
-    ExpenseStatus.CREATED,
-    ExpenseStatus.ASSIGNED,
-    ExpenseStatus.PENDING,
-    ExpenseStatus.APPROVED,
-    ExpenseStatus.VERIFIED,
-    ExpenseStatus.BOOKED,
-    ExpenseStatus.TRANSFERRED,
-    ExpenseStatus.PAID,
-    ExpenseStatus.REJECTED,
-    ExpenseStatus.CLOSED,
-    ExpenseStatus.DISCARDED,
-  ];
-
   // Create proper filter groups using status config mappings
   const filterGroups = [
     {
       id: 'status',
       title: 'Status',
-      filters: availableFilterStatuses.map(status => {
+      filters: AVAILABLE_FILTER_STATUSES.map(status => {
         const { label } = getExpenseRequestStatusConfig(status);
         return {
           id: status,
@@ -415,14 +415,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   // Handle filter changes like leads table
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
     // Status filters - check if it's one of our available status values
-    if (availableFilterStatuses.includes(filterId as ExpenseStatus)) {
+    if (AVAILABLE_FILTER_STATUSES.includes(filterId as ExpenseStatus)) {
       handleStatusFilter(selected ? filterId : '');
     } 
     // Department filters (any other filterId that's not a status)
     else if (departments?.includes(filterId)) {
       handleDepartmentFilter(selected ? filterId : '');
     }
-  }, [departments, availableFilterStatuses, handleStatusFilter, handleDepartmentFilter]);
+  }, [departments, handleStatusFilter, handleDepartmentFilter]);
 
   return (
     <DataContainer

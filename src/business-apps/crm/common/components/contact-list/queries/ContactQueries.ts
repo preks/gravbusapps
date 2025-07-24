@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCallback } from "react";
+import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
 export interface ContactQueryVariables {
   offset?: number;
@@ -16,6 +16,7 @@ export interface ContactData {
   email: string;
   phone: string;
   jobTitle: string;
+  pictureUrl?: string;
   linkedinUrl?: string;
   xingUrl?: string;
   bio?: string;
@@ -38,6 +39,7 @@ export interface ContactData {
     lastName: string;
     displayName?: string;
     fullName?: string;
+    pictureThumbnail?: string;
     employeePosition?: {
       company?: {
         name?: string;
@@ -74,6 +76,7 @@ export const GET_CONTACTS_DATA = `
       email
       phone
       jobTitle
+      pictureUrl
       linkedinUrl
       xingUrl
       bio
@@ -95,6 +98,7 @@ export const GET_CONTACTS_DATA = `
         lastName
         displayName
         fullName
+        pictureThumbnail
         employeePosition {
           company {
             name
@@ -112,17 +116,23 @@ export const GET_CONTACTS_DATA = `
 
 export const useGetContactsData = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchContactsData = useCallback(async (variables: ContactQueryVariables = {}) => {
-    const query = GET_CONTACTS_DATA;
-    try {
-      const result = await graphqlClient.request<GetContactsResponse>(query, variables);
-      return result;
-    } catch (error) {
-      console.error('Error fetching contacts data:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+
+  const fetchContactsData = useCallback(
+    async (variables: ContactQueryVariables = {}) => {
+      const query = GET_CONTACTS_DATA;
+      try {
+        const result = await graphqlClient.request<GetContactsResponse>(
+          query,
+          variables
+        );
+        return result;
+      } catch (error) {
+        console.error("Error fetching contacts data:", error);
+        throw error;
+      }
+    },
+    [graphqlClient]
+  );
 
   return { fetchContactsData };
-}; 
+};
