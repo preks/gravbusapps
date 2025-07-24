@@ -70,11 +70,12 @@ detect_default_branch() {
 }
 
 # Determine target branch (for PRs this is auto-set, otherwise detect default)
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
 if [[ -n "${BITBUCKET_PR_DESTINATION_BRANCH:-}" ]]; then
   TARGET_BRANCH="$BITBUCKET_PR_DESTINATION_BRANCH"
 else
   # Special handling: if we're on main/master, treat it as the target branch (same as develop)
-  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
   if [[ "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" ]]; then
     TARGET_BRANCH="$CURRENT_BRANCH"
     echo "Running on production branch: $CURRENT_BRANCH (treating as target branch)"
