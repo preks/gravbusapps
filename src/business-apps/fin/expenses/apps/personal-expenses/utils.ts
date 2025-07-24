@@ -161,12 +161,17 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
         label: 'Prepared',
         type: "draft"
       };
+    case ExpenseStatus.ASSIGNED:
+      return {
+        label: 'Assigned',
+        type: "waiting"
+      };
     case ExpenseStatus.PAID:
       return {
         label: 'Paid',
         type: "completed"
       };
-    case ExpenseStatus.RETURNED:
+    case ExpenseStatus.REJECTED:
       return {
         label: 'Revision Required',
         type: "task"

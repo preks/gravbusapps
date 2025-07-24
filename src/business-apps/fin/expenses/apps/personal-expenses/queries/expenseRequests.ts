@@ -27,6 +27,9 @@ export const GET_EXPENSE_REQUESTS_BY_EMPLOYEE = `
       requestDate
       totalAmount
       currencyRef
+      currency {
+        code
+      }
       costCenter {
         name
       }
@@ -38,6 +41,20 @@ export const GET_EXPENSE_REQUESTS_BY_EMPLOYEE = `
         translations {
           value
           localeCode
+        }
+      }
+      expensePlan {
+        advancePaymentTotalAmount
+        code
+        advancePaymentAggregate {
+          aggregate {
+            sum {
+              amount
+            }
+          }
+        }
+        currency {
+          code
         }
       }
     }
@@ -56,6 +73,9 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
       requestDate
       totalAmount
       currencyRef
+      currency {
+        code
+      }
       costCenter {
         name
       }
@@ -67,6 +87,20 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
         translations {
           value
           localeCode
+        }
+      }
+      expensePlan {
+        advancePaymentTotalAmount
+        code
+        advancePaymentAggregate {
+          aggregate {
+            sum {
+              amount
+            }
+          }
+        }
+        currency {
+          code
         }
       }
     }

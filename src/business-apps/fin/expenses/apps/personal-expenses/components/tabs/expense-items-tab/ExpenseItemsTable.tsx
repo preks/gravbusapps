@@ -275,15 +275,19 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                   {
                     category: 'Actions',
                     key: 'edit',
-                    label: 'Edit',
+                    label: 'Edit Expense Item',
                     onClick: () => {
                       startProcess({
                         domain: 'employee-expense',
                         processName: 'changeExpenseItem',
                         payload: {
-                          employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
-                          expenseItemIds: [record.id]
+                          psi_taskPayload: {
+                            initialParameters: {
+                              employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                              expenseId: record.id
+                            }
                         },
+                      },
                         builderType: 'NATIVE_SCREEN'
                       });
                     }
@@ -292,7 +296,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                   {
                     category: 'Navigations',
                     key: 'view',
-                    label: 'View Details',
+                    label: 'View Item Details',
                     onClick: () => {
                       handleSelectItem(record);
                     }

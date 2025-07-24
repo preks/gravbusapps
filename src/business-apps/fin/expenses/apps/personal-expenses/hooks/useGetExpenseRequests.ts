@@ -1,9 +1,10 @@
-import { useState, useEffect, useLayoutEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_REQUESTS_BY_EMPLOYEE } from '../queries/expenseRequests';
 import { CatalogEntry } from './useGetExpensePlans';
 import { ExpenseRequestFilter } from './useExpenseRequestFilters';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { ExpenseStatus } from '../utils';
 
 // Type for expense request data
 export interface ExpenseRequest {
@@ -79,6 +80,7 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
         _and: [
           { employeeId: { _eq: employeeId } },
           { isDeleted: { _eq: false } },
+          { status: { _neq: ExpenseStatus.DISCARDED } },
         ],
       };
 
@@ -175,14 +177,6 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       setIsLoading(false); // Make sure to set loading to false in case of error
     }
   }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, setIsLoading, setError, setItems, setTotalCount]); // Added dependencies for useCallback
-
-  // Initial fetch on component mount - using useLayoutEffect to ensure it happens synchronously before browser painting
-  // This runs synchronously immediately after the component mounts and before the browser has a chance to paint
-  useLayoutEffect(() => {
-    console.log('useLayoutEffect: Triggering immediate data fetch on mount with high priority');
-    // Using a faster minimal fetch for the initial load to maximize speed
-    fetchItems();
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]); // Only re-run when employeeId or accessToken changes
 
   return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems };
 };

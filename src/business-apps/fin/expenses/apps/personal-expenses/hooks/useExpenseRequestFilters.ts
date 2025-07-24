@@ -1,16 +1,21 @@
 import { useState, useCallback, useMemo } from 'react';
-import { ExpenseStatus } from '../utils';
+import { ExpenseStatus, getExpenseRequestStatusDisplay } from '../utils';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
-// Define expense request status types
+// Define expense request status types based on srn_expenseRequest mappings
 export enum ExpenseRequestStatus {
-  DRAFT = 'DRAFT',
-  SUBMITTED = 'SUBMITTED',
+  PREPARED = 'PREPARED',
+  CREATED = 'CREATED',
+  ASSIGNED = 'ASSIGNED',
+  PENDING = 'PENDING',
   APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
+  VERIFIED = 'VERIFIED',
+  BOOKED = 'BOOKED',
+  TRANSFERRED = 'TRANSFERRED',
   PAID = 'PAID',
-  CANCELLED = 'CANCELLED'
+  REJECTED = 'REJECTED',
+  CLOSED = 'CLOSED'
 }
 
 // Interface for request filter
@@ -45,9 +50,17 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
   const REQUEST_TYPE_OPTIONS = ['general', 'trip'];
   
-  // Helper function to format status display names
-  const formatStatusName = (status: string): string => {
-    return status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' ');
+  // Helper function to get status display name with backend status in parentheses only when different
+  const getStatusDisplayName = (status: string): string => {
+    const statusConfig = getExpenseRequestStatusDisplay(status);
+    // Only show backend status in parentheses if the label is different from the status
+    if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
+      return statusConfig.label;
+    } else {
+      // Format backend status with only first letter uppercase
+      const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase();
+      return `${statusConfig.label} (${formattedStatus})`;
+    }
   };
 
   // Define filter groups - memoized so they don't cause re-renders
@@ -76,7 +89,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
         const id = status.toLowerCase();
         return { 
           id, 
-          label: status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' '),
+          label: getStatusDisplayName(status),
           selected: selectedFilters.includes(id) 
         };
       })
@@ -96,7 +109,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     // Add all status options
     Object.values(ExpenseRequestStatus).forEach(status => {
       const key = status.toLowerCase();
-      labelMap[key] = formatStatusName(status);
+      labelMap[key] = getStatusDisplayName(status);
     });
     
     return labelMap;
@@ -155,12 +168,18 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     const statuses = statusFilters.map(f => {
       // Map from UI lowercase status to backend ExpenseStatus enum
       switch (f) {
-        case 'draft': return ExpenseStatus.CREATED;
-        case 'submitted': return ExpenseStatus.PENDING;
+        case 'prepared': return ExpenseStatus.PREPARED;
+        case 'created': return ExpenseStatus.CREATED;
+        case 'assigned': return ExpenseStatus.ASSIGNED;
+        case 'pending': return ExpenseStatus.PENDING;
         case 'approved': return ExpenseStatus.APPROVED;
-        case 'rejected': return ExpenseStatus.REJECTED;
+        case 'verified': return ExpenseStatus.VERIFIED;
+        case 'booked': return ExpenseStatus.BOOKED;
+        case 'transferred': return ExpenseStatus.TRANSFERRED;
         case 'paid': return ExpenseStatus.PAID;
-        case 'cancelled': return ExpenseStatus.CLOSED;
+        case 'rejected': return ExpenseStatus.REJECTED;
+        case 'closed': return ExpenseStatus.CLOSED;
+        case 'cancelled': return ExpenseStatus.CLOSED; // Map cancelled to CLOSED since CANCELLED doesn't exist
         default: return f.toUpperCase(); // Fallback
       }
     });
