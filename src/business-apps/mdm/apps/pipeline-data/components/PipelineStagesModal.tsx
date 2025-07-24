@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Modal } from 'antd';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
   Card,
   Badge,
   Button,
@@ -22,7 +19,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  DialogFooter,
 } from '@newwork/nw-design-system';
 import {
   Plus,
@@ -30,6 +26,7 @@ import {
   Trash2,
   ArrowRight,
   GripVertical,
+  Eye,
 } from 'lucide-react';
 import {
   DndContext,
@@ -62,6 +59,7 @@ import {
 } from '../types';
 import { CatalogEntry } from '@/common/types/CatalogTypes';
 import { convertToScreamingSnakeCase } from '../utils';
+import { StageConditionsModal } from './StageConditionsModal';
 
 interface PipelineStagesModalProps extends BusinessAppContextProps {
   pipeline: EnhancedSalesPipeline | null;
@@ -99,7 +97,8 @@ const DraggableStageCard: React.FC<{
   prefixDataTestId?: string;
   onEdit: (stage: EnhancedSalesPipelineStage) => void;
   onDelete: (stage: EnhancedSalesPipelineStage) => void;
-}> = ({ stage, prefixDataTestId, onEdit, onDelete }) => {
+  onViewConditions: (stage: EnhancedSalesPipelineStage) => void;
+}> = ({ stage, prefixDataTestId, onEdit, onDelete, onViewConditions }) => {
   const {
     attributes,
     listeners,
@@ -160,7 +159,7 @@ const DraggableStageCard: React.FC<{
       data-testid={`${prefixDataTestId}-draggable-stage-card-${stage.id}`}
     >
       <Card
-        className={`gba:w-60 gba:h-32 gba:border-gray-200 hover:gba:border-blue-400 hover:gba:shadow-md gba:transition-all gba:cursor-pointer gba:border-t-4 ${getBorderColor(stage.stageTypeColor)} gba:relative`}
+        className={`gba:w-60 gba:h-52 gba:border-gray-200 hover:gba:border-blue-400 hover:gba:shadow-md gba:transition-all gba:cursor-pointer gba:border-t-4 ${getBorderColor(stage.stageTypeColor)} gba:relative`}
       >
         {/* Edit and Delete buttons in top right corner */}
         <div className="gba:absolute gba:top-2 gba:right-2 gba:flex gba:gap-1 gba:z-10">
@@ -190,8 +189,8 @@ const DraggableStageCard: React.FC<{
           </Button>
         </div>
 
-        <div className="gba:p-4 gba:pr-16">
-          <div className="gba:flex gba:items-start gba:gap-2 gba:mb-2">
+        <div className="gba:p-4 gba:pr-16 gba:flex gba:flex-col gba:h-full">
+          <div className="gba:flex gba:items-start gba:gap-2 gba:mb-3">
             <div
               {...attributes}
               {...listeners}
@@ -209,6 +208,40 @@ const DraggableStageCard: React.FC<{
               >
                 {stage.stageTypeName}
               </Badge>
+            </div>
+          </div>
+          
+          {/* Stage Statistics */}
+          <div className="gba:mt-auto gba:-mr-12">
+            {/* Conditions Indicator with View Button */}
+            <div className="gba:bg-gray-50 gba:rounded-lg gba:p-2 gba:border gba:border-gray-200">
+              <div className="gba:flex gba:justify-between gba:items-center gba:gap-2">
+                <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
+                  <div className="gba:w-2 gba:h-2 gba:bg-orange-500 gba:rounded-full gba:flex-shrink-0"></div>
+                  <span className="gba:text-xs gba:font-medium gba:text-gray-700 gba:flex-shrink-0">Conditions:</span>
+                  <span 
+                    className="gba:text-xs gba:font-semibold gba:text-orange-600"
+                    data-testid={`${prefixDataTestId}-stage-condition-count-${stage.id}`}
+                  >
+                    8
+                  </span>
+                </div>
+                
+                {/* View Conditions Button */}
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewConditions(stage);
+                  }}
+                  variant="outline"
+                  className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:h-7"
+                  size="sm"
+                  data-testid={`${prefixDataTestId}-view-conditions-${stage.id}`}
+                >
+                  <Eye className="gba:w-3 gba:h-3" />
+                  <span className="gba:text-xs">View</span>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -235,6 +268,10 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
   const [editingStage, setEditingStage] = useState<EnhancedSalesPipelineStage | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [stageToDelete, setStageToDelete] = useState<EnhancedSalesPipelineStage | null>(null);
+
+  // Conditions modal states
+  const [isConditionsModalVisible, setIsConditionsModalVisible] = useState(false);
+  const [selectedStageForConditions, setSelectedStageForConditions] = useState<EnhancedSalesPipelineStage | null>(null);
 
   const stageForm = useForm<StageFormData>({
     defaultValues: {
@@ -402,6 +439,11 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
     setDeleteDialogOpen(true);
   };
 
+  const handleViewConditions = (stage: EnhancedSalesPipelineStage) => {
+    setSelectedStageForConditions(stage);
+    setIsConditionsModalVisible(true);
+  };
+
   const confirmDeleteStage = async () => {
     if (!stageToDelete) return;
     
@@ -483,143 +525,172 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
   if (!pipeline) return null;
 
   return (
-    <Dialog open={visible} onOpenChange={onClose}>
-      <DialogContent 
-        className="gba:max-h-[80vh] gba:overflow-hidden gba:flex gba:flex-col" 
-        style={{ maxWidth: '95vw', width: '95vw' }}
-        data-testid={`${prefixDataTestId}-pipeline-stages-modal`}
-      >
-        <DialogHeader>
-          <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-            Pipeline Stages: {pipeline.value}
-            <Badge variant="secondary" className="gba:ml-2">
-              {pipeline.type}
-            </Badge>
-          </DialogTitle>
-        </DialogHeader>
+    <Modal
+      open={visible}
+      onCancel={onClose}
+      footer={null}
+      width={isConditionsModalVisible ? '20vw' : '95vw'}
+      centered
+      maskClosable={false}
+      data-testid={`${prefixDataTestId}-pipeline-stages-modal`}
+      title={
+        <div className="gba:flex gba:items-center gba:gap-2">
+          {isConditionsModalVisible ? (
+            <span className="gba:text-sm gba:truncate">Stages</span>
+          ) : (
+            <>
+              Pipeline Stages: {pipeline.value}
+              <Badge variant="secondary" className="gba:ml-2">
+                {pipeline.type}
+              </Badge>
+            </>
+          )}
+        </div>
+      }
+    >
+      <div className="gba:max-h-[80vh] gba:overflow-hidden gba:flex gba:flex-col">
 
         <div className="gba:flex-1 gba:overflow-y-auto gba:py-4">
-          {/* Header with Add Stage Button */}
-          <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-            <div>
-              <h4 className="gba:text-lg gba:font-medium gba:mb-1">
-                Configure Pipeline Stages
-              </h4>
-              <p className="gba:text-gray-600 gba:text-sm">
-                Drag and drop stages to reorder them. Each stage represents a step in your {pipeline.type === 'CRM' ? 'sales' : 'investment'} process.
-              </p>
-            </div>
-            <Button
-              onClick={handleAddStage}
-              className="gba:flex gba:items-center gba:gap-2"
-              data-testid={`${prefixDataTestId}-add-stage-button`}
-            >
-              <Plus className="gba:w-4 gba:h-4" />
-              Add Stage
-            </Button>
-          </div>
-
-          {/* Loading State */}
-          {isLoading && (
-            <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
-              <Spinner className="gba:w-8 gba:h-8" />
-              <span className="gba:ml-3 gba:text-gray-600">Loading stages...</span>
-            </div>
-          )}
-
-          {/* Error State */}
-          {error && (
-            <Alert variant="destructive" className="gba:mb-6">
-              <AlertDescription>
-                Error loading stages: {error}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={loadStages}
-                  className="gba:ml-2"
-                >
-                  Retry
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Stages Content */}
-          {!isLoading && !error && (
+          {!isConditionsModalVisible && (
             <>
-              {stages.length === 0 ? (
-                <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:bg-gray-50 gba:rounded-lg gba:border-2 gba:border-dashed gba:border-gray-300">
-                  <div className="gba:text-center">
-                    <Plus className="gba:w-12 gba:h-12 gba:text-gray-400 gba:mb-4 gba:mx-auto" />
-                    <h5 className="gba:text-lg gba:font-medium gba:text-gray-500 gba:mb-2">
-                      No Stages Configured
-                    </h5>
-                    <p className="gba:text-gray-400 gba:mb-4">
-                      Add the first stage to define your {pipeline.type === 'CRM' ? 'sales' : 'investment'} process
-                    </p>
-                    <Button onClick={handleAddStage} className="gba:flex gba:items-center gba:gap-2">
-                      <Plus className="gba:w-4 gba:h-4" />
-                      Add Stage
-                    </Button>
-                  </div>
+              {/* Header with Add Stage Button */}
+              <div className="gba:flex gba:justify-between gba:items-center gba:mb-6 gba:pb-4 gba:border-b gba:border-gray-200">
+                <div>
+                  <h4 className="gba:text-lg gba:font-medium gba:mb-1">
+                    Configure Pipeline Stages
+                  </h4>
+                  <p className="gba:text-gray-600 gba:text-sm">
+                    Drag and drop stages to reorder them. Each stage represents a step in your {pipeline.type === 'CRM' ? 'sales' : 'investment'} process.
+                  </p>
                 </div>
-              ) : (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCorners}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
+                <Button
+                  onClick={handleAddStage}
+                  className="gba:flex gba:items-center gba:gap-2"
+                  data-testid={`${prefixDataTestId}-add-stage-button`}
                 >
-                  <div className="gba:relative">
-                    <SortableContext items={stages.map(s => s.id)} strategy={rectSortingStrategy}>
-                      {/* Changed to flex-wrap layout for responsive horizontal flow */}
-                      <div className="gba:flex gba:flex-wrap gba:gap-4 gba:pb-4 gba:items-start">
-                        {stages.map((stage, index) => (
-                          <React.Fragment key={stage.id}>
-                            <div className="gba:flex-shrink-0">
+                  <Plus className="gba:w-4 gba:h-4" />
+                  Add Stage
+                </Button>
+              </div>
+            </>
+          )}
+
+          {isConditionsModalVisible ? (
+            <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+              <div className="gba:text-center">
+                <div className="gba:w-8 gba:h-8 gba:bg-blue-100 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-2">
+                  <span className="gba:text-xs gba:font-medium gba:text-blue-600">{stages.length}</span>
+                </div>
+                <p className="gba:text-xs gba:text-gray-500">Stages</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Loading State */}
+              {isLoading && (
+                <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
+                  <Spinner className="gba:w-8 gba:h-8" />
+                  <span className="gba:ml-3 gba:text-gray-600">Loading stages...</span>
+                </div>
+              )}
+
+              {/* Error State */}
+              {error && (
+                <Alert variant="destructive" className="gba:mb-6">
+                  <AlertDescription>
+                    Error loading stages: {error}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={loadStages}
+                      className="gba:ml-2"
+                    >
+                      Retry
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Stages Content */}
+              {!isLoading && !error && (
+                <>
+                  {stages.length === 0 ? (
+                    <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:bg-gray-50 gba:rounded-lg gba:border-2 gba:border-dashed gba:border-gray-300">
+                      <div className="gba:text-center">
+                        <Plus className="gba:w-12 gba:h-12 gba:text-gray-400 gba:mb-4 gba:mx-auto" />
+                        <h5 className="gba:text-lg gba:font-medium gba:text-gray-500 gba:mb-2">
+                          No Stages Configured
+                        </h5>
+                        <p className="gba:text-gray-400 gba:mb-4">
+                          Add the first stage to define your {pipeline.type === 'CRM' ? 'sales' : 'investment'} process
+                        </p>
+                        <Button onClick={handleAddStage} className="gba:flex gba:items-center gba:gap-2">
+                          <Plus className="gba:w-4 gba:h-4" />
+                          Add Stage
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCorners}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <div className="gba:relative">
+                        <SortableContext items={stages.map(s => s.id)} strategy={rectSortingStrategy}>
+                          {/* Changed to flex-wrap layout for responsive horizontal flow */}
+                          <div className="gba:flex gba:flex-wrap gba:gap-4 gba:pb-4 gba:items-start">
+                            {stages.map((stage, index) => (
+                              <React.Fragment key={stage.id}>
+                                <div className="gba:flex-shrink-0">
+                                  <DraggableStageCard
+                                    stage={stage}
+                                    prefixDataTestId={prefixDataTestId}
+                                    onEdit={handleEditStage}
+                                    onDelete={handleDeleteStage}
+                                    onViewConditions={handleViewConditions}
+                                  />
+                                </div>
+                                {/* Arrow between stages (only if not last stage) */}
+                                {index < stages.length - 1 && (
+                                  <div className="gba:flex gba:items-center gba:px-2 gba:flex-shrink-0 gba:mt-8">
+                                    <ArrowRight className="gba:w-5 gba:h-5 gba:text-gray-400" />
+                                  </div>
+                                )}
+                              </React.Fragment>
+                            ))}
+                          </div>
+                        </SortableContext>
+
+                        <DragOverlay dropAnimation={null}>
+                          {activeStage ? (
+                            <div style={{ 
+                              opacity: 0.8, 
+                              transform: 'rotate(3deg)',
+                              cursor: 'grabbing',
+                              pointerEvents: 'none'
+                            }}>
                               <DraggableStageCard
-                                stage={stage}
+                                stage={activeStage}
                                 prefixDataTestId={prefixDataTestId}
-                                onEdit={handleEditStage}
-                                onDelete={handleDeleteStage}
+                                onEdit={() => {}}
+                                onDelete={() => {}}
+                                onViewConditions={() => {}}
                               />
                             </div>
-                            {/* Arrow between stages (only if not last stage) */}
-                            {index < stages.length - 1 && (
-                              <div className="gba:flex gba:items-center gba:px-2 gba:flex-shrink-0 gba:mt-8">
-                                <ArrowRight className="gba:w-5 gba:h-5 gba:text-gray-400" />
-                              </div>
-                            )}
-                          </React.Fragment>
-                        ))}
+                          ) : null}
+                        </DragOverlay>
                       </div>
-                    </SortableContext>
-
-                    <DragOverlay dropAnimation={null}>
-                      {activeStage ? (
-                        <div style={{ 
-                          opacity: 0.8, 
-                          transform: 'rotate(3deg)',
-                          cursor: 'grabbing',
-                          pointerEvents: 'none'
-                        }}>
-                          <DraggableStageCard
-                            stage={activeStage}
-                            prefixDataTestId={prefixDataTestId}
-                            onEdit={() => {}}
-                            onDelete={() => {}}
-                          />
-                        </div>
-                      ) : null}
-                    </DragOverlay>
-                  </div>
-                </DndContext>
+                    </DndContext>
+                  )}
+                </>
               )}
             </>
           )}
         </div>
 
-        <DialogFooter>
+        <div className="gba:flex gba:justify-end gba:pt-4 gba:border-t gba:border-gray-200 gba:mt-4">
           <Button
             variant="outline"
             onClick={onClose}
@@ -627,16 +698,20 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
           >
             Close
           </Button>
-        </DialogFooter>
+        </div>
+      </div>
 
         {/* Stage Modal */}
-        <Dialog open={isStageModalVisible} onOpenChange={setIsStageModalVisible}>
-          <DialogContent data-testid={`${prefixDataTestId}-stage-modal`}>
-            <DialogHeader>
-              <DialogTitle>
-                {editingStage ? 'Edit Stage' : 'Add New Stage'}
-              </DialogTitle>
-            </DialogHeader>
+        <Modal 
+          open={isStageModalVisible} 
+          onCancel={() => setIsStageModalVisible(false)}
+          footer={null}
+          width={500}
+          centered
+          title={editingStage ? 'Edit Stage' : 'Add New Stage'}
+          data-testid={`${prefixDataTestId}-stage-modal`}
+        >
+          <div>
 
             <Form {...stageForm}>
               <form onSubmit={stageForm.handleSubmit(handleStageModalSubmit)} className="gba:space-y-4">
@@ -650,7 +725,7 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
                       <FormControl>
                         <Input 
                           {...field} 
-                          placeholder="e.g., Discovery, Proposal, Closing"
+                          placeholder="Please Enter..."
                           data-testid={`${prefixDataTestId}-stage-name-input`}
                         />
                       </FormControl>
@@ -688,7 +763,7 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
                   )}
                 />
 
-                <DialogFooter className="gba:flex gba:gap-2">
+                <div className="gba:flex gba:gap-2 gba:pt-4">
                   <Button
                     type="button"
                     variant="outline"
@@ -705,47 +780,60 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
                     {operationLoading && <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />}
                     {editingStage ? 'Update' : 'Create'}
                   </Button>
-                </DialogFooter>
+                </div>
               </form>
             </Form>
-          </DialogContent>
-        </Dialog>
+          </div>
+        </Modal>
 
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent data-testid={`${prefixDataTestId}-delete-stage-confirmation`}>
-            <DialogHeader>
-              <DialogTitle>Delete Stage</DialogTitle>
-            </DialogHeader>
-            
-            <div className="gba:py-4">
-              <p>
-                Are you sure you want to delete stage "{stageToDelete?.value}"? 
-                This action cannot be undone.
-              </p>
-            </div>
+        {/* Delete Confirmation Modal */}
+        <Modal
+          open={deleteDialogOpen}
+          onCancel={() => setDeleteDialogOpen(false)}
+          footer={null}
+          width={500}
+          centered
+          title="Delete Stage"
+          data-testid={`${prefixDataTestId}-delete-stage-confirmation`}
+        >
+          <div className="gba:py-4">
+            <p>
+              Are you sure you want to delete stage "{stageToDelete?.value}"? 
+              This action cannot be undone.
+            </p>
+          </div>
 
-            <DialogFooter className="gba:flex gba:gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setDeleteDialogOpen(false)}
-                data-testid={`${prefixDataTestId}-delete-stage-cancel`}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={confirmDeleteStage}
-                disabled={operationLoading}
-                data-testid={`${prefixDataTestId}-delete-stage-confirm`}
-              >
-                {operationLoading && <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />}
-                Delete
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </DialogContent>
-    </Dialog>
+          <div className="gba:flex gba:gap-2 gba:pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              data-testid={`${prefixDataTestId}-delete-stage-cancel`}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteStage}
+              disabled={operationLoading}
+              data-testid={`${prefixDataTestId}-delete-stage-confirm`}
+            >
+              {operationLoading && <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />}
+              Delete
+            </Button>
+          </div>
+        </Modal>
+
+        {/* Stage Conditions Modal */}
+        <StageConditionsModal
+          stage={selectedStageForConditions}
+          visible={isConditionsModalVisible}
+          onClose={() => {
+            setIsConditionsModalVisible(false);
+            setSelectedStageForConditions(null);
+          }}
+          prefixDataTestId={prefixDataTestId}
+          {...context}
+        />
+    </Modal>
   );
 }; 

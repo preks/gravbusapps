@@ -11,6 +11,7 @@ import {
   STAGE_TYPE_CONFIGS
 } from '../types';
 import { useSalesPipelines } from './useSalesPipelines';
+import { useSalesPipelineStages } from './useSalesPipelineStages';
 
 export const usePipelineDataIntegration = (
   context: BusinessAppContextProps,
@@ -30,6 +31,7 @@ export const usePipelineDataIntegration = (
   });
 
   const { fetchSalesPipelines } = useSalesPipelines(context);
+  const { fetchSalesPipelineStages } = useSalesPipelineStages(context);
 
   const transformPipelines = useCallback((
     pipelineEntries: CatalogEntry[],
@@ -170,14 +172,22 @@ export const usePipelineDataIntegration = (
     try {
       console.log('Fetching pipeline data with token:', context.accessToken.substring(0, 20) + '...');
 
-      // Fetch all pipelines initially
-      const pipelinesResult = await fetchSalesPipelines({
-        limit: options?.limit || 100,
-        offset: 0,
-      });
+      // Fetch both pipelines and stages in parallel
+      const [pipelinesResult, stagesResult] = await Promise.all([
+        fetchSalesPipelines({
+          limit: options?.limit || 100,
+          offset: 0,
+        }),
+        fetchSalesPipelineStages({
+          limit: 1000, // Get all stages
+          offset: 0,
+        })
+      ]);
 
       console.log('Raw pipelines result:', pipelinesResult);
+      console.log('Raw stages result:', stagesResult);
       console.log('Found pipelines:', pipelinesResult.data?.length || 0);
+      console.log('Found stages:', stagesResult.data?.length || 0);
 
       // Filter pipelines by sourceApp type if specified
       let filteredPipelines = pipelinesResult.data.filter((entry) => entry.id && entry.value);
@@ -189,16 +199,28 @@ export const usePipelineDataIntegration = (
         console.log(`Filtered to ${options.sourceApp} pipelines:`, filteredPipelines.length);
       }
 
-      // Transform pipelines without stages (they'll be loaded on-demand in the modal)
+      // Create a map to count stages per pipeline
+      const stageCountMap = new Map<string, number>();
+      stagesResult.data.forEach(stage => {
+        const parentId = stage.parentEntryId;
+        if (parentId) {
+          stageCountMap.set(parentId, (stageCountMap.get(parentId) || 0) + 1);
+        }
+      });
+
+      // Transform pipelines with real stage counts
       const transformedPipelines = filteredPipelines
         .map((entry) => {
+          const stageCount = stageCountMap.get(entry.id) || 0;
+          console.log(`Pipeline ${entry.value} has ${stageCount} stages`);
+          
           return {
             id: entry.id,
             code: entry.code,
             value: entry.value,
             objectValue: (entry.objectValue as Record<string, any>) || {},
-            stages: [], // Empty array - stages loaded on-demand
-            stageCount: 0, // Will be calculated when stages are loaded
+            stages: [], // Empty array - stages loaded on-demand in modal
+            stageCount: stageCount, // Real stage count from fetched data
             displayName: entry.value,
             description: entry.additionalValue1 || '', // Use additionalValue1 as description
             type: entry.type || 'CRM' // Default to CRM if no type is set
@@ -206,7 +228,7 @@ export const usePipelineDataIntegration = (
         })
         .sort((a, b) => a.value.localeCompare(b.value));
 
-      console.log('Transformed pipelines:', transformedPipelines);
+      console.log('Transformed pipelines with stage counts:', transformedPipelines);
 
       setData({
         pipelines: transformedPipelines,
@@ -227,6 +249,7 @@ export const usePipelineDataIntegration = (
     options?.limit,
     options?.sourceApp, // Add sourceApp to dependencies
     fetchSalesPipelines,
+    fetchSalesPipelineStages,
   ]);
 
   const refetch = useCallback(async () => {

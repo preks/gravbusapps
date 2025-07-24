@@ -7,6 +7,7 @@ import { useOpportunityData } from "./hooks/useOpportunityData";
 import { OpportunityHeader } from "./components/OpportunityHeader";
 import { CompanyInformation } from "./components/CompanyInformation";
 import { ContactInformation } from "./components/ContactInformation";
+import { OpportunityDetails } from "./components/OpportunityDetails";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
 import { StageProgression } from "./components/StageProgression";
@@ -114,8 +115,16 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opp
       <div className="gba:opportunity-details-content" data-testid="opportunity-details-content">
         
         <Row gutter={24} style={{ marginBottom: '24px', display: 'flex', alignItems: 'stretch' }}>
-          <Col span={18} style={{ display: 'flex' }}>
+          <Col span={12} style={{ display: 'flex' }}>
             <CompanyInformation opportunity={opportunity} opportunityData={opportunityData} />
+          </Col>
+
+          <Col span={6} style={{ display: 'flex', width: '100%' }}>
+            <OpportunityDetails 
+              opportunityData={opportunityData} 
+              opportunityId={opportunityId}
+              context={props}
+            />
           </Col>
 
           <Col span={6} style={{ display: 'flex' }}>
