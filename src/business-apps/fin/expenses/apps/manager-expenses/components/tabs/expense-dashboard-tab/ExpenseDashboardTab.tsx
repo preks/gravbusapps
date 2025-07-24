@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { 
   Card, 
   CardContent, 
@@ -15,7 +15,7 @@ import CurrencyFilter from '../../../components/currency-filter';
 import ExpenseTrendsChart from './components/ExpenseTrendsChart';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { formatCurrency, getMostUsedCurrency } from '../../../utils/currencyUtils';
+import { formatCurrency } from '../../../utils/currencyUtils';
 
 export interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   onNavigateToApprovals?: () => void;
@@ -45,36 +45,27 @@ const getErrorMessage = (err: unknown): string => {
 };
 
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
+  // Get manager ID from props
+  const managerId = props.userInfo?.employeeDetails?.employeeId || props.userInfo?.id || '';
+  const accessToken = props.accessToken || '';
+  
   // Use the global currency store
   const { primaryCurrency } = useCurrencyStore();
   
-  // Use the currency filter hook
+  // Use the currency filter hook with dynamic data
   const { 
     currencyFilter, 
-    setCurrencyFilter 
-  } = useCurrencyFilter();
+    setCurrencyFilter
+  } = useCurrencyFilter(accessToken, managerId);
   
   // Get dashboard data
   const { dashboardData, isLoading, error } = useGetExpenseDashboard(props, currencyFilter);
   
-  // Determine the most used currency from transactions if available
-  const mostUsedCurrency = useMemo(() => {
-    if (dashboardData?.recentRequests && dashboardData.recentRequests.length > 0) {
-      // Convert recent requests to a format compatible with getMostUsedCurrency
-      const transactions = dashboardData.recentRequests.map(req => ({
-        amount: typeof req.totalAmount === 'number' ? req.totalAmount : 0,
-        currency: primaryCurrency // Use primary currency since the API doesn't provide currency per request
-      }));
-      return getMostUsedCurrency(transactions, 'currency', 'amount', primaryCurrency);
-    }
-    return null;
-  }, [dashboardData?.recentRequests, primaryCurrency]);
+  // Use the selected currency filter, or fall back to primary currency
+  const displayCurrency = currencyFilter || primaryCurrency;
   
-  // Use the selected currency filter, or most used currency, or fall back to primary currency
-  const displayCurrency = currencyFilter || mostUsedCurrency || primaryCurrency;
-  
-  // For chart display, prioritize most used currency if no filter is explicitly selected
-  const chartCurrency = currencyFilter || mostUsedCurrency || primaryCurrency;
+  // For chart display, use the same currency as display
+  const chartCurrency = displayCurrency;
 
   // Quick actions data
   const quickActions = [
@@ -167,7 +158,9 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           <CurrencyFilter
             value={currencyFilter}
             onChange={(value) => setCurrencyFilter(value || primaryCurrency)}
-            currencies={['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN']}
+            isLoading={isLoading}
+            accessToken={accessToken}
+            managerId={managerId}
             data-testid="expense-dashboard-currency-select"
           />
         </div>

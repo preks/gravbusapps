@@ -1,6 +1,7 @@
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { useCurrencyData } from '../../hooks/useCurrencyData';
 
 export interface CurrencyFilterProps {
   /**
@@ -18,7 +19,7 @@ export interface CurrencyFilterProps {
   onChange: (currency: string | null) => void;
   
   /**
-   * List of available currencies to display
+   * List of available currencies to display (optional - will use dynamic data if not provided)
    */
   currencies?: string[];
   
@@ -46,6 +47,16 @@ export interface CurrencyFilterProps {
    * Whether the component is disabled
    */
   disabled?: boolean;
+  
+  /**
+   * Access token for API calls
+   */
+  accessToken?: string;
+  
+  /**
+   * Manager ID for filtering currency data
+   */
+  managerId?: string;
 }
 
 /**
@@ -55,14 +66,29 @@ export interface CurrencyFilterProps {
 export const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
   value,
   onChange,
-  currencies = ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK'],
+  currencies: propCurrencies,
   showAllOption = true,
   placeholder = getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.all_currencies', 'All Currencies'),
   className = '',
   'data-testid': dataTestId = 'currency-filter',
   disabled = false,
-  isLoading = false
+  isLoading: propIsLoading = false,
+  accessToken = '',
+  managerId = ''
 }) => {
+  // Use dynamic currency data if accessToken and managerId are provided
+  const useDynamicData = accessToken && managerId;
+  const { 
+    availableCurrencies: dynamicCurrencies, 
+    isLoading: dynamicIsLoading 
+  } = useDynamicData ? useCurrencyData(accessToken, managerId) : { availableCurrencies: [], isLoading: false };
+  
+  // Use either provided currencies or dynamic currencies
+  const currencies = propCurrencies || dynamicCurrencies || ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK'];
+  
+  // Combine loading states
+  const isLoading = propIsLoading || (useDynamicData && dynamicIsLoading);
+  
   // Handle selection change
   const handleChange = (newValue: string) => {
     // If "all" is selected, pass null to indicate no specific currency filter
