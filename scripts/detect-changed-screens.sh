@@ -73,10 +73,16 @@ detect_default_branch() {
 if [[ -n "${BITBUCKET_PR_DESTINATION_BRANCH:-}" ]]; then
   TARGET_BRANCH="$BITBUCKET_PR_DESTINATION_BRANCH"
 else
-  TARGET_BRANCH=$(detect_default_branch)
-  echo "Detected default branch: $TARGET_BRANCH"
+  # Special handling: if we're on main/master, treat it as the target branch (same as develop)
+  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  if [[ "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" ]]; then
+    TARGET_BRANCH="$CURRENT_BRANCH"
+    echo "Running on production branch: $CURRENT_BRANCH (treating as target branch)"
+  else
+    TARGET_BRANCH=$(detect_default_branch)
+    echo "Detected default branch: $TARGET_BRANCH"
+  fi
 fi
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 # Create temporary file for raw tsx files
 temp_tsx_file=$(mktemp)

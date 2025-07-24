@@ -332,7 +332,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
                 componentPath: `/${azureDestinationPath}`,
                 version: PUBLISH_VERSION,
               },
-              release: PUBLISH_VERSION,
+              release: "true",
             },
           };
           
@@ -455,7 +455,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
                   componentPath: `/${azureDestinationPath}`,
                   version: PUBLISH_VERSION,
                   },
-                  release: PUBLISH_VERSION,
+                  release: "true",
               },
           };
           
