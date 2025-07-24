@@ -5,7 +5,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { ExpensePlan, useMainViewExpensePlans } from '../../../hooks/useMainViewExpensePlans';
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters';
-import { useCurrencyStore } from '../../../store/useCurrencyStore';
 import { ExpenseStatus } from '../../../utils';
 import ExpensePlanStatisticsDisplay from './ExpensePlanStatistics';
 import ExpensePlansTable from './ExpensePlansTable';
@@ -22,19 +21,23 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
-  // Use the expense plan filters hook (same pattern as expense items)
+  // Get managerId from userInfo for currency filtering
+  const managerId = props.userInfo?.employeeDetails?.employeeId || '';
+  
+  // Use the expense plan filters hook with accessToken and managerId for dynamic currency data
   const {
     searchTerm,
     setSearchTerm,
     statusFilter,
     setStatusFilter,
     currencyFilter,
-    setCurrencyFilter,
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
-    getFilters,
-  } = useExpensePlanFilters();
+  } = useExpensePlanFilters({
+    accessToken: props.accessToken,
+    managerId
+  });
 
   // Use the statistics-only hook to get KPI data without interfering with table data
   const {
@@ -90,6 +93,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     setSearchTerm(search);
   }, [setSearchTerm]);
 
+  // No need for separate status filter handler as we use handleDataFilterChange
+
   // Use the handleDataFilterChange function directly from the hook
   // This handles both status and currency filters
 
@@ -109,7 +114,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
           statsError={statsError}
           fetchPlanStatistics={fetchPlanStatistics}
           activeFilter={statusFilter}
-          onFilterChange={(filter) => setStatusFilter(filter || [])}
+          onFilterChange={(filter) => setStatusFilter(filter ? [filter as unknown as ExpenseStatus] : [])}
           currencyFilter={currencyFilter}
         />
       </div>
@@ -126,8 +131,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
               const filtersToRemove = statusFilter.filter(f => !newFilters.includes(f));
               const filtersToAdd = newFilters.filter(f => !statusFilter.includes(f));
               
-              filtersToRemove.forEach(filter => handleDataFilterChange(filter, false));
-              filtersToAdd.forEach(filter => handleDataFilterChange(filter, true));
+              filtersToRemove.forEach(filter => handleDataFilterChange(filter as unknown as ExpenseStatus, false));
+              filtersToAdd.forEach(filter => handleDataFilterChange(filter as unknown as ExpenseStatus, true));
             },
             addButton: {
               onClick: () => {
@@ -159,7 +164,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
                 search={searchTerm}
                 onSearchChange={handleSearchChange}
                 activeFilter={statusFilter}
-                onFilterChange={(filter) => setStatusFilter(filter || [])}
+                onFilterChange={(filter) => setStatusFilter(filter ? [filter as unknown as ExpenseStatus] : [])}
                 onClearFilters={clearAllFilters}
                 employeeId={props.employeeId}
                 onViewDetails={handleViewDetails}
@@ -176,6 +181,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
                 plan={selectedPlan}
                 onApprove={handleApprovePlan}
                 onReject={handleRejectPlan}
+                {...contextProps} 
+                // @ts-ignore - Component expects these props but TypeScript doesn't recognize them
               />
             ),
             onClose: handleCloseDetails,

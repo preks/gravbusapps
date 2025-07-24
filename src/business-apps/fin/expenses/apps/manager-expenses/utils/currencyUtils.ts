@@ -1,6 +1,42 @@
 /**
- * Utility functions for currency formatting
+ * Utility functions for currency formatting and processing
  */
+
+/**
+ * Helper function to extract currency code from currency reference
+ * @param currencyRef - Currency reference string (e.g., 'Currency:v1:EUR')
+ * @returns The extracted currency code or null if invalid format
+ */
+export const extractCurrencyCode = (currencyRef: string): string | null => {
+  if (!currencyRef) return null;
+  
+  const match = currencyRef.match(/Currency:v1:([A-Z]{3})/i);
+  if (match) return match[1].toUpperCase();
+  
+  // If it's already just a currency code (e.g., 'EUR')
+  if (/^[A-Z]{3}$/i.test(currencyRef)) {
+    return currencyRef.toUpperCase();
+  }
+  
+  return null;
+};
+
+/**
+ * Helper function to standardize currency reference format
+ * @param currencyCode - Currency code or reference
+ * @returns Standardized currency reference
+ */
+export const standardizeCurrencyRef = (currencyCode: string): string => {
+  if (!currencyCode) return '';
+  
+  // If it's already in the format Currency:v1:CODE, return as is
+  if (currencyCode.startsWith('Currency:v1:')) {
+    return currencyCode;
+  }
+  
+  // If it's just a currency code (e.g., USD, EUR), convert to standard format
+  return `Currency:v1:${currencyCode}`;
+};
 
 /**
  * Format a number with thousand separators and fixed decimal places

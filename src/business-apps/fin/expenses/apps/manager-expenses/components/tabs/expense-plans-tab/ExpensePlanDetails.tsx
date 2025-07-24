@@ -10,6 +10,8 @@ import { formatCurrency } from '../../../utils/currencyUtils';
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
   plan: any;
+  onApprove?: (planId: string) => Promise<void>;
+  onReject?: (planId: string) => Promise<void>;
 }
 
 // Shared component for expense details view (same as in ExpenseRequestDetails)

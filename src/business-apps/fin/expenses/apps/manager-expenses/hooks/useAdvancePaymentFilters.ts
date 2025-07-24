@@ -3,6 +3,12 @@ import type { DataFilterGroup, DataFilter } from '@/components/data-filter/DataF
 import { useDebounce } from '@/common/hooks/useDebounce';
 import { ExpenseStatus, getAdvancePaymentStatusDisplay } from '../utils';
 import { useCurrencyStore } from '../store/useCurrencyStore';
+import { useAdvancePaymentCurrencies } from './useAdvancePaymentCurrencies';
+
+export interface UseAdvancePaymentFiltersProps {
+  accessToken?: string;
+  managerId?: string;
+}
 
 export interface UseAdvancePaymentFiltersReturn {
   searchTerm: string;
@@ -16,15 +22,36 @@ export interface UseAdvancePaymentFiltersReturn {
   // Currency filter related properties
   currencyFilter: string;
   setCurrencyFilter: (currency: string) => void;
+  // Loading state for currency data
+  currenciesLoading: boolean;
 }
 
-export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
+export const useAdvancePaymentFilters = ({
+  accessToken,
+  managerId
+}: UseAdvancePaymentFiltersProps = {}): UseAdvancePaymentFiltersReturn => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   // Default to PENDING (Approval Required) status filter
   const [statusFilter, setStatusFilter] = useState<string[] | null>([ExpenseStatus.PENDING]);
   
-  // Use the global currency store
-  const { primaryCurrency, setPrimaryCurrency } = useCurrencyStore();
+  // Use the global currency store with enhanced properties
+  const { 
+    primaryCurrency, 
+    setPrimaryCurrency, 
+    setUserSelected,
+    mostUsedCurrency,
+    isInitialized: storeInitialized
+  } = useCurrencyStore();
+  
+  // Fetch dynamic currency data if accessToken and managerId are provided
+  const { 
+    availableCurrencies: dynamicCurrencies, 
+    isLoading: currenciesLoading,
+    isInitialized: currenciesInitialized
+  } = useAdvancePaymentCurrencies({
+    accessToken: accessToken || '',
+    managerId: managerId || ''
+  });
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -37,13 +64,18 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
   }, [setStatusFilter]);
 
   const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
-    // Check if this is a currency filter (expanded to include RON and other common currencies)
-    const currencyOptions = ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK'];
+    // Always use dynamic currencies first, even if loading
+    // This ensures the filter shows the correct currencies from the beginning
+    const currencyOptions = dynamicCurrencies.length > 0
+      ? dynamicCurrencies
+      : ['EUR', 'USD']; // Minimal fallback list
     
     if (currencyOptions.includes(filterId)) {
       // Handle currency filter selection
       if (isSelected) {
         setPrimaryCurrency(filterId);
+        setUserSelected(true); // Mark this as a user selection
+        console.log(`Currency filter changed by user to: ${filterId}`);
       }
       return;
     }
@@ -60,7 +92,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
       const newFilters = currentFilters.filter(id => id !== filterId);
       handleStatusFilterChange(newFilters.length > 0 ? newFilters : null);
     }
-  }, [statusFilter, handleStatusFilterChange, setPrimaryCurrency]);
+  }, [statusFilter, handleStatusFilterChange, setPrimaryCurrency, setUserSelected]);
 
   // Define the statuses that should be used for filtering with the correct mappings
   const availableFilterStatuses: ExpenseStatus[] = [
@@ -117,8 +149,23 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
       })
     );
     
-    // Currency filter items - expanded to include RON and other common currencies
-    const currencyOptions = ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK'];
+    // Use combined currency options from all sources
+    // This ensures the filter shows the correct currencies from the beginning
+    const currencyOptions = Array.from(new Set([
+      ...dynamicCurrencies,
+      ...(mostUsedCurrency ? [mostUsedCurrency] : []),
+      'EUR', 'USD' // Always include these fallback currencies
+    ])).sort();
+    
+    // Log the currency options for debugging
+    console.log('Advance payment currency filter options:', {
+      dynamicCurrencies,
+      mostUsedCurrency,
+      primaryCurrency,
+      combined: currencyOptions,
+      isInitialized: currenciesInitialized || storeInitialized
+    });
+    
     const currencyItems: DataFilter[] = currencyOptions.map(
       (currency) => ({
         id: currency,
@@ -142,7 +189,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
         selectionMode: 'single',
       },
     ];
-  }, [availableFilterStatuses, statusFilter, filterLabelMap, primaryCurrency]);
+  }, [availableFilterStatuses, statusFilter, filterLabelMap, primaryCurrency, dynamicCurrencies, mostUsedCurrency, currenciesInitialized, storeInitialized]);
 
   return {
     searchTerm,
@@ -155,5 +202,6 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     filterLabelMap,
     currencyFilter: primaryCurrency,
     setCurrencyFilter: setPrimaryCurrency,
+    currenciesLoading,
   };
 };

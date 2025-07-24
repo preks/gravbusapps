@@ -2,11 +2,12 @@ import { useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { env } from '@/common/env/EnvUtils';
 import { useCurrencyStore } from '../store/useCurrencyStore';
+import { extractCurrencyCode } from '../utils/currencyUtils';
 
 const GET_MOST_USED_CURRENCY = `
   query GetMostUsedCurrency($managerId: uuid!) {
     # Get most used currency from advance payments
-    advancePaymentCurrencies: AdvancePaymentAggregate(
+    advancePaymentCurrencies: AdvancePayment(
       where: {
         expensePlan: {
           employee: {
@@ -18,16 +19,11 @@ const GET_MOST_USED_CURRENCY = `
         }
       }
     ) {
-      groupBy {
-        currencyRef
-      }
-      aggregate {
-        count
-      }
+      currencyRef
     }
     
     # Get most used currency from expense requests
-    expenseRequestCurrencies: ExpenseRequestAggregate(
+    expenseRequestCurrencies: ExpenseRequest(
       where: {
         employee: {
           employeePosition: {
@@ -37,16 +33,11 @@ const GET_MOST_USED_CURRENCY = `
         isDeleted: {_eq: false}
       }
     ) {
-      groupBy {
-        currencyRef
-      }
-      aggregate {
-        count
-      }
+      currencyRef
     }
     
     # Get most used currency from expense plans
-    expensePlanCurrencies: ExpensePlanAggregate(
+    expensePlanCurrencies: ExpensePlan(
       where: {
         employee: {
           employeePosition: {
@@ -56,12 +47,7 @@ const GET_MOST_USED_CURRENCY = `
         isDeleted: {_eq: false}
       }
     ) {
-      groupBy {
-        currencyRef
-      }
-      aggregate {
-        count
-      }
+      currencyRef
     }
   }
 `;
@@ -73,28 +59,13 @@ interface CurrencyCount {
 
 interface CurrencyResponse {
   advancePaymentCurrencies?: {
-    groupBy: {
-      currencyRef: string;
-    };
-    aggregate: {
-      count: number;
-    };
+    currencyRef: string;
   }[];
   expenseRequestCurrencies?: {
-    groupBy: {
-      currencyRef: string;
-    };
-    aggregate: {
-      count: number;
-    };
+    currencyRef: string;
   }[];
   expensePlanCurrencies?: {
-    groupBy: {
-      currencyRef: string;
-    };
-    aggregate: {
-      count: number;
-    };
+    currencyRef: string;
   }[];
 }
 
@@ -102,16 +73,27 @@ interface CurrencyResponse {
  * Hook to fetch and manage the most used currency across the manager-expenses app
  */
 export const useAppCurrency = ({ accessToken, userInfo }: BusinessAppContextProps) => {
-  const { primaryCurrency, setPrimaryCurrency, isLoaded, setIsLoaded, isUserSelected } = useCurrencyStore();
+  const { 
+    primaryCurrency, 
+    setPrimaryCurrency, 
+    isLoading, 
+    setLoading, 
+    isUserSelected,
+    setMostUsedCurrency,
+    isInitialized
+  } = useCurrencyStore();
   
   // Get managerId from userInfo or use a fallback for development
   const managerId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
   
   const fetchMostUsedCurrency = useCallback(async () => {
-    // Don't fetch if user has already selected a currency or if already loaded
-    if (!accessToken || !managerId || isLoaded || isUserSelected) {
+    // Don't fetch if user has already selected a currency or if already initialized
+    if (!accessToken || !managerId || (isInitialized && isUserSelected)) {
       return;
     }
+    
+    // Set loading state
+    setLoading(true);
 
     try {
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
@@ -135,22 +117,14 @@ export const useAppCurrency = ({ accessToken, userInfo }: BusinessAppContextProp
       
       const data = result.data as CurrencyResponse;
       
-      // Combine all currency counts from different sources
-      const currencyCounts: CurrencyCount[] = [];
+      // Extract all currency references and count occurrences
+      const allCurrencyRefs: string[] = [];
       
       // Process advance payment currencies
       if (data.advancePaymentCurrencies) {
         data.advancePaymentCurrencies.forEach(item => {
-          if (item.groupBy.currencyRef) {
-            const existingCurrency = currencyCounts.find(c => c.currencyRef === item.groupBy.currencyRef);
-            if (existingCurrency) {
-              existingCurrency.count += item.aggregate.count;
-            } else {
-              currencyCounts.push({
-                currencyRef: item.groupBy.currencyRef,
-                count: item.aggregate.count
-              });
-            }
+          if (item.currencyRef) {
+            allCurrencyRefs.push(item.currencyRef);
           }
         });
       }
@@ -158,16 +132,8 @@ export const useAppCurrency = ({ accessToken, userInfo }: BusinessAppContextProp
       // Process expense request currencies
       if (data.expenseRequestCurrencies) {
         data.expenseRequestCurrencies.forEach(item => {
-          if (item.groupBy.currencyRef) {
-            const existingCurrency = currencyCounts.find(c => c.currencyRef === item.groupBy.currencyRef);
-            if (existingCurrency) {
-              existingCurrency.count += item.aggregate.count;
-            } else {
-              currencyCounts.push({
-                currencyRef: item.groupBy.currencyRef,
-                count: item.aggregate.count
-              });
-            }
+          if (item.currencyRef) {
+            allCurrencyRefs.push(item.currencyRef);
           }
         });
       }
@@ -175,19 +141,26 @@ export const useAppCurrency = ({ accessToken, userInfo }: BusinessAppContextProp
       // Process expense plan currencies
       if (data.expensePlanCurrencies) {
         data.expensePlanCurrencies.forEach(item => {
-          if (item.groupBy.currencyRef) {
-            const existingCurrency = currencyCounts.find(c => c.currencyRef === item.groupBy.currencyRef);
-            if (existingCurrency) {
-              existingCurrency.count += item.aggregate.count;
-            } else {
-              currencyCounts.push({
-                currencyRef: item.groupBy.currencyRef,
-                count: item.aggregate.count
-              });
-            }
+          if (item.currencyRef) {
+            allCurrencyRefs.push(item.currencyRef);
           }
         });
       }
+      
+      // Count occurrences of each currency
+      const currencyMap = new Map<string, number>();
+      allCurrencyRefs.forEach(ref => {
+        const extractedCode = extractCurrencyCode(ref);
+        if (extractedCode) {
+          currencyMap.set(extractedCode, (currencyMap.get(extractedCode) || 0) + 1);
+        }
+      });
+      
+      // Convert to array of CurrencyCount objects
+      const currencyCounts: CurrencyCount[] = Array.from(currencyMap.entries()).map(([currencyRef, count]) => ({
+        currencyRef,
+        count
+      }));
       
       // Sort by count in descending order
       currencyCounts.sort((a, b) => b.count - a.count);
@@ -196,14 +169,24 @@ export const useAppCurrency = ({ accessToken, userInfo }: BusinessAppContextProp
       const mostUsedCurrency = currencyCounts.length > 0 ? currencyCounts[0].currencyRef : 'EUR';
       
       console.log('Most used currency determined:', mostUsedCurrency);
-      setPrimaryCurrency(mostUsedCurrency);
-      setIsLoaded(true);
+      
+      // Update both the most used currency and primary currency in the store
+      setMostUsedCurrency(mostUsedCurrency);
+      
+      // Only set primary currency if user hasn't made a selection
+      if (!isUserSelected) {
+        setPrimaryCurrency(mostUsedCurrency);
+      }
+      
+      // Mark as no longer loading
+      setLoading(false);
       
     } catch (err) {
       console.error('Error fetching most used currency:', err);
       // Keep the default currency in case of error
+      setLoading(false);
     }
-  }, [accessToken, managerId, isLoaded, isUserSelected, setPrimaryCurrency, setIsLoaded]);
+  }, [accessToken, managerId, isInitialized, isUserSelected, setPrimaryCurrency, setMostUsedCurrency, setLoading]);
 
   useEffect(() => {
     fetchMostUsedCurrency();
@@ -211,6 +194,6 @@ export const useAppCurrency = ({ accessToken, userInfo }: BusinessAppContextProp
 
   return {
     primaryCurrency,
-    isLoaded
+    isLoading
   };
 };

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo, useEffect, useCallback } from 'react';
+import { useCurrencyStore } from '../../store/useCurrencyStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useCurrencyData } from '../../hooks/useCurrencyData';
@@ -67,40 +68,125 @@ export const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
   value,
   onChange,
   currencies: propCurrencies,
+  isLoading: propIsLoading,
   showAllOption = true,
   placeholder = getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.all_currencies', 'All Currencies'),
   className = '',
   'data-testid': dataTestId = 'currency-filter',
   disabled = false,
-  isLoading: propIsLoading = false,
   accessToken = '',
   managerId = ''
 }) => {
-  // Use dynamic currency data if accessToken and managerId are provided
+  // Use the global currency store for consistent state across components
+  const { 
+    primaryCurrency, 
+    setPrimaryCurrency, 
+    availableCurrencies: storeCurrencies,
+    setUserSelected,
+  } = useCurrencyStore();
+  
+  // Always use dynamic currency data if accessToken and managerId are provided
   const useDynamicData = accessToken && managerId;
   const { 
     availableCurrencies: dynamicCurrencies, 
-    isLoading: dynamicIsLoading 
-  } = useDynamicData ? useCurrencyData(accessToken, managerId) : { availableCurrencies: [], isLoading: false };
+    isLoading: dynamicIsLoading,
+    mostUsedCurrency
+  } = useDynamicData ? useCurrencyData(accessToken, managerId) : { 
+    availableCurrencies: [], 
+    isLoading: false, 
+    mostUsedCurrency: null
+  };
   
-  // Use either provided currencies or dynamic currencies
-  const currencies = propCurrencies || dynamicCurrencies || ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK'];
+  // Use either provided currencies or dynamic currencies with fallbacks
+  // Ensure we have a comprehensive list that includes the most used currency
+  const currencies = useMemo(() => {
+    // Start with provided currencies if available
+    let currencyList = propCurrencies || [];
+    
+    // Always prioritize dynamic currencies from the store or hook
+    // This ensures we have the most complete list available
+    const availableDynamicCurrencies = useDynamicData ? dynamicCurrencies : [];
+    const availableStoreCurrencies = storeCurrencies || [];
+    
+    // Combine all sources, prioritizing dynamic data
+    currencyList = [
+      ...new Set([
+        ...currencyList,
+        ...availableDynamicCurrencies,
+        ...availableStoreCurrencies
+      ])
+    ];
+    
+    // Ensure the most used currency is included if available
+    if (mostUsedCurrency && !currencyList.includes(mostUsedCurrency)) {
+      currencyList.push(mostUsedCurrency);
+    }
+    
+    // If still empty after all attempts, use comprehensive fallback list
+    if (currencyList.length === 0) {
+      currencyList = ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK'];
+    }
+    
+    // Log the available currencies for debugging
+    console.log('Currency filter options:', {
+      propCurrencies: propCurrencies || [],
+      dynamicCurrencies: availableDynamicCurrencies,
+      storeCurrencies: availableStoreCurrencies,
+      mostUsedCurrency,
+      finalList: [...new Set(currencyList)].sort()
+    });
+    
+    return [...new Set(currencyList)].sort();
+  }, [propCurrencies, dynamicCurrencies, mostUsedCurrency, storeCurrencies]);
   
   // Combine loading states
   const isLoading = propIsLoading || (useDynamicData && dynamicIsLoading);
   
-  // Handle selection change
-  const handleChange = (newValue: string) => {
+  // Determine if we should pre-select a value
+  // If no value is selected and we have currencies available, pre-select the most used currency
+  useEffect(() => {
+    // Only attempt to set initial value if:
+    // 1. No value is currently selected
+    // 2. We have currencies available
+    if (value === null && currencies.length > 0) {
+      // Use most used currency if available, otherwise use primaryCurrency from store
+      const initialCurrency = mostUsedCurrency || primaryCurrency;
+      console.log('Setting initial currency:', { initialCurrency, mostUsedCurrency, primaryCurrency, value });
+      
+      if (initialCurrency && currencies.includes(initialCurrency)) {
+        // Set the currency without marking as user-selected
+        onChange(initialCurrency);
+      } else if (currencies[0]) {
+        // Fallback to first available currency if most used is not in the list
+        onChange(currencies[0]);
+      }
+    }
+  }, [value, currencies, mostUsedCurrency, primaryCurrency, onChange]);
+
+  // Mark currency as user-selected when changed via UI
+  const handleCurrencyChange = useCallback((newValue: string) => {
     // If "all" is selected, pass null to indicate no specific currency filter
     if (newValue === 'all') {
       onChange(null);
-    } else {
-      onChange(newValue);
+      return;
     }
-  };
+    
+    // Mark as user-selected in the store
+    setUserSelected(true);
+    
+    // Update primary currency in the store
+    setPrimaryCurrency(newValue);
+    
+    // Notify parent component
+    onChange(newValue);
+  }, [onChange, setPrimaryCurrency, setUserSelected]);
+  
+  // Use the enhanced currency change handler that marks user selection
+  const handleChange = handleCurrencyChange;
 
   // Determine if we should show loading state or empty state
-  const showLoadingState = isLoading;
+  // Only show loading state if we're loading and have no currencies available
+  const showLoadingState = isLoading && currencies.length === 0;
   const showEmptyState = !isLoading && (!currencies || currencies.length === 0);
   
   return (

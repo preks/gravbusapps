@@ -15,11 +15,17 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
+  // Get managerId from userInfo for currency filtering
+  const managerId = props.userInfo?.employeeDetails?.employeeId || '';
+  
   // Use the currency store for the primary currency
   const { primaryCurrency } = useCurrencyStore();
   
-  // Use the expense request filters hook for filter management
-  const { } = useExpenseRequestFilters(); // Hook is used in ExpenseRequestsTable component
+  // Use the expense request filters hook with accessToken and managerId for dynamic currency data
+  useExpenseRequestFilters({
+    accessToken: props.accessToken,
+    managerId
+  }); // Most filter functionality is used in ExpenseRequestsTable component
   
   // Use hook only for statistics
   const {

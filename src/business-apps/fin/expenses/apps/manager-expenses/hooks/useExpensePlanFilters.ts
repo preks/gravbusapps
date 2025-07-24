@@ -4,6 +4,12 @@ import { ExpenseStatus, getExpensePlanStatusDisplay } from '../utils';
 import { useDebounce } from '@/common/hooks/useDebounce';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useCurrencyStore } from '../store/useCurrencyStore';
+import { useExpensePlanCurrencies } from './useExpensePlanCurrencies';
+
+export interface UseExpensePlanFiltersProps {
+  accessToken?: string;
+  managerId?: string;
+}
 
 export interface UseExpensePlanFiltersReturn {
   searchTerm: string; 
@@ -17,6 +23,7 @@ export interface UseExpensePlanFiltersReturn {
   handleDataFilterChange: (filterId: string, selected: boolean) => void; 
   filterLabelMap: Record<string, string>; 
   getFilters: () => Record<string, any>;
+  currenciesLoading: boolean;
 }
 
 // Move outside component to prevent re-creation on every render
@@ -31,13 +38,32 @@ const availableFilterStatuses: ExpenseStatus[] = [
   ExpenseStatus.CLOSED,
 ];
 
-export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
+export const useExpensePlanFilters = ({
+  accessToken,
+  managerId
+}: UseExpensePlanFiltersProps = {}): UseExpensePlanFiltersReturn => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   // Default to PENDING (Approval Required) status filter
   const [statusFilter, setStatusFilter] = useState<ExpenseStatus[]>([ExpenseStatus.PENDING]);
   
-  // Use the currency store for global currency state management
-  const { primaryCurrency, setPrimaryCurrency } = useCurrencyStore();
+  // Use the currency store for global currency state management with enhanced properties
+  const { 
+    primaryCurrency, 
+    setPrimaryCurrency,
+    setUserSelected,
+    mostUsedCurrency,
+    isInitialized: storeInitialized
+  } = useCurrencyStore();
+  
+  // Fetch dynamic currency data if accessToken and managerId are provided
+  const { 
+    availableCurrencies: dynamicCurrencies, 
+    isLoading: currenciesLoading,
+    isInitialized: currenciesInitialized
+  } = useExpensePlanCurrencies({
+    accessToken: accessToken || '',
+    managerId: managerId || ''
+  });
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -47,6 +73,8 @@ export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
       const currencyCode = filterId.replace('currency:', '');
       if (isSelected) {
         setPrimaryCurrency(currencyCode);
+        setUserSelected(true); // Mark this as a user selection
+        console.log(`Expense plan currency filter changed by user to: ${currencyCode}`);
       }
       // We don't handle deselection for currency as it's a single-select
       return;
@@ -65,7 +93,7 @@ export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
         return prevFilter.filter(status => status !== filterId);
       }
     });
-  }, [setPrimaryCurrency]);
+  }, [setPrimaryCurrency, setUserSelected]);
 
   // Memoize filterLabelMap with stable dependencies
   const filterLabelMap: Record<string, string> = useMemo(() => {
@@ -94,8 +122,23 @@ export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
       })
     );
 
-    // Currency filter items - expanded to include RON and other common currencies
-    const availableCurrencies = ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK', 'JPY'];
+    // Use combined currency options from all sources
+    // This ensures the filter shows the correct currencies from the beginning
+    const availableCurrencies = Array.from(new Set([
+      ...dynamicCurrencies,
+      ...(mostUsedCurrency ? [mostUsedCurrency] : []),
+      'EUR', 'USD' // Always include these fallback currencies
+    ])).sort();
+    
+    // Log the currency options for debugging
+    console.log('Expense plan currency filter options:', {
+      dynamicCurrencies,
+      mostUsedCurrency,
+      primaryCurrency,
+      combined: availableCurrencies,
+      isInitialized: currenciesInitialized || storeInitialized
+    });
+      
     const currencyItems: DataFilter[] = availableCurrencies.map(
       (currency) => ({
         id: `currency:${currency}`,
@@ -117,7 +160,7 @@ export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
         filters: currencyItems,
       },
     ];
-  }, [filterLabelMap, statusFilter, primaryCurrency]);
+  }, [filterLabelMap, statusFilter, primaryCurrency, dynamicCurrencies, mostUsedCurrency, currenciesInitialized, storeInitialized]);
 
   // Helper function to get filters for backend queries
   const getFilters = useCallback(() => {
@@ -148,5 +191,6 @@ export const useExpensePlanFilters = (): UseExpensePlanFiltersReturn => {
     handleDataFilterChange,
     filterLabelMap,
     getFilters,
+    currenciesLoading,
   };
 };

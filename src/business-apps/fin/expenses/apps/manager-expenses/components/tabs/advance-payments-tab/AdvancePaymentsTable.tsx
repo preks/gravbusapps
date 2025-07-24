@@ -24,7 +24,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
-  // Use the advance payment filters hook for filter management
+  // Get managerId from userInfo for currency filtering
+  const managerId = props.userInfo?.employeeDetails?.employeeId || '';
+  
+  // Use the advance payment filters hook with accessToken and managerId for dynamic currency data
   const {
     searchTerm,
     setSearchTerm,
@@ -34,7 +37,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     handleDataFilterChange,
     filterLabelMap,
     currencyFilter,
-  } = useAdvancePaymentFilters();
+  } = useAdvancePaymentFilters({
+    accessToken: props.accessToken,
+    managerId
+  });
 
   // Local state management
   const [selectedPayment, setSelectedPayment] = useState<AdvancePaymentItem | null>(null);

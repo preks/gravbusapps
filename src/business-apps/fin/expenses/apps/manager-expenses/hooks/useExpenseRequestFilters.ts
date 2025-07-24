@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { useCurrencyStore } from '../store/useCurrencyStore';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { useExpenseRequestCurrencies } from './useExpenseRequestCurrencies';
 
 // Define expense request status types - updated to match the correct options
 export enum ExpenseRequestStatus {
@@ -25,6 +26,11 @@ export interface ExpenseRequestFilter {
 }
 
 // Interface for the return type of useExpenseRequestFilters
+export interface UseExpenseRequestFiltersProps {
+  accessToken?: string;
+  managerId?: string;
+}
+
 export interface UseExpenseRequestFiltersReturn {
   search: string;
   setSearch: (search: string) => void;
@@ -39,18 +45,32 @@ export interface UseExpenseRequestFiltersReturn {
   setCurrencyFilter: (currency: string) => void;
   // DataFilter component integration
   handleDataFilterChange: (filterId: string, isSelected: boolean) => void;
+  // Loading state for currency data
+  currenciesLoading: boolean;
 }
 
 /**
  * Hook to manage filter selection for expense requests
  */
-export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
+export const useExpenseRequestFilters = ({
+  accessToken,
+  managerId
+}: UseExpenseRequestFiltersProps = {}): UseExpenseRequestFiltersReturn => {
   // State for search and selected filters
   const [search, setSearch] = useState<string>('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   
   // Use the global currency store
   const { primaryCurrency, setPrimaryCurrency } = useCurrencyStore();
+  
+  // Fetch dynamic currency data if accessToken and managerId are provided
+  const { 
+    availableCurrencies: dynamicCurrencies, 
+    isLoading: currenciesLoading 
+  } = useExpenseRequestCurrencies({
+    accessToken: accessToken || '',
+    managerId: managerId || ''
+  });
 
   // Define these as constants for stable references
   const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
@@ -70,6 +90,11 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
 
   // Define filter groups - memoized so they don't cause re-renders
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
+    // Always use dynamic currencies first, even if loading
+    // This ensures the filter shows the correct currencies from the beginning
+    const availableCurrencies = dynamicCurrencies.length > 0
+      ? dynamicCurrencies
+      : ['EUR', 'USD']; // Minimal fallback list
     // Create the status filter group
     const statusGroup: DataFilterGroup = {
       id: 'status',
@@ -106,12 +131,11 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       }))
     };
     
-    // Currency filter items - expanded to include RON and other common currencies
-    const currencyOptions = ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK'];
+    // Create the currency filter group
     const currencyGroup: DataFilterGroup = {
-      id: 'currencyGroup',
+      id: 'currency',
       title: getTranslationFromI18nKeyAndLabel('expense_request_currency_filter_title', 'Currency'),
-      filters: currencyOptions.map(currency => ({
+      filters: availableCurrencies.map(currency => ({
         id: currency,
         label: currency,
         selected: currency === primaryCurrency
@@ -276,5 +300,6 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     currencyFilter: primaryCurrency,
     setCurrencyFilter: setPrimaryCurrency,
     handleDataFilterChange,
+    currenciesLoading,
   };
 };

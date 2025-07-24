@@ -40,7 +40,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     rejectRequest
   } = useGetExpenseRequests(contextProps);
 
-  // Use the expense request filters hook with integrated currency filter
+  // Get managerId from userInfo for currency filtering
+  const managerId = props.userInfo?.employeeDetails?.employeeId || '';
+  
+  // Use the expense request filters hook with integrated currency filter and dynamic currencies
   const {
     search: searchText,
     setSearch,
@@ -52,7 +55,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     getFilters,
     currencyFilter,
     handleDataFilterChange
-  } = useExpenseRequestFilters();
+  } = useExpenseRequestFilters({
+    accessToken: props.accessToken,
+    managerId
+  });
   
   // Track if this is the first render
   const isFirstRender = React.useRef(true);
