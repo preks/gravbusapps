@@ -27,7 +27,26 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = (context) => {
   }, []);
 
   const handleNavigationClick = (area: CrmArea) => {
-    // TODO: Implement actual navigation when routing is set up
+    // Navigate to customer relations with specific view
+    if (area.id === 'leads') {
+      const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'leads' });
+      navigateTo(url);
+    } else if (area.id === 'opportunities') {
+      const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'opportunities' });
+      navigateTo(url);
+    } else if (area.id === 'accounts') {
+      const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'accounts' });
+      navigateTo(url);
+    } else if (area.id === 'contacts') {
+      const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'contacts' });
+      navigateTo(url);
+    } else if (area.id === 'reports') {
+      const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'dashboard' });
+      navigateTo(url);
+    } else if (area.id === 'analytics') {
+      const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'dashboard' });
+      navigateTo(url);
+    }
   };
 
   const handleQuickAction = (action: QuickAction) => {

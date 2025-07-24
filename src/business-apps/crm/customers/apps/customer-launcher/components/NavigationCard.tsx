@@ -41,6 +41,16 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
     }
   };
 
+  // Handle action item navigation
+  const handleActionClick = (view: string, additionalParams: Record<string, string> = {}, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent card click
+    
+    // Navigate to customer relations with specific parameters
+    const params = { view, ...additionalParams };
+    const url = buildPlatformUrl('/platform/crm/customer-relations', params);
+    navigateTo(url);
+  };
+
   // Category-based styling matching the professional design
   const getCategoryStyles = (category: string) => {
     switch (category) {
@@ -154,22 +164,14 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
             <>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'leads', leadStatus: 'open' });
-                  navigateTo(url);
-                }}
+                onClick={(e) => handleActionClick('leads', { leadStatus: 'open' }, e)}
               >
                 <span className="gba:text-gray-600">Active Leads</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'leads', leadStatus: 'converted' });
-                  navigateTo(url);
-                }}
+                onClick={(e) => handleActionClick('leads', { leadStatus: 'converted' }, e)}
               >
                 <span className="gba:text-gray-600">Converted Leads</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
@@ -181,22 +183,14 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
             <>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'opportunities', subView: 'pipeline' });
-                  navigateTo(url);
-                }}
+                onClick={(e) => handleActionClick('opportunities', { subView: 'pipeline' }, e)}
               >
                 <span className="gba:text-gray-600">Pipeline Management</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'opportunities', stage: 'NEW_OPPORTUNITY~IN_QUALIFICATION~PROPOSAL_IN_PROGRESS~NEGOTIATION' });
-                  navigateTo(url);
-                }}
+                onClick={(e) => handleActionClick('opportunities', { status: 'active' }, e)}
               >
                 <span className="gba:text-gray-600">Active Opportunities</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
@@ -208,22 +202,14 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
             <>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'accounts' });
-                  navigateTo(url);
-                }}
+                onClick={(e) => handleActionClick('accounts', {}, e)}
               >
                 <span className="gba:text-gray-600">Customers</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'accounts', status: 'inactive' });
-                  navigateTo(url);
-                }}
+                onClick={(e) => handleActionClick('accounts', { status: 'inactive' }, e)}
               >
                 <span className="gba:text-gray-600">Inactive Accounts</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
@@ -235,24 +221,23 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
             <>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'contacts', contactType: 'founder' });
-                  navigateTo(url);
-                }}
+                onClick={(e) => handleActionClick('contacts', { contactType: 'founder' }, e)}
               >
                 <span className="gba:text-gray-600">Founder Contacts</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'contacts', contactType: 'primary' });
-                  navigateTo(url);
-                }}
+                onClick={(e) => handleActionClick('contacts', { contactType: 'primary' }, e)}
               >
                 <span className="gba:text-gray-600">Primary Contacts</span>
+                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+              </div>
+              <div 
+                className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
+                onClick={(e) => handleActionClick('contacts', { contactType: 'secondary' }, e)}
+              >
+                <span className="gba:text-gray-600">Secondary Contacts</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
             </>
@@ -262,22 +247,14 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
             <>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'dashboard' });
-                  navigateTo(url);
-                }}
+                onClick={(e) => handleActionClick('dashboard', {}, e)}
               >
                 <span className="gba:text-gray-600">Sales Reports</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'dashboard' });
-                  navigateTo(url);
-                }}
+                onClick={(e) => handleActionClick('dashboard', {}, e)}
               >
                 <span className="gba:text-gray-600">Custom Reports</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
@@ -289,22 +266,14 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
             <>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'dashboard' });
-                  navigateTo(url);
-                }}
+                onClick={(e) => handleActionClick('dashboard', {}, e)}
               >
                 <span className="gba:text-gray-600">Performance Analytics</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const url = buildPlatformUrl('/platform/crm/customer-relations', { view: 'dashboard' });
-                  navigateTo(url);
-                }}
+                onClick={(e) => handleActionClick('dashboard', {}, e)}
               >
                 <span className="gba:text-gray-600">Predictive Insights</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />

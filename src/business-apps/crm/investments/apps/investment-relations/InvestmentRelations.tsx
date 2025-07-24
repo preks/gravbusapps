@@ -24,8 +24,7 @@ import { OpportunityList } from "@/business-apps/crm/common/components/opportuni
 import { OpportunityBoard } from "@/business-apps/crm/common/components/opportunity-board";
 import InvestmentsDashboard from "./components/views/investments-dashboard/InvestmentsDashboard";
 import { Investments } from "./components/views/investment-list";
-import InvestmentLauncher from "./components/views/investment-launcher";
-import { HomeOutlined } from "@ant-design/icons";
+import { DashboardOutlined, HomeOutlined } from "@ant-design/icons";
 
 export interface InvestmentRelationsProps extends BusinessAppContextProps {}
 
@@ -34,14 +33,9 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
 ) => {
   const viewOptions = [
     {
-      key: "hub",
-      icon: <HomeOutlined />,
-      label: "Hub"
-    },
-    {
-      key: "dashboard",
-      icon: <LayoutDashboard />,
-      label: "Portfolio"
+      key: 'dashboard',
+      icon: <DashboardOutlined />,
+      label: 'Portfolio'
     },
     {
       key: "leads",
@@ -168,13 +162,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case "hub":
-        return (
-          <div data-testid="hub-tab-content">
-            <InvestmentLauncher {...context} />
-          </div>
-        );
-      case "dashboard":
+      case 'dashboard':
         return (
           <div data-testid="dashboard-tab-content">
             <InvestmentsDashboard

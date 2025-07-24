@@ -41,7 +41,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
 ) => {
   const viewOptions = [
     {
-      key: "dashboard",
+      key: 'dashboard',
       icon: <DashboardOutlined />,
       label: "Dashboard"
     },

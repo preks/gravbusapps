@@ -10,6 +10,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/crm/opportunity-record': 'OpportunityRecord',
   '/platform/crm/account-record': 'AccountRecord',
   '/platform/crm/customer-relations': 'CustomerRelations',
+  '/platform/irm/investment-relations': 'InvestmentRelations',
   '/platform/fin/expenses/expense-plan-record': 'ExpensePlanRecord',
   '/platform/fin/expenses/expense-request-record': 'ExpenseRequestRecord',
   '/platform/employee-record': 'EmployeeRecord',
