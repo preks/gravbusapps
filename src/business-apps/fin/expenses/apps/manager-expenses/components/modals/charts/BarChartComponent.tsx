@@ -12,6 +12,7 @@ interface BarChartProps {
   barDataKey?: string;
   barColor?: string;
   height?: number;
+  currency?: string;
 }
 
 /**
@@ -23,7 +24,8 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   xAxisDataKey = 'name',
   barDataKey = 'value',
   barColor = '#1890ff',
-  height = 300
+  height = 300,
+  currency = 'EUR'
 }) => {
   if (!data || data.length === 0) {
     return (
@@ -70,7 +72,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
               <XAxis dataKey={xAxisDataKey} />
               <YAxis />
               <Tooltip 
-                formatter={(value) => [`${value}`, 'Count']}
+                formatter={(value) => [`${value} ${currency}`, 'Amount']}
                 labelFormatter={(label) => `${label}`}
               />
               <Bar dataKey={barDataKey} fill={barColor} />

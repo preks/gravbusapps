@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useCurrencyStore } from '../../store/useCurrencyStore';
 import { 
   Card,
@@ -41,6 +41,48 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   // Use the global currency store
   const { primaryCurrency } = useCurrencyStore();
   const [activeTab, setActiveTab] = React.useState<string>('expense-items');
+  
+  // Function to determine the most used currency from expense data
+  const getMostUsedCurrency = (data: any): string | null => {
+    if (!data) return null;
+    
+    // Combine all expense types that have currency information
+    const allItems = [
+      ...(data.expenseItems || []),
+      ...(data.expenseRequests || []),
+      ...(data.expensePlans || []),
+      ...(data.advancePayments || [])
+    ];
+    
+    // Count occurrences of each currency
+    const currencyCounts: Record<string, number> = {};
+    
+    allItems.forEach(item => {
+      if (!item || !item.currencyRef) return;
+      
+      // Extract currency code from the reference (format: Currency:v1:CODE)
+      const currencyMatch = item.currencyRef.match(/Currency:v1:([A-Z]{3})/);
+      if (currencyMatch && currencyMatch[1]) {
+        const currencyCode = currencyMatch[1];
+        currencyCounts[currencyCode] = (currencyCounts[currencyCode] || 0) + 1;
+      }
+    });
+    
+    // Find the most used currency
+    let mostUsed = null;
+    let highestCount = 0;
+    
+    Object.entries(currencyCounts).forEach(([currency, count]) => {
+      if (count > highestCount) {
+        mostUsed = currency;
+        highestCount = count;
+      }
+    });
+    
+    return mostUsed;
+  };
+  
+  // Initialize currency filter with null, will be set after data is loaded
   const [currencyFilter, setCurrencyFilter] = useState<string | null>(null);
   
   // Use the team spending analytics hook
@@ -67,6 +109,24 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   // Use the expense group catalog hook to get category names
   const { expenseGroups } = useExpenseGroupCatalog(accessToken);
   
+  // Calculate the most used currency from the data
+  const mostUsedCurrency = useMemo(() => {
+    if (!data) return null;
+    return getMostUsedCurrency(data);
+  }, [data]);
+
+  // Set the default currency when data is loaded
+  useEffect(() => {
+    if (data && !currencyFilter && mostUsedCurrency) {
+      console.log('Setting default currency to most used currency:', mostUsedCurrency);
+      // Set the most used currency, or fall back to primary currency if no data
+      setCurrencyFilter(mostUsedCurrency);
+    } else if (data && !currencyFilter) {
+      console.log('No most used currency found, using primary currency:', primaryCurrency);
+      setCurrencyFilter(primaryCurrency);
+    }
+  }, [data, mostUsedCurrency, primaryCurrency, currencyFilter]);
+
   // Transform expense items by category data to use actual category names
   const expenseItemsByCategoryWithNames = useMemo(() => {
     if (!data?.expenseItemsByCategory || !expenseGroups) return data?.expenseItemsByCategory || [];
@@ -106,9 +166,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       key: 'total-expense-items',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_items', 'Total Expense Items'),
       value: data?.totalExpenseAmount ? formatNumberFunction(data.totalExpenseAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <span className="gba:font-medium" data-testid="team-analytics-expense-items-currency-code">{primaryCurrency}</span>,
+      prefix: <span className="gba:font-medium" data-testid="team-analytics-expense-items-currency-code">{currencyFilter || primaryCurrency}</span>,
       color: '#1890ff',
-      suffix: primaryCurrency,
+      suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
       description: 'Individual expense transactions'
     },
@@ -116,9 +176,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       key: 'total-expense-requests',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_requests', 'Total Expense Requests'),
       value: data?.totalRequestAmount ? formatNumberFunction(data.totalRequestAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <span className="gba:font-medium" data-testid="team-analytics-expense-requests-currency-code">{primaryCurrency}</span>,
+      prefix: <span className="gba:font-medium" data-testid="team-analytics-expense-requests-currency-code">{currencyFilter || primaryCurrency}</span>,
       color: '#52c41a',
-      suffix: primaryCurrency,
+      suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
       description: 'Submitted expense requests'
     },
@@ -126,9 +186,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       key: 'total-expense-plans',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_plans', 'Total Expense Plans'),
       value: data?.totalPlanAmount ? formatNumberFunction(data.totalPlanAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <span className="gba:font-medium" data-testid="team-analytics-expense-plans-currency-code">{primaryCurrency}</span>,
+      prefix: <span className="gba:font-medium" data-testid="team-analytics-expense-plans-currency-code">{currencyFilter || primaryCurrency}</span>,
       color: '#722ed1',
-      suffix: primaryCurrency,
+      suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
       description: 'Planned expense budgets'
     },
@@ -136,9 +196,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       key: 'total-advance-payments',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_advance_payments', 'Total Advance Payments'),
       value: data?.totalAdvanceAmount ? formatNumberFunction(data.totalAdvanceAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <span className="gba:font-medium" data-testid="team-analytics-advance-payments-currency-code">{primaryCurrency}</span>,
+      prefix: <span className="gba:font-medium" data-testid="team-analytics-advance-payments-currency-code">{currencyFilter || primaryCurrency}</span>,
       color: '#fa8c16',
-      suffix: primaryCurrency,
+      suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
       description: 'Advance payments to employees'
     }
@@ -156,6 +216,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               data={data?.expenseItemsByMonth || []} 
               title="" 
               lineColor="#1890ff" 
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -168,6 +229,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <PieChartComponent 
               data={expenseItemsByCategoryWithNames} 
               title="" 
+              currency={currencyFilter || primaryCurrency}
               colors={['#1890ff', '#52c41a', '#722ed1', '#f5222d', '#fa8c16']} 
             />
           </CardContent>
@@ -187,6 +249,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []}
               title=""
               barColor="#1890ff"
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -229,6 +292,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               data={data?.expenseRequestsByMonth || []} 
               title="" 
               lineColor="#52c41a" 
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -245,6 +309,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []}
               title=""
               barColor="#52c41a"
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -262,6 +327,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                 value: item.count 
               })) || []} 
               title="" 
+              currency={currencyFilter || primaryCurrency}
               colors={['#52c41a', '#1890ff', '#722ed1', '#f5222d', '#fa8c16']} 
             />
           </CardContent>
@@ -305,6 +371,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               data={data?.expensePlansByMonth || []} 
               title="" 
               lineColor="#722ed1" 
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -321,6 +388,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []}
               title=""
               barColor="#722ed1"
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -338,6 +406,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                 value: item.count 
               })) || []} 
               title="" 
+              currency={currencyFilter || primaryCurrency}
               colors={['#722ed1', '#52c41a', '#1890ff', '#f5222d', '#fa8c16']} 
             />
           </CardContent>
@@ -381,6 +450,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               data={data?.advancePaymentsByMonth || []} 
               title="" 
               lineColor="#13c2c2" 
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -521,6 +591,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             onChange={(value) => setCurrencyFilter(value)}
             currencies={['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN']}
             data-testid="team-spending-analytics-currency-select"
+            className="gba:w-full"
           />
         </div>
 

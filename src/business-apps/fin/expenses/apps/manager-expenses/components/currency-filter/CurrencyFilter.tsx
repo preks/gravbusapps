@@ -70,7 +70,7 @@ export const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
 
   return (
     <div 
-      className={`gba:flex gba:items-center gba:gap-2 ${className}`}
+      className={`flex w-full ${className}`}
       data-testid={`${dataTestId}-container`}
     >
       <Select
@@ -79,7 +79,7 @@ export const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
         disabled={disabled}
         data-testid={dataTestId}
       >
-        <SelectTrigger className="gba:w-[140px] gba:h-9 gba:text-sm gba:border-gray-300">
+        <SelectTrigger className="flex w-full gba:w-[140px] gba:h-9 gba:text-sm gba:border-gray-300">
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>

@@ -241,13 +241,28 @@ export const useTeamSpendingAnalytics = (
         // Ensure managerId is properly formatted for the GraphQL query
         const validManagerId = managerId.trim();
         
+        // Helper function to standardize currency reference format
+        const standardizeCurrencyRef = (currencyRef: string | null | undefined): string | undefined => {
+          if (!currencyRef) return undefined;
+          return currencyRef.startsWith('Currency:v1:') ? currencyRef : `Currency:v1:${currencyRef}`;
+        };
+        
+        // Format the currency reference for the database query (Currency:v1:CODE format)
+        const formattedCurrencyRef = standardizeCurrencyRef(currencyFilter);
+        
+        console.log('useTeamSpendingAnalytics - Using currency reference:', formattedCurrencyRef);
+        
         const variables = {
           managerId: validManagerId,
           startDate: dateRangeValues.startDate,
-          endDate: dateRangeValues.endDate
+          endDate: dateRangeValues.endDate,
+          currencyRef: formattedCurrencyRef
         };
         
-        console.log('useTeamSpendingAnalytics - Fetching data with variables:', variables);
+        console.log('useTeamSpendingAnalytics - Fetching data with variables:', { 
+          ...variables, 
+          currencyRef: formattedCurrencyRef 
+        });
         
         const response = await graphqlClient.request(GET_EXPENSE_ANALYTICS_DATA, variables);
         // Map the snake_case response to our camelCase interface
@@ -266,7 +281,7 @@ export const useTeamSpendingAnalytics = (
     };
     
     fetchAnalyticsData();
-  }, [accessToken, managerId, dateRangeValues, graphqlClient]);
+  }, [accessToken, managerId, dateRangeValues, graphqlClient, currencyFilter]);
   
   // Extract unique locations from raw data
   useEffect(() => {
@@ -512,8 +527,13 @@ export const useTeamSpendingAnalytics = (
       }
 
       // Check if currency matches filter
-      if (currencyFilter && item.currencyRef !== currencyFilter) {
-        return false;
+      if (currencyFilter) {
+        const standardizedFilter = currencyFilter.startsWith('Currency:v1:') ? currencyFilter : `Currency:v1:${currencyFilter}`;
+        const standardizedItemRef = item.currencyRef?.startsWith('Currency:v1:') ? item.currencyRef : `Currency:v1:${item.currencyRef || ''}`;
+        
+        if (standardizedItemRef !== standardizedFilter) {
+          return false;
+        }
       }
 
       return true;
@@ -537,8 +557,13 @@ export const useTeamSpendingAnalytics = (
       }
 
       // Check if currency matches filter
-      if (currencyFilter && item.currencyRef !== currencyFilter) {
-        return false;
+      if (currencyFilter) {
+        const standardizedFilter = currencyFilter.startsWith('Currency:v1:') ? currencyFilter : `Currency:v1:${currencyFilter}`;
+        const standardizedItemRef = item.currencyRef?.startsWith('Currency:v1:') ? item.currencyRef : `Currency:v1:${item.currencyRef || ''}`;
+        
+        if (standardizedItemRef !== standardizedFilter) {
+          return false;
+        }
       }
 
       return true;
@@ -562,8 +587,13 @@ export const useTeamSpendingAnalytics = (
       }
 
       // Check if currency matches filter
-      if (currencyFilter && item.currencyRef !== currencyFilter) {
-        return false;
+      if (currencyFilter) {
+        const standardizedFilter = currencyFilter.startsWith('Currency:v1:') ? currencyFilter : `Currency:v1:${currencyFilter}`;
+        const standardizedItemRef = item.currencyRef?.startsWith('Currency:v1:') ? item.currencyRef : `Currency:v1:${item.currencyRef || ''}`;
+        
+        if (standardizedItemRef !== standardizedFilter) {
+          return false;
+        }
       }
 
       return true;
@@ -587,8 +617,13 @@ export const useTeamSpendingAnalytics = (
       }
 
       // Check if currency matches filter
-      if (currencyFilter && item.currencyRef !== currencyFilter) {
-        return false;
+      if (currencyFilter) {
+        const standardizedFilter = currencyFilter.startsWith('Currency:v1:') ? currencyFilter : `Currency:v1:${currencyFilter}`;
+        const standardizedItemRef = item.currencyRef?.startsWith('Currency:v1:') ? item.currencyRef : `Currency:v1:${item.currencyRef || ''}`;
+        
+        if (standardizedItemRef !== standardizedFilter) {
+          return false;
+        }
       }
 
       return true;

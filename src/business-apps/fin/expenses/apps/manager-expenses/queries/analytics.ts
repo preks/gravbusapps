@@ -1,6 +1,6 @@
 // GraphQL queries for team spending analytics data
 export const GET_EXPENSE_ANALYTICS_DATA = `
-  query GetExpenseAnalyticsData($managerId: uuid!, $startDate: timestamptz, $endDate: timestamptz) {
+  query GetExpenseAnalyticsData($managerId: uuid!, $startDate: timestamptz, $endDate: timestamptz, $currencyRef: String) {
     # Expense Items analytics
     expenseItems: ExpenseItem(
       where: {
@@ -10,7 +10,8 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
           }
         },
         createdAt: {_gte: $startDate, _lte: $endDate},
-        isDeleted: {_eq: false}
+        isDeleted: {_eq: false},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       id
@@ -48,7 +49,8 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
           }
         },
         createdAt: {_gte: $startDate, _lte: $endDate},
-        isDeleted: {_eq: false}
+        isDeleted: {_eq: false},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       id
@@ -82,7 +84,8 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
           }
         },
         createdAt: {_gte: $startDate, _lte: $endDate},
-        isDeleted: {_eq: false}
+        isDeleted: {_eq: false},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       id
@@ -119,7 +122,8 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
           }
         },
         createdAt: {_gte: $startDate, _lte: $endDate},
-        isDeleted: {_eq: false}
+        isDeleted: {_eq: false},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       id
