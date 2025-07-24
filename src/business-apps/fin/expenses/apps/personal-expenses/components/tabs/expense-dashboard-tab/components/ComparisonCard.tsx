@@ -23,7 +23,8 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
 
   return (
     <Card title={title} data-testid={`comparison-card-${title.toLowerCase().replace(' ', '-')}`}>
-      <Row gutter={[16, 16]} align="middle" style={{ marginBottom: '16px' }}>
+      <div style={{ height: 300 }} data-testid="comparison-card-content">
+        <Row gutter={[16, 16]} align="middle" style={{ marginBottom: '16px' }}>
         <Col span={12}>
           <Statistic
             data-testid="current-period-statistic"
@@ -70,6 +71,7 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
           ></div>
           <Text>Previous</Text>
         </div>
+      </div>
       </div>
     </Card>
   );
