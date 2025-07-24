@@ -74,6 +74,7 @@ export const GET_PIPELINE_OPPORTUNITIES = `
     opportunities: Opportunity(
       where: {
         salesPipelineRef: { _eq: $pipelineRef }
+        sourceApp: { _eq: "CRM" }
         isDeleted: { _eq: false }
         createdAt: { _gte: $startDate, _lte: $endDate }
       }
@@ -127,6 +128,7 @@ export const GET_RECENT_LEADS = `
     leads: Lead(
       where: {
         createdAt: { _gte: $startDate }
+        sourceApp: { _eq: "CRM" }
         isDeleted: { _eq: false }
       }
       orderBy: { createdAt: DESC }
@@ -168,6 +170,7 @@ export const GET_OPEN_LEADS_FOR_REVENUE_SOURCE = `
     leads: Lead(
       where: {
         createdAt: { _gte: $startDate, _lte: $endDate }
+        sourceApp: { _eq: "CRM" }
         isDeleted: { _eq: false }
         leadStatus: { code: { _eq: "OPEN" } }
       }
@@ -250,6 +253,7 @@ export const GET_WIN_RATE_DATA = `
     monthOpportunities: Opportunity(
       where: {
         salesPipelineRef: { _eq: $pipelineRef }
+        sourceApp: { _eq: "CRM" }
         isDeleted: { _eq: false }
         closeDate: { _gte: $monthStart, _lte: $endDate }
         status: { _in: ["Won", "Lost"] }
@@ -264,6 +268,7 @@ export const GET_WIN_RATE_DATA = `
     quarterOpportunities: Opportunity(
       where: {
         salesPipelineRef: { _eq: $pipelineRef }
+        sourceApp: { _eq: "CRM" }
         isDeleted: { _eq: false }
         closeDate: { _gte: $quarterStart, _lte: $endDate }
         status: { _in: ["Won", "Lost"] }
@@ -289,6 +294,7 @@ export const GET_SALES_REP_PERFORMANCE = `
     opportunities: Opportunity(
       where: {
         salesPipelineRef: { _eq: $pipelineRef }
+        sourceApp: { _eq: "CRM" }
         isDeleted: { _eq: false }
         closeDate: { _gte: $startDate, _lte: $endDate }
         status: { _in: ["Won", "Lost"] }

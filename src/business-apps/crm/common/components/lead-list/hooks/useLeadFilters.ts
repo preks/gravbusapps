@@ -125,6 +125,42 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     setCreatedBefore(undefined);
   }, []);
 
+  // Initialize filters from URL parameters
+  const initializeFromUrl = useCallback((urlParams: URLSearchParams) => {
+    const newFilters: string[] = [];
+    
+    // Handle leadStatus parameter
+    const leadStatusParam = urlParams.get('leadStatus');
+    
+    if (leadStatusParam && leadStatusOptions.length > 0) {
+      // More flexible matching for common lead status values
+      const matchingStatus = leadStatusOptions.find(option => {
+        const optionName = option.name.toLowerCase();
+        const paramValue = leadStatusParam.toLowerCase();
+        
+        // Direct name match
+        if (optionName === paramValue) return true;
+        
+        // ID match
+        if (option.id.toLowerCase() === paramValue) return true;
+        
+        // Common mappings
+        if (paramValue === 'open' && (optionName.includes('new') || optionName.includes('open') || optionName.includes('active'))) return true;
+        if (paramValue === 'converted' && (optionName.includes('convert') || optionName.includes('qualified') || optionName.includes('won'))) return true;
+        
+        return false;
+      });
+      
+      if (matchingStatus) {
+        newFilters.push(matchingStatus.id);
+      }
+    }
+    
+    if (newFilters.length > 0) {
+      setSelectedFilters(prev => [...prev, ...newFilters]);
+    }
+  }, [leadStatusOptions, setSelectedFilters]);
+
   // Handle date range changes
   const handleDateRangeChange = useCallback(
     (after?: string, before?: string) => {
@@ -300,44 +336,59 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     selected: selectedFilters.includes(owner.id),
   }));
 
+  // Debug logging
+  // Debug lead status values
+
   // Create filter groups with backend search functions
-  const filterGroups: DataFilterGroup[] = React.useMemo(
-    () => [
-      {
-        id: "dateRange",
-        title: "Created Date",
-        customComponent: React.createElement(DateRangeFilter, {
-          createdAfter: createdAfter,
-          createdBefore: createdBefore,
-          onDateRangeChange: handleDateRangeChange,
-          className: "gba:border-0 gba:shadow-none gba:p-0 gba:bg-transparent",
-        }),
-        hideSearch: true,
-      } as any, // Temporary type assertion to bypass interface issue
-      {
-        id: "leadStatuses",
-        title: "Lead Status",
-        filters: leadStatusFilterOptions,
-        backendSearch: getLeadStatusFilters,
-      },
-      {
-        id: "leadRatings",
-        title: "Lead Rating",
-        filters: leadRatingFilterOptions,
-        backendSearch: getLeadRatingFilters,
-      },
-      // Lead Source filter removed
-    ],
-    [
-      createdAfter,
-      createdBefore,
-      leadStatusFilterOptions,
-      leadRatingFilterOptions,
-      getLeadStatusFilters,
-      getLeadRatingFilters,
-      handleDateRangeChange,
-    ]
-  );
+  const filterGroups: DataFilterGroup[] = [
+    {
+      id: 'dateRange',
+      title: 'Created Date',
+      customComponent: React.createElement(DateRangeFilter, {
+        createdAfter: createdAfter,
+        createdBefore: createdBefore,
+        onDateRangeChange: handleDateRangeChange,
+        className: "gba:border-0 gba:shadow-none gba:p-0 gba:bg-transparent"
+      }),
+      hideSearch: true
+    } as any, // Temporary type assertion to bypass interface issue
+    {
+      id: 'leadStatuses',
+      title: 'Lead Status',
+      filters: leadStatusFilterOptions,
+      backendSearch: getLeadStatusFilters
+    },
+    {
+      id: 'leadRatings',
+      title: 'Lead Rating', 
+      filters: leadRatingFilterOptions,
+      backendSearch: getLeadRatingFilters
+    },
+    {
+      id: 'leadSources',
+      title: 'Lead Source',
+      filters: leadSourceFilterOptions,
+      backendSearch: getLeadSourceFilters
+    },
+    {
+      id: 'industries',
+      title: 'Industry',
+      filters: industryFilterOptions,
+      backendSearch: getIndustryFilters
+    },
+    {
+      id: 'companySizes',
+      title: 'Company Size',
+      filters: companySizeFilterOptions
+      // No backend search for company sizes as they're predefined
+    },
+    {
+      id: 'owners',
+      title: 'Owner',
+      filters: ownerFilterOptions,
+      backendSearch: getOwnerFilters
+    }
+  ];
 
   // Create filter label map
   const filterLabelMap = {
@@ -394,6 +445,7 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     addFilter,
     removeFilter,
     resetFilters,
+    initializeFromUrl,
     getFilters,
     handleDateRangeChange,
 
