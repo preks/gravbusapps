@@ -41,13 +41,13 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({
   }, []);
 
   const getBackButtonText = () => {
-    console.log("getBackButtonText called with fromEntity:", fromEntity);
-
     switch (fromEntity) {
       case "leads":
         return "Back to Leads";
       case "contacts":
         return "Back to Contacts";
+      case "salesPerformance":
+        return "Back to Sales Performance";
       default:
         return "Back to Accounts";
     }
@@ -234,6 +234,16 @@ const AccountRecord: React.FC<AccountRecordProps> = (props) => {
                 : "customer-relations"
             }?view=contacts`
           );
+          break;
+        case "salesPerformance":
+          // Check if there's an employee ID to navigate back to specific employee performance
+          const employeeId = new URLSearchParams(window.location.search).get(
+            "employeeId"
+          );
+          const salesPerformanceUrl = employeeId
+            ? `/platform/crm/sales-performance?employeeId=${employeeId}`
+            : "/platform/crm/sales-performance";
+          navigateTo(salesPerformanceUrl);
           break;
         default:
           // Default back to accounts
