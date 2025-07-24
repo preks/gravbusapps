@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, UserOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
 import { Button, Spin, Alert, Empty, Timeline, Typography, message, Modal } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
