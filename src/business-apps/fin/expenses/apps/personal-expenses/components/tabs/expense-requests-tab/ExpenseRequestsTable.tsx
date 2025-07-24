@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useDebounce } from '@/common/hooks/useDebounce';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Alert, Empty } from 'antd';
 import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
@@ -9,7 +10,7 @@ import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import Pill, { PillType } from '@/components/pill';
 import ExpenseRequestDetails from './ExpenseRequestDetails';
-import { formatDate, formatNumberFunction } from  '@/common/utils/windowUtils'
+import { formatDate, formatNumberFunction } from '@/common/utils/windowUtils'
 
 export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   items?: any[];
@@ -59,8 +60,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
     onAddExpenseRequest
   } = props;
 
-  const [searchInput, setSearchInput] = useState(''); // Live input value
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(''); // Debounced value for API
+  // Local search state for immediate UI feedback
+  const [searchInput, setSearchInput] = useState(search || '');
+  
+  // Debounced search term for API calls
+  const debouncedSearchTerm = useDebounce(searchInput, 300);
 
   // Selected item for details panel
   const [selectedItem, setSelectedItem] = useState<typeof items[0] | null>(null);
@@ -68,13 +72,22 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   // Selected row keys for table
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
-  // Handle search changes
+  // Sync local search input with prop changes
+  useEffect(() => {
+    setSearchInput(search || '');
+  }, [search]);
+
+  // Call parent callback when debounced search changes
+  useEffect(() => {
+    if (onSearchChange && debouncedSearchTerm !== search) {
+      onSearchChange(debouncedSearchTerm);
+    }
+  }, [debouncedSearchTerm, onSearchChange, search]);
+
+  // Handle search input changes (immediate UI update)
   const handleSearchChange = useCallback((value: string) => {
     setSearchInput(value);
-    if (onSearchChange) {
-      onSearchChange(value);
-    }
-  }, [onSearchChange]);
+  }, []);
 
   // Handle filter changes
   const handleFilterChangeCallback = useCallback((filterId: string, selected: boolean) => {
@@ -277,7 +290,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                 const advanceAmount = advanceAmountValue && advanceAmountValue !== 0 ? advanceAmountValue : '-';
                 
                 // Use expense plan currency if available, otherwise fall back to main currency
-                const currencyCode = advanceAmountValue && advanceAmountValue !== 0 && record.expensePlan?.currency?.code ? record.currency?.code : '';
+                const currencyCode = advanceAmountValue && advanceAmountValue !== 0 && record.expensePlan?.currency?.code ? record.expensePlan.currency.code : record.currency?.code || '';
                 const formattedAmount = `${formatNumberFunction(String(advanceAmount))} ${currencyCode}`;
                 
                 return (
@@ -313,7 +326,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   }, [selectedItem, handleCloseDetails, contextProps.accessToken, contextProps.userInfo]);
 
   const dataControllerProps = useMemo(() => ({
-    search: search,
+    search: searchInput,
     setSearch: handleSearchChange,
     filter: selectedFilters,
     setFilter: (newFilters: string[]) => {
@@ -374,4 +387,4 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   );
 });
 
-export default ExpenseRequestsTable; 
+export default ExpenseRequestsTable;

@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { DatePicker, Space } from 'antd';
+import { DatePicker } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 
 const { RangePicker } = DatePicker;

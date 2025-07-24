@@ -20,8 +20,9 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(() => ({
     accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
+    userInfo: props.userInfo,
+    additionalData: props.additionalData
+  }), [props.accessToken, props.userInfo, props.additionalData]);
   
   // Use our simplified expense filters hook
   const {

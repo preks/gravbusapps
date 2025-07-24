@@ -32,6 +32,28 @@ export interface ExpenseRequestFilter {
   requestType?: { value: string };
 }
 
+// Interface for GraphQL where clause structure
+export interface ExpenseRequestWhereClause {
+  _and?: Array<{
+    _or?: Array<{
+      code?: { _ilike: string };
+      title?: { _ilike: string };
+    }>;
+    status?: { 
+      _in?: string[];
+      _neq?: string;
+    };
+    startDate?: {
+      _gte?: string;
+      _lte?: string;
+    };
+    endDate?: {
+      _gte?: string;
+      _lte?: string;
+    };
+  }>;
+}
+
 // Interface for the return type of useExpenseRequestFilters
 export interface UseExpenseRequestFiltersReturn {
   search: string;
@@ -41,7 +63,7 @@ export interface UseExpenseRequestFiltersReturn {
   filterGroups: DataFilterGroup[];
   handleFilterChange: (filterId: string, selected: boolean) => void;
   clearFilters: () => void;
-  getFilters: () => any;
+  getFilters: () => ExpenseRequestWhereClause;
   setStartDateRange: (dateRange: [Date | null, Date | null] | null) => void;
   setEndDateRange: (dateRange: [Date | null, Date | null] | null) => void;
 }
@@ -185,7 +207,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   }, []);
   
   // Convert UI filters to API filter format
-  const getFilters = useCallback(() => {
+  const getFilters = useCallback((): ExpenseRequestWhereClause => {
     const conditions: any[] = [];
 
     if (search && typeof search === 'string' && search.trim()) {
@@ -215,7 +237,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     }
 
     // Always exclude DISCARDED requests at backend level for correct pagination
-    conditions.push({ status: { _neq: 'DISCARDED' } });
+    conditions.push({ status: { _neq: ExpenseStatus.DISCARDED } });
     
     const result = { _and: conditions.length > 0 ? conditions : [{}] };
     console.log('ExpenseRequestFilters: Final where clause:', JSON.stringify(result, null, 2));

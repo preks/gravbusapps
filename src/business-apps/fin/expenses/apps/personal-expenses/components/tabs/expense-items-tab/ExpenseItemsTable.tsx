@@ -281,13 +281,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                         domain: 'employee-expense',
                         processName: 'changeExpenseItem',
                         payload: {
-                          psi_taskPayload: {
-                            initialParameters: {
-                              employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
-                              expenseId: record.id
-                            }
+                          employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                          expenseId: record.id
                         },
-                      },
                         builderType: 'NATIVE_SCREEN'
                       });
                     }

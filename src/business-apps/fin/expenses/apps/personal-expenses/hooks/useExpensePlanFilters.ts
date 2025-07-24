@@ -108,7 +108,7 @@ export const useExpensePlanFilters = () => {
     }
 
     // Always exclude DISCARDED plans at backend level for correct pagination
-    conditions.push({ status: { _neq: 'DISCARDED' } });
+    conditions.push({ status: { _neq: ExpenseStatus.DISCARDED } });
     return { _and: conditions.length > 0 ? conditions : [{}] };
 
   }, [search, selectedFilters, planDateRange, startDateRange, endDateRange]);
