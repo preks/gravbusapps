@@ -148,7 +148,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
   
   const handleViewExpenseRequestDetails = useCallback((record: ExpensePlan) => {
     if (record.expenseRequest) {
-      setSelectedExpenseRequest(record.expenseRequest);
+      setSelectedExpenseRequest(record.expenseRequest[0]);
     }
   }, []);
 

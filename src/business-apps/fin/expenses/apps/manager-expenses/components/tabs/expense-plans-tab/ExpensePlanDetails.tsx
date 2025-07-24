@@ -12,17 +12,12 @@ export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
   onReject: (planId: string) => void;
 }
 
-// Shared component for expense details view (same as in ExpenseRequestDetails)
-interface ExpenseDetailsViewProps {
-  title: string;
-  code: string;
-  status: string;
-  requester: string;
-  department: string;
-  tripType: string;
-  totalAmount: string;
-  onViewDetails: () => void;
-}
+// Helper function to format currency
+const formatCurrency = (amount: number, currencyValue = "European euro") => {
+  const currencySymbol =
+    currencyValue === "European euro" ? "€" : currencyValue?.charAt(0) || "€";
+  return `${currencySymbol}${amount?.toFixed(2) || "0.00"}`;
+};
 
 const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
   title,

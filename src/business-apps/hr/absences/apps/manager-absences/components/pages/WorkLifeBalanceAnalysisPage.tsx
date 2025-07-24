@@ -1,0 +1,164 @@
+import React from 'react';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { Card, Badge, Button } from '@newwork/nw-design-system';
+import { PiArrowLeft, PiUsers, PiCalendar, PiClock } from 'react-icons/pi';
+import { useEmployeeWorkLifeBalance } from '../../hooks/useEmployeeWorkLifeBalance';
+
+interface WorkLifeBalanceAnalysisPageProps extends BusinessAppContextProps {
+  onNavigateBack: () => void;
+}
+
+interface EmployeeWorkLifeBalance {
+  id: string;
+  name: string;
+  initials: string;
+  status: 'excellent' | 'good' | 'needs-attention';
+  avgStreak: number;
+  longestStreak: number;
+  avgBreak: number;
+}
+
+export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPageProps> = ({
+  onNavigateBack,
+  ...props
+}) => {
+  const { employees, isLoading, error } = useEmployeeWorkLifeBalance(props);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'excellent':
+        return 'success';
+      case 'good':
+        return 'default';
+      case 'needs-attention':
+        return 'destructive';
+      default:
+        return 'default';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'excellent':
+        return 'Excellent';
+      case 'good':
+        return 'Good';
+      case 'needs-attention':
+        return 'Needs Attention';
+      default:
+        return 'Unknown';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="gba:p-6 gba:text-center" data-testid="work-life-balance-loading">
+        Loading work-life balance analysis...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="work-life-balance-error">
+        Error: {error}
+      </div>
+    );
+  }
+
+  return (
+    <div className="gba:min-h-screen gba:bg-white" data-testid="work-life-balance-analysis-page">
+      {/* Header */}
+      <div className="gba:bg-white gba:border-b gba:border-gray-200 gba:px-6 gba:py-4">
+        <div className="gba:space-y-4">
+          {/* Back Button */}
+          <Button
+            variant="ghost"
+            onClick={onNavigateBack}
+            className="gba:flex gba:items-center gba:gap-2"
+            data-testid="work-life-balance-back-button"
+          >
+            <PiArrowLeft className="gba:text-lg" />
+            Back to Statistics
+          </Button>
+          
+          {/* Title and Subtitle */}
+          <div>
+            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="work-life-balance-title">
+              Individual Work-Life Balance Analysis
+            </h1>
+            <p className="gba:text-gray-600 gba:mt-1" data-testid="work-life-balance-subtitle">
+              Detailed breakdown of each team member's work patterns and wellness indicators
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="gba:p-6">
+        <div className="gba:space-y-4">
+          {employees.map((employee: any) => (
+            <Card key={employee.id} className="gba:shadow-sm" data-testid={`employee-card-${employee.id}`}>
+              <div className="gba:flex gba:items-center gba:justify-between gba:p-4">
+                {/* Employee Info */}
+                <div className="gba:flex gba:items-center gba:gap-4">
+                  <div 
+                    className="gba:w-12 gba:h-12 gba:rounded-full gba:bg-blue-100 gba:flex gba:items-center gba:justify-center gba:text-blue-600 gba:font-semibold"
+                    data-testid={`employee-avatar-${employee.id}`}
+                  >
+                    {employee.initials}
+                  </div>
+                  <div>
+                    <h3 className="gba:font-semibold gba:text-gray-900" data-testid={`employee-name-${employee.id}`}>
+                      {employee.name}
+                    </h3>
+                    <Badge 
+                      variant={getStatusColor(employee.status)}
+                      className="gba:mt-1"
+                      data-testid={`employee-status-${employee.id}`}
+                    >
+                      {getStatusText(employee.status)}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Metrics */}
+                <div className="gba:flex gba:gap-4">
+                  {/* Average Streak */}
+                  <div className="gba:text-center gba:min-w-[80px]" data-testid={`employee-avg-streak-${employee.id}`}>
+                    <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
+                      {employee.avgStreak}
+                    </div>
+                    <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                      Avg Streak
+                    </div>
+                  </div>
+
+                  {/* Longest Streak */}
+                  <div className="gba:text-center gba:min-w-[80px]" data-testid={`employee-longest-streak-${employee.id}`}>
+                    <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
+                      {employee.longestStreak}
+                    </div>
+                    <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                      Longest Streak
+                    </div>
+                  </div>
+
+                  {/* Average Break */}
+                  <div className="gba:text-center gba:min-w-[80px]" data-testid={`employee-avg-break-${employee.id}`}>
+                    <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
+                      {employee.avgBreak}
+                    </div>
+                    <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                      Avg Break
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}; 

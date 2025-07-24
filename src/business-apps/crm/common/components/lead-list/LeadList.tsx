@@ -39,6 +39,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     removeFilter,
     resetFilters,
     getFilters,
+    initializeFromUrl,
     createdAfter: filterCreatedAfter,
     createdBefore: filterCreatedBefore,
     handleDateRangeChange: filterHandleDateRangeChange
@@ -62,13 +63,27 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>(initialParams.sortOrder as 'ASC' | 'DESC');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const initialLoadDone = useRef(false);
+  const filtersInitialized = useRef(false);
 
   // Initialize search from URL if not already set - ONLY ONCE
   useEffect(() => {
     if (initialParams.search && !search) {
       setSearch(initialParams.search);
     }
-  }, []); // Remove dependencies to prevent re-running
+  }, []);
+
+  // Initialize filters from URL when filter options are loaded
+  useEffect(() => {
+    if (!filtersInitialized.current && filterGroups.length > 0 && initialParams.leadStatus) {
+      // Wait for leadStatusOptions to be loaded before initializing
+      const leadStatusGroup = filterGroups.find(group => group.id === 'leadStatuses');
+      if (leadStatusGroup && leadStatusGroup.filters.length > 0) {
+        const urlParams = new URLSearchParams(window.location.search);
+        initializeFromUrl(urlParams);
+        filtersInitialized.current = true;
+      }
+    }
+  }, [filterGroups, initializeFromUrl, initialParams.leadStatus]);
 
   // Update URL parameters using standard web APIs
   const updateURLParams = useCallback((params: {
@@ -169,6 +184,11 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     accessToken,
     sourceApp
   });
+
+  // Debug current filters
+  useEffect(() => {
+    const currentFilters = getFilters();
+  }, [selectedFilters, getFilters]);
 
   // Get lead statistics (independent from search/filters)
   const {

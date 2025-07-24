@@ -1,5 +1,6 @@
-import { useState, useCallback, useMemo } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
 
 export interface FilterGroup {
   id: string;
@@ -22,41 +23,71 @@ export interface AccountFilters {
   handleDateRangeChange: (after?: string, before?: string) => void;
 }
 
-export const useAccountFilters = (context: BusinessAppContextProps): AccountFilters => {
-  const [search, setSearch] = useState('');
+export const useAccountFilters = (
+  context: BusinessAppContextProps
+): AccountFilters => {
+  const [search, setSearch] = useState("");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [createdAfter, setCreatedAfter] = useState<string | undefined>();
   const [createdBefore, setCreatedBefore] = useState<string | undefined>();
+  const [industryOptions, setIndustryOptions] = useState<
+    { id: string; label: string; value: string }[]
+  >([]);
+  const [industryLoading, setIndustryLoading] = useState(false);
+  const [industryError, setIndustryError] = useState<Error | null>(null);
 
-  const filterGroups: FilterGroup[] = useMemo(() => [
-    // REMOVED: accountType filter - field does not exist in GraphQL schema
-    // {
-    //   id: 'accountType',
-    //   title: 'Account Type',
-    //   filters: [
-    //     { id: 'type-customer', label: 'Customer', value: 'Customer', selected: selectedFilters.includes('type-customer') },
-    //     { id: 'type-prospect', label: 'Prospect', value: 'Prospect', selected: selectedFilters.includes('type-prospect') },
-    //     { id: 'type-partner', label: 'Partner', value: 'Partner', selected: selectedFilters.includes('type-partner') },
-    //     { id: 'type-competitor', label: 'Competitor', value: 'Competitor', selected: selectedFilters.includes('type-competitor') }
-    //   ]
-    // },
-    {
-      id: 'industry',
-      title: 'Industry', // Changed from label to title
-      filters: [
-        { id: 'industry-technology', label: 'Technology', value: 'Technology', selected: selectedFilters.includes('industry-technology') },
-        { id: 'industry-finance', label: 'Finance', value: 'Finance', selected: selectedFilters.includes('industry-finance') },
-        { id: 'industry-healthcare', label: 'Healthcare', value: 'Healthcare', selected: selectedFilters.includes('industry-healthcare') },
-        { id: 'industry-manufacturing', label: 'Manufacturing', value: 'Manufacturing', selected: selectedFilters.includes('industry-manufacturing') },
-        { id: 'industry-retail', label: 'Retail', value: 'Retail', selected: selectedFilters.includes('industry-retail') }
-      ]
-    }
-  ], [selectedFilters]);
+  // Always call the hook at the top level
+  const client = useCatalogManagerClient(context.accessToken);
+
+  // Fetch industry catalog entries dynamically
+  useEffect(() => {
+    const fetchIndustries = async () => {
+      setIndustryLoading(true);
+      setIndustryError(null);
+      try {
+        const response = await client.getCatalogEntriesList(
+          { catalogIdentifier: "IndustryClass", version: "v1" },
+          { limit: 100, returnTotalRecords: true }
+        );
+        const options = (response.data || []).map((entry) => ({
+          id: entry.id,
+          label: entry.value,
+          value: entry.value,
+        }));
+        setIndustryOptions(options);
+      } catch (err) {
+        setIndustryError(
+          err instanceof Error ? err : new Error("Failed to load industries")
+        );
+        setIndustryOptions([]);
+      } finally {
+        setIndustryLoading(false);
+      }
+    };
+    fetchIndustries();
+    // Only run on mount or when client changes
+  }, [client]);
+  console.log("industryOptions", industryOptions);
+  const filterGroups: FilterGroup[] = useMemo(
+    () => [
+      {
+        id: "industry",
+        title: "Industry",
+        filters: industryOptions.map((option) => ({
+          id: option.id,
+          label: option.label,
+          value: option.value,
+          selected: selectedFilters.includes(option.id),
+        })),
+      },
+    ],
+    [industryOptions, selectedFilters]
+  );
 
   const filterLabelMap: Record<string, string> = useMemo(() => {
     const map: Record<string, string> = {};
-    filterGroups.forEach(group => {
-      group.filters.forEach(filter => {
+    filterGroups.forEach((group) => {
+      group.filters.forEach((filter) => {
         map[filter.id] = filter.label;
       });
     });
@@ -64,7 +95,7 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
   }, [filterGroups]);
 
   const addFilter = useCallback((filterId: string) => {
-    setSelectedFilters(prev => {
+    setSelectedFilters((prev) => {
       if (!prev.includes(filterId)) {
         return [...prev, filterId];
       }
@@ -73,21 +104,24 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
   }, []);
 
   const removeFilter = useCallback((filterId: string) => {
-    setSelectedFilters(prev => prev.filter(id => id !== filterId));
+    setSelectedFilters((prev) => prev.filter((id) => id !== filterId));
   }, []);
 
   const clearAllFilters = useCallback(() => {
     setSelectedFilters([]);
   }, []);
 
-  const handleDateRangeChange = useCallback((after?: string, before?: string) => {
-    setCreatedAfter(after);
-    setCreatedBefore(before);
-  }, []);
+  const handleDateRangeChange = useCallback(
+    (after?: string, before?: string) => {
+      setCreatedAfter(after);
+      setCreatedBefore(before);
+    },
+    []
+  );
 
   const getFilters = useCallback(() => {
     const filters: any = {};
-    
+
     if (search) {
       filters.search = search;
     }
@@ -101,12 +135,12 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
     }
 
     // Process selected filters
-    selectedFilters.forEach(filterId => {
+    selectedFilters.forEach((filterId) => {
       for (const group of filterGroups) {
-        const filter = group.filters.find(f => f.id === filterId);
+        const filter = group.filters.find((f) => f.id === filterId);
         if (filter) {
           // REMOVED: accountType processing - field does not exist in GraphQL schema
-          if (group.id === 'industry') {
+          if (group.id === "industry") {
             if (!filters.industries) filters.industries = [];
             filters.industries.push(filter.value);
           }
@@ -130,6 +164,6 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
     getFilters,
     createdAfter,
     createdBefore,
-    handleDateRangeChange
+    handleDateRangeChange,
   };
-}; 
+};

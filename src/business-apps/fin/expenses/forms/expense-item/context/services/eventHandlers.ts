@@ -6,6 +6,7 @@ import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import { EMPLOYEE_FILES_LOCATION, EVENTS, FILES_ENDPOINT } from "@/business-apps/fin/expenses/utils/constants";
 import { DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE } from "../../constants/constants";
 import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils";
+import { FLOW_DOMAIN, FLOW_PROCESS_NAME } from "../constants";
 
 /**
  * Uploads documents to the file server
@@ -293,15 +294,15 @@ export const handleSubmit = async (
     
     if (accessToken && employeeId && hasExpenseRequest) {
       try {
-        const flowResult = await initiateFlow(accessToken, employeeId);
+        const flowResult = await initiateFlow(accessToken, employeeId,FLOW_DOMAIN,FLOW_PROCESS_NAME);
         if (flowResult && flowResult && flowResult.id) {
           flowProcessId = flowResult.id;
-          const userId = userInfo?.id || "c813b143-360d-491f-a8f5-a4ac6b769fe9";
+          const userId = userInfo?.id || "";
 
           const tasksResult = await getOpenedTaskFlow(
             accessToken,
             userId,
-            flowProcessId as string
+            flowProcessId as string,FLOW_DOMAIN,FLOW_PROCESS_NAME
           );
           
           if (tasksResult && Array.isArray(tasksResult) && tasksResult.length > 0) {
@@ -388,14 +389,14 @@ export const handleSubmit = async (
     
     if (flowProcessId && taskId && taskName && hasExpenseRequest && accessToken) {
       try {
-        const userId = userInfo?.id || "2999c7b5-1b62-4887-ae86-2efb10909246";
+        const userId = userInfo?.id || "";
         await completeTaskFlow(
           accessToken,
           userId,
           flowProcessId as string,
           taskName as string,
           taskId as string,
-          submitData
+          submitData,FLOW_DOMAIN,FLOW_PROCESS_NAME
         );
         operationSuccessful = true;
       } catch (completeError) {

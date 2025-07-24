@@ -1,4 +1,2 @@
-export { default } from './ManagerAbsences'; 
-
-
-  
+// Modern NW Design System implementation
+export { default } from './ManagerAbsences';

@@ -131,7 +131,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
 
       {/* Data Container with floating details */}
       <DataContainer
-        floatingDetails={true}
         contentBackground="white"
         dataControllerProps={{
           search: searchTerm,

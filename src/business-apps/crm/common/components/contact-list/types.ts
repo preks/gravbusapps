@@ -10,7 +10,6 @@ export interface Contact {
   xingUrl?: string;
   birthDate?: string;
   pictureUrl?: string;
-
   academicTitle?: {
     id: string;
     value: string;
