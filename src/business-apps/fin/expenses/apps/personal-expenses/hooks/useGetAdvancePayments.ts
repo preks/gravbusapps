@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { GET_ADVANCE_PAYMENTS_BY_EMPLOYEE } from '../queries/advancePayments';
 import { env } from '@/common/env/EnvUtils';
+import { 
+  buildAdvancePaymentsQuery,
+  validateFilters,
+  AdvancePaymentFilters
+} from '../queries/advancePayments';
 
-// Type for advance payment data
 export interface AdvancePayment {
   id: string;
   code: string;
-  description: string;
+  description: string | null;
   amount: number;
-  advance: number;
   currencyRef: string;
   currency: {
     code: string;
@@ -17,52 +19,170 @@ export interface AdvancePayment {
   costCenter: {
     name: string;
   };
-  status: string; 
-  paymentMethod: string | null;
+  status: string;
+  paymentMethod: string;
   expensePlan: {
+    id: string;
     code: string;
-    title: string;  
+    reimbursableAmount: number;
+    startDate: string | null;
+    endDate: string | null;
+    planDate: string | null;
+    decisionDate: string | null;
+    status: string;
+    title: string;
     totalAmount: number;
+    requestTypeRef: any;
+    createdAt: string;
+    employeeDocumentId: string | null;
+    advancePaymentPaidAmount: number;
+    advancePaymentInTransitAmount: number;
+    currencyRef: any;
+    description: string;
     currency: {
+      type: string;
+      translations: Array<{
+        localeCode: string;
+        value: string;
+      }>;
+      catalog: {
+        defaultLocale: string;
+      };
+      value: string;
+      id: string;
       code: string;
     };
-  };
+    requestType: {
+      value: string;
+      translations: Array<{
+        localeCode: string;
+        value: string;
+      }>;
+      catalog: {
+        defaultLocale: string;
+      };
+    };
+    expensePlanItem: Array<{
+      title: string;
+      status: string;
+      totalAmount: number;
+      expenseDate: string;
+    }>;
+    advancePayment: Array<{
+      id: string;
+      amount: number;
+      status: string;
+      currency: {
+        code: string;
+        translations: Array<{
+          localeCode: string;
+          value: string;
+        }>;
+        catalog: {
+          defaultLocale: string;
+        };
+      };
+    }>;
+    expenseRequestTrip: Array<{
+      tripDateTime: string;
+    }>;
+    expenseRequest?: Array<{
+      id: string;
+      code: string;
+      title: string;
+      description: string;
+      startDate: string | null;
+      endDate: string | null;
+      requestDate: string | null;
+      decisionDate: string | null;
+      totalAmount: number;
+      currencyRef: string;
+      status: string;
+      reimbursableAmount: number;
+      nonReimbursableAmount: number;
+      additionalProperties: any;
+      currency: {
+        value: string;
+        translations: Array<{
+          localeCode: string;
+          value: string;
+        }>;
+        catalog: {
+          defaultLocale: string;
+        };
+      };
+      requestType: {
+        value: string;
+        translations: Array<{
+          localeCode: string;
+          value: string;
+        }>;
+        catalog: {
+          defaultLocale: string;
+        };
+      };
+      costCenter: {
+        name: string;
+      };
+      project: {
+        name: string;
+      };
+      employee: {
+        fullName: string;
+        employeePosition: {
+          supervisor: {
+            fullName: string;
+          };
+        };
+      };
+    }>;
+    employee: {
+      id: string;
+      code: string;
+      firstName: string;
+      lastName: string;
+      employeePosition: {
+        siteLocation: {
+          name: string;
+        };
+        organizationalUnit: {
+          name: string;
+        };
+        firstName: string;
+        lastName: string;
+      };
+    };
+  } | null;
   expensePlanId: string;
 }
 
-// Type for the hook return value
 export interface AdvancePaymentsDataView {
   items: AdvancePayment[];
   isLoading: boolean;
   error: string | null;
   totalCount: number;
-  fetchItems: (searchTerm?: string, page?: number, pageSize?: number) => Promise<void>;
+  fetchItems: (searchTerm?: string, page?: number, pageSize?: number, statusFilter?: string[], amountRange?: { min?: number; max?: number } | null, advanceRange?: { min?: number; max?: number } | null) => Promise<void>;
 }
 
 export const useGetAdvancePayments = (context?: BusinessAppContextProps): AdvancePaymentsDataView => {
   const [items, setItems] = useState<AdvancePayment[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalCount, setTotalCount] = useState(0);
 
-  // Function to fetch items with search and pagination
-  const fetchItems = async (searchTerm: string = '%', page: number = 1, pageSize: number = 10) => {
+  const fetchItems = useCallback(async (
+    searchTerm: string = '',
+    page: number = 1,
+    pageSize: number = 20,
+    statusFilter: string[] = [],
+    amountRange: { min?: number; max?: number } | null = null,
+    advanceRange: { min?: number; max?: number } | null = null
+  ) => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
     const accessToken = context?.accessToken;
 
-    if (!employeeId) {
-      setError(new Error('Employee ID not found. Cannot fetch advance payments.'));
-      setItems([]);
-      setTotalCount(0);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!accessToken) {
-      setError(new Error('Access token not found. Cannot fetch advance payments.'));
-      setItems([]);
-      setTotalCount(0);
-      setIsLoading(false);
+    if (!employeeId || !accessToken) {
+      console.warn('Missing employeeId or accessToken for advance payments query');
       return;
     }
 
@@ -74,6 +194,52 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`;
       const offset = (page - 1) * pageSize;
       
+      // Create filters object
+      const filters: AdvancePaymentFilters = {
+        statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
+        amountRange: amountRange || undefined,
+        advanceRange: advanceRange || undefined
+      };
+      
+      // Get active filters using utility function
+      const filterState = validateFilters(filters);
+      
+      // Use dynamic query builder for better error handling
+      const query = buildAdvancePaymentsQuery(filters);
+      
+      let variables: any = {
+        employeeId,
+        searchTerm: formattedSearchTerm,
+        limit: pageSize,
+        offset: offset,
+      };
+
+      // Add filter variables only if they exist
+      if (filterState.hasStatusFilter && filters.statusFilter) {
+        variables.statusFilter = filters.statusFilter;
+      }
+      
+      if (filterState.hasAmountRange && filters.amountRange) {
+        const { min, max } = filters.amountRange;
+        if (min !== undefined) {
+          variables.amountMin = min;
+        }
+        if (max !== undefined) {
+          variables.amountMax = max;
+        }
+      }
+      
+      if (filterState.hasAdvanceRange && filters.advanceRange) {
+        const { min, max } = filters.advanceRange;
+        if (min !== undefined) {
+          variables.advanceMin = min;
+        }
+        if (max !== undefined) {
+          variables.advanceMax = max;
+        }
+      }
+      
+      
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
@@ -81,13 +247,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
           'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          query: GET_ADVANCE_PAYMENTS_BY_EMPLOYEE,
-          variables: { 
-            employeeId,
-            searchTerm: formattedSearchTerm,
-            limit: pageSize,
-            offset: offset
-          },
+          query,
+          variables,
         }),
       });
 
@@ -98,29 +259,31 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       const result = await response.json();
 
       if (result.errors && result.errors.length > 0) {
+        console.error('GraphQL Errors:', result.errors);
         throw new Error(result.errors.map((e: any) => e.message).join(', '));
       }
       
-      // Get total count from aggregate query
-      const count = result.data?.AdvancePaymentAggregate?.aggregate?.count ?? 0;
-      setTotalCount(count);
+      // Get the items and count
+      let fetchedItems = result.data?.AdvancePayment ?? [];
+      let count = result.data?.AdvancePaymentAggregate?.aggregate?.count ?? 0;
       
-      // Get the items
-      const fetchedItems = result.data?.AdvancePayment ?? [];
+      setTotalCount(count);
       setItems(fetchedItems);
     } catch (err) {
+      console.error('Error fetching advance payments:', err);
       setError(err instanceof Error ? err : new Error(String(err)));
       setItems([]); // Clear items on error
       setTotalCount(0);
     } finally {
       setIsLoading(false);
     }
+  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]);
+
+  return {
+    items,
+    isLoading,
+    error: error?.message || null,
+    totalCount,
+    fetchItems,
   };
-
-  // Initial fetch on component mount
-  useEffect(() => {
-    fetchItems();
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]); // Only re-run when employeeId or accessToken changes
-
-  return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems };
 };

@@ -40,9 +40,53 @@ export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
       expenseRequest {
         id
         code
-        status
+        title
+        description
+        startDate
+        endDate
+        requestDate
+        decisionDate
         totalAmount
-     } 
+        currencyRef
+        status
+        reimbursableAmount
+        nonReimbursableAmount
+        additionalProperties
+        currency {
+          value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+        }
+        requestType {
+          value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+        }
+        costCenter {
+          name
+        }
+        project {
+          name
+        }
+        employee {
+          fullName
+          employeePosition {
+            supervisor {
+              fullName
+            }
+          }
+        }
+      } 
       employeeDocument {
         file
         fileSize
@@ -107,8 +151,52 @@ export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
       expenseRequest {
         id
         code
-        status
+        title
+        description
+        startDate
+        endDate
+        requestDate
+        decisionDate
         totalAmount
+        currencyRef
+        status
+        reimbursableAmount
+        nonReimbursableAmount
+        additionalProperties
+        currency {
+          value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+        }
+        requestType {
+          value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+        }
+        costCenter {
+          name
+        }
+        project {
+          name
+        }
+        employee {
+          fullName
+          employeePosition {
+            supervisor {
+              fullName
+            }
+          }
+        }
       }
       employee {
         id

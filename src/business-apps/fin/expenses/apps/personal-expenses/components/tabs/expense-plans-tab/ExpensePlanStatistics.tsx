@@ -54,16 +54,59 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
     return ((currentMonthClosedPlans - previousMonthClosedPlans) / previousMonthClosedPlans) * 100;
   }, [currentMonthClosedPlans, previousMonthClosedPlans]);
 
-  const description = useMemo(() => {
+  const plansTrend = useMemo(() => {
     if (previousMonthClosedPlans === 0 && currentMonthClosedPlans > 0) {
-      return 'New closed plans this month';
+      return {
+        value: '+100%',
+        positive: true,
+        description: 'from last month'
+      };
     }
     if (percentageChange === 0) {
-      return 'No change from last month';
+      return {
+        value: '0%',
+        positive: true,
+        description: 'from last month'
+      };
     }
     const sign = percentageChange > 0 ? '+' : '';
-    return `${sign}${percentageChange.toFixed(0)}% from last month`;
+    return {
+      value: `${sign}${percentageChange.toFixed(0)}%`,
+      positive: percentageChange >= 0,
+      description: 'from last month'
+    };
   }, [percentageChange, currentMonthClosedPlans, previousMonthClosedPlans]);
+
+  // Calculate estimated amount trend
+  const estimatedAmountPercentageChange = useMemo(() => {
+    if (previousMonthTotal === 0) {
+      return currentMonthTotal > 0 ? 100 : 0;
+    }
+    return ((currentMonthTotal - previousMonthTotal) / previousMonthTotal) * 100;
+  }, [currentMonthTotal, previousMonthTotal]);
+
+  const estimatedAmountTrend = useMemo(() => {
+    if (previousMonthTotal === 0 && currentMonthTotal > 0) {
+      return {
+        value: '+100%',
+        positive: true,
+        description: 'from last month'
+      };
+    }
+    if (estimatedAmountPercentageChange === 0) {
+      return {
+        value: '0%',
+        positive: true,
+        description: 'from last month'
+      };
+    }
+    const sign = estimatedAmountPercentageChange > 0 ? '+' : '';
+    return {
+      value: `${sign}${estimatedAmountPercentageChange.toFixed(0)}%`,
+      positive: estimatedAmountPercentageChange >= 0,
+      description: 'from last month'
+    };
+  }, [estimatedAmountPercentageChange, currentMonthTotal, previousMonthTotal]);
 
   // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback((widgetKey: string) => {
@@ -88,7 +131,8 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       prefix: <FileTextOutlined />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 6 },
-      description: description,
+      description: 'Closed expense plans',
+      trend: plansTrend,
       active: activeWidgetKey === 'total-plans',
       onClick: () => handleWidgetClick('total-plans')
     },
@@ -99,6 +143,9 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       prefix: <DollarOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 6 },
+      description: 'Estimated expenses',
+      trend: estimatedAmountTrend,
+      valueIsString: true,
       active: activeWidgetKey === 'total-estimated',
       onClick: () => handleWidgetClick('total-estimated')
     },
@@ -126,7 +173,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
         handleWidgetClick('top-destinations');
       }
     }
-  ], [currentMonthName, totalPlans, totalEstimated, pendingApproval, topDestination, description, activeWidgetKey, handleWidgetClick, statsLoading]);
+  ], [currentMonthName, totalPlans, totalEstimated, pendingApproval, topDestination, plansTrend, estimatedAmountTrend, activeWidgetKey, handleWidgetClick, statsLoading]);
 
   return (
     <WidgetGroup

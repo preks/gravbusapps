@@ -156,6 +156,11 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
         label: 'In Transit',
         type: "waiting"
       };
+      case ExpenseStatus.PREPARED:
+      return {
+        label: 'Prepared',
+        type: "draft"
+      };
     case ExpenseStatus.PAID:
       return {
         label: 'Paid',
