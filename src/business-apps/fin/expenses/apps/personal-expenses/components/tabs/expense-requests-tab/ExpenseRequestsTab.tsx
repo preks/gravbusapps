@@ -4,6 +4,7 @@ import { startProcess } from '@/common/utils/start-process';
 import ExpenseRequestStatistics from './ExpenseRequestStatistics';
 import ExpenseRequestsTable from './ExpenseRequestsTable';
 import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests';
+import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters';
 
 export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -16,20 +17,71 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
 
-  // Use the expense request data hook for statistics
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const {
+    filterGroups,
+    selectedFilters,
+    setFilters,
+    handleFilterChange,
+    clearFilters,
+    search,
+    setSearch,
+    getFilters,
+    setStartDateRange,
+    setEndDateRange
+  } = useExpenseRequestFilters();
+  
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseRequests(contextProps);
 
-  // Initial data fetch when component mounts and employee ID is available
+  // Memoize the filters to prevent unnecessary API calls
+  const memoizedFilters = useMemo(() => {
+    return getFilters();
+  }, [getFilters]);
+
+  // Only fetch when filters, page, or pageSize change
   useEffect(() => {
     if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
-      fetchItems();
+      fetchItems(
+        memoizedFilters,
+        currentPage,
+        pageSize
+      );
     }
-  }, [contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId, fetchItems]);
+  }, [fetchItems, currentPage, pageSize, memoizedFilters, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId]);
 
-  // Create memoized content header with statistics component
-    const contentHeader = useMemo(() => {
-      return items && items.length > 0 ? <ExpenseRequestStatistics items={items} /> : null;
-    }, [items]);
+  // Create filter label map for proper display labels
+  const filterLabelMap = useMemo(() => {
+    const labelMap: Record<string, string> = {};
+    
+    // Map status values to their display labels
+    const statusLabels = {
+      'prepared': 'Prepared',
+      'created': 'Draft (Created)',
+      'pending': 'In Approval (Pending)',
+      'assigned': 'Assigned',
+      'approved': 'Approved',
+      'rejected': 'Revision Required (Rejected)',
+      'verified': 'In Transit (Verified)',
+      'booked': 'In Transit (Booked)',
+      'paid': 'Paid',
+      'closed': 'Closed',
+      'transferred': 'In Transit (Transferred)',
+    };
+    
+    // Add all status mappings
+    Object.entries(statusLabels).forEach(([status, label]) => {
+      labelMap[status] = label;
+    });
+    
+    return labelMap;
+  }, []);
+
+  // Memoize content header to prevent unnecessary re-renders
+  const contentHeader = useMemo(() => {
+    return items && items.length > 0 ? <ExpenseRequestStatistics items={items} /> : null;
+  }, [items]);
   
   // Update the content header only when it changes and when items are loaded
   const onContentHeaderChange = props.onContentHeaderChange;
@@ -57,9 +109,34 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     }
   }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
+  const handleTableChange = useCallback((pagination: any, filters: any, sorter: any) => {
+    setCurrentPage(pagination.current);
+    setPageSize(pagination.pageSize);
+  }, []);
+
+  const handleClearAllFilters = useCallback(() => {
+    clearFilters();
+    setCurrentPage(1);
+  }, [clearFilters]);
+
   return (
     <ExpenseRequestsTable
-      {...contextProps}
+      {...props}
+      items={items}
+      isLoading={isLoading}
+      error={error}
+      totalCount={totalCount}
+      currentPage={currentPage}
+      pageSize={pageSize}
+      onTableChange={handleTableChange}
+      search={search}
+      onSearchChange={setSearch}
+      selectedFilters={selectedFilters}
+      setFilters={handleClearAllFilters}
+      filterGroups={filterGroups}
+      handleFilterChange={handleFilterChange}
+      clearFilters={clearFilters}
+      filterLabelMap={filterLabelMap}
       onAddExpenseRequest={handleAddExpenseRequest}
     />
   );

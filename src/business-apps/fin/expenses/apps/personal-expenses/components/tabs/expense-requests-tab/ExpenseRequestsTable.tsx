@@ -12,11 +12,20 @@ import ExpenseRequestDetails from './ExpenseRequestDetails';
 import { formatDate, formatNumberFunction } from  '@/common/utils/windowUtils'
 
 export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
+  items?: any[];
+  isLoading?: boolean;
+  error?: string | null;
+  totalCount?: number;
+  currentPage?: number;
+  pageSize?: number;
+  onTableChange?: (pagination: any, filters: any, sorter: any) => void;
   search?: string;
   onSearchChange?: (search: string) => void;
   selectedFilters?: string[];
-  onFilterChange?: (filterId: string, selected: boolean) => void;
+  setFilters?: (filters: string[]) => void;
   filterGroups?: any[];
+  handleFilterChange?: (filterId: string, selected: boolean) => void;
+  clearFilters?: () => void;
   filterLabelMap?: Record<string, string>;
   onAddExpenseRequest?: () => void;
 }
@@ -30,23 +39,28 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
-  // Use the expense request filters hook
+  // Use props passed from parent instead of hook directly
   const {
-    search,
-    selectedFilters,
-    filterGroups,
-    filterLabelMap,
-    addFilter,
-    removeFilter,
-    getFilters
-  } = useExpenseRequestFilters();
-
-  const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseRequests(contextProps);
+    items = [],
+    isLoading = false,
+    error = null,
+    totalCount = 0,
+    currentPage = 1,
+    pageSize = DEFAULT_PAGE_SIZE,
+    onTableChange,
+    search = '',
+    onSearchChange,
+    selectedFilters = [],
+    setFilters,
+    filterGroups = [],
+    handleFilterChange,
+    clearFilters,
+    filterLabelMap = {},
+    onAddExpenseRequest
+  } = props;
 
   const [searchInput, setSearchInput] = useState(''); // Live input value
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(''); // Debounced value for API
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   // Selected item for details panel
   const [selectedItem, setSelectedItem] = useState<typeof items[0] | null>(null);
@@ -54,77 +68,27 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   // Selected row keys for table
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
-  // Unified useEffect for fetching data whenever pagination or filters change
-  useEffect(() => {
-    // Only fetch data if we have both accessToken and employeeId
-    if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
-      const currentFilters = getFilters();
-      console.log('Pagination or filters changed, fetching data immediately');
-      fetchItems(searchInput, currentPage, pageSize, currentFilters);
-    }
-  }, [fetchItems, currentPage, pageSize, selectedFilters, searchInput, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId]);
-
-  // Create memoized search handler with NO debounce for immediate API calls
+  // Handle search changes
   const handleSearchChange = useCallback((value: string) => {
     setSearchInput(value);
-    // Immediately update the debounced value without waiting
-    setDebouncedSearchTerm(value);
-    
-    // Only fetch data if we have both accessToken and employeeId
-    if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
-      // Also trigger an immediate fetch with the new search value
-      const currentFilters = getFilters();
-      fetchItems(value, currentPage, pageSize, currentFilters);
+    if (onSearchChange) {
+      onSearchChange(value);
     }
-  }, [fetchItems, currentPage, pageSize, getFilters, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId]);
+  }, [onSearchChange]);
 
   // Handle filter changes
-  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    // Update filter state
-    if (selected) {
-      addFilter(filterId);
-    } else {
-      removeFilter(filterId);
+  const handleFilterChangeCallback = useCallback((filterId: string, selected: boolean) => {
+    if (handleFilterChange) {
+      handleFilterChange(filterId, selected);
     }
-    
-    // Reset to first page when filters change
-    setCurrentPage(1);
-    
-    // Get updated filters and trigger API call immediately
-    // We need to manually calculate the updated filters since the state update hasn't processed yet
-    const updatedFilters = {...getFilters()};
-    if (selected && !updatedFilters.status?.includes(filterId.toUpperCase())) {
-      // If adding a status filter
-      if (Object.values(ExpenseRequestStatus).map(s => s.toLowerCase()).includes(filterId)) {
-        // Map UI status to backend status
-        let backendStatus;
-        switch (filterId) {
-          case 'draft': backendStatus = ExpenseStatus.CREATED; break;
-          case 'submitted': backendStatus = ExpenseStatus.PENDING; break;
-          case 'approved': backendStatus = ExpenseStatus.APPROVED; break;
-          case 'rejected': backendStatus = ExpenseStatus.REJECTED; break;
-          case 'paid': backendStatus = ExpenseStatus.PAID; break;
-          case 'cancelled': backendStatus = ExpenseStatus.CLOSED; break;
-          default: backendStatus = filterId.toUpperCase();
-        }
-        
-        updatedFilters.status = updatedFilters.status ? [...updatedFilters.status, backendStatus] : [backendStatus];
-      }
-      // Handle other filter types if needed
-    } else if (!selected) {
-      // If removing a filter, we'll just use getFilters() which should have the updated state
-    }
-    
-    // Trigger API call immediately with the updated filters
-    console.log('Filter change handler - making immediate API call');
-    fetchItems(searchInput, 1, pageSize, updatedFilters);
-  }, [addFilter, removeFilter, setCurrentPage, getFilters, fetchItems, debouncedSearchTerm, pageSize]);
+  }, [handleFilterChange]);
 
   // Enhanced table change handler for pagination
   const handleEnhancedTableChange = useCallback((pagination: any, _filters: any, _sorter: any) => {
-    setCurrentPage(pagination.current);
-    setPageSize(pagination.pageSize);
-  }, []);
+    if (onTableChange) {
+      onTableChange(pagination, _filters, _sorter);
+    }
+  }, [onTableChange]);
 
   // Memoize pagination configuration
   const paginationConfig = useMemo(() => ({
@@ -350,92 +314,40 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
 
   const dataControllerProps = useMemo(() => ({
     search: search,
-    filter: selectedFilters,
     setSearch: handleSearchChange,
+    filter: selectedFilters,
     setFilter: (newFilters: string[]) => {
-      // PERFORMANCE OPTIMIZATION: Use requestAnimationFrame to ensure the filter change
-      // happens immediately without waiting for animations to complete
-      requestAnimationFrame(() => {
-        console.log('Filter change detected, processing immediately');
-        console.time('filter-processing');
-        
-        // Handle filter removal when X is clicked or filters are cleared
-        const filtersToRemove = selectedFilters.filter(f => !newFilters.includes(f));
-        filtersToRemove.forEach(filterId => removeFilter(filterId));
-        
-        // Always fetch new data with the remaining filters
-        setCurrentPage(1); // Reset to first page
-        
-        // Build filters based on newFilters (remaining filters)
-        const filter: ExpenseRequestFilter = {};
-        
-        // Extract filters by types using our immediate newFilters
-        const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
-        const REQUEST_TYPE_OPTIONS = ['general', 'trip'];
-        
-        const timePeriod = newFilters.find(f => TIME_PERIOD_OPTIONS.includes(f)) || null;
-        
-        // Get status filters and convert back to uppercase
-        const statusFilters = newFilters.filter(f => 
-          Object.values(ExpenseRequestStatus).map(s => s.toLowerCase()).includes(f));
-        const statuses = statusFilters.map(f => f.toUpperCase());
-        
-        // Process status filters
-        if (statuses.length > 0) {
-          filter.status = statuses;
+      // Create a set of new filter IDs for easier comparison
+      const newFiltersSet = new Set(newFilters);
+      
+      // First, remove any filters that are not in the new filters
+      selectedFilters.forEach((filter: string) => {
+        if (!newFiltersSet.has(filter)) {
+          handleFilterChangeCallback(filter, false);
         }
-        
-        // Process time period filters
-        if (timePeriod) {
-          const today = new Date();
-          const endDate = new Date(today).toISOString().split('T')[0];
-          
-          // Calculate start date based on selected time period
-          let startDate = new Date(today);
-          if (timePeriod === 'last30days') {
-            startDate.setDate(today.getDate() - 30);
-          } else if (timePeriod === 'last90days') {
-            startDate.setDate(today.getDate() - 90);
-          } else if (timePeriod === 'last180days') {
-            startDate.setDate(today.getDate() - 180);
-          }
-          
-          filter.requestDateStart = startDate.toISOString().split('T')[0];
-          filter.requestDateEnd = endDate;
+      });
+      
+      // Then, add any new filters that aren't already selected
+      newFilters.forEach((filter: string) => {
+        if (!selectedFilters.includes(filter)) {
+          handleFilterChangeCallback(filter, true);
         }
-        
-        // Process request type filters
-        const requestTypes = newFilters.filter(f => REQUEST_TYPE_OPTIONS.includes(f));
-        if (requestTypes.length > 0) {
-          const selectedType = requestTypes[0];
-          if (selectedType === 'general') {
-            filter.requestType = { value: 'General Expense' };
-          } else if (selectedType === 'trip') {
-            filter.requestType = { value: 'Trip' };
-          }
-        }
-        
-        console.log('Fetching with remaining filters:', filter);
-        console.timeEnd('filter-processing');
-        
-        // Use the current search input value directly to avoid debounce delay
-        fetchItems(searchInput, 1, pageSize, filter);
       });
     },
     addButton: {
-      onClick: props.onAddExpenseRequest || (() => {}),
+      onClick: onAddExpenseRequest || (() => {}),
       label: 'Add',
       'data-testid': 'add-expense-request-button'
     },
     listTitle: "My Expense Requests",
     listAmount: totalCount ? `${totalCount}` : undefined,
     filterLabelMap: filterLabelMap,
-  }), [search, selectedFilters, handleSearchChange, removeFilter, setCurrentPage, searchInput, pageSize, fetchItems, props.onAddExpenseRequest, totalCount, filterLabelMap]);
+  }), [search, selectedFilters, handleSearchChange, handleFilterChangeCallback, totalCount, filterLabelMap, onAddExpenseRequest]);
 
   const dataFilterProps = useMemo(() => ({
     filterGroups: filterGroups,
-    onFilterChange: handleFilterChange,
-  }), [filterGroups, handleFilterChange]);
+    onFilterChange: handleFilterChangeCallback,
+  }), [filterGroups, handleFilterChangeCallback]);
 
   const dataDetails = useMemo(() => {
     if (selectedItem) {

@@ -1,7 +1,9 @@
-import { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { ExpenseStatus, getExpenseRequestStatusDisplay } from '../utils';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { StartDateRangeFilter } from '../components/tabs/expense-requests-tab/StartDateRangeFilter';
+import { EndDateRangeFilter } from '../components/tabs/expense-requests-tab/EndDateRangeFilter';
 
 // Define expense request status types based on srn_expenseRequest mappings
 export enum ExpenseRequestStatus {
@@ -10,12 +12,12 @@ export enum ExpenseRequestStatus {
   ASSIGNED = 'ASSIGNED',
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
   VERIFIED = 'VERIFIED',
   BOOKED = 'BOOKED',
-  TRANSFERRED = 'TRANSFERRED',
   PAID = 'PAID',
-  REJECTED = 'REJECTED',
-  CLOSED = 'CLOSED'
+  CLOSED = 'CLOSED',
+  TRANSFERRED = 'TRANSFERRED'
 }
 
 // Interface for request filter
@@ -23,6 +25,10 @@ export interface ExpenseRequestFilter {
   status?: string[];
   requestDateStart?: string;
   requestDateEnd?: string;
+  startDateStart?: string;
+  startDateEnd?: string;
+  endDateStart?: string;
+  endDateEnd?: string;
   requestType?: { value: string };
 }
 
@@ -31,11 +37,13 @@ export interface UseExpenseRequestFiltersReturn {
   search: string;
   setSearch: (search: string) => void;
   selectedFilters: string[];
+  setFilters: (filters: string[]) => void;
   filterGroups: DataFilterGroup[];
-  filterLabelMap: Record<string, string>;
-  addFilter: (filterId: string) => void;
-  removeFilter: (filterId: string) => void;
-  getFilters: () => ExpenseRequestFilter;
+  handleFilterChange: (filterId: string, selected: boolean) => void;
+  clearFilters: () => void;
+  getFilters: () => any;
+  setStartDateRange: (dateRange: [Date | null, Date | null] | null) => void;
+  setEndDateRange: (dateRange: [Date | null, Date | null] | null) => void;
 }
 
 /**
@@ -45,6 +53,8 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   // State for search and selected filters
   const [search, setSearch] = useState<string>('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [startDateRange, setStartDateRange] = useState<[Date | null, Date | null] | null>(null);
+  const [endDateRange, setEndDateRange] = useState<[Date | null, Date | null] | null>(null);
 
   // Define these as constants for stable references
   const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
@@ -65,6 +75,28 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
 
   // Define filter groups - memoized so they don't cause re-renders
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
+    {
+      id: 'startDateRange',
+      title: 'Filter by Start Date',
+      type: 'date-range' as any,
+      customComponent: React.createElement(StartDateRangeFilter, {
+        startDateRange: startDateRange,
+        onDateRangeChange: setStartDateRange,
+        placeholder: ['Start date', 'End date']
+      }),
+      hideSearch: true,
+    },
+    {
+      id: 'endDateRange',
+      title: 'Filter by End Date Range',
+      type: 'date-range' as any,
+      customComponent: React.createElement(EndDateRangeFilter, {
+        endDateRange: endDateRange,
+        onDateRangeChange: setEndDateRange,
+        placeholder: ['Start date', 'End date']
+      }),
+      hideSearch: true,
+    },
     {
       id: 'timePeriod',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.period_title', 'Time Period'),
@@ -94,7 +126,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
         };
       })
     }
-  ], [selectedFilters]);
+  ], [selectedFilters, startDateRange, endDateRange]);
   
   // Build the filter label map dynamically
   const filterLabelMap = useMemo(() => {
@@ -153,92 +185,67 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   }, []);
   
   // Convert UI filters to API filter format
-  const getFilters = useCallback((): ExpenseRequestFilter => {
-    // Map UI filter format to the expected API filter format
-    const filter: ExpenseRequestFilter = {};
-    
-    // Extract filters by types
-    const timePeriod = selectedFilters.find(f => TIME_PERIOD_OPTIONS.includes(f)) || null;
-    
-    // Get status filters from the selected filters
-    const statusFilters = selectedFilters.filter(f => 
-      Object.values(ExpenseRequestStatus).map(s => s.toLowerCase()).includes(f));
-    
-    // Map UI status values to backend ExpenseStatus enum values
-    const statuses = statusFilters.map(f => {
-      // Map from UI lowercase status to backend ExpenseStatus enum
-      switch (f) {
-        case 'prepared': return ExpenseStatus.PREPARED;
-        case 'created': return ExpenseStatus.CREATED;
-        case 'assigned': return ExpenseStatus.ASSIGNED;
-        case 'pending': return ExpenseStatus.PENDING;
-        case 'approved': return ExpenseStatus.APPROVED;
-        case 'verified': return ExpenseStatus.VERIFIED;
-        case 'booked': return ExpenseStatus.BOOKED;
-        case 'transferred': return ExpenseStatus.TRANSFERRED;
-        case 'paid': return ExpenseStatus.PAID;
-        case 'rejected': return ExpenseStatus.REJECTED;
-        case 'closed': return ExpenseStatus.CLOSED;
-        case 'cancelled': return ExpenseStatus.CLOSED; // Map cancelled to CLOSED since CANCELLED doesn't exist
-        default: return f.toUpperCase(); // Fallback
-      }
-    });
-    
-    const requestTypes = selectedFilters.filter(f => REQUEST_TYPE_OPTIONS.includes(f));
-    
-    // Process status filters
-    if (statuses.length > 0) {
-      console.log('Applying status filters:', statuses);
-      filter.status = statuses;
+  const getFilters = useCallback(() => {
+    const conditions: any[] = [];
+
+    if (search && typeof search === 'string' && search.trim()) {
+      conditions.push({ _or: [
+        { code: { _ilike: `%${search.trim()}%` } },
+        { title: { _ilike: `%${search.trim()}%` } }
+      ] });
     }
-    
-    // Process time period filters
-    if (timePeriod) {
-      const today = new Date();
-      const endDate = new Date(today).toISOString().split('T')[0]; 
-      
-      // Calculate start date based on selected time period
-      let startDate = new Date(today);
-      if (timePeriod === 'last30days') {
-        startDate.setDate(today.getDate() - 30);
-      } else if (timePeriod === 'last90days') {
-        startDate.setDate(today.getDate() - 90);
-      } else if (timePeriod === 'last180days') {
-        startDate.setDate(today.getDate() - 180);
-      }
-      
-      filter.requestDateStart = startDate.toISOString().split('T')[0];
-      filter.requestDateEnd = endDate;
+    if (selectedFilters.length > 0) {
+      conditions.push({ status: { _in: selectedFilters } });
     }
-    
-    // Process request type filters
-    if (requestTypes.length > 0) {
-      // For now, use only the first selected type
-      const selectedType = requestTypes[0];
-      
-      console.log('Applying request type filter:', selectedType);
-      
-      // Map UI request types to the expected API values
-      if (selectedType === 'general') {
-        filter.requestType = { value: 'General Expense' };
-        console.log('Mapped to API value:', filter.requestType);
-      } else if (selectedType === 'trip') {
-        filter.requestType = { value: 'Trip' };
-        console.log('Mapped to API value:', filter.requestType);
-      }
+    if (startDateRange?.[0]) {
+      console.log('ExpenseRequestFilters: Adding startDate _gte:', startDateRange[0]);
+      conditions.push({ startDate: { _gte: startDateRange[0] } });
     }
+    if (startDateRange?.[1]) {
+      console.log('ExpenseRequestFilters: Adding startDate _lte:', startDateRange[1]);
+      conditions.push({ startDate: { _lte: startDateRange[1] } });
+    }
+    if (endDateRange?.[0]) {
+      console.log('ExpenseRequestFilters: Adding endDate _gte:', endDateRange[0]);
+      conditions.push({ endDate: { _gte: endDateRange[0] } });
+    }
+    if (endDateRange?.[1]) {
+      console.log('ExpenseRequestFilters: Adding endDate _lte:', endDateRange[1]);
+      conditions.push({ endDate: { _lte: endDateRange[1] } });
+    }
+
+    // Always exclude DISCARDED requests at backend level for correct pagination
+    conditions.push({ status: { _neq: 'DISCARDED' } });
     
-    return filter;
-  }, [selectedFilters, TIME_PERIOD_OPTIONS, REQUEST_TYPE_OPTIONS]);
+    const result = { _and: conditions.length > 0 ? conditions : [{}] };
+    console.log('ExpenseRequestFilters: Final where clause:', JSON.stringify(result, null, 2));
+    return result;
+
+  }, [search, selectedFilters, startDateRange, endDateRange]);
+
+  const clearFilters = useCallback(() => {
+    setSelectedFilters([]);
+    setStartDateRange(null);
+    setEndDateRange(null);
+    setSearch('');
+  }, []);
+
+  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
+    setSelectedFilters(prev =>
+      selected ? [...prev, filterId] : prev.filter(id => id !== filterId)
+    );
+  }, []);
   
   return {
     search,
     setSearch,
     selectedFilters,
+    setFilters: setSelectedFilters,
     filterGroups,
-    filterLabelMap,
-    addFilter,
-    removeFilter,
-    getFilters
+    handleFilterChange,
+    clearFilters,
+    getFilters,
+    setStartDateRange,
+    setEndDateRange
   };
 };

@@ -32,7 +32,7 @@ export interface ExpenseRequestsDataView {
   isLoading: boolean;
   error: string | null;
   totalCount: number;
-  fetchItems: (searchTerm?: string, page?: number, pageSize?: number, filter?: ExpenseRequestFilter) => Promise<void>;
+  fetchItems: (filters: any, page?: number, pageSize?: number) => Promise<void>;
 }
 
 export const useGetExpenseRequests = (context?: BusinessAppContextProps): ExpenseRequestsDataView => {
@@ -47,12 +47,12 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
   const client = useGraphqlClient(accessToken);
 
   // Function to fetch items with search, pagination, and filters
-  const fetchItems = useCallback(async (searchTerm: string = '%', page: number = 1, pageSize: number = 10, filter: ExpenseRequestFilter = {}) => {
+  const fetchItems = useCallback(async (filters: any = {}, page: number = 1, pageSize: number = 10) => {
     // Set loading state immediately when function is called
     setIsLoading(true);
     setError(null);
     
-    console.log('ExpenseRequests: fetchItems called with filter:', filter);
+    console.log('ExpenseRequests: fetchItems called with filters:', filters);
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
     const accessToken = context?.accessToken;
 
@@ -75,61 +75,14 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
     try {
       const offset = (page - 1) * pageSize;
 
-      // Base where clause
-      const whereClause: any = {
+      // Build the where clause by combining employee filter with the provided filters
+      const whereClause = {
         _and: [
           { employeeId: { _eq: employeeId } },
           { isDeleted: { _eq: false } },
-          { status: { _neq: ExpenseStatus.DISCARDED } },
-        ],
+          filters // This is the GraphQL where clause from getFilters()
+        ]
       };
-
-      // Add search term filter
-      if (searchTerm && searchTerm.trim() !== '') {
-        const formattedSearchTerm = `%${searchTerm.trim()}%`;
-        (whereClause._and as any[]).push({
-          _or: [
-            { title: { _ilike: formattedSearchTerm } },
-            { code: { _ilike: formattedSearchTerm } },
-            { description: { _ilike: formattedSearchTerm } },
-            // Removed status from general text search to avoid conflicts with specific status filter
-          ],
-        });
-      }
-
-      // Add status filter
-      if (filter.status && filter.status.length > 0) {
-        console.log('ExpenseRequests: Adding status filter:', filter.status);
-        (whereClause._and as any[]).push({
-          status: { _in: filter.status },
-        });
-      } else {
-        console.log('ExpenseRequests: No status filter applied');
-      }
-      
-      // Add date range filters
-      if (filter.requestDateStart) {
-        (whereClause._and as any[]).push({
-          createdAt: { _gte: filter.requestDateStart }, // Changed from requestDate to createdAt
-        });
-      }
-      if (filter.requestDateEnd) {
-        (whereClause._and as any[]).push({
-          createdAt: { _lte: filter.requestDateEnd }, // Changed from requestDate to createdAt
-        });
-      }
-
-      // Add request type filter
-      if (filter.requestType && filter.requestType.value) {
-        console.log('ExpenseRequests: Adding requestType filter:', filter.requestType);
-        // The requestType is a nested object in the GraphQL schema
-        // The correct structure is: requestType: { value: { _eq: "value" } }
-        (whereClause._and as any[]).push({
-          requestType: { value: { _eq: filter.requestType.value } }
-        });
-      } else {
-        console.log('ExpenseRequests: No requestType filter applied');
-      }
 
       const variables = {
         limit: pageSize,
@@ -146,8 +99,6 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       const requestStartTime = performance.now();
       
       // Make the request using the GraphQL client
-      // Even though the browser shows AjaxRequestInterceptor as initiator,
-      // we're still getting better performance than raw fetch
       const data = await client.request(GET_EXPENSE_REQUESTS_BY_EMPLOYEE, variables);
       
       // Log the request duration
@@ -155,7 +106,6 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       console.log(`ExpenseRequests: GraphQL request completed in ${requestDuration.toFixed(2)}ms`);
       
       // Set loading to false immediately after receiving the response
-      // This ensures the UI updates as soon as possible
       setIsLoading(false);
       
       // Get total count from aggregate query
@@ -176,7 +126,7 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       setTotalCount(0);
       setIsLoading(false); // Make sure to set loading to false in case of error
     }
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, setIsLoading, setError, setItems, setTotalCount]); // Added dependencies for useCallback
+  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, setIsLoading, setError, setItems, setTotalCount]);
 
   return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems };
 };
