@@ -20,7 +20,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@newwork/gravity-ui-catalog": "7.10.4",
-    "@newwork/nw-design-system": "^0.0.1-63",
+    "@newwork/nw-design-system": "^0.0.1-65",
     "@remixicon/react": "^4.6.0",
     "antd": "^5.25.1",
     "clsx": "^2.1.1",
@@ -34,6 +34,7 @@
     "react-icons": "^5.5.0",
     "recharts": "^3.0.2",
     "tailwind-merge": "^3.3.0",
+    "zod": "^4.0.5",
     "zustand": "^5.0.4"
   },
   "devDependencies": {

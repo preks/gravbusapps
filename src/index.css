@@ -11,6 +11,11 @@
   initial-value: #0000;
 }
 
+/* Global smooth scrolling for better tab transitions */
+html {
+  scroll-behavior: smooth;
+}
+
 /* Now import Tailwind and other styles */
 @import "tailwindcss" prefix(gba);
 @config "../tailwind.config.js";
@@ -28,6 +33,19 @@
 @import "./business-apps/hr/absences/apps/personal-absences/styles/upcomingAbsenceCard.css";
 @import "./business-apps/hr/absences/apps/personal-absences/styles/statsCard.css";
 @import "@newwork/nw-design-system/index.css";
+
+/* Custom properties can be declared after imports */
+@property --tw-gradient-to {
+  syntax: "*";
+  inherits: false;
+  initial-value: #0000;
+}
+
+@property --tw-gradient-from {
+  syntax: "*";
+  inherits: false;
+  initial-value: #0000;
+}
 
 @custom-variant dark (&:is(.dark *));
 
@@ -144,8 +162,8 @@
     cursor: pointer;
   }
   :root {
-    --font-primary: theme('fontFamily.primary');
-    --font-secondary: theme('fontFamily.secondary');
+    --font-primary: 'Roboto Flex', sans-serif;
+    --font-secondary: 'Roboto Flex', sans-serif;
   }
 }
 
@@ -162,4 +180,22 @@
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* Calendar activity scrollbar styling */
+.gba\:overflow-y-auto::-webkit-scrollbar {
+  width: 4px;
+}
+
+.gba\:overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gba\:overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 2px;
+}
+
+.gba\:overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
 }

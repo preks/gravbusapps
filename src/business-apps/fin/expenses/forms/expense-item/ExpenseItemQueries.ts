@@ -363,58 +363,6 @@ export const GET_CURRENCIES = `
   }
 `;
 
-export const CREATE_EXPENSE_ITEM = `
-  mutation CreateExpenseItem(
-    $title: String!,
-    $date: timestamptz!,
-    $totalAmount: numeric!,
-    $currencyRef: String!,
-    $employeeId: uuid!,
-    $attachmentUrl: String,
-    $fileName: String,
-    $expenseRequestId: uuid
-  ) {
-    insert_ExpenseItem_one(object: {
-      title: $title,
-      date: $date,
-      totalAmount: $totalAmount,
-      currencyRef: $currencyRef,
-      employeeId: $employeeId,
-      attachmentUrl: $attachmentUrl,
-      fileName: $fileName,
-      expenseRequestId: $expenseRequestId,
-      status: "DRAFT",
-      isDeleted: false
-    }) {
-      id
-    }
-  }
-`;
-
-export const CREATE_EXPENSE_POSITION = `
-  mutation CreateExpensePosition(
-    $expenseItemId: uuid!,
-    $expenseClassId: uuid!,
-    $expenseTypeId: uuid!,
-    $amount: numeric!,
-    $costCenterId: uuid!,
-    $customField: String,
-    $isReimbursable: Boolean
-  ) {
-    insert_ExpensePosition_one(object: {
-      expenseItemId: $expenseItemId,
-      expenseClassId: $expenseClassId,
-      expenseTypeId: $expenseTypeId,
-      amount: $amount,
-      costCenterId: $costCenterId,
-      customField: $customField,
-      isReimbursable: $isReimbursable,
-      isDeleted: false
-    }) {
-      id
-    }
-  }
-`;
 
 export const UPLOAD_FILE = `
   mutation UploadFile($file: Upload!) {

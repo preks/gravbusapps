@@ -62,6 +62,9 @@ const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
       </div>
 
       <div className="gba:mb-6">
+        <h3 className="gba:text-lg gba:font-medium gba:mb-4">
+          Request Details
+        </h3>
         <div className="gba:space-y-4">
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">
             <div>
@@ -89,14 +92,22 @@ const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
               <div className="gba:text-sm">{totalAmount}</div>
             </div>
           </div>
+          <div>
+            <div className="gba:text-sm gba:font-medium gba:text-gray-500">
+              Description
+            </div>
+            <div className="gba:text-sm">
+              {request.description || "No description provided"}
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="gba:flex gba:justify-end gba:mt-6">
         <Button
           variant="default"
-          onClick={onViewDetails}
-          data-testid="view-full-details-button"
+          onClick={handleViewFullDetails}
+          data-testid="view-expense-request-details-button"
           className="gba:flex gba:items-center gba:gap-2"
         >
           <PiArrowRight className="gba:w-4 gba:h-4" />

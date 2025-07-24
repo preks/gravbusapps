@@ -1,26 +1,19 @@
 import React, { useState, useEffect } from "react";
 import {
-  Button,
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger,
+  TabsTrigger
 } from "@newwork/nw-design-system";
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-  PageLayout,
-} from "@newwork/nw-design-system";
+import { PageLayout } from "@newwork/nw-design-system";
 import {
   DollarSign,
   Users,
-  BarChart3,
-  User,
   Building2,
   Contact as ContactIcon,
   LayoutDashboard,
   Grid3X3,
-  List,
+  List
 } from "lucide-react";
 import { TrendUp } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -31,9 +24,7 @@ import { OpportunityList } from "@/business-apps/crm/common/components/opportuni
 import { OpportunityBoard } from "@/business-apps/crm/common/components/opportunity-board";
 import InvestmentsDashboard from "./components/views/investments-dashboard/InvestmentsDashboard";
 import { Investments } from "./components/views/investment-list";
-import { Account } from "@/business-apps/crm/common/components/account-list/types";
-import { Contact } from "@/business-apps/crm/common/components/contact-list/types";
-import { Opportunity } from "@/business-apps/crm/common/components/opportunity-list/types";
+import { DashboardOutlined, HomeOutlined } from "@ant-design/icons";
 
 export interface InvestmentRelationsProps extends BusinessAppContextProps {}
 
@@ -42,35 +33,35 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
 ) => {
   const viewOptions = [
     {
-      key: "dashboard",
-      icon: <LayoutDashboard />,
-      label: "Portfolio",
+      key: 'dashboard',
+      icon: <DashboardOutlined />,
+      label: 'Portfolio'
     },
     {
       key: "leads",
       icon: <Users />,
-      label: "Leads",
+      label: "Leads"
     },
     {
       key: "accounts",
       icon: <Building2 />,
-      label: "Accounts",
+      label: "Accounts"
     },
     {
       key: "contacts",
       icon: <ContactIcon />,
-      label: "Contacts",
+      label: "Contacts"
     },
     {
       key: "opportunities",
       icon: <DollarSign />,
-      label: "Opportunities",
+      label: "Opportunities"
     },
     {
       key: "investments",
       icon: <TrendUp />,
-      label: "Investments",
-    },
+      label: "Investments"
+    }
   ];
 
   // Get initial view from URL or default to first view
@@ -171,7 +162,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case "dashboard":
+      case 'dashboard':
         return (
           <div data-testid="dashboard-tab-content">
             <InvestmentsDashboard
@@ -224,7 +215,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
           icon: TrendUp,
           variant: "premium",
           size: "lg",
-          label: "Investment Relations",
+          label: "Investment Relations"
         }}
         headerTitle="Investment Relations"
         headerDescription="Manage investment portfolios, client relationships, and track investment opportunities across asset classes"
@@ -234,8 +225,8 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
           items: viewOptions.map((option) => ({
             value: option.key,
             label: option.label,
-            icon: option.icon,
-          })),
+            icon: option.icon
+          }))
         }}
         className="gba:min-h-screen"
       >

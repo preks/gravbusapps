@@ -97,6 +97,15 @@ export const useLeadListData = ({
         conditions.push({ _or: searchConditions });
       }
 
+      // Add lead status filter
+      if (leadStatuses.length > 0) {
+        conditions.push({
+          leadStatus: {
+            id: { _in: leadStatuses }
+          }
+        });
+      }
+
       // Add filter conditions
       if (leadStatuses.length > 0) {
         conditions.push({ leadStatus: { id: { _in: leadStatuses } } });
@@ -202,31 +211,82 @@ export const useLeadListData = ({
               break;
           }
         });
-        
-        if (sizeConditions.length > 0) {
-          conditions.push({ _or: sizeConditions });
-        }
       }
 
-      // Date range filters
+      // Add lead rating filter
+      if (leadRatings.length > 0) {
+        conditions.push({
+          leadRating: {
+            id: { _in: leadRatings }
+          }
+        });
+      }
+
+      // Add lead source filter
+      if (leadSources.length > 0) {
+        conditions.push({
+          leadSource: {
+            id: { _in: leadSources }
+          }
+        });
+      }
+
+      // Add industry filter
+      if (industries.length > 0) {
+        conditions.push({
+          account: {
+            industry: {
+              id: { _in: industries }
+            }
+          }
+        });
+      }
+
+      // Add company size filter
+      if (companySizes.length > 0) {
+        conditions.push({
+          account: {
+            companySize: {
+              id: { _in: companySizes }
+            }
+          }
+        });
+      }
+
+      // Add owner filter
+      if (owners.length > 0) {
+        conditions.push({
+          ownerId: { _in: owners }
+        });
+      }
+
+      // Add search filter if provided
+      if (search && search.trim()) {
+        const searchTerm = `%${search.trim()}%`;
+        conditions.push({
+          _or: [
+            { companyName: { _ilike: searchTerm } },
+            { contactPerson: { _ilike: searchTerm } },
+            { email: { _ilike: searchTerm } },
+            { phone: { _ilike: searchTerm } }
+          ]
+        });
+      }
+
+      // Add date range filters
       if (createdAfter) {
         conditions.push({ createdAt: { _gte: createdAfter } });
       }
-
+      
       if (createdBefore) {
         conditions.push({ createdAt: { _lte: createdBefore } });
       }
 
-      // Add additional filters
-      if (Object.keys(additionalFilters).length > 0) {
-        conditions.push(additionalFilters);
-      }
+      // Combine base where with conditions
+      const where = conditions.length > 0 
+        ? { ...baseWhere, _and: conditions }
+        : baseWhere;
 
-      const where = conditions.length === 0 ? baseWhere : {
-        ...baseWhere,
-        _and: conditions
-      };
-      
       // Build orderBy based on sortField and sortOrder
       const orderBy: any = {};
       if (sortField && sortField !== '') {

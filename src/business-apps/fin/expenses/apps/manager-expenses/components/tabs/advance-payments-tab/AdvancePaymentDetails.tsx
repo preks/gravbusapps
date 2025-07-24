@@ -116,6 +116,31 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
   onApprove,
   onReject,
 }) => {
+  const getTextType = (daysRemaining: number) => {
+    if (daysRemaining < 0) return "danger";
+    if (daysRemaining < 7) return "warning";
+    return undefined;
+  };
+
+  const getDaysRemainingText = (daysRemaining: number) => {
+    return daysRemaining < 0
+      ? `${Math.abs(daysRemaining)} days overdue`
+      : `${daysRemaining} days`;
+  };
+
+  const getPillType = (status: string) => {
+    switch (status) {
+      case "APPROVED":
+        return "completed";
+      case "REJECTED":
+        return "error";
+      case "DRAFT":
+        return "draft";
+      default:
+        return "waiting";
+    }
+  };
+
   // Helper function to get department safely
   const getDepartment = () => {
     // Check the expense plan employee first (primary source)
@@ -132,6 +157,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
     if (payment.employee?.employeePosition?.organizationalUnit?.name) {
       return payment.employee.employeePosition.organizationalUnit.name;
     }
+    // Fallback to direct department field
     if (payment.employee?.department) {
       return payment.employee.department;
     }
@@ -149,6 +175,24 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
     );
     navigateTo(url);
   };
+
+  const handleReject = () => {
+    onReject(payment.id);
+  };
+
+  // Helper function to calculate days remaining until due date
+  const calculateDaysRemaining = () => {
+    if (!payment.dueDate) return null;
+
+    const dueDate = new Date(payment.dueDate);
+    const today = new Date();
+    const diffTime = dueDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return diffDays;
+  };
+
+  const daysRemaining = calculateDaysRemaining();
 
   return (
     <ExpenseDetailsView

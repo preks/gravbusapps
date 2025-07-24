@@ -1,0 +1,1 @@
+export { AbsenceStatisticsSimple } from './AbsenceStatisticsSimple'; 
