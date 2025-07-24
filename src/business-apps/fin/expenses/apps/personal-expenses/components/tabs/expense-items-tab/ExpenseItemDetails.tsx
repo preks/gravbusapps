@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Typography, Spin, Descriptions, Divider, Card, Image, Upload, Alert } from 'antd';
-import { FileImageOutlined, LoadingOutlined } from '@ant-design/icons';
+import { Typography, Spin, Descriptions, Divider, Card, Image, Alert, Modal } from 'antd';
+import { FileImageOutlined, LoadingOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FileOutlined } from '@ant-design/icons';
 import { FileClient } from '@/common/network/files/FileClient';
 import Pill from '@/components/pill/Pill';
 import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems';
 import { getExpenseItemStatusDisplay } from '../../../utils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { UploadFile } from 'antd/es/upload/interface';
 
 const { Text } = Typography;
@@ -15,13 +16,7 @@ export interface ExpenseItemDetailsProps extends BusinessAppContextProps {
   onClose: () => void;
 }
 
-// Custom styles for centering the upload component
-const uploadCenterStyle = {
-  display: 'flex',
-  justifyContent: 'center',
-  marginBottom: '1.5rem',
-  width: '100%'
-};
+
 
 export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
   selectedItem,
@@ -35,6 +30,8 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [previewOpen, setPreviewOpen] = useState<boolean>(false);
   const [previewImage, setPreviewImage] = useState<string>('');
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState<boolean>(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>('');
   
   // Ref to track if component is mounted
   const isMounted = useRef<boolean>(true);
@@ -179,84 +176,117 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
     }
   }, [detailedItem, fetchFileAttachments]);
   
-  const handlePreview = useCallback((file: UploadFile) => {
-    setPreviewImage(file.url ?? '');
-    setPreviewOpen(true);
-  }, []);
+  
   
   // We're not using any DOM manipulation anymore, just proper CSS
   
   // Render attachment preview section
   const renderAttachmentPreview = useCallback(() => {
-    console.log('renderAttachmentPreview called - fileLoading:', fileLoading, 'fileList.length:', fileList.length);
-    
     if (fileLoading) {
-      console.log('Rendering loading spinner for attachments');
       return (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+        <div className="gba:flex gba:justify-center gba:items-center gba:py-8" data-testid="expense-file-loading">
           <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} size="large" />
         </div>
       );
     }
-    
+
     if (fileList.length > 0) {
-      // Calculate a fixed width based on the number of files
-      // Each card is 104px wide, plus potential margin of 8px between them
-      const cardWidth = 104;
-      const cardMargin = 8;
-      
-      // Calculate the total width needed for all cards in a single row
-      // This helps ensure proper centering for any number of files
-      const calculateWidth = () => {
-        if (fileList.length === 0) return 0;
-        if (fileList.length === 1) return cardWidth;
-        return fileList.length * cardWidth + (fileList.length - 1) * cardMargin;
-      };
-      
       return (
-        <>
-          {/* Fixed-width container that's centered with flex */}
-          <div style={{
-            ...uploadCenterStyle,
-            alignItems: 'center'
-          }}>
-            {/* This div has an exact width based on the number of items */}
-            <div style={{ 
-              width: `${calculateWidth()}px`,
-              // The key is setting this inner container to have an exact width
-              // that fits the number of cards we have - then flex-center works properly
-            }}>
-              <Upload
-                listType="picture-card"
-                fileList={fileList}
-                onPreview={handlePreview}
-                onChange={() => {}}
-                showUploadList={{ showRemoveIcon: false }}
-              />
-            </div>
-          </div>
-          <Image
-            wrapperStyle={{ display: 'none' }}
-            preview={{
-              visible: previewOpen,
-              onVisibleChange: (visible) => setPreviewOpen(visible),
-              afterOpenChange: (visible) => !visible && setPreviewImage(''),
-            }}
-            src={previewImage}
-          />
-        </>
+        <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-4 gba:py-4" data-testid="expense-file-list">
+          {fileList.map((file, idx) => {
+            const fileType = file.originFileObj?.type || '';
+            const fileName = file.name || '';
+            const fileUrl = file.url || '';
+            const ext = fileName.split('.').pop()?.toLowerCase() || '';
+            
+            // Helper: Render icon by file type
+            const renderFileIcon = () => {
+              if (fileType.includes('pdf') || ext === 'pdf') return <FilePdfOutlined className="gba:text-red-500" style={{ fontSize: 32 }} />;
+              if (fileType.includes('image') || ['jpg','jpeg','png','gif','bmp','webp'].includes(ext)) return <FileImageOutlined className="gba:text-blue-500" style={{ fontSize: 32 }} />;
+              if (fileType.includes('word') || ['doc','docx'].includes(ext)) return <FileWordOutlined className="gba:text-blue-700" style={{ fontSize: 32 }} />;
+              if (fileType.includes('excel') || ['xls','xlsx','csv'].includes(ext)) return <FileExcelOutlined className="gba:text-green-700" style={{ fontSize: 32 }} />;
+              return <FileOutlined className="gba:text-gray-500" style={{ fontSize: 32 }} />;
+            };
+
+            // Helper: Render preview by file type
+            const renderPreview = () => {
+              if (fileType.includes('image') || ['jpg','jpeg','png','gif','bmp','webp'].includes(ext)) {
+                return (
+                  <Image
+                    src={fileUrl}
+                    alt={fileName}
+                    className="gba:rounded-md gba:shadow"
+                    width={90}
+                    height={90}
+                    data-testid={`expense-file-image-${idx}`}
+                    preview={{
+                      visible: previewOpen && previewImage === fileUrl,
+                      onVisibleChange: (visible) => {
+                        setPreviewOpen(visible);
+                        if (!visible) setPreviewImage('');
+                      },
+                    }}
+                    onClick={() => {
+                      setPreviewImage(fileUrl);
+                      setPreviewOpen(true);
+                    }}
+                  />
+                );
+              }
+              if (fileType.includes('pdf') || ext === 'pdf') {
+                return (
+                  <div
+                    className="gba:w-[90px] gba:h-[90px] gba:flex gba:justify-center gba:items-center gba:bg-gray-100 gba:rounded-md gba:shadow gba:cursor-pointer hover:gba:bg-gray-200"
+                    onClick={() => {
+                      setPdfPreviewUrl(fileUrl);
+                      setPdfPreviewOpen(true);
+                    }}
+                    data-testid={`expense-file-pdf-thumb-${idx}`}
+                  >
+                    <FilePdfOutlined className="gba:text-red-500" style={{ fontSize: 48 }} />
+                  </div>
+                );
+              }
+              // For other types: icon + download
+              return (
+                <div className="gba:flex gba:flex-col gba:items-center" data-testid={`expense-file-generic-${idx}`}> 
+                  {renderFileIcon()}
+                  <a
+                    href={fileUrl}
+                    download={fileName}
+                    className="gba:mt-2 gba:text-xs gba:text-blue-600 hover:gba:underline"
+                    data-testid={`expense-file-download-${idx}`}
+                  >
+                    {getTranslationFromI18nKeyAndLabel('expense.item.download', 'Download')}
+                  </a>
+                </div>
+              );
+            };
+
+            return (
+              <div
+                key={file.uid}
+                className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-white gba:rounded-lg gba:shadow-md gba:w-[104px] gba:h-[130px]"
+                data-testid={`expense-file-card-${idx}`}
+              >
+                {renderPreview()}
+                <div className="gba:mt-2 gba:truncate gba:text-xs gba:text-center" title={fileName} data-testid={`expense-file-name-${idx}`}>{fileName}</div>
+              </div>
+            );
+          })}
+        </div>
       );
     }
-    
+
     return (
-      <Card className="gba:text-center gba:py-8">
+      <Card className="gba:text-center gba:py-8" data-testid="expense-file-empty">
         <FileImageOutlined style={{ fontSize: '48px', color: '#d9d9d9' }} />
         <div className="gba:mt-2">
-          <Text type="secondary">No receipt attached</Text>
+          <Text type="secondary">{getTranslationFromI18nKeyAndLabel('expense.item.noReceipt', 'No receipt attached')}</Text>
         </div>
       </Card>
     );
-  }, [fileLoading, fileList.length, handlePreview, previewOpen, previewImage]);
+  }, [fileLoading, fileList, previewOpen, previewImage, setPreviewOpen, setPreviewImage]);
   
   // Show loading state while fetching detailed item data
   if (isItemLoading) {
@@ -275,47 +305,108 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
       </div>
     );
   }
-  
-  // Use the detailed item if available, otherwise fall back to the selectedItem
-  const displayItem = detailedItem || selectedItem;
-  if (!displayItem) return null;
 
-  return (
-    <div className="gba:p-4">
-      <div className="gba:mb-0">
-        {renderAttachmentPreview()}
+// Use the detailed item if available, otherwise fall back to the selectedItem
+const displayItem = detailedItem || selectedItem;
+if (!displayItem) return null;
+
+return (
+  <div className="gba:p-4 gba:relative gba:mb-6">
+    {/* Header: Title, Code, Status Pill */}
+    <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+      <div>
+        <Typography.Title level={4} className="gba:mb-1">
+          {typeof displayItem.title === 'string' ? displayItem.title : ''}
+        </Typography.Title>
+        <Typography.Text type="secondary">
+          {typeof displayItem.code === 'string' ? displayItem.code : ''}
+        </Typography.Text>
       </div>
-      
-      {/* Expense Details Section */}
-      <Descriptions bordered column={1}>
-        <Descriptions.Item label="Code">{displayItem.code}</Descriptions.Item>
-        <Descriptions.Item label="Title">{displayItem.title}</Descriptions.Item>
-        <Descriptions.Item label="Description">{displayItem.description ?? 'No description'}</Descriptions.Item>
-        <Descriptions.Item label="Date">{displayItem.invoiceDate}</Descriptions.Item>
-        <Descriptions.Item label="Amount">
-          <span style={{ fontWeight: 'bold' }}>€{displayItem.reimbursableAmount?.toFixed(2) ?? '0.00'}</span>
-        </Descriptions.Item>
-        <Descriptions.Item label="Status">
-          <Pill
-            label={getExpenseItemStatusDisplay(displayItem.status).label}
-            type={getExpenseItemStatusDisplay(displayItem.status).type}
-            className="gba:text-center"
-          />
-        </Descriptions.Item>
-        {displayItem.expenseClass && (
-          <Descriptions.Item label="Expense Class">
-            {displayItem.expenseClass.value}
-          </Descriptions.Item>
-        )}
-        {displayItem.costCenter && (
-          <Descriptions.Item label="Cost Center">
-            {displayItem.costCenter.name}
-          </Descriptions.Item>
-        )}
-      </Descriptions>
-      <Divider />
+      <Pill
+        type={getExpenseItemStatusDisplay(displayItem.status).type}
+        label={getExpenseItemStatusDisplay(displayItem.status).label}
+        className="gba:text-base"
+        data-testid="expense-item-status-pill"
+      />
     </div>
-  );
-};
+
+    {/* Dates Section */}
+    {displayItem.invoiceDate && (
+      <div className="gba:flex gba:items-center gba:mb-2">
+        <span className="gba:mr-2"><FileImageOutlined /></span>
+        <Typography.Text className="gba:text-sm">
+          {getTranslationFromI18nKeyAndLabel('expense.item.invoiceDate', 'Invoice Date')}: {typeof displayItem.invoiceDate === 'string' ? displayItem.invoiceDate : ''}
+        </Typography.Text>
+      </div>
+    )}
+    {'creationDate' in displayItem && displayItem.creationDate && (
+      <div className="gba:flex gba:items-center gba:mb-2">
+        <span className="gba:mr-2"><FileImageOutlined /></span>
+        <Typography.Text className="gba:text-sm">
+          {getTranslationFromI18nKeyAndLabel('expense.item.creationDate', 'Creation Date')}: {typeof displayItem.creationDate === 'string' ? displayItem.creationDate : ''}
+        </Typography.Text>
+      </div>
+    )}
+    {/* Add more date rows as needed, matching plan details style */}
+
+    {/* Description Section */}
+    {typeof displayItem.description === 'string' && displayItem.description && (
+      <Typography.Text className="gba:block gba:mb-4">
+        {displayItem.description}
+      </Typography.Text>
+    )}
+
+    {/* Details Section */}
+    <Descriptions size="small" column={1}>
+      {displayItem.employee && displayItem.employee.fullName && (
+        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.item.requester', 'Requester')}>
+          {String(displayItem.employee.fullName)}
+        </Descriptions.Item>
+      )}
+      {displayItem.expenseClass && displayItem.expenseClass.value && (
+        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.item.class', 'Expense Class')}>
+          {String(displayItem.expenseClass.value)}
+        </Descriptions.Item>
+      )}
+      {displayItem.costCenter && displayItem.costCenter.name && (
+        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.item.costCenter', 'Cost Center')}>
+          {String(displayItem.costCenter.name)}
+        </Descriptions.Item>
+      )}
+      <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.item.amount', 'Amount')}>
+        <span style={{ fontWeight: 'bold' }}>
+          €{typeof displayItem.reimbursableAmount === 'number' ? displayItem.reimbursableAmount.toFixed(2) : '0.00'}
+        </span>
+      </Descriptions.Item>
+    </Descriptions>
+
+    <Divider />
+
+    {/* File Viewer Section */}
+    <div className="gba:mt-2">
+      {renderAttachmentPreview()}
+    </div>
+
+    <Modal
+      open={pdfPreviewOpen}
+      title={getTranslationFromI18nKeyAndLabel('expense.item.pdfPreview', 'PDF Preview')}
+      footer={null}
+      onCancel={() => setPdfPreviewOpen(false)}
+      width="90vw"
+      style={{ top: 20 }}
+      destroyOnClose
+      data-testid="pdf-preview-modal"
+    >
+      <iframe
+        src={pdfPreviewUrl}
+        style={{ width: '100%', height: 'calc(90vh - 55px)', border: 'none' }}
+        title="PDF Preview"
+        data-testid="pdf-preview-iframe"
+      />
+    </Modal>
+  </div>
+);
+
+}
 
 export default ExpenseItemDetails;

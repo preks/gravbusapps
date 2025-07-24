@@ -1,16 +1,11 @@
-// GraphQL query to get expense plans filtered by employee ID with pagination and search
+// GraphQL query to get expense plans filtered by employee ID with pagination, search, and dynamic sorting
 export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
-  query GetExpensePlansByEmployee($employeeId: uuid!, $limit: Int, $offset: Int, $searchTerm: String) {
+  query GetExpensePlansByEmployee($employeeId: uuid!, $limit: Int, $offset: Int, $filters: ExpensePlanBoolExp!, $activeUserLocale: String = "en", $orderBy: [ExpensePlanOrderBy!]) {
     ExpensePlanAggregate(
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
-        _or: [
-          {title: {_ilike: $searchTerm}},
-          {code: {_ilike: $searchTerm}},
-          {description: {_ilike: $searchTerm}},
-          {status: {_ilike: $searchTerm}}
-        ]
+        _and: [$filters]
       }
     ) {
       aggregate {
@@ -20,49 +15,203 @@ export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
     ExpensePlan(
       limit: $limit,
       offset: $offset,
-      orderBy: {createdAt: DESC},
+      orderBy: $orderBy,
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
-        _or: [
-          {title: {_ilike: $searchTerm}},
-          {code: {_ilike: $searchTerm}},
-          {description: {_ilike: $searchTerm}},
-          {status: {_ilike: $searchTerm}}
-        ]
+        _and: [$filters]
       }
     ) {
       id
       code
-      title
-      description
+      reimbursableAmount
       startDate
       endDate
       planDate
-      totalAmount
+      decisionDate
+      status    
+      title
+      totalAmount  
+      requestTypeRef
+      createdAt
+      employeeDocumentId
       advancePaymentPaidAmount
-      advancePaymentTotalAmount
-      costCenter {
-        name
+      advancePaymentInTransitAmount 
+      expenseRequest {
         id
-      }
-      status
-      employee {
-        fullName
-      }
-      additionalProperties
-      requestType {
-        value
-        translations {
+        code
+        title
+        description
+        startDate
+        endDate
+        requestDate
+        decisionDate
+        totalAmount
+        currencyRef
+        status
+        reimbursableAmount
+        nonReimbursableAmount
+        additionalProperties
+        currency {
           value
-          localeCode
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+        }
+        requestType {
+          value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+        }
+        costCenter {
+          name
+        }
+        project {
+          name
+        }
+        employee {
+          fullName
+          employeePosition {
+            supervisor {
+              fullName
+            }
+          }
+        }
+      } 
+      employeeDocument {
+        file
+        fileSize
+        id
+        description
+        mimeType
+        name
+        type
+        employee {
+          id
         }
       }
       currency {
-        value
-        translations {
-          value
+        type
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
           localeCode
+          value
+        }
+        catalog {
+          defaultLocale
+        }
+        value
+        id
+        code
+      }
+      currencyRef
+      description
+      requestType {
+        value
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          localeCode
+          value
+        }
+        catalog {
+          defaultLocale
+        }
+      }
+      expensePlanItem {
+        title
+        status
+        totalAmount
+        expenseDate
+      }
+      advancePayment{
+        id
+        amount
+        status
+        currency {
+          code
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+        }
+      }
+      expenseRequestTrip {
+        tripDateTime
+      }  
+      expenseRequest {
+        id
+        code
+        title
+        description
+        startDate
+        endDate
+        requestDate
+        decisionDate
+        totalAmount
+        currencyRef
+        status
+        reimbursableAmount
+        nonReimbursableAmount
+        additionalProperties
+        currency {
+          value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+        }
+        requestType {
+          value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+        }
+        costCenter {
+          name
+        }
+        project {
+          name
+        }
+        employee {
+          fullName
+          employeePosition {
+            supervisor {
+              fullName
+            }
+          }
+        }
+      }
+      employee {
+        id
+        code
+        firstName
+        lastName
+        employeePosition {
+          siteLocation {
+            name
+          }
+          organizationalUnit {
+            name
+          }
+          firstName
+          lastName
         }
       }
     }
@@ -109,16 +258,76 @@ export const GET_EXPENSE_PLAN_BY_ID = `
   }
 `;
 
-export const GET_EXPENSE_PLAN_STATISTICS = `
-  query GetExpensePlanStatistics($employeeId: uuid!) {
-    ExpensePlanAggregate(
+// New query specifically for closed plans statistics
+export const GET_CLOSED_PLANS_STATISTICS = `
+  query GetClosedPlansStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!) {
+    ClosedPlans: ExpensePlanAggregate(
       where: {
         employeeId: {_eq: $employeeId},
-        isDeleted: {_eq: false}
+        isDeleted: {_eq: false},
+        status: {_in: ["CLOSED", "PAID"]},
+        planDate: {_gte: $startDate, _lte: $endDate}
       }
     ) {
       aggregate {
         count
+      }
+    }
+  }
+`;
+
+export const GET_EXPENSE_PLAN_STATISTICS = `
+  query GetExpensePlanStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!, $activeUserLocale: String!) {
+    ExpensePlanAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        planDate: {_gte: $startDate, _lte: $endDate}
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    TotalEstimated: ExpensePlanAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        planDate: {_gte: $startDate, _lte: $endDate},
+        status: {_nin: ["DRAFT", "PAID", "CLOSED", "DISCARDED"]}
+      }
+    ) {
+      aggregate {
+        sum {
+          totalAmount
+        }
+      }
+    }
+    PendingApproval: ExpensePlanAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_eq: "PENDING"}
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    Destinations: ExpensePlan(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        expenseRequestTrip: {pointType: {_eq: "DESTINATION_POINT"}}
+      }
+    ) {
+      expenseRequestTrip(orderBy: {tripDateTime: ASC}, where: {isDeleted: {_eq: false}, pointType: {_eq: "DESTINATION_POINT"}}) {
+        travelRegion {
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            value
+          }
+          value
+        }
       }
     }
   }

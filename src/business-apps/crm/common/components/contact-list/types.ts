@@ -9,7 +9,7 @@ export interface Contact {
   linkedinUrl?: string;
   xingUrl?: string;
   birthDate?: string;
-
+  pictureUrl?: string;
   academicTitle?: {
     id: string;
     value: string;
@@ -39,6 +39,10 @@ export interface UseContactListDataReturn {
   error: Error | null;
   hasMore: boolean;
   loadMore: () => void;
-  loadPage: (page: number, pageSize?: number, additionalFilters?: any) => Promise<void>;
+  loadPage: (
+    page: number,
+    pageSize?: number,
+    additionalFilters?: any
+  ) => Promise<void>;
   retry: () => void;
-} 
+}

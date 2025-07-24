@@ -1,6 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
-import { ToggleGroup, ToggleGroupItem, PageLayout } from '@newwork/nw-design-system';
+import React, { useState, useEffect } from "react";
+import {
+  Button,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@newwork/nw-design-system";
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+  PageLayout,
+} from "@newwork/nw-design-system";
 import {
   DollarSign,
   Users,
@@ -10,64 +20,69 @@ import {
   Contact as ContactIcon,
   LayoutDashboard,
   Grid3X3,
-  List
-} from 'lucide-react';
-import { TrendUp } from '@phosphor-icons/react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { LeadList } from '@/business-apps/crm/common/components/lead-list';
-import { AccountList } from '@/business-apps/crm/common/components/account-list';
-import { ContactList } from '@/business-apps/crm/common/components/contact-list';
-import { OpportunityList } from '@/business-apps/crm/common/components/opportunity-list';
-import { OpportunityBoard } from '@/business-apps/crm/common/components/opportunity-board';
-import InvestmentsDashboard from './components/views/investments-dashboard/InvestmentsDashboard';
-import { Investments } from './components/views/investment-list';
-import { Account } from '@/business-apps/crm/common/components/account-list/types';
-import { Contact } from '@/business-apps/crm/common/components/contact-list/types';
-import { Opportunity } from '@/business-apps/crm/common/components/opportunity-list/types';
+  List,
+} from "lucide-react";
+import { TrendUp } from "@phosphor-icons/react";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { LeadList } from "@/business-apps/crm/common/components/lead-list";
+import { AccountList } from "@/business-apps/crm/common/components/account-list";
+import { ContactList } from "@/business-apps/crm/common/components/contact-list";
+import { OpportunityList } from "@/business-apps/crm/common/components/opportunity-list";
+import { OpportunityBoard } from "@/business-apps/crm/common/components/opportunity-board";
+import InvestmentsDashboard from "./components/views/investments-dashboard/InvestmentsDashboard";
+import { Investments } from "./components/views/investment-list";
+import { Account } from "@/business-apps/crm/common/components/account-list/types";
+import { Contact } from "@/business-apps/crm/common/components/contact-list/types";
+import { Opportunity } from "@/business-apps/crm/common/components/opportunity-list/types";
 
-export interface InvestmentRelationsProps extends BusinessAppContextProps { }
+export interface InvestmentRelationsProps extends BusinessAppContextProps {}
 
-export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context) => {
+export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
+  context
+) => {
   const viewOptions = [
     {
-      key: 'dashboard',
+      key: "dashboard",
       icon: <LayoutDashboard />,
-      label: 'Portfolio'
+      label: "Portfolio",
     },
     {
-      key: 'leads',
+      key: "leads",
       icon: <Users />,
-      label: 'Leads'
+      label: "Leads",
     },
     {
-      key: 'accounts',
+      key: "accounts",
       icon: <Building2 />,
-      label: 'Accounts'
+      label: "Accounts",
     },
     {
-      key: 'contacts',
+      key: "contacts",
       icon: <ContactIcon />,
-      label: 'Contacts'
+      label: "Contacts",
     },
     {
-      key: 'opportunities',
+      key: "opportunities",
       icon: <DollarSign />,
-      label: 'Opportunities'
+      label: "Opportunities",
     },
     {
-      key: 'investments',
+      key: "investments",
       icon: <TrendUp />,
-      label: 'Investments'
-    }
+      label: "Investments",
+    },
   ];
 
   // Get initial view from URL or default to first view
   const getInitialView = () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const viewFromUrl = urlParams.get('view');
+    const viewFromUrl = urlParams.get("view");
 
     // Validate that the view exists in our options
-    if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
+    if (
+      viewFromUrl &&
+      viewOptions.some((option) => option.key === viewFromUrl)
+    ) {
       return viewFromUrl;
     }
 
@@ -76,17 +91,20 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
   };
 
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
-  const [opportunitiesSubTab, setOpportunitiesSubTab] = useState<string>('list');
+  const [opportunitiesSubTab, setOpportunitiesSubTab] =
+    useState<string>("list");
+  const [investmentsSubTab, setInvestmentsSubTab] =
+    useState<string>("overview");
 
   // Update URL when view changes
   const updateUrl = (view: string) => {
     const urlParams = new URLSearchParams(window.location.search);
 
     // Always set the view parameter (including for default)
-    urlParams.set('view', view);
+    urlParams.set("view", view);
 
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
-    window.history.replaceState({}, '', newUrl);
+    window.history.replaceState({}, "", newUrl);
   };
 
   const handleTabChange = (key: string) => {
@@ -98,10 +116,21 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
     updateUrl(key);
   };
 
+  const handleNavigateToInvestments = (subTab?: string) => {
+    // Switch to investments tab
+    setActiveTab("investments");
+    updateUrl("investments");
+
+    // Set the specific subtab if provided
+    if (subTab) {
+      setInvestmentsSubTab(subTab);
+    }
+  };
+
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    if (!urlParams.has('view')) {
+    if (!urlParams.has("view")) {
       updateUrl(activeTab);
     }
   }, []);
@@ -113,8 +142,8 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
       setActiveTab(newView);
     };
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   const renderOpportunitiesContent = () => {
@@ -142,43 +171,46 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'dashboard':
+      case "dashboard":
         return (
           <div data-testid="dashboard-tab-content">
             <InvestmentsDashboard
               accessToken={context.accessToken}
               userInfo={context.userInfo}
+              onNavigateToInvestments={handleNavigateToInvestments}
             />
           </div>
         );
-      case 'investments':
+      case "investments":
         return (
           <div data-testid="investments-tab-content">
             <Investments
               accessToken={context.accessToken}
               userInfo={context.userInfo}
+              initialSubTab={investmentsSubTab}
+              onSubTabChange={setInvestmentsSubTab}
             />
           </div>
         );
-      case 'leads':
+      case "leads":
         return (
           <div data-testid="leads-tab-content">
             <LeadList {...context} sourceApp="IRM" />
           </div>
         );
-      case 'accounts':
+      case "accounts":
         return (
           <div data-testid="accounts-tab-content">
             <AccountList {...context} sourceApp="IRM" />
           </div>
         );
-      case 'contacts':
+      case "contacts":
         return (
           <div data-testid="contacts-tab-content">
             <ContactList {...context} sourceApp="IRM" />
           </div>
         );
-      case 'opportunities':
+      case "opportunities":
         return renderOpportunitiesContent();
       default:
         return null;
@@ -192,7 +224,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
           icon: TrendUp,
           variant: "premium",
           size: "lg",
-          label: "Investment Relations"
+          label: "Investment Relations",
         }}
         headerTitle="Investment Relations"
         headerDescription="Manage investment portfolios, client relationships, and track investment opportunities across asset classes"
@@ -202,17 +234,15 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (context)
           items: viewOptions.map((option) => ({
             value: option.key,
             label: option.label,
-            icon: option.icon
-          }))
+            icon: option.icon,
+          })),
         }}
         className="gba:min-h-screen"
       >
-        <div className="gba:h-full gba:overflow-auto">
-          {renderTabContent()}
-        </div>
+        <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>
       </PageLayout>
     </div>
   );
 };
 
-export default InvestmentRelations; 
+export default InvestmentRelations;

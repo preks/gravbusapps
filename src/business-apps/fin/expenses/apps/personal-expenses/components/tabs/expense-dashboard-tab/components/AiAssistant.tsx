@@ -9,21 +9,16 @@ const { Text, Title } = Typography;
 interface AiAssistantProps {
   stats?: DashboardStats;
   isLoading: boolean;
-  error: Error | null;
   navigateToExpenseItems: (filter: string) => void;
 }
 
 const AiAssistant: React.FC<AiAssistantProps> = ({ 
   stats, 
   isLoading, 
-  error, 
   navigateToExpenseItems 
 }) => {
   // Count of expense items without receipts (assuming this data comes from stats)
   const itemsWithoutReceipts = stats?.expenseItemsWithoutReceipts || 0;
-  
-  // Check if we should show the card (only if there are items without receipts or we want to show travel policy)
-  const shouldShowCard = itemsWithoutReceipts > 0 || true; // Always show for travel policy
   
   // Always show the card with at least the travel policy
   // Only show loading state if completely loading
@@ -57,8 +52,10 @@ const AiAssistant: React.FC<AiAssistantProps> = ({
           <Title level={5} style={{ margin: 0, fontSize: '13px', lineHeight: '16px' }}>Every AI Suggestions</Title>
         </Space>
       }
-      bodyStyle={{ padding: '4px 8px' }}
-      headStyle={{ paddingTop: '6px', paddingBottom: '6px', paddingLeft: '12px', paddingRight: '12px' }}
+      styles={{ 
+        body: { padding: '4px 8px' }, 
+        header: { paddingTop: '6px', paddingBottom: '6px', paddingLeft: '12px', paddingRight: '12px' } 
+      }}
     >
       <Space direction="vertical" size={2} style={{ width: '100%' }}>
         {/* Always show the missing receipts card, even with 0 items */}
@@ -67,7 +64,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({
           size="small" 
           hoverable 
           style={{ borderLeft: '3px solid #faad14', marginBottom: '2px' }}
-          bodyStyle={{ padding: '3px 6px' }}
+          styles={{ body: { padding: '3px 6px' } }}
         >
           <div 
             onClick={() => {
@@ -102,7 +99,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({
           hoverable
           onClick={handlePolicyClick}
           style={{ borderLeft: '3px solid #52c41a' }}
-          bodyStyle={{ padding: '3px 6px' }}
+          styles={{ body: { padding: '3px 6px' } }}
         >
           <Space size={4}>
             <InfoCircleOutlined style={{ fontSize: '14px', color: '#52c41a' }} />

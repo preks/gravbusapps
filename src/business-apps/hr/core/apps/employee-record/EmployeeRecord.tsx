@@ -59,7 +59,8 @@ const ErrorUI = () => {
   React.useEffect(() => {
     notification.error({
       message: "Error",
-      description: "Error loading employee data."
+      description: "Error loading employee data.",
+      placement: "bottomRight"
     });
   }, []);
 

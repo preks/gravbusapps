@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Button, Spinner } from '@newwork/nw-design-system';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useMemo } from "react";
+import { Button, Spinner } from "@newwork/nw-design-system";
+import { ArrowLeftOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { useAccountData } from "./hooks/useAccountData";
@@ -9,26 +9,48 @@ import { CompanyInformation } from "./components/CompanyInformation";
 import { ContactInformation } from "./components/ContactInformation";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
+import { AccountOpportunities, AccountDocuments } from "./components";
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string;
   onBack: () => void;
+  fromEntity?: string;
 }
 
-const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, onBack, ...props }) => {
+const AccountRecordContent: React.FC<AccountRecordContentProps> = ({
+  accountId,
+  onBack,
+  fromEntity,
+  ...props
+}) => {
   const [account, setAccount] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
 
-  const { account: accountData, loading: dataLoading, error: dataError, refetchAccountData } = useAccountData(accountId, props.accessToken);
+  const {
+    account: accountData,
+    loading: dataLoading,
+    error: dataError,
+    refetchAccountData,
+  } = useAccountData(accountId, props.accessToken);
 
   // Get source from URL parameters to determine back navigation text
   const source = useMemo(() => {
-    return new URLSearchParams(window.location.search).get('source');
+    return new URLSearchParams(window.location.search).get("source");
   }, []);
 
   const getBackButtonText = () => {
-    return 'Back to Accounts';
+    switch (fromEntity) {
+      case "leads":
+        return "Back to Leads";
+      case "contacts":
+        return "Back to Contacts";
+      case "salesPerformance":
+        return "Back to Sales Performance";
+      default:
+        return "Back to Accounts";
+    }
   };
 
   useEffect(() => {
@@ -41,15 +63,15 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
       try {
         setLoading(true);
         setError(null);
-        
+
         if (accountData) {
           setAccount(accountData);
         } else if (dataError) {
           setError(dataError);
         }
       } catch (err) {
-        console.error('Error fetching account:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load account');
+        console.error("Error fetching account:", err);
+        setError(err instanceof Error ? err.message : "Failed to load account");
       } finally {
         setLoading(false);
       }
@@ -77,12 +99,10 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
-          <p className="gba:text-red-500 gba:text-lg">{error || 'Account not found'}</p>
-          <Button
-            onClick={onBack}
-            className="gba:mt-4"
-            variant="default"
-          >
+          <p className="gba:text-red-500 gba:text-lg">
+            {error || "Account not found"}
+          </p>
+          <Button onClick={onBack} className="gba:mt-4" variant="default">
             {getBackButtonText()}
           </Button>
         </div>
@@ -91,9 +111,13 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
   }
 
   return (
-    <div className="gba:contact-details-container" data-testid="contact-opportunity-investment-detail" style={{ backgroundColor: 'white', padding: '16px' }}>
+    <div
+      className="gba:contact-details-container"
+      data-testid="contact-opportunity-investment-detail"
+      style={{ backgroundColor: "white", padding: "16px" }}
+    >
       {/* Back navigation */}
-      <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
+      <div className="gba:back-navigation" style={{ marginBottom: "16px" }}>
         <button
           onClick={onBack}
           className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
@@ -105,25 +129,27 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
       </div>
 
       {/* Account header */}
-      <AccountHeader 
-        account={account} 
-        accountData={accountData} 
-        accountId={accountId} 
-        additionalData={props} 
-        accessToken={props.accessToken} 
-        onStatusUpdate={refetchAccountData} 
+      <AccountHeader
+        account={account}
+        accountData={accountData}
+        accountId={accountId}
+        additionalData={props}
+        accessToken={props.accessToken}
+        onStatusUpdate={refetchAccountData}
       />
 
       {/* Main content */}
-      <div className="gba:contact-details-content" data-testid="contact-details-content">
-        
+      <div
+        className="gba:contact-details-content"
+        data-testid="contact-details-content"
+      >
         {/* First Row: Company Information + Personal Info */}
         <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mb-6">
           {/* Company Information - 3/4 width */}
           <div className="gba:col-span-3 gba:flex">
-            <CompanyInformation 
-              account={account} 
-              accountData={accountData} 
+            <CompanyInformation
+              account={account}
+              accountData={accountData}
               accountId={accountId}
               context={props}
             />
@@ -131,24 +157,11 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
 
           {/* Personal Information - 1/4 width */}
           <div className="gba:col-span-1 gba:flex">
-            <ContactInformation 
-              accountData={accountData} 
+            <ContactInformation
+              accountData={accountData}
               accountId={accountId}
               context={props}
             />
-          </div>
-        </div>
-
-        {/* Second Row: Activity Timeline + Tasks */}
-        <div className="gba:grid gba:grid-cols-2 gba:gap-6">
-          {/* Activity Timeline - 1/2 width */}
-          <div>
-            <ActivityTimeline accountId={accountId} context={props} />
-          </div>
-
-          {/* Tasks - 1/2 width */}
-          <div>
-            <TasksSection accountId={accountId} context={props} />
           </div>
         </div>
       </div>
@@ -159,30 +172,90 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
 interface AccountRecordProps extends BusinessAppContextProps {
   accountId?: string;
   source?: string;
+  fromEntity?: string;
   onBack?: () => void;
 }
 
 const AccountRecord: React.FC<AccountRecordProps> = (props) => {
+  console.log("AccountRecord mounted with URL:", window.location.search);
+
   const accountId = useMemo(() => {
-    return props.accountId || new URLSearchParams(window.location.search).get('accountId');
+    return (
+      props.accountId ||
+      new URLSearchParams(window.location.search).get("accountId")
+    );
   }, [props.accountId]);
 
   const source = useMemo(() => {
-    return props.source || new URLSearchParams(window.location.search).get('source');
+    return (
+      props.source || new URLSearchParams(window.location.search).get("source")
+    );
   }, [props.source]);
-  
+
+  const fromEntity = useMemo(() => {
+    const urlFromEntity = new URLSearchParams(window.location.search).get(
+      "fromEntity"
+    );
+    console.log("fromEntity from URL:", urlFromEntity);
+    console.log("fromEntity from props:", props.fromEntity);
+    return props.fromEntity || urlFromEntity;
+  }, [props.fromEntity, window.location.search]);
+
+  // Monitor URL changes
+  useEffect(() => {
+    console.log(
+      "URL changed - fromEntity:",
+      new URLSearchParams(window.location.search).get("fromEntity")
+    );
+  }, [window.location.search]);
+
   const handleBack = () => {
     if (props.onBack) {
       props.onBack();
     } else {
-      // Navigate back based on source
-      switch (source) {
-        case 'investments':
-          navigateTo('/platform/irm/investment-relations?view=accounts');
+      // Navigate back based on source and fromEntity
+      const baseSource = source === "investments" ? "irm" : "crm";
+
+      switch (fromEntity) {
+        case "leads":
+          navigateTo(
+            `/platform/${baseSource}/${
+              baseSource === "irm"
+                ? "investment-relations"
+                : "customer-relations"
+            }?view=leads`
+          );
           break;
-        case 'customer-relations':
+        case "contacts":
+          navigateTo(
+            `/platform/${baseSource}/${
+              baseSource === "irm"
+                ? "investment-relations"
+                : "customer-relations"
+            }?view=contacts`
+          );
+          break;
+        case "salesPerformance":
+          // Check if there's an employee ID to navigate back to specific employee performance
+          const employeeId = new URLSearchParams(window.location.search).get(
+            "employeeId"
+          );
+          const salesPerformanceUrl = employeeId
+            ? `/platform/crm/sales-performance?employeeId=${employeeId}`
+            : "/platform/crm/sales-performance";
+          navigateTo(salesPerformanceUrl);
+          break;
         default:
-      navigateTo('/platform/crm/customer-relations?view=accounts');
+          // Default back to accounts
+          switch (source) {
+            case "investments":
+              navigateTo("/platform/irm/investment-relations?view=accounts");
+              break;
+            case "customer-relations":
+            default:
+              navigateTo("/platform/crm/customer-relations?view=accounts");
+              break;
+          }
           break;
       }
     }
@@ -195,16 +268,18 @@ const AccountRecord: React.FC<AccountRecordProps> = (props) => {
       </div>
     );
   }
-  
+
   return (
     <AccountRecordContent
       {...props}
       accountId={accountId}
       onBack={handleBack}
+      fromEntity={fromEntity || undefined}
+      key={`${accountId}-${fromEntity}`}
     />
   );
 };
 
-export { AccountRecord, AccountRecordContent }; 
+export { AccountRecord, AccountRecordContent };
 
 export default AccountRecord;
