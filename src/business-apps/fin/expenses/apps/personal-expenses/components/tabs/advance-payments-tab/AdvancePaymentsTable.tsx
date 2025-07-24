@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Typography, Alert, Spin } from 'antd';
+import { Typography, Alert, Spin, message } from 'antd';
 import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
 import { startProcess } from '@/common/utils/start-process';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
@@ -149,15 +149,21 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = React.memo((pr
 
   // Handle adding a new advance payment
   const handleAddAdvancePayment = useCallback(() => {
-    if (contextProps.userInfo?.employeeDetails?.employeeId) {
-      startProcess({
-        domain: 'employee-expense',
-        processName: 'changeAdvancePayment',
-        payload: {
-          employeeId: contextProps.userInfo.employeeDetails.employeeId
-        }
-      });
+    const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
+    if (!employeeId) {
+      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+      message.warning('User information not loaded yet. Please wait a moment and try again.');
+      return;
     }
+    
+    console.log('Starting add advance payment process for employeeId:', employeeId);
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeAdvancePayment',
+      payload: {
+        employeeId: employeeId
+      }
+    });
   }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
   // Handle table pagination and sorting changes

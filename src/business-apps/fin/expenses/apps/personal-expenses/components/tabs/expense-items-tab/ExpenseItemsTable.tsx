@@ -277,11 +277,20 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                     key: 'edit',
                     label: 'Edit Expense Item',
                     onClick: () => {
+                      // Validate required data before starting process
+                      const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
+                      if (!employeeId) {
+                        console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+                        message.warning('User information not loaded yet. Please wait a moment and try again.');
+                        return;
+                      }
+                      
+                      console.log('Starting edit process for expense:', record.id, 'employeeId:', employeeId);
                       startProcess({
                         domain: 'employee-expense',
                         processName: 'changeExpenseItem',
                         payload: {
-                          employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                          employeeId: employeeId,
                           expenseId: record.id
                         },
                         builderType: 'NATIVE_SCREEN'

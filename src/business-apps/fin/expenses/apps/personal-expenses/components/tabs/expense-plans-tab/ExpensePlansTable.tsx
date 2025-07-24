@@ -5,7 +5,7 @@ import { getExpensePlanStatusDisplay } from '../../../utils';
 import ExpensePlanDetails from './ExpensePlanDetails';
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails';
 import { startProcess } from '@/common/utils/start-process';
-import { Spin, Alert, Typography, Modal } from 'antd';
+import { Spin, Alert, Typography, Modal, message } from 'antd';
 import { formatDate, formatNumberFunction } from '@/common/utils/windowUtils';
 import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
 import { FileTextOutlined } from '@ant-design/icons';
@@ -135,15 +135,21 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
   }, [printExpensePlan, isMounted]);
 
   const handleAddExpensePlan = useCallback(() => {
-    if (contextProps.userInfo?.employeeDetails?.employeeId) {
-      startProcess({
-        domain: 'employee-expense',
-        processName: 'changeExpensePlan',
-        payload: {
-          employeeId: contextProps.userInfo.employeeDetails.employeeId,
-        },
-      });
+    const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
+    if (!employeeId) {
+      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+      message.warning('User information not loaded yet. Please wait a moment and try again.');
+      return;
     }
+    
+    console.log('Starting add expense plan process for employeeId:', employeeId);
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeExpensePlan',
+      payload: {
+        employeeId: employeeId,
+      },
+    });
   }, [contextProps.userInfo]);
   
   const handleViewExpenseRequestDetails = useCallback((record: ExpensePlan) => {
@@ -233,11 +239,19 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                           key: 'update-plan',
                           label: 'Update Plan',
                           onClick: () => {
+                            const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
+                            if (!employeeId) {
+                              console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+                              message.warning('User information not loaded yet. Please wait a moment and try again.');
+                              return;
+                            }
+                            
+                            console.log('Starting update plan process for employeeId:', employeeId, 'expensePlanId:', record.id);
                             startProcess({
                               domain: 'employee-expense',
                               processName: 'changeExpensePlan',
                               payload: {
-                                employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                                employeeId: employeeId,
                                 expensePlanId: record.id
                               },
                             });
@@ -258,27 +272,43 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                           key: 'request-advance',
                           label: 'Request Advance Payment',
                           onClick: () => {
+                            const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
+                            if (!employeeId) {
+                              console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+                              message.warning('User information not loaded yet. Please wait a moment and try again.');
+                              return;
+                            }
+                            
+                            console.log('Starting request advance payment process for employeeId:', employeeId, 'expensePlan:', record.id);
                             startProcess({
                               domain: 'employee-expense',
                               processName: 'changeAdvancePayment',
                               payload: {
-                                employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                                employeeId: employeeId,
                                 expensePlan: record.id
                               },
                             });
                           }
                         }] : [],
-                        ...(record.status === 'APPROVED' || record.expenseRequest.id !== null) ? [
+                        ...(record.status === 'APPROVED' || record.expenseRequest.length > 0) ? [
                         {
                           category: 'Actions',
                           key: 'create-expense-request',
                           label: 'Create Expense Request',
                           onClick: () => {
+                            const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
+                            if (!employeeId) {
+                              console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+                              message.warning('User information not loaded yet. Please wait a moment and try again.');
+                              return;
+                            }
+                            
+                            console.log('Starting create expense request process for employeeId:', employeeId, 'expensePlanId:', record.id);
                             startProcess({
                               domain: 'employee-expense',
                               processName: 'changeExpenseRequest',
                               payload: {
-                                employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                                employeeId: employeeId,
                                 expensePlanId: record.id
                               },
                             });

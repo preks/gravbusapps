@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Row, Col, Card, Typography, Button, List, Space } from 'antd';
+import { Row, Col, Card, Typography, Button, List, Space, message } from 'antd';
 import { PlusCircleOutlined, SendOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { startProcess } from '@/common/utils/start-process';
@@ -10,28 +10,40 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
   const { userInfo } = props;
 
   const handleRecordExpense = useCallback(() => {
-    if (userInfo?.employeeDetails?.employeeId) {
-      startProcess({
-        domain: 'employee-expense',
-        processName: 'changeExpenseItem',
-        payload: {
-          employeeId: userInfo.employeeDetails.employeeId
-        },
-        builderType: 'NATIVE_SCREEN'
-      });
+    const employeeId = userInfo?.employeeDetails?.employeeId;
+    if (!employeeId) {
+      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+      message.warning('User information not loaded yet. Please wait a moment and try again.');
+      return;
     }
+    
+    console.log('Starting Record Expense process for employeeId:', employeeId);
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeExpenseItem',
+      payload: {
+        employeeId: employeeId
+      },
+      builderType: 'NATIVE_SCREEN'
+    });
   }, [userInfo?.employeeDetails?.employeeId]);
 
   const handleSubmitRequest = useCallback(() => {
-    if (userInfo?.employeeDetails?.employeeId) {
-      startProcess({
-        domain: 'employee-expense',
-        processName: 'changeExpenseRequest',
-        payload: {
-          employeeId: userInfo.employeeDetails.employeeId
-        }
-      });
+    const employeeId = userInfo?.employeeDetails?.employeeId;
+    if (!employeeId) {
+      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+      message.warning('User information not loaded yet. Please wait a moment and try again.');
+      return;
     }
+    
+    console.log('Starting Submit Request process for employeeId:', employeeId);
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeExpenseRequest',
+      payload: {
+        employeeId: employeeId
+      }
+    });
   }, [userInfo?.employeeDetails?.employeeId]);
 
   const actionCards = [

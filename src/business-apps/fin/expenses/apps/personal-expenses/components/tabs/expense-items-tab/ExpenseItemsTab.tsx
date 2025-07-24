@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
+import { message } from 'antd';
 import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_ITEMS_BY_EMPLOYEE, GET_EXPENSE_ITEM_STATISTICS, GET_PENDING_ITEMS } from '../../../queries/expenseItems';
@@ -395,16 +396,22 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
 
   // Handle adding a new expense item
   const handleAddExpenseItem = useCallback(() => {
-    if (contextProps.userInfo?.employeeDetails?.employeeId) {
-       startProcess({
-            domain: 'employee-expense',
-            processName: 'changeExpenseItem',
-            payload: {
-              employeeId: contextProps.userInfo?.employeeDetails?.employeeId
-            },
-            builderType: 'NATIVE_SCREEN'
-          });
+    const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
+    if (!employeeId) {
+      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+      message.warning('User information not loaded yet. Please wait a moment and try again.');
+      return;
     }
+    
+    console.log('Starting create expense process for employeeId:', employeeId);
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeExpenseItem',
+      payload: {
+        employeeId: employeeId
+      },
+      builderType: 'NATIVE_SCREEN'
+    });
   }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
   // Compute availableStatuses from allItems (unfiltered, for current search/page)
