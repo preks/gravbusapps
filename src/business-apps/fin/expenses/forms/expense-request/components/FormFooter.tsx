@@ -9,22 +9,23 @@ interface FormFooterProps {
   formIsValid?: boolean;
   onCancel: () => void;
   onSubmit?: () => void;
+  testIdPrefix?: string;
 }
 
 /**
  * Footer component with cancel and submit buttons
  */
-const FormFooter: React.FC<FormFooterProps> = ({ step, loading = false, formIsValid = false, onCancel, onSubmit }) => {
+const FormFooter: React.FC<FormFooterProps> = ({ step, loading = false, formIsValid = false, onCancel, onSubmit, testIdPrefix = "expense" }) => {
   const { t } = useTranslation();
   
   return (
-    <div className="gba:footerContainer" data-testid="expense-request-footer">
-      <Divider className="gba:divider" data-testid="expense-request-bottom-divider" />
-      <div className="gba:actionButtonsContainer" data-testid="expense-request-actions">
+    <div className="gba:footerContainer" data-testid={`${testIdPrefix}-footer`}>
+      <Divider className="gba:divider" data-testid={`${testIdPrefix}-bottom-divider`} />
+      <div className="gba:actionButtonsContainer" data-testid={`${testIdPrefix}-actions`}>
         <Button 
           variant="outline" 
           className="gba:cancelButton" 
-          data-testid="expense-request-cancel-button"
+          data-testid={`${testIdPrefix}-cancel-button`}
           onClick={onCancel}
           disabled={loading}
         >
@@ -34,7 +35,7 @@ const FormFooter: React.FC<FormFooterProps> = ({ step, loading = false, formIsVa
           <Button 
             variant="primary" 
             className="gba:submitButton" 
-            data-testid="expense-form-submit-button"
+            data-testid={`${testIdPrefix}-form-submit-button`}
             onClick={onSubmit}
             disabled={loading || !formIsValid}
           >
