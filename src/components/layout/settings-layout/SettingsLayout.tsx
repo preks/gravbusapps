@@ -1,6 +1,6 @@
 import React, { useState, useMemo, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Input, Card, PageHeader, IconPageHeader } from '@newwork/nw-design-system'
+import { Input, Card, PageHeader, IconAvatar } from '@newwork/nw-design-system'
 import { PiCaretRight } from 'react-icons/pi'
 import { cn } from '@/common/utils/cn'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -16,7 +16,7 @@ export interface SettingsCardEntry {
 export interface SettingsCard {
   title: string
   description?: string
-  icon?: any // Icon component for IconPageHeader
+  icon?: any // Icon component for IconAvatar
   iconSize?: 'sm' | 'md' | 'lg' | 'xl'
   entries?: SettingsCardEntry[]
 }
@@ -133,7 +133,7 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
                 <div className="gba:px-3">
                   <div className="gba:flex gba:items-center gba:gap-3 gba:mb-1">
                     {card.icon && (
-                      <IconPageHeader
+                      <IconAvatar
                         icon={card.icon}
                         variant={headerPhosphorIcon.variant || 'default'}
                         size={card.iconSize || 'md'}
