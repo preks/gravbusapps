@@ -134,7 +134,6 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
       let operationSuccessful = false;
       
       try {
-        console.log("submitData",submitData)
         dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
         operationSuccessful = true;
       } catch (processError) {
