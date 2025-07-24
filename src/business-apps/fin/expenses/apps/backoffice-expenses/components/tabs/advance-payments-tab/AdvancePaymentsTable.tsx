@@ -21,12 +21,15 @@ import {
   PaginationItem,
   PaginationLink,
   PaginationNext,
-  PaginationPrevious
+  PaginationPrevious,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { MoreHorizontal } from 'lucide-react';
 
 import { getAdvancePaymentStatusDisplay } from '../../../utils/utils';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
@@ -265,16 +268,49 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 >
                   <TableCell className="gba:w-[60px]">
                     <div className="gba:flex gba:justify-center gba:items-center">
-                      <AppActionButton
-                        data-testid={`actions-${record.id}`}
-                        contextsArray={[FlowContextName.advancePayments]}
-                        externalContextData={{ advancePaymentId: record.id }}
-                        prefixDataTestId={`advance-payment-actions-${record.id}`}
-                        accessToken={props.accessToken}
-                        emptyStateBehavior="disable"
-                        deferMainContextRequestsUntilClick
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            className="gba:h-8 gba:w-8 p-0"
+                            data-testid={`actions-${record.id}`}
+                          >
+                            <span className="gba:sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedItem(record);
+                              setSelectedActionType('advance-payment');
+                            }}
+                            data-testid={`view-advance-payment-${record.id}`}
+                          >
+                            View Advance Payment Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedItem(record);
+                              setSelectedActionType('plan');
+                            }}
+                            data-testid={`view-plan-${record.id}`}
+                          >
+                            View Plan Details
+                          </DropdownMenuItem>
+                          {hasExpenseRequest && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedItem(record);
+                                setSelectedActionType('request');
+                              }}
+                              data-testid={`view-request-${record.id}`}
+                            >
+                              View Request Details
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -621,6 +657,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
           content: renderAdvancePaymentDetails,
           onClose: handleCloseDetails
         } : undefined}
+        floatingDetails={true}
       />
     </>
   );

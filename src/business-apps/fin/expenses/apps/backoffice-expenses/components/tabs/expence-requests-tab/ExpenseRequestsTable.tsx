@@ -20,7 +20,12 @@ import {
   PaginationItem,
   PaginationLink,
   PaginationNext,
-  PaginationPrevious
+  PaginationPrevious,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Button
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
@@ -28,8 +33,7 @@ import { formatNumberFunction, getTranslationFromI18nKeyAndLabel, formatDate } f
 import { ExpenseData } from '../../../types';
 import { getExpenseRequestStatusDisplay } from '../../../utils/utils';
 import Pill from '@/components/pill/Pill';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { MoreHorizontal } from 'lucide-react';
 
 
 function debounce<T extends (...args: any[]) => any>(
@@ -420,6 +424,26 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     handleTableChange(pagination, _filters, sorter);
   }, [handleTableChange]);
 
+  // Placeholder handler functions for expense request actions
+  const handleDownloadAccountingNote = useCallback((record: ExpenseData) => {
+    console.log('Download Accounting Note for:', record.id);
+    // TODO: Implement download accounting note functionality
+  }, []);
+
+  const handleUpdateExpenseRequest = useCallback((record: ExpenseData) => {
+    console.log('Update Expense Request for:', record.id);
+    // TODO: Implement update expense request functionality
+  }, []);
+
+  const handleTriggerCSV = useCallback((record: ExpenseData) => {
+    console.log('Trigger CSV for:', record.id);
+    // TODO: Implement trigger CSV functionality
+  }, []);
+
+  const handlePrintExpenseRequest = useCallback((record: ExpenseData) => {
+    console.log('Print Expense Request for:', record.id);
+    // TODO: Implement print expense request functionality
+  }, []);
 
   if (loading && expenses.length === 0) {
     return (
@@ -540,16 +564,59 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                     >
                       <TableCell className="gba:w-[60px]">
                         <div className="gba:flex gba:justify-start gba:gap-2">
-                          <AppActionButton
-                            data-testid={`expense-request-actions-${record.id}`}
-                            contextsArray={[FlowContextName.expenseRequests]}
-                            externalContextData={{ expenseRequestId: record.id }}
-                            prefixDataTestId={`expense-request-actions-${record.id}`}
-                            accessToken={accessToken}
-                            emptyStateBehavior="disable"
-                            deferMainContextRequestsUntilClick
-                            onClick={(e) => e.stopPropagation()}
-                          />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className="gba:h-8 gba:w-8 p-0"
+                                data-testid={`expense-request-actions-${record.id}`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <span className="gba:sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => handleRowClick(record)}
+                                data-testid={`view-expense-request-${record.id}`}
+                              >
+                                View Expense Request Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDownloadAccountingNote(record)}
+                                data-testid={`download-accounting-note-${record.id}`}
+                              >
+                                Download Accounting Note
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleUpdateExpenseRequest(record)}
+                                data-testid={`update-expense-request-${record.id}`}
+                              >
+                                Update Expense Request
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleTriggerCSV(record)}
+                                data-testid={`trigger-csv-${record.id}`}
+                              >
+                                Trigger CSV
+                              </DropdownMenuItem>
+                              {/* Only show Print option if status is one of the allowed statuses and employeeDocumentId exists */}
+                              {((record.status === 'APPROVED' ||
+                                 record.status === 'VERIFIED' ||
+                                 record.status === 'BOOKED' ||
+                                 record.status === 'TRANSFERRED' ||
+                                 record.status === 'PAID') &&
+                                record.employeeDocumentId !== null) && (
+                                <DropdownMenuItem
+                                  onClick={() => handlePrintExpenseRequest(record)}
+                                  data-testid={`print-expense-request-${record.id}`}
+                                >
+                                  Print
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -731,6 +798,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
             onClose: handleCloseDetails,
           } : undefined
         }
+        floatingDetails={true}
       />
     </>
   );
