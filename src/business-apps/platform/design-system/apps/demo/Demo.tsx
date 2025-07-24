@@ -54,7 +54,7 @@ import {
     ActionButton,
     Icon,
     Spinner,
-    IconPageHeader,
+    IconAvatar,
     PageLayout,
     DataTable,
     PageHeader,
@@ -1465,7 +1465,7 @@ const Demo: React.FC<DemoProps> = (props) => {
                     <div className="space-y-4">
                       <div>
                         <h4 className="text-sm font-medium mb-2">Basic Toggle Group</h4>
-                        <ToggleGroup type="single" defaultValue="center">
+                        <ToggleGroup defaultValue="center">
                           <ToggleGroupItem value="left" aria-label="Align left">
                             Left
                           </ToggleGroupItem>
@@ -1480,7 +1480,7 @@ const Demo: React.FC<DemoProps> = (props) => {
                       
                       <div>
                         <h4 className="text-sm font-medium mb-2">Toggle Group with Icons</h4>
-                        <ToggleGroup type="single" defaultValue="dashboard" variant="contained">
+                        <ToggleGroup defaultValue="dashboard" variant="default">
                           <ToggleGroupItem value="dashboard" aria-label="Dashboard">
                             <House size={16} />
                             Dashboard
@@ -1498,7 +1498,7 @@ const Demo: React.FC<DemoProps> = (props) => {
                       
                       <div>
                         <h4 className="text-sm font-medium mb-2">Icon-Only Toggle Group</h4>
-                        <ToggleGroup type="single" defaultValue="heart" variant="outline">
+                        <ToggleGroup defaultValue="heart" variant="secondary">
                           <ToggleGroupItem value="star" aria-label="Star">
                             <Star size={16} />
                           </ToggleGroupItem>
@@ -1534,7 +1534,6 @@ const Demo: React.FC<DemoProps> = (props) => {
                         <h4 className="text-sm font-medium mb-2">Multiple Actions</h4>
                         <ActionButton 
                           actions={sampleActions}
-                          defaultLabel="Actions" 
                         />
                       </div>
                     </div>
@@ -1544,8 +1543,6 @@ const Demo: React.FC<DemoProps> = (props) => {
                         <h4 className="text-sm font-medium mb-2">With Primary Action</h4>
                         <ActionButton 
                           actions={sampleActions}
-                          displayPrimaryAction={true}
-                          defaultLabel="More Actions" 
                         />
                       </div>
                       
@@ -1554,16 +1551,10 @@ const Demo: React.FC<DemoProps> = (props) => {
                         <div className="space-y-2">
                           <ActionButton 
                             actions={sampleActions}
-                            displayPrimaryAction={true}
-                            primaryActionPosition="right"
-                            defaultLabel="Actions" 
                             className="mb-2"
                           />
                           <ActionButton 
                             actions={sampleActions}
-                            displayPrimaryAction={true}
-                            primaryActionPosition="top"
-                            defaultLabel="Actions" 
                           />
                         </div>
                       </div>
@@ -1575,15 +1566,12 @@ const Demo: React.FC<DemoProps> = (props) => {
                         <div className="space-x-2">
                           <ActionButton 
                             actions={[{ label: 'Default', onSelect: () => {} }]} 
-                            variant="default"
                           />
                           <ActionButton 
                             actions={[{ label: 'Outline', onSelect: () => {} }]} 
-                            variant="outline"
                           />
                           <ActionButton 
                             actions={[{ label: 'Secondary', onSelect: () => {} }]} 
-                            variant="secondary"
                           />
                         </div>
                       </div>
@@ -1593,11 +1581,10 @@ const Demo: React.FC<DemoProps> = (props) => {
                         <div className="space-x-2">
                           <ActionButton 
                             actions={[{ label: 'Loading', onSelect: () => {} }]} 
-                            isLoading={true}
                           />
                           <ActionButton 
                             actions={[{ label: 'Disabled', onSelect: () => {} }]} 
-                            isDisabled={true}
+                            disabled
                           />
                         </div>
                       </div>
@@ -3149,19 +3136,19 @@ const Demo: React.FC<DemoProps> = (props) => {
                         <h4 className="text-sm font-medium mb-2">Sizes</h4>
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={Star} size="sm" />
+                            <IconAvatar icon={Star} size="sm" />
                             <span className="text-xs mt-1">sm</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={Star} size="md" />
+                            <IconAvatar icon={Star} size="md" />
                             <span className="text-xs mt-1">md</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={Star} size="lg" />
+                            <IconAvatar icon={Star} size="lg" />
                             <span className="text-xs mt-1">lg</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={Star} size="xl" />
+                            <IconAvatar icon={Star} size="xl" />
                             <span className="text-xs mt-1">xl</span>
                           </div>
                         </div>
@@ -3171,19 +3158,19 @@ const Demo: React.FC<DemoProps> = (props) => {
                         <h4 className="text-sm font-medium mb-2">Basic Variants</h4>
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={Star} variant="default" />
+                            <IconAvatar icon={Star} variant="default" />
                             <span className="text-xs mt-1">default</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={CheckCircle} variant="success" />
+                            <IconAvatar icon={CheckCircle} variant="success" />
                             <span className="text-xs mt-1">success</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={Warning} variant="warning" />
+                            <IconAvatar icon={Warning} variant="warning" />
                             <span className="text-xs mt-1">warning</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={X} variant="destructive" />
+                            <IconAvatar icon={X} variant="destructive" />
                             <span className="text-xs mt-1">destructive</span>
                           </div>
                         </div>
@@ -3195,15 +3182,15 @@ const Demo: React.FC<DemoProps> = (props) => {
                         <h4 className="text-sm font-medium mb-2">AI & Action Gradients</h4>
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={MagicWand} variant="aiGenerated" />
+                            <IconAvatar icon={MagicWand} variant="aiGenerated" />
                             <span className="text-xs mt-1">AI Generated</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={PaperPlaneRight} variant="aiModified" />
+                            <IconAvatar icon={PaperPlaneRight} variant="aiModified" />
                             <span className="text-xs mt-1">AI Modified</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={Target} variant="action" />
+                            <IconAvatar icon={Target} variant="action" />
                             <span className="text-xs mt-1">Action</span>
                           </div>
                         </div>
@@ -3213,19 +3200,19 @@ const Demo: React.FC<DemoProps> = (props) => {
                         <h4 className="text-sm font-medium mb-2">Status Variants</h4>
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={Clock} variant="pending" />
+                            <IconAvatar icon={Clock} variant="pending" />
                             <span className="text-xs mt-1">Pending</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={Play} variant="running" />
+                            <IconAvatar icon={Play} variant="running" />
                             <span className="text-xs mt-1">Running</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={CheckCircle} variant="paid" />
+                            <IconAvatar icon={CheckCircle} variant="paid" />
                             <span className="text-xs mt-1">Paid</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={X} variant="overdue" />
+                            <IconAvatar icon={X} variant="overdue" />
                             <span className="text-xs mt-1">Overdue</span>
                           </div>
                         </div>
@@ -3237,19 +3224,19 @@ const Demo: React.FC<DemoProps> = (props) => {
                         <h4 className="text-sm font-medium mb-2">Entity Variants</h4>
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={User} variant="employee" />
+                            <IconAvatar icon={User} variant="employee" />
                             <span className="text-xs mt-1">Employee</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={Users} variant="department" />
+                            <IconAvatar icon={Users} variant="department" />
                             <span className="text-xs mt-1">Department</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={FileText} variant="job" />
+                            <IconAvatar icon={FileText} variant="job" />
                             <span className="text-xs mt-1">Job</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={MapPin} variant="location" />
+                            <IconAvatar icon={MapPin} variant="location" />
                             <span className="text-xs mt-1">Location</span>
                           </div>
                         </div>
@@ -3259,19 +3246,19 @@ const Demo: React.FC<DemoProps> = (props) => {
                         <h4 className="text-sm font-medium mb-2">More Entity Types</h4>
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={Cpu} variant="tech" />
+                            <IconAvatar icon={Cpu} variant="tech" />
                             <span className="text-xs mt-1">Tech</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={Target} variant="strategy" />
+                            <IconAvatar icon={Target} variant="strategy" />
                             <span className="text-xs mt-1">Strategy</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={ShoppingCart} variant="order" />
+                            <IconAvatar icon={ShoppingCart} variant="order" />
                             <span className="text-xs mt-1">Order</span>
                           </div>
                           <div className="flex flex-col items-center">
-                            <IconPageHeader icon={Crown} variant="premium" />
+                            <IconAvatar icon={Crown} variant="premium" />
                             <span className="text-xs mt-1">Premium</span>
                           </div>
                         </div>
@@ -3283,7 +3270,7 @@ const Demo: React.FC<DemoProps> = (props) => {
                         <h4 className="text-sm font-medium mb-2">Interactive Examples</h4>
                         <div className="space-y-3">
                           <div className="flex items-center gap-3">
-                            <IconPageHeader 
+                            <IconAvatar 
                               icon={FolderOpen} 
                               variant="default" 
                               size="lg" 
@@ -3293,7 +3280,7 @@ const Demo: React.FC<DemoProps> = (props) => {
                             <span className="text-sm">Accessible with label</span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <IconPageHeader 
+                            <IconAvatar 
                               icon={Shield} 
                               variant="success" 
                               size="lg" 
@@ -3303,7 +3290,7 @@ const Demo: React.FC<DemoProps> = (props) => {
                             <span className="text-sm">Decorative (no label)</span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <IconPageHeader 
+                            <IconAvatar 
                               icon={Database} 
                               variant="tech" 
                               size="lg" 
@@ -3319,34 +3306,31 @@ const Demo: React.FC<DemoProps> = (props) => {
                         <h4 className="text-sm font-medium mb-2">Icon Variants</h4>
                         <div className="space-y-3">
                           <div className="flex items-center gap-3">
-                            <IconPageHeader 
+                            <IconAvatar 
                               icon={Star} 
-                              iconVariant="thin" 
-                              variant="default" 
+                              variant="destructive" 
                               size="lg" 
                               decorative={true}
                             />
-                            <span className="text-sm">Thin weight</span>
+                            <span className="text-sm">Destructive style</span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <IconPageHeader 
+                            <IconAvatar 
                               icon={Star} 
-                              iconVariant="bold" 
-                              variant="default" 
+                              variant="strategy" 
                               size="lg" 
                               decorative={true}
                             />
-                            <span className="text-sm">Bold weight</span>
+                            <span className="text-sm">Strategy style</span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <IconPageHeader 
+                            <IconAvatar 
                               icon={Star} 
-                              iconVariant="fill" 
-                              variant="default" 
+                              variant="tech" 
                               size="lg" 
                               decorative={true}
                             />
-                            <span className="text-sm">Fill style</span>
+                            <span className="text-sm">Tech style</span>
                           </div>
                         </div>
                       </div>
