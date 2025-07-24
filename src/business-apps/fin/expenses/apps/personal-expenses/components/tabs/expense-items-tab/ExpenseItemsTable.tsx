@@ -1,60 +1,60 @@
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Typography, Spin, Alert, message } from 'antd';
-import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
-import { PlusSquareIcon } from '@/components/dataController/DataController';
-import { FileTextOutlined, FileImageOutlined } from '@ant-design/icons';
+import { 
+  Table, 
+  TableHeader, 
+  TableBody, 
+  TableHead, 
+  TableRow, 
+  TableCell, 
+  Card, 
+  CardContent, 
+  Spinner, 
+  Button, 
+  Badge, 
+  Alert,
+  Checkbox 
+} from '@newwork/nw-design-system';
+import { PiFileText, PiImage, PiArrowUp, PiArrowDown, PiCalendar, PiPlus } from 'react-icons/pi';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { useGetExpenseItems, ExpenseFilter, ExpenseItem } from '../../../hooks/useGetExpenseItems';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
-import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getExpenseItemStatusDisplay } from '../../../utils';
 import ExpenseItemDetails from './ExpenseItemDetails';
 import { startProcess } from '@/common/utils/start-process';
 
-const { Text } = Typography;
+const DATA_TEST_ID_PREFIX = 'ExpenseItemsTable';
 
-// Sorting utilities following SOLID principles
-interface SortableField<T> {
-  key: keyof T;
-  type: 'string' | 'number' | 'date';
-  nullable?: boolean;
-}
-
-class SortingService {
-  static createSorter<T>(field: SortableField<T>) {
-    return (a: T, b: T) => {
-      const aValue = a[field.key];
-      const bValue = b[field.key];
-      
-      // Handle nullable values
-      const aSafe = field.nullable ? (aValue ?? 0) : aValue;
-      const bSafe = field.nullable ? (bValue ?? 0) : bValue;
-      
-      switch (field.type) {
-        case 'string':
-          return String(aSafe).localeCompare(String(bSafe));
-        case 'number':
-          return Number(aSafe) - Number(bSafe);
-        case 'date':
-          const aDate = aSafe ? new Date(String(aSafe)).getTime() : 0;
-          const bDate = bSafe ? new Date(String(bSafe)).getTime() : 0;
-          return aDate - bDate;
-        default:
-          return 0;
-      }
-    };
+// Status badge variant function (following manager absences pattern)
+const getStatusBadgeVariant = (status: string) => {
+  switch (status.toUpperCase()) {
+    case 'CREATED':
+      return 'secondary' as const;
+    case 'ASSIGNED':
+      return 'info' as const;
+    case 'PENDING':
+      return 'warning' as const;
+    case 'APPROVED':
+      return 'success' as const;
+    case 'VERIFIED':
+      return 'success' as const;
+    case 'BOOKED':
+      return 'success' as const;
+    case 'TRANSFERRED':
+      return 'success' as const;
+    case 'PAID':
+      return 'success' as const;
+    case 'REJECTED':
+      return 'destructive' as const;
+    case 'CLOSED':
+      return 'success' as const;
+    default:
+      return 'default' as const;
   }
-}
-
-// Column configuration following SRP
-const EXPENSE_ITEM_COLUMNS = {
-  title: { key: 'title' as keyof ExpenseItem, type: 'string' as const },
-  expenseDate: { key: 'expenseDate' as keyof ExpenseItem, type: 'date' as const, nullable: true },
-  status: { key: 'status' as keyof ExpenseItem, type: 'string' as const },
-  reimbursableAmount: { key: 'reimbursableAmount' as keyof ExpenseItem, type: 'number' as const, nullable: true },
-} as const;
+};
 
 export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   onAddExpenseItem: () => void;
@@ -86,7 +86,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
 
   const [search, setSearch] = useState('');
 
-  // Sorting state
+  // Get all selected filters (including date range) - use props instead of hook
+  const allSelectedFilters = selectedFilters;
+
   const [sortField, setSortField] = useState<string>('expenseDate');
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
 
@@ -96,13 +98,11 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps);
 
   useEffect(() => {
-    const apiFilters = getFilters(selectedFilters);
+    const apiFilters = getFilters(allSelectedFilters);
     fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
-  }, [fetchItems, currentPage, pageSize, search, selectedFilters, getFilters, sortField, sortOrder]);
+  }, [fetchItems, currentPage, pageSize, search, allSelectedFilters, getFilters, sortField, sortOrder]);
 
   const [selectedItem, setSelectedItem] = useState<any>(null);
-
-  
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   const handleSearchChange = useCallback((value: string) => {
@@ -123,18 +123,27 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     onAddExpenseItem();
   }, [onAddExpenseItem]);
 
-  const handleTableChange = useCallback((pagination: any) => {
-    setCurrentPage(pagination.current);
-    setPageSize(pagination.pageSize);
-  }, []);
-
   const handleSelectItem = useCallback((item: any) => {
     setSelectedItem(item);
   }, []);
 
-  const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
+  const handleRowSelectionChange = useCallback((itemId: string, checked: boolean) => {
+    setSelectedRowKeys(prev => {
+      if (checked) {
+        return [...prev, itemId];
+      } else {
+        return prev.filter(key => key !== itemId);
+      }
+    });
   }, []);
+
+  const handleSelectAll = useCallback((checked: boolean) => {
+    if (checked) {
+      setSelectedRowKeys(items?.map(item => item.id) || []);
+    } else {
+      setSelectedRowKeys([]);
+    }
+  }, [items]);
 
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null);
@@ -148,7 +157,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     // Only allow creation if all items are in 'CREATED' status (draft)
     const allDraft = selectedItems.every((item: any) => item.status === 'CREATED');
     if (!allDraft) {
-      message.warning(
+      console.warn(
         getTranslationFromI18nKeyAndLabel(
           'gba.expenseItems.createRequestDraftOnly',
           'An Expense Request can be started only with items in status draft.'
@@ -179,7 +188,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     const selectedItems = items?.filter((item: any) => targetIds.includes(item.id)) || [];
     const allAllowed = selectedItems.every((item: any) => item.status === 'CREATED' || item.status === 'ASSIGNED');
     if (!allAllowed) {
-      message.warning('You can only discard items with status "Created" or "Assigned".');
+      console.warn('You can only discard items with status "Created" or "Assigned".');
       return;
     }
     const payload = {
@@ -193,214 +202,68 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     });
   }, [selectedRowKeys, items, contextProps.userInfo]);
 
-  // Column factory following OCP
-  const createColumn = useCallback((key: keyof typeof EXPENSE_ITEM_COLUMNS, title: string, render?: (value: any, record: ExpenseItem) => React.ReactNode, additionalProps?: any) => {
-    const field = EXPENSE_ITEM_COLUMNS[key];
-    return {
-      title,
-      dataIndex: field.key,
-      key: field.key,
-      sorter: SortingService.createSorter(field),
-      sortOrder: sortField === field.key ? sortOrder : null,
-      render,
-      ...additionalProps,
-    };
-  }, [sortField, sortOrder]);
-
-  const renderDataBody = useCallback(() => {
-    if (isLoading && !items?.length) {
-      return <div style={{ padding: 24, textAlign: 'center' }}><Spin size="large" /></div>;
-    }
-
-    if (error) {
-      return <Alert message="Error" description={error} type="error" showIcon />;
-    }
-
-    if (!items || items.length === 0) {
-      return (
-        <div style={{ padding: 24, textAlign: 'center' }}>
-          <Text>No expense items found. Create your first expense item to get started.</Text>
-        </div>
-      );
-    }
-
-    return (
-      <DataTable
-        dataSource={items}
-        rowKey="id"
-        rowSelection={{
-          type: 'checkbox',
-          selectedRowKeys,
-          onChange: handleRowSelectionChange,
-          columnWidth: 48,
-          renderCell: (_checked, _record, _index, originNode) => (
-            <div onClick={(e) => e.stopPropagation()}>{originNode}</div>
-          ),
-        }}
-        onRow={(record: any) => ({
-          onClick: (event) => {
-            const target = event.target as HTMLElement;
-            const isCheckboxColumn = target.closest('.ant-table-selection-column');
-            const isActionButton = target.closest('[class*="ant-dropdown-trigger"]');
-
-            if (!isCheckboxColumn && !isActionButton) {
-              handleSelectItem(record);
-            }
-          },
-          style: { cursor: 'pointer' }
-        })}
-        pagination={{
-          current: currentPage,
-          pageSize: pageSize,
-          total: totalCount,
-          showSizeChanger: true,
-          pageSizeOptions: ['10', '20', '50', '100'],
-          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
-        }}
-        onChange={handleEnhancedTableChange}
-        loading={isLoading}
-        data-testid="expense-items-data-table"
-        columns={[
-          {
-            title: '',
-            key: 'actions',
-            align: 'center',
-            width: 60,
-            render: (_: any, record: any) => (
-              <ActionButton
-                onClick={(e) => e.stopPropagation()}
-                flowData={[
-                  ...(record.status === 'CREATED' || record.status === 'ASSIGNED') 
-                 ?  [
-                  {
-                    category: 'Actions',
-                    key: 'edit',
-                    label: 'Edit Expense Item',
-                    onClick: () => {
-                      // Validate required data before starting process
-                      const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
-                      if (!employeeId) {
-                        console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
-                        message.warning('User information not loaded yet. Please wait a moment and try again.');
-                        return;
-                      }
-                      
-                      console.log('Starting edit process for expense:', record.id, 'employeeId:', employeeId);
-                      startProcess({
-                        domain: 'employee-expense',
-                        processName: 'changeExpenseItem',
-                        payload: {
-                          employeeId: employeeId,
-                          expenseId: record.id
-                        },
-                        builderType: 'NATIVE_SCREEN'
-                      });
-                    }
-                  }
-                 ] : [],
-                  {
-                    category: 'Navigations',
-                    key: 'view',
-                    label: 'View Item Details',
-                    onClick: () => {
-                      handleSelectItem(record);
-                    }
-                  },
-                  ...(record.status === 'CREATED' || record.status === 'ASSIGNED'
-                    ? [
-                        {
-                          category: 'Actions',
-                          key: 'discard',
-                          label: 'Discard Expense Item',
-                          onClick: () => {
-                            handleDeleteSelection([record.id]);
-                          }
-                        }
-                      ]
-                    : [])
-                ]}
-                portalContainer={document.body}
-                data-testid={`actions-${record.id}`}
-                size="md"
-              />
-            )
-          },
-          createColumn('title', 'Title', (text: string) => (
-            <div style={{ fontWeight: 'bold' }} data-testid="expense-title-cell">{text}</div>
-          )),
-          createColumn('expenseDate', getTranslationFromI18nKeyAndLabel('gba.expenseItems.expenseDate', 'Expense Date'), (date: string) => {
-            const formattedDate = date
-              ? formatDate(date, 'date.long')
-              : getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_creation_date', 'No creation date');
-            return <div style={{ fontSize: '12px', color: '#666' }} data-testid="expense-expense-date-cell">{formattedDate}</div>;
-          }, { width: 140 }),
-          createColumn('status', 'Status', (status: string) => {
-            const { label, type } = getExpenseItemStatusDisplay(status);
-            return <Pill label={label} type={type} className="gba:text-center" data-testid="expense-status-cell" />;
-          }),
-          {
-            title: 'Attachment',
-            dataIndex: 'expenseItemFile',
-            key: 'attachment',
-            width: 80,
-            align: 'center',
-            render: (expenseItemFile: any[]) => (
-              expenseItemFile && expenseItemFile.length > 0 ? (
-                <div className="gba:flex gba:items-center gba:justify-center">
-                  <FileTextOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
-                </div>
-              ) : (
-                <div className="gba:flex gba:items-center gba:justify-center">
-                  <FileImageOutlined style={{ fontSize: '24px', color: '#d9d9d9' }} />
-                </div>
-              )
-            )
-          },
-          createColumn('reimbursableAmount', 'Reimbursable Amount', (amount: number, record: any) => {
-            const currency = record.currency?.code || '';
-            return (
-              <span data-testid="expense-amount-cell">
-                {formatNumberFunction(String(amount ?? '0'))} {currency}
-              </span>
-            );
-          }, { onCell: () => ({ className: 'gba:text-right' }) }),
-        ] as any}
-      />
-    );
-  }, [items, isLoading, error, totalCount, currentPage, pageSize, handleTableChange, selectedRowKeys, handleRowSelectionChange, handleSelectItem, createColumn, contextProps.userInfo]);
-
-  const renderExpenseDetails = useMemo(() => {
-    if (!selectedItem) return null;
-
-    return (
-      <ExpenseItemDetails
-        selectedItem={selectedItem}
-        onClose={handleCloseDetails}
-        accessToken={props.accessToken}
-        userInfo={props.userInfo}
-      />
-    );
-  }, [selectedItem, handleCloseDetails, contextProps]);
-
-  const currentFilterGroups = useMemo(() => {
-    return filterGroups.map(group => ({
-      ...group,
-      filters: (group.filters || []).map(filter => ({ ...filter, selected: selectedFilters.includes(filter.id) }))
-    }));
-  }, [filterGroups, selectedFilters]);
-
-  // Enhanced table change handler for sorting
-  const handleEnhancedTableChange = (pagination: any, _filters: any, sorter: any) => {
-    setCurrentPage(pagination.current);
-    setPageSize(pagination.pageSize);
-    if (sorter && sorter.field) {
-      setSortField(sorter.field);
-      setSortOrder(sorter.order);
+  // Handle sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Cycle through: ascend -> descend -> clear
+      if (sortOrder === 'ascend') {
+        setSortOrder('descend');
+      } else if (sortOrder === 'descend') {
+        setSortField('');
+        setSortOrder(undefined);
+      } else {
+        setSortOrder('ascend');
+      }
     } else {
-      setSortField('');
-      setSortOrder(undefined);
+      setSortField(field);
+      setSortOrder('ascend');
     }
+    setCurrentPage(1);
   };
+
+  // Helper function to render sort icon
+  const renderSortIcon = (field: string) => {
+    if (sortField !== field) return null;
+    if (sortOrder === 'ascend') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'descend') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
+    return null;
+  };
+
+  // Handle pagination
+  const handlePaginationChange = useCallback((page: number, newPageSize?: number) => {
+    const targetPageSize = newPageSize || pageSize;
+    setCurrentPage(page);
+    setPageSize(targetPageSize);
+  }, [pageSize]);
+
+  // Show error state
+  if (error) {
+    return (
+      <div 
+        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
+        data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
+      >
+        <Alert variant="destructive" className="gba:mb-4">
+          <div className="gba:text-lg gba:font-medium gba:mb-2">
+            Error Loading Expense Items
+          </div>
+          <div className="gba:text-gray-600">
+            {error}
+          </div>
+        </Alert>
+        <Button
+          variant="default"
+          onClick={() => {
+            const apiFilters = getFilters(allSelectedFilters);
+            fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
+          }}
+          data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <DataContainer
@@ -410,50 +273,339 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
         search: search,
         setSearch: handleSearchChange,
         placeholder: 'Search by description, amount, or status...',
-        filter: selectedFilters,
+        filter: allSelectedFilters,
         setFilter: setFilters,
         filterLabelMap: filterLabelMap,
         actions: [
           ...(selectedRowKeys.length > 0
             ? [
-                <button
+                <Button
                   key="create-expense-request"
-                  className="gba:btn gba:btn-primary"
+                  variant="default"
                   data-testid="create-expense-request-btn"
                   onClick={handleCreateExpenseRequest}
+                  className="gba:inline-flex gba:items-center gba:gap-2"
                 >
-                  Create Expense Request (from Selection)
-                </button>,
-                <button
+                  Create Expense Request ({selectedRowKeys.length})
+                </Button>,
+                <Button
                   key="delete-selection"
-                  className="gba:btn gba:btn-danger"
+                  variant="destructive"
                   data-testid="delete-selection-btn"
                   onClick={() => handleDeleteSelection()}
+                  className="gba:inline-flex gba:items-center gba:gap-2"
                 >
-                  Delete Selection
-                </button>
+                  Delete Selection ({selectedRowKeys.length})
+                </Button>
               ]
             : []),
-          <button
+          <Button
             key="add-expense-item"
-            className="gba:btn gba:btn-primary gba:inline-flex gba:items-center"
+            variant="default"
             data-testid="add-expense-item-btn"
             onClick={handleAddExpenseItem}
+            className="gba:inline-flex gba:items-center gba:gap-2"
           >
-            <PlusSquareIcon className="gba:mr-2" />
+            <PiPlus className="gba:h-4 gba:w-4" />
             {getTranslationFromI18nKeyAndLabel('gba.expenseItems.add', 'Add')}
-          </button>
+          </Button>,
+          // Clear filters button
+          ...(allSelectedFilters.length > 0 ? [
+            <Button
+              key="clear-filters"
+              variant="outline"
+              data-testid="clear-filters-btn"
+              onClick={clearFilters}
+              className="gba:inline-flex gba:items-center gba:gap-2"
+            >
+              Clear Filters
+            </Button>
+          ] : [])
         ],
       }}
       dataFilterProps={{
         filterGroups: filterGroups,
         onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void,
       }}
-      dataBody={renderDataBody()}
+      dataBody={
+        <div className="gba:pr-6">
+          <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+            <CardContent className="gba:p-0">
+              {isLoading && (
+                <div className="gba:flex gba:justify-center gba:p-4">
+                  <Spinner />
+                </div>
+              )}
+              
+              <div className="gba:overflow-x-auto">
+                <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
+                  <TableHeader>
+                    <TableRow className="gba:border-b gba:bg-gray-50">
+                      <TableHead
+                        className="gba:w-[40px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
+                        data-testid={`${DATA_TEST_ID_PREFIX}-selection-header`}
+                      >
+                        <Checkbox
+                          checked={selectedRowKeys.length === items?.length && items?.length > 0}
+                          onCheckedChange={handleSelectAll}
+                          data-testid={`${DATA_TEST_ID_PREFIX}-select-all-checkbox`}
+                        />
+                      </TableHead>
+                      <TableHead
+                        className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
+                        data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
+                      >
+                        ACTIONS
+                      </TableHead>
+                      <TableHead
+                        className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                        onClick={() => handleSort('title')}
+                        data-testid={`${DATA_TEST_ID_PREFIX}-title-header`}
+                      >
+                        <div className="gba:flex gba:items-center">
+                          Title
+                          {renderSortIcon('title')}
+                        </div>
+                      </TableHead>
+                      <TableHead
+                        className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                        onClick={() => handleSort('expenseDate')}
+                        data-testid={`${DATA_TEST_ID_PREFIX}-expense-date-header`}
+                      >
+                        <div className="gba:flex gba:items-center">
+                          {getTranslationFromI18nKeyAndLabel('gba.expenseItems.expenseDate', 'Expense Date')}
+                          {renderSortIcon('expenseDate')}
+                        </div>
+                      </TableHead>
+                      <TableHead
+                        className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                        onClick={() => handleSort('status')}
+                        data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
+                      >
+                        <div className="gba:flex gba:items-center">
+                          Status
+                          {renderSortIcon('status')}
+                        </div>
+                      </TableHead>
+                      <TableHead
+                        className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
+                        data-testid={`${DATA_TEST_ID_PREFIX}-attachment-header`}
+                      >
+                        Attachment
+                      </TableHead>
+                      <TableHead
+                        className="gba:w-[18%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                        onClick={() => handleSort('reimbursableAmount')}
+                        data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
+                      >
+                        <div className="gba:flex gba:items-center">
+                          Reimbursable Amount
+                          {renderSortIcon('reimbursableAmount')}
+                        </div>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {!isLoading && (!items || items.length === 0) ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="gba:py-8 gba:text-center">
+                          <div className="gba:text-gray-500">
+                            No expense items found. Create your first expense item to get started.
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      items?.map((record) => (
+                        <TableRow
+                          key={record.id}
+                          className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${selectedItem?.id === record.id ? 'gba:bg-blue-50' : ''}`}
+                          onClick={() => handleSelectItem(record)}
+                          data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
+                        >
+                          <TableCell
+                            className="gba:py-4 gba:px-3"
+                            data-testid={`${DATA_TEST_ID_PREFIX}-selection-cell-${record.id}`}
+                          >
+                            <Checkbox
+                              checked={selectedRowKeys.includes(record.id)}
+                              onCheckedChange={(checked) => handleRowSelectionChange(record.id, checked as boolean)}
+                              onClick={(e) => e.stopPropagation()}
+                              data-testid={`${DATA_TEST_ID_PREFIX}-selection-checkbox-${record.id}`}
+                            />
+                          </TableCell>
+                          <TableCell
+                            className="gba:py-4 gba:px-3"
+                            data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+                          >
+                            <div className="gba:flex gba:justify-start gba:gap-2">
+                              <AppActionButton
+                                data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
+                                variant="secondary"
+                                contextsArray={[FlowContextName.expenseItems]}
+                                externalContextData={{
+                                  expenseItemId: record.id,
+                                }}
+                                prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-item`}
+                                accessToken={contextProps.accessToken}
+                                emptyStateBehavior="disable"
+                                deferMainContextRequestsUntilClick
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-title-cell-${record.id}`}>
+                            <div className="gba:font-medium gba:text-sm" data-testid="expense-title-cell">
+                              {record.title}
+                            </div>
+                          </TableCell>
+                          <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-expense-date-cell-${record.id}`}>
+                            {record.expenseDate ? (
+                              <div className="gba:text-sm" data-testid="expense-expense-date-cell">
+                                {(() => {
+                                  try {
+                                    const date = new Date(record.expenseDate);
+                                    return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+                                  } catch (error) {
+                                    return 'N/A';
+                                  }
+                                })()}
+                              </div>
+                            ) : (
+                              <span className="gba:text-sm gba:text-gray-500" data-testid="expense-expense-date-cell">
+                                N/A
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
+                            <Badge variant={getStatusBadgeVariant(record.status)} data-testid="expense-status-cell">
+                              {getExpenseItemStatusDisplay(record.status).label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-attachment-cell-${record.id}`}>
+                            <div className="gba:flex gba:items-center gba:justify-center">
+                              {record.expenseItemFile && record.expenseItemFile.length > 0 ? (
+                                <PiFileText size={24} className="gba:text-blue-500" />
+                              ) : (
+                                <PiImage size={24} className="gba:text-gray-300" />
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-amount-cell-${record.id}`}>
+                            <span data-testid="expense-amount-cell">
+                              {formatNumberFunction(String(record.reimbursableAmount ?? '0'))} {record.currency?.code || ''}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination - Only show if there are multiple pages */}
+              {totalCount > pageSize ? (
+                <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
+                  <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
+                    {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} expense items`}
+                  </div>
+                  <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+                    <div className="gba:flex gba:items-center gba:space-x-2">
+                      <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
+                        className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                        data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
+                      >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
+                    </div>
+                    <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
+                      Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                    </div>
+                    <div className="gba:flex gba:items-center gba:space-x-2">
+                      <Button
+                        variant="outline"
+                        className="gba:h-8 gba:w-8 gba:p-0"
+                        onClick={() => handlePaginationChange(1)}
+                        disabled={currentPage === 1}
+                        data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
+                      >
+                        <span className="gba:sr-only">Go to first page</span>
+                        ⟨⟨
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="gba:h-8 gba:w-8 gba:p-0"
+                        onClick={() => handlePaginationChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
+                      >
+                        <span className="gba:sr-only">Go to previous page</span>
+                        ⟨
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="gba:h-8 gba:w-8 gba:p-0"
+                        onClick={() => handlePaginationChange(currentPage + 1)}
+                        disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                        data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
+                      >
+                        <span className="gba:sr-only">Go to next page</span>
+                        ⟩
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="gba:h-8 gba:w-8 gba:p-0"
+                        onClick={() => handlePaginationChange(Math.ceil(totalCount / pageSize))}
+                        disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                        data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
+                      >
+                        <span className="gba:sr-only">Go to last page</span>
+                        ⟩⟩
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
+                  <div className="gba:text-sm gba:text-muted-foreground">
+                    {`${totalCount} expense items`}
+                  </div>
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
+                      className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      }
       dataDetails={selectedItem ? {
         title: selectedItem.title,
-        icon: <FileTextOutlined />,
-        content: renderExpenseDetails,
+        icon: <PiFileText />,
+        content: (
+          <ExpenseItemDetails
+            selectedItem={selectedItem}
+            onClose={handleCloseDetails}
+            accessToken={props.accessToken}
+            userInfo={props.userInfo}
+          />
+        ),
         onClose: handleCloseDetails
       } : undefined}
     />

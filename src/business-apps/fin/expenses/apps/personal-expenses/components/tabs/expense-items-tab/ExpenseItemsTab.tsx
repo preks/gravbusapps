@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
-import { message } from 'antd';
 import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_ITEMS_BY_EMPLOYEE, GET_EXPENSE_ITEM_STATISTICS, GET_PENDING_ITEMS } from '../../../queries/expenseItems';
@@ -42,9 +41,8 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   const [activeCard, setActiveCard] = useState<string | null>(null);
 
   // Centralized handler to clear all filters (UI + card)
-  const handleClearAllFilters = useCallback((filters: string[]) => {
-    setFilters(filters);
-    setActiveCard(null);
+  const handleClearAllFilters = useCallback(() => {
+    setFilters([]);
     setExpenseDateRange(null);
   }, [setFilters, setExpenseDateRange]);
   
@@ -398,8 +396,8 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   const handleAddExpenseItem = useCallback(() => {
     const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
     if (!employeeId) {
-      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
-      message.warning('User information not loaded yet. Please wait a moment and try again.');
+              console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+        console.warn('User information not loaded yet. Please wait a moment and try again.');
       return;
     }
     
