@@ -253,7 +253,7 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
         ];
       }
 
-      // Add status filter
+      // Add status filter - always include PENDING status by default if no status is provided
       if (status && status.length > 0) {
         // Map filter values to actual database status values
         const mappedStatuses = status.map(statusValue => {
@@ -267,6 +267,9 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
           
           if (validStatuses.includes(statusValue.toUpperCase())) {
             actualStatus = statusValue.toUpperCase();
+          } else if (statusValue.toLowerCase() === 'in_approval') {
+            // Special handling for the UI filter value that maps to PENDING
+            actualStatus = 'PENDING';
           }
           
           return actualStatus;
@@ -274,6 +277,10 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
         
         console.log('Mapped statuses:', mappedStatuses);
         whereClause.status = { _in: mappedStatuses };
+      } else {
+        // If no status filter is provided, default to PENDING
+        console.log('No status filter provided, defaulting to PENDING');
+        whereClause.status = { _in: ['PENDING'] };
       }
 
       const variables = {

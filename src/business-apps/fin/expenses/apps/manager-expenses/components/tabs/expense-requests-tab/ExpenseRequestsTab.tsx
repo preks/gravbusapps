@@ -74,13 +74,14 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
           currency: primaryCurrency
         });
         
-        // Direct API call to ensure filters are applied correctly
+        // Force the status filter to be applied by using both the UI filter value and the backend value
+        // This ensures the filter is properly mapped and applied in the GraphQL query
         await fetchRequests(
           '', // No search term
           1,  // First page
           10, // Default page size
           'requestDate:desc', // Default sorting
-          [pendingStatus], // Use the mapped status value from the filter hook
+          ['PENDING', pendingStatus], // Include both formats to ensure it's applied
           undefined, // No request date filter
           primaryCurrency // Use primary currency (which should be the most used currency)
         );
