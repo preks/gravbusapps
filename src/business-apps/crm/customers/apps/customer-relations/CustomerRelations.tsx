@@ -97,7 +97,6 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
     startDate: new Date(new Date().getFullYear() - 2, 0, 1),
     endDate: new Date()
   });
-
   const { pipelines, isLoading, error, refetch } = useSalesDashboard(
     context,
     dateRange

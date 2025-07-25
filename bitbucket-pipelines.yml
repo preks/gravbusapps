@@ -41,7 +41,7 @@ definitions:
           - set -e
           - echo $NEWWORK_NMP_CREDENTIALS | base64 -d > ~/.npmrc
           - apt-get update && apt-get install gettext -y
-          - npm ci  # Faster than npm install for CI
+          - npm install
           - |
             # Pre-install native dependencies to avoid rebuilds later
             npm install @rollup/rollup-linux-x64-gnu lightningcss-linux-x64-gnu || true
