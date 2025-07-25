@@ -85,8 +85,8 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { users, departments, capabilities, companies, costCenters, matrixTeams } = useMockData();
 
-  // Get current target (first one)
-  const currentTarget = value.targets?.[0] || {};
+  // Get current target (single object)
+  const currentTarget = value.targets || {};
 
   // Get data source for the selected type - simplified without memoization
   const getDataSource = (dataSource: string) => {
@@ -139,7 +139,7 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
 
       onChange({
         ...value,
-        targets: [newTarget],
+        targets: newTarget,
         allowReassignment: true
       });
     }
@@ -165,7 +165,7 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
 
     onChange({
       ...value,
-      targets: [newTarget]
+      targets: newTarget
     });
   }, [onChange, currentTarget, value]);
 
@@ -370,17 +370,9 @@ export const AssignmentContent: React.FC<AssignmentContentProps> = ({
   testId,
   onUpdateStep
 }) => {
-  // Initialize assignment if it doesn't exist
+  // Initialize assignment only if it doesn't exist, but don't force empty arrays
   const assignment = step.assignment || {
-    targets: [{
-      userIds: [],
-      organizationalUnits: [],
-      matrixTeams: [],
-      companies: [],
-      siteLocations: [],
-      costCenters: [],
-      capabilities: []
-    }],
+    targets: null, // null targets means flexible assignment
     assignmentMode: AssignmentMode.CLAIM,
     allowReassignment: true
   };

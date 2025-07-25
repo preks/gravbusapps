@@ -1,7 +1,7 @@
 import React from 'react';
 import { Input, Label, Textarea } from '@newwork/nw-design-system';
-import { Select, Space } from 'antd';
-import { User, Settings, FileText, FormInput } from 'lucide-react';
+import { Select, Space, InputNumber } from 'antd';
+import { User, Settings, FileText, FormInput, Clock } from 'lucide-react';
 import { FlowStepType } from '../../types/flowTemplate';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
@@ -83,6 +83,26 @@ export const BasicConfiguration: React.FC<BasicConfigurationProps> = ({
           onChange={(e) => onUpdateStep({ message: e.target.value })}
           className="gba:w-full gba:min-h-[100px]"
           data-testid={`${testId}-message-input`}
+        />
+      </div>
+
+      {/* Due Time Configuration */}
+      <div className="gba:space-y-2" data-testid={`${testId}-duetime-field`}>
+        <Label htmlFor={`step-${stepIndex}-duetime`} data-testid={`${testId}-duetime-label`}>
+          <Space>
+            <Clock className="gba:h-4 gba:w-4" />
+            {getTranslationFromI18nKeyAndLabel('flow.creator.stepDueTime', 'Due Time (minutes)')}:
+          </Space>
+        </Label>
+        <InputNumber
+          id={`step-${stepIndex}-duetime`}
+          value={step.dueInMinutes}
+          onChange={(value) => onUpdateStep({ dueInMinutes: value })}
+          min={1}
+          max={525600} // Max 1 year in minutes
+          placeholder="e.g., 60 for 1 hour, 1440 for 1 day"
+          style={{ width: '100%' }}
+          data-testid={`${testId}-duetime-input`}
         />
       </div>
     </div>

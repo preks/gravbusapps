@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { BusinessPattern, WizardState, WizardStep, PatternSelection } from '../types/businessPatterns';
 import { FlowTemplate, FlowStep, FlowStepType, AssignmentMode } from '../types/flowTemplate';
 import { validateTemplateAgainstPattern, ValidationResult } from '../utils/patternValidation';
+import { useFlowTemplateStore } from './useFlowTemplateStore';
 
 interface WizardStore extends WizardState {
   // Pattern selection
@@ -86,10 +87,25 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
       type: preStep.type,
       inputs: preStep.inputs || [],
       links: preStep.links || [],
-      // No default assignment - let users choose to add via toggle
-      assignment: undefined
+      // Apply pre-configured assignment if specified, otherwise no default assignment
+      assignment: preStep.assignment ? {
+        targets: preStep.assignment.assignmentMode === AssignmentMode.ASSIGN ? 
+          null : // For ASSIGN mode, null targets means "prompt user to assign during launch"
+          [{
+            userIds: [],
+            organizationalUnits: [],
+            matrixTeams: [],
+            companies: [],
+            siteLocations: [],
+            costCenters: [],
+            capabilities: []
+          }],
+        assignmentMode: preStep.assignment.assignmentMode,
+        allowReassignment: preStep.assignment.allowReassignment ?? true
+      } : undefined
     }));
     
+    // Update wizard configuration
     set((state) => ({
       configuration: {
         ...state.configuration,
@@ -102,6 +118,16 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
         requiresEscalation: pattern.configuration.requiresEscalation
       }
     }));
+    
+    // Also update the flow template store with the generated steps
+    const { initializeTemplate } = useFlowTemplateStore.getState();
+    initializeTemplate({
+      type: 'TEMPLATE',
+      name: `${pattern.title} Workflow`,
+      description: pattern.description,
+      assignmentMode: AssignmentMode.CLAIM,
+      steps: defaultSteps
+    });
   },
   
   // Enhanced pattern selection with defaults
@@ -183,15 +209,17 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
   // Template generation
   generateTemplate: (): FlowTemplate => {
     const { selectedPattern, configuration } = get();
+    const { flowTemplate } = useFlowTemplateStore.getState();
     
-    // Use configured steps or pattern defaults
-    const steps: FlowStep[] = configuration.steps || [];
+    // Use steps from flowTemplate store (these have the latest updates including assignments)
+    // not from configuration (which only has the initial pattern defaults)
+    const steps: FlowStep[] = flowTemplate.steps || [];
     
     const template: FlowTemplate = {
       type: 'TEMPLATE',
-      name: configuration.title || (selectedPattern ? `${selectedPattern.title} Workflow` : 'Custom Workflow'),
-      description: configuration.description || (selectedPattern ? selectedPattern.description : ''),
-      assignmentMode: configuration.assignmentMode || AssignmentMode.CLAIM,
+      name: configuration.title || flowTemplate.name || (selectedPattern ? `${selectedPattern.title} Workflow` : 'Custom Workflow'),
+      description: configuration.description || flowTemplate.description || (selectedPattern ? selectedPattern.description : ''),
+      assignmentMode: configuration.assignmentMode || flowTemplate.assignmentMode || AssignmentMode.CLAIM,
       steps
     };
     
@@ -257,6 +285,10 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
   },
   
   initializeForEdit: (template: FlowTemplate) => {
+    // Initialize the flow template store with the existing template
+    const { initializeTemplate } = useFlowTemplateStore.getState();
+    initializeTemplate(template);
+    
     set({
       ...initialState,
       isEditMode: true,

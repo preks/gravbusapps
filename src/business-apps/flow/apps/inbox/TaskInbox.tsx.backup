@@ -220,7 +220,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox' })
   const [form] = Form.useForm();
 
   // Use the custom flow engine API
-  const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000') + '/api';
+  const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || https://newwork-dev.newwork.com/flow-engine') + '/api';
 
   // Fetch tasks and stats for selected user
   const fetchUserData = async (userId: string) => {

@@ -1,4 +1,5 @@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { env } from '@/common/env/EnvUtils';
 
 export interface FlowProgress {
   currentStep: number;
@@ -77,7 +78,7 @@ export interface StepDataResponse {
  */
 export const useFlowProgressClient = (context: BusinessAppContextProps) => {
   // Base URL for the custom flow engine API
-  const baseUrl = process.env.NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL || 'http://localhost:3000';
+  const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
 
   const getFlowOverview = async (flowId: string): Promise<FlowOverview> => {
     const response = await fetch(`${baseUrl}/api/flow/${flowId}`, {

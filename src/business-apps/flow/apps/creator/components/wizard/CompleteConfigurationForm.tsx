@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { Button, Input, Form, Alert, Badge } from 'antd';
+import { Alert, Badge, Button, Form, Input, InputNumber } from 'antd';
 import { 
   SettingOutlined,
   InfoCircleOutlined
@@ -103,12 +103,13 @@ export const CompleteConfigurationForm: React.FC<CompleteConfigurationFormProps>
   };
 
   // Handle form field changes
-  const handleFieldChange = (field: string, value: string) => {
-    updateConfiguration(field, value);
+  const onFieldChange = (field: string, value: any) => {
     if (field === 'title') {
-      updateTitle(value);
+      updateTitle(value as string);        // Update useFlowTemplateStore
+      updateConfiguration('title', value); // Update useWizardStore
     } else if (field === 'description') {
-      updateDescription(value);
+      updateDescription(value as string);           // Update useFlowTemplateStore  
+      updateConfiguration('description', value);    // Update useWizardStore
     }
   };
 
@@ -132,7 +133,7 @@ export const CompleteConfigurationForm: React.FC<CompleteConfigurationFormProps>
           <CardContent>
             <div className="gba:space-y-4">
               <Alert
-                message={getTranslationFromI18nKeyAndLabel('flow.wizard.patternHelp', 'Choose a business pattern to get pre-configured steps and smart defaults, or skip to create a custom workflow from scratch')}
+                message={getTranslationFromI18nKeyAndLabel('flow.wizard.patternHelp', 'Choose a business pattern to get pre-configured steps and smart defaults, or skip to create a custom flow from scratch')}
                 type="info"
                 showIcon
                 icon={<InfoCircleOutlined />}
@@ -143,11 +144,6 @@ export const CompleteConfigurationForm: React.FC<CompleteConfigurationFormProps>
                 data-testid={`${testId}-pattern-selector`}
               />
               
-              <div className="gba:flex gba:justify-center gba:pt-4 gba:border-t">
-                <Button onClick={handleSkipPattern} data-testid={`${testId}-skip-pattern`}>
-                  {getTranslationFromI18nKeyAndLabel('flow.wizard.skipPattern', 'Skip - Create Custom Workflow')}
-                </Button>
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -177,7 +173,7 @@ export const CompleteConfigurationForm: React.FC<CompleteConfigurationFormProps>
       )}
 
       {/* Template Details Form */}
-      <div data-testid={`${testId}-basic-info`} className="gba:space-y-4">
+      <div data-testid={`${testId}-basic-info`} className="gba:space-y-4 gba:mt-4">
         <Form
           form={form}
           layout="vertical"
@@ -187,24 +183,24 @@ export const CompleteConfigurationForm: React.FC<CompleteConfigurationFormProps>
           }}
           onValuesChange={(changedValues) => {
             Object.entries(changedValues).forEach(([key, value]) => {
-              handleFieldChange(key, value as string);
+              onFieldChange(key, value);
             });
           }}
         >
-          <Form.Item
-            label={getTranslationFromI18nKeyAndLabel('flow.creator.name', 'Workflow Name')}
-            name="title"
-            rules={[
-              { required: true, message: 'Please enter a workflow name' },
-              { min: 3, message: 'Name must be at least 3 characters' },
-              { max: 100, message: 'Name must not exceed 100 characters' }
-            ]}
-          >
-            <Input 
-              placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.namePlaceholder', 'Enter a descriptive name for your workflow')}
-              data-testid={`${testId}-title-input`}
-            />
-          </Form.Item>
+                      <Form.Item
+              label={getTranslationFromI18nKeyAndLabel('flow.creator.name', 'Flow Name')}
+              name="title"
+              rules={[
+                { required: true, message: 'Please enter a flow name' },
+                { min: 3, message: 'Name must be at least 3 characters' },
+                { max: 100, message: 'Name must not exceed 100 characters' }
+              ]}
+            >
+              <Input 
+                placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.namePlaceholder', 'Enter a descriptive name for your flow')}
+                data-testid={`${testId}-title-input`}
+              />
+            </Form.Item>
 
           <Form.Item
             label={getTranslationFromI18nKeyAndLabel('flow.creator.description', 'Description')}
@@ -213,11 +209,11 @@ export const CompleteConfigurationForm: React.FC<CompleteConfigurationFormProps>
               { max: 500, message: 'Description must not exceed 500 characters' }
             ]}
           >
-            <TextArea 
-              rows={3}
-              placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.descriptionPlaceholder', 'Describe the purpose and scope of this workflow')}
-              data-testid={`${testId}-description-input`}
-            />
+                            <TextArea 
+                  rows={3}
+                  placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.descriptionPlaceholder', 'Describe the purpose and scope of this flow')}
+                  data-testid={`${testId}-description-input`}
+                />
           </Form.Item>
         </Form>
       </div>

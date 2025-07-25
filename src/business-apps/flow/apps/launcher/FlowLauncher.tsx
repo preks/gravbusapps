@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 // Using inline type definition since we can't resolve the import
 // Import centralized mock users data
 import { mockUsers } from '../../data/mockUsers';
+import { env } from '@/common/env/EnvUtils';
 
 interface BusinessAppContextProps {
   accessToken: string;
@@ -34,8 +35,7 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 // API configuration
-const env = (key: string) => process.env[key];
-const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000') + '/api';
+const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api';
 
 interface LaunchParameters {
   [key: string]: string;
@@ -226,9 +226,9 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
         body: JSON.stringify(executionParams),
       });
       
-      console.log('Workflow launched successfully:', result);
+      console.log('Flow launched successfully:', result);
       
-      alert(`Workflow launched successfully!\n\nWorkflow ID: ${result.data?.workflowId}\nTemplate: ${selectedTemplate.name}`);
+      alert(`Flow launched successfully!\n\nFlow ID: ${result.data?.workflowId}\nTemplate: ${selectedTemplate.name}`);
       
       // Reset form after successful launch
       setLaunchParameters({});
@@ -286,9 +286,9 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
         body: JSON.stringify(executionParams),
       });
       
-      console.log('Workflow launched successfully:', result);
+      console.log('Flow launched successfully:', result);
       
-      alert(`Workflow launched successfully!\n\nWorkflow ID: ${result.data?.workflowId}\nTemplate: ${selectedTemplate.name}`);
+      alert(`Flow launched successfully!\n\nFlow ID: ${result.data?.workflowId}\nTemplate: ${selectedTemplate.name}`);
       
       // Reset form after successful launch
       setLaunchParameters({});
@@ -476,6 +476,8 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
                   )}
 
                   <div className="gba:pt-4 gba:border-t gba:space-y-3">
+                    {/* Temporarily disabled - Launch with Configuration Wizard */}
+                    {/*
                     <Button
                       type="primary"
                       size="large"
@@ -486,8 +488,10 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
                     >
                       {getTranslationFromI18nKeyAndLabel('flow.launcher.launchWithWizard', 'Launch with Configuration Wizard')}
                     </Button>
+                    */}
                     
                     <Button
+                      type="primary"
                       size="large"
                       icon={<PlayCircleOutlined />}
                       onClick={handleDirectLaunch}

@@ -74,7 +74,7 @@ export const ConductorPreviewSection: React.FC = () => {
           <p className="gba:text-sm gba:text-gray-600" data-testid="conductor-preview-description">
             {getTranslationFromI18nKeyAndLabel(
               'flow.creator.conductorPreviewDescription', 
-              'Generate a Netflix Conductor workflow definition from your flow template for debugging and verification. Requires backend server running on localhost:3000.'
+              'Generate a Netflix Conductor flow definition from your flow template for debugging and verification. Requires backend server running on localhost:3000.'
             )}
           </p>
           
@@ -120,7 +120,7 @@ export const ConductorPreviewSection: React.FC = () => {
             data-testid="conductor-flow-preview-header"
           >
             <h4 className="gba:font-medium" data-testid="conductor-flow-preview-title">
-              {getTranslationFromI18nKeyAndLabel('flow.creator.conductorFlowDefinition', 'Conductor Workflow Definition')}
+              {getTranslationFromI18nKeyAndLabel('flow.creator.conductorFlowDefinition', 'Conductor Flow Definition')}
             </h4>
             <div className="gba:flex gba:items-center gba:gap-2">
               <Button

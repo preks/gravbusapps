@@ -9,10 +9,10 @@ import {
   InformationPattern,
   TaskCoordinationPattern,
   DecisionMakingPattern,
-  ReviewFeedbackPattern,
+  SurveyPattern,
   RequestResponsePattern
 } from '../types/businessPatterns';
-import { FlowStepType, InputType } from '../types/flowTemplate';
+import { FlowStepType, InputType, AssignmentMode } from '../types/flowTemplate';
 
 // 🔐 APPROVAL WORKFLOWS
 export const APPROVAL_PATTERNS: BusinessPattern[] = [
@@ -405,21 +405,21 @@ export const DECISION_MAKING_PATTERNS: BusinessPattern[] = [
   }
 ];
 
-// 📝 REVIEW & FEEDBACK
-export const REVIEW_FEEDBACK_PATTERNS: BusinessPattern[] = [
+// 📊 SURVEYS
+export const SURVEY_PATTERNS: BusinessPattern[] = [
   {
-    id: 'peer-review',
-    category: BusinessPatternCategory.REVIEW_FEEDBACK,
-    subPattern: ReviewFeedbackPattern.PEER_REVIEW,
-    title: 'Peer Review',
-    description: 'Review work from colleagues',
-    icon: 'Users',
+    id: 'employee-survey',
+    category: BusinessPatternCategory.SURVEY,
+    subPattern: SurveyPattern.EMPLOYEE_SURVEY,
+    title: 'Employee Survey',
+    description: 'Collect feedback from assigned participants',
+    icon: 'FileText',
     color: '#EC4899',
     useCases: [
-      'Code review process',
-      'Document peer review',
-      'Design feedback collection',
-      'Quality assurance review'
+      'Employee satisfaction survey',
+      'Annual engagement survey',
+      'Team feedback collection',
+      'Performance self-assessment'
     ],
     configuration: {
       requiresApproval: false,
@@ -427,36 +427,61 @@ export const REVIEW_FEEDBACK_PATTERNS: BusinessPattern[] = [
       requiresDeadline: true,
       requiresEscalation: true,
       allowsMultipleSteps: true,
-      recommendedFlowStepTypes: [FlowStepType.TASK],
+      recommendedFlowStepTypes: [FlowStepType.TASK, FlowStepType.INFORMATION],
       forbiddenFlowStepTypes: [FlowStepType.APPROVAL],
-      recommendedInputs: [InputType.TEXTAREA, InputType.FILE, InputType.CHECKBOX],
-      minSteps: 1,
+      recommendedInputs: [InputType.TEXTAREA, InputType.SELECT, InputType.CHECKBOX, InputType.NUMBER],
+      minSteps: 2,
       maxSteps: 3
     },
     preConfiguredSteps: [
       {
-        title: 'Review Work',
-        description: 'Review the submitted work and provide feedback',
+        title: 'Complete Survey',
+        description: 'Please fill out the survey questions',
         type: FlowStepType.TASK,
         inputs: [
           {
-            type: InputType.TEXTAREA,
-            name: 'reviewComments',
-            label: 'Review Comments',
+            type: InputType.SELECT,
+            name: 'satisfaction',
+            label: 'Overall satisfaction',
             required: true,
-            placeholder: 'Provide detailed review comments...'
+            options: [
+              { value: 'very-satisfied', label: 'Very Satisfied' },
+              { value: 'satisfied', label: 'Satisfied' },
+              { value: 'neutral', label: 'Neutral' },
+              { value: 'dissatisfied', label: 'Dissatisfied' },
+              { value: 'very-dissatisfied', label: 'Very Dissatisfied' }
+            ]
+          },
+          {
+            type: InputType.TEXTAREA,
+            name: 'comments',
+            label: 'Additional comments',
+            required: false,
+            placeholder: 'Share your thoughts and suggestions...'
           },
           {
             type: InputType.CHECKBOX,
-            name: 'qualityStandardsMet',
-            label: 'Work meets quality standards',
-            required: true
-          },
-          {
-            type: InputType.FILE,
-            name: 'reviewAttachments',
-            label: 'Review Attachments',
+            name: 'recommendCompany',
+            label: 'Would you recommend this company to others?',
             required: false
+          }
+        ],
+        assignment: {
+          assignmentMode: AssignmentMode.ASSIGN,
+          allowReassignment: false
+        }
+      },
+      {
+        title: 'Survey Results',
+        description: 'View survey results and analytics',
+        type: FlowStepType.INFORMATION,
+        inputs: [
+          {
+            type: InputType.TEXTAREA,
+            name: 'summaryNotes',
+            label: 'Summary notes',
+            required: false,
+            placeholder: 'Add summary notes about the survey results...'
           }
         ]
       }
@@ -465,7 +490,7 @@ export const REVIEW_FEEDBACK_PATTERNS: BusinessPattern[] = [
       {
         field: 'assignment',
         rule: 'required',
-        message: 'Reviewers are required for peer review'
+        message: 'Survey participants must be assigned (ASSIGN mode) for the survey step'
       }
     ]
   }
@@ -558,7 +583,7 @@ export const ALL_BUSINESS_PATTERNS: BusinessPattern[] = [
   ...INFORMATION_PATTERNS,
   ...TASK_COORDINATION_PATTERNS,
   ...DECISION_MAKING_PATTERNS,
-  ...REVIEW_FEEDBACK_PATTERNS,
+  ...SURVEY_PATTERNS,
   ...REQUEST_RESPONSE_PATTERNS
 ];
 
@@ -632,14 +657,14 @@ export const PATTERN_VALIDATION_RULES = {
       }
     }
   ],
-  'peer-review': [
+  'employee-survey': [
     {
       field: 'steps[0].inputs',
       rule: 'custom' as const,
-      message: 'Peer review should have quality checkbox',
+      message: 'Employee survey should have satisfaction input',
       customValidator: (value: any, template: any) => {
         return template.steps[0].inputs.some((block: any) => 
-          block.type === InputType.CHECKBOX && block.label.toLowerCase().includes('quality')
+          block.type === InputType.SELECT && block.label.toLowerCase().includes('satisfaction')
         );
       }
     }

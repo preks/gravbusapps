@@ -55,7 +55,8 @@ export interface AssignmentTarget {
 }
 
 export interface TaskAssignment {
-  targets: AssignmentTarget[];
+  targets?: AssignmentTarget | null; // Single target object, null/undefined for flexible assignment
+  assignmentMode?: AssignmentMode; // CLAIM or ASSIGN mode  
   allowReassignment?: boolean;
 }
 
@@ -107,7 +108,7 @@ interface ApiResponse<T> {
 export class FlowTemplateClient extends RestClient {
   constructor(accessToken: string) {
     // Use our custom flow engine API endpoint
-    const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000';
+    const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
     super(`${baseUrl}/api/templates`, {
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json'

@@ -79,7 +79,7 @@ export const FlowTemplateList: React.FC<FlowTemplateListProps> = ({
             {getTranslationFromI18nKeyAndLabel('flow.creator.templatesList', 'Templates')}
           </CardTitle>
           <CardDescription>
-            {getTranslationFromI18nKeyAndLabel('flow.creator.templatesDescription', 'Create and manage workflow templates')}
+            {getTranslationFromI18nKeyAndLabel('flow.creator.templatesDescription', 'Create and manage flow templates')}
           </CardDescription>
         </div>
         

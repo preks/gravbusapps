@@ -17,6 +17,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 const { Text, Title, Paragraph } = Typography;
 
+import { env } from '@/common/env/EnvUtils';
+
 interface Task {
   id: string;
   flowId: string;
@@ -110,7 +112,7 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
     
     try {
       // Use the new comprehensive history API
-      const API_BASE = process.env.NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL || 'http://localhost:3000';
+      const API_BASE = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
       const response = await fetch(`${API_BASE}/api/flow/${flowId}/history`);
       
       if (!response.ok) {

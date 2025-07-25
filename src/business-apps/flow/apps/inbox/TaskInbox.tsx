@@ -184,7 +184,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
   const [rejectionComment, setRejectionComment] = useState<string>('');
   const [form] = Form.useForm();
 
-  const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000') + '/api';
+  const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api';
 
   // Fetch tasks and stats for selected user
   const fetchUserData = async (userId: string) => {
@@ -453,6 +453,8 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
       </Card>
 
       {/* Task Statistics */}
+      {/* Temporarily disabled - Task Statistics section */}
+      {/*
       {taskStats && (
         <Card style={{ marginBottom: '16px' }}>
           <Title level={5}>Task Statistics for {taskStats.userName || mockUsers.find(u => u.id === selectedUserId)?.name}</Title>
@@ -468,6 +470,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
           </Space>
         </Card>
       )}
+      */}
 
       {/* Error Display */}
       {error && (

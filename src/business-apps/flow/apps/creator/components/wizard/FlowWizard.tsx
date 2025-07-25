@@ -64,7 +64,8 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
     selectedPattern,
     configuration,
     steps,
-    isEditMode
+    isEditMode,
+    generateTemplate
   } = useWizardStore();
 
   const progress = ((currentStep + 1) / useWizardStore.getState().steps.length) * 100;
@@ -80,10 +81,10 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
   // Get validation message
   const getValidationMessage = () => {
     if (!configuration.title || configuration.title.trim().length === 0) {
-      return 'Please provide a workflow title';
+      return 'Please provide a flow title';
     }
     if (!configuration.steps || configuration.steps.length === 0) {
-      return 'Please add at least one workflow step';
+      return 'Please add at least one flow step';
     }
     return '';
   };
@@ -91,7 +92,11 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
   const handleComplete = () => {
     if (!isValid) return;
     
+    // Generate the actual FlowTemplate using the wizard store
+    const flowTemplate = generateTemplate();
+    
     const template = {
+      template: flowTemplate,
       pattern: selectedPattern,
       configuration,
       createdAt: new Date().toISOString()
@@ -150,7 +155,7 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
               >
                 {isEditMode 
                   ? getTranslationFromI18nKeyAndLabel('flow.creator.saveChanges', 'Save Changes')
-                  : getTranslationFromI18nKeyAndLabel('flow.creator.complete', 'Create Workflow')
+                  : getTranslationFromI18nKeyAndLabel('flow.creator.complete', 'Create Flow')
                 }
               </Button>
             </div>

@@ -2,7 +2,7 @@
  * Business pattern definitions for wizard-based flow template creation
  */
 
-import { FlowStepType, InputType } from './flowTemplate';
+import { FlowStepType, InputType, AssignmentMode } from './flowTemplate';
 
 // Business pattern categories
 export enum BusinessPatternCategory {
@@ -10,7 +10,7 @@ export enum BusinessPatternCategory {
   INFORMATION = 'INFORMATION', 
   TASK_COORDINATION = 'TASK_COORDINATION',
   DECISION_MAKING = 'DECISION_MAKING',
-  REVIEW_FEEDBACK = 'REVIEW_FEEDBACK',
+  SURVEY = 'SURVEY',
   REQUEST_RESPONSE = 'REQUEST_RESPONSE'
 }
 
@@ -43,11 +43,11 @@ export enum DecisionMakingPattern {
   CONSENSUS_BUILDING = 'CONSENSUS_BUILDING'
 }
 
-export enum ReviewFeedbackPattern {
-  DOCUMENT_REVIEW = 'DOCUMENT_REVIEW',
-  QUALITY_CHECK = 'QUALITY_CHECK',
-  PEER_REVIEW = 'PEER_REVIEW',
-  MULTI_STAGE_REVIEW = 'MULTI_STAGE_REVIEW'
+export enum SurveyPattern {
+  EMPLOYEE_SURVEY = 'EMPLOYEE_SURVEY',
+  FEEDBACK_COLLECTION = 'FEEDBACK_COLLECTION',
+  ASSESSMENT_SURVEY = 'ASSESSMENT_SURVEY',
+  SATISFACTION_SURVEY = 'SATISFACTION_SURVEY'
 }
 
 export enum RequestResponsePattern {
@@ -93,6 +93,10 @@ export interface PreConfiguredStep {
   type: FlowStepType;
   inputs?: PreConfiguredInputBlock[];
   links?: any[];
+  assignment?: {
+    assignmentMode: AssignmentMode;
+    allowReassignment?: boolean;
+  };
 }
 
 export interface PreConfiguredInputBlock {

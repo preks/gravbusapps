@@ -30,15 +30,15 @@ export const mockUsers: User[] = [
     id: 'user-007',
     name: 'David Wilson',
     email: 'david.wilson@newwork.com',
-    department: 'IT',
-    role: 'IT Manager'
+    department: 'Engineering',
+    role: 'Engineering Manager'
   },
   {
     id: 'emp-001',
-    name: 'John NewHire',
-    email: 'john.newhire@newwork.com',
-    department: 'Engineering',
-    role: 'Senior Software Engineer'
+    name: 'John Dan',
+    email: 'john.dan@newwork.com',
+    department: 'IT Department',
+    role: 'IT Manager'
   },
   {
     id: 'user-002',

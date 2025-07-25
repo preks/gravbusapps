@@ -75,7 +75,7 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId }) => 
       setError(null);
       
       // Use the new enhanced progress API with the correct base URL
-      const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000') + '/api';
+      const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api';
       const response = await fetch(`${API_BASE}/flow/${flowId}/progress/enhanced`);
       
       if (!response.ok) {

@@ -164,9 +164,9 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
       };
 
       await onExecute(executionConfig);
-      message.success(getTranslationFromI18nKeyAndLabel('flow.execution.success', 'Workflow executed successfully'));
+              message.success(getTranslationFromI18nKeyAndLabel('flow.execution.success', 'Flow executed successfully'));
     } catch (error) {
-      message.error(getTranslationFromI18nKeyAndLabel('flow.execution.error', 'Failed to execute workflow'));
+              message.error(getTranslationFromI18nKeyAndLabel('flow.execution.error', 'Failed to execute flow'));
       console.error('Execution error:', error);
     } finally {
       setIsExecuting(false);
@@ -261,7 +261,7 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
                 disabled={!canExecute}
                 data-testid={`${testId}-execute-button`}
               >
-                {getTranslationFromI18nKeyAndLabel('flow.execution.execute', 'Execute Workflow')}
+                {getTranslationFromI18nKeyAndLabel('flow.execution.execute', 'Execute Flow')}
               </Button>
             )}
           </div>

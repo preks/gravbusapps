@@ -340,6 +340,8 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
           </Button>
         )}
         
+        {/* Temporarily disabled - Reassign button */}
+        {/*
         {task.availableActions?.canReassign && (
           <Button
             type="default"
@@ -350,6 +352,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
             Reassign
           </Button>
         )}
+        */}
         
         {task.availableActions?.canUnclaim && (
           <Button

@@ -166,11 +166,6 @@ export const TemplateSetupForm: React.FC<TemplateSetupFormProps> = ({
                    data-testid={`${testId}-pattern-selector`}
                  />
                 
-                <div className="gba:flex gba:justify-center gba:pt-4 gba:border-t">
-                  <Button onClick={handleSkipPattern} data-testid={`${testId}-skip-pattern`}>
-                    {getTranslationFromI18nKeyAndLabel('flow.wizard.skipPattern', 'Skip - Create Custom Workflow')}
-                  </Button>
-                </div>
               </div>
             </CardContent>
           )}
@@ -207,7 +202,7 @@ export const TemplateSetupForm: React.FC<TemplateSetupFormProps> = ({
       )}
 
       {/* Basic Information Form */}
-      <Card data-testid={`${testId}-basic-info`}>
+      <Card data-testid={`${testId}-basic-info`} className="gba:pt-4">
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <FileText className="gba:w-5 gba:h-5 gba:text-gray-600" />

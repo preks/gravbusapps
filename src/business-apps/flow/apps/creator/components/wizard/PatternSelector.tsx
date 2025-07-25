@@ -24,7 +24,7 @@ import {
   INFORMATION_PATTERNS,
   TASK_COORDINATION_PATTERNS,
   DECISION_MAKING_PATTERNS,
-  REVIEW_FEEDBACK_PATTERNS,
+  SURVEY_PATTERNS,
   REQUEST_RESPONSE_PATTERNS
 } from '../../data/businessPatterns';
 import { useWizardStore } from '../../hooks/useWizardStore';
@@ -72,9 +72,9 @@ const CATEGORY_INFO = {
     icon: 'MessageSquare',
     color: '#8B5CF6'
   },
-  [BusinessPatternCategory.REVIEW_FEEDBACK]: {
-    title: 'Review & Feedback',
-    description: 'Collect evaluations and quality assessments',
+  [BusinessPatternCategory.SURVEY]: {
+    title: 'Surveys',
+    description: 'Collect feedback and opinions through structured surveys',
     icon: 'FileText',
     color: '#EF4444'
   },
@@ -91,7 +91,7 @@ const PATTERNS_BY_CATEGORY = {
   [BusinessPatternCategory.INFORMATION]: INFORMATION_PATTERNS,
   [BusinessPatternCategory.TASK_COORDINATION]: TASK_COORDINATION_PATTERNS,
   [BusinessPatternCategory.DECISION_MAKING]: DECISION_MAKING_PATTERNS,
-  [BusinessPatternCategory.REVIEW_FEEDBACK]: REVIEW_FEEDBACK_PATTERNS,
+  [BusinessPatternCategory.SURVEY]: SURVEY_PATTERNS,
   [BusinessPatternCategory.REQUEST_RESPONSE]: REQUEST_RESPONSE_PATTERNS
 };
 
@@ -129,10 +129,10 @@ export const PatternSelector: React.FC<PatternSelectorProps> = ({
       {/* Header */}
       <div className="gba:text-center gba:mb-8" data-testid={`${testId}-header`}>
         <h2 className="gba:text-2xl gba:md:text-3xl gba:font-bold gba:text-gray-900 gba:mb-2">
-          {getTranslationFromI18nKeyAndLabel('flow.wizard.selectPattern', 'Select Workflow Pattern')}
+                      {getTranslationFromI18nKeyAndLabel('flow.wizard.selectPattern', 'Select Flow Pattern')}
         </h2>
         <p className="gba:text-gray-600 gba:text-base gba:md:text-lg gba:max-w-2xl gba:mx-auto">
-          {getTranslationFromI18nKeyAndLabel('flow.wizard.selectPatternDescription', 'Choose a business pattern that best matches your workflow needs')}
+          {getTranslationFromI18nKeyAndLabel('flow.wizard.selectPatternDescription', 'Choose a business pattern that best matches your flow needs')}
         </p>
       </div>
 
@@ -252,63 +252,6 @@ export const PatternSelector: React.FC<PatternSelectorProps> = ({
         })}
       </div>
 
-      {/* Selected Pattern Summary */}
-      {selectedPattern && (
-        <Card className="gba:mt-8 gba:bg-blue-50 gba:border-blue-200" data-testid={`${testId}-selected-summary`}>
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <div className="gba:text-xl">
-                  {renderIcon(selectedPattern.icon, 'gba:w-6 gba:h-6', { color: selectedPattern.color })}
-                </div>
-                <span>Selected Pattern: {selectedPattern.title}</span>
-              </div>
-              <Button 
-                type="primary" 
-                size="large"
-                onClick={onNext}
-                data-testid={`${testId}-next-button`}
-                className="gba:min-w-[140px]"
-              >
-                Configure Workflow
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6">
-              <div>
-                <h4 className="gba:font-semibold gba:text-gray-900 gba:mb-2">Description</h4>
-                <p className="gba:text-gray-700 gba:mb-4">{selectedPattern.description}</p>
-                
-                <h4 className="gba:font-semibold gba:text-gray-900 gba:mb-2">Configuration</h4>
-                <div className="gba:space-y-2 gba:text-sm">
-                  <div className="gba:flex gba:justify-between gba:items-center">
-                    <span>Steps:</span>
-                    <Badge variant="outline">
-                      {selectedPattern.configuration.minSteps === selectedPattern.configuration.maxSteps
-                        ? `${selectedPattern.configuration.minSteps} step${selectedPattern.configuration.minSteps > 1 ? 's' : ''}`
-                        : `${selectedPattern.configuration.minSteps}-${selectedPattern.configuration.maxSteps} steps`
-                      }
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <h4 className="gba:font-semibold gba:text-gray-900 gba:mb-2">All Use Cases</h4>
-                <div className="gba:space-y-1 gba:max-h-40 gba:overflow-y-auto">
-                  {selectedPattern.useCases.map((useCase: string, index: number) => (
-                    <div key={index} className="gba:flex gba:items-center gba:space-x-2">
-                      <div className="gba:w-1 gba:h-1 gba:bg-blue-500 gba:rounded-full gba:flex-shrink-0"></div>
-                      <span className="gba:text-sm gba:text-gray-700">{useCase}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }; 

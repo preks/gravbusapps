@@ -28,8 +28,8 @@ export const FlowWizardDialog: React.FC<FlowWizardDialogProps> = ({
   };
 
   const dialogTitle = isEditMode 
-    ? getTranslationFromI18nKeyAndLabel('flow.creator.editWorkflow', 'Edit Workflow Template')
-    : getTranslationFromI18nKeyAndLabel('flow.creator.createWorkflow', 'Create Workflow Template');
+    ? getTranslationFromI18nKeyAndLabel('flow.creator.editWorkflow', 'Edit Flow Template')
+    : getTranslationFromI18nKeyAndLabel('flow.creator.createWorkflow', 'Create Flow Template');
 
   return (
     <Modal
