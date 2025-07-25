@@ -118,7 +118,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     }
 
     return (
-      <div>
+      <div className="gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm">
         {/* Table with horizontal scrolling */}
         <div className="gba:overflow-x-auto">
           <Table data-testid="advance-payments-table">
@@ -237,8 +237,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         </Table>
         </div>
         
-        {/* Pagination */}
-        {totalCount > pageSize && (
+        {/* Pagination - Always show when there are records */}
+        {totalCount > 0 && (
           <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200" data-testid="advance-payments-pagination">
             <div className="gba:text-sm gba:text-gray-600" data-testid="advance-payments-pagination-info">
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} advance payments`}
@@ -270,7 +270,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-first-page-button"
                 >
                   <span className="gba:sr-only">Go to first page</span>
-                  ⟨⟨
+                  ⟪⟪
                 </Button>
                 <Button
                   variant="outline"
@@ -280,7 +280,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-previous-page-button"
                 >
                   <span className="gba:sr-only">Go to previous page</span>
-                  ⟨
+                  ⟪
                 </Button>
                 <Button
                   variant="outline"
@@ -290,7 +290,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-next-page-button"
                 >
                   <span className="gba:sr-only">Go to next page</span>
-                  ⟩
+                  ⟫
                 </Button>
                 <Button
                   variant="outline"
@@ -300,7 +300,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-last-page-button"
                 >
                   <span className="gba:sr-only">Go to last page</span>
-                  ⟩⟩
+                  ⟫⟫
                 </Button>
               </div>
             </div>

@@ -148,9 +148,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
 
   return (
     <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-      {/* Table with horizontal scrolling */}
-      <div className="gba:overflow-x-auto">
-        <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
+      {/* Table with border containing both table and pagination */}
+      <div className="gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm">
+        {/* Table with horizontal scrolling */}
+        <div className="gba:overflow-x-auto">
+          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
           <TableHeader>
             <TableRow>
               <TableHead className="gba:w-[8%]" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}></TableHead>
@@ -265,10 +267,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             })}
           </TableBody>
         </Table>
-      </div>
+        </div>
 
-      {/* Pagination - Always show when there are records */}
-      {totalCount > 0 && (
+        {/* Pagination - Always show when there are records */}
+        {totalCount > 0 && (
         <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
           <div className="gba:text-sm gba:text-gray-600" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
             {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} expense plans`}
@@ -300,7 +302,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                 data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
               >
                 <span className="gba:sr-only">Go to first page</span>
-                ⟨⟨
+                ⟪⟪
               </Button>
               <Button
                 variant="outline"
@@ -310,7 +312,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                 data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
               >
                 <span className="gba:sr-only">Go to previous page</span>
-                ⟨
+                ⟪
               </Button>
               <Button
                 variant="outline"
@@ -320,7 +322,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                 data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
               >
                 <span className="gba:sr-only">Go to next page</span>
-                ⟩
+                ⟫
               </Button>
               <Button
                 variant="outline"
@@ -330,12 +332,13 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                 data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
               >
                 <span className="gba:sr-only">Go to last page</span>
-                ⟩⟩
+                ⟫⟫
               </Button>
             </div>
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

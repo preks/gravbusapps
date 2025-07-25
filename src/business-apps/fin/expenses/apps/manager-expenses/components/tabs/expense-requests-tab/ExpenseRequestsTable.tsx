@@ -271,7 +271,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     }
 
     return (
-      <div>
+      <div className="gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm">
         {/* Table with horizontal scrolling */}
         <div className="gba:overflow-x-auto">
           <Table data-testid="expense-requests-table">
@@ -402,8 +402,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         </Table>
         </div>
         
-        {/* Pagination */}
-        {totalCount > pageSize && (
+        {/* Pagination - Always show when there are records */}
+        {totalCount > 0 && (
           <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200" data-testid="expense-requests-pagination">
             <div className="gba:text-sm gba:text-gray-600" data-testid="expense-requests-pagination-info">
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} expense requests`}
@@ -439,7 +439,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   data-testid="expense-requests-first-page-button"
                 >
                   <span className="gba:sr-only">Go to first page</span>
-                  ⟨⟨
+                  ⟪⟪
                 </Button>
                 <Button
                   variant="outline"
@@ -449,7 +449,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   data-testid="expense-requests-previous-page-button"
                 >
                   <span className="gba:sr-only">Go to previous page</span>
-                  ⟨
+                  ⟪
                 </Button>
                 <Button
                   variant="outline"
@@ -459,7 +459,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   data-testid="expense-requests-next-page-button"
                 >
                   <span className="gba:sr-only">Go to next page</span>
-                  ⟩
+                  ⟫
                 </Button>
                 <Button
                   variant="outline"
@@ -469,7 +469,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   data-testid="expense-requests-last-page-button"
                 >
                   <span className="gba:sr-only">Go to last page</span>
-                  ⟩⟩
+                  ⟫⟫
                 </Button>
               </div>
             </div>
