@@ -37,13 +37,14 @@ definitions:
           depth: full
         caches:
           - nodecustom
-        services:
-          - docker
         script:
           - set -e
           - echo $NEWWORK_NMP_CREDENTIALS | base64 -d > ~/.npmrc
           - apt-get update && apt-get install gettext -y
-          - npm install
+          - npm ci  # Faster than npm install for CI
+          - |
+            # Pre-install native dependencies to avoid rebuilds later
+            npm install @rollup/rollup-linux-x64-gnu lightningcss-linux-x64-gnu || true
         artifacts:
           - pipeline/scripts/**
           - envs/**
@@ -66,10 +67,6 @@ definitions:
         services:
           - docker
         script:
-          - npm install @rollup/rollup-linux-x64-gnu || true
-          - npm rebuild rollup
-          - npm install lightningcss-linux-x64-gnu || true
-          - npm rebuild lightningcss
           - bash scripts/detect-and-publish-changed-screens.sh
         artifacts:
           - changed-tsx.txt
@@ -82,10 +79,6 @@ definitions:
           services:
             - docker
           script:
-            - npm install @rollup/rollup-linux-x64-gnu || true
-            - npm rebuild rollup
-            - npm install lightningcss-linux-x64-gnu || true
-            - npm rebuild lightningcss
             - node scripts/publish-prod-screens.js
           artifacts:
             - changed-tsx.txt
@@ -98,10 +91,6 @@ definitions:
         services:
           - docker
         script:
-          - npm install @rollup/rollup-linux-x64-gnu || true
-          - npm rebuild rollup
-          - npm install lightningcss-linux-x64-gnu || true
-          - npm rebuild lightningcss
           - |
             if [ -n "$SCREENS_TO_PUBLISH" ]; then
               echo "Publishing specified screens: $SCREENS_TO_PUBLISH"
@@ -123,10 +112,6 @@ definitions:
         services:
           - docker
         script:
-          - npm install @rollup/rollup-linux-x64-gnu || true
-          - npm rebuild rollup
-          - npm install lightningcss-linux-x64-gnu || true
-          - npm rebuild lightningcss
           - |
             if [ -n "$SCREENS_TO_PUBLISH" ]; then
               echo "Publishing specified screens: $SCREENS_TO_PUBLISH"
