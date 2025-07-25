@@ -88,6 +88,7 @@ interface UseMainViewAdvancePaymentsProps extends BusinessAppContextProps {
   currentStatusFilter?: string[] | null;
   currentPage?: number;
   currentCurrencyFilter?: string;
+  initialSorting?: { field: string; order: 'ASC' | 'DESC' };
 }
 
 export const useMainViewAdvancePayments = ({
@@ -98,6 +99,7 @@ export const useMainViewAdvancePayments = ({
   currentStatusFilter,
   currentPage: externalCurrentPage,
   currentCurrencyFilter,
+  initialSorting = { field: 'createdAt', order: 'DESC' },
 }: UseMainViewAdvancePaymentsProps) => {
   // Get currency from global store if not provided explicitly
   const { primaryCurrency } = useCurrencyStore();
@@ -117,6 +119,9 @@ export const useMainViewAdvancePayments = ({
   // Use external currentPage if provided, otherwise use internal state
   const currentPage = externalCurrentPage ?? internalCurrentPage;
   const [employeeFilter, setEmployeeFilter] = useState<string | null>(null);
+  
+  // Add sorting state
+  const [sorting, setSorting] = useState<{ field: string; order: 'ASC' | 'DESC' }>(initialSorting);
   const [approving, setApproving] = useState<boolean>(false);
   const [rejecting, setRejecting] = useState<boolean>(false);
   const [paymentStats, setPaymentStats] = useState<AdvancePaymentStatistics | null>(null);
@@ -169,6 +174,28 @@ export const useMainViewAdvancePayments = ({
     return { _and: conditions };
   }, [searchTerm, currentStatusFilter, currencyFilter]);
 
+  // Helper function to build orderBy object for GraphQL query
+  const buildOrderByClause = useCallback(() => {
+    // Handle nested fields like 'employee.fullName'
+    if (sorting.field.includes('.')) {
+      const [parentField, childField] = sorting.field.split('.');
+      return { [parentField]: { [childField]: sorting.order } };
+    }
+    
+    // Handle regular fields
+    return { [sorting.field]: sorting.order };
+  }, [sorting]);
+
+  // Track last fetch parameters to prevent duplicate fetches
+  const lastFetchParams = useRef({
+    currentPage: 0,
+    pageSize: 0,
+    searchTerm: '',
+    currentStatusFilter: null as string[] | null,
+    currencyFilter: '',
+    sorting: { field: '', order: 'ASC' as 'ASC' | 'DESC' }
+  });
+
   const fetchPayments = useCallback(async () => {
     console.log('fetchPayments called with accessToken:', !!accessToken, 'managerId:', managerId);
     
@@ -184,14 +211,41 @@ export const useMainViewAdvancePayments = ({
       return;
     }
 
+    // Check if parameters have changed to prevent duplicate fetches
+    const currentParams = {
+      currentPage,
+      pageSize,
+      searchTerm: searchTerm || '',
+      currentStatusFilter: currentStatusFilter || null,
+      currencyFilter,
+      sorting
+    };
+
+    if (
+      lastFetchParams.current.currentPage === currentParams.currentPage &&
+      lastFetchParams.current.pageSize === currentParams.pageSize &&
+      lastFetchParams.current.searchTerm === currentParams.searchTerm &&
+      JSON.stringify(lastFetchParams.current.currentStatusFilter) === JSON.stringify(currentParams.currentStatusFilter) &&
+      lastFetchParams.current.currencyFilter === currentParams.currencyFilter &&
+      lastFetchParams.current.sorting.field === currentParams.sorting.field &&
+      lastFetchParams.current.sorting.order === currentParams.sorting.order
+    ) {
+      console.log('Skipping duplicate fetch with same parameters');
+      return;
+    }
+
+    // Update last fetch parameters
+    lastFetchParams.current = { ...currentParams };
+
     setLoading(true);
     setError(null);
 
     try {
       const offset = (currentPage - 1) * pageSize;
       const whereClause = buildWhereClause();
+      const orderByClause = buildOrderByClause();
       
-      console.log('Fetching advance payments with managerId:', managerId, 'whereClause:', whereClause);
+      console.log('Fetching advance payments with managerId:', managerId, 'whereClause:', whereClause, 'orderBy:', orderByClause);
       
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
@@ -205,7 +259,8 @@ export const useMainViewAdvancePayments = ({
             managerId,
             limit: pageSize,
             offset,
-            where: whereClause
+            where: whereClause,
+            orderBy: orderByClause
           }
         })
       });
@@ -251,7 +306,12 @@ export const useMainViewAdvancePayments = ({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, managerId, currentPage, pageSize, searchTerm, currentStatusFilter, employeeFilter, buildWhereClause]);
+  }, [accessToken, managerId, currentPage, pageSize, searchTerm, currentStatusFilter, employeeFilter, buildWhereClause, sorting]);
+
+  useEffect(() => {
+    console.log('Fetching advance payments due to dependencies change');
+    fetchPayments();
+  }, [fetchPayments, currentPage, pageSize, searchTerm, currentStatusFilter, currencyFilter, sorting]);
 
   useEffect(() => {
     fetchPayments();
@@ -358,6 +418,28 @@ export const useMainViewAdvancePayments = ({
     setInternalCurrentPage(page);
   };
 
+  // Add function to update sorting
+  const updateSorting = useCallback((field: string) => {
+    setSorting(prevSorting => {
+      // If clicking the same field, toggle the order
+      if (prevSorting.field === field) {
+        return {
+          field,
+          order: prevSorting.order === 'ASC' ? 'DESC' : 'ASC'
+        };
+      }
+      
+      // If clicking a new field, default to DESC order
+      return {
+        field,
+        order: 'DESC'
+      };
+    });
+    
+    // Reset to first page when sorting changes
+    setInternalCurrentPage(1);
+  }, []);
+
   const approvePayment = useCallback(async (_paymentId: string, _comments: string = '') => {
     if (!accessToken || !managerId) return;
 
@@ -410,6 +492,8 @@ export const useMainViewAdvancePayments = ({
     statsError,
     fetchPaymentStatistics,
     setEmployeeFilter,
-    employeeFilter
+    employeeFilter,
+    sorting,
+    updateSorting
   };
 };

@@ -12,9 +12,10 @@ import {
   TableCell, 
   Spinner
 } from '@newwork/nw-design-system';
+import { ArrowDownOutlined, ArrowUpOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import Pill from '@/components/pill/Pill';
-import { useMainViewExpensePlans, ExpensePlan } from '../../../hooks/useMainViewExpensePlans';
+import { useMainViewExpensePlans, ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans';
 import { getExpensePlanStatusDisplay, ExpenseStatus } from '../../../utils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatCurrency } from '../../../utils/currencyUtils';
@@ -60,6 +61,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     totalCount,
     currentPage,
     setCurrentPage,
+    sorting,
+    updateSorting
   } = useMainViewExpensePlans({
     ...contextProps,
     pageSize,
@@ -95,6 +98,21 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     setCurrentPage(page);
   }, [setCurrentPage]);
   
+  // Sorting handler
+  const handleSort = useCallback((field: SortField) => {
+    updateSorting(field);
+  }, [updateSorting]);
+
+  // Render sort indicator
+  const renderSortIndicator = useCallback((field: SortField) => {
+    if (sorting.field === field) {
+      return sorting.order === 'ASC' ? 
+        <ArrowUpOutlined className="gba:ml-1 gba:text-blue-500" /> : 
+        <ArrowDownOutlined className="gba:ml-1 gba:text-blue-500" />;
+    }
+    return null;
+  }, [sorting]);
+
   // Handle page size changes in the pagination controls
   const handlePageSizeChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     const size = parseInt(event.target.value, 10);
@@ -156,26 +174,75 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
           <TableHeader>
             <TableRow>
               <TableHead className="gba:w-[8%]" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}></TableHead>
-              <TableHead className="gba:w-[25%]">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.plan_info_pl', 'Plans')}
+              <TableHead 
+                className="gba:w-[25%] gba:cursor-pointer gba:select-none" 
+                onClick={() => handleSort('title')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-title-header`}
+              >
+                <div className="gba:flex gba:items-center">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.plan_info_pl', 'Plans')}
+                  {renderSortIndicator('title')}
+                </div>
               </TableHead>
-              <TableHead className="gba:w-[15%]">
-                Start Date
+              <TableHead 
+                className="gba:w-[15%] gba:cursor-pointer gba:select-none" 
+                onClick={() => handleSort('startDate')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-start-date-header`}
+              >
+                <div className="gba:flex gba:items-center">
+                  Start Date
+                  {renderSortIndicator('startDate')}
+                </div>
               </TableHead>
-              <TableHead className="gba:w-[15%]">
-                End Date
+              <TableHead 
+                className="gba:w-[15%] gba:cursor-pointer gba:select-none" 
+                onClick={() => handleSort('endDate')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-end-date-header`}
+              >
+                <div className="gba:flex gba:items-center">
+                  End Date
+                  {renderSortIndicator('endDate')}
+                </div>
               </TableHead>
-              <TableHead className="gba:w-[20%]">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+              <TableHead 
+                className="gba:w-[20%] gba:cursor-pointer gba:select-none" 
+                onClick={() => handleSort('employee.fullName')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-employee-header`}
+              >
+                <div className="gba:flex gba:items-center">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+                  {renderSortIndicator('employee.fullName')}
+                </div>
               </TableHead>
-              <TableHead className="gba:w-[15%]">
-                Creation Date
+              <TableHead 
+                className="gba:w-[15%] gba:cursor-pointer gba:select-none" 
+                onClick={() => handleSort('createdAt')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-creation-date-header`}
+              >
+                <div className="gba:flex gba:items-center">
+                  Creation Date
+                  {renderSortIndicator('createdAt')}
+                </div>
               </TableHead>
-              <TableHead className="gba:w-[18%] gba:text-right">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount')}
+              <TableHead 
+                className="gba:w-[18%] gba:text-right gba:cursor-pointer gba:select-none" 
+                onClick={() => handleSort('totalAmount')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
+              >
+                <div className="gba:flex gba:items-center gba:justify-end">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount')}
+                  {renderSortIndicator('totalAmount')}
+                </div>
               </TableHead>
-              <TableHead className="gba:w-[18%]">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}
+              <TableHead 
+                className="gba:w-[18%] gba:cursor-pointer gba:select-none" 
+                onClick={() => handleSort('status')}
+                data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
+              >
+                <div className="gba:flex gba:items-center">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}
+                  {renderSortIndicator('status')}
+                </div>
               </TableHead>
             </TableRow>
           </TableHeader>

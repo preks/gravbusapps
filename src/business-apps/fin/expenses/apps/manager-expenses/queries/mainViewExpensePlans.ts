@@ -4,7 +4,8 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
   query GetMainViewExpensePlans(
     $where: ExpensePlanBoolExp,
     $limit: Int!,
-    $offset: Int!
+    $offset: Int!,
+    $orderBy: [ExpensePlanOrderBy!]
   ) {
     ExpensePlanAggregate(where: $where) {
       aggregate {
@@ -14,7 +15,7 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
     ExpensePlan(
       limit: $limit,
       offset: $offset,
-      orderBy: {createdAt: DESC},
+      orderBy: $orderBy,
       where: $where
     ) {
       id

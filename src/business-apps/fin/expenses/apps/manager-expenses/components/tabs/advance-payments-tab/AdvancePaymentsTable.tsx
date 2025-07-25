@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Alert, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system';
+import { ArrowDownOutlined, ArrowUpOutlined } from '@ant-design/icons';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -60,6 +61,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     rejecting,
     approvePayment,
     rejectPayment,
+    sorting,
+    updateSorting,
   } = useMainViewAdvancePayments({
     ...contextProps,
     pageSize,
@@ -125,26 +128,89 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             <TableHeader>
               <TableRow>
                 <TableHead className="gba:w-[8%]"></TableHead>
-                <TableHead className="gba:w-[25%]">
-                  Expense Plan
+                <TableHead 
+                  className="gba:w-[25%] gba:cursor-pointer" 
+                  onClick={() => updateSorting('expensePlan.title')}
+                  data-testid="advance-payments-title-header"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    <span>Expense Plan</span>
+                    {sorting.field === 'expensePlan.title' && (
+                      sorting.order === 'ASC' ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  Start Date
+                <TableHead 
+                  className="gba:w-[15%] gba:cursor-pointer" 
+                  onClick={() => updateSorting('expensePlan.startDate')}
+                  data-testid="advance-payments-start-date-header"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    <span>Start Date</span>
+                    {sorting.field === 'expensePlan.startDate' && (
+                      sorting.order === 'ASC' ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  End Date
+                <TableHead 
+                  className="gba:w-[15%] gba:cursor-pointer" 
+                  onClick={() => updateSorting('expensePlan.endDate')}
+                  data-testid="advance-payments-end-date-header"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    <span>End Date</span>
+                    {sorting.field === 'expensePlan.endDate' && (
+                      sorting.order === 'ASC' ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[20%]">
-                  Employee
+                <TableHead 
+                  className="gba:w-[20%] gba:cursor-pointer" 
+                  onClick={() => updateSorting('expensePlan.employee.fullName')}
+                  data-testid="advance-payments-employee-header"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    <span>Employee</span>
+                    {sorting.field === 'expensePlan.employee.fullName' && (
+                      sorting.order === 'ASC' ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  Creation Date
+                <TableHead 
+                  className="gba:w-[15%] gba:cursor-pointer" 
+                  onClick={() => updateSorting('createdAt')}
+                  data-testid="advance-payments-creation-date-header"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    <span>Creation Date</span>
+                    {sorting.field === 'createdAt' && (
+                      sorting.order === 'ASC' ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[18%] gba:text-right">
-                  Amount
+                <TableHead 
+                  className="gba:w-[18%] gba:text-right gba:cursor-pointer" 
+                  onClick={() => updateSorting('amount')}
+                  data-testid="advance-payments-amount-header"
+                >
+                  <div className="gba:flex gba:items-center gba:justify-end gba:gap-1">
+                    <span>Amount</span>
+                    {sorting.field === 'amount' && (
+                      sorting.order === 'ASC' ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[18%]">
-                  Status
+                <TableHead 
+                  className="gba:w-[18%] gba:cursor-pointer" 
+                  onClick={() => updateSorting('status')}
+                  data-testid="advance-payments-status-header"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    <span>Status</span>
+                    {sorting.field === 'status' && (
+                      sorting.order === 'ASC' ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                    )}
+                  </div>
                 </TableHead>
               </TableRow>
             </TableHeader>

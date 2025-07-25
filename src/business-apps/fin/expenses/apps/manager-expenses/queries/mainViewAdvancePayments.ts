@@ -5,7 +5,8 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
     $managerId: uuid!,
     $limit: Int!,
     $offset: Int!,
-    $where: AdvancePaymentBoolExp!
+    $where: AdvancePaymentBoolExp!,
+    $orderBy: [AdvancePaymentOrderBy!]
   ) {
     AdvancePaymentAggregate(
       where: {
@@ -35,7 +36,7 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
     AdvancePayment(
       limit: $limit,
       offset: $offset,
-      orderBy: {createdAt: DESC},
+      orderBy: $orderBy,
       where: {
         _and: [
           {
