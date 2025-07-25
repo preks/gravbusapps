@@ -20,8 +20,9 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(() => ({
     accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
+    userInfo: props.userInfo,
+    additionalData: props.additionalData
+  }), [props.accessToken, props.userInfo, props.additionalData]);
   
   // Use our simplified expense filters hook
   const {
@@ -40,9 +41,8 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   const [activeCard, setActiveCard] = useState<string | null>(null);
 
   // Centralized handler to clear all filters (UI + card)
-  const handleClearAllFilters = useCallback((filters: string[]) => {
-    setFilters(filters);
-    setActiveCard(null);
+  const handleClearAllFilters = useCallback(() => {
+    setFilters([]);
     setExpenseDateRange(null);
   }, [setFilters, setExpenseDateRange]);
   
@@ -394,16 +394,22 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
 
   // Handle adding a new expense item
   const handleAddExpenseItem = useCallback(() => {
-    if (contextProps.userInfo?.employeeDetails?.employeeId) {
-       startProcess({
-            domain: 'employee-expense',
-            processName: 'changeExpenseItem',
-            payload: {
-              employeeId: contextProps.userInfo?.employeeDetails?.employeeId
-            },
-            builderType: 'NATIVE_SCREEN'
-          });
+    const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
+    if (!employeeId) {
+              console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+        console.warn('User information not loaded yet. Please wait a moment and try again.');
+      return;
     }
+    
+    console.log('Starting create expense process for employeeId:', employeeId);
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeExpenseItem',
+      payload: {
+        employeeId: employeeId
+      },
+      builderType: 'NATIVE_SCREEN'
+    });
   }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
   // Compute availableStatuses from allItems (unfiltered, for current search/page)

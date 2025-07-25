@@ -4,6 +4,7 @@ import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { StartDateRangeFilter } from '../components/tabs/expense-requests-tab/StartDateRangeFilter';
 import { EndDateRangeFilter } from '../components/tabs/expense-requests-tab/EndDateRangeFilter';
+import dayjs from 'dayjs';
 
 // Define expense request status types based on srn_expenseRequest mappings
 export enum ExpenseRequestStatus {
@@ -32,6 +33,28 @@ export interface ExpenseRequestFilter {
   requestType?: { value: string };
 }
 
+// Interface for GraphQL where clause structure
+export interface ExpenseRequestWhereClause {
+  _and?: Array<{
+    _or?: Array<{
+      code?: { _ilike: string };
+      title?: { _ilike: string };
+    }>;
+    status?: { 
+      _in?: string[];
+      _neq?: string;
+    };
+    startDate?: {
+      _gte?: string;
+      _lte?: string;
+    };
+    endDate?: {
+      _gte?: string;
+      _lte?: string;
+    };
+  }>;
+}
+
 // Interface for the return type of useExpenseRequestFilters
 export interface UseExpenseRequestFiltersReturn {
   search: string;
@@ -41,7 +64,7 @@ export interface UseExpenseRequestFiltersReturn {
   filterGroups: DataFilterGroup[];
   handleFilterChange: (filterId: string, selected: boolean) => void;
   clearFilters: () => void;
-  getFilters: () => any;
+  getFilters: () => ExpenseRequestWhereClause;
   setStartDateRange: (dateRange: [Date | null, Date | null] | null) => void;
   setEndDateRange: (dateRange: [Date | null, Date | null] | null) => void;
 }
@@ -77,7 +100,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
     {
       id: 'startDateRange',
-      title: 'Filter by Start Date',
+      title: 'Start Date',
       type: 'date-range' as any,
       customComponent: React.createElement(StartDateRangeFilter, {
         startDateRange: startDateRange,
@@ -88,7 +111,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     },
     {
       id: 'endDateRange',
-      title: 'Filter by End Date Range',
+      title: 'End Date Range',
       type: 'date-range' as any,
       customComponent: React.createElement(EndDateRangeFilter, {
         endDateRange: endDateRange,
@@ -185,8 +208,18 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   }, []);
   
   // Convert UI filters to API filter format
-  const getFilters = useCallback(() => {
+  const getFilters = useCallback((): ExpenseRequestWhereClause => {
     const conditions: any[] = [];
+
+    // Helper function to format date for start of range (beginning of day)
+    const formatStartDate = (date: Date): string => {
+      return dayjs(date).startOf('day').format('YYYY-MM-DD HH:mm:ss');
+    };
+
+    // Helper function to format date for end of range (end of day)
+    const formatEndDate = (date: Date): string => {
+      return dayjs(date).endOf('day').format('YYYY-MM-DD HH:mm:ss');
+    };
 
     if (search && typeof search === 'string' && search.trim()) {
       conditions.push({ _or: [
@@ -199,23 +232,23 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     }
     if (startDateRange?.[0]) {
       console.log('ExpenseRequestFilters: Adding startDate _gte:', startDateRange[0]);
-      conditions.push({ startDate: { _gte: startDateRange[0] } });
+      conditions.push({ startDate: { _gte: formatStartDate(startDateRange[0]) } });
     }
     if (startDateRange?.[1]) {
       console.log('ExpenseRequestFilters: Adding startDate _lte:', startDateRange[1]);
-      conditions.push({ startDate: { _lte: startDateRange[1] } });
+      conditions.push({ startDate: { _lte: formatEndDate(startDateRange[1]) } });
     }
     if (endDateRange?.[0]) {
       console.log('ExpenseRequestFilters: Adding endDate _gte:', endDateRange[0]);
-      conditions.push({ endDate: { _gte: endDateRange[0] } });
+      conditions.push({ endDate: { _gte: formatStartDate(endDateRange[0]) } });
     }
     if (endDateRange?.[1]) {
       console.log('ExpenseRequestFilters: Adding endDate _lte:', endDateRange[1]);
-      conditions.push({ endDate: { _lte: endDateRange[1] } });
+      conditions.push({ endDate: { _lte: formatEndDate(endDateRange[1]) } });
     }
 
     // Always exclude DISCARDED requests at backend level for correct pagination
-    conditions.push({ status: { _neq: 'DISCARDED' } });
+    conditions.push({ status: { _neq: ExpenseStatus.DISCARDED } });
     
     const result = { _and: conditions.length > 0 ? conditions : [{}] };
     console.log('ExpenseRequestFilters: Final where clause:', JSON.stringify(result, null, 2));

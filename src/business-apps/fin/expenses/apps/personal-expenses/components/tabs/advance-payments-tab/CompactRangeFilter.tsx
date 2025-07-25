@@ -6,7 +6,6 @@ interface CompactRangeFilterProps {
   onRangeChange: (range: { min?: number; max?: number } | null) => void;
   className?: string;
   placeholder?: [string, string];
-  currency?: string;
   label: string;
   dataTestIdPrefix: string;
 }
@@ -16,7 +15,6 @@ export const CompactRangeFilter: React.FC<CompactRangeFilterProps> = ({
   onRangeChange,
   className = '',
   placeholder = ['Min', 'Max'],
-  currency = 'EUR',
   label,
   dataTestIdPrefix
 }) => {
@@ -70,7 +68,7 @@ export const CompactRangeFilter: React.FC<CompactRangeFilterProps> = ({
     <div className={`gba:flex gba:flex-col gba:gap-2 gba:p-2 ${className}`}>
       <div className="gba:flex gba:items-center gba:gap-2">
         <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-1">
-          <label className="gba:text-xs gba:text-gray-600">Min {currency}</label>
+          <label className="gba:text-xs gba:text-gray-600">Min</label>
           <Input
             type="number"
             value={minValue}
@@ -83,7 +81,7 @@ export const CompactRangeFilter: React.FC<CompactRangeFilterProps> = ({
           />
         </div>
         <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-1">
-          <label className="gba:text-xs gba:text-gray-600">Max {currency}</label>
+          <label className="gba:text-xs gba:text-gray-600">Max</label>
           <Input
             type="number"
             value={maxValue}

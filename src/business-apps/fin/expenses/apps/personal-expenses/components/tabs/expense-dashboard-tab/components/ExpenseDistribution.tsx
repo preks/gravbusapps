@@ -1,6 +1,13 @@
-import React from 'react';
-import { Card, Empty } from 'antd';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import React, { useMemo } from 'react';
+import { Card, CardHeader, CardContent, CardTitle } from '@newwork/nw-design-system';
+import { 
+  ChartContainer, 
+  ChartTooltip, 
+  ChartTooltipContent, 
+  ChartLegend, 
+  ChartLegendContent 
+} from '@newwork/nw-design-system';
+import { PieChart, Pie, Cell } from 'recharts';
 import { formatCurrency } from '../utils/formatters';
 import { DashboardStats } from '../types';
 
@@ -9,14 +16,10 @@ interface ExpenseDistributionProps {
   chartView: string | number;
 }
 
-const generateColors = (numColors: number) => {
-  const colors = [];
-  for (let i = 0; i < numColors; i++) {
-    const hue = (i * 360) / numColors;
-    colors.push(`hsl(${hue}, 90%, 65%)`);
-  }
-  return colors;
-};
+const CHART_COLORS = [
+  '#1890FF', '#2FC25B', '#FACC14', '#223273', 
+  '#8543E0', '#13C2C2', '#3436C7', '#F04864'
+];
 
 export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats, chartView }) => {
   const getExpensesByType = () => {
@@ -33,51 +36,87 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
 
   const expensesByType = getExpensesByType();
 
-  const data = Object.entries(expensesByType)
-    .map(([type, amount]) => ({ type, amount: amount as number }))
-    .sort((a, b) => b.amount - a.amount);
+  // Transform data for chart
+  const chartData = useMemo(() => {
+    const data = Object.entries(expensesByType)
+      .map(([type, amount], index) => ({
+        name: type,
+        value: amount as number,
+        fill: CHART_COLORS[index % CHART_COLORS.length]
+      }))
+      .sort((a, b) => b.value - a.value);
+    
+    // Calculate total and add percentages
+    const total = data.reduce((sum, item) => sum + item.value, 0);
+    return data.map(item => ({
+      ...item,
+      percentage: total > 0 ? ((item.value / total) * 100).toFixed(1) : '0.0'
+    }));
+  }, [expensesByType]);
 
-  if (data.length === 0) {
+  // Custom label function for pie chart
+  const renderLabel = (entry: any) => {
+    return `${entry.percentage}%`;
+  };
+
+  // Create chart configuration
+  const chartConfig = useMemo(() => {
+    const config: Record<string, { label: string; color: string }> = {};
+    chartData.forEach((item, index) => {
+      config[item.name.toLowerCase().replace(/\s+/g, '-')] = {
+        label: item.name,
+        color: CHART_COLORS[index % CHART_COLORS.length]
+      };
+    });
+    return config;
+  }, [chartData]);
+
+  if (chartData.length === 0) {
     return (
-      <Card title="Expense Distribution" data-testid="expense-distribution-card-empty">
-        <Empty description="No expense data available" />
+      <Card data-testid="expense-distribution-card-empty">
+        <CardHeader>
+          <CardTitle>Expense Distribution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:text-center gba:py-8 gba:text-gray-500">
+            <p>No expense data available</p>
+          </div>
+        </CardContent>
       </Card>
     );
   }
 
-  const totalExpenses = data.reduce((sum, item) => sum + item.amount, 0);
-  const COLORS = generateColors(data.length);
-
   return (
-    <Card title="Expense Distribution" data-testid="expense-distribution-card">
-      <div style={{ height: 300 }} data-testid="expense-distribution-chart-container">
-        <ResponsiveContainer width="100%" height="100%">
+    <Card data-testid="expense-distribution-card">
+      <CardHeader>
+        <CardTitle>Expense Distribution</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer config={chartConfig} className="gba:h-[300px]" data-testid="expense-distribution-chart-container">
           <PieChart>
+            <ChartTooltip
+              cursor={false}
+              content={<ChartTooltipContent hideLabel />}
+            />
             <Pie
-              data={data}
+              data={chartData}
+              dataKey="value"
+              nameKey="name"
               cx="50%"
               cy="50%"
-              labelLine={false}
-              outerRadius={100}
-              innerRadius={60}
-              fill="#8884d8"
-              dataKey="amount"
-              nameKey="type"
+              outerRadius="80%"
+              innerRadius="60%"
+              strokeWidth={2}
+              label={renderLabel}
             >
-              {data.map((_, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
             </Pie>
-            <Tooltip 
-              formatter={(value: number, name: string) => {
-                const percent = totalExpenses > 0 ? ((value / totalExpenses) * 100).toFixed(0) : 0;
-                return [`${formatCurrency(value)} (${percent}%)`, name];
-              }}
-            />
-            <Legend />
+            <ChartLegend />
           </PieChart>
-        </ResponsiveContainer>
-      </div>
+        </ChartContainer>
+      </CardContent>
     </Card>
   );
 };

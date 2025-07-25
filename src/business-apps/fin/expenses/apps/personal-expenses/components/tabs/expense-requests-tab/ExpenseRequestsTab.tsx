@@ -5,6 +5,7 @@ import ExpenseRequestStatistics from './ExpenseRequestStatistics';
 import ExpenseRequestsTable from './ExpenseRequestsTable';
 import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests';
 import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters';
+import { message } from 'antd';
 
 export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -98,15 +99,21 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
 
   // Handle adding a new expense request
   const handleAddExpenseRequest = useCallback(() => {
-    if (contextProps.userInfo?.employeeDetails?.employeeId) {
-      startProcess({
-        domain: 'employee-expense',
-        processName: 'changeExpenseRequest',
-        payload: {
-          employeeId: contextProps.userInfo.employeeDetails.employeeId
-        }
-      });
+    const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
+    if (!employeeId) {
+      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+      message.warning('User information not loaded yet. Please wait a moment and try again.');
+      return;
     }
+    
+    console.log('Starting add expense request process for employeeId:', employeeId);
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeExpenseRequest',
+      payload: {
+        employeeId: employeeId
+      }
+    });
   }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
   const handleTableChange = useCallback((pagination: any, filters: any, sorter: any) => {
