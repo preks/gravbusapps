@@ -7,6 +7,11 @@ export interface FilterGroup {
   id: string;
   title: string; // Changed from label to title to match DataFilterGroup
   filters: Array<{ id: string; label: string; value: any; selected: boolean }>;
+  backendSearch?: (search: string) => {
+    filters: Array<{ id: string; label: string; selected: boolean }>;
+    loading: boolean;
+    error: any;
+  };
 }
 
 export interface OpportunityFilters {
@@ -49,63 +54,28 @@ export const useOpportunityFilters = (
     error: pipelinesError,
   } = useGetPipelineCatalogs(context, pipelineSearch);
 
-  // Initialize filters from URL parameters when options are loaded
-  useEffect(() => {
-    if (!filtersInitialized && 
-        pipelineStageOptions.length > 0 && 
-        pipelineOptions.length > 0) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const preselectedFilters: string[] = [];
+  // Backend search function for pipeline stages
+  const getPipelineStageFilters = useCallback(
+    (search: string) => {
+      setPipelineStageSearch(search);
 
-      // Handle salesPipelineStage parameter: salesPipelineStage=SalesPipelineStage:v1:NEW_OPPORTUNITY
-      const salesPipelineStageParams = urlParams.getAll('salesPipelineStage');
-      salesPipelineStageParams.forEach(stageValue => {
-        const matchingStage = pipelineStageOptions.find(option => option.id === stageValue);
-        if (matchingStage) {
-          preselectedFilters.push(`stage-${matchingStage.id}`);
-        }
-      });
-
-      // Handle salesPipeline parameter: salesPipeline=SalesPipeline:v1:STANDARD
-      const salesPipelineParams = urlParams.getAll('salesPipeline');
-      salesPipelineParams.forEach(pipelineValue => {
-        const matchingPipeline = pipelineOptions.find(option => option.id === pipelineValue);
-        if (matchingPipeline) {
-          preselectedFilters.push(`pipeline-${matchingPipeline.id}`);
-        }
-      });
-
-      // Handle winningChance parameter: winningChance=chance-high
-      const winningChanceParams = urlParams.getAll('winningChance');
-      winningChanceParams.forEach(chanceValue => {
-        if (['chance-high', 'chance-medium', 'chance-low', 'chance-very-low'].includes(chanceValue)) {
-          preselectedFilters.push(chanceValue);
-        }
-      });
-
-      // Handle estimatedAmount parameter: estimatedAmount=amount-large
-      const estimatedAmountParams = urlParams.getAll('estimatedAmount');
-      estimatedAmountParams.forEach(amountValue => {
-        if (['amount-large', 'amount-medium', 'amount-small', 'amount-micro'].includes(amountValue)) {
-          preselectedFilters.push(amountValue);
-        }
-      });
-
-      // Handle status parameter: status=OPPORTUNITY_OPEN
-      const statusParams = urlParams.getAll('status');
-      statusParams.forEach(statusValue => {
-        if (['OPPORTUNITY_OPEN', 'OPPORTUNITY_WON', 'OPPORTUNITY_LOST', 'UNKNOWN_OPPORTUNITY_STATUS'].includes(statusValue)) {
-          preselectedFilters.push(statusValue);
-        }
-      });
-
-      if (preselectedFilters.length > 0) {
-        setSelectedFilters(preselectedFilters);
-      }
-      
-      setFiltersInitialized(true);
-    }
-  }, [pipelineStageOptions, pipelineOptions, filtersInitialized]);
+      return {
+        filters: pipelineStageOptions.map((option) => ({
+          id: `stage-${option.id}`,
+          label: option.name,
+          selected: selectedFilters.includes(`stage-${option.id}`),
+        })),
+        loading: isPipelineStagesLoading,
+        error: pipelineStagesError,
+      };
+    },
+    [
+      pipelineStageOptions,
+      selectedFilters,
+      isPipelineStagesLoading,
+      pipelineStagesError,
+    ]
+  );
 
   const filterGroups: FilterGroup[] = useMemo(
     () => [
@@ -118,6 +88,7 @@ export const useOpportunityFilters = (
           value: option.name,
           selected: selectedFilters.includes(`stage-${option.id}`),
         })),
+        backendSearch: getPipelineStageFilters,
       },
       {
         id: "pipeline",
@@ -220,7 +191,12 @@ export const useOpportunityFilters = (
         ],
       },
     ],
-    [selectedFilters, pipelineStageOptions, pipelineOptions]
+    [
+      selectedFilters,
+      pipelineStageOptions,
+      pipelineOptions,
+      getPipelineStageFilters,
+    ]
   );
 
   const filterLabelMap: Record<string, string> = useMemo(() => {

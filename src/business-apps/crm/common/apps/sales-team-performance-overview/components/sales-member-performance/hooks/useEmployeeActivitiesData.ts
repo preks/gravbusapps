@@ -95,8 +95,6 @@ export const getCachedActivityScore = (
   // Lock this score in cache
   ACTIVITY_SCORE_CACHE.set(activityId, score);
 
-  console.log(`🔒 Cached activity score for ${activityId}: ${score}%`);
-
   return score;
 };
 

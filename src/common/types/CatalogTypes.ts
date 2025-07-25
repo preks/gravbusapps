@@ -41,6 +41,7 @@ export type GetCatalogsParams = {
   searchCriteria?: string;
   limit?: number;
   offset?: number;
+  value?: string;
 };
 
 export interface GetCatalogEntriesResponse {
