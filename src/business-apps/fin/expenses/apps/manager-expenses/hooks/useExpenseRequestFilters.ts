@@ -4,18 +4,24 @@ import { useCurrencyStore } from '../store/useCurrencyStore';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useExpenseRequestCurrencies } from './useExpenseRequestCurrencies';
 
-// Define expense request status types - updated to match the correct options
-export enum ExpenseRequestStatus {
-  DRAFT = 'DRAFT',
-  IN_APPROVAL = 'IN_APPROVAL',
-  VERIFICATION_REQUIRED = 'VERIFICATION_REQUIRED',
-  REVISION_REQUIRED = 'REVISION_REQUIRED',
-  BOOKING_REQUIRED = 'BOOKING_REQUIRED',
-  TRANSFER_REQUIRED = 'TRANSFER_REQUIRED',
-  PAYMENT_REQUIRED = 'PAYMENT_REQUIRED',
-  PAID = 'PAID',
-  CLOSED = 'CLOSED'
-}
+// Import the ExpenseStatus enum to ensure consistency with backend values
+import { ExpenseStatus } from '../utils';
+
+// Map the backend ExpenseStatus enum values to UI-friendly status values
+export const ExpenseRequestStatusMap = {
+  [ExpenseStatus.CREATED]: 'draft',
+  [ExpenseStatus.PENDING]: 'in_approval',
+  [ExpenseStatus.APPROVED]: 'verification_required',
+  [ExpenseStatus.REJECTED]: 'revision_required',
+  [ExpenseStatus.VERIFIED]: 'booking_required',
+  [ExpenseStatus.BOOKED]: 'transfer_required',
+  [ExpenseStatus.TRANSFERRED]: 'payment_required',
+  [ExpenseStatus.PAID]: 'paid',
+  [ExpenseStatus.CLOSED]: 'closed',
+  [ExpenseStatus.PREPARED]: 'prepared',
+  [ExpenseStatus.RETURNED]: 'returned',
+  [ExpenseStatus.DISCARDED]: 'discarded',
+};
 
 // Interface for request filter
 export interface ExpenseRequestFilter {
@@ -58,7 +64,8 @@ export const useExpenseRequestFilters = ({
 }: UseExpenseRequestFiltersProps = {}): UseExpenseRequestFiltersReturn => {
   // State for search and selected filters
   const [search, setSearch] = useState<string>('');
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  // Default to 'in_approval' (maps to PENDING) as per requirements
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([ExpenseRequestStatusMap[ExpenseStatus.PENDING]]);
   
   // Use the global currency store
   const { primaryCurrency, setPrimaryCurrency } = useCurrencyStore();
@@ -76,16 +83,21 @@ export const useExpenseRequestFilters = ({
   const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
   const REQUEST_TYPE_OPTIONS = ['general', 'trip'];
   
+  // Map the filter IDs to user-friendly display labels
   const statusLabelMap: Record<string, string> = {
-    [ExpenseRequestStatus.DRAFT]: 'Draft',
-    [ExpenseRequestStatus.IN_APPROVAL]: 'Approval Required',
-    [ExpenseRequestStatus.VERIFICATION_REQUIRED]: 'Verification Required',
-    [ExpenseRequestStatus.REVISION_REQUIRED]: 'Revision Required',
-    [ExpenseRequestStatus.BOOKING_REQUIRED]: 'Booking Required',
-    [ExpenseRequestStatus.TRANSFER_REQUIRED]: 'Transfer Required',
-    [ExpenseRequestStatus.PAYMENT_REQUIRED]: 'Payment Required',
-    [ExpenseRequestStatus.PAID]: 'Paid',
-    [ExpenseRequestStatus.CLOSED]: 'Closed'
+    'draft': 'Draft (Created)',
+    'in_approval': 'In Approval (Pending)',
+    'verification_required': 'Verification Required',
+    'revision_required': 'Revision Required (Rejected)',
+    'booking_required': 'Booking Required',
+    'transfer_required': 'Transfer Required',
+    'payment_required': 'Payment Required',
+    'paid': 'Paid',
+    'closed': 'Closed',
+    'prepared': 'Prepared',
+    'returned': 'In Revision (Returned)',
+    'discarded': 'Discarded',
+    'transferred': 'In Transit (Transferred)'
   };
 
   // Define filter groups - memoized so they don't cause re-renders
@@ -95,16 +107,16 @@ export const useExpenseRequestFilters = ({
     const availableCurrencies = dynamicCurrencies.length > 0
       ? dynamicCurrencies
       : ['EUR', 'USD']; // Minimal fallback list
-    // Create the status filter group
+    // Create the status filter group using the ExpenseStatus enum values
     const statusGroup: DataFilterGroup = {
       id: 'status',
       title: getTranslationFromI18nKeyAndLabel('expense_request_status_filter_title', 'Status'),
-      filters: Object.values(ExpenseRequestStatus).map(status => {
-        const statusLower = status.toLowerCase();
+      filters: Object.entries(ExpenseRequestStatusMap).map(([_, uiStatus]) => {
         return {
-          id: statusLower,
-          label: statusLabelMap[status],
-          selected: selectedFilters.includes(statusLower)
+          id: uiStatus,
+          label: statusLabelMap[uiStatus] || uiStatus,
+          selected: selectedFilters.includes(uiStatus),
+          group: 'statusGroup'
         };
       })
     };
@@ -198,13 +210,15 @@ export const useExpenseRequestFilters = ({
     const filters: ExpenseRequestFilter = {};
     
     // Handle status filters, mapping UI status values to backend database values
-    let statusFilters = selectedFilters
-      .filter(filter => {
-        const validStatuses = Object.values(ExpenseRequestStatus).map(s => s.toLowerCase());
-        const isValid = validStatuses.includes(filter);
-        console.log(`Filter validation - ${filter}: ${isValid} (valid statuses: ${validStatuses.join(', ')})`);
-        return isValid;
-      });
+    const sLower = selectedFilters.map(s => s.toLowerCase());
+    // Use let instead of const since we'll be reassigning this variable
+    let statusFilters = sLower.filter(s => {
+      if (s.includes('draft')) return true;
+      if (Object.values(ExpenseRequestStatusMap).some(status => s === status.toLowerCase())) return true;
+      if (TIME_PERIOD_OPTIONS.includes(s)) return false;
+      if (REQUEST_TYPE_OPTIONS.includes(s)) return false;
+      return false;
+    });
 
     // Map UI status values to database status values
     console.log('Filter mapping - selected filters:', selectedFilters);

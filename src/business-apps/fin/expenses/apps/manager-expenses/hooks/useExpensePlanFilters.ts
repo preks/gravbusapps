@@ -27,15 +27,21 @@ export interface UseExpensePlanFiltersReturn {
 }
 
 // Move outside component to prevent re-creation on every render
+// Include all statuses from the ExpenseStatus enum to match backend values
 const availableFilterStatuses: ExpenseStatus[] = [
+  ExpenseStatus.PREPARED,
   ExpenseStatus.CREATED,
-  ExpenseStatus.PENDING,
-  ExpenseStatus.REJECTED,
-  ExpenseStatus.APPROVED,
   ExpenseStatus.ASSIGNED,
-  ExpenseStatus.BOOKED,
+  ExpenseStatus.PENDING,
+  ExpenseStatus.APPROVED,
+  ExpenseStatus.RETURNED,
+  ExpenseStatus.REJECTED,
   ExpenseStatus.VERIFIED,
+  ExpenseStatus.BOOKED,
+  ExpenseStatus.PAID,
   ExpenseStatus.CLOSED,
+  ExpenseStatus.DISCARDED,
+  ExpenseStatus.TRANSFERRED,
 ];
 
 export const useExpensePlanFilters = ({
@@ -43,7 +49,7 @@ export const useExpensePlanFilters = ({
   managerId
 }: UseExpensePlanFiltersProps = {}): UseExpensePlanFiltersReturn => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  // Default to PENDING (Approval Required) status filter
+  // Default to PENDING (Approval Required) status filter as per requirements
   const [statusFilter, setStatusFilter] = useState<ExpenseStatus[]>([ExpenseStatus.PENDING]);
   
   // Use the currency store for global currency state management with enhanced properties
@@ -99,13 +105,49 @@ export const useExpensePlanFilters = ({
   const filterLabelMap: Record<string, string> = useMemo(() => {
     const map: Record<string, string> = {};
     availableFilterStatuses.forEach((status) => {
-      // Use custom labels for BOOKED and VERIFIED to distinguish them
-      if (status === ExpenseStatus.BOOKED) {
-        map[status] = 'In Transit (Booked)';
-      } else if (status === ExpenseStatus.VERIFIED) {
-        map[status] = 'In Transit (Verified)';
-      } else {
-        map[status] = getExpensePlanStatusDisplay(status).label;
+      // Map status to display names that match the UI requirements
+      switch (status) {
+        case ExpenseStatus.PREPARED:
+          map[status] = 'Prepared';
+          break;
+        case ExpenseStatus.CREATED:
+          map[status] = 'Draft (Created)';
+          break;
+        case ExpenseStatus.ASSIGNED:
+          map[status] = 'Assigned';
+          break;
+        case ExpenseStatus.PENDING:
+          map[status] = 'In Approval (Pending)';
+          break;
+        case ExpenseStatus.APPROVED:
+          map[status] = 'Approved';
+          break;
+        case ExpenseStatus.RETURNED:
+          map[status] = 'In Revision (Returned)';
+          break;
+        case ExpenseStatus.REJECTED:
+          map[status] = 'Revision Required (Rejected)';
+          break;
+        case ExpenseStatus.VERIFIED:
+          map[status] = 'In Transit (Verified)';
+          break;
+        case ExpenseStatus.BOOKED:
+          map[status] = 'In Transit (Booked)';
+          break;
+        case ExpenseStatus.PAID:
+          map[status] = 'Paid';
+          break;
+        case ExpenseStatus.CLOSED:
+          map[status] = 'Closed';
+          break;
+        case ExpenseStatus.DISCARDED:
+          map[status] = 'Discarded';
+          break;
+        case ExpenseStatus.TRANSFERRED:
+          map[status] = 'In Transit (Transferred)';
+          break;
+        default:
+          map[status] = getExpensePlanStatusDisplay(status).label;
       }
     });
     return map;

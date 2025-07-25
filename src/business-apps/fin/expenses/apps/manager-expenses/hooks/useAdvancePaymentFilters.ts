@@ -31,7 +31,7 @@ export const useAdvancePaymentFilters = ({
   managerId
 }: UseAdvancePaymentFiltersProps = {}): UseAdvancePaymentFiltersReturn => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  // Default to PENDING (Approval Required) status filter
+  // Default to PENDING (Approval Required) status filter as per requirements
   const [statusFilter, setStatusFilter] = useState<string[] | null>([ExpenseStatus.PENDING]);
   
   // Use the global currency store with enhanced properties
@@ -95,27 +95,38 @@ export const useAdvancePaymentFilters = ({
   }, [statusFilter, handleStatusFilterChange, setPrimaryCurrency, setUserSelected]);
 
   // Define the statuses that should be used for filtering with the correct mappings
+  // Include all relevant statuses from the ExpenseStatus enum to match backend values
   const availableFilterStatuses: ExpenseStatus[] = [
     ExpenseStatus.PREPARED,
+    ExpenseStatus.CREATED,
+    ExpenseStatus.ASSIGNED,
+    ExpenseStatus.PENDING,
     ExpenseStatus.APPROVED,
+    ExpenseStatus.RETURNED,
+    ExpenseStatus.REJECTED,
+    ExpenseStatus.VERIFIED,
     ExpenseStatus.BOOKED,
     ExpenseStatus.PAID,
-    ExpenseStatus.PENDING,
-    ExpenseStatus.REJECTED,
+    ExpenseStatus.CLOSED,
+    ExpenseStatus.DISCARDED,
     ExpenseStatus.TRANSFERRED,
-    ExpenseStatus.VERIFIED,
   ];
   
   // Map of status to display label based on user requirements
   const statusDisplayMap: Partial<Record<ExpenseStatus, string>> = {
     [ExpenseStatus.PREPARED]: 'Prepared',
+    [ExpenseStatus.CREATED]: 'Draft (Created)',
+    [ExpenseStatus.ASSIGNED]: 'Assigned',
+    [ExpenseStatus.PENDING]: 'Approval Required',
     [ExpenseStatus.APPROVED]: 'Approved',
+    [ExpenseStatus.RETURNED]: 'In Revision (Returned)',
+    [ExpenseStatus.REJECTED]: 'Revision Required (Rejected)',
+    [ExpenseStatus.VERIFIED]: 'In Transit (Verified)',
     [ExpenseStatus.BOOKED]: 'In Transit (Booked)',
     [ExpenseStatus.PAID]: 'Paid',
-    [ExpenseStatus.PENDING]: 'Approval Required',
-    [ExpenseStatus.REJECTED]: 'Revision Required',
-    [ExpenseStatus.TRANSFERRED]: 'Transferred',
-    [ExpenseStatus.VERIFIED]: 'In Transit (Verified)',
+    [ExpenseStatus.CLOSED]: 'Closed',
+    [ExpenseStatus.DISCARDED]: 'Discarded',
+    [ExpenseStatus.TRANSFERRED]: 'In Transit (Transferred)',
   };
 
   // Create a mapping of filter IDs to their display labels

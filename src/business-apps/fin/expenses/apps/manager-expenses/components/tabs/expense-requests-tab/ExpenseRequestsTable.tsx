@@ -4,7 +4,8 @@ import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests';
-import { useExpenseRequestFilters, ExpenseRequestStatus } from '../../../hooks/useExpenseRequestFilters';
+import { useExpenseRequestFilters, ExpenseRequestStatusMap } from '../../../hooks/useExpenseRequestFilters';
+import { ExpenseStatus } from '../../../utils';
 import { getExpenseRequestStatusDisplay } from '../../../utils';
 import ExpenseRequestDetails from './ExpenseRequestDetails';
 import { ensureShortDateFormat } from '../../../utils/dateUtils';
@@ -66,8 +67,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   // Set default filter for "Approval Required" status on initial load
   useEffect(() => {
     if (selectedFilters.length === 0 && isFirstRender.current) {
-      // Apply default filter for "Approval Required" (IN_APPROVAL)
-      addFilter(ExpenseRequestStatus.IN_APPROVAL.toLowerCase());
+      // Apply default filter for "Approval Required" (PENDING maps to in_approval)
+      addFilter(ExpenseRequestStatusMap[ExpenseStatus.PENDING]);
     }
   }, [addFilter, selectedFilters]);
 
