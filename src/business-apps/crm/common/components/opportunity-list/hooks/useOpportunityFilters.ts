@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetPipelineStages } from "./useGetPipelineStages";
 import { useGetPipelineCatalogs } from "./useGetPipelineCatalogs";
@@ -22,6 +22,7 @@ export interface OpportunityFilters {
   createdAfter?: string;
   createdBefore?: string;
   handleDateRangeChange: (after?: string, before?: string) => void;
+  filtersInitialized: boolean;
 }
 
 export const useOpportunityFilters = (
@@ -31,6 +32,7 @@ export const useOpportunityFilters = (
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [createdAfter, setCreatedAfter] = useState<string | undefined>();
   const [createdBefore, setCreatedBefore] = useState<string | undefined>();
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   // Add state for pipeline stage search if needed
   const [pipelineStageSearch, setPipelineStageSearch] = useState("");
@@ -46,6 +48,64 @@ export const useOpportunityFilters = (
     isLoading: isPipelinesLoading,
     error: pipelinesError,
   } = useGetPipelineCatalogs(context, pipelineSearch);
+
+  // Initialize filters from URL parameters when options are loaded
+  useEffect(() => {
+    if (!filtersInitialized && 
+        pipelineStageOptions.length > 0 && 
+        pipelineOptions.length > 0) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const preselectedFilters: string[] = [];
+
+      // Handle salesPipelineStage parameter: salesPipelineStage=SalesPipelineStage:v1:NEW_OPPORTUNITY
+      const salesPipelineStageParams = urlParams.getAll('salesPipelineStage');
+      salesPipelineStageParams.forEach(stageValue => {
+        const matchingStage = pipelineStageOptions.find(option => option.id === stageValue);
+        if (matchingStage) {
+          preselectedFilters.push(`stage-${matchingStage.id}`);
+        }
+      });
+
+      // Handle salesPipeline parameter: salesPipeline=SalesPipeline:v1:STANDARD
+      const salesPipelineParams = urlParams.getAll('salesPipeline');
+      salesPipelineParams.forEach(pipelineValue => {
+        const matchingPipeline = pipelineOptions.find(option => option.id === pipelineValue);
+        if (matchingPipeline) {
+          preselectedFilters.push(`pipeline-${matchingPipeline.id}`);
+        }
+      });
+
+      // Handle winningChance parameter: winningChance=chance-high
+      const winningChanceParams = urlParams.getAll('winningChance');
+      winningChanceParams.forEach(chanceValue => {
+        if (['chance-high', 'chance-medium', 'chance-low', 'chance-very-low'].includes(chanceValue)) {
+          preselectedFilters.push(chanceValue);
+        }
+      });
+
+      // Handle estimatedAmount parameter: estimatedAmount=amount-large
+      const estimatedAmountParams = urlParams.getAll('estimatedAmount');
+      estimatedAmountParams.forEach(amountValue => {
+        if (['amount-large', 'amount-medium', 'amount-small', 'amount-micro'].includes(amountValue)) {
+          preselectedFilters.push(amountValue);
+        }
+      });
+
+      // Handle status parameter: status=OPPORTUNITY_OPEN
+      const statusParams = urlParams.getAll('status');
+      statusParams.forEach(statusValue => {
+        if (['OPPORTUNITY_OPEN', 'OPPORTUNITY_WON', 'OPPORTUNITY_LOST', 'UNKNOWN_OPPORTUNITY_STATUS'].includes(statusValue)) {
+          preselectedFilters.push(statusValue);
+        }
+      });
+
+      if (preselectedFilters.length > 0) {
+        setSelectedFilters(preselectedFilters);
+      }
+      
+      setFiltersInitialized(true);
+    }
+  }, [pipelineStageOptions, pipelineOptions, filtersInitialized]);
 
   const filterGroups: FilterGroup[] = useMemo(
     () => [
@@ -129,6 +189,36 @@ export const useOpportunityFilters = (
           },
         ],
       },
+      {
+        id: "status",
+        title: "Status",
+        filters: [
+          {
+            id: "OPPORTUNITY_OPEN",
+            label: "Open",
+            value: "OPPORTUNITY_OPEN",
+            selected: selectedFilters.includes("OPPORTUNITY_OPEN"),
+          },
+          {
+            id: "OPPORTUNITY_WON",
+            label: "Won",
+            value: "OPPORTUNITY_WON",
+            selected: selectedFilters.includes("OPPORTUNITY_WON"),
+          },
+          {
+            id: "OPPORTUNITY_LOST",
+            label: "Lost",
+            value: "OPPORTUNITY_LOST",
+            selected: selectedFilters.includes("OPPORTUNITY_LOST"),
+          },
+          {
+            id: "UNKNOWN_OPPORTUNITY_STATUS",
+            label: "Unknown",
+            value: "UNKNOWN_OPPORTUNITY_STATUS",
+            selected: selectedFilters.includes("UNKNOWN_OPPORTUNITY_STATUS"),
+          },
+        ],
+      },
     ],
     [selectedFilters, pipelineStageOptions, pipelineOptions]
   );
@@ -202,6 +292,9 @@ export const useOpportunityFilters = (
           } else if (group.id === "estimatedAmount") {
             if (!filters.amountRanges) filters.amountRanges = [];
             filters.amountRanges.push(filter.value);
+          } else if (group.id === "status") {
+            if (!filters.statuses) filters.statuses = [];
+            filters.statuses.push(filter.value);
           }
           break;
         }
@@ -224,5 +317,6 @@ export const useOpportunityFilters = (
     createdAfter,
     createdBefore,
     handleDateRangeChange,
+    filtersInitialized,
   };
 };

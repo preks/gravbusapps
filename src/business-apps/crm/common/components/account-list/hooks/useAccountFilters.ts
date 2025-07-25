@@ -21,6 +21,7 @@ export interface AccountFilters {
   createdAfter?: string;
   createdBefore?: string;
   handleDateRangeChange: (after?: string, before?: string) => void;
+  filtersInitialized: boolean;
 }
 
 export const useAccountFilters = (
@@ -35,6 +36,7 @@ export const useAccountFilters = (
   >([]);
   const [industryLoading, setIndustryLoading] = useState(false);
   const [industryError, setIndustryError] = useState<Error | null>(null);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   // Always call the hook at the top level
   const client = useCatalogManagerClient(context.accessToken);
@@ -67,6 +69,30 @@ export const useAccountFilters = (
     fetchIndustries();
     // Only run on mount or when client changes
   }, [client]);
+
+  // Initialize filters from URL parameters when industry options are loaded
+  useEffect(() => {
+    if (!filtersInitialized && industryOptions.length > 0) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const preselectedFilters: string[] = [];
+
+      // Handle industry parameter: industry=IndustryClass:v1:B
+      const industryParams = urlParams.getAll('industry');
+      industryParams.forEach(industryValue => {
+        const matchingIndustry = industryOptions.find(option => option.id === industryValue);
+        if (matchingIndustry) {
+          preselectedFilters.push(matchingIndustry.id);
+        }
+      });
+
+      if (preselectedFilters.length > 0) {
+        setSelectedFilters(preselectedFilters);
+      }
+      
+      setFiltersInitialized(true);
+    }
+  }, [industryOptions, filtersInitialized]);
+
   console.log("industryOptions", industryOptions);
   const filterGroups: FilterGroup[] = useMemo(
     () => [
@@ -165,5 +191,6 @@ export const useAccountFilters = (
     createdAfter,
     createdBefore,
     handleDateRangeChange,
+    filtersInitialized,
   };
 };

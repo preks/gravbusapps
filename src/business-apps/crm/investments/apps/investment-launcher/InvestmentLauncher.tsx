@@ -226,9 +226,6 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
               <h2 className="gba:text-lg gba:font-semibold gba:text-white gba:mb-1 gba:drop-shadow-sm">Quick Actions</h2>
               <p className="gba:text-sm gba:text-white gba:drop-shadow-sm">Frequently used investment and business management functions</p>
             </div>
-            <button className="gba:text-sm gba:text-white hover:gba:text-gray-200 gba:font-medium gba:transition-colors gba:duration-200 gba:drop-shadow-sm">
-              View All →
-            </button>
           </div>
           
           <div className="gba:grid gba:grid-cols-6 gba:gap-4">

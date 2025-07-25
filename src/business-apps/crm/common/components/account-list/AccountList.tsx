@@ -39,7 +39,8 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
     getFilters,
     createdAfter: filterCreatedAfter,
     createdBefore: filterCreatedBefore,
-    handleDateRangeChange: filterHandleDateRangeChange
+    handleDateRangeChange: filterHandleDateRangeChange,
+    filtersInitialized
   } = useAccountFilters(props);
 
   // Get initial values from URL parameters using standard web APIs - ONLY ONCE
@@ -181,30 +182,30 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
     refetch: refetchStats
   } = useAccountStatisticsWithTrend({ ...props, sourceApp });
   
-  // Trigger initial data loading when component mounts
+  // Trigger initial data loading when component mounts and filters are initialized
   useEffect(() => {
-    if (!initialLoadDone.current && accessToken) {
+    if (!initialLoadDone.current && accessToken && filtersInitialized) {
       initialLoadDone.current = true;
       loadPage(currentPage, pageSize);
     }
-  }, [accessToken, currentPage, pageSize]);
+  }, [accessToken, currentPage, pageSize, filtersInitialized]);
 
   // Trigger search when search term changes
   useEffect(() => {
-    if (initialLoadDone.current) {
+    if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1);
       updateURLParams({ search, page: 1 });
       loadPage(1, pageSize); // Reset to first page when search changes
     }
-  }, [search, pageSize]);
+  }, [search, pageSize, filtersInitialized]);
 
   // Trigger reload when filters change
   useEffect(() => {
-    if (initialLoadDone.current) {
+    if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1);
       loadPage(1, pageSize);
     }
-  }, [JSON.stringify(selectedFilters), filterCreatedAfter, filterCreatedBefore, pageSize]);
+  }, [JSON.stringify(selectedFilters), filterCreatedAfter, filterCreatedBefore, pageSize, filtersInitialized]);
 
   // Handle account selection
   const handleSelectAccount = useCallback((account: Account) => {

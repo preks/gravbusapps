@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetLeadStatuses } from "./useGetLeadStatuses";
 import { useGetLeadRatings } from "./useGetLeadRatings";
@@ -42,6 +42,7 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
   // Main search and filter state
   const [search, setSearch] = useState("");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   // Date range filter state
   const [createdAfter, setCreatedAfter] = useState<string | undefined>();
@@ -109,6 +110,8 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     companySizeError ||
     ownerError;
 
+
+
   // Filter management functions
   const addFilter = useCallback((filterId: string) => {
     setSelectedFilters((prev) => [...prev, filterId]);
@@ -129,37 +132,88 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
   const initializeFromUrl = useCallback((urlParams: URLSearchParams) => {
     const newFilters: string[] = [];
     
-    // Handle leadStatus parameter
-    const leadStatusParam = urlParams.get('leadStatus');
-    
-    if (leadStatusParam && leadStatusOptions.length > 0) {
-      // More flexible matching for common lead status values
-      const matchingStatus = leadStatusOptions.find(option => {
-        const optionName = option.name.toLowerCase();
-        const paramValue = leadStatusParam.toLowerCase();
-        
-        // Direct name match
-        if (optionName === paramValue) return true;
-        
-        // ID match
-        if (option.id.toLowerCase() === paramValue) return true;
-        
-        // Common mappings
-        if (paramValue === 'open' && (optionName.includes('new') || optionName.includes('open') || optionName.includes('active'))) return true;
-        if (paramValue === 'converted' && (optionName.includes('convert') || optionName.includes('qualified') || optionName.includes('won'))) return true;
-        
-        return false;
-      });
-      
+    // Handle salesLeadStatus parameter: salesLeadStatus=SalesLeadStatus:v1:CONVERTED
+    const salesLeadStatusParams = urlParams.getAll('salesLeadStatus');
+    salesLeadStatusParams.forEach(statusValue => {
+      const matchingStatus = leadStatusOptions.find(option => option.id === statusValue);
       if (matchingStatus) {
         newFilters.push(matchingStatus.id);
       }
-    }
+    });
+
+    // Handle salesLeadRating parameter: salesLeadRating=SalesLeadRating:v1:HOT
+    const salesLeadRatingParams = urlParams.getAll('salesLeadRating');
+    salesLeadRatingParams.forEach(ratingValue => {
+      const matchingRating = leadRatingOptions.find(option => option.id === ratingValue);
+      if (matchingRating) {
+        newFilters.push(matchingRating.id);
+      }
+    });
+
+    // Handle salesLeadSource parameter: salesLeadSource=SalesLeadSource:v1:EVENTS
+    const salesLeadSourceParams = urlParams.getAll('salesLeadSource');
+    salesLeadSourceParams.forEach(sourceValue => {
+      const matchingSource = leadSourceOptions.find(option => option.id === sourceValue);
+      if (matchingSource) {
+        newFilters.push(matchingSource.id);
+      }
+    });
+
+    // Handle industry parameter: industry=IndustryClass:v1:B
+    const industryParams = urlParams.getAll('industry');
+    industryParams.forEach(industryValue => {
+      const matchingIndustry = industryOptions.find(option => option.id === industryValue);
+      if (matchingIndustry) {
+        newFilters.push(matchingIndustry.id);
+      }
+    });
+
+    // Handle companySize parameter: companySize=startup, companySize=small, etc.
+    const companySizeParams = urlParams.getAll('companySize');
+    companySizeParams.forEach(sizeValue => {
+      const matchingSize = companySizeOptions.find(option => option.id === sizeValue);
+      if (matchingSize) {
+        newFilters.push(matchingSize.id);
+      }
+    });
+
+    // Handle owner parameter: owner=<ownerEmployeeId>
+    const ownerParams = urlParams.getAll('owner');
+    ownerParams.forEach(ownerValue => {
+      const matchingOwner = leadOwners.find(owner => owner.id === ownerValue);
+      if (matchingOwner) {
+        newFilters.push(matchingOwner.id);
+      }
+    });
     
     if (newFilters.length > 0) {
       setSelectedFilters(prev => [...prev, ...newFilters]);
     }
-  }, [leadStatusOptions, setSelectedFilters]);
+  }, [leadStatusOptions, leadRatingOptions, leadSourceOptions, industryOptions, companySizeOptions, leadOwners, setSelectedFilters]);
+
+  // Initialize filters from URL when all options are loaded
+  useEffect(() => {
+    if (!filtersInitialized && 
+        leadStatusOptions.length > 0 && 
+        leadRatingOptions.length > 0 && 
+        leadSourceOptions.length > 0 && 
+        industryOptions.length > 0 && 
+        companySizeOptions.length > 0 && 
+        leadOwners.length >= 0) { // leadOwners can be empty initially
+      const urlParams = new URLSearchParams(window.location.search);
+      initializeFromUrl(urlParams);
+      setFiltersInitialized(true);
+    }
+  }, [
+    leadStatusOptions, 
+    leadRatingOptions, 
+    leadSourceOptions, 
+    industryOptions, 
+    companySizeOptions, 
+    leadOwners, 
+    filtersInitialized, 
+    initializeFromUrl
+  ]);
 
   // Handle date range changes
   const handleDateRangeChange = useCallback(
@@ -431,6 +485,7 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     // Filter state
     search,
     selectedFilters,
+    filtersInitialized,
 
     // Date range state
     createdAfter,

@@ -89,10 +89,26 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
     return viewOptions[0].key;
   };
 
+  // Get initial subView from URL for opportunities tab
+  const getInitialSubView = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const subViewFromUrl = urlParams.get("subView");
+
+    // Map URL subView values to internal tab values
+    if (subViewFromUrl === "pipeline") {
+      return "board";
+    } else if (subViewFromUrl === "list") {
+      return "list";
+    }
+
+    // Default to list view
+    return "list";
+  };
+
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
   const [dashboardSubTab, setDashboardSubTab] = useState<string>("overview");
   const [opportunitiesSubTab, setOpportunitiesSubTab] =
-    useState<string>("list");
+    useState<string>(getInitialSubView());
   const [dateRange] = useState<DateRange>({
     startDate: new Date(new Date().getFullYear() - 2, 0, 1),
     endDate: new Date()
@@ -103,11 +119,26 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
   );
 
   // Update URL when view changes
-  const updateUrl = (view: string) => {
+  const updateUrl = (view: string, subView?: string) => {
     const urlParams = new URLSearchParams(window.location.search);
 
     // Always set the view parameter (including for default)
     urlParams.set("view", view);
+
+    // Handle subView parameter for opportunities
+    if (view === "opportunities" && subView) {
+      // Map internal tab values to URL subView values
+      if (subView === "board") {
+        urlParams.set("subView", "pipeline");
+      } else if (subView === "list") {
+        urlParams.set("subView", "list");
+      }
+    } else {
+      // Clear subView parameter when not in opportunities view
+      if (urlParams.has("subView")) {
+        urlParams.delete("subView");
+      }
+    }
 
     // Clear leadStatus parameter when switching away from leads view
     if (view !== "leads" && urlParams.has("leadStatus")) {
@@ -124,14 +155,26 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
       return;
     }
     setActiveTab(key);
-    updateUrl(key);
+    
+    // If switching to opportunities, include current subView in URL
+    if (key === "opportunities") {
+      updateUrl(key, opportunitiesSubTab);
+    } else {
+      updateUrl(key);
+    }
+  };
+
+  const handleOpportunitiesSubTabChange = (subTab: string) => {
+    setOpportunitiesSubTab(subTab);
+    // Update URL with new subView when tab changes
+    updateUrl(activeTab, subTab);
   };
 
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.has("view")) {
-      updateUrl(activeTab);
+      updateUrl(activeTab, activeTab === "opportunities" ? opportunitiesSubTab : undefined);
     }
   }, []);
 
@@ -139,7 +182,9 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
   useEffect(() => {
     const handlePopState = () => {
       const newView = getInitialView();
+      const newSubView = getInitialSubView();
       setActiveTab(newView);
+      setOpportunitiesSubTab(newSubView);
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -206,7 +251,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
 
   const renderOpportunitiesContent = () => {
     return (
-      <Tabs value={opportunitiesSubTab} onValueChange={setOpportunitiesSubTab}>
+      <Tabs value={opportunitiesSubTab} onValueChange={handleOpportunitiesSubTabChange}>
         <TabsList className="gba:mb-4">
           <TabsTrigger value="list" data-testid="opportunities-list-tab">
             <UnorderedListOutlined className="gba:mr-2" />

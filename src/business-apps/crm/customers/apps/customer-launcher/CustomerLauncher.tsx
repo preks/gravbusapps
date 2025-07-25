@@ -199,9 +199,6 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = (context) => {
               <h2 className="gba:text-lg gba:font-semibold gba:text-white gba:mb-1 gba:drop-shadow-sm">Quick Actions</h2>
               <p className="gba:text-sm gba:text-white gba:drop-shadow-sm">Frequently used CRM functions and shortcuts</p>
             </div>
-            <button className="gba:text-sm gba:text-white hover:gba:text-gray-200 gba:font-medium gba:transition-colors gba:duration-200 gba:drop-shadow-sm">
-              View All →
-            </button>
           </div>
           
           <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-6 gba:gap-4">
