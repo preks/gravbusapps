@@ -5,6 +5,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Card, Ca
 import { PiCalendar, PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { EnhancedAbsence } from '../types';
+import { useAbsenceColors } from '../utils/absenceColors';
 import dayjs from 'dayjs';
 
 interface AbsenceTableProps extends BusinessAppContextProps {
@@ -47,8 +48,11 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
   onSelectAbsence,
   onPaginationChange,
   onSortingChange,
-  selectedAbsenceId
+  selectedAbsenceId,
+  ...props
 }) => {
+  // Get absence colors
+  const { getColorForAbsence } = useAbsenceColors(props);
   // Get employee display name
   const getEmployeeName = (absence: EnhancedAbsence) => {
     if (absence.employee.firstName || absence.employee.lastName) {
@@ -57,9 +61,9 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
     return '-';
   };
 
-  // Get absence type display name
-  const getAbsenceType = (absence: EnhancedAbsence) => {
-    return absence.type?.value || '-';
+  // Get absence group display name
+  const getAbsenceGroup = (absence: EnhancedAbsence) => {
+    return absence.groupName || '-';
   };
 
   // Get status badge variant
@@ -156,12 +160,12 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                 </TableHead>
                 <TableHead 
                   className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort('type.value')}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-type-header`}
+                  onClick={() => handleSort('groupName')}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-group-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    Type
-                    {renderSortIcon('type.value')}
+                    Group
+                    {renderSortIcon('groupName')}
                   </div>
                 </TableHead>
                 <TableHead 
@@ -240,8 +244,17 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-type-cell-${record.id}`}>
-                    <span className="gba:text-sm">{getAbsenceType(record)}</span>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-group-cell-${record.id}`}>
+                    <Badge 
+                      variant="outline"
+                      style={{ 
+                        backgroundColor: getColorForAbsence(getAbsenceGroup(record)),
+                        color: 'white',
+                        borderColor: getColorForAbsence(getAbsenceGroup(record))
+                      }}
+                    >
+                      {getAbsenceGroup(record)}
+                    </Badge>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-start-date-cell-${record.id}`}>
                     {record.startDate ? (

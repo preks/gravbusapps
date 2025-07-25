@@ -13,6 +13,7 @@ export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = (props)
     statuses: [],
     types: [],
     groups: [],
+    employees: [],
     startDate: undefined,
     endDate: undefined
   };
@@ -85,7 +86,10 @@ export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = (props)
   // Create group colors mapping using catalog colors
   const groupColors: { [key: string]: string } = {};
   uniqueGroups.forEach((group) => {
-    groupColors[group] = getColorForAbsence(group);
+    const color = getColorForAbsence(group);
+    if (color) {
+      groupColors[group] = color;
+    }
   });
 
   return (

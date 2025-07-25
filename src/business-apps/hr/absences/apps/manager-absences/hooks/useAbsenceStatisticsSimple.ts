@@ -318,6 +318,7 @@ export const useAbsenceStatisticsSimple = (context: BusinessAppContextProps): Us
       console.log('Sick leave absences (current year):', sickLeaveCount);
 
 
+
       // Extract usage trends data
       const absencesForTrends = usageTrendsResult.approvedAbsencesForTrends || [];
       
@@ -555,6 +556,7 @@ export const useAbsenceStatisticsSimple = (context: BusinessAppContextProps): Us
       };
 
       console.log('Final statistics object:', finalStatistics);
+
       setStatistics(finalStatistics);
 
     } catch (err) {

@@ -72,16 +72,16 @@ export const KPISectionModern: React.FC<KPISectionModernProps> = (props) => {
 
   return (
     <div className="gba:py-2 gba:px-6" data-testid="kpi-section-modern">
-      {/* Top Absentees and Recent Requests */}
+      {/* Recent Requests and Top Absentees */}
       <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6 gba:mb-6">
-        <TopAbsenteesList
-          topAbsentees={data.topAbsentees}
-          maxAbsenceDays={data.maxAbsenceDays}
-          onNavigateToAbsenceListPage={props.onNavigateToAbsenceListPage}
-        />
         <RecentAbsenceRequestsList
           recentRequests={recentRequests}
           totalCount={totalCount}
+          onNavigateToAbsenceListPage={props.onNavigateToAbsenceListPage}
+        />
+        <TopAbsenteesList
+          topAbsentees={data.topAbsentees}
+          maxAbsenceDays={data.maxAbsenceDays}
           onNavigateToAbsenceListPage={props.onNavigateToAbsenceListPage}
         />
       </div>

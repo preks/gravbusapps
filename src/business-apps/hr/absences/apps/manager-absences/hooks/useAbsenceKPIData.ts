@@ -83,7 +83,7 @@ interface KPIData {
   pieChartData: Array<{
     name: string;
     value: number;
-    color: string;
+    color?: string;
   }>;
   topAbsentees: Array<{
     name: string;
@@ -184,7 +184,7 @@ export const useAbsenceKPIData = (
       return aIndex - bIndex;
     });
 
-    console.log('Groups in data ordered:', sortedGroups);
+  
 
     // Create bar chart data for ALL months with groups in the correct order
     const barChartData = monthNames.map((month) => {
@@ -238,11 +238,9 @@ export const useAbsenceKPIData = (
       return aIndex - bIndex;
     });
 
-    const colors = ["#8884d8", "#82ca9d", "#ffc658", "#ff7300", "#8dd1e1"];
-    const pieChartData = sortedPieEntries.map(([name, value], index) => ({
+    const pieChartData = sortedPieEntries.map(([name, value]) => ({
       name,
       value,
-      color: colors[index % colors.length],
     }));
 
     // Calculate top absentees - exclude work leave
