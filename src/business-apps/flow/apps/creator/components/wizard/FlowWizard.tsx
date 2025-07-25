@@ -1,8 +1,9 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
+import { Card, CardContent } from '@newwork/nw-design-system';
 import { Progress } from '@newwork/nw-design-system';
 import { Button } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
+import { AssignmentMode } from '../../types/flowTemplate';
 import { 
   Shield, 
   Megaphone, 
@@ -21,6 +22,8 @@ import { PatternSelector } from './PatternSelector';
 import { BasicInfoForm } from './BasicInfoForm';
 import { FlowStepConfiguration } from './FlowStepConfiguration';
 import { AdvancedSettings } from './AdvancedSettings';
+import { TemplateSetupForm } from './TemplateSetupForm';
+import { CompleteConfigurationForm } from './CompleteConfigurationForm';
 
 interface FlowWizardProps {
   onComplete: (template: any) => void;
@@ -60,7 +63,8 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
     previousStep, 
     selectedPattern,
     configuration,
-    steps
+    steps,
+    isEditMode
   } = useWizardStore();
 
   const progress = ((currentStep + 1) / useWizardStore.getState().steps.length) * 100;
@@ -70,49 +74,22 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
   const canGoNext = currentStep < useWizardStore.getState().steps.length - 1;
   const canGoPrevious = currentStep > 0;
 
-  // Validation logic for each step
-  const validateCurrentStep = (): boolean => {
-    switch (currentStepInfo.id) {
-      case 'pattern-selection':
-        return selectedPattern !== null;
-      
-      case 'basic-info':
-        return !!(configuration.title);
-      
-      case 'step-configuration':
-        return configuration.steps && configuration.steps.length > 0;
-      
-      case 'advanced-settings':
-        return true; // Advanced settings are optional
-      
-      case 'review-preview':
-        return true; // Review step is always valid
-      
-      default:
-        return false;
-    }
-  };
+  // Use wizard store validation
+  const isValid = useWizardStore.getState().validateCurrentStep();
 
-  // Get validation message for current step
+  // Get validation message
   const getValidationMessage = () => {
-    switch (currentStepInfo.id) {
-      case 'pattern-selection':
-        return 'Please select a workflow pattern to continue.';
-      
-      case 'basic-info':
-        return 'Please provide a workflow title';
-      
-      case 'step-configuration':
-        if (!configuration.steps || configuration.steps.length === 0) return 'Please add at least one workflow step.';
-        return '';
-      
-      default:
-        return '';
+    if (!configuration.title || configuration.title.trim().length === 0) {
+      return 'Please provide a workflow title';
     }
+    if (!configuration.steps || configuration.steps.length === 0) {
+      return 'Please add at least one workflow step';
+    }
+    return '';
   };
 
   const handleComplete = () => {
-    if (!validateCurrentStep()) return;
+    if (!isValid) return;
     
     const template = {
       pattern: selectedPattern,
@@ -129,47 +106,11 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
 
   const renderCurrentStep = () => {
     switch (currentStepInfo.id) {
-      case 'pattern-selection':
+      case 'complete-configuration':
         return (
-          <PatternSelector 
-            onNext={nextStep}
-            data-testid={`${testId}-pattern-selector`}
+          <CompleteConfigurationForm
+            data-testid={`${testId}-complete-configuration`}
           />
-        );
-      
-      case 'basic-info':
-        return (
-          <BasicInfoForm
-            data-testid={`${testId}-basic-info`}
-          />
-        );
-      
-      case 'step-configuration':
-        return (
-          <FlowStepConfiguration
-            steps={configuration.steps || []}
-            onStepsChange={(steps) => useWizardStore.getState().updateConfiguration('steps', steps)}
-            data-testid={`${testId}-step-configuration`}
-          />
-        );
-      
-      case 'advanced-settings':
-        return (
-          <AdvancedSettings
-            data-testid={`${testId}-advanced-settings`}
-          />
-        );
-      
-      case 'review-preview':
-        return (
-          <div className="gba:space-y-4" data-testid={`${testId}-review-preview`}>
-            <h3 className="gba:text-lg gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('flow.creator.reviewPreview', 'Review & Preview')}
-            </h3>
-            <div className="gba:p-4 gba:bg-gray-50 gba:rounded">
-              <pre className="gba:text-sm">{JSON.stringify(configuration, null, 2)}</pre>
-            </div>
-          </div>
         );
       
       default:
@@ -180,26 +121,10 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
   return (
     <div className="gba:mx-auto gba:p-6" data-testid={testId}>
       <Card>
-        <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-3">
-            {selectedPattern && renderIcon(selectedPattern.icon)}
-            <span>
-              {getTranslationFromI18nKeyAndLabel('flow.creator.createWorkflow', 'Create Workflow Template')}
-            </span>
-          </CardTitle>
-          <div className="gba:mt-4">
-            <Progress value={progress} className="gba:w-full" />
-            <div className="gba:flex gba:justify-between gba:mt-2 gba:text-sm gba:text-gray-600">
-              <span>{currentStepInfo.title}</span>
-              <span>{currentStep + 1} of {steps.length}</span>
-            </div>
-          </div>
-        </CardHeader>
-        
         <CardContent className="gba:space-y-6">
           {renderCurrentStep()}
           
-          {!validateCurrentStep() && (
+          {!isValid && (
             <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-amber-50 gba:border gba:border-amber-200 gba:rounded">
               <ExclamationCircleOutlined className="gba:text-amber-600" />
               <span className="gba:text-sm gba:text-amber-800">
@@ -217,34 +142,17 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
             </Button>
             
             <div className="gba:flex gba:gap-2">
-              {canGoPrevious && (
-                <Button
-                  onClick={previousStep}
-                  data-testid={`${testId}-previous-button`}
-                >
-                  {getTranslationFromI18nKeyAndLabel('flow.creator.previous', 'Previous')}
-                </Button>
-              )}
-              
-              {canGoNext ? (
-                <Button
-                  type="primary"
-                  onClick={nextStep}
-                  disabled={!validateCurrentStep()}
-                  data-testid={`${testId}-next-button`}
-                >
-                  {getTranslationFromI18nKeyAndLabel('flow.creator.next', 'Next')}
-                </Button>
-              ) : (
-                <Button
-                  type="primary"
-                  onClick={handleComplete}
-                  disabled={!validateCurrentStep()}
-                  data-testid={`${testId}-complete-button`}
-                >
-                  {getTranslationFromI18nKeyAndLabel('flow.creator.complete', 'Complete')}
-                </Button>
-              )}
+              <Button
+                type="primary"
+                onClick={handleComplete}
+                disabled={!isValid}
+                data-testid={`${testId}-complete-button`}
+              >
+                {isEditMode 
+                  ? getTranslationFromI18nKeyAndLabel('flow.creator.saveChanges', 'Save Changes')
+                  : getTranslationFromI18nKeyAndLabel('flow.creator.complete', 'Create Workflow')
+                }
+              </Button>
             </div>
           </div>
         </CardContent>

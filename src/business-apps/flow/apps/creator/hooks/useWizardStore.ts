@@ -7,6 +7,7 @@ interface WizardStore extends WizardState {
   // Pattern selection
   selectPattern: (pattern: BusinessPattern) => void;
   clearPattern: () => void;
+  skipPattern: () => void; // NEW: Skip pattern selection
   
   // Configuration
   updateConfiguration: (key: string, value: any) => void;
@@ -17,13 +18,18 @@ interface WizardStore extends WizardState {
   previousStep: () => void;
   goToStep: (stepIndex: number) => void;
   
-  // Template generation
+  // Template generation with pattern defaults
   generateTemplate: () => FlowTemplate;
-  applyPatternToTemplate: (pattern: BusinessPattern) => FlowTemplate;
+  applyPatternDefaults: (pattern: BusinessPattern) => void; // NEW: Apply smart defaults
   
   // Validation
   validateCurrentStep: () => boolean;
   validateTemplate: () => ValidationResult;
+  
+  // Mode management - NEW
+  initializeForCreate: () => void;
+  initializeForEdit: (template: FlowTemplate) => void;
+  isEditMode: boolean;
   
   // Wizard management
   initializeWizard: () => void;
@@ -31,45 +37,13 @@ interface WizardStore extends WizardState {
   completeWizard: () => PatternSelection;
 }
 
-// Wizard steps configuration
+// Wizard steps configuration - SIMPLIFIED SINGLE STEP
 const WIZARD_STEPS: WizardStep[] = [
   {
-    id: 'pattern-selection',
-    title: 'Select Pattern',
-    description: 'Choose a business pattern for your workflow',
-    component: 'PatternSelector',
-    required: true,
-    canSkip: false
-  },
-  {
-    id: 'basic-info',
-    title: 'Basic Information',
-    description: 'Provide title and description for your workflow',
-    component: 'BasicInfoForm',
-    required: true,
-    canSkip: false
-  },
-  {
-    id: 'step-configuration',
-    title: 'Configure Steps',
-    description: 'Customize workflow steps and content',
-    component: 'FlowStepConfiguration',
-    required: true,
-    canSkip: false
-  },
-  {
-    id: 'advanced-settings',
-    title: 'Advanced Settings',
-    description: 'Configure timing, escalation, and other advanced options',
-    component: 'AdvancedSettings',
-    required: false,
-    canSkip: true
-  },
-  {
-    id: 'review-preview',
-    title: 'Review & Preview',
-    description: 'Review your workflow configuration before saving',
-    component: 'ReviewPreview',
+    id: 'complete-configuration',
+    title: 'Create Workflow Template',
+    description: 'Configure template details and workflow steps',
+    component: 'CompleteConfigurationForm',
     required: true,
     canSkip: false
   }
@@ -87,8 +61,50 @@ const initialState: WizardState = {
 
 export const useWizardStore = create<WizardStore>((set, get) => ({
   ...initialState,
+  isEditMode: false, // NEW
   
-  // Pattern selection
+  // NEW: Skip pattern selection for custom workflows
+  skipPattern: () => {
+    set((state) => ({
+      selectedPattern: undefined,
+      configuration: {
+        ...state.configuration,
+        patternId: 'custom',
+        customWorkflow: true
+      },
+      isValid: true,
+      errors: {}
+    }));
+  },
+  
+  // NEW: Apply smart defaults from business patterns  
+  applyPatternDefaults: (pattern: BusinessPattern) => {
+    const defaultSteps = pattern.preConfiguredSteps.map((preStep, index) => ({
+      id: `step-${index}`,
+      title: preStep.title,
+      message: preStep.description,
+      type: preStep.type,
+      inputs: preStep.inputs || [],
+      links: preStep.links || [],
+      // No default assignment - let users choose to add via toggle
+      assignment: undefined
+    }));
+    
+    set((state) => ({
+      configuration: {
+        ...state.configuration,
+        steps: defaultSteps,
+        title: state.configuration.title || `${pattern.title} Workflow`,
+        description: state.configuration.description || pattern.description,
+        // Apply pattern-specific defaults
+        requiresAssignment: pattern.configuration.requiresAssignment,
+        requiresDeadline: pattern.configuration.requiresDeadline,
+        requiresEscalation: pattern.configuration.requiresEscalation
+      }
+    }));
+  },
+  
+  // Enhanced pattern selection with defaults
   selectPattern: (pattern: BusinessPattern) => {
     set((state) => {
       const newConfiguration = {
@@ -106,6 +122,9 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
         errors: {}
       };
     });
+    
+    // Auto-apply pattern defaults
+    get().applyPatternDefaults(pattern);
   },
   
   clearPattern: () => {
@@ -165,46 +184,14 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
   generateTemplate: (): FlowTemplate => {
     const { selectedPattern, configuration } = get();
     
-    if (!selectedPattern) {
-      throw new Error('No pattern selected');
-    }
-    
-    return get().applyPatternToTemplate(selectedPattern);
-  },
-  
-  applyPatternToTemplate: (pattern: BusinessPattern): FlowTemplate => {
-    const { configuration } = get();
-    
-    // Create steps from pattern's pre-configured steps
-    const steps: FlowStep[] = pattern.preConfiguredSteps.map((preStep, index) => ({
-      title: preStep.title,
-      message: preStep.description, // Use description as message
-      links: preStep.links || [], // Use pre-configured links or empty array
-      inputs: preStep.inputs?.map((block) => ({
-        type: block.type,
-        name: block.name,
-        label: block.label,
-        required: block.required,
-        options: block.options
-      })) || [],
-      type: preStep.type
-    }));
-    
-    // Apply configuration overrides
-    if (configuration.customSteps) {
-      // Allow custom step modifications
-      configuration.customSteps.forEach((customStep: any, index: number) => {
-        if (steps[index]) {
-          steps[index] = { ...steps[index], ...customStep };
-        }
-      });
-    }
+    // Use configured steps or pattern defaults
+    const steps: FlowStep[] = configuration.steps || [];
     
     const template: FlowTemplate = {
       type: 'TEMPLATE',
-      name: configuration.title || `${pattern.title} Workflow`,
-      description: configuration.description || '',
-      assignmentMode: configuration.assignmentMode || AssignmentMode.CLAIM, // Default to CLAIM mode
+      name: configuration.title || (selectedPattern ? `${selectedPattern.title} Workflow` : 'Custom Workflow'),
+      description: configuration.description || (selectedPattern ? selectedPattern.description : ''),
+      assignmentMode: configuration.assignmentMode || AssignmentMode.CLAIM,
       steps
     };
     
@@ -213,43 +200,20 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
   
   // Validation
   validateCurrentStep: (): boolean => {
-    const { currentStep, steps, selectedPattern, configuration } = get();
+    const { currentStep, steps, selectedPattern, configuration, isEditMode } = get();
     const step = steps[currentStep];
     
     if (!step) return false;
     
     switch (step.id) {
-      case 'pattern-selection':
-        return !!selectedPattern;
-      
-      case 'basic-info':
-        return !!(configuration.title);
-      
-      case 'step-configuration':
-        if (!selectedPattern) return false;
-        
-        // Validate that steps are configured
-        if (configuration.steps && configuration.steps.length > 0) {
-          return true;
-        }
-        
-        // If no steps in configuration yet, check if pattern has pre-configured steps
-        // This allows the user to proceed with default pattern steps
-        return !!(selectedPattern.preConfiguredSteps && selectedPattern.preConfiguredSteps.length > 0);
-      
-      case 'advanced-settings':
-        // Advanced settings are optional
-        return true;
-      
-      case 'review-preview':
-        // Final validation
-        try {
-          const template = get().generateTemplate();
-          const validation = get().validateTemplate();
-          return validation.isValid;
-        } catch {
-          return false;
-        }
+      case 'complete-configuration':
+        // Must have title and at least one step (pattern is optional)
+        return !!(
+          configuration.title && 
+          configuration.title.trim().length > 0 &&
+          configuration.steps && 
+          configuration.steps.length > 0
+        );
       
       default:
         return true;
@@ -281,6 +245,30 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
         warnings: []
       };
     }
+  },
+  
+  // Mode management - NEW
+  initializeForCreate: () => {
+    set({
+      ...initialState,
+      isEditMode: false,
+      currentStep: 0
+    });
+  },
+  
+  initializeForEdit: (template: FlowTemplate) => {
+    set({
+      ...initialState,
+      isEditMode: true,
+      currentStep: 0, // Single step wizard
+      configuration: {
+        title: template.name,
+        description: template.description,
+        steps: template.steps,
+        patternId: 'custom' // Assume custom for existing templates
+      },
+      isValid: true
+    });
   },
   
   // Wizard management

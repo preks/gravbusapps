@@ -11,44 +11,29 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 const { Text } = Typography;
 
-interface Task {
-  id: string;
-  title?: string;
-  name?: string;
-  status: string;
-  message?: string;
-  dueDate?: string;
-  inputs?: any[];
-  links?: any[];
-  assignment?: {
-    assignedTo?: string;
-  };
-  availableActions?: {
-    canClaim?: boolean;
-  };
-}
+// Use the Task interface from the parent component - remove duplicate definition
 
-interface TaskListCardProps extends BusinessAppContextProps {
-  task: Task;
+interface TaskListCardProps<T = any> extends BusinessAppContextProps {
+  task: T;
   stepType?: string;
   assignmentStatus?: string;
   hasInputBlocks: boolean;
   hasLinks: boolean;
   actionLoading: string | null;
   prefixDataTestId: string;
-  onTaskClick: (task: Task) => void;
+  onTaskClick: (task: T) => void;
   onQuickClaim: (e: React.MouseEvent, taskId: string) => void;
-  getTaskTypeIcon: (task: Task) => React.ReactNode;
+  getTaskTypeIcon: (task: T) => React.ReactNode;
   getTaskStatusColor: (status: string) => string;
   getStepTypeColor: (stepType: string) => string;
   getAssignmentStatusColor: (status: string) => string;
-  getDueDateTag: (task: Task) => React.ReactNode;
+  getDueDateTag: (task: T) => React.ReactNode;
   isTaskOverdue: (dueDate?: string) => boolean;
   isTaskDueSoon: (dueDate?: string) => boolean;
   formatDueDate: (dueDate: string) => string;
 }
 
-export const TaskListCard: React.FC<TaskListCardProps> = ({
+export const TaskListCard: React.FC<TaskListCardProps<any>> = ({
   task,
   stepType,
   assignmentStatus,
@@ -91,11 +76,19 @@ export const TaskListCard: React.FC<TaskListCardProps> = ({
       <List.Item.Meta
         avatar={getTaskTypeIcon(task)}
         title={
-          <Space wrap>
-            <span>{task.title || task.name}</span>
+          <Space wrap style={{ alignItems: 'center' }}>
+            <span style={{ fontWeight: 'bold', fontSize: '14px' }}>{task.title || task.name}</span>
             {stepType && (
-              <Tag color={getStepTypeColor(stepType)}>
-                {stepType}
+              <Tag 
+                color={getStepTypeColor(stepType)}
+                style={{ 
+                  fontSize: '12px', 
+                  padding: '2px 8px', 
+                  fontWeight: 'bold',
+                  marginLeft: '8px'
+                }}
+              >
+                {stepType.toUpperCase()}
               </Tag>
             )}
             
@@ -103,12 +96,12 @@ export const TaskListCard: React.FC<TaskListCardProps> = ({
             {getDueDateTag(task)}
             
             {hasInputBlocks && (
-              <Tag color="orange">
+              <Tag color="orange" style={{ fontSize: '11px' }}>
                 <FormOutlined /> {task.inputs!.length} Fields
               </Tag>
             )}
             {hasLinks && (
-              <Tag color="cyan">
+              <Tag color="cyan" style={{ fontSize: '11px' }}>
                 <LinkOutlined /> {task.links!.length} Links
               </Tag>
             )}

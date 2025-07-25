@@ -27,7 +27,7 @@ interface Task {
   id: string;
   flowId: string;
   referenceTaskName: string;
-  stepType: string;
+  type: string;
   name: string;
   status: string;
   priority?: number;
@@ -206,7 +206,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
 
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
-        setTaskStats(statsData.data || statsData);
+        setTaskStats(statsData.statistics || statsData.data || statsData);
       }
 
     } catch (err) {
@@ -242,7 +242,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
           break;
         case 'REJECT':
           endpoint = `${API_BASE}/tasks/${taskId}/reject`;
-          body = { currentUserId: selectedUserId, rejectionComment, ...payload };
+          body = { userId: selectedUserId, rejectionComment, ...payload };
           break;
         case 'COMPLETE':
           endpoint = `${API_BASE}/tasks/${taskId}/complete`;
@@ -315,7 +315,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
   };
 
   const getTaskTypeIcon = (task: Task) => {
-    switch (task.stepType) {
+    switch (task.type) {
       case 'APPROVAL': return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
       case 'ACKNOWLEDGE': return <EyeOutlined style={{ color: '#1890ff' }} />;
       case 'TASK': return <OrderedListOutlined style={{ color: '#722ed1' }} />;
@@ -517,7 +517,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                   <TaskListCard
                     key={task.id}
                     task={task}
-                    stepType={task.stepType}
+                    stepType={task.type}
                     assignmentStatus={task.assignment?.currentStatus}
                     hasInputBlocks={!!(task.inputs && task.inputs.length > 0)}
                     hasLinks={!!(task.links && task.links.length > 0)}
@@ -564,7 +564,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                   <TaskListCard
                     key={task.id}
                     task={task}
-                    stepType={task.stepType}
+                    stepType={task.type}
                     assignmentStatus={task.assignment?.currentStatus}
                     hasInputBlocks={!!(task.inputs && task.inputs.length > 0)}
                     hasLinks={!!(task.links && task.links.length > 0)}
@@ -624,7 +624,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                 children: (
                   <TaskDetailsTab
                     task={selectedTask}
-                    stepType={selectedTask.stepType}
+                    stepType={selectedTask.type}
                     hasLinks={!!(selectedTask.links && selectedTask.links.length > 0)}
                     hasInputBlocks={!!(selectedTask.inputs && selectedTask.inputs.length > 0)}
                     taskFormData={taskFormData}

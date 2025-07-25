@@ -93,7 +93,7 @@ export const FlowCreator: React.FC<BusinessAppContextProps> = ({
   const handleWizardCreate = () => {
     resetTemplate();
     setSelectedTemplate(null);
-    initializeWizard();
+    useWizardStore.getState().initializeForCreate(); // Use new initialization method
     setIsCreateModalOpen(false);
     setIsWizardOpen(true);
   };
@@ -110,17 +110,17 @@ export const FlowCreator: React.FC<BusinessAppContextProps> = ({
       // Try to get the template for better editing experience
       if (template.id) {
         const fullTemplate = await flowTemplateClient.getTemplate(template.id);
-        initializeTemplate(fullTemplate);
+        useWizardStore.getState().initializeForEdit(fullTemplate); // Use new edit initialization
         setSelectedTemplate(fullTemplate);
       } else {
-        initializeTemplate(template);
+        useWizardStore.getState().initializeForEdit(template); // Use new edit initialization
         setSelectedTemplate(template);
       }
       setIsWizardOpen(true);
     } catch (error) {
       // Fallback to the current template if original is not available
       console.warn('Could not load original template, using current:', error);
-      initializeTemplate(template);
+      useWizardStore.getState().initializeForEdit(template); // Use new edit initialization
       setSelectedTemplate(template);
       setIsWizardOpen(true);
     }

@@ -83,10 +83,13 @@ function capitalizeFirstLetter(string: string): string {
  * Renders step with assignment visualization
  */
 function renderStepWithAssignment(step: FlowStep, index: number, isParallel: boolean, testId: string): JSX.Element {
-  const hasAssignment = step.assignment && step.assignment.targets.length > 0;
+  const hasAssignment = step.assignment && step.assignment.targets && step.assignment.targets.length > 0;
   const isAssignMode = step.assignment?.assignmentMode === 'ASSIGN';
-  const hasGroupAssignments = hasAssignment && step.assignment?.targets.some(target => 
-    target.entity === 'department' || target.entity === 'role'
+  const hasGroupAssignments = hasAssignment && step.assignment?.targets?.some(target => 
+    (target.organizationalUnits && target.organizationalUnits.length > 0) ||
+    (target.matrixTeams && target.matrixTeams.length > 0) ||
+    (target.companies && target.companies.length > 0) ||
+    (target.capabilities && target.capabilities.length > 0)
   );
   
   // If assignmentMode is ASSIGN, show multiple task generation visualization
@@ -94,12 +97,7 @@ function renderStepWithAssignment(step: FlowStep, index: number, isParallel: boo
     return (
       <div key={step.id} className="gba:flex gba:flex-col gba:items-center gba:gap-2" data-testid={`${testId}-step-${index}-multiple`}>
         <div className="gba:text-xs gba:text-gray-500 gba:mb-1">
-          {!hasAssignment 
-            ? getTranslationFromI18nKeyAndLabel('flow.creator.multipleTasksWillBeGenerated', 'Multiple tasks will be generated')
-            : hasGroupAssignments 
-              ? getTranslationFromI18nKeyAndLabel('flow.creator.multipleTasksGenerated', 'Multiple tasks will be generated')
-              : getTranslationFromI18nKeyAndLabel('flow.creator.individualTasks', 'Individual tasks for each assignee')
-          }
+          {getTranslationFromI18nKeyAndLabel('flow.creator.multipleTasksWillBeGenerated', 'Multiple individual tasks will be generated')}
         </div>
         
         {/* Multiple task boxes arranged in a grid */}
@@ -143,9 +141,12 @@ function renderStepWithAssignment(step: FlowStep, index: number, isParallel: boo
        </div>
       <div className="gba:font-medium gba:text-sm">{step.title || `Step ${index + 1}`}</div>
       <div className="gba:text-xs gba:mt-1">{capitalizeFirstLetter(step.type)}</div>
-      {step.assignment && step.assignment.assignmentMode === 'CLAIM' && (
+      {hasAssignment && (
         <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
-          {getTranslationFromI18nKeyAndLabel('flow.creator.sharedTask', 'Shared task')}
+          {isAssignMode 
+            ? getTranslationFromI18nKeyAndLabel('flow.creator.assignedTasks', 'Individual assigned tasks')
+            : getTranslationFromI18nKeyAndLabel('flow.creator.sharedTask', 'Shared task (claim mode)')
+          }
         </div>
       )}
     </div>

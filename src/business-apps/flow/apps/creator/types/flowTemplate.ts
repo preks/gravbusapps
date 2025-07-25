@@ -58,6 +58,7 @@ export interface AssignmentTarget {
 
 export type TaskAssignment = {
   targets: AssignmentTarget[]; // Array of targets to match backend structure
+  assignmentMode?: AssignmentMode; // CLAIM or ASSIGN mode
   allowReassignment?: boolean;
 };
 

@@ -402,9 +402,16 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
                     {/* Show metadata tags */}
                     <div style={{ marginTop: '8px' }}>
                       <Space wrap>
-                        <Tag color={getEventColor(event)}>
-                          {event.type.toUpperCase()}
-                        </Tag>
+                        {/* Show appropriate category tag based on action type */}
+                        {event.type === 'assignment' && ['COMPLETE', 'REJECT'].includes(event.action || '') ? (
+                          <Tag color="volcano">
+                            TASK ACTION
+                          </Tag>
+                        ) : (
+                          <Tag color={getEventColor(event)}>
+                            {event.type.toUpperCase()}
+                          </Tag>
+                        )}
                         {event.action && (
                           <Tag color="default">
                             {event.action}

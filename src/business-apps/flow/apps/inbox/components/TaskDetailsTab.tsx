@@ -122,8 +122,11 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
       <div style={{ marginBottom: '16px' }}>
         <Space wrap>
           {stepType && (
-            <Tag color={getStepTypeColor(stepType)}>
-              {stepType}
+            <Tag 
+              color={getStepTypeColor(stepType)} 
+              style={{ fontSize: '14px', padding: '4px 12px', fontWeight: 'bold' }}
+            >
+              {stepType.toUpperCase()}
             </Tag>
           )}
           {task.assignment?.assignedTo && (
@@ -287,6 +290,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
 
       {/* Action Buttons */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {/* Primary Complete Action - context-aware based on task type */}
         {task.availableActions?.canComplete && (
           <Button
             type="primary"
@@ -299,6 +303,20 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
           </Button>
         )}
         
+        {/* Reject Button - Only for APPROVAL tasks */}
+        {task.availableActions?.canReject && stepType === 'APPROVAL' && (
+          <Button
+            danger
+            icon={<CloseCircleOutlined />}
+            loading={actionLoading === task.id + 'REJECT'}
+            onClick={onReject}
+            data-testid={`${prefixDataTestId}-reject-button`}
+          >
+            Reject
+          </Button>
+        )}
+        
+        {/* Secondary Actions */}
         {task.availableActions?.canClaim && (
           <Button
             type="default"
@@ -338,23 +356,10 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
             type="default"
             icon={<CloseCircleOutlined />}
             loading={actionLoading === task.id + 'UNCLAIM'}
-            onClick={onRelease} // Assuming unclaim is a rejection action
+            onClick={onRelease}
             data-testid={`${prefixDataTestId}-unclaim-button`}
           >
             Unclaim
-          </Button>
-        )}
-
-        {/* Reject button - show for APPROVAL tasks when canReject is true */}
-        {task.availableActions?.canReject && stepType === 'APPROVAL' && (
-          <Button
-            danger
-            icon={<CloseCircleOutlined />}
-            loading={actionLoading === task.id + 'REJECT'}
-            onClick={onReject}
-            data-testid={`${prefixDataTestId}-reject-button`}
-          >
-            Reject
           </Button>
         )}
       </div>

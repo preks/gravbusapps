@@ -4,4 +4,6 @@ export { AdvancedSettings } from './AdvancedSettings';
 export { AssignmentConfiguration } from './AssignmentConfiguration';
 export { PatternSelector } from './PatternSelector';
 export { BasicInfoForm } from './BasicInfoForm';
-export { StepConfiguration } from './StepConfiguration'; 
+export { FlowStepConfiguration } from './FlowStepConfiguration';
+export { CompleteConfigurationForm } from './CompleteConfigurationForm';
+export { TemplateSetupForm } from './TemplateSetupForm'; 

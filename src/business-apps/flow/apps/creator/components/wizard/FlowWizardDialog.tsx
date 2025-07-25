@@ -1,6 +1,8 @@
 import React from 'react';
 import { Modal } from 'antd';
 import { FlowWizard } from './FlowWizard';
+import { useWizardStore } from '../../hooks/useWizardStore';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface FlowWizardDialogProps {
   visible: boolean;
@@ -18,14 +20,20 @@ export const FlowWizardDialog: React.FC<FlowWizardDialogProps> = ({
   onComplete,
   'data-testid': testId = 'flow-wizard-dialog'
 }) => {
+  const { isEditMode } = useWizardStore();
+  
   const handleComplete = (template: any) => {
     onComplete(template);
     onClose();
   };
 
+  const dialogTitle = isEditMode 
+    ? getTranslationFromI18nKeyAndLabel('flow.creator.editWorkflow', 'Edit Workflow Template')
+    : getTranslationFromI18nKeyAndLabel('flow.creator.createWorkflow', 'Create Workflow Template');
+
   return (
     <Modal
-      title="Create Workflow Template"
+      title={dialogTitle}
       open={visible}
       onCancel={onClose}
       footer={null}

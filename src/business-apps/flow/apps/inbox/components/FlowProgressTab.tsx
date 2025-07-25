@@ -5,7 +5,8 @@ import {
   CheckCircleOutlined, 
   ClockCircleOutlined,
   PauseCircleOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  WarningOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { env } from '@/common/env/EnvUtils';
@@ -30,6 +31,11 @@ interface StepData {
   completedAt?: string;
   completedBy?: string;
   startedAt?: string;
+  dueDate?: string;
+  scheduledAt?: string;
+  expectedStartAt?: string;
+  expectedFinishAt?: string;
+  dueInMinutes?: number;
   message?: string;
   inputs?: any[];
   links?: any[];
@@ -116,12 +122,35 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId }) => 
     }
   };
 
+  const isStepOverdue = (step: StepData) => {
+    if (step.status === 'SCHEDULED' && step.dueDate) {
+      return new Date(step.dueDate) < new Date();
+    }
+    return false;
+  };
+
   const getStepDescription = (step: StepData) => {
     if (step.status === 'COMPLETED' && step.completedBy) {
-      return `Completed by ${step.completedBy}`;
+      const completedTime = step.completedAt ? 
+        ` on ${new Date(step.completedAt).toLocaleDateString()} at ${new Date(step.completedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : '';
+      return `Completed by ${step.completedBy}${completedTime}`;
     }
     if (step.status === 'IN_PROGRESS' && step.assignedTo && step.assignedTo.length > 0) {
-      return `Assigned to ${step.assignedTo.join(', ')}`;
+      const startedTime = step.startedAt ? 
+        ` (started ${new Date(step.startedAt).toLocaleDateString()} at ${new Date(step.startedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})` : '';
+      return `Assigned to ${step.assignedTo.join(', ')}${startedTime}`;
+    }
+    if (step.status === 'SCHEDULED') {
+      const dueInfo = step.dueDate ? 
+        ` - Due ${new Date(step.dueDate).toLocaleDateString()} at ${new Date(step.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : '';
+      const scheduledInfo = step.scheduledAt ? 
+        ` (scheduled for ${new Date(step.scheduledAt).toLocaleDateString()} at ${new Date(step.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})` : '';
+      return `${step.assignmentMode} mode - ${step.type}${dueInfo}${scheduledInfo}`;
+    }
+    if (step.status === 'QUEUED' && step.expectedStartAt) {
+      const expectedStartInfo = `Expected to start ${new Date(step.expectedStartAt).toLocaleDateString()} at ${new Date(step.expectedStartAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+      const durationInfo = step.dueInMinutes ? ` (estimated ${step.dueInMinutes} minutes)` : '';
+      return `${expectedStartInfo}${durationInfo}`;
     }
     if (step.isFuture) {
       return `Waiting for previous steps to complete`;
@@ -206,10 +235,36 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId }) => 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <Text strong>{step.title}</Text>
                   <Tag color={getStepColor(step.status)}>{step.status.replace('_', ' ')}</Tag>
-                  {step.isFuture && <Tag>FUTURE</Tag>}
                   <Text type="secondary">Step {step.stepIndex + 1}</Text>
                 </div>
-                <Text type="secondary">{getStepDescription(step)}</Text>
+                <Text type="secondary" style={{ marginBottom: '12px' }}>{getStepDescription(step)}</Text>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+                  {step.status === 'COMPLETED' && step.completedAt && (
+                    <Tag color="default" icon={<CheckCircleOutlined />}>
+                      {new Date(step.completedAt).toLocaleDateString()} {new Date(step.completedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </Tag>
+                  )}
+                  {step.status === 'SCHEDULED' && step.dueDate && (
+                    <Tag color={isStepOverdue(step) ? "red" : "default"} icon={isStepOverdue(step) ? <WarningOutlined /> : <ClockCircleOutlined />}>
+                      {isStepOverdue(step) ? "Overdue: " : "Due: "}{new Date(step.dueDate).toLocaleDateString()} {new Date(step.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </Tag>
+                  )}
+                  {step.status === 'SCHEDULED' && step.scheduledAt && (
+                    <Tag color="default" icon={<ClockCircleOutlined />}>
+                      Scheduled: {new Date(step.scheduledAt).toLocaleDateString()} {new Date(step.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </Tag>
+                  )}
+                  {step.status === 'QUEUED' && step.expectedStartAt && (
+                    <Tag color="default" icon={<ClockCircleOutlined />}>
+                      Expected: {new Date(step.expectedStartAt).toLocaleDateString()} {new Date(step.expectedStartAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </Tag>
+                  )}
+                  {step.status === 'QUEUED' && step.dueInMinutes && (
+                    <Tag color="default">
+                      ~{step.dueInMinutes} min
+                    </Tag>
+                  )}
+                </div>
               </div>
             </Timeline.Item>
           ))}

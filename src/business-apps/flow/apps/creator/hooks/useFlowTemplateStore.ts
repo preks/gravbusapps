@@ -62,10 +62,7 @@ const createEmptyStep = (): FlowStep => ({
   type: FlowStepType.TASK,
   inputs: [],
   links: [],
-  assignment: {
-    targets: [createEmptyAssignmentTarget()],
-    allowReassignment: true
-  }
+  assignment: undefined // No default assignment - let users choose to add
 });
 
 const createEmptyTemplate = (): FlowTemplate => ({
