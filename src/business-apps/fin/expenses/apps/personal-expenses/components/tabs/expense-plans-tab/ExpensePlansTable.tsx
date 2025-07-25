@@ -23,7 +23,7 @@ import {
 import { Modal } from 'antd';
 import { formatDate, formatNumberFunction } from '@/common/utils/windowUtils';
 import { PiFileText, PiArrowUp, PiArrowDown } from 'react-icons/pi';
-import { ActionButton } from '@newwork/gravity-ui-catalog';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
@@ -411,10 +411,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                           data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
                         >
                           <div className="gba:flex gba:justify-start gba:gap-2">
-                            <ActionButton
+                            <AppActionButton
                               data-testid={`actions-${record.id}`}
                               onClick={(e) => e.stopPropagation()}
-                              flowData={[
+                              staticFlowData={[
                                 ...(record.status === 'CREATED' || record.status === 'REJECTED') ? [
                                   {
                                     category: 'Actions',
