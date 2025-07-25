@@ -1,26 +1,19 @@
 import React, { useState, useEffect } from "react";
 import {
-  Button,
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger,
+  TabsTrigger
 } from "@newwork/nw-design-system";
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-  PageLayout,
-} from "@newwork/nw-design-system";
+import { PageLayout } from "@newwork/nw-design-system";
 import {
   DollarSign,
   Users,
-  BarChart3,
-  User,
   Building2,
   Contact as ContactIcon,
   LayoutDashboard,
   Grid3X3,
-  List,
+  List
 } from "lucide-react";
 import { TrendUp } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -31,9 +24,7 @@ import { OpportunityList } from "@/business-apps/crm/common/components/opportuni
 import { OpportunityBoard } from "@/business-apps/crm/common/components/opportunity-board";
 import InvestmentsDashboard from "./components/views/investments-dashboard/InvestmentsDashboard";
 import { Investments } from "./components/views/investment-list";
-import { Account } from "@/business-apps/crm/common/components/account-list/types";
-import { Contact } from "@/business-apps/crm/common/components/contact-list/types";
-import { Opportunity } from "@/business-apps/crm/common/components/opportunity-list/types";
+import { DashboardOutlined, HomeOutlined } from "@ant-design/icons";
 
 export interface InvestmentRelationsProps extends BusinessAppContextProps {}
 
@@ -42,35 +33,35 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
 ) => {
   const viewOptions = [
     {
-      key: "dashboard",
-      icon: <LayoutDashboard />,
-      label: "Portfolio",
+      key: 'dashboard',
+      icon: <DashboardOutlined />,
+      label: 'Portfolio'
     },
     {
       key: "leads",
       icon: <Users />,
-      label: "Leads",
+      label: "Leads"
     },
     {
       key: "accounts",
       icon: <Building2 />,
-      label: "Accounts",
+      label: "Accounts"
     },
     {
       key: "contacts",
       icon: <ContactIcon />,
-      label: "Contacts",
+      label: "Contacts"
     },
     {
       key: "opportunities",
       icon: <DollarSign />,
-      label: "Opportunities",
+      label: "Opportunities"
     },
     {
       key: "investments",
       icon: <TrendUp />,
-      label: "Investments",
-    },
+      label: "Investments"
+    }
   ];
 
   // Get initial view from URL or default to first view
@@ -90,18 +81,49 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
     return viewOptions[0].key;
   };
 
+  // Get initial subView from URL for opportunities tab
+  const getInitialSubView = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const subViewFromUrl = urlParams.get("subView");
+
+    // Map URL subView values to internal tab values
+    if (subViewFromUrl === "pipeline") {
+      return "board";
+    } else if (subViewFromUrl === "list") {
+      return "list";
+    }
+
+    // Default to list view
+    return "list";
+  };
+
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
   const [opportunitiesSubTab, setOpportunitiesSubTab] =
-    useState<string>("list");
+    useState<string>(getInitialSubView());
   const [investmentsSubTab, setInvestmentsSubTab] =
     useState<string>("overview");
 
   // Update URL when view changes
-  const updateUrl = (view: string) => {
+  const updateUrl = (view: string, subView?: string) => {
     const urlParams = new URLSearchParams(window.location.search);
 
     // Always set the view parameter (including for default)
     urlParams.set("view", view);
+
+    // Handle subView parameter for opportunities
+    if (view === "opportunities" && subView) {
+      // Map internal tab values to URL subView values
+      if (subView === "board") {
+        urlParams.set("subView", "pipeline");
+      } else if (subView === "list") {
+        urlParams.set("subView", "list");
+      }
+    } else {
+      // Clear subView parameter when not in opportunities view
+      if (urlParams.has("subView")) {
+        urlParams.delete("subView");
+      }
+    }
 
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
     window.history.replaceState({}, "", newUrl);
@@ -113,7 +135,19 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
       return;
     }
     setActiveTab(key);
-    updateUrl(key);
+    
+    // If switching to opportunities, include current subView in URL
+    if (key === "opportunities") {
+      updateUrl(key, opportunitiesSubTab);
+    } else {
+      updateUrl(key);
+    }
+  };
+
+  const handleOpportunitiesSubTabChange = (subTab: string) => {
+    setOpportunitiesSubTab(subTab);
+    // Update URL with new subView when tab changes
+    updateUrl(activeTab, subTab);
   };
 
   const handleNavigateToInvestments = (subTab?: string) => {
@@ -131,7 +165,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.has("view")) {
-      updateUrl(activeTab);
+      updateUrl(activeTab, activeTab === "opportunities" ? opportunitiesSubTab : undefined);
     }
   }, []);
 
@@ -139,7 +173,9 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
   useEffect(() => {
     const handlePopState = () => {
       const newView = getInitialView();
+      const newSubView = getInitialSubView();
       setActiveTab(newView);
+      setOpportunitiesSubTab(newSubView);
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -148,7 +184,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
 
   const renderOpportunitiesContent = () => {
     return (
-      <Tabs value={opportunitiesSubTab} onValueChange={setOpportunitiesSubTab}>
+      <Tabs value={opportunitiesSubTab} onValueChange={handleOpportunitiesSubTabChange}>
         <TabsList className="gba:mb-4">
           <TabsTrigger value="list" data-testid="opportunities-list-tab">
             <List className="gba:mr-2 gba:h-4 gba:w-4" />
@@ -171,7 +207,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case "dashboard":
+      case 'dashboard':
         return (
           <div data-testid="dashboard-tab-content">
             <InvestmentsDashboard
@@ -224,7 +260,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
           icon: TrendUp,
           variant: "premium",
           size: "lg",
-          label: "Investment Relations",
+          label: "Investment Relations"
         }}
         headerTitle="Investment Relations"
         headerDescription="Manage investment portfolios, client relationships, and track investment opportunities across asset classes"
@@ -234,8 +270,8 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
           items: viewOptions.map((option) => ({
             value: option.key,
             label: option.label,
-            icon: option.icon,
-          })),
+            icon: option.icon
+          }))
         }}
         className="gba:min-h-screen"
       >

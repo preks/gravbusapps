@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useGetActivityTypes } from "./useGetActivityTypes";
 
 export interface FilterGroup {
   id: string;
@@ -10,6 +11,11 @@ export interface FilterGroup {
     value: string;
     selected: boolean;
   }>;
+  backendSearch?: (search: string) => {
+    filters: Array<{ id: string; label: string; selected: boolean }>;
+    loading: boolean;
+    error: any;
+  };
 }
 
 export interface ActivityFilters {
@@ -20,32 +26,63 @@ export interface ActivityFilters {
   removeFilter: (filterId: string) => void;
   clearAllFilters: () => void;
   getFilters: () => any;
+  activityTypeSearch: string;
+  setActivityTypeSearch: (search: string) => void;
 }
 
-const ACTIVITY_TYPE_OPTIONS = [
-  { id: "call", label: "Call", value: "Call" },
-  { id: "email", label: "Email", value: "Email" },
-  { id: "meeting", label: "Meeting", value: "Meeting" },
-  { id: "task", label: "Task", value: "Task" },
-];
-
 export const useActivityFilters = (
-  _context: BusinessAppContextProps
+  context: BusinessAppContextProps
 ): ActivityFilters => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+
+  // Activity type search state
+  const [activityTypeSearch, setActivityTypeSearch] = useState("");
+
+  // Get activity type data with search
+  const {
+    activityTypeOptions,
+    isLoading: activityTypeLoading,
+    error: activityTypeError,
+  } = useGetActivityTypes(context, activityTypeSearch);
+
+  // Backend search function for activity types
+  const getActivityTypeFilters = useCallback(
+    (search: string) => {
+      setActivityTypeSearch(search);
+
+      return {
+        filters: activityTypeOptions.map((option) => ({
+          id: option.id,
+          label: option.name,
+          selected: selectedFilters.includes(option.id),
+        })),
+        loading: activityTypeLoading,
+        error: activityTypeError,
+      };
+    },
+    [
+      activityTypeOptions,
+      selectedFilters,
+      activityTypeLoading,
+      activityTypeError,
+    ]
+  );
 
   const filterGroups: FilterGroup[] = useMemo(
     () => [
       {
         id: "activityType",
         title: "Activity Type",
-        filters: ACTIVITY_TYPE_OPTIONS.map((option) => ({
-          ...option,
+        filters: activityTypeOptions.map((option) => ({
+          id: option.id,
+          label: option.name,
+          value: option.name,
           selected: selectedFilters.includes(option.id),
         })),
+        backendSearch: getActivityTypeFilters,
       },
     ],
-    [selectedFilters]
+    [selectedFilters, activityTypeOptions, getActivityTypeFilters]
   );
 
   const filterLabelMap: Record<string, string> = useMemo(() => {
@@ -77,18 +114,18 @@ export const useActivityFilters = (
     const filters: any = {};
     const activityTypes: string[] = [];
     selectedFilters.forEach((filterId) => {
-      const typeOption = ACTIVITY_TYPE_OPTIONS.find(
-        (opt) => opt.id === filterId
+      const typeOption = activityTypeOptions.find(
+        (opt: any) => opt.id === filterId
       );
       if (typeOption) {
-        activityTypes.push(typeOption.value);
+        activityTypes.push(typeOption.name);
       }
     });
     if (activityTypes.length > 0) {
       filters.activityTypes = activityTypes;
     }
     return filters;
-  }, [selectedFilters]);
+  }, [selectedFilters, activityTypeOptions]);
 
   return {
     selectedFilters,
@@ -98,5 +135,7 @@ export const useActivityFilters = (
     removeFilter,
     clearAllFilters,
     getFilters,
+    activityTypeSearch,
+    setActivityTypeSearch,
   };
 };

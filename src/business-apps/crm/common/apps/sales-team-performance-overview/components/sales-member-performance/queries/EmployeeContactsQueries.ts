@@ -35,6 +35,7 @@ export const GET_EMPLOYEE_CONTACTS_QUERY = `
       email
       phone
       pictureUrl
+      pictureThumbnailUrl
       jobTitle
       linkedinUrl
       xingUrl

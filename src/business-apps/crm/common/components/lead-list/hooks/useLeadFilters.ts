@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetLeadStatuses } from "./useGetLeadStatuses";
 import { useGetLeadRatings } from "./useGetLeadRatings";
@@ -34,6 +34,8 @@ export interface LeadFilters {
   search: string;
   leadStatuses: string[];
   leadRatings: string[];
+  leadSources: string[];
+  companySizes: string[];
   createdAfter?: string;
   createdBefore?: string;
 }
@@ -42,6 +44,7 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
   // Main search and filter state
   const [search, setSearch] = useState("");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   // Date range filter state
   const [createdAfter, setCreatedAfter] = useState<string | undefined>();
@@ -52,6 +55,7 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
   const [leadRatingSearch, setLeadRatingSearch] = useState("");
   const [leadSourceSearch, setLeadSourceSearch] = useState("");
   const [industrySearch, setIndustrySearch] = useState("");
+  const [companySizeSearch, setCompanySizeSearch] = useState("");
   const [ownerSearch, setOwnerSearch] = useState("");
 
   // Offset state for pagination (if needed later)
@@ -59,6 +63,7 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
   const [leadRatingOffset] = useState(0);
   const [leadSourceOffset] = useState(0);
   const [industryOffset] = useState(0);
+  const [companySizeOffset] = useState(0);
   const [ownerOffset] = useState(0);
 
   // Get catalog data with search parameters
@@ -86,7 +91,7 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     companySizeOptions,
     isLoading: companySizeLoading,
     error: companySizeError,
-  } = useGetCompanySizes(context);
+  } = useGetCompanySizes(context, companySizeSearch, companySizeOffset);
   const {
     leadOwners,
     isLoading: ownerLoading,
@@ -124,6 +129,57 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     setCreatedAfter(undefined);
     setCreatedBefore(undefined);
   }, []);
+
+  // Initialize filters from URL parameters
+  const initializeFromUrl = useCallback(
+    (urlParams: URLSearchParams) => {
+      const newFilters: string[] = [];
+
+      // Handle leadStatus parameter
+      const leadStatusParam = urlParams.get("leadStatus");
+
+      if (leadStatusParam && leadStatusOptions.length > 0) {
+        // More flexible matching for common lead status values
+        const matchingStatus = leadStatusOptions.find((option) => {
+          const optionName = option.name.toLowerCase();
+          const paramValue = leadStatusParam.toLowerCase();
+
+          // Direct name match
+          if (optionName === paramValue) return true;
+
+          // ID match
+          if (option.id.toLowerCase() === paramValue) return true;
+
+          // Common mappings
+          if (
+            paramValue === "open" &&
+            (optionName.includes("new") ||
+              optionName.includes("open") ||
+              optionName.includes("active"))
+          )
+            return true;
+          if (
+            paramValue === "converted" &&
+            (optionName.includes("convert") ||
+              optionName.includes("qualified") ||
+              optionName.includes("won"))
+          )
+            return true;
+
+          return false;
+        });
+
+        if (matchingStatus) {
+          newFilters.push(matchingStatus.id);
+        }
+      }
+
+      if (newFilters.length > 0) {
+        setSelectedFilters((prev) => [...prev, ...newFilters]);
+      }
+    },
+    [leadStatusOptions, setSelectedFilters]
+  );
 
   // Handle date range changes
   const handleDateRangeChange = useCallback(
@@ -219,22 +275,31 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
   );
 
   // Company size doesn't need backend search as it's predefined
-  const getCompanySizeFilters = useCallback(() => {
-    return {
-      filters: companySizeOptions.map((option) => ({
-        id: option.id,
-        label: option.name,
-        selected: selectedFilters.includes(option.id),
-      })),
-      loading: companySizeLoading,
-      error: companySizeError,
-    };
-  }, [
-    companySizeOptions,
-    selectedFilters,
-    companySizeLoading,
-    companySizeError,
-  ]);
+  const getCompanySizeFilters = useCallback(
+    (search: string) => {
+      setCompanySizeSearch(search);
+
+      const searchValue = search.trim().toLowerCase();
+
+      const filtered = searchValue
+        ? companySizeOptions.filter((option) => {
+            const name = option.name ? option.name.toLowerCase() : "";
+            return name.includes(searchValue);
+          })
+        : companySizeOptions;
+
+      return {
+        filters: filtered.map((option) => ({
+          id: option.id,
+          label: option.name,
+          selected: selectedFilters.includes(option.id),
+        })),
+        loading: companySizeLoading,
+        error: companySizeError,
+      };
+    },
+    [companySizeOptions, selectedFilters, companySizeLoading, companySizeError]
+  );
 
   const getOwnerFilters = useCallback(
     (search: string) => {
@@ -300,44 +365,59 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     selected: selectedFilters.includes(owner.id),
   }));
 
+  // Debug logging
+  // Debug lead status values
+
   // Create filter groups with backend search functions
-  const filterGroups: DataFilterGroup[] = React.useMemo(
-    () => [
-      {
-        id: "dateRange",
-        title: "Created Date",
-        customComponent: React.createElement(DateRangeFilter, {
-          createdAfter: createdAfter,
-          createdBefore: createdBefore,
-          onDateRangeChange: handleDateRangeChange,
-          className: "gba:border-0 gba:shadow-none gba:p-0 gba:bg-transparent",
-        }),
-        hideSearch: true,
-      } as any, // Temporary type assertion to bypass interface issue
-      {
-        id: "leadStatuses",
-        title: "Lead Status",
-        filters: leadStatusFilterOptions,
-        backendSearch: getLeadStatusFilters,
-      },
-      {
-        id: "leadRatings",
-        title: "Lead Rating",
-        filters: leadRatingFilterOptions,
-        backendSearch: getLeadRatingFilters,
-      },
-      // Lead Source filter removed
-    ],
-    [
-      createdAfter,
-      createdBefore,
-      leadStatusFilterOptions,
-      leadRatingFilterOptions,
-      getLeadStatusFilters,
-      getLeadRatingFilters,
-      handleDateRangeChange,
-    ]
-  );
+  const filterGroups: DataFilterGroup[] = [
+    {
+      id: "dateRange",
+      title: "Created Date",
+      customComponent: React.createElement(DateRangeFilter, {
+        createdAfter: createdAfter,
+        createdBefore: createdBefore,
+        onDateRangeChange: handleDateRangeChange,
+        className: "gba:border-0 gba:shadow-none gba:p-0 gba:bg-transparent",
+      }),
+      hideSearch: true,
+    } as any, // Temporary type assertion to bypass interface issue
+    {
+      id: "leadStatuses",
+      title: "Lead Status",
+      filters: leadStatusFilterOptions,
+      backendSearch: getLeadStatusFilters,
+    },
+    {
+      id: "leadRatings",
+      title: "Lead Rating",
+      filters: leadRatingFilterOptions,
+      backendSearch: getLeadRatingFilters,
+    },
+    {
+      id: "leadSources",
+      title: "Lead Source",
+      filters: leadSourceFilterOptions,
+      backendSearch: getLeadSourceFilters,
+    },
+    {
+      id: "industries",
+      title: "Industry",
+      filters: industryFilterOptions,
+      backendSearch: getIndustryFilters,
+    },
+    {
+      id: "companySizes",
+      title: "Company Size",
+      filters: companySizeFilterOptions,
+      backendSearch: getCompanySizeFilters,
+    },
+    {
+      id: "owners",
+      title: "Owner",
+      filters: ownerFilterOptions,
+      backendSearch: getOwnerFilters,
+    },
+  ];
 
   // Create filter label map
   const filterLabelMap = {
@@ -357,12 +437,19 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     const leadRatings = selectedFilters.filter((f) =>
       leadRatingOptions.map((o) => o.id).includes(f)
     );
-    // Lead Source filter removed
+    const leadSources = selectedFilters.filter((f) =>
+      leadSourceOptions.map((o) => o.id).includes(f)
+    );
+    const companySizes = selectedFilters.filter((f) =>
+      companySizeOptions.map((o) => o.id).includes(f)
+    );
 
     return {
       search,
       leadStatuses,
       leadRatings,
+      leadSources,
+      companySizes,
       createdAfter,
       createdBefore,
     };
@@ -371,7 +458,8 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     selectedFilters,
     leadStatusOptions,
     leadRatingOptions,
-    // Lead Source filter removed
+    leadSourceOptions,
+    companySizeOptions,
     createdAfter,
     createdBefore,
   ]);
@@ -380,6 +468,7 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     // Filter state
     search,
     selectedFilters,
+    filtersInitialized,
 
     // Date range state
     createdAfter,
@@ -394,6 +483,7 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     addFilter,
     removeFilter,
     resetFilters,
+    initializeFromUrl,
     getFilters,
     handleDateRangeChange,
 

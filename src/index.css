@@ -23,8 +23,15 @@ html {
 @import "./business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css";
 @import "./business-apps/fin/expenses/forms/expense-item/ExpenseItem.css";
 @import "./business-apps/fin/expenses/forms/expense-request/ExpenseRequest.css";
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/SummaryScreen.css";
 @import "./business-apps/fin/expenses/forms/expense-request-invalid/ExpenseRequestInvalid.css";
 @import "./business-apps/fin/expenses/forms/expense-request/components/PlanCard.css";
+
+/* Expense Request Wizard CSS imports */
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/ExpenseRequestWizard.css";
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/components/LocationForm/LocationForm.css";
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/AllowanceScreen.css";
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/TripScreen.css";
 @import "@newwork/gravity-ui-catalog/dist/assets/style.no-base.css";
 @import "./business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css";
 @import "./business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css";
@@ -33,6 +40,19 @@ html {
 @import "./business-apps/hr/absences/apps/personal-absences/styles/upcomingAbsenceCard.css";
 @import "./business-apps/hr/absences/apps/personal-absences/styles/statsCard.css";
 @import "@newwork/nw-design-system/index.css";
+
+/* Custom properties can be declared after imports */
+@property --tw-gradient-to {
+  syntax: "*";
+  inherits: false;
+  initial-value: #0000;
+}
+
+@property --tw-gradient-from {
+  syntax: "*";
+  inherits: false;
+  initial-value: #0000;
+}
 
 @custom-variant dark (&:is(.dark *));
 
@@ -149,8 +169,8 @@ html {
     cursor: pointer;
   }
   :root {
-    --font-primary: theme('fontFamily.primary');
-    --font-secondary: theme('fontFamily.secondary');
+    --font-primary: 'Roboto Flex', sans-serif;
+    --font-secondary: 'Roboto Flex', sans-serif;
   }
 }
 

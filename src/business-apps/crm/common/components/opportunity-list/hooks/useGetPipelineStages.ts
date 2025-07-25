@@ -41,23 +41,26 @@ export const useGetPipelineStages = (
           version: "v1",
         },
         {
-          limit: 20,
+          limit: 5,
           offset: 0,
           returnTotalRecords: true,
           localeCode: userLocale,
-          ...(search ? { searchCriteria: search } : {}),
+          value: search,
         }
       );
+
       if (response?.data) {
         const processedOptions = response.data.map((entry: any) => ({
           id: entry.id,
           name: entry.value || entry.code || entry.id,
         }));
+
         setPipelineStageOptions(processedOptions);
       } else {
         setPipelineStageOptions([]);
       }
     } catch (err) {
+      console.error("❌ useGetPipelineStages: Error:", err);
       setError(
         err instanceof Error ? err.message : "Failed to load pipeline stages"
       );

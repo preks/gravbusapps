@@ -7,41 +7,32 @@ import {
   TabsTrigger,
   Alert,
   AlertTitle,
-  AlertDescription,
+  AlertDescription
 } from "@newwork/nw-design-system";
 import { Spinner } from "@newwork/nw-design-system";
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-  PageLayout,
-} from "@newwork/nw-design-system";
+import { PageLayout } from "@newwork/nw-design-system";
 import {
   DashboardOutlined,
-  ReloadOutlined,
   BarChartOutlined,
-  UserOutlined,
   PieChartOutlined,
   TeamOutlined,
   BankOutlined,
   ContactsOutlined,
   DollarCircleOutlined,
   AppstoreOutlined,
-  UnorderedListOutlined,
+  UnorderedListOutlined
 } from "@ant-design/icons";
 import { Handshake } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { OverviewTab } from "./components/tabs/sales-dashboard/components/OverviewTab";
-import { PipelineDetailsTab } from "./components/tabs/sales-dashboard/components/PipelineDetailsTab";
-import { useSalesDashboard } from "./components/tabs/sales-dashboard/hooks/useSalesDashboard";
-import { DateRange } from "./components/tabs/sales-dashboard/types/dashboardTypes";
 import { LeadList } from "@/business-apps/crm/common/components/lead-list";
 import { AccountList } from "@/business-apps/crm/common/components/account-list";
 import { ContactList } from "@/business-apps/crm/common/components/contact-list";
 import { OpportunityList } from "@/business-apps/crm/common/components/opportunity-list";
 import { OpportunityBoard } from "@/business-apps/crm/common/components/opportunity-board";
-import { Account } from "@/business-apps/crm/common/components/account-list/types";
-import { Contact } from "@/business-apps/crm/common/components/contact-list/types";
-import { Opportunity } from "@/business-apps/crm/common/components/opportunity-list/types";
+import { OverviewTab } from "./components/views/customer-analytics/components/OverviewTab";
+import { PipelineDetailsTab } from "./components/views/customer-analytics/components/PipelineDetailsTab";
+import { useSalesDashboard } from "./components/views/customer-analytics/hooks/useSalesDashboard";
+import { DateRange } from "./components/views/customer-analytics/types/dashboardTypes";
 
 export interface CustomerRelationsProps extends BusinessAppContextProps {}
 
@@ -50,30 +41,35 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
 ) => {
   const viewOptions = [
     {
-      key: "dashboard",
+      key: 'dashboard',
       icon: <DashboardOutlined />,
-      label: "Dashboard",
+      label: "Dashboard"
     },
     {
       key: "leads",
       icon: <TeamOutlined />,
-      label: "Leads",
+      label: "Leads"
     },
     {
       key: "accounts",
       icon: <BankOutlined />,
-      label: "Accounts",
+      label: "Accounts"
     },
     {
       key: "contacts",
       icon: <ContactsOutlined />,
-      label: "Contacts",
+      label: "Contacts"
     },
     {
       key: "opportunities",
       icon: <DollarCircleOutlined />,
-      label: "Opportunities",
+      label: "Opportunities"
     },
+    {
+      key: "analytics",
+      icon: <DashboardOutlined />,
+      label: "Analytics"
+    }
   ];
 
   // Get initial view from URL or default to first view
@@ -93,26 +89,61 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
     return viewOptions[0].key;
   };
 
+  // Get initial subView from URL for opportunities tab
+  const getInitialSubView = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const subViewFromUrl = urlParams.get("subView");
+
+    // Map URL subView values to internal tab values
+    if (subViewFromUrl === "pipeline") {
+      return "board";
+    } else if (subViewFromUrl === "list") {
+      return "list";
+    }
+
+    // Default to list view
+    return "list";
+  };
+
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
   const [dashboardSubTab, setDashboardSubTab] = useState<string>("overview");
   const [opportunitiesSubTab, setOpportunitiesSubTab] =
-    useState<string>("list");
+    useState<string>(getInitialSubView());
   const [dateRange] = useState<DateRange>({
     startDate: new Date(new Date().getFullYear() - 2, 0, 1),
-    endDate: new Date(),
+    endDate: new Date()
   });
-
   const { pipelines, isLoading, error, refetch } = useSalesDashboard(
     context,
     dateRange
   );
 
   // Update URL when view changes
-  const updateUrl = (view: string) => {
+  const updateUrl = (view: string, subView?: string) => {
     const urlParams = new URLSearchParams(window.location.search);
 
     // Always set the view parameter (including for default)
     urlParams.set("view", view);
+
+    // Handle subView parameter for opportunities
+    if (view === "opportunities" && subView) {
+      // Map internal tab values to URL subView values
+      if (subView === "board") {
+        urlParams.set("subView", "pipeline");
+      } else if (subView === "list") {
+        urlParams.set("subView", "list");
+      }
+    } else {
+      // Clear subView parameter when not in opportunities view
+      if (urlParams.has("subView")) {
+        urlParams.delete("subView");
+      }
+    }
+
+    // Clear leadStatus parameter when switching away from leads view
+    if (view !== "leads" && urlParams.has("leadStatus")) {
+      urlParams.delete("leadStatus");
+    }
 
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
     window.history.replaceState({}, "", newUrl);
@@ -124,14 +155,26 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
       return;
     }
     setActiveTab(key);
-    updateUrl(key);
+    
+    // If switching to opportunities, include current subView in URL
+    if (key === "opportunities") {
+      updateUrl(key, opportunitiesSubTab);
+    } else {
+      updateUrl(key);
+    }
+  };
+
+  const handleOpportunitiesSubTabChange = (subTab: string) => {
+    setOpportunitiesSubTab(subTab);
+    // Update URL with new subView when tab changes
+    updateUrl(activeTab, subTab);
   };
 
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.has("view")) {
-      updateUrl(activeTab);
+      updateUrl(activeTab, activeTab === "opportunities" ? opportunitiesSubTab : undefined);
     }
   }, []);
 
@@ -139,7 +182,9 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
   useEffect(() => {
     const handlePopState = () => {
       const newView = getInitialView();
+      const newSubView = getInitialSubView();
       setActiveTab(newView);
+      setOpportunitiesSubTab(newSubView);
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -206,7 +251,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
 
   const renderOpportunitiesContent = () => {
     return (
-      <Tabs value={opportunitiesSubTab} onValueChange={setOpportunitiesSubTab}>
+      <Tabs value={opportunitiesSubTab} onValueChange={handleOpportunitiesSubTabChange}>
         <TabsList className="gba:mb-4">
           <TabsTrigger value="list" data-testid="opportunities-list-tab">
             <UnorderedListOutlined className="gba:mr-2" />
@@ -251,6 +296,8 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
         );
       case "opportunities":
         return renderOpportunitiesContent();
+      case "analytics":
+        return renderDashboardContent();
       default:
         return null;
     }
@@ -263,7 +310,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
           icon: Handshake,
           variant: "strategy",
           size: "lg",
-          label: "Customer Relations",
+          label: "Customer Relations"
         }}
         headerTitle="Customer Relations"
         headerDescription="Manage customer relationships, track leads, accounts, contacts, and sales opportunities"
@@ -273,8 +320,8 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
           items: viewOptions.map((option) => ({
             value: option.key,
             label: option.label,
-            icon: option.icon,
-          })),
+            icon: option.icon
+          }))
         }}
         className="gba:min-h-screen"
       >

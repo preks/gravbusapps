@@ -95,8 +95,6 @@ export const useEmployeeContactsData = ({
             : {
                 _and: conditions,
               };
-        console.log("Soetr");
-        console.log(sortField);
         // Build orderBy based on sortField and sortOrder
         let orderBy: any = {};
         if (sortField && sortField !== "") {
@@ -130,7 +128,6 @@ export const useEmployeeContactsData = ({
           orderBy: [orderBy],
           where,
         };
-        console.log("variables", variables);
 
         const result = await fetchEmployeeContacts(variables);
 

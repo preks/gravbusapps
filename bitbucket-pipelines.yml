@@ -11,7 +11,7 @@
 #
 # SKIP_RESOURCE_URL_SYNC (production only):
 # - Controls whether resource URL synchronization from dev to prod should be skipped
-# - Default: "false" (full resource URL sync enabled)
+# - Default: "true" (full resource URL sync disabled)
 # - Set to "true" to skip resource URL creation/update in prod while still reading from dev
 # - When enabled: reads resource URL from dev for correct screen key generation but skips prod sync
 # - This can speed up deployment when resource URLs already exist in prod or sync is not needed
@@ -37,13 +37,14 @@ definitions:
           depth: full
         caches:
           - nodecustom
-        services:
-          - docker
         script:
           - set -e
           - echo $NEWWORK_NMP_CREDENTIALS | base64 -d > ~/.npmrc
           - apt-get update && apt-get install gettext -y
           - npm install
+          - |
+            # Pre-install native dependencies to avoid rebuilds later
+            npm install @rollup/rollup-linux-x64-gnu lightningcss-linux-x64-gnu || true
         artifacts:
           - pipeline/scripts/**
           - envs/**
@@ -66,10 +67,6 @@ definitions:
         services:
           - docker
         script:
-          - npm install @rollup/rollup-linux-x64-gnu || true
-          - npm rebuild rollup
-          - npm install lightningcss-linux-x64-gnu || true
-          - npm rebuild lightningcss
           - bash scripts/detect-and-publish-changed-screens.sh
         artifacts:
           - changed-tsx.txt
@@ -82,10 +79,6 @@ definitions:
           services:
             - docker
           script:
-            - npm install @rollup/rollup-linux-x64-gnu || true
-            - npm rebuild rollup
-            - npm install lightningcss-linux-x64-gnu || true
-            - npm rebuild lightningcss
             - node scripts/publish-prod-screens.js
           artifacts:
             - changed-tsx.txt
@@ -98,10 +91,6 @@ definitions:
         services:
           - docker
         script:
-          - npm install @rollup/rollup-linux-x64-gnu || true
-          - npm rebuild rollup
-          - npm install lightningcss-linux-x64-gnu || true
-          - npm rebuild lightningcss
           - |
             if [ -n "$SCREENS_TO_PUBLISH" ]; then
               echo "Publishing specified screens: $SCREENS_TO_PUBLISH"
@@ -123,10 +112,6 @@ definitions:
         services:
           - docker
         script:
-          - npm install @rollup/rollup-linux-x64-gnu || true
-          - npm rebuild rollup
-          - npm install lightningcss-linux-x64-gnu || true
-          - npm rebuild lightningcss
           - |
             if [ -n "$SCREENS_TO_PUBLISH" ]; then
               echo "Publishing specified screens: $SCREENS_TO_PUBLISH"
@@ -174,6 +159,6 @@ pipelines:
           - name: SCREENS_TO_PUBLISH
             default: ""
           - name: SKIP_RESOURCE_URL_SYNC
-            default: "false"
+            default: "true"
       - step: *install_dependencies
       - step: *publish-manual-prod-screens

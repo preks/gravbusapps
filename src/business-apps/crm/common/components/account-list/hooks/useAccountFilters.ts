@@ -1,11 +1,16 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+import { useGetIndustries } from "../../lead-list/hooks/useGetIndustries";
 
 export interface FilterGroup {
   id: string;
   title: string; // Changed from label to title to match DataFilterGroup
   filters: Array<{ id: string; label: string; value: any; selected: boolean }>;
+  backendSearch?: (search: string) => {
+    filters: Array<{ id: string; label: string; selected: boolean }>;
+    loading: boolean;
+    error: any;
+  };
 }
 
 export interface AccountFilters {
@@ -21,6 +26,8 @@ export interface AccountFilters {
   createdAfter?: string;
   createdBefore?: string;
   handleDateRangeChange: (after?: string, before?: string) => void;
+  industrySearch: string;
+  setIndustrySearch: (search: string) => void;
 }
 
 export const useAccountFilters = (
@@ -30,44 +37,34 @@ export const useAccountFilters = (
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [createdAfter, setCreatedAfter] = useState<string | undefined>();
   const [createdBefore, setCreatedBefore] = useState<string | undefined>();
-  const [industryOptions, setIndustryOptions] = useState<
-    { id: string; label: string; value: string }[]
-  >([]);
-  const [industryLoading, setIndustryLoading] = useState(false);
-  const [industryError, setIndustryError] = useState<Error | null>(null);
 
-  // Always call the hook at the top level
-  const client = useCatalogManagerClient(context.accessToken);
+  // Industry search state
+  const [industrySearch, setIndustrySearch] = useState("");
 
-  // Fetch industry catalog entries dynamically
-  useEffect(() => {
-    const fetchIndustries = async () => {
-      setIndustryLoading(true);
-      setIndustryError(null);
-      try {
-        const response = await client.getCatalogEntriesList(
-          { catalogIdentifier: "IndustryClass", version: "v1" },
-          { limit: 100, returnTotalRecords: true }
-        );
-        const options = (response.data || []).map((entry) => ({
-          id: entry.id,
-          label: entry.value,
-          value: entry.value,
-        }));
-        setIndustryOptions(options);
-      } catch (err) {
-        setIndustryError(
-          err instanceof Error ? err : new Error("Failed to load industries")
-        );
-        setIndustryOptions([]);
-      } finally {
-        setIndustryLoading(false);
-      }
-    };
-    fetchIndustries();
-    // Only run on mount or when client changes
-  }, [client]);
-  console.log("industryOptions", industryOptions);
+  // Get industry data with search
+  const {
+    industryOptions,
+    isLoading: industryLoading,
+    error: industryError,
+  } = useGetIndustries(context, industrySearch);
+
+  // Backend search function for industries
+  const getIndustryFilters = useCallback(
+    (search: string) => {
+      setIndustrySearch(search);
+
+      return {
+        filters: industryOptions.map((option) => ({
+          id: option.id,
+          label: option.name,
+          selected: selectedFilters.includes(option.id),
+        })),
+        loading: industryLoading,
+        error: industryError,
+      };
+    },
+    [industryOptions, selectedFilters, industryLoading, industryError]
+  );
   const filterGroups: FilterGroup[] = useMemo(
     () => [
       {
@@ -75,13 +72,14 @@ export const useAccountFilters = (
         title: "Industry",
         filters: industryOptions.map((option) => ({
           id: option.id,
-          label: option.label,
-          value: option.value,
+          label: option.name,
+          value: option.name,
           selected: selectedFilters.includes(option.id),
         })),
+        backendSearch: getIndustryFilters,
       },
     ],
-    [industryOptions, selectedFilters]
+    [industryOptions, selectedFilters, getIndustryFilters]
   );
 
   const filterLabelMap: Record<string, string> = useMemo(() => {
@@ -139,7 +137,6 @@ export const useAccountFilters = (
       for (const group of filterGroups) {
         const filter = group.filters.find((f) => f.id === filterId);
         if (filter) {
-          // REMOVED: accountType processing - field does not exist in GraphQL schema
           if (group.id === "industry") {
             if (!filters.industries) filters.industries = [];
             filters.industries.push(filter.value);
@@ -165,5 +162,7 @@ export const useAccountFilters = (
     createdAfter,
     createdBefore,
     handleDateRangeChange,
+    industrySearch,
+    setIndustrySearch,
   };
 };

@@ -18,13 +18,16 @@ import {
   OAuthClient,
   getResourceUrls,
   getResourceUrlByPath,
-  addAppResourceUrl,
   addScreenConfigToScreenManagement,
   updateScreenConfigInScreenManagement,
   getScreenByKey,
   addFormAsLandingScreen,
   formatScreenNameFromPath,
-  generateScreenKeyFromPath
+  generateScreenKeyFromPath,
+  getAllNativeScreens,
+  convertScreenKeyToUrl,
+  syncResourceUrlWithSameId,
+  syncScreenFromDevToProd,
 } from "./api-client.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -90,33 +93,57 @@ function camelCaseToNaturalLanguageWithWhiteSpaces(camelCase) {
 }
 
 // Helper function to search for resource URLs with progressive search strategy
-async function searchResourceUrlInDev(componentPath, devOauthConfig) {
+async function searchResourceUrlInDev(urlOrPath, devOauthConfig) {
   const devNavigationApi = process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API;
   
-  // Strategy 1: Search with full component path
-  console.log(`   Strategy 1: Searching with full component path: ${componentPath}`);
+  // Normalize the input - handle both full URLs and component paths
+  let searchPath = urlOrPath;
+  if (urlOrPath.startsWith('/platform/')) {
+    searchPath = urlOrPath.replace(/^\/platform\//, '');
+  }
+  
+  // Strategy 1: Search with full URL (if it's a platform URL)
+  if (urlOrPath.startsWith('/platform/')) {
+    console.log(`   Strategy 1: Searching with full platform URL: ${urlOrPath}`);
+    try {
+      const resourceUrls = await getResourceUrls(devNavigationApi, devOauthConfig, {
+        search: urlOrPath,
+        sort: '-updatedAt'
+      });
+      if (resourceUrls.length > 0) {
+        const foundResource = resourceUrls[0]; // Take the first (most recently updated) result
+        console.log(`   ✅ Found with full URL: ${foundResource.url}`);
+        return foundResource;
+      }
+    } catch (error) {
+      console.log(`   Strategy 1 failed: ${error.message}`);
+    }
+  }
+  
+  // Strategy 2: Search with component path (without /platform/)
+  console.log(`   Strategy 2: Searching with component path: ${searchPath}`);
   try {
     const resourceUrls = await getResourceUrls(devNavigationApi, devOauthConfig, {
-      search: componentPath,
+      search: searchPath,
       sort: '-updatedAt'
     });
     if (resourceUrls.length > 0) {
       const foundResource = resourceUrls[0]; // Take the first (most recently updated) result
-      console.log(`   ✅ Found with full path: ${foundResource.url}`);
+      console.log(`   ✅ Found with component path: ${foundResource.url}`);
       return foundResource;
     }
   } catch (error) {
-    console.log(`   Strategy 1 failed: ${error.message}`);
+    console.log(`   Strategy 2 failed: ${error.message}`);
   }
   
-  // Strategy 2: Search without "apps" or "forms" terms
-  const pathWithoutAppsOrForms = componentPath
+  // Strategy 3: Search without "apps" or "forms" terms
+  const pathWithoutAppsOrForms = searchPath
     .replace(/\/apps\//g, '/')
     .replace(/^apps\//, '')
     .replace(/\/forms\//g, '/')
     .replace(/^forms\//, '');
-  if (pathWithoutAppsOrForms !== componentPath) {
-    console.log(`   Strategy 2: Searching without 'apps'/'forms' terms: ${pathWithoutAppsOrForms}`);
+  if (pathWithoutAppsOrForms !== searchPath) {
+    console.log(`   Strategy 3: Searching without 'apps'/'forms' terms: ${pathWithoutAppsOrForms}`);
     try {
       const resourceUrls = await getResourceUrls(devNavigationApi, devOauthConfig, {
         search: pathWithoutAppsOrForms,
@@ -128,14 +155,14 @@ async function searchResourceUrlInDev(componentPath, devOauthConfig) {
         return foundResource;
       }
     } catch (error) {
-      console.log(`   Strategy 2 failed: ${error.message}`);
+      console.log(`   Strategy 3 failed: ${error.message}`);
     }
   }
   
-  // Strategy 3: Search with only component name (last segment)
-  const pathSegments = componentPath.split('/');
+  // Strategy 4: Search with only component name (last segment)
+  const pathSegments = searchPath.split('/');
   const componentName = pathSegments[pathSegments.length - 1];
-  console.log(`   Strategy 3: Searching with component name only: ${componentName}`);
+  console.log(`   Strategy 4: Searching with component name only: ${componentName}`);
   try {
     const resourceUrls = await getResourceUrls(devNavigationApi, devOauthConfig, {
       search: componentName,
@@ -147,7 +174,7 @@ async function searchResourceUrlInDev(componentPath, devOauthConfig) {
       return foundResource;
     }
   } catch (error) {
-    console.log(`   Strategy 3 failed: ${error.message}`);
+    console.log(`   Strategy 4 failed: ${error.message}`);
   }
   
   console.log("   ❌ No resource URL found with any search strategy");
@@ -332,7 +359,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
                 componentPath: `/${azureDestinationPath}`,
                 version: PUBLISH_VERSION,
               },
-              release: PUBLISH_VERSION,
+              release: "true",
             },
           };
           
@@ -455,7 +482,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
                   componentPath: `/${azureDestinationPath}`,
                   version: PUBLISH_VERSION,
                   },
-                  release: PUBLISH_VERSION,
+                  release: "true",
               },
           };
           
@@ -608,7 +635,7 @@ async function uploadDirectory(buildOutputDir, azureDestinationPath) {
   console.log("✅ All files uploaded successfully.");
 }
 
-async function publishScreen(screenPath) {
+async function publishScreen(screenPath, options = {}) {
   console.log(`🚀 Publishing screen: ${screenPath} (Version: ${PUBLISH_VERSION})`);
 
   const projectRootDir = path.resolve(__dirname, "..");
@@ -844,44 +871,40 @@ async function publishScreen(screenPath) {
   // Handle both forms and regular screens with resource URL synchronization
   
   // Check if resource URL sync should be skipped
-  const skipResourceUrlSync = process.env.SKIP_RESOURCE_URL_SYNC === 'true';
+  const skipResourceUrlSync = options.skipResourceUrlSync || process.env.SKIP_RESOURCE_URL_SYNC === 'true';
+  const skipScreenRegistration = options.skipScreenRegistration || false;
+  
   let resourceUrlResult;
   
-  if (skipResourceUrlSync) {
-    console.log("🚫 Skipping resource URL synchronization to prod (SKIP_RESOURCE_URL_SYNC=true)");
-    console.log("🔍 Still reading resource URL from dev for correct screen key generation...");
-    resourceUrlResult = await handleResourceUrlSynchronizationReadOnly(screenPath, azureDestinationPath);
-  } else {
-    // Synchronize resource URLs from dev to prod (before screen registration)
+  if (!skipResourceUrlSync) {
+    console.log(`🔗 Step 3: Handling resource URL synchronization...`);
     resourceUrlResult = await handleResourceUrlSynchronization(screenPath, azureDestinationPath);
+  } else {
+    console.log(`🔗 Step 3: Skipping resource URL synchronization (handled by comprehensive sync)`);
+    resourceUrlResult = { success: true, operation: 'skip_comprehensive_sync', resourceUrl: null };
   }
+
+  if (!resourceUrlResult.success) {
+    throw new Error(`Resource URL synchronization failed: ${resourceUrlResult.error}`);
+  }
+
+  console.log(`📱 Step 4: Registering screen in Screen Management...`);
   
-  if (resourceUrlResult.success) {
-    const operationText = {
-      'skip': 'skipped (no dev resource URL)',
-      'exists': 'already exists in prod',
-      'created': 'created in prod',
-      'read_only': 'read from dev (sync skipped)',
-      'skip_read_only': 'skipped (no dev resource URL found)'
-    }[resourceUrlResult.operation] || resourceUrlResult.operation;
+  if (!skipScreenRegistration) {
+    const registrationResult = await handleScreenManagement(screenPath, azureDestinationPath, resourceUrlResult);
     
-    console.log(`✅ Resource URL operation ${operationText}`);
+    if (!registrationResult.success) {
+      throw new Error(`Screen Management registration failed: ${registrationResult.error}`);
+    }
   } else {
-    console.error(`❌ Resource URL operation failed: ${resourceUrlResult.error}`);
-    // Don't fail the entire process if resource URL operation fails
+    console.log(`📱 Skipping screen registration (handled by comprehensive sync)`);
   }
-  
-  // Register screen in Screen Management system with build number
-  const registrationResult = await handleScreenManagement(screenPath, azureDestinationPath, resourceUrlResult);
-  
-  if (registrationResult.success) {
-    console.log(`✅ Screen Management registration successful for ${screenPath}`);
-    console.log(`🎉 Production publish completed successfully for ${screenPath}`);
-  } else {
-    console.error(`❌ Screen Management registration failed for ${screenPath}:`, registrationResult.error);
-    console.error(`⚠️  Production publish completed with errors for ${screenPath}`);
-    throw new Error(`Screen Management registration failed: ${registrationResult.error}`);
-  }
+
+  return {
+    success: true,
+    outputPath: buildOutputDir,
+    azureUrl: `https://${AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${AZURE_CONTAINER_NAME}/${azureDestinationPath}/index.js`
+  };
 }
 
 async function renameFilesWithBuildNumber(buildOutputDir, version) {
@@ -923,6 +946,181 @@ async function renameCssFilesInDirectory(targetDir, version) {
     
     console.log(`   Renaming CSS: ${file} → ${path.relative(targetDir, newPath)}`);
     fs.renameSync(filePath, newPath);
+  }
+}
+
+// Helper function to handle comprehensive screen and resource URL synchronization
+async function handleComprehensiveScreenSync(changedScreens) {
+  console.log("🔄 Starting comprehensive screen synchronization from dev to prod...");
+  console.log(`📋 Changed screens to process: ${changedScreens.length}`);
+  
+  // Create OAuth configurations
+  const devOauthConfig = {};  // Use dev environment variables (default)
+  const prodOauthConfig = {
+    clientId: OAUTH_CLIENT_ID_PROD,
+    clientSecret: OAUTH_CLIENT_SECRET_PROD,
+    oauthUrl: OAUTH_URL_PROD,
+    realm: OAUTH_REALM_PROD
+  };
+
+  try {
+    // Step 1: Get all NATIVE_SCREEN screens from dev environment (done once for efficiency)
+    console.log("\n📥 Step 1: Fetching all NATIVE_SCREEN screens from dev environment...");
+    const devScreens = await getAllNativeScreens(process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API, devOauthConfig);
+    
+    if (devScreens.length === 0) {
+      console.log("   No NATIVE_SCREEN screens found in dev environment");
+      return { success: true, processedScreens: 0, syncedResources: 0, syncedScreens: 0 };
+    }
+
+    // Step 2: Filter screens that match changed screen paths and separate forms from apps
+    console.log("\n🔍 Step 2: Filtering and categorizing matching screens...");
+    const matchingScreens = devScreens.filter(screen => {
+      if (!screen.screenComponents || !screen.screenComponents.formDefinition || !screen.screenComponents.formDefinition.componentPath) {
+        return false;
+      }
+      
+      // Remove leading slash and normalize path
+      const componentPath = screen.screenComponents.formDefinition.componentPath.replace(/^\//, '');
+      
+      // Check if this component path is in our changed screens list
+      const isMatching = changedScreens.some(changedScreen => {
+        return componentPath === changedScreen || componentPath.endsWith(`/${changedScreen}`);
+      });
+      
+      if (isMatching) {
+        console.log(`   ✅ Match found: ${screen.screenKey} -> ${componentPath}`);
+      }
+      
+      return isMatching;
+    });
+
+    // Separate form screens from app screens
+    const formScreens = matchingScreens.filter(screen => {
+      const componentPath = screen.screenComponents.formDefinition.componentPath.replace(/^\//, '');
+      return isFormScreen(componentPath);
+    });
+    
+    const appScreens = matchingScreens.filter(screen => {
+      const componentPath = screen.screenComponents.formDefinition.componentPath.replace(/^\//, '');
+      return !isFormScreen(componentPath);
+    });
+
+    console.log(`   Found ${matchingScreens.length} total matching screens:`);
+    console.log(`   📝 Form screens: ${formScreens.length}`);
+    console.log(`   📱 App screens: ${appScreens.length}`);
+    
+    if (matchingScreens.length === 0) {
+      console.log("   No screens match the changed component paths");
+      return { success: true, processedScreens: 0, syncedResources: 0, syncedScreens: 0 };
+    }
+
+    let syncedResources = 0;
+    let syncedScreens = 0;
+
+    // Step 3: Process Form Screens (NO resource URL sync, preserve exact screenKey)
+    if (formScreens.length > 0) {
+      console.log(`\n📝 Step 3a: Processing ${formScreens.length} form screens (no resource URL sync)...`);
+      
+      for (const screen of formScreens) {
+        console.log(`\n   📌 Processing form screen: ${screen.screenKey}`);
+        console.log(`   ℹ️  Form screens skip resource URL sync and preserve exact screenKey from dev`);
+        
+        // Sync screen to prod with preserved screenKey
+        const screenSyncResult = await syncScreenFromDevToProd(
+          screen,
+          SCREEN_MANAGEMENT_SERVICE_API_PROD,
+          prodOauthConfig,
+          PUBLISH_VERSION
+        );
+        
+        if (screenSyncResult.success) {
+          syncedScreens++;
+          console.log(`   ✅ Form screen sync: ${screenSyncResult.operation} (screenKey: ${screen.screenKey})`);
+        } else {
+          console.log(`   ❌ Form screen sync failed: ${screenSyncResult.error}`);
+        }
+      }
+    }
+
+    // Step 4: Process App Screens (WITH resource URL sync and URL conversion)
+    if (appScreens.length > 0) {
+      console.log(`\n📱 Step 3b: Processing ${appScreens.length} app screens (with resource URL sync)...`);
+      
+      for (const screen of appScreens) {
+        console.log(`\n   📌 Processing app screen: ${screen.screenKey}`);
+        
+        // Convert screen key to URL
+        const platformUrl = convertScreenKeyToUrl(screen.screenKey);
+        
+        if (platformUrl) {
+          console.log(`   🔗 Generated URL: ${platformUrl}`);
+          
+          // Search for resource URL in dev using full platform URL
+          const devResourceUrl = await searchResourceUrlInDev(platformUrl, devOauthConfig);
+          
+          if (devResourceUrl) {
+            console.log(`   📍 Found resource URL in dev: ${devResourceUrl.url}`);
+            
+            // Sync resource URL to prod with same ID
+            const resourceSyncResult = await syncResourceUrlWithSameId(
+              devResourceUrl, 
+              NAVIGATION_SERVICE_API_PROD, 
+              prodOauthConfig
+            );
+            
+            if (resourceSyncResult.success) {
+              if (resourceSyncResult.operation === 'created') {
+                syncedResources++;
+              }
+              console.log(`   ✅ Resource URL sync: ${resourceSyncResult.operation}`);
+            } else {
+              console.log(`   ⚠️  Resource URL sync failed: ${resourceSyncResult.error}`);
+            }
+          } else {
+            console.log(`   ℹ️  No resource URL found in dev for: ${platformUrl}`);
+          }
+        } else {
+          console.log(`   ⚠️  Could not convert screen key to URL: ${screen.screenKey}`);
+        }
+        
+        // Sync screen to prod
+        const screenSyncResult = await syncScreenFromDevToProd(
+          screen,
+          SCREEN_MANAGEMENT_SERVICE_API_PROD,
+          prodOauthConfig,
+          PUBLISH_VERSION
+        );
+        
+        if (screenSyncResult.success) {
+          syncedScreens++;
+          console.log(`   ✅ App screen sync: ${screenSyncResult.operation}`);
+        } else {
+          console.log(`   ❌ App screen sync failed: ${screenSyncResult.error}`);
+        }
+      }
+    }
+
+    // Summary
+    console.log(`\n📊 Comprehensive Sync Summary:`);
+    console.log(`   📋 Total processed screens: ${matchingScreens.length}`);
+    console.log(`   📝 Form screens processed: ${formScreens.length} (no resource URL sync)`);
+    console.log(`   📱 App screens processed: ${appScreens.length} (with resource URL sync)`);
+    console.log(`   🔗 Resource URLs synced: ${syncedResources}`);
+    console.log(`   📱 Total screens synced: ${syncedScreens}`);
+    
+    return { 
+      success: true, 
+      processedScreens: matchingScreens.length,
+      formScreens: formScreens.length,
+      appScreens: appScreens.length,
+      syncedResources, 
+      syncedScreens 
+    };
+
+  } catch (error) {
+    console.error("❌ Error during comprehensive screen synchronization:", error.message);
+    return { success: false, error: error.message, processedScreens: 0, syncedResources: 0, syncedScreens: 0 };
   }
 }
 
@@ -968,28 +1166,56 @@ async function main() {
   console.log(`📋 Found ${changedScreens.length} screen(s) to publish:`);
   changedScreens.forEach(screen => console.log(`   - ${screen}`));
 
-  // Track failed screens and their errors
-  const failedScreens = [];
-  let successCount = 0;
+  // NEW: Comprehensive Screen Synchronization Step
+  console.log(`\n${'='.repeat(80)}`);
+  console.log(`🔄 COMPREHENSIVE SCREEN SYNCHRONIZATION`);
+  console.log(`${'='.repeat(80)}`);
+  
+  const comprehensiveSyncResult = await handleComprehensiveScreenSync(changedScreens);
+  
+  if (comprehensiveSyncResult.success) {
+    console.log(`✅ Comprehensive sync completed successfully!`);
+    console.log(`   📋 Processed screens: ${comprehensiveSyncResult.processedScreens}`);
+    console.log(`   🔗 Synced resource URLs: ${comprehensiveSyncResult.syncedResources}`);
+    console.log(`   📱 Synced screens: ${comprehensiveSyncResult.syncedScreens}`);
+  } else {
+    console.error(`❌ Comprehensive sync failed: ${comprehensiveSyncResult.error}`);
+    console.log("⚠️  Continuing with individual screen publishing as fallback...");
+  }
 
-  // Publish each changed screen
-  for (const screenPath of changedScreens) {
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`📦 Processing: ${screenPath}`);
-    console.log(`${'='.repeat(60)}`);
+  // STREAMLINED: Individual Screen Building and Azure Upload
+  // (Resource URLs and screen registration handled by comprehensive sync above)
+  console.log(`\n${'='.repeat(80)}`);
+  console.log(`🔨 INDIVIDUAL SCREEN BUILDING AND AZURE UPLOAD`);
+  console.log(`${'='.repeat(80)}`);
+
+  const buildResults = [];
+  let successCount = 0;
+  const failedScreens = [];
+
+  for (const screen of changedScreens) {
+    console.log(`\n📦 Building and uploading screen: ${screen}`);
     
     try {
-      await publishScreen(screenPath);
-      console.log(`✅ Successfully published: ${screenPath}`);
-      successCount++;
-    } catch (error) {
-      console.error(`❌ Failed to publish ${screenPath}:`, error.message);
-      failedScreens.push({
-        screen: screenPath,
-        error: error.message,
-        stack: error.stack
+      // Use existing publishScreen function but skip resource URL and screen registration
+      // since those are handled by comprehensive sync above
+      const result = await publishScreen(screen, { 
+        skipResourceUrlSync: true, 
+        skipScreenRegistration: true,
+        buildOnly: true 
       });
-      // Continue with next screen instead of failing entire process
+      
+      console.log(`   ✅ Screen built and uploaded successfully`);
+      buildResults.push({
+        screen,
+        success: true,
+        result
+      });
+      successCount++;
+
+    } catch (error) {
+      console.error(`   ❌ Error building/uploading ${screen}: ${error.message}`);
+      failedScreens.push({ screen, error: error.message, stage: 'build_upload' });
     }
   }
 
@@ -1003,6 +1229,16 @@ async function main() {
   console.log(`📈 Total screens processed: ${changedScreens.length}`);
   console.log(`✅ Successfully published: ${successCount}`);
   console.log(`❌ Failed: ${failedScreens.length}`);
+  
+  // Add comprehensive sync summary
+  if (comprehensiveSyncResult.success) {
+    console.log(`\n🔄 COMPREHENSIVE SYNC RESULTS:`);
+    console.log(`   📋 Total screens processed: ${comprehensiveSyncResult.processedScreens}`);
+    console.log(`   📝 Form screens synced: ${comprehensiveSyncResult.formScreens || 0} (no resource URL sync)`);
+    console.log(`   📱 App screens synced: ${comprehensiveSyncResult.appScreens || 0} (with resource URL sync)`);
+    console.log(`   🔗 Resource URLs synced: ${comprehensiveSyncResult.syncedResources}`);
+    console.log(`   📱 Total screen configs synced: ${comprehensiveSyncResult.syncedScreens}`);
+  }
 
   if (failedScreens.length > 0) {
     console.log(`\n❌ FAILED SCREENS:`);

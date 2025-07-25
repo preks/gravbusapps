@@ -148,7 +148,6 @@ export const useEmployeeAccountsData = ({
                 _and: conditions,
               };
 
-        console.log(sortField, sortOrder);
         // Build orderBy based on sortField and sortOrder
         let orderBy: any = {};
         if (sortField && sortField !== "") {
@@ -191,7 +190,6 @@ export const useEmployeeAccountsData = ({
           orderBy: [orderBy],
           where,
         };
-        console.log("variables", variables);
         const result = await fetchEmployeeAccounts(variables);
 
         setAccounts(result.Account || []);

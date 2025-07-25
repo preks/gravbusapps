@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetPipelineStages } from "./useGetPipelineStages";
 import { useGetPipelineCatalogs } from "./useGetPipelineCatalogs";
@@ -7,6 +7,11 @@ export interface FilterGroup {
   id: string;
   title: string; // Changed from label to title to match DataFilterGroup
   filters: Array<{ id: string; label: string; value: any; selected: boolean }>;
+  backendSearch?: (search: string) => {
+    filters: Array<{ id: string; label: string; selected: boolean }>;
+    loading: boolean;
+    error: any;
+  };
 }
 
 export interface OpportunityFilters {
@@ -22,6 +27,7 @@ export interface OpportunityFilters {
   createdAfter?: string;
   createdBefore?: string;
   handleDateRangeChange: (after?: string, before?: string) => void;
+  filtersInitialized: boolean;
 }
 
 export const useOpportunityFilters = (
@@ -31,6 +37,7 @@ export const useOpportunityFilters = (
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [createdAfter, setCreatedAfter] = useState<string | undefined>();
   const [createdBefore, setCreatedBefore] = useState<string | undefined>();
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   // Add state for pipeline stage search if needed
   const [pipelineStageSearch, setPipelineStageSearch] = useState("");
@@ -47,6 +54,29 @@ export const useOpportunityFilters = (
     error: pipelinesError,
   } = useGetPipelineCatalogs(context, pipelineSearch);
 
+  // Backend search function for pipeline stages
+  const getPipelineStageFilters = useCallback(
+    (search: string) => {
+      setPipelineStageSearch(search);
+
+      return {
+        filters: pipelineStageOptions.map((option) => ({
+          id: `stage-${option.id}`,
+          label: option.name,
+          selected: selectedFilters.includes(`stage-${option.id}`),
+        })),
+        loading: isPipelineStagesLoading,
+        error: pipelineStagesError,
+      };
+    },
+    [
+      pipelineStageOptions,
+      selectedFilters,
+      isPipelineStagesLoading,
+      pipelineStagesError,
+    ]
+  );
+
   const filterGroups: FilterGroup[] = useMemo(
     () => [
       {
@@ -58,6 +88,7 @@ export const useOpportunityFilters = (
           value: option.name,
           selected: selectedFilters.includes(`stage-${option.id}`),
         })),
+        backendSearch: getPipelineStageFilters,
       },
       {
         id: "pipeline",
@@ -129,8 +160,43 @@ export const useOpportunityFilters = (
           },
         ],
       },
+      {
+        id: "status",
+        title: "Status",
+        filters: [
+          {
+            id: "OPPORTUNITY_OPEN",
+            label: "Open",
+            value: "OPPORTUNITY_OPEN",
+            selected: selectedFilters.includes("OPPORTUNITY_OPEN"),
+          },
+          {
+            id: "OPPORTUNITY_WON",
+            label: "Won",
+            value: "OPPORTUNITY_WON",
+            selected: selectedFilters.includes("OPPORTUNITY_WON"),
+          },
+          {
+            id: "OPPORTUNITY_LOST",
+            label: "Lost",
+            value: "OPPORTUNITY_LOST",
+            selected: selectedFilters.includes("OPPORTUNITY_LOST"),
+          },
+          {
+            id: "UNKNOWN_OPPORTUNITY_STATUS",
+            label: "Unknown",
+            value: "UNKNOWN_OPPORTUNITY_STATUS",
+            selected: selectedFilters.includes("UNKNOWN_OPPORTUNITY_STATUS"),
+          },
+        ],
+      },
     ],
-    [selectedFilters, pipelineStageOptions, pipelineOptions]
+    [
+      selectedFilters,
+      pipelineStageOptions,
+      pipelineOptions,
+      getPipelineStageFilters,
+    ]
   );
 
   const filterLabelMap: Record<string, string> = useMemo(() => {
@@ -202,6 +268,9 @@ export const useOpportunityFilters = (
           } else if (group.id === "estimatedAmount") {
             if (!filters.amountRanges) filters.amountRanges = [];
             filters.amountRanges.push(filter.value);
+          } else if (group.id === "status") {
+            if (!filters.statuses) filters.statuses = [];
+            filters.statuses.push(filter.value);
           }
           break;
         }
@@ -224,5 +293,6 @@ export const useOpportunityFilters = (
     createdAfter,
     createdBefore,
     handleDateRangeChange,
+    filtersInitialized,
   };
 };

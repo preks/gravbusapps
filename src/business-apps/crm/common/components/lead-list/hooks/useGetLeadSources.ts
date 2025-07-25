@@ -50,7 +50,7 @@ export const useGetLeadSources = (
           offset,
           returnTotalRecords: true,
           localeCode: userLocale,
-          ...(searchRegex ? { searchCriteria: searchRegex } : {}),
+          value: searchRegex,
         }
       );
 
@@ -60,10 +60,7 @@ export const useGetLeadSources = (
           name: entry.value || entry.code || entry.id,
         }));
 
-        // Enforce frontend limit of 5 items since API doesn't respect limit with search criteria
-        const limitedOptions = processedOptions.slice(0, 5);
-
-        setLeadSourceOptions(limitedOptions);
+        setLeadSourceOptions(processedOptions);
       } else {
         setLeadSourceOptions([]);
       }
