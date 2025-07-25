@@ -47,6 +47,18 @@ export interface ExpenseRequestStatisticsData {
   totalSubmittedAmount: number | null;
 }
 
+// Define the type for sortable fields
+export type SortField = 'title' | 'requestDate' | 'startDate' | 'endDate' | 'amount' | 'status' | 'employee.fullName';
+
+// Define the type for sort order
+export type SortOrder = 'ASC' | 'DESC';
+
+// Define the type for sort configuration
+export interface SortConfig {
+  field: SortField;
+  order: SortOrder;
+}
+
 export interface ExpenseRequestsResult {
   requests: ExpenseRequest[];
   isLoading: boolean;
@@ -67,6 +79,8 @@ export interface ExpenseRequestsResult {
   requestStatsLoading: boolean;
   requestStatsError: string | null;
   fetchRequestStatistics: (currencyFilter?: string | null) => Promise<void>;
+  sorting: SortConfig;
+  updateSorting: (field: SortField) => void;
 }
 
 /**
@@ -82,6 +96,12 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
   const [requestStats, setRequestStats] = useState<ExpenseRequestStatisticsData | null>(null);
   const [requestStatsLoading, setRequestStatsLoading] = useState<boolean>(false);
   const [requestStatsError, setRequestStatsError] = useState<string | null>(null);
+  
+  // Default sorting configuration - by requestDate descending
+  const [sorting, setSorting] = useState<SortConfig>({
+    field: 'requestDate',
+    order: 'DESC'
+  });
 
   // Get supervisor employee ID from user info
   const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
@@ -143,24 +163,27 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     searchTerm: string = '', 
     page: number = 1, 
     pageSize: number = 10, 
-    sortBy: string = 'requestDate:desc', 
+    sortBy?: string,
     status: string[] = [],
     requestDateStart?: string,
-    currencyFilter?: string | null
+    currencyFilter: string | null = null
   ) => {
+    // Use current sorting state if no sortBy is provided
+    const effectiveSortBy = sortBy || `${sorting.field}:${sorting.order.toLowerCase()}`;
+    
     if (!accessToken) {
       setError('Access token not available.');
       setIsLoading(false);
       return;
     }
     
-    // Check if this is a duplicate request with the same parameters
+    // Create a params object for comparison and logging
     const currentParams = {
-      searchTerm,
+      searchTerm: searchTerm || '',
       page,
       pageSize,
-      sortBy,
-      status,
+      sortBy: effectiveSortBy,
+      status: status || [],
       requestDateStart,
       currencyFilter
     };
@@ -506,6 +529,27 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     };
   }, [accessToken, fetchRequestStatistics]);
 
+  // Function to update sorting configuration
+  const updateSorting = useCallback((field: SortField) => {
+    setSorting(prevSorting => {
+      // If clicking on the same field, toggle the order
+      if (prevSorting.field === field) {
+        return {
+          field,
+          order: prevSorting.order === 'ASC' ? 'DESC' : 'ASC'
+        };
+      }
+      // If clicking on a new field, default to DESC order
+      return {
+        field,
+        order: 'DESC'
+      };
+    });
+    
+    // No need to reset page here - it will be handled by the component
+    // when it detects sorting changes and triggers a new fetch
+  }, []);
+
   return {
     requests,
     isLoading,
@@ -517,6 +561,8 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     requestStats,
     requestStatsLoading,
     requestStatsError,
-    fetchRequestStatistics
+    fetchRequestStatistics,
+    sorting,
+    updateSorting
   };
 };

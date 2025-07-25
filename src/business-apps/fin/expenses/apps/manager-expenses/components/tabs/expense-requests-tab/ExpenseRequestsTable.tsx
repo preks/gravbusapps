@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead, Button, Avatar, AvatarImage, AvatarFallback, Spinner, Alert } from '@newwork/nw-design-system';
+import { ArrowDownOutlined, ArrowUpOutlined } from '@ant-design/icons';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests';
+import { useGetExpenseRequests, ExpenseRequest, SortField } from '../../../hooks/useGetExpenseRequests';
 import { useExpenseRequestFilters, ExpenseRequestStatusMap } from '../../../hooks/useExpenseRequestFilters';
 import { ExpenseStatus } from '../../../utils';
 import { getExpenseRequestStatusDisplay } from '../../../utils';
@@ -38,7 +39,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     totalCount,
     fetchRequests,
     approveRequest,
-    rejectRequest
+    rejectRequest,
+    sorting,
+    updateSorting
   } = useGetExpenseRequests(contextProps);
 
   // Get managerId from userInfo for currency filtering
@@ -78,7 +81,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     currentPage: 1,
     pageSize: 10,
     selectedFilters: [] as string[],
-    currencyFilter: ''
+    currencyFilter: '',
+    sorting: { field: 'requestDate', order: 'DESC' }
   });
   
   // Debounced fetch function to prevent multiple rapid requests
@@ -92,6 +96,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         pageSize: number;
         filters: any;
         currencyFilter: string | null;
+        sorting: { field: string; order: 'ASC' | 'DESC' };
       }) => {
         if (timeoutId) {
           clearTimeout(timeoutId);
@@ -99,17 +104,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         
         timeoutId = setTimeout(() => {
           console.log('Executing debounced fetch with params:', params);
+          const sortString = `${params.sorting.field}:${params.sorting.order.toLowerCase()}`;
           fetchRequests(
             params.searchText,
             params.currentPage,
             params.pageSize,
-            'requestDate:desc',
+            sortString,
             params.filters.status || [],
             params.filters.requestDateStart,
             params.currencyFilter
           );
-          timeoutId = null;
-        }, 300); // 300ms debounce time
+        }, 300);
       };
     })(),
     [fetchRequests]
@@ -137,7 +142,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       currentPage,
       pageSize,
       selectedFilters: [...selectedFilters],
-      currencyFilter: currencyFilter || ''
+      currencyFilter: currencyFilter || '',
+      sorting
     };
     
     const lastParams = lastFetchParams.current;
@@ -146,7 +152,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       currentParams.currentPage === lastParams.currentPage &&
       currentParams.pageSize === lastParams.pageSize &&
       currentParams.currencyFilter === lastParams.currencyFilter &&
-      JSON.stringify(currentParams.selectedFilters) === JSON.stringify(lastParams.selectedFilters);
+      JSON.stringify(currentParams.selectedFilters) === JSON.stringify(lastParams.selectedFilters) &&
+      JSON.stringify(currentParams.sorting) === JSON.stringify(lastParams.sorting);
     
     if (isRedundantFetch) {
       console.log('Skipping redundant fetch with same parameters');
@@ -162,21 +169,38 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       currentPage,
       pageSize,
       filters,
-      currencyFilter
+      currencyFilter,
+      sorting
     });
-  }, [searchText, currentPage, pageSize, selectedFilters, currencyFilter, fetchRequests, getFilters, debouncedFetch]);
+  }, [searchText, currentPage, pageSize, selectedFilters, currencyFilter, fetchRequests, getFilters, debouncedFetch, sorting]);
 
-  // Handle search changes
+  // Handle search input changes
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset to first page on search
   }, [setSearch]);
+  
+  // Handle sorting changes
+  const handleSort = useCallback((field: SortField) => {
+    updateSorting(field);
+    setCurrentPage(1); // Reset to first page when sorting changes
+  }, [updateSorting, setCurrentPage]);
+  
+  // Render sort indicator
+  const renderSortIndicator = useCallback((field: SortField) => {
+    if (sorting.field === field) {
+      return sorting.order === 'ASC' ? 
+        <ArrowUpOutlined className="gba:ml-1 gba:text-blue-500" /> : 
+        <ArrowDownOutlined className="gba:ml-1 gba:text-blue-500" />;
+    }
+    return null;
+  }, [sorting]);
 
-  const handleTableChange = (pagination: any, _filters: any, _sorter: any) => {
+  const handleTableChange = useCallback((pagination: any, _filters: any, _sorter: any) => {
     setCurrentPage(pagination.current);
     setPageSize(pagination.pageSize);
-  };
-
+  }, []);
+  
   // Handle request selection
   const handleSelectRequest = useCallback((request: ExpenseRequest) => {
     setSelectedRequest(request);
@@ -234,16 +258,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     }
   }, [rejectRequest, fetchRequests, searchText, currentPage, pageSize, getFilters]);
 
-  const renderDataBody = () => {
+  const renderDataBody = useCallback(() => {
     console.log('ExpenseRequestsTable renderDataBody called');
     console.log('requests data:', requests);
     console.log('isLoading:', isLoading);
     console.log('error:', error);
     
-    if (isLoading) {
+    // Only show loading spinner when there's no data yet
+    // This prevents the table from disappearing during sorting operations
+    if (isLoading && requests.length === 0) {
       return (
-        <div className="gba:flex gba:justify-center gba:p-8">
-          <Spinner />
+        <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
+          <Spinner className="gba:h-8 gba:w-8" />
         </div>
       );
     }
@@ -257,47 +283,95 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       );
     }
 
-    if (!requests || requests.length === 0) {
+    if (requests.length === 0) {
       return (
-        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
-          <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
-            No expense requests found
-          </div>
-          <div className="gba:text-gray-400 gba:mb-4">
-            No expense requests match your current criteria.
-          </div>
+        <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:text-gray-500">
+          No expense requests found.
         </div>
       );
     }
 
     return (
-      <div className="gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm">
-        {/* Table with horizontal scrolling */}
-        <div className="gba:overflow-x-auto">
+      <div>
+        <div className="gba:overflow-x-auto gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm gba:relative">
+          {isLoading && requests.length > 0 && (
+            <div className="gba:absolute gba:inset-0 gba:bg-white/50 gba:flex gba:items-center gba:justify-center gba:z-10" data-testid="expense-requests-loading-overlay">
+              <Spinner className="gba:h-8 gba:w-8" />
+            </div>
+          )}
           <Table data-testid="expense-requests-table">
             <TableHeader>
               <TableRow>
-                <TableHead className="gba:w-[8%]"></TableHead>
-                <TableHead className="gba:w-[25%]">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.request_info_pl', 'Requests')}
+                <TableHead className="gba:w-[60px]"></TableHead>
+                <TableHead 
+                  className="gba:cursor-pointer gba:select-none" 
+                  onClick={() => handleSort('title')}
+                  data-testid="expense-requests-title-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Request Title')}</span>
+                    {renderSortIndicator('title')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  Start Date
+                <TableHead 
+                  className="gba:cursor-pointer gba:select-none" 
+                  onClick={() => handleSort('startDate')}
+                  data-testid="expense-requests-start-date-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.start_date', 'Start Date')}</span>
+                    {renderSortIndicator('startDate')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  End Date
+                <TableHead 
+                  className="gba:cursor-pointer gba:select-none" 
+                  onClick={() => handleSort('endDate')}
+                  data-testid="expense-requests-end-date-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.end_date', 'End Date')}</span>
+                    {renderSortIndicator('endDate')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[20%]">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+                <TableHead 
+                  className="gba:cursor-pointer gba:select-none" 
+                  onClick={() => handleSort('employee.fullName')}
+                  data-testid="expense-requests-employee-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.employee', 'Employee')}</span>
+                    {renderSortIndicator('employee.fullName')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  Creation Date
+                <TableHead 
+                  className="gba:cursor-pointer gba:select-none" 
+                  onClick={() => handleSort('requestDate')}
+                  data-testid="expense-requests-request-date-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.creation_date', 'Creation Date')}</span>
+                    {renderSortIndicator('requestDate')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[18%] gba:text-right">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount')}
+                <TableHead 
+                  className="gba:text-right gba:cursor-pointer gba:select-none" 
+                  onClick={() => handleSort('amount')}
+                  data-testid="expense-requests-amount-header"
+                >
+                  <div className="gba:flex gba:items-center gba:justify-end">
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.amount', 'Amount')}</span>
+                    {renderSortIndicator('amount')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[18%]">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_table.status', 'Status')}
+                <TableHead 
+                  className="gba:cursor-pointer gba:select-none" 
+                  onClick={() => handleSort('status')}
+                  data-testid="expense-requests-status-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.status', 'Status')}</span>
+                    {renderSortIndicator('status')}
+                  </div>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -477,23 +551,22 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         )}
       </div>
     );
-  };
-
-
+  }, [requests, isLoading, error, totalCount, pageSize, currentPage, approveRequest, rejectRequest]);
 
   // Update the URL or any other side effects when filters change
   useEffect(() => {
     const filters = getFilters();
+    const sortString = sorting ? `${sorting.field}:${sorting.order.toLowerCase()}` : 'requestDate:desc';
     fetchRequests(
       searchText,
       currentPage,
       pageSize,
-      undefined, // sortBy
+      sortString, // sortBy
       filters.status || [], // status filter - now an array
       filters.requestDateStart,
       currencyFilter // Pass currency filter to fetch requests
     );
-  }, [selectedFilters, searchText, currentPage, pageSize, currencyFilter, getFilters, fetchRequests]);
+  }, [selectedFilters, searchText, currentPage, pageSize, currencyFilter, sorting, getFilters, fetchRequests]);
 
   return (
     <DataContainer
