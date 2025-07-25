@@ -29,6 +29,18 @@ export interface ExpenseData {
   nonReimbursableAmount?: number;
   employeeDocumentId: string | null;
   documentData: any;
+  employeeDocument?: {
+    id: string;
+    file: string;
+    name: string;
+    mimeType: string;
+    createdAt: string;
+    documentGroup: string;
+    type: string;
+    employee: {
+      id: string;
+    };
+  };
   department?: string;
   expensePlan?: {
     advancePaymentTotalAmount?: number;

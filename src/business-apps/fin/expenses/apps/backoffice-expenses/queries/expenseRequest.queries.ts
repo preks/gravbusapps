@@ -23,6 +23,21 @@ export const GET_EXPENSE_REQUESTS = `
       endDate
       employeeId
       nonReimbursableAmount
+      employeeDocumentId
+      employeeDocument {
+        createdAt
+        documentGroup
+        file
+        fileSize
+        id
+        description
+        mimeType
+        name
+        type
+        employee {
+          id
+        }
+      }
       currency { code }
       employee { 
         firstName 

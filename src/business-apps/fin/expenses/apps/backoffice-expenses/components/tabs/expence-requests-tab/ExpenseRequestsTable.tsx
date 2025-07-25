@@ -34,6 +34,8 @@ import { ExpenseData } from '../../../types';
 import { getExpenseRequestStatusDisplay } from '../../../utils/utils';
 import Pill from '@/components/pill/Pill';
 import { MoreHorizontal } from 'lucide-react';
+import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService';
+import { Modal } from 'antd';
 
 
 function debounce<T extends (...args: any[]) => any>(
@@ -76,6 +78,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const [selectedExpense, setSelectedExpense] = useState<ExpenseData | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   
+  const [isPdfModalVisible, setIsPdfModalVisible] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string>('');
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string>('');
+
   const updateURLParams = useCallback((params: {
     search?: string;
     page?: number;
@@ -150,6 +157,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     amountMaxFilter,
   } = useExpenseRequests(contextProps);
 
+  const { printExpenseRequest } = useExpenseRequestFileService(props);
+
   useEffect(() => {
     const loadAvailableStatuses = async () => {
       try {
@@ -179,11 +188,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const [employeeSearchLoading, setEmployeeSearchLoading] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<Array<{id: string, name: string}>>([]);
 
-  // Status filter states
   const [statusFilter, setStatusFilter] = useState<string[]>(['BOOKED']);
   const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
 
-  // Local amount filter states for immediate UI updates
   const [localAmountMin, setLocalAmountMin] = useState(amountMinFilter);
   const [localAmountMax, setLocalAmountMax] = useState(amountMaxFilter);
 
@@ -215,13 +222,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     [handleAmountFilter]
   );
 
-  // Sync local amount state with hook state
   useEffect(() => {
     setLocalAmountMin(amountMinFilter);
     setLocalAmountMax(amountMaxFilter);
   }, [amountMinFilter, amountMaxFilter]);
 
-  // Handle status filter changes
   const handleStatusFilterChange = useCallback((status: string, selected: boolean) => {
     const newStatusFilter = selected
       ? [...statusFilter, status]
@@ -338,7 +343,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                         setSelectedEmployees(newSelected);
                         setEmployeeFilter(newSelected.map(e => e.id).join(','));
                         
-                        // Apply the employee filter to trigger data fetching
                         handleEmployeeFilter(newSelected.map(e => e.id).join(','));
                       }}
                       data-testid={`employee-option-${employee.id}`}
@@ -405,7 +409,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   }, [employeeFilter]);
 
   const setFilters = useCallback((filters: string[]) => {
-    // Clear all filters
     setEmployeeFilter('');
     setSelectedEmployees([]);
     setEmployeeSearchText('');
@@ -413,7 +416,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     setLocalAmountMin('');
     setLocalAmountMax('');
     
-    // Trigger data refresh by calling the handler functions
     handleEmployeeFilter('');
     handleStatusFilter('');
     handleAmountFilter('', '');
@@ -424,26 +426,46 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     handleTableChange(pagination, _filters, sorter);
   }, [handleTableChange]);
 
-  // Placeholder handler functions for expense request actions
   const handleDownloadAccountingNote = useCallback((record: ExpenseData) => {
-    console.log('Download Accounting Note for:', record.id);
-    // TODO: Implement download accounting note functionality
   }, []);
 
   const handleUpdateExpenseRequest = useCallback((record: ExpenseData) => {
-    console.log('Update Expense Request for:', record.id);
-    // TODO: Implement update expense request functionality
   }, []);
 
   const handleTriggerCSV = useCallback((record: ExpenseData) => {
-    console.log('Trigger CSV for:', record.id);
-    // TODO: Implement trigger CSV functionality
   }, []);
 
-  const handlePrintExpenseRequest = useCallback((record: ExpenseData) => {
-    console.log('Print Expense Request for:', record.id);
-    // TODO: Implement print expense request functionality
-  }, []);
+  const handlePrintExpenseRequest = useCallback(async (record: ExpenseData) => {
+    setPdfLoading(true);
+    setPdfError('');
+    setPdfUrl('');
+    
+    try {
+      const result = await printExpenseRequest(record);
+      
+      if (result.success && result.pdfUrl) {
+        setPdfUrl(result.pdfUrl);
+        setIsPdfModalVisible(true);
+      } else {
+        setPdfError(result.error || 'Failed to load PDF');
+        setIsPdfModalVisible(true);
+      }
+    } catch (error) {
+      setPdfError(error instanceof Error ? error.message : 'Unknown error occurred');
+      setIsPdfModalVisible(true);
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [printExpenseRequest]);
+
+  const handleClosePdfModal = useCallback(() => {
+    setIsPdfModalVisible(false);
+    setPdfUrl('');
+    setPdfError('');
+    if (pdfUrl) {
+      URL.revokeObjectURL(pdfUrl);
+    }
+  }, [pdfUrl]);
 
   if (loading && expenses.length === 0) {
     return (
@@ -491,7 +513,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
           filterGroups: filterGroups,
           onFilterChange: (filterId: string, selected: boolean) => {
             if (filterId === '') {
-              // Handle "All" selection
               if (selected) {
                 setEmployeeFilter('');
                 setSelectedEmployees([]);
@@ -500,16 +521,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                 setLocalAmountMin('');
                 setLocalAmountMax('');
                 
-                // Trigger data refresh
                 handleEmployeeFilter('');
                 handleStatusFilter('');
                 handleAmountFilter('', '');
               }
             } else {
-              // Handle specific filter selection
               if (filterId === 'employee') {
                 if (selected) {
-                  // This is handled by the employee selection logic above
                 } else {
                   setEmployeeFilter('');
                   setSelectedEmployees([]);
@@ -517,7 +535,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   handleEmployeeFilter('');
                 }
               } else if (availableStatuses.includes(filterId)) {
-                // Handle status filter changes
                 handleStatusFilterChange(filterId, selected);
               }
             }
@@ -584,32 +601,43 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                                 View Expense Request Details
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => handleDownloadAccountingNote(record)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadAccountingNote(record);
+                                }}
                                 data-testid={`download-accounting-note-${record.id}`}
                               >
                                 Download Accounting Note
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => handleUpdateExpenseRequest(record)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateExpenseRequest(record);
+                                }}
                                 data-testid={`update-expense-request-${record.id}`}
                               >
                                 Update Expense Request
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => handleTriggerCSV(record)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleTriggerCSV(record);
+                                }}
                                 data-testid={`trigger-csv-${record.id}`}
                               >
                                 Trigger CSV
                               </DropdownMenuItem>
-                              {/* Only show Print option if status is one of the allowed statuses and employeeDocumentId exists */}
-                              {((record.status === 'APPROVED' ||
-                                 record.status === 'VERIFIED' ||
+                              {((record.status === 'PAID' ||
                                  record.status === 'BOOKED' ||
-                                 record.status === 'TRANSFERRED' ||
-                                 record.status === 'PAID') &&
+                                 record.status === 'APPROVED' ||
+                                 record.status === 'VERIFIED' ||
+                                 record.status === 'TRANSFERRED') &&
                                 record.employeeDocumentId !== null) && (
                                 <DropdownMenuItem
-                                  onClick={() => handlePrintExpenseRequest(record)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePrintExpenseRequest(record);
+                                  }}
                                   data-testid={`print-expense-request-${record.id}`}
                                 >
                                   Print
@@ -800,6 +828,42 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         }
         floatingDetails={true}
       />
+      
+      {/* PDF Modal */}
+      <Modal
+        title="Expense Request Document"
+        open={isPdfModalVisible}
+        onCancel={handleClosePdfModal}
+        footer={null}
+        width="80%"
+        style={{ top: 20 }}
+        data-testid="expense-request-pdf-modal"
+      >
+        {pdfLoading ? (
+          <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
+            <Spinner size="lg" />
+            <div>Loading PDF...</div>
+          </div>
+        ) : pdfError ? (
+          <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
+            <Alert variant="destructive">
+              <div className="gba:font-medium">Error Loading PDF</div>
+              <div className="gba:text-sm">{pdfError}</div>
+            </Alert>
+          </div>
+        ) : pdfUrl ? (
+          <iframe
+            src={pdfUrl}
+            style={{ width: '100%', height: '70vh', border: 'none' }}
+            title="Expense Request PDF"
+            data-testid="expense-request-pdf-iframe"
+          />
+        ) : (
+          <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
+            <div>No PDF URL available</div>
+          </div>
+        )}
+      </Modal>
     </>
   );
 };
