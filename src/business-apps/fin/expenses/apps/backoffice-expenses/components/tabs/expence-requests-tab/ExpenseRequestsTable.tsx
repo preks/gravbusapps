@@ -35,6 +35,9 @@ import { getExpenseRequestStatusDisplay } from '../../../utils/utils';
 import Pill from '@/components/pill/Pill';
 import { MoreHorizontal } from 'lucide-react';
 import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService';
+import { env } from '@/common/env/EnvUtils';
+import { useRestClient } from '@/common/network/rest/useRestClient';
+import { ResponseType } from '@/common/network/rest/RestClient';
 import { Modal } from 'antd';
 
 
@@ -158,6 +161,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   } = useExpenseRequests(contextProps);
 
   const { printExpenseRequest } = useExpenseRequestFileService(props);
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
 
   useEffect(() => {
     const loadAvailableStatuses = async () => {
@@ -426,8 +430,31 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     handleTableChange(pagination, _filters, sorter);
   }, [handleTableChange]);
 
-  const handleDownloadAccountingNote = useCallback((record: ExpenseData) => {
-  }, []);
+  const handleDownloadAccountingNote = useCallback(async (record: ExpenseData) => {
+    try {
+      const response = await restClient.get(`/cs-selgros/expense-sheets/expense-request/${record.id}/csv`, {
+        responseType: ResponseType.TEXT,
+        headers: {
+          Authorization: `Bearer ${props.accessToken}`,
+        },
+      });
+      
+      const originalName = record.employeeDocument?.name || `accounting-note-${record.code}`;
+      const csvFileName = originalName.replace(/\.[^/.]+$/, '.csv');
+      
+      const blob = new Blob([response], { type: 'text/csv;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = csvFileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading accounting note:', error);
+    }
+  }, [restClient, props.accessToken]);
 
   const handleUpdateExpenseRequest = useCallback((record: ExpenseData) => {
   }, []);
@@ -609,15 +636,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                               >
                                 Download Accounting Note
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleUpdateExpenseRequest(record);
-                                }}
-                                data-testid={`update-expense-request-${record.id}`}
-                              >
-                                Update Expense Request
-                              </DropdownMenuItem>
+                              
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
