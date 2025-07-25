@@ -54,6 +54,66 @@ export const useOpportunityFilters = (
     error: pipelinesError,
   } = useGetPipelineCatalogs(context, pipelineSearch);
 
+  // Initialize filters from URL parameters when pipeline options are loaded
+  useEffect(() => {
+    if (!filtersInitialized && !isPipelineStagesLoading && !isPipelinesLoading) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const preselectedFilters: string[] = [];
+
+      // Only process URL filters if we have data loaded
+      if (pipelineStageOptions.length > 0 || pipelineOptions.length > 0) {
+        // Handle salesPipelineStage parameter: salesPipelineStage=SalesPipelineStage:v1:NEW_OPPORTUNITY
+        const salesPipelineStageParams = urlParams.getAll('salesPipelineStage');
+        salesPipelineStageParams.forEach(stageValue => {
+          const matchingStage = pipelineStageOptions.find(option => option.id === stageValue);
+          if (matchingStage) {
+            preselectedFilters.push(`stage-${matchingStage.id}`);
+          }
+        });
+
+        // Handle salesPipeline parameter: salesPipeline=SalesPipeline:v1:STANDARD
+        const salesPipelineParams = urlParams.getAll('salesPipeline');
+        salesPipelineParams.forEach(pipelineValue => {
+          const matchingPipeline = pipelineOptions.find(option => option.id === pipelineValue);
+          if (matchingPipeline) {
+            preselectedFilters.push(`pipeline-${matchingPipeline.id}`);
+          }
+        });
+
+        // Handle winningChance parameter: winningChance=chance-high
+        const winningChanceParams = urlParams.getAll('winningChance');
+        winningChanceParams.forEach(chanceValue => {
+          if (['chance-high', 'chance-medium', 'chance-low', 'chance-very-low'].includes(chanceValue)) {
+            preselectedFilters.push(chanceValue);
+          }
+        });
+
+        // Handle estimatedAmount parameter: estimatedAmount=amount-large
+        const estimatedAmountParams = urlParams.getAll('estimatedAmount');
+        estimatedAmountParams.forEach(amountValue => {
+          if (['amount-large', 'amount-medium', 'amount-small', 'amount-micro'].includes(amountValue)) {
+            preselectedFilters.push(amountValue);
+          }
+        });
+
+        // Handle status parameter: status=OPPORTUNITY_OPEN
+        const statusParams = urlParams.getAll('status');
+        statusParams.forEach(statusValue => {
+          if (['OPPORTUNITY_OPEN', 'OPPORTUNITY_WON', 'OPPORTUNITY_LOST', 'UNKNOWN_OPPORTUNITY_STATUS'].includes(statusValue)) {
+            preselectedFilters.push(statusValue);
+          }
+        });
+
+        if (preselectedFilters.length > 0) {
+          setSelectedFilters(preselectedFilters);
+        }
+      }
+      
+      // Always set initialized to true once loading is complete, regardless of whether data exists
+      setFiltersInitialized(true);
+    }
+  }, [pipelineStageOptions, pipelineOptions, isPipelineStagesLoading, isPipelinesLoading, filtersInitialized]);
+
   // Backend search function for pipeline stages
   const getPipelineStageFilters = useCallback(
     (search: string) => {

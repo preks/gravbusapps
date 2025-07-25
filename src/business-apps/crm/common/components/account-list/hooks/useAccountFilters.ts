@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetIndustries } from "../../lead-list/hooks/useGetIndustries";
 
@@ -26,6 +26,7 @@ export interface AccountFilters {
   createdAfter?: string;
   createdBefore?: string;
   handleDateRangeChange: (after?: string, before?: string) => void;
+  filtersInitialized: boolean;
   industrySearch: string;
   setIndustrySearch: (search: string) => void;
 }
@@ -37,6 +38,7 @@ export const useAccountFilters = (
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [createdAfter, setCreatedAfter] = useState<string | undefined>();
   const [createdBefore, setCreatedBefore] = useState<string | undefined>();
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   // Industry search state
   const [industrySearch, setIndustrySearch] = useState("");
@@ -47,6 +49,33 @@ export const useAccountFilters = (
     isLoading: industryLoading,
     error: industryError,
   } = useGetIndustries(context, industrySearch);
+
+  // Initialize filters from URL parameters when industry options are loaded
+  useEffect(() => {
+    if (!filtersInitialized && !industryLoading) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const preselectedFilters: string[] = [];
+
+      // Only process URL filters if we have industry data loaded
+      if (industryOptions.length > 0) {
+        // Handle industry parameter: industry=Industry:v1:TECHNOLOGY
+        const industryParams = urlParams.getAll('industry');
+        industryParams.forEach(industryValue => {
+          const matchingIndustry = industryOptions.find(option => option.id === industryValue);
+          if (matchingIndustry) {
+            preselectedFilters.push(matchingIndustry.id);
+          }
+        });
+      }
+
+      if (preselectedFilters.length > 0) {
+        setSelectedFilters(preselectedFilters);
+      }
+      
+      // Always set initialized to true once loading is complete, regardless of whether data exists
+      setFiltersInitialized(true);
+    }
+  }, [industryOptions, industryLoading, filtersInitialized]);
 
   // Backend search function for industries
   const getIndustryFilters = useCallback(
@@ -162,6 +191,7 @@ export const useAccountFilters = (
     createdAfter,
     createdBefore,
     handleDateRangeChange,
+    filtersInitialized,
     industrySearch,
     setIndustrySearch,
   };

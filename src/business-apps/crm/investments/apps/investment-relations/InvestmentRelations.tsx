@@ -82,11 +82,11 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
   };
 
   // Get initial subView from URL for opportunities tab
-  const getInitialSubView = () => {
+  const getInitialOpportunitiesSubView = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const subViewFromUrl = urlParams.get("subView");
 
-    // Map URL subView values to internal tab values
+    // Map URL subView values to internal tab values for opportunities
     if (subViewFromUrl === "pipeline") {
       return "board";
     } else if (subViewFromUrl === "list") {
@@ -97,11 +97,25 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
     return "list";
   };
 
+  // Get initial subView from URL for investments tab
+  const getInitialInvestmentsSubView = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const subViewFromUrl = urlParams.get("subView");
+
+    // Valid investment subView values
+    if (subViewFromUrl && ['overview', 'equity', 'real-estate', 'private-equity', 'liquid-funds'].includes(subViewFromUrl)) {
+      return subViewFromUrl;
+    }
+
+    // Default to overview
+    return "overview";
+  };
+
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
   const [opportunitiesSubTab, setOpportunitiesSubTab] =
-    useState<string>(getInitialSubView());
+    useState<string>(getInitialOpportunitiesSubView());
   const [investmentsSubTab, setInvestmentsSubTab] =
-    useState<string>("overview");
+    useState<string>(getInitialInvestmentsSubView());
 
   // Update URL when view changes
   const updateUrl = (view: string, subView?: string) => {
@@ -118,8 +132,14 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
       } else if (subView === "list") {
         urlParams.set("subView", "list");
       }
-    } else {
-      // Clear subView parameter when not in opportunities view
+    } 
+    // Handle subView parameter for investments
+    else if (view === "investments" && subView) {
+      // Direct mapping for investments - no conversion needed
+      urlParams.set("subView", subView);
+    } 
+    else {
+      // Clear subView parameter when not in opportunities or investments view
       if (urlParams.has("subView")) {
         urlParams.delete("subView");
       }
@@ -139,6 +159,8 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
     // If switching to opportunities, include current subView in URL
     if (key === "opportunities") {
       updateUrl(key, opportunitiesSubTab);
+    } else if (key === "investments") {
+      updateUrl(key, investmentsSubTab);
     } else {
       updateUrl(key);
     }
@@ -150,22 +172,33 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
     updateUrl(activeTab, subTab);
   };
 
+  const handleInvestmentsSubTabChange = (subTab: string) => {
+    setInvestmentsSubTab(subTab);
+    // Update URL with new subView when tab changes
+    updateUrl(activeTab, subTab);
+  };
+
   const handleNavigateToInvestments = (subTab?: string) => {
     // Switch to investments tab
     setActiveTab("investments");
-    updateUrl("investments");
-
-    // Set the specific subtab if provided
-    if (subTab) {
-      setInvestmentsSubTab(subTab);
-    }
+    
+    // Set the specific subtab if provided, otherwise use current
+    const targetSubTab = subTab || investmentsSubTab;
+    setInvestmentsSubTab(targetSubTab);
+    updateUrl("investments", targetSubTab);
   };
 
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.has("view")) {
-      updateUrl(activeTab, activeTab === "opportunities" ? opportunitiesSubTab : undefined);
+      let subView: string | undefined;
+      if (activeTab === "opportunities") {
+        subView = opportunitiesSubTab;
+      } else if (activeTab === "investments") {
+        subView = investmentsSubTab;
+      }
+      updateUrl(activeTab, subView);
     }
   }, []);
 
@@ -173,9 +206,16 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
   useEffect(() => {
     const handlePopState = () => {
       const newView = getInitialView();
-      const newSubView = getInitialSubView();
       setActiveTab(newView);
-      setOpportunitiesSubTab(newSubView);
+      
+      // Set subView based on the current view
+      if (newView === "opportunities") {
+        const newOpportunitiesSubView = getInitialOpportunitiesSubView();
+        setOpportunitiesSubTab(newOpportunitiesSubView);
+      } else if (newView === "investments") {
+        const newInvestmentsSubView = getInitialInvestmentsSubView();
+        setInvestmentsSubTab(newInvestmentsSubView);
+      }
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -224,7 +264,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
               accessToken={context.accessToken}
               userInfo={context.userInfo}
               initialSubTab={investmentsSubTab}
-              onSubTabChange={setInvestmentsSubTab}
+              onSubTabChange={handleInvestmentsSubTabChange}
             />
           </div>
         );

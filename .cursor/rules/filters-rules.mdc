@@ -11,6 +11,83 @@ This document defines the comprehensive filter system for CRM list components (A
 
 ## Core Architecture
 
+### ⚠️ CRITICAL: Filter Initialization Pattern
+
+**THE MOST IMPORTANT RULE**: Every filter hook MUST set `filtersInitialized = true` or the GraphQL queries will NEVER run.
+
+#### Common Critical Bug Pattern (❌ BROKEN)
+```typescript
+export const useEntityFilters = (context: BusinessAppContextProps) => {
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
+  
+  // ❌ BROKEN: filtersInitialized is never set to true
+  // This prevents the initial GraphQL query from running!
+  
+  return { filtersInitialized /* always stays false */ };
+};
+```
+
+#### Required Fix Pattern (✅ CORRECT)
+```typescript
+export const useEntityFilters = (context: BusinessAppContextProps) => {
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
+  
+  // Backend data fetching
+  const { options, isLoading: optionsLoading } = useGetFilterOptions(context);
+  
+  // ✅ REQUIRED: Initialize filters and set filtersInitialized = true
+  useEffect(() => {
+    if (!filtersInitialized && !optionsLoading) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const preselectedFilters: string[] = [];
+      
+      // Process URL parameters if data is available
+      if (options.length > 0) {
+        // ... URL parameter processing
+        if (preselectedFilters.length > 0) {
+          setSelectedFilters(preselectedFilters);
+        }
+      }
+      
+      // ✅ CRITICAL: Always set to true once loading completes
+      setFiltersInitialized(true);
+    }
+  }, [options, optionsLoading, filtersInitialized]);
+  
+  return { filtersInitialized /* now properly set to true */ };
+};
+```
+
+#### Initialization Dependencies
+
+**Single Data Source Pattern:**
+```typescript
+// Wait for one data source to complete loading
+useEffect(() => {
+  if (!filtersInitialized && !isDataLoading) {
+    initializeFilters();
+    setFiltersInitialized(true);
+  }
+}, [dataOptions, isDataLoading, filtersInitialized]);
+```
+
+**Multiple Data Sources Pattern:**
+```typescript
+// Wait for ALL data sources to complete loading
+useEffect(() => {
+  if (!filtersInitialized && !dataLoading1 && !dataLoading2 && !dataLoading3) {
+    initializeFilters();
+    setFiltersInitialized(true);
+  }
+}, [data1, data2, data3, dataLoading1, dataLoading2, dataLoading3, filtersInitialized]);
+```
+
+**Why This Matters:**
+- List components wait for `filtersInitialized === true` before running GraphQL queries
+- If never set to `true`, the initial data load never happens
+- Users see empty tables with no loading indicators
+- No network requests appear in browser dev tools
+
 ### Filter Hook Pattern
 Each CRM list has a dedicated filter hook following the naming convention `use{Entity}Filters`:
 - `useAccountFilters` - Account list filtering
@@ -49,6 +126,97 @@ export const useEntityFilters = (context: BusinessAppContextProps) => {
     filtersInitialized // CRITICAL: Must be returned
   };
 };
+```
+
+### ⚠️ IMPLEMENTATION CHECKLIST
+
+Every filter hook implementation MUST include these elements:
+
+#### 1. State Declaration ✅
+```typescript
+const [filtersInitialized, setFiltersInitialized] = useState(false);
+```
+
+#### 2. Initialization useEffect ✅
+```typescript
+useEffect(() => {
+  if (!filtersInitialized && /* all loading conditions met */) {
+    // URL parameter processing
+    // Filter pre-selection
+    setFiltersInitialized(true); // ← CRITICAL LINE
+  }
+}, [/* all dependencies including filtersInitialized */]);
+```
+
+#### 3. Interface Export ✅
+```typescript
+export interface EntityFilters {
+  // ... other properties
+  filtersInitialized: boolean; // ← MUST be in interface
+}
+```
+
+#### 4. Return Object ✅
+```typescript
+return {
+  // ... other returns
+  filtersInitialized, // ← MUST be returned
+};
+```
+
+#### 5. List Component Integration ✅
+```typescript
+// In the list component
+const { filtersInitialized } = useEntityFilters(context);
+
+useEffect(() => {
+  if (!initialLoadDone.current && context.accessToken && filtersInitialized) {
+    initialLoadDone.current = true;
+    loadPage(1, pageSize); // ← GraphQL query finally runs
+  }
+}, [context.accessToken, pageSize, filtersInitialized]);
+```
+
+### Real-World Examples
+
+#### OpportunityFilters Implementation
+```typescript
+// Waits for pipeline stages AND pipeline catalogs to load
+useEffect(() => {
+  if (!filtersInitialized && !isPipelineStagesLoading && !isPipelinesLoading) {
+    const urlParams = new URLSearchParams(window.location.search);
+    // Process salesPipelineStage, salesPipeline, winningChance, etc.
+    setFiltersInitialized(true);
+  }
+}, [pipelineStageOptions, pipelineOptions, isPipelineStagesLoading, isPipelinesLoading, filtersInitialized]);
+```
+
+#### ContactFilters Implementation  
+```typescript
+// Waits for job titles to load
+useEffect(() => {
+  if (!filtersInitialized && !isJobTitlesLoading) {
+    const urlParams = new URLSearchParams(window.location.search);
+    // Process jobTitle, contactType parameters
+    setFiltersInitialized(true);
+  }
+}, [jobTitleOptions, isJobTitlesLoading, filtersInitialized]);
+```
+
+#### LeadFilters Implementation
+```typescript
+// Waits for ALL data sources to complete
+useEffect(() => {
+  if (!filtersInitialized && !leadStatusLoading && !leadRatingLoading && 
+      !leadSourceLoading && !industryLoading && !companySizeLoading && !ownerLoading) {
+    const urlParams = new URLSearchParams(window.location.search);
+    // Process leadStatus, leadRating, leadSource, industry, companySize, leadOwner
+    setFiltersInitialized(true);
+  }
+}, [leadStatusOptions, leadRatingOptions, leadSourceOptions, industryOptions, 
+    companySizeOptions, leadOwners, leadStatusLoading, leadRatingLoading,
+    leadSourceLoading, industryLoading, companySizeLoading, ownerLoading, filtersInitialized]);
+```
 ```
 
 ## Backend Data Fetching Patterns

@@ -260,7 +260,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
                 onClick: () => {
                   const url = buildPlatformUrl('/platform/irm/investment-relations', { 
                     view: 'investments', 
-                    investmentType: 'equity' 
+                    subView: 'equity' 
                   });
                   navigateTo(url);
                 }
@@ -270,7 +270,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
                 onClick: () => {
                   const url = buildPlatformUrl('/platform/irm/investment-relations', { 
                     view: 'investments', 
-                    investmentType: 'private-equity' 
+                    subView: 'private-equity' 
                   });
                   navigateTo(url);
                 }
@@ -280,7 +280,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
                 onClick: () => {
                   const url = buildPlatformUrl('/platform/irm/investment-relations', { 
                     view: 'investments', 
-                    investmentType: 'liquid-funds' 
+                    subView: 'liquid-funds' 
                   });
                   navigateTo(url);
                 }
@@ -290,7 +290,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
                 onClick: () => {
                   const url = buildPlatformUrl('/platform/irm/investment-relations', { 
                     view: 'investments', 
-                    investmentType: 'real-estate' 
+                    subView: 'real-estate' 
                   });
                   navigateTo(url);
                 }
