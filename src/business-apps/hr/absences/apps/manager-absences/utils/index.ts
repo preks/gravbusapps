@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import { EmployeeAbsence, EnhancedAbsence } from '../types';
+import { getEmployeeName } from './absenceUtils';
 
 // Date utility functions
 export const formatDateRange = (startDate: Date | string, endDate: Date | string): string => {
@@ -35,13 +36,7 @@ export const isWithinDateRange = (date: string | Date, startDate: string | Date,
   return checkDate >= start && checkDate <= end;
 };
 
-// Employee name formatting
-export const getEmployeeName = (employee: EmployeeAbsence['employee']): string => {
-  if (employee.firstName || employee.lastName) {
-    return `${employee.firstName || ''} ${employee.lastName || ''}`.trim();
-  }
-  return 'Unknown Employee';
-};
+// Employee name formatting moved to absenceUtils.ts
 
 export const getEmployeeInitials = (employee: EmployeeAbsence['employee']): string => {
   const firstName = employee.firstName || '';
@@ -121,16 +116,7 @@ export const transformAbsencesForPieChart = (absences: EmployeeAbsence[], absenc
   }));
 };
 
-// Status-based color mapping (same as absence list)
-export const getStatusColor = (status: string): string => {
-  switch (status) {
-    case 'APPROVED': return '#10b981'; // success variant - green
-    case 'PENDING': return '#f59e0b';  // warning variant - amber
-    case 'REJECTED': return '#ef4444'; // destructive variant - red
-    case 'CANCELLED': return '#6b7280'; // secondary variant - gray
-    default: return '#6b7280'; // default - gray
-  }
-};
+
 
 // Data enhancement functions
 export const enhanceAbsence = (
@@ -139,7 +125,7 @@ export const enhanceAbsence = (
 ): EnhancedAbsence => {
   return {
     ...absence,
-    employeeName: getEmployeeName(absence.employee),
+    employeeName: getEmployeeName({ employee: absence.employee }),
     typeName: getAbsenceTypeName(absence.type),
     groupName: getAbsenceGroupName(absence.type, absenceGroups),
     dateRange: formatDateRange(absence.startDate, absence.endDate),
@@ -198,8 +184,8 @@ export const sortAbsencesByField = (absences: EmployeeAbsence[], field: string, 
     
     switch (field) {
       case 'employeeName':
-        aValue = getEmployeeName(a.employee);
-        bValue = getEmployeeName(b.employee);
+        aValue = getEmployeeName({ employee: a.employee });
+        bValue = getEmployeeName({ employee: b.employee });
         break;
       case 'startDate':
         aValue = new Date(a.startDate);

@@ -12,7 +12,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
   onNavigateBack,
   ...props
 }) => {
-  const { orgUnitCoverage, matrixCoverage, matrixTeamImpacts, orgUnitImpacts, isLoading, error } = useTeamCoverageData(props);
+  const { orgUnitCoverage, matrixCoverage, orgUnitImpacts, matrixTeamImpacts, isLoading, error } = useTeamCoverageData(props);
   const [activeTab, setActiveTab] = useState('org-units');
 
   const getRiskColor = (risk: string) => {
@@ -482,9 +482,13 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                     </h5>
                     <div className="gba:space-y-2">
                       {matrixTeam.impactScenarios
-                        .filter((scenario: any) => scenario.impactLevel !== 'none' && orgUnit.teamMembers.includes(scenario.employeeName))
+                        .filter((scenario: any) => 
+                          // Show scenarios with impact OR our special "no impact" message
+                          scenario.impactLevel !== 'none' && orgUnit.teamMembers.includes(scenario.employeeName) ||
+                          scenario.employeeId === 'no-impact'
+                        )
                         .sort((a: any, b: any) => {
-                          const impactOrder: Record<string, number> = { 'critical': 0, 'high': 1, 'medium': 2, 'low': 3 };
+                          const impactOrder: Record<string, number> = { 'critical': 0, 'high': 1, 'medium': 2, 'low': 3, 'none': 4 };
                           return impactOrder[a.impactLevel] - impactOrder[b.impactLevel];
                         })
                         .slice(0, 3) // Show top 3 most critical impacts

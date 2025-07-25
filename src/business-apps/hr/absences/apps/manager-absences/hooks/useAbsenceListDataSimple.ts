@@ -44,7 +44,7 @@ const buildWhereConditions = (filters: {
 }) => {
   const { search, statuses, types, groups, employees, startDate, endDate, creationStartDate, creationEndDate } = filters;
   
-  console.log('buildWhereConditions - Input date values:', { startDate, endDate, creationStartDate, creationEndDate });
+
   
   const conditions: any = {};
   
@@ -76,7 +76,12 @@ const buildWhereConditions = (filters: {
   
   // Add employee filter
   if (employees && employees.length > 0) {
-    conditions.employee = { ...conditions.employee, id: { _in: employees } };
+    // Ensure we don't overwrite existing employee conditions
+    if (conditions.employee) {
+      conditions.employee = { ...conditions.employee, id: { _in: employees } };
+    } else {
+      conditions.employee = { id: { _in: employees } };
+    }
   }
   
   // Add start/end date filters (absence date range)
@@ -85,15 +90,15 @@ const buildWhereConditions = (filters: {
     const endDateTime = `${endDate} 23:59:59+00`;
     conditions.startDate = { _gte: startDateTime };
     conditions.endDate = { _lte: endDateTime };
-    console.log('buildWhereConditions - Added start/end date range filter:', { startDate: conditions.startDate, endDate: conditions.endDate });
+    
   } else if (startDate) {
     const startDateTime = `${startDate} 00:00:00+00`;
     conditions.startDate = { _gte: startDateTime };
-    console.log('buildWhereConditions - Added start date filter:', conditions.startDate);
+    
   } else if (endDate) {
     const endDateTime = `${endDate} 23:59:59+00`;
     conditions.endDate = { _lte: endDateTime };
-    console.log('buildWhereConditions - Added end date filter:', conditions.endDate);
+    
   }
 
   // Add creation date filters
@@ -104,18 +109,18 @@ const buildWhereConditions = (filters: {
       _gte: creationStartDateTime,
       _lte: creationEndDateTime
     };
-    console.log('buildWhereConditions - Added creation date range filter:', conditions.createdAt);
+    
   } else if (creationStartDate) {
     const creationStartDateTime = `${creationStartDate} 00:00:00+00`;
     conditions.createdAt = { _gte: creationStartDateTime };
-    console.log('buildWhereConditions - Added creation start date filter:', conditions.createdAt);
+    
   } else if (creationEndDate) {
     const creationEndDateTime = `${creationEndDate} 23:59:59+00`;
     conditions.createdAt = { _lte: creationEndDateTime };
-    console.log('buildWhereConditions - Added creation end date filter:', conditions.createdAt);
+    
   }
   
-  console.log('buildWhereConditions - Final conditions:', conditions);
+
   return conditions;
 };
 
@@ -134,6 +139,8 @@ export const useAbsenceListDataSimple = ({
   accessToken,
   orgUnitId
 }: UseAbsenceListDataSimpleProps): UseAbsenceListDataSimpleReturn => {
+  
+
   // Debug logging removed - issue resolved
   
   const [absences, setAbsences] = useState<EnhancedAbsence[]>([]);
@@ -160,11 +167,18 @@ export const useAbsenceListDataSimple = ({
       });
       const typesMap: { [key: string]: string } = {};
       catalogData.data.forEach((entry: any) => {
+        // Map by both the main id and the catalogEntryLocalId
         typesMap[entry.id] = entry.value;
+        if (entry.catalogEntryLocalId) {
+          typesMap[entry.catalogEntryLocalId] = entry.value;
+        }
       });
+
       setAbsenceGroups(typesMap);
+      return typesMap;
     } catch (err) {
       console.error('Error loading absence groups:', err);
+      return {};
     }
   }, [catalogClient]);
 
@@ -184,18 +198,14 @@ export const useAbsenceListDataSimple = ({
 
     try {
       // Load absence groups if not already loaded
-      if (Object.keys(absenceGroups).length === 0) {
-        await loadAbsenceGroups();
+      let currentAbsenceGroups = absenceGroups;
+      if (Object.keys(currentAbsenceGroups).length === 0) {
+        currentAbsenceGroups = await loadAbsenceGroups();
       }
 
       const page = (targetPage - 1) * newPageSize;
       
-      console.log('🔍 Pagination debug:', {
-        targetPage,
-        newPageSize,
-        calculatedOffset: page,
-        expectedItems: newPageSize
-      });
+
 
       // Build where conditions for filtering
       const whereConditions = buildWhereConditions({
@@ -219,16 +229,36 @@ export const useAbsenceListDataSimple = ({
         employee: { employeePosition: { supervisor: { id: { _eq: supervisorId } } } }
       };
 
-      // Combine base where conditions with additional filters
-      const finalWhereConditions = Object.keys(whereConditions).length > 0 
-        ? { _and: [baseWhere, whereConditions] }
-        : baseWhere;
+      // Handle employee filter specially - combine supervisor + employee constraints
+      let finalWhereConditions;
+      if (whereConditions.employee?.id) {
+        // Employee filter exists - combine supervisor constraint with employee filter
+        const employeeIds = whereConditions.employee.id._in;
+        const otherConditions = { ...whereConditions };
+        delete otherConditions.employee; // Remove employee from other conditions
+        
+        // Combine supervisor and employee constraints
+        const employeeAndSupervisorWhere = {
+          isDeleted: { _eq: false },
+          employee: { 
+            _and: [
+              { id: { _in: employeeIds } }, // Employee filter
+              { employeePosition: { supervisor: { id: { _eq: supervisorId } } } } // Supervisor constraint
+            ]
+          }
+        };
+        
+        finalWhereConditions = Object.keys(otherConditions).length > 0 
+          ? { _and: [employeeAndSupervisorWhere, otherConditions] }
+          : employeeAndSupervisorWhere;
+      } else {
+        // No employee filter - use normal logic
+        finalWhereConditions = Object.keys(whereConditions).length > 0 
+          ? { _and: [baseWhere, whereConditions] }
+          : baseWhere;
+      }
 
-      console.log('=== WHERE CONDITIONS DEBUG ===');
-      console.log('Base where:', baseWhere);
-      console.log('Additional where conditions:', whereConditions);
-      console.log('Final where conditions:', finalWhereConditions);
-      console.log('=== END WHERE CONDITIONS DEBUG ===');
+
 
       // Use the supervisor query structure
       const query = GET_SUPERVISOR_ABSENCES_WITH_FILTERS({
@@ -239,11 +269,7 @@ export const useAbsenceListDataSimple = ({
         orderBy
       });
 
-      console.log('🔍 GraphQL query variables:', {
-        offset: page,
-        limit: newPageSize,
-        where: finalWhereConditions
-      });
+
 
       try {
         const result = await graphqlClient.request<{
@@ -263,17 +289,12 @@ export const useAbsenceListDataSimple = ({
         const rawAbsences = result.EmployeeAbsence || [];
         const totalCount = result.EmployeeAbsenceAggregate?.aggregate?.count || 0;
         
-        console.log('🔍 GraphQL result:', {
-          rawAbsencesCount: rawAbsences.length,
-          totalCount,
-          targetPage,
-          newPageSize
-        });
+
         
         // Server-side filtering is now handled in the GraphQL query
         // Just enhance the absences data
         const enhancedAbsences = rawAbsences.map(absence => 
-          enhanceAbsence(absence, absenceGroups)
+          enhanceAbsence(absence, currentAbsenceGroups)
         );
         
         setAbsences(enhancedAbsences);
@@ -295,7 +316,7 @@ export const useAbsenceListDataSimple = ({
     } finally {
       setLoading(false);
     }
-  }, [supervisorId, search, JSON.stringify(statuses), JSON.stringify(types), JSON.stringify(groups), startDate, endDate, creationStartDate, creationEndDate, sortField, sortOrder, pageSize, graphqlClient, absenceGroups, loadAbsenceGroups]);
+  }, [supervisorId, search, JSON.stringify(statuses), JSON.stringify(types), JSON.stringify(groups), JSON.stringify(employees), startDate, endDate, creationStartDate, creationEndDate, sortField, sortOrder, pageSize, graphqlClient, absenceGroups, loadAbsenceGroups]);
 
   // Retry function
   const retry = useCallback(() => {
