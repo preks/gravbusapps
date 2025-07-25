@@ -180,7 +180,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const [selectedEmployees, setSelectedEmployees] = useState<Array<{id: string, name: string}>>([]);
 
   // Status filter states
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string[]>(['BOOKED']);
   const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
 
   // Local amount filter states for immediate UI updates

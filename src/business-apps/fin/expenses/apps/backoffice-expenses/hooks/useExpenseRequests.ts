@@ -24,7 +24,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
   });
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [employeeFilter, setEmployeeFilter] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("BOOKED");
   const [amountMinFilter, setAmountMinFilter] = useState<string>("");
   const [amountMaxFilter, setAmountMaxFilter] = useState<string>("");
 
