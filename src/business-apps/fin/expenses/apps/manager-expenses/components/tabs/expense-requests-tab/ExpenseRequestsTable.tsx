@@ -67,13 +67,26 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   // Track if this is the first render
   const isFirstRender = React.useRef(true);
   
-  // Set default filter for "Approval Required" status on initial load
+  // Set default filter for "Approval Required" status and most used currency on initial load
   useEffect(() => {
-    if (selectedFilters.length === 0 && isFirstRender.current) {
+    if (isFirstRender.current) {
+      console.log('Initial render - setting up default filters');
+      console.log('Current selected filters:', selectedFilters);
+      console.log('ExpenseRequestStatusMap[PENDING]:', ExpenseRequestStatusMap[ExpenseStatus.PENDING]);
+      
       // Apply default filter for "Approval Required" (PENDING maps to in_approval)
+      // Force add the PENDING filter regardless of current state to ensure consistency
       addFilter(ExpenseRequestStatusMap[ExpenseStatus.PENDING]);
+      
+      // Ensure we're using the most used currency if available
+      if (currencyFilter) {
+        console.log('Setting initial currency filter to:', currencyFilter);
+      }
+      
+      // Don't set isFirstRender to false here - we'll do that in the data fetch effect
+      // after we've confirmed the filters are applied
     }
-  }, [addFilter, selectedFilters]);
+  }, [addFilter, selectedFilters, currencyFilter]);
 
   // Use a ref to track the last fetch parameters to avoid redundant fetches
   const lastFetchParams = React.useRef({
@@ -122,10 +135,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   
   // Consolidated fetch requests when filters or pagination changes
   useEffect(() => {
-    // Skip the first render to avoid duplicate fetches with default filters
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
+    // On first render, we want to fetch with default filters
+    const isInitialRender = isFirstRender.current;
+    
+    // Ensure the status filter is applied on initial render
+    if (isInitialRender && selectedFilters.length === 0) {
+      console.log('Forcing PENDING status filter on initial render');
+      addFilter(ExpenseRequestStatusMap[ExpenseStatus.PENDING]);
+      return; // Skip this render cycle, will be triggered again after filter is added
     }
     
     console.log('ExpenseRequestsTable useEffect triggered');
@@ -163,6 +180,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     // Update last fetch params
     lastFetchParams.current = currentParams;
     
+    // Log the actual filters being used
+    console.log('Fetching with filters:', {
+      filters,
+      statusFilters: filters.status,
+      currencyFilter
+    });
+    
     // Use debounced fetch to prevent multiple rapid requests
     debouncedFetch({
       searchText,
@@ -172,6 +196,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       currencyFilter,
       sorting
     });
+    
+    // If this was the initial render, log that we've applied default filters
+    if (isInitialRender) {
+      console.log('Initial data load with default filters:', {
+        status: filters.status || [],
+        currencyFilter
+      });
+    }
   }, [searchText, currentPage, pageSize, selectedFilters, currencyFilter, fetchRequests, getFilters, debouncedFetch, sorting]);
 
   // Handle search input changes

@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests';
-import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters';
+import { useExpenseRequestFilters, ExpenseRequestStatusMap } from '../../../hooks/useExpenseRequestFilters';
+import { ExpenseStatus } from '../../../utils';
 import { useCurrencyStore } from '../../../store/useCurrencyStore';
+import { useAppCurrency } from '../../../hooks/useAppCurrency';
 import ExpenseRequestStatistics from './ExpenseRequestStatistics';
 import ExpenseRequestsTable from './ExpenseRequestsTable';
 
@@ -18,8 +20,24 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
   // Get managerId from userInfo for currency filtering
   const managerId = props.userInfo?.employeeDetails?.employeeId || '';
   
-  // Use the currency store for the primary currency
-  const { primaryCurrency } = useCurrencyStore();
+  // Use the app currency hook to ensure most used currency is loaded
+  useAppCurrency(contextProps);
+  
+  // Use the currency store for the primary currency and most used currency
+  const { primaryCurrency, mostUsedCurrency, setUserSelected } = useCurrencyStore();
+  
+  // Track if this is the first tab activation
+  const isFirstActivation = React.useRef(true);
+  
+  // Initialize currency filter with most used currency on first load
+  useEffect(() => {
+    if (isFirstActivation.current && mostUsedCurrency) {
+      console.log('ExpenseRequestsTab: Setting initial currency to most used currency:', mostUsedCurrency);
+      // Set the primary currency to the most used currency without marking it as user-selected
+      setUserSelected(false);
+      isFirstActivation.current = false;
+    }
+  }, [mostUsedCurrency, setUserSelected]);
   
   // Use the expense request filters hook with accessToken and managerId for dynamic currency data
   useExpenseRequestFilters({
@@ -27,13 +45,50 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     managerId
   }); // Most filter functionality is used in ExpenseRequestsTable component
   
-  // Use hook only for statistics
+  // Use hook for statistics and to initialize default filters
   const {
     requestStats,
     requestStatsLoading,
     requestStatsError,
-    fetchRequestStatistics
+    fetchRequestStatistics,
+    fetchRequests
   } = useGetExpenseRequests(contextProps);
+  
+  // Use the expense request filters hook
+  useExpenseRequestFilters({
+    accessToken: props.accessToken,
+    managerId
+  }); // Most filter functionality is used in ExpenseRequestsTable component
+  
+  // Ensure we fetch data with default filters when the component mounts
+  useEffect(() => {
+    // Only perform the initial fetch if we have a valid currency
+    if (primaryCurrency) {
+      // Fetch with PENDING status and most used currency
+      const initialFetch = async () => {
+        // Use the same status value that's used in the filters hook
+        const pendingStatus = ExpenseRequestStatusMap[ExpenseStatus.PENDING];
+        
+        console.log('ExpenseRequestsTab: Initial fetch with default filters:', {
+          status: pendingStatus,
+          currency: primaryCurrency
+        });
+        
+        // Direct API call to ensure filters are applied correctly
+        await fetchRequests(
+          '', // No search term
+          1,  // First page
+          10, // Default page size
+          'requestDate:desc', // Default sorting
+          [pendingStatus], // Use the mapped status value from the filter hook
+          undefined, // No request date filter
+          primaryCurrency // Use primary currency (which should be the most used currency)
+        );
+      };
+      
+      initialFetch();
+    }
+  }, [fetchRequests, primaryCurrency, ExpenseRequestStatusMap, ExpenseStatus]);
   
   // Use a ref to track the last currency used for statistics fetching
   const lastStatsCurrency = React.useRef<string | null>(null);
