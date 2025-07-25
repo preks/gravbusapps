@@ -31,7 +31,7 @@ export interface UseSalesTaskQueriesReturn {
   fetchSalesTasks: (variables?: SalesTaskQueryVariables) => Promise<SalesTaskResponse>;
   fetchSalesTasksCount: (variables?: SalesTaskQueryVariables) => Promise<number>;
   fetchSalesTasksWithCount: (variables?: SalesTaskQueryVariables) => Promise<SalesTaskWithCountResponse>;
-  fetchHistoricalStatistics: (daysAgo?: number) => Promise<HistoricalTaskStatisticsResponse>;
+  fetchHistoricalStatistics: (daysAgo?: number, filterVariables?: SalesTaskQueryVariables) => Promise<HistoricalTaskStatisticsResponse>;
 }
 
 /**
@@ -74,8 +74,11 @@ export const useSalesTaskQueries = ({ accessToken }: UseSalesTaskQueriesProps): 
     }
   }, [graphqlClient]);
 
-  const fetchHistoricalStatistics = useCallback(async (daysAgo: number = 30): Promise<HistoricalTaskStatisticsResponse> => {
-    const { query, variables: queryVariables } = GET_HISTORICAL_TASK_STATISTICS(daysAgo);
+  const fetchHistoricalStatistics = useCallback(async (
+    daysAgo: number = 30, 
+    filterVariables?: SalesTaskQueryVariables
+  ): Promise<HistoricalTaskStatisticsResponse> => {
+    const { query, variables: queryVariables } = GET_HISTORICAL_TASK_STATISTICS(filterVariables);
     try {
       const result = await graphqlClient.request<HistoricalTaskStatisticsResponse>(query, queryVariables);
       return result;

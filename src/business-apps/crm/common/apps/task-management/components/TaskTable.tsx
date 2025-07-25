@@ -2,8 +2,9 @@
 
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Avatar, AvatarFallback, Button, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Card, CardContent } from '@newwork/nw-design-system';
+import { Avatar, AvatarFallback, Button, Badge, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Spinner, Card, CardContent, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system';
 import { PiUser, PiArrowUp, PiArrowDown, PiLightning } from 'react-icons/pi';
+import { Clock, Calendar } from 'lucide-react';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { startProcess } from '@/common/utils/start-process';
@@ -36,6 +37,7 @@ interface TaskTableProps {
   selectedTaskId?: string;
   accessToken: string;
   sourceApp?: string;
+  hideAssignedTo?: boolean; // New prop to hide assigned to column
 }
 
 const DATA_TEST_ID_PREFIX = 'TaskTable';
@@ -61,7 +63,8 @@ export const TaskTable: React.FC<TaskTableProps> = ({
   onSortingChange,
   selectedTaskId,
   accessToken,
-  sourceApp
+  sourceApp,
+  hideAssignedTo
 }) => {
   const { t } = useTranslation();
 
@@ -71,6 +74,34 @@ export const TaskTable: React.FC<TaskTableProps> = ({
 
   const getInitials = (firstName: string, lastName: string): string => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
+  // Helper function to get timing type icon and tooltip
+  const getTimingTypeIcon = (timingType?: string) => {
+    if (!timingType) {
+      return {
+        icon: <Clock className="gba:h-4 gba:w-4 gba:text-gray-400" />,
+        tooltip: 'No timing type specified'
+      };
+    }
+
+    switch (timingType.toUpperCase()) {
+      case 'DEADLINE':
+        return {
+          icon: <Clock className="gba:h-4 gba:w-4 gba:text-red-500" />,
+          tooltip: 'Deadline - Complete by this date'
+        };
+      case 'SCHEDULED':
+        return {
+          icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
+          tooltip: 'Scheduled - Execute on this specific date'
+        };
+      default:
+        return {
+          icon: <Clock className="gba:h-4 gba:w-4 gba:text-gray-400" />,
+          tooltip: 'Unknown timing type'
+        };
+    }
   };
 
   // Handle employee profile navigation
@@ -210,16 +241,18 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     {renderSortIcon('name')}
                   </div>
                 </TableHead>
-                <TableHead 
-                  className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort('assignedTo')}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-header`}
-                >
-                  <div className="gba:flex gba:items-center">
-                    {t('task.assignedTo', 'Assigned To')}
-                    {renderSortIcon('assignedTo')}
-                  </div>
-                </TableHead>
+                {!hideAssignedTo && (
+                  <TableHead 
+                    className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort('assignedTo')}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t('task.assignedTo', 'Assigned To')}
+                      {renderSortIcon('assignedTo')}
+                    </div>
+                  </TableHead>
+                )}
                 <TableHead 
                   className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort('type')}
@@ -322,28 +355,30 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-cell-${record.id}`}>
-                    <div 
-                      className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEmployeeClick(record.assignedTo);
-                      }}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-link-${record.id}`}
-                    >
-                      <Avatar size="sm">
-                        <AvatarFallback>
-                          {getInitials(record.assignedTo.firstName, record.assignedTo.lastName)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="gba:flex gba:flex-col">
-                        <span className="gba:font-medium gba:text-sm">
-                          {record.assignedTo.displayName}
-                        </span>
-                        <span className="gba:text-xs gba:text-gray-500">{record.assignedTo.department}</span>
+                  {!hideAssignedTo && (
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-cell-${record.id}`}>
+                      <div 
+                        className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEmployeeClick(record.assignedTo);
+                        }}
+                        data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-link-${record.id}`}
+                      >
+                        <Avatar size="sm">
+                          <AvatarFallback>
+                            {getInitials(record.assignedTo.firstName, record.assignedTo.lastName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="gba:flex gba:flex-col">
+                          <span className="gba:font-medium gba:text-sm">
+                            {record.assignedTo.displayName}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-500">{record.assignedTo.department}</span>
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
+                    </TableCell>
+                  )}
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-type-cell-${record.id}`}>
                     <Badge variant={getTaskTypeBadgeVariant(record.type)}>
                       {record.type.charAt(0).toUpperCase() + record.type.slice(1).toLowerCase()}
@@ -386,6 +421,18 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-schedule-cell-${record.id}`}>
                     <div className="gba:flex gba:items-center gba:gap-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="gba:flex gba:items-center">
+                              {getTimingTypeIcon(record.timingType).icon}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{getTimingTypeIcon(record.timingType).tooltip}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <span className="gba:text-sm">
                         {formatDate(record.dueDate)}
                       </span>

@@ -90,7 +90,7 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
   // Data hooks
   const { data: taskTypes, loading: taskTypesLoading } = useSalesTaskTypes(accessToken, { search: typeSearch });
   const { data: priorities, loading: prioritiesLoading } = useSalesTaskPriorities(accessToken, { search: prioritySearch });
-  const { data: employees, loading: employeesLoading } = useSalesTaskEmployees(accessToken, { search: employeeSearch });
+  const { data: employees, loading: employeesLoading } = useSalesTaskEmployees(accessToken, { search: employeeSearch, limit: employeeSearch ? 50 : 100 });
   const { entities, loading: entitiesLoading, searchEntities } = useSalesTaskEntities(accessToken);
   
   // Clients
@@ -155,47 +155,63 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
   // Populate form with existing task data in UPDATE mode
   useEffect(() => {
     if (isUpdateMode && actualTaskData) {
+      // Find catalog entry ID by matching the full reference
+      const findCatalogEntryIdByRef = (ref: string, options: any[]) => {
+        if (!ref) return '';
+        const entry = options.find(opt => opt.value === ref);
+        return entry ? entry.value : '';
+      };
+
       const updateValues: Partial<SalesTaskFormValues> = {
         title: actualTaskData.name || '',
-        taskTypeRef: actualTaskData.typeRef || '',
-        priorityRef: actualTaskData.priorityRef || '',
-        deadline: actualTaskData.dueDate ? dayjs(actualTaskData.dueDate).format('YYYY-MM-DD') : null,
+        taskTypeRef: findCatalogEntryIdByRef(actualTaskData.typeRef, mappedTaskTypes),
+        priorityRef: findCatalogEntryIdByRef(actualTaskData.priorityRef, mappedPriorities),
+        timingType: (actualTaskData.timingType as 'DEADLINE' | 'SCHEDULED') || 'DEADLINE',
+        deadline: actualTaskData.dueDate ? dayjs(actualTaskData.dueDate).format('YYYY-MM-DDTHH:mm') : null,
         description: actualTaskData.description || '',
         assignedEmployeeId: actualTaskData.assignedEmployeeId || '',
         id: actualTaskData.id,
         version: actualTaskData.version || 0,
       };
-      
-      setFormValuesState(prev => ({ ...prev, ...updateValues }));
-      
-      // Set entity selection if there's a related entity
+
+      // Preserve existing entity relationship
       if (actualTaskData.account) {
+        updateValues.relatedEntityId = actualTaskData.account.id || actualTaskData.account;
+        updateValues.relatedEntityType = 'account';
         setSelectedEntity({
-          id: actualTaskData.account.id,
-          name: actualTaskData.account.name,
+          id: actualTaskData.account.id || actualTaskData.account,
+          name: actualTaskData.account.name || 'Account',
           type: 'account'
         });
       } else if (actualTaskData.contact) {
+        updateValues.relatedEntityId = actualTaskData.contact.id || actualTaskData.contact;
+        updateValues.relatedEntityType = 'contact';
         setSelectedEntity({
-          id: actualTaskData.contact.id,
-          name: `${actualTaskData.contact.firstName || ''} ${actualTaskData.contact.lastName || ''}`.trim(),
+          id: actualTaskData.contact.id || actualTaskData.contact,
+          name: `${actualTaskData.contact.firstName || ''} ${actualTaskData.contact.lastName || ''}`.trim() || 'Contact',
           type: 'contact'
         });
       } else if (actualTaskData.lead) {
+        updateValues.relatedEntityId = actualTaskData.lead.id || actualTaskData.lead;
+        updateValues.relatedEntityType = 'lead';
         setSelectedEntity({
-          id: actualTaskData.lead.id,
+          id: actualTaskData.lead.id || actualTaskData.lead,
           name: `${actualTaskData.lead.firstName || ''} ${actualTaskData.lead.lastName || ''}`.trim() || actualTaskData.lead.companyName || 'Lead',
           type: 'lead'
         });
       } else if (actualTaskData.opportunity) {
+        updateValues.relatedEntityId = actualTaskData.opportunity.id || actualTaskData.opportunity;
+        updateValues.relatedEntityType = 'opportunity';
         setSelectedEntity({
-          id: actualTaskData.opportunity.id,
-          name: actualTaskData.opportunity.name,
+          id: actualTaskData.opportunity.id || actualTaskData.opportunity,
+          name: actualTaskData.opportunity.name || 'Opportunity',
           type: 'opportunity'
         });
       }
+      
+      setFormValuesState(prev => ({ ...prev, ...updateValues }));
     }
-  }, [isUpdateMode, actualTaskData]);
+  }, [isUpdateMode, actualTaskData, mappedTaskTypes, mappedPriorities]);
   
   // Helper to update form values
   const setFormValues = useCallback((updates: Partial<SalesTaskFormValues>) => {

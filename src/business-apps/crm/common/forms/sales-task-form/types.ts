@@ -3,6 +3,7 @@ export interface SalesTaskFormValues {
   title: string;
   taskTypeRef: string;
   priorityRef: string;
+  timingType?: 'DEADLINE' | 'SCHEDULED';
   deadline: string | null;
   description: string;
   assignedEmployeeId: string;

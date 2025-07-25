@@ -152,6 +152,7 @@ const transformSalesTaskToTask = (salesTask: SalesTask): Task | null => {
     reference,
     dueDate: salesTask.dueDate || salesTask.createdAt,
     scheduleDate: salesTask.createdAt,
+    timingType: salesTask.timingType as 'Deadline' | 'Scheduled' | undefined,
     createdAt: salesTask.createdAt,
     updatedAt: salesTask.updatedAt || salesTask.createdAt,
     version: salesTask.version,

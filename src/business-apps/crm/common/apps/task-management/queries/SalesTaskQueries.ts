@@ -25,6 +25,7 @@ export const GET_SALES_TASKS = (variables: SalesTaskQueryVariables): { query: st
         statusRef
         priorityRef
         typeRef
+        timingType
         assignedEmployeeId
         assignedEmployee {
           id
@@ -100,6 +101,7 @@ export const GET_SALES_TASKS_WITH_COUNT = (variables: SalesTaskQueryVariables): 
         statusRef
         priorityRef
         typeRef
+        timingType
         assignedEmployeeId
         assignedEmployee {
           id
@@ -181,19 +183,57 @@ export const GET_SALES_TASKS_COUNT = (variables: SalesTaskQueryVariables): { que
 /**
  * GraphQL query to fetch historical task statistics for growth comparison
  */
-export const GET_HISTORICAL_TASK_STATISTICS = (daysAgo: number = 30): { query: string; variables: any } => {
-  const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - daysAgo);
+export const GET_HISTORICAL_TASK_STATISTICS = (filterVariables?: SalesTaskQueryVariables): { query: string; variables: any } => {
+  // Build additional where conditions from filter variables
+  const additionalWhere: any = {};
   
-  const previousFromDate = new Date(fromDate.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
+  if (filterVariables?.assignedEmployeeIds?.length) {
+    additionalWhere.assignedEmployeeId = {
+      _in: filterVariables.assignedEmployeeIds
+    };
+  }
+  
+  if (filterVariables?.statusRefs?.length) {
+    additionalWhere.statusRef = { _in: filterVariables.statusRefs };
+  }
+  
+  if (filterVariables?.priorityRefs?.length) {
+    additionalWhere.priorityRef = { _in: filterVariables.priorityRefs };
+  }
+  
+  if (filterVariables?.taskTypes?.length) {
+    additionalWhere.typeRef = { _in: filterVariables.taskTypes };
+  }
+
+  // Build the where clause conditionally
+  const hasAdditionalFilters = Object.keys(additionalWhere).length > 0;
+  const baseWhere = { recordState: { _neq: "DELETED" } };
+  
+  const currentWhere = hasAdditionalFilters 
+    ? { ...baseWhere, _and: [additionalWhere] }
+    : baseWhere;
+    
+  const previousWhere = hasAdditionalFilters 
+    ? { ...baseWhere, _and: [additionalWhere] }
+    : baseWhere;
+    
+  const allWhere = hasAdditionalFilters 
+    ? { ...baseWhere, _and: [additionalWhere] }
+    : baseWhere;
   
   const query = `
-    query GetHistoricalTaskStatistics($fromDate: timestamptz!, $previousFromDate: timestamptz!) {
+    query GetHistoricalTaskStatistics(
+      $fromDate: timestamptz!, 
+      $previousFromDate: timestamptz!,
+      $currentWhere: SalesTaskBoolExp!,
+      $previousWhere: SalesTaskBoolExp!,
+      $allWhere: SalesTaskBoolExp!
+    ) {
       # Current period tasks
       currentTasks: SalesTask(
         where: {
-          recordState: { _neq: "DELETED" }
           createdAt: { _gte: $fromDate }
+          _and: [$currentWhere]
         }
       ) {
         id
@@ -205,11 +245,11 @@ export const GET_HISTORICAL_TASK_STATISTICS = (daysAgo: number = 30): { query: s
       # Previous period tasks (for comparison)
       previousTasks: SalesTask(
         where: {
-          recordState: { _neq: "DELETED" }
           createdAt: { 
             _gte: $previousFromDate
             _lt: $fromDate
           }
+          _and: [$previousWhere]
         }
       ) {
         id
@@ -218,11 +258,9 @@ export const GET_HISTORICAL_TASK_STATISTICS = (daysAgo: number = 30): { query: s
         createdAt
       }
       
-      # All tasks for totals
+      # All tasks for filtered totals
       allTasks: SalesTask(
-        where: {
-          recordState: { _neq: "DELETED" }
-        }
+        where: $allWhere
       ) {
         id
         statusRef
@@ -232,11 +270,19 @@ export const GET_HISTORICAL_TASK_STATISTICS = (daysAgo: number = 30): { query: s
     }
   `;
 
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - 30);
+  
+  const previousFromDate = new Date(fromDate.getTime() - (30 * 24 * 60 * 60 * 1000));
+
   return { 
     query, 
     variables: { 
       fromDate: fromDate.toISOString(),
-      previousFromDate: previousFromDate.toISOString()
+      previousFromDate: previousFromDate.toISOString(),
+      currentWhere,
+      previousWhere,
+      allWhere
     }
   };
 }; 

@@ -65,9 +65,9 @@ export const useSalesTaskEmployees = (accessToken: string, params?: UseSalesTask
         searchPattern = `%${params.search.trim()}%`;
         limit = 50;
       } else {
-        // No search or search too short - get first 10 employees alphabetically
+        // No search or search too short - get more employees alphabetically (increased from 10 to limit or 100)
         searchPattern = '%%';
-        limit = 10;
+        limit = params?.limit || 100;
       }
 
       const variables = {

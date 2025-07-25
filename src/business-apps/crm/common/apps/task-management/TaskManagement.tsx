@@ -2,7 +2,8 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
+import { UserOutlined, TeamOutlined } from '@ant-design/icons';
 
 import { DataContainer } from '@/components/layout/dataContainer';
 import { useTaskListData } from './hooks/useTaskListData';
@@ -24,8 +25,11 @@ export interface TaskManagementProps extends BusinessAppContextProps {
  * @returns {JSX.Element}
  */
 export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagementProps) => {
-  const { accessToken, sourceApp } = props;
+  const { accessToken, sourceApp, userInfo } = props;
   const { t } = useTranslation();
+
+  // Tab state management
+  const [activeTab, setActiveTab] = useState('my');
 
   // Use the centralized task filters hook
   const {
@@ -51,7 +55,8 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
       page: parseInt(urlParams.get('page') || '1', 10),
       pageSize: parseInt(urlParams.get('pageSize') || '20', 10),
       sortField: urlParams.get('sortField') || '',
-      sortOrder: urlParams.get('sortOrder') || 'DESC'
+      sortOrder: urlParams.get('sortOrder') || 'DESC',
+      tab: urlParams.get('tab') || 'my'
     };
   });
 
@@ -62,8 +67,11 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const initialLoadDone = useRef(false);
 
-  // Initialize search from URL if not already set - ONLY ONCE
+  // Initialize tab and search from URL if not already set - ONLY ONCE
   useEffect(() => {
+    if (initialParams.tab && activeTab === 'my') {
+      setActiveTab(initialParams.tab);
+    }
     if (initialParams.search && !search) {
       setSearch(initialParams.search);
     }
@@ -76,6 +84,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     pageSize?: number;
     sortField?: string;
     sortOrder?: 'ASC' | 'DESC';
+    tab?: string;
   }) => {
     const newSearchParams = new URLSearchParams(window.location.search);
     
@@ -119,9 +128,42 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
       }
     }
 
+    if (params.tab !== undefined) {
+      if (params.tab !== 'my') {
+        newSearchParams.set('tab', params.tab);
+      } else {
+        newSearchParams.delete('tab');
+      }
+    }
+
     const newURL = `${window.location.pathname}?${newSearchParams.toString()}`;
     window.history.replaceState({}, '', newURL);
   }, []);
+
+  // Handle tab change
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab);
+    setCurrentPage(1); // Reset to first page when switching tabs
+    updateURLParams({ tab, page: 1 });
+  }, [updateURLParams]);
+
+  // Get filters based on active tab
+  const getTabFilters = useCallback(() => {
+    const baseFilters = getFilters();
+    
+    if (activeTab === 'my') {
+      // For "My Tasks", filter by current user's employee ID
+      const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId;
+      if (currentUserEmployeeId) {
+        return {
+          ...baseFilters,
+          assignedEmployeeIds: [currentUserEmployeeId]
+        };
+      }
+    }
+    
+    return baseFilters;
+  }, [getFilters, activeTab, userInfo]);
 
   // Handle adding a new task
   const handleAddTask = useCallback(() => {
@@ -162,21 +204,21 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     loadPage,
     retry 
   } = useTaskListData({
-    ...getFilters(),
+    ...getTabFilters(),
     sortField,
     sortOrder,
     accessToken,
     sourceApp
   });
 
-  // Get task statistics
+  // Get task statistics with tab-specific filters
   const {
     statistics, 
     loading: statisticsLoading, 
     error: statisticsError, 
     refetch: refetchStatistics
   } = useTaskStatistics({
-    ...getFilters(), 
+    ...getTabFilters(), 
     accessToken
   });
 
@@ -193,8 +235,6 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     retry();
     refetchStatistics();
   }, [retry, refetchStatistics]);
-
-
 
   // Listen for process completion events to refresh tasks (following established CRM pattern)
   useEffect(() => {
@@ -314,6 +354,15 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     }
   }, [selectedFilters.length, filterCreatedAfter, filterCreatedBefore]); // FIXED: Don't stringify entire array
 
+  // Trigger reload when tab changes - SKIP INITIAL LOAD
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      setCurrentPage(1);
+      loadPage(1, pageSize);
+      refetchStatistics();
+    }
+  }, [activeTab]);
+
   // Handle task selection
   const handleSelectTask = useCallback((task: Task) => {
     setSelectedTask(task);
@@ -413,61 +462,138 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
         />
       </div>
 
-      <DataContainer
-        dataControllerProps={{
-          search,
-          setSearch,
-          debounceDelay: 500,
-          filter: selectedFilters,
-          setFilter: handleSetFilter,
-          filterLabelMap,
-          dateRange: {
-            createdAfter: filterCreatedAfter,
-            createdBefore: filterCreatedBefore,
-            onClear: () => filterHandleDateRangeChange(undefined, undefined)
-          },
-          listTitle: (
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span>Tasks</span>
-                <span className="gba:text-gray-500">({total})</span>
-              </div>
-            </div>
-          ),
-          addButton: {
-            onClick: handleAddTask,
-            label: 'Add',
-            'data-testid': 'add-task-button'
-          },
-        }}
-        dataFilterProps={{
-          filterGroups,
-          onFilterChange: handleFilterChange
-        }}
-        dataBody={
-          <div data-testid="task-table-container">
-            <TaskTable
-              {...props}
-              tasks={tasks}
-              loading={loading}
-              error={error}
-              hasMore={hasMore}
-              loadMore={loadMore}
-              loadPage={loadPage}
-              retry={retry}
-              total={total}
-              pageSize={pageSize}
-              currentPage={currentPage}
-              sortField={sortField}
-              sortOrder={sortOrder}
-              onSelectTask={handleSelectTask}
-              onPaginationChange={handlePaginationChange}
-              onSortingChange={handleSortingChange}
-              selectedTaskId={selectedTask?.id}
+      {/* Main content with tabs */}
+      <div className="gba:task-management-content" data-testid="task-management-tabs">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:w-full">
+          <TabsList className="gba:bg-white gba:border gba:mb-6">
+            <TabsTrigger value="my" data-testid="my-tasks-tab">
+              <UserOutlined className="gba:mr-2" />
+              My Tasks
+            </TabsTrigger>
+            <TabsTrigger value="team" data-testid="team-tasks-tab">
+              <TeamOutlined className="gba:mr-2" />
+              Team Tasks
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="my" data-testid="my-tasks-content">
+            <DataContainer
+              dataControllerProps={{
+                search,
+                setSearch,
+                debounceDelay: 500,
+                filter: selectedFilters,
+                setFilter: handleSetFilter,
+                filterLabelMap,
+                dateRange: {
+                  createdAfter: filterCreatedAfter,
+                  createdBefore: filterCreatedBefore,
+                  onClear: () => filterHandleDateRangeChange(undefined, undefined)
+                },
+                listTitle: (
+                  <div className="gba:flex gba:items-center gba:gap-4">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <span>My Tasks</span>
+                      <span className="gba:text-gray-500">({total})</span>
+                    </div>
+                  </div>
+                ),
+                addButton: {
+                  onClick: handleAddTask,
+                  label: 'Add',
+                  'data-testid': 'add-task-button'
+                },
+              }}
+              dataFilterProps={{
+                filterGroups,
+                onFilterChange: handleFilterChange
+              }}
+              dataBody={
+                <div data-testid="my-task-table-container">
+                  <TaskTable
+                    {...props}
+                    tasks={tasks}
+                    loading={loading}
+                    error={error}
+                    hasMore={hasMore}
+                    loadMore={loadMore}
+                    loadPage={loadPage}
+                    retry={retry}
+                    total={total}
+                    pageSize={pageSize}
+                    currentPage={currentPage}
+                    sortField={sortField}
+                    sortOrder={sortOrder}
+                    onSelectTask={handleSelectTask}
+                    onPaginationChange={handlePaginationChange}
+                    onSortingChange={handleSortingChange}
+                    selectedTaskId={selectedTask?.id}
+                    hideAssignedTo={true}
+                  />
+                </div>
+              }
             />
-          </div>
-        }
-      />
+          </TabsContent>
+
+          <TabsContent value="team" data-testid="team-tasks-content">
+            <DataContainer
+              dataControllerProps={{
+                search,
+                setSearch,
+                debounceDelay: 500,
+                filter: selectedFilters,
+                setFilter: handleSetFilter,
+                filterLabelMap,
+                dateRange: {
+                  createdAfter: filterCreatedAfter,
+                  createdBefore: filterCreatedBefore,
+                  onClear: () => filterHandleDateRangeChange(undefined, undefined)
+                },
+                listTitle: (
+                  <div className="gba:flex gba:items-center gba:gap-4">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <span>Team Tasks</span>
+                      <span className="gba:text-gray-500">({total})</span>
+                    </div>
+                  </div>
+                ),
+                addButton: {
+                  onClick: handleAddTask,
+                  label: 'Add',
+                  'data-testid': 'add-task-button'
+                },
+              }}
+              dataFilterProps={{
+                filterGroups,
+                onFilterChange: handleFilterChange
+              }}
+              dataBody={
+                <div data-testid="team-task-table-container">
+                  <TaskTable
+                    {...props}
+                    tasks={tasks}
+                    loading={loading}
+                    error={error}
+                    hasMore={hasMore}
+                    loadMore={loadMore}
+                    loadPage={loadPage}
+                    retry={retry}
+                    total={total}
+                    pageSize={pageSize}
+                    currentPage={currentPage}
+                    sortField={sortField}
+                    sortOrder={sortOrder}
+                    onSelectTask={handleSelectTask}
+                    onPaginationChange={handlePaginationChange}
+                    onSortingChange={handleSortingChange}
+                    selectedTaskId={selectedTask?.id}
+                  />
+                </div>
+              }
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
 
       {/* Task Details Sheet */}
       <Sheet open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>

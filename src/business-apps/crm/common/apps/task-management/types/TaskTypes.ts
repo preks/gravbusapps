@@ -25,6 +25,7 @@ export interface Task {
   reference: TaskReference;
   dueDate: string;
   scheduleDate?: string;
+  timingType?: 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE';
   createdAt: string;
   updatedAt: string;
   version?: number;

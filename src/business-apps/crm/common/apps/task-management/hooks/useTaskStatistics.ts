@@ -122,70 +122,72 @@ const calculateStatisticsWithGrowth = (
     }
   });
 
+  // Calculate statistics from filtered all tasks (not system-wide)
+  let filteredTotal = 0;
+  let filteredInProgress = 0;
+  let filteredCompleted = 0;
+  let filteredOverdue = 0;
+
+  allTasks.forEach(task => {
+    filteredTotal++;
+    
+    if (task.statusRef) {
+      const statusValue = task.statusRef.split(':').pop()?.toLowerCase();
+      switch (statusValue) {
+        case 'completed':
+        case 'done':
+          filteredCompleted++;
+          break;
+        case 'in_progress':
+        case 'active':
+          filteredInProgress++;
+          break;
+        case 'overdue':
+          filteredOverdue++;
+          break;
+        default:
+          if (task.dueDate && new Date(task.dueDate) < new Date()) {
+            filteredOverdue++;
+          } else {
+            filteredInProgress++;
+          }
+      }
+    } else {
+      if (task.dueDate && new Date(task.dueDate) < new Date()) {
+        filteredOverdue++;
+      } else {
+        filteredInProgress++;
+      }
+    }
+  });
+
   // Calculate growth indicators
   const totalGrowth = calculateGrowth(currentTotal, previousTotal);
   const inProgressGrowth = calculateGrowth(currentInProgress, previousInProgress);
   const completedGrowth = calculateGrowth(currentCompleted, previousCompleted);
   const overdueGrowth = calculateGrowth(currentOverdue, previousOverdue);
 
-  // Use all tasks count for total to show system-wide statistics
-  const systemTotal = allTasks.length;
-  let systemInProgress = 0;
-  let systemCompleted = 0;
-  let systemOverdue = 0;
-
-  allTasks.forEach(task => {
-    if (task.statusRef) {
-      const statusValue = task.statusRef.split(':').pop()?.toLowerCase();
-      switch (statusValue) {
-        case 'completed':
-        case 'done':
-          systemCompleted++;
-          break;
-        case 'in_progress':
-        case 'active':
-          systemInProgress++;
-          break;
-        case 'overdue':
-          systemOverdue++;
-          break;
-        default:
-          if (task.dueDate && new Date(task.dueDate) < new Date()) {
-            systemOverdue++;
-          } else {
-            systemInProgress++;
-          }
-      }
-    } else {
-      if (task.dueDate && new Date(task.dueDate) < new Date()) {
-        systemOverdue++;
-      } else {
-        systemInProgress++;
-      }
-    }
-  });
-
   return {
     totalTasks: {
-      value: systemTotal,
+      value: filteredTotal,
       previousValue: previousTotal,
       growth: totalGrowth.growth,
       growthDirection: totalGrowth.growthDirection
     },
     inProgress: {
-      value: systemInProgress,
+      value: filteredInProgress,
       previousValue: previousInProgress,
       growth: inProgressGrowth.growth,
       growthDirection: inProgressGrowth.growthDirection
     },
     completed: {
-      value: systemCompleted,
+      value: filteredCompleted,
       previousValue: previousCompleted,
       growth: completedGrowth.growth,
       growthDirection: completedGrowth.growthDirection
     },
     overdue: {
-      value: systemOverdue,
+      value: filteredOverdue,
       previousValue: previousOverdue,
       growth: overdueGrowth.growth,
       growthDirection: overdueGrowth.growthDirection
@@ -195,9 +197,15 @@ const calculateStatisticsWithGrowth = (
 
 export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatisticsReturn => {
   const {
-    accessToken
-    // NOTE: Intentionally NOT destructuring filter properties
-    // because statistics should show totals, not filtered counts
+    accessToken,
+    // Extract filter properties to use for tab-specific statistics
+    assignedEmployeeIds,
+    statusRefs,
+    priorityRefs,
+    taskTypes,
+    search,
+    createdAfter,
+    createdBefore
   } = props;
 
   // State
@@ -217,6 +225,29 @@ export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatist
   // GraphQL queries
   const { fetchHistoricalStatistics } = useSalesTaskQueries({ accessToken });
 
+  // Build filter variables for statistics
+  const getFilterVariables = useCallback(() => {
+    const filterVariables: any = {};
+    
+    if (assignedEmployeeIds?.length) {
+      filterVariables.assignedEmployeeIds = assignedEmployeeIds;
+    }
+    
+    if (statusRefs?.length) {
+      filterVariables.statusRefs = statusRefs;
+    }
+    
+    if (priorityRefs?.length) {
+      filterVariables.priorityRefs = priorityRefs;
+    }
+    
+    if (taskTypes?.length) {
+      filterVariables.taskTypes = taskTypes;
+    }
+    
+    return filterVariables;
+  }, [assignedEmployeeIds, statusRefs, priorityRefs, taskTypes]);
+
   // Fetch statistics with historical comparison (THROTTLED)
   const fetchStatistics = useCallback(async () => {
     if (!accessToken) {
@@ -235,8 +266,9 @@ export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatist
     setError(null);
 
     try {
-      // Fetch historical data for 30-day comparison
-      const result = await fetchHistoricalStatistics(30);
+      // Fetch historical data for 30-day comparison with current filters
+      const filterVariables = getFilterVariables();
+      const result = await fetchHistoricalStatistics(30, filterVariables);
       
       const stats = calculateStatisticsWithGrowth(
         result.currentTasks, 
@@ -251,7 +283,7 @@ export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatist
     } finally {
       setLoading(false);
     }
-  }, [accessToken, fetchHistoricalStatistics]);
+  }, [accessToken, fetchHistoricalStatistics, getFilterVariables]);
 
   // Refetch function (THROTTLED)
   const refetch = useCallback(() => {
@@ -262,16 +294,19 @@ export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatist
     fetchStatistics();
   }, [fetchStatistics]);
 
-  // Auto-reload when accessToken changes
+  // Auto-reload when accessToken or filters change
   useEffect(() => {
     if (accessToken) {
       fetchStatistics();
     }
   }, [
     accessToken,
-    fetchStatistics
-    // NOTE: No filter dependencies - statistics should only update when accessToken changes
-    // This ensures statistics always show totals, not filtered counts
+    fetchStatistics,
+    // Include filter dependencies so statistics update when tab changes
+    assignedEmployeeIds,
+    statusRefs,
+    priorityRefs,
+    taskTypes
   ]);
 
   return {

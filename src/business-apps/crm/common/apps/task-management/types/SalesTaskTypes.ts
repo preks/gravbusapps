@@ -33,6 +33,7 @@ export interface SalesTask {
   statusRef?: string;
   priorityRef?: string;
   typeRef?: string;
+  timingType?: string;
   assignedEmployeeId?: string;
   assignedEmployee?: {
     id: string;
