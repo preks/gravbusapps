@@ -225,7 +225,7 @@ export const SinglePositionComponent: React.FC<
                       "lowcoder:create_expense_item.change_expense_item_container.current_currency_label",
                       "Currency"
                     )}
-                    disabled={isProcessingFiles}
+                    disabled={isProcessingFiles || !!form.getFieldValue('fixedCurrency')}
                     name="currency"
                     data-testid={`currency-select-${index}`}
                     isDataSorted={false}
