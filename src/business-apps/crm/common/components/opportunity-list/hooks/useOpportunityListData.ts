@@ -25,6 +25,7 @@ interface UseOpportunityListDataParams {
   stages?: string[];
   winningChanceRanges?: Array<{ min?: number; max?: number }>;
   amountRanges?: Array<{ min?: number; max?: number }>;
+  statuses?: string[];
   createdAfter?: string;
   createdBefore?: string;
 }
@@ -193,6 +194,11 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
         whereConditions.push({ _or: amountConditions });
       }
 
+      // Add status filtering (Java enum values)
+      if (params.statuses && params.statuses.length > 0) {
+        whereConditions.push({ status: { _in: params.statuses } });
+      }
+
       // Add date filtering
       if (params.createdAfter || params.createdBefore) {
         const dateCondition: any = {};
@@ -270,6 +276,7 @@ export const useOpportunityListData = (params: UseOpportunityListDataParams): Us
     JSON.stringify(params.stages), // Use JSON.stringify for array
     JSON.stringify(params.winningChanceRanges), // Use JSON.stringify for array
     JSON.stringify(params.amountRanges), // Use JSON.stringify for array
+    JSON.stringify(params.statuses), // Use JSON.stringify for array
     params.createdAfter, 
     params.createdBefore, 
     params.context.accessToken

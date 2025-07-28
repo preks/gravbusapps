@@ -245,9 +245,13 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
                       data-testid={`${DATA_TEST_ID_PREFIX}-contact-name-${contact.id}`}
                     >
                       <Avatar size="sm">
-                        {contact.pictureUrl ? (
+                        {contact.pictureThumbnailUrl ? (
                           <AvatarImage
-                            src={contact.pictureUrl}
+                            src={
+                              contact.pictureThumbnailUrl.startsWith("data:")
+                                ? contact.pictureThumbnailUrl
+                                : `data:image/jpeg;base64,${contact.pictureThumbnailUrl}`
+                            }
                             alt={getContactName(contact)}
                           />
                         ) : (
@@ -258,7 +262,7 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
                                   .map((n) => n[0])
                                   .join("")
                                   .toUpperCase()
-                              : "C"}
+                              : ""}
                           </AvatarFallback>
                         )}
                       </Avatar>

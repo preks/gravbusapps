@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useState, useEffect, useCallback } from "react";
+import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
 interface EntityCounts {
   leads: number;
@@ -73,7 +73,7 @@ export const useEmployeeEntityCounts = (
     leads: 0,
     contacts: 0,
     opportunities: 0,
-    accounts: 0
+    accounts: 0,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -98,18 +98,19 @@ export const useEmployeeEntityCounts = (
         leads: result.LeadAggregate?.aggregate?.count || 0,
         contacts: result.ContactAggregate?.aggregate?.count || 0,
         opportunities: result.OpportunityAggregate?.aggregate?.count || 0,
-        accounts: result.AccountAggregate?.aggregate?.count || 0
+        accounts: result.AccountAggregate?.aggregate?.count || 0,
       });
     } catch (err) {
-      console.error('Error fetching employee entity counts:', err);
-      setError(err instanceof Error ? err : new Error('Failed to load entity counts'));
-      
+      setError(
+        err instanceof Error ? err : new Error("Failed to load entity counts")
+      );
+
       // Reset counts on error
       setCounts({
         leads: 0,
         contacts: 0,
         opportunities: 0,
-        accounts: 0
+        accounts: 0,
       });
     } finally {
       setLoading(false);
@@ -125,6 +126,6 @@ export const useEmployeeEntityCounts = (
     counts,
     loading,
     error,
-    refetch: fetchEntityCounts
+    refetch: fetchEntityCounts,
   };
-}; 
+};

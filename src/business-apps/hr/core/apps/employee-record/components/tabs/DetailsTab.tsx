@@ -34,7 +34,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
   const { isSectionVisible } = useEmployeePermissions(employeeIdForPermissions, accessToken);
   // Fetch academic titles from catalog
   const { titles: academicTitles, loading: loadingTitles } = useGetAcademicTitles(accessToken);
-
+  
   // Find the academic titles that match the employee's title references
   const academicTitleName = useMemo(() => {
     if (loadingTitles) {
@@ -234,8 +234,8 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
       return value;
     }
     
-    // If no permission, mask the value
-    return '••••••••';
+   // If no permission, mask the value
+   return '••••••••';
   };
 
   // Helper function to render data items in a grid with 3 columns
@@ -394,49 +394,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Emergency Contact</h3>
           </div>
           {renderDataItems(emergencyContactData.map(item => ({...item, sectionKey: SECTION_KEYS.details.relationships})))}
-        </Card>
-
-        {/* Tax Details Card - Always visible but values may be masked */}
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
-          data-testid="details-section-tax"
-        >
-            <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Tax Details</h3>
-          </div>
-          {renderDataItems([
-              {
-                label: "Tax Number",
-                value: employee.taxDetails?.[0]?.taxNumber || '',
-                sectionKey: SECTION_KEYS.details.taxDetails
-              },
-              {
-                label: "Tax Bracket",
-                value: employee.taxDetails?.[0]?.taxBracketRef || '',
-                sectionKey: SECTION_KEYS.details.taxDetails
-              },
-              {
-                label: "Tax Identification Number",
-                value: employee.taxDetails?.[0]?.taxIdentificationNumber || '',
-                sectionKey: SECTION_KEYS.details.taxDetails
-              },
-              {
-                label: "Social Security Number",
-                value: employee.taxDetails?.[0]?.socialSecurityNumber || '',
-                sectionKey: SECTION_KEYS.details.taxDetails
-              },
-              {
-                label: "Church Affiliation",
-                value: employee.taxDetails?.[0]?.taxableChurchAffiliationRef || '',
-                sectionKey: SECTION_KEYS.details.taxDetails
-              },
-              {
-                label: "Child Tax Allowance",
-                value: employee.taxDetails?.[0]?.childTaxAllowance?.toString() || '',
-                sectionKey: SECTION_KEYS.details.taxDetails
-              }
-            ])}
         </Card>
 
         {/* Payroll Data Card has been moved to EmploymentTab */}

@@ -222,14 +222,14 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({ are
             <>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => handleActionClick('leads', { leadStatus: 'open' }, e)}
+                onClick={(e) => handleActionClick('leads', { salesLeadStatus: 'SalesLeadStatus:v1:OPEN' }, e)}
               >
                 <span className="gba:text-gray-600">Active Leads</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => handleActionClick('leads', { leadStatus: 'converted' }, e)}
+                onClick={(e) => handleActionClick('leads', { salesLeadStatus: 'SalesLeadStatus:v1:CONVERTED' }, e)}
               >
                 <span className="gba:text-gray-600">Converted Leads</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
@@ -248,7 +248,7 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({ are
               </div>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => handleActionClick('opportunities', { status: 'active' }, e)}
+                onClick={(e) => handleActionClick('opportunities', { status: 'OPPORTUNITY_OPEN' }, e)}
               >
                 <span className="gba:text-gray-600">Active Opportunities</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
@@ -279,21 +279,21 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({ are
             <>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => handleActionClick('contacts', { contactType: 'founder' }, e)}
+                onClick={(e) => handleActionClick('contacts', { contactType: 'FOUNDER_CONTACT' }, e)}
               >
                 <span className="gba:text-gray-600">Founder Contacts</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => handleActionClick('contacts', { contactType: 'primary' }, e)}
+                onClick={(e) => handleActionClick('contacts', { contactType: 'PRIMARY_CONTACT' }, e)}
               >
                 <span className="gba:text-gray-600">Primary Contacts</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => handleActionClick('contacts', { contactType: 'secondary' }, e)}
+                onClick={(e) => handleActionClick('contacts', { contactType: 'SECONDARY_CONTACT' }, e)}
               >
                 <span className="gba:text-gray-600">Secondary Contacts</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />

@@ -48,6 +48,14 @@ export const EmployeeLeadsTab: React.FC<EmployeeLeadsTabProps> = ({
     if (filters.leadRatings && filters.leadRatings.length > 0) {
       andConditions.push({ leadRating: { id: { _in: filters.leadRatings } } });
     }
+    if (filters.leadSources && filters.leadSources.length > 0) {
+      andConditions.push({ leadSource: { id: { _in: filters.leadSources } } });
+    }
+    if (filters.companySizes && filters.companySizes.length > 0) {
+      andConditions.push({
+        numberOfEmployees: { id: { _in: filters.companySizes } },
+      });
+    }
     if (filters.createdAfter) {
       andConditions.push({ createdAt: { _gte: filters.createdAfter } });
     }

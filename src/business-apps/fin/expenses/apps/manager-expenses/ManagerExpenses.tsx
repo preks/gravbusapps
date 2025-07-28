@@ -49,8 +49,27 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
 
   // State for current view/page
   const [currentView, setCurrentView] = useState<'tabs' | 'approvals' | 'reports' | 'analytics'>('tabs');
+  
+  // Get tab from URL query parameter or use first tab as default
+  const getInitialTab = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    const validTabs = viewOptions.map(item => item.key);
+    
+    if (validTabs.includes(tabFromUrl ?? '')) {
+      return tabFromUrl!;
+    } else {
+      // No valid tab in URL, set default tab in URL
+      const defaultTab = viewOptions[0].key;
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', defaultTab);
+      window.history.replaceState({}, '', url.toString());
+      return defaultTab;
+    }
+  };
+
   // State for active tab within the tabs view
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTab] = useState<string>(getInitialTab);
 
   // Navigation handlers
   const handleNavigateToApprovals = useCallback(() => {
@@ -72,6 +91,23 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
 
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    window.history.pushState({}, '', url.toString());
+  }, []);
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabFromUrl = urlParams.get('tab');
+      const validTabs = viewOptions.map(item => item.key);
+      const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : viewOptions[0].key;
+      setActiveTab(newTab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   // Create tab props for passing to tab components

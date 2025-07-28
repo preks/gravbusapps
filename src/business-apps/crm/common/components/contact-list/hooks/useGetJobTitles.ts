@@ -16,8 +16,8 @@ export interface UseGetJobTitlesReturn {
 }
 
 const GET_DISTINCT_JOB_TITLES = `
-  query GetDistinctJobTitles {
-    Contact(distinctOn: jobTitle) {
+  query GetDistinctJobTitles($limit: Int, $where: ContactBoolExp) {
+    Contact(distinctOn: jobTitle, limit: $limit, where: $where) {
       jobTitle
     }
   }
@@ -41,26 +41,33 @@ export const useGetJobTitles = (
     setIsLoading(true);
     setError(null);
     try {
+      // Build GraphQL variables
+      const variables: any = {
+        limit: 5,
+        where: {
+          jobTitle: { _isNull: false },
+        },
+      };
+      // Add search condition if search term exists
+      if (search && search.trim()) {
+        variables.where.jobTitle._ilike = `%${search.trim()}%`;
+      }
+
       const response = await graphqlClient.request<any>(
-        GET_DISTINCT_JOB_TITLES
+        GET_DISTINCT_JOB_TITLES,
+        variables
       );
 
       const contacts = response?.Contact || [];
-      let titles = contacts
+      const titles = contacts
         .map((c: any) => c.jobTitle)
         .filter((t: string | null | undefined) => t && t.trim() !== "");
-      // Remove duplicates (should be unique due to distinctOn, but just in case)
-      titles = Array.from(new Set(titles));
-      // Filter by search
-      const filtered = search
-        ? titles.filter((t: string) =>
-            t.toLowerCase().includes(search.toLowerCase())
-          )
-        : titles;
+
       setJobTitleOptions(
-        filtered.map((title: string) => ({ id: title, name: title }))
+        titles.map((title: string) => ({ id: title, name: title }))
       );
     } catch (err) {
+      console.error("❌ useGetJobTitles: Error:", err);
       setError(
         err instanceof Error ? err.message : "Failed to load job titles"
       );
