@@ -171,32 +171,32 @@ export const RecentLeads: React.FC<RecentLeadsProps> = ({
       <div style={{ 
         marginTop: '12px', 
         padding: '8px', 
-        backgroundColor: '#f8f9fa',
+        backgroundColor: 'var(--muted)',
         borderRadius: '4px',
         display: 'flex',
         justifyContent: 'space-around',
         fontSize: '11px'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 'bold', color: '#1890ff' }}>
+          <div style={{ fontWeight: 'bold', color: 'var(--info)' }}>
             {leads.filter(lead => lead.status?.toLowerCase() === 'new').length}
           </div>
           <Text type="secondary">New</Text>
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 'bold', color: '#fa8c16' }}>
+          <div style={{ fontWeight: 'bold', color: 'var(--warning)' }}>
             {leads.filter(lead => lead.status?.toLowerCase() === 'contacted').length}
           </div>
           <Text type="secondary">Contacted</Text>
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 'bold', color: '#52c41a' }}>
+          <div style={{ fontWeight: 'bold', color: 'var(--success)' }}>
             {leads.filter(lead => lead.status?.toLowerCase() === 'qualified').length}
           </div>
           <Text type="secondary">Qualified</Text>
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 'bold', color: '#722ed1' }}>
+          <div style={{ fontWeight: 'bold', color: 'var(--ext-7)' }}>
             {leads.filter(lead => lead.source).length}
           </div>
           <Text type="secondary">With Source</Text>

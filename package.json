@@ -11,8 +11,7 @@
     "publish:screen": "node ./scripts/publish-dev-screen.js",
     "publish:prod:screens": "npm run build:prod && node ./scripts/publish-prod-screens.js",
     "serve": "vite serve --port 5001 --strictPort",
-    "lint": "eslint .",
-    "postinstall": "npm install @newwork/nw-design-system@latest"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@ant-design/charts": "^2.3.0",
