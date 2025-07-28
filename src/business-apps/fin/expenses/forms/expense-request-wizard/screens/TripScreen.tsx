@@ -370,9 +370,9 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
           expenseRequestData.ExpenseRequestByPk.expenseRequestTrip.length !== 0) {
           myData = expenseRequestData.ExpenseRequestByPk.expenseRequestTrip;
         } else if (expenseRequestData.ExpenseRequestByPk.expensePlan) {
-          myData = expenseRequestData.ExpenseRequestByPk.expensePlan;
+          myData = expenseRequestData.ExpenseRequestByPk.expensePlan.expenseRequestTrip;
         }
-        const startObject = myData.expenseRequestTrip?.find((item: any) => item.pointType === 'START_POINT');
+        const startObject = myData.find((item: any) => item.pointType === 'START_POINT');
         
         if (startObject && startObject.tripDateTime && dayjs(startObject.tripDateTime).isValid()) {
           const formattedDate = dayjs(startObject.tripDateTime).format('YYYY-MM-DDTHH:mm:ss.SSSZZ');

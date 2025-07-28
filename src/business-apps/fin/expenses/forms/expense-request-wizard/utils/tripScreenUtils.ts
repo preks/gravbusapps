@@ -6,6 +6,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { ADDRESS_TYPES_ENUM, PointTypeEnum, SCREEN_NAMES_ENUM, TripDirectionDefaultValue } from '../constants/constants';
 import { mergeUniqueById } from '../../../utils/functionUtils';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { EVENTS } from '../../../utils/constants';
 
 /**
  * Prepares trip data for saving
@@ -74,6 +75,7 @@ export const createTripLogObject = (
       endDate: endTripDateTime || initialRequest.endDate || "",
       expenseRule: employeeRuleId || "",
       version: initialRequest.version || "",
+      description:initialRequest.description || "",
       costCenter: initialRequest.costCenterId || "",
       employee: initialRequest.employeeId || "",
       expensePlan: initialRequest.expensePlanId || "",
@@ -414,20 +416,21 @@ export const getValidLocality = (employeeAddresses: any[]) => {
  * @param setEndLocation - Function to set end location
  */
 export const setByExternalCustomComponent = (
-  expenseRequestData: any,
+  expenseData: any,
   expenseRulesData: any,
   setStartLocation: React.Dispatch<React.SetStateAction<LocationData>>,
   setDestinations: React.Dispatch<React.SetStateAction<LocationData[]>>,
   setEndLocation: React.Dispatch<React.SetStateAction<LocationData>>
 ) => {
-  if (!expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip || 
-      !Array.isArray(expenseRequestData.ExpenseRequestByPk.expenseRequestTrip) || 
-      expenseRequestData.ExpenseRequestByPk.expenseRequestTrip.length === 0) {
+  const localExpenseData = expenseData?.ExpenseRequestByPk || expenseData?.ExpensePlanByPk
+  if (!localExpenseData?.expenseRequestTrip || 
+      !Array.isArray(localExpenseData.expenseRequestTrip) || 
+      localExpenseData.expenseRequestTrip.length === 0) {
     return;
   }
 
   try {
-    const tripData = expenseRequestData.ExpenseRequestByPk.expenseRequestTrip;
+    const tripData = localExpenseData.expenseRequestTrip;
     
     // Find start point
     const startPoint = tripData.find((trip: any) => trip.pointType === 'START_POINT');
@@ -535,3 +538,61 @@ export const setLocalitiesDefault = (expenseRequestData: any,
       
     }
   };
+
+
+  export const setInitialScreen =(additionalData:any,
+    expenseRequestData: any,
+    isTrip:boolean,
+    setCurrentScreen: React.Dispatch<React.SetStateAction<string>>)=>{
+    const stepKey = additionalData?.psi_taskPayload.stepKey
+    if(stepKey){
+      if(stepKey.includes(EVENTS.SAVE)){
+        switch(stepKey){
+          case SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + EVENTS.SAVE:
+            setCurrentScreen(SCREEN_NAMES_ENUM.TRIPS_TAB);
+            break;
+          case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.SAVE:
+            setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
+            break;
+          case SCREEN_NAMES_ENUM.ALLOWANCE_TAB + "_" + EVENTS.SAVE:
+            setCurrentScreen(SCREEN_NAMES_ENUM.ALLOWANCE_TAB);
+            break;
+          case SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + EVENTS.SAVE:
+            setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB);
+            break;
+          default:
+            setCurrentScreen(SCREEN_NAMES_ENUM.LOAD_TAB);
+            break;
+        }
+      }
+      else if(stepKey.includes(EVENTS.NEXT)){
+        switch(stepKey){
+          case SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + EVENTS.NEXT:
+            setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
+            break;
+          case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.NEXT:
+            setCurrentScreen(SCREEN_NAMES_ENUM.ALLOWANCE_TAB);
+            break;
+          case SCREEN_NAMES_ENUM.ALLOWANCE_TAB + "_" + EVENTS.NEXT:
+            setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB);
+            break;
+          case SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + EVENTS.NEXT:
+            setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB);
+            break;
+          default:
+            setCurrentScreen(SCREEN_NAMES_ENUM.LOAD_TAB);
+            break;
+        }
+      }
+    }
+    else
+    {
+      if (expenseRequestData) {
+      if (isTrip) {
+        setCurrentScreen(SCREEN_NAMES_ENUM.TRIPS_TAB);
+      } else {
+        setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
+      }
+    }
+    }
+  }

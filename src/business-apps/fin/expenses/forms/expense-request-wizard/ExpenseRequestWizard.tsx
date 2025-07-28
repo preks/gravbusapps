@@ -22,6 +22,7 @@ import AllowanceScreen from './screens/AllowanceScreen';
 import SummaryScreen from './screens/SummaryScreen';
 
 import ProgressIndicator from './components/ProgressIndicator';
+import { setInitialScreen } from './utils/tripScreenUtils';
 
 const { Title } = Typography;
 
@@ -147,13 +148,8 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   };
 
   useEffect(() => {
-    if (expenseRequestData) {
-      if (isTrip) {
-        setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
-      } else {
-        setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
-      }
-    }
+    //aici
+    setInitialScreen(additionalData,expenseRequestData,isTrip,setCurrentScreen)
   }, [expenseRequestData, isTrip]);
   
   const navigateToNextScreen = () => {

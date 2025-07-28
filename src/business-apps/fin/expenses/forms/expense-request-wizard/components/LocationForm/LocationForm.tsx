@@ -236,7 +236,7 @@ const LocationForm: React.FC<LocationFormProps> = ({
                   <Alert
                     message={getTranslationFromI18nKeyAndLabel(
                       "lowcoder:create_expense_request.add_request_trip_details.future_date_warning",
-                      "The selected date is in the future"
+                      "The selected date is in the future!"
                     )}
                     type="warning"
                     showIcon

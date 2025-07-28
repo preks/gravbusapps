@@ -69,6 +69,7 @@ export interface LocationData {
       endDate: any;
       expenseRule: string;
       version: any;
+      description:string;
       costCenter: any;
       employee: any;
       expensePlan: any;
