@@ -1,7 +1,13 @@
-import { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { ExpenseFilter } from './useGetExpenseItems';
-import { ExpenseStatus } from '../utils';
+import { ExpenseStatus, getExpenseItemStatusDisplay } from '../utils';
+import { ExpenseDateRangeFilter } from '../components/tabs/expense-items-tab/ExpenseDateRangeFilter';
+
+// Define these as constants for stable references outside the hook
+const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
+const EXPENSE_TYPE_OPTIONS = ['expense', 'trip'];
+const OTHER_OPTIONS = ['noreceiptfilter'];
 
 // Interface for the return type of useExpenseFilters
 export interface UseExpenseFiltersReturn {
@@ -12,7 +18,17 @@ export interface UseExpenseFiltersReturn {
   filterLabelMap: Record<string, string>;
   addFilter: (filterId: string) => void;
   removeFilter: (filterId: string) => void;
-  getFilters: () => ExpenseFilter;
+  clearFilters: () => void;
+  getFilters: (filtersToApply?: string[], startDateRange?: [Date | null, Date | null] | null, endDateRange?: [Date | null, Date | null] | null, expenseDateRange?: [Date | null, Date | null] | null) => ExpenseFilter;
+  setFilters: (filters: string[]) => void;
+  setExpenseDateRange: (expenseDateRange: [Date | null, Date | null] | null) => void;
+  expenseDateRange: [Date | null, Date | null] | null;
+}
+
+export enum DataFilterType {
+  CHECKBOX_GROUP = 'checkbox-group',
+  DATE_RANGE = 'date-range',
+  NUMBER_RANGE = 'number-range',
 }
 
 /**
@@ -22,14 +38,8 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
   // State for search and selected filters
   const [search, setSearch] = useState<string>('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [expenseDateRange, setExpenseDateRange] = useState<[Date | null, Date | null] | null>(null);
 
-  // Define these as constants for stable references
-  const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
-  const EXPENSE_TYPE_OPTIONS = ['expense', 'trip'];
-  const OTHER_OPTIONS = ['noreceiptfilter'];
-  
-  // Helper function to format status display names
-  
   // Helper function to format status display names
   const formatStatusName = (status: string): string => {
     return status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' ');
@@ -37,6 +47,17 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
 
   // Define filter groups - memoized so they don't cause re-renders
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
+    {
+      id: 'expenseDateRange',
+      title: 'Filter by Expense Date',
+      type: DataFilterType.DATE_RANGE,
+      customComponent: React.createElement(ExpenseDateRangeFilter, {
+        expenseDateRange: expenseDateRange,
+        onDateRangeChange: setExpenseDateRange,
+        placeholder: ['Start date', 'End date']
+      }),
+      hideSearch: true,
+    },
     {
       id: 'timePeriod',
       title: 'Time Period',
@@ -57,12 +78,16 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     {
       id: 'status',
       title: 'Status',
+      multiSelect: true,
       filters: Object.values(ExpenseStatus).map(status => {
         const id = status.toLowerCase();
-        return { 
-          id, 
-          label: status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' '),
-          selected: selectedFilters.includes(id) 
+        const displayLabel = getExpenseItemStatusDisplay(status).label;
+        const beLabel = status.charAt(0) + status.slice(1).toLowerCase();
+        const label = displayLabel !== beLabel ? `${displayLabel} (${beLabel})` : displayLabel;
+        return {
+          id,
+          label,
+          selected: selectedFilters.includes(id)
         };
       })
     },
@@ -73,8 +98,8 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
         { id: 'noreceiptfilter', label: 'No receipt', selected: selectedFilters.includes('noreceiptfilter') },
       ]
     }
-  ], [selectedFilters]);
-  
+  ], [selectedFilters, expenseDateRange]);
+
   // Build the filter label map dynamically
   const filterLabelMap = useMemo(() => {
     const labelMap: Record<string, string> = {
@@ -85,88 +110,103 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
       'trip': 'Trip',
       'noreceiptfilter': 'No receipt',
     };
-    
+
     // Add all status options
     Object.values(ExpenseStatus).forEach(status => {
-      const key = status.toLowerCase();
-      labelMap[key] = formatStatusName(status);
-    });
-    
+  const key = status.toLowerCase();
+  const displayLabel = getExpenseItemStatusDisplay(status).label;
+  const beLabel = status.charAt(0) + status.slice(1).toLowerCase();
+  labelMap[key] = displayLabel !== beLabel ? `${displayLabel} (${beLabel})` : displayLabel;
+});
+
     return labelMap;
   }, []);
-  
-  // Add filter with proper dependency handling - returns the new filters array for immediate use
-  const addFilter = useCallback((filterId: string): string[] => {
-    let newFilters: string[] = [];
-    
+
+  // Add filter with proper dependency handling
+  const addFilter = useCallback((filterId: string) => {
     setSelectedFilters(prev => {
       // Special handling for radio filter types (time period)
       if (TIME_PERIOD_OPTIONS.includes(filterId)) {
         // Remove any existing time period filter
         const withoutTimePeriods = prev.filter(f => !TIME_PERIOD_OPTIONS.includes(f));
-        newFilters = [...withoutTimePeriods, filterId];
-        return newFilters;
+        return [...withoutTimePeriods, filterId];
       }
       // For multi-select filters, just add if not already selected
       if (prev.includes(filterId)) {
-        newFilters = [...prev];
         return prev;
       } else {
-        newFilters = [...prev, filterId];
-        return newFilters;
+        return [...prev, filterId];
       }
     });
-    
-    return newFilters;
   }, [TIME_PERIOD_OPTIONS]);
-  
-  // Remove filter with proper dependency handling - returns the new filters array for immediate use
-  const removeFilter = useCallback((filterId: string): string[] => {
-    let newFilters: string[] = [];
-    
-    setSelectedFilters(prev => {
-      newFilters = prev.filter(f => f !== filterId);
-      return newFilters;
-    });
-    
-    return newFilters;
+
+  // Remove filter with proper dependency handling
+  const removeFilter = useCallback((filterId: string) => {
+    setSelectedFilters(prev => prev.filter(f => f !== filterId));
   }, []);
-  
+
+  const clearFilters = useCallback(() => {
+    setSelectedFilters([]);
+    setExpenseDateRange(null);
+  }, []);
+
+  // Atomic setter for filters
+  const setFilters = useCallback((filters: string[]) => {
+    setSelectedFilters(filters);
+  }, []);
+
   // Convert UI filters to API filter format
-  const getFilters = useCallback((): ExpenseFilter => {
-    console.log('Getting filters from selected filters:', selectedFilters);
-    
+  const getFilters = useCallback((
+    filtersToApply: string[] = selectedFilters,
+    startDateRange?: [Date | null, Date | null] | null,
+    endDateRange?: [Date | null, Date | null] | null,
+    expenseDateRange?: [Date | null, Date | null] | null
+  ): ExpenseFilter => {
+    console.log('Getting filters from selected filters:', filtersToApply);
+
     // Map UI filter format to the expected API filter format
     const filter: ExpenseFilter = {};
-    
+
     // Extract filters by types
-    const timePeriod = selectedFilters.find(f => TIME_PERIOD_OPTIONS.includes(f)) || null;
-    
+    const timePeriod = filtersToApply.find(f => TIME_PERIOD_OPTIONS.includes(f)) || null;
+
     // Get status filters and convert back to uppercase (as they're stored in ExpenseStatus enum)
-    const statusFilters = selectedFilters.filter(f => 
+    const statusFilters = filtersToApply.filter(f => 
       Object.values(ExpenseStatus).map(s => s.toLowerCase()).includes(f));
-    
+
     // Map the lowercase status filters back to their uppercase enum values
     const statuses = statusFilters.map(f => f.toUpperCase());
-    
-    const expenseTypes = selectedFilters.filter(f => EXPENSE_TYPE_OPTIONS.includes(f));
-    const otherFilters = selectedFilters.filter(f => OTHER_OPTIONS.includes(f));
-    
+
+    const expenseTypes = filtersToApply.filter(f => EXPENSE_TYPE_OPTIONS.includes(f));
+    const otherFilters = filtersToApply.filter(f => OTHER_OPTIONS.includes(f));
+
     // Check if no receipt filter is selected
     const hasNoReceiptFilter = otherFilters.includes('noreceiptfilter');
-    
+
     // Process status filters
     if (statuses.length > 0) {
       // Convert all selected statuses from lowercase UI values to uppercase API values
       filter.status = statuses.map(status => status.toUpperCase());
       console.log('Applying status filters:', filter.status);
     }
-    
-    // Process time period filters
-    if (timePeriod) {
+
+    // Process expense date range filters (priority over time period filters)
+    if (expenseDateRange && expenseDateRange[0] && expenseDateRange[1]) {
+      filter.expenseDateStart = expenseDateRange[0].toISOString().split('T')[0];
+      filter.expenseDateEnd = expenseDateRange[1].toISOString().split('T')[0];
+      console.log('Applying expense date range filters:', filter.expenseDateStart, 'to', filter.expenseDateEnd);
+    }
+    // Process date range filters (priority over time period filters)
+    else if (startDateRange && startDateRange[0] && endDateRange && endDateRange[1]) {
+      filter.expenseDateStart = startDateRange[0].toISOString().split('T')[0];
+      filter.expenseDateEnd = endDateRange[1].toISOString().split('T')[0];
+      console.log('Applying date range filters:', filter.expenseDateStart, 'to', filter.expenseDateEnd);
+    }
+    // Process time period filters (only if no date range is specified)
+    else if (timePeriod) {
       const today = new Date();
-      const endDate = new Date(today).toISOString().split('T')[0]; 
-      
+      const endDate = new Date(today).toISOString().split('T')[0];
+
       // Calculate start date based on selected time period
       let startDate = new Date(today);
       if (timePeriod === 'last30days') {
@@ -176,16 +216,16 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
       } else if (timePeriod === 'last180days') {
         startDate.setDate(today.getDate() - 180);
       }
-      
+
       filter.expenseDateStart = startDate.toISOString().split('T')[0];
       filter.expenseDateEnd = endDate;
     }
-    
+
     // Process expense type filters
     if (expenseTypes.length > 0) {
       // For now, use only the first selected expense type since expenseClass doesn't support multiple values
       const selectedType = expenseTypes[0];
-      
+
       // Map UI expense types to the expected API values with proper capitalization
       if (selectedType === 'expense') {
         filter.expenseClass = { value: 'Expense' };
@@ -193,12 +233,12 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
         filter.expenseClass = { value: 'Trip' };
       }
     }
-    
+
     // Process the No receipt filter
     if (hasNoReceiptFilter) {
       filter.noReceipt = true;
     }
-    
+
     console.log('getFilters returning:', filter);
     return filter;
   }, [selectedFilters, TIME_PERIOD_OPTIONS, EXPENSE_TYPE_OPTIONS, OTHER_OPTIONS]);
@@ -211,6 +251,10 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     filterLabelMap,
     addFilter,
     removeFilter,
-    getFilters
+    clearFilters,
+    getFilters,
+    setFilters,
+    setExpenseDateRange,
+    expenseDateRange,
   };
 };

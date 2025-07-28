@@ -17,3 +17,6 @@ export const DEFAULT_POSITION = {
   customField: "",
   isReimbursable: true,
 };
+
+export const FLOW_DOMAIN = "employee-expense";
+export const FLOW_PROCESS_NAME = "changeExpenseItem";

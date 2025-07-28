@@ -65,23 +65,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
     return new Date(dateString).toLocaleDateString();
   };
 
-  const getStageColor = (stage?: string): string => {
-    const stageColors: Record<string, string> = {
-      // Original hardcoded values
-      'Qualification': 'blue',
-      'Needs Analysis': 'cyan',
-      'Proposal': 'orange',
-      'Negotiation': 'purple',
-      'Closed Won': 'green',
-      'Closed Lost': 'red',
-      'Unknown Stage': 'gray',
-      'New Opportunity': 'blue',
-      'In Qualification': 'cyan',
-      'Proposal In Progress': 'orange',
-      'Closed': 'green'
-    };
-    return stageColors[stage || ''] || 'gray';
-  };
+
 
   const getWinRateColor = (winningChance?: number): string => {
     if (!winningChance) return 'gray';
@@ -271,7 +255,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-stage-cell-${record.id}`}>
                     <Badge variant={getSalesPipelineStageBadgeVariant(record.salesPipelineStage)}>
-                      {record.stage || 'Unknown Stage'}
+                      {record.salesPipelineStage?.value || 'Unknown Stage'}
                     </Badge>
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-pipeline-cell-${record.id}`}>

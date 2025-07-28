@@ -1,7 +1,9 @@
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+// Types for the ExpenseItem component
 
-export interface ExpenseItemProps extends BusinessAppContextProps {
+export interface ExpenseItemProps {
   title?: string;
+  additionalData?: any;
+  onClose?: (shouldRefetch?: boolean) => void;
 }
 
 export interface ExpensePosition {

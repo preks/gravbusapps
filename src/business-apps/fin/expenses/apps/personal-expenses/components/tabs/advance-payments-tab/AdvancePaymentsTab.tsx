@@ -1,8 +1,8 @@
 import React, { useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetAdvancePayments } from '../../../hooks/useGetAdvancePayments';
 import AdvancePaymentStatistics from './AdvancePaymentStatistics';
 import AdvancePaymentsTable from './AdvancePaymentsTable';
+import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters';
 
 export interface AdvancePaymentsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -15,26 +15,28 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
-  // Fetch all advance payments for statistics
-  const { items: allPayments, fetchItems } = useGetAdvancePayments(contextProps);
-  
-  // State for search coordination
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Load all items for statistics when component mounts
-  useEffect(() => {
-    if (contextProps.accessToken && allPayments.length === 0) {
-      // Fetch all items for statistics display (large page size)
-      fetchItems('', 1, 1000);
-    }
-  }, [contextProps.accessToken]);
+  // Use the advance payment filters hook
+  const {
+    searchTerm,
+    setSearchTerm,
+    statusFilter,
+    setStatusFilter,
+    amountRange,
+    setAmountRange,
+    advanceRange,
+    setAdvanceRange,
+    filterGroups,
+    handleDataFilterChange,
+    filterLabelMap,
+  } = useAdvancePaymentFilters();
 
   // Create memoized content header with statistics component
   const contentHeader = useMemo(() => {
-    return allPayments && allPayments.length > 0 ? (
-      <AdvancePaymentStatistics payments={allPayments} />
-    ) : null;
-  }, [allPayments]);
+    return <AdvancePaymentStatistics 
+      accessToken={contextProps.accessToken}
+      userInfo={contextProps.userInfo}
+    />;
+  }, [contextProps.accessToken, contextProps.userInfo]);
   
   // Update the content header when it changes
   useEffect(() => {
@@ -46,13 +48,37 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
   // Handle search term changes from table
   const handleSearchChange = useCallback((term: string) => {
     setSearchTerm(term);
-  }, []);
+  }, [setSearchTerm]);
+
+  // Handle filter changes
+  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
+    handleDataFilterChange(filterId, selected);
+  }, [handleDataFilterChange]);
+
+  // Handle clearing all filters
+  const clearAllFilters = useCallback(() => {
+    setSearchTerm('');
+    setStatusFilter([]);
+    setAmountRange(null);
+    setAdvanceRange(null);
+  }, [setSearchTerm, setStatusFilter, setAmountRange, setAdvanceRange]);
 
   return (
     <AdvancePaymentsTable
       {...contextProps}
       search={searchTerm}
       onSearchChange={handleSearchChange}
+      activeFilter={statusFilter} // Pass raw status values - DataController will handle display
+      onFilterChange={(filter) => {
+        // Update status filter when pills are removed
+        setStatusFilter(filter);
+      }}
+      onClearFilters={clearAllFilters}
+      filterGroups={filterGroups}
+      handleFilterChange={handleFilterChange}
+      filterLabelMap={filterLabelMap}
+      amountRange={amountRange}
+      advanceRange={advanceRange}
     />
   );
 };

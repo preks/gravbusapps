@@ -70,7 +70,24 @@ export function getLeadRatingBadgeVariant(leadRating?: {
   value?: string; 
   objectValue?: any; 
 } | null): BadgeProps['variant'] {
-  return getBadgeVariantFromCatalog(leadRating);
+  // First check if catalog has objectValue with badgeVariant
+  const catalogVariant = getBadgeVariantFromCatalog(leadRating);
+  if (catalogVariant !== 'default') {
+    return catalogVariant;
+  }
+
+  // Fallback to value-based logic for string ratings
+  const ratingValue = leadRating?.value?.toLowerCase();
+  switch (ratingValue) {
+    case 'hot':
+      return 'destructive'; // Red for hot leads
+    case 'warm':
+      return 'default'; // Blue for warm leads
+    case 'cold':
+      return 'secondary'; // Gray for cold leads
+    default:
+      return 'outline'; // Default for unknown values
+  }
 }
 
 /**

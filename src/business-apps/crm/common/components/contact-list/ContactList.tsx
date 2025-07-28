@@ -34,6 +34,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
   // Filters
   const contactFilters = useContactFilters(context);
   const appliedFilters = contactFilters.getFilters();
+  const { filtersInitialized } = contactFilters;
   
   // Data hooks
   const contactListData = useContactListData({
@@ -55,16 +56,16 @@ const ContactList: React.FC<ContactListProps> = (context) => {
 
   // Initial load effect
   useEffect(() => {
-    if (!initialLoadDone.current && context.accessToken) {
+    if (!initialLoadDone.current && context.accessToken && filtersInitialized) {
       initialLoadDone.current = true;
       contactListData.loadPage(1, pageSize);
       contactStatistics.refetch();
     }
-  }, [context.accessToken, pageSize]);
+  }, [context.accessToken, pageSize, filtersInitialized]);
 
   // Auto-reload when filters change
   useEffect(() => {
-    if (initialLoadDone.current && context.accessToken) {
+    if (initialLoadDone.current && context.accessToken && filtersInitialized) {
       setCurrentPage(1);
       contactListData.loadPage(1, pageSize);
     }
@@ -74,23 +75,24 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     appliedFilters.createdAfter,
     appliedFilters.createdBefore,
     context.accessToken,
-    pageSize
+    pageSize,
+    filtersInitialized
   ]);
 
   // Auto-reload when search changes
   useEffect(() => {
-    if (initialLoadDone.current && context.accessToken) {
+    if (initialLoadDone.current && context.accessToken && filtersInitialized) {
       setCurrentPage(1);
       contactListData.loadPage(1, pageSize);
     }
-  }, [appliedFilters.search, context.accessToken, pageSize]);
+  }, [appliedFilters.search, context.accessToken, pageSize, filtersInitialized]);
 
   // Auto-reload when sort changes
   useEffect(() => {
-    if (initialLoadDone.current && context.accessToken) {
+    if (initialLoadDone.current && context.accessToken && filtersInitialized) {
       contactListData.loadPage(currentPage, pageSize);
     }
-  }, [sortField, sortOrder, context.accessToken, currentPage, pageSize]);
+  }, [sortField, sortOrder, context.accessToken, currentPage, pageSize, filtersInitialized]);
 
   // Handlers
   const handleContactClick = useCallback((contact: Contact) => {

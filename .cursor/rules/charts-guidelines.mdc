@@ -348,7 +348,6 @@ import { PieChart } from 'recharts';
 Refer to these migrated components for real-world examples:
 
 - `AnalyticsCharts.tsx` - Pie and Line charts
-- `RevenueSourceChart.tsx` - Donut chart with custom styling
 - `OverviewTab.tsx` - Progress components
 
 ## Migration Notes

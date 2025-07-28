@@ -39,9 +39,11 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     removeFilter,
     resetFilters,
     getFilters,
+    initializeFromUrl,
     createdAfter: filterCreatedAfter,
     createdBefore: filterCreatedBefore,
-    handleDateRangeChange: filterHandleDateRangeChange
+    handleDateRangeChange: filterHandleDateRangeChange,
+    filtersInitialized
   } = useLeadFilters(props);
 
   // Get initial values from URL parameters using standard web APIs - ONLY ONCE
@@ -68,7 +70,9 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     if (initialParams.search && !search) {
       setSearch(initialParams.search);
     }
-  }, []); // Remove dependencies to prevent re-running
+  }, []);
+
+
 
   // Update URL parameters using standard web APIs
   const updateURLParams = useCallback((params: {
@@ -170,6 +174,11 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     sourceApp
   });
 
+  // Debug current filters
+  useEffect(() => {
+    const currentFilters = getFilters();
+  }, [selectedFilters, getFilters]);
+
   // Get lead statistics (independent from search/filters)
   const {
     trendData,
@@ -198,30 +207,30 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     }
   }, [props.accessToken, fetchMostCommonLeadSource]);
   
-  // Trigger initial data loading when component mounts
+  // Trigger initial data loading when component mounts and filters are initialized
   useEffect(() => {
-    if (!initialLoadDone.current && accessToken) {
+    if (!initialLoadDone.current && accessToken && filtersInitialized) {
       initialLoadDone.current = true;
       loadPage(currentPage, pageSize);
     }
-  }, [accessToken, currentPage, pageSize]);
+  }, [accessToken, currentPage, pageSize, filtersInitialized]);
 
   // Trigger search when search term changes
   useEffect(() => {
-    if (initialLoadDone.current) {
+    if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1);
       updateURLParams({ search, page: 1 });
       loadPage(1, pageSize); // Reset to first page when search changes
     }
-  }, [search, pageSize]);
+  }, [search, pageSize, filtersInitialized]);
 
   // Trigger reload when filters change
   useEffect(() => {
-    if (initialLoadDone.current) {
+    if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1);
       loadPage(1, pageSize);
     }
-  }, [JSON.stringify(selectedFilters), filterCreatedAfter, filterCreatedBefore, pageSize]);
+  }, [JSON.stringify(selectedFilters), filterCreatedAfter, filterCreatedBefore, pageSize, filtersInitialized]);
 
   // Handle lead selection
   const handleSelectLead = useCallback((lead: Lead) => {

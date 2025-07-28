@@ -14,7 +14,7 @@ export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
   onReject?: (planId: string) => Promise<void>;
 }
 
-// Shared component for expense details view (same as in ExpenseRequestDetails)
+// Shared component for expense details view
 interface ExpenseDetailsViewProps {
   title: string;
   code: string;
@@ -34,22 +34,22 @@ const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
   department,
   tripType,
   totalAmount,
-  onViewDetails
+  onViewDetails,
 }) => {
   // Helper function to get status display info
   const getStatusDisplay = (status: string) => {
-    type PillType = 'draft' | 'completed' | 'waiting' | 'task' | 'error';
-    
+    type PillType = "draft" | "completed" | "waiting" | "task" | "error";
+
     const statusMap: Record<string, { label: string; type: PillType }> = {
-      DRAFT: { label: 'Draft', type: 'draft' },
-      PENDING: { label: 'Pending Approval', type: 'waiting' },
-      APPROVED: { label: 'Approved', type: 'completed' },
-      REJECTED: { label: 'Rejected', type: 'error' },
-      PAID: { label: 'Paid', type: 'completed' },
-      CREATED: { label: 'Created', type: 'waiting' },
+      DRAFT: { label: "Draft", type: "draft" },
+      PENDING: { label: "Pending Approval", type: "waiting" },
+      APPROVED: { label: "Approved", type: "completed" },
+      REJECTED: { label: "Rejected", type: "error" },
+      PAID: { label: "Paid", type: "completed" },
+      CREATED: { label: "Created", type: "waiting" },
     };
 
-    return statusMap[status] || { label: status, type: 'waiting' };
+    return statusMap[status] || { label: status, type: "waiting" };
   };
 
   return (
@@ -57,8 +57,8 @@ const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
       <div className="gba:mb-6">
         <h3 className="gba:text-lg gba:font-medium gba:mb-2">{title}</h3>
         <p className="gba:text-sm gba:text-gray-600 gba:mb-4">{code}</p>
-        <Pill 
-          type={getStatusDisplay(status).type} 
+        <Pill
+          type={getStatusDisplay(status).type}
           label={getStatusDisplay(status).label}
         />
       </div>
@@ -67,19 +67,27 @@ const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
         <div className="gba:space-y-4">
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">
             <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">Requester</div>
+              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
+                Requester
+              </div>
               <div className="gba:text-sm">{requester}</div>
             </div>
             <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">Department</div>
+              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
+                Department
+              </div>
               <div className="gba:text-sm">{department}</div>
             </div>
             <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">Trip Type</div>
+              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
+                Trip Type
+              </div>
               <div className="gba:text-sm">{tripType}</div>
             </div>
             <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">Total Amount</div>
+              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
+                Total Amount
+              </div>
               <div className="gba:text-sm">{totalAmount}</div>
             </div>
           </div>
@@ -87,14 +95,17 @@ const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
       </div>
 
       <div className="gba:flex gba:justify-end gba:mt-6">
-        <Button 
+        <Button
           variant="default"
           onClick={onViewDetails}
           data-testid="view-full-details-button"
           className="gba:flex gba:items-center gba:gap-2"
         >
           <PiArrowRight className="gba:w-4 gba:h-4" />
-          {getTranslationFromI18nKeyAndLabel('expense.details.view', 'View Full Details')}
+          {getTranslationFromI18nKeyAndLabel(
+            "expense.details.view",
+            "View Full Details"
+          )}
         </Button>
       </div>
     </div>
@@ -112,9 +123,12 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
     if (plan.requestType?.value) {
       return plan.requestType.value;
     }
-    const additionalProps = plan.additionalProperties as Record<string, unknown> | null;
+    const additionalProps = plan.additionalProperties as Record<
+      string,
+      unknown
+    > | null;
     const tripType = additionalProps?.tripType ?? additionalProps?.travelType;
-    return tripType ?? 'Business Travel';
+    return tripType ?? "Business Travel";
   };
 
   // Helper function to get department safely
@@ -131,20 +145,24 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
     if (plan.employee?.additionalProperties?.department) {
       return plan.employee.additionalProperties.department;
     }
-    return 'Not specified';
+    return "Not specified";
   };
 
   const handleViewDetails = () => {
-    const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', { expensePlanId: plan.id });
+    const url = buildPlatformUrl("/platform/fin/expenses/expense-plan-record", {
+      expensePlanId: plan.id,
+    });
     navigateTo(url);
   };
 
   return (
     <ExpenseDetailsView
-      title={plan.title || 'No title'}
-      code={plan.code || ''}
+      title={plan.title || "No title"}
+      code={plan.code || ""}
       status={plan.status}
-      requester={plan.employee?.fullName || plan.employee?.displayName || 'Unknown'}
+      requester={
+        plan.employee?.fullName || plan.employee?.displayName || "Unknown"
+      }
       department={getDepartment()}
       tripType={getTripType()}
       totalAmount={typeof plan.totalAmount === 'number' ? formatCurrency(plan.totalAmount, primaryCurrency || plan.currency?.value) : '-'}

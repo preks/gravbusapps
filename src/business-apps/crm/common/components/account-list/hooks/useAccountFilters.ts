@@ -1,10 +1,16 @@
-import { useState, useCallback, useMemo } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useGetIndustries } from "../../lead-list/hooks/useGetIndustries";
 
 export interface FilterGroup {
   id: string;
   title: string; // Changed from label to title to match DataFilterGroup
   filters: Array<{ id: string; label: string; value: any; selected: boolean }>;
+  backendSearch?: (search: string) => {
+    filters: Array<{ id: string; label: string; selected: boolean }>;
+    loading: boolean;
+    error: any;
+  };
 }
 
 export interface AccountFilters {
@@ -20,43 +26,95 @@ export interface AccountFilters {
   createdAfter?: string;
   createdBefore?: string;
   handleDateRangeChange: (after?: string, before?: string) => void;
+  filtersInitialized: boolean;
+  industrySearch: string;
+  setIndustrySearch: (search: string) => void;
 }
 
-export const useAccountFilters = (context: BusinessAppContextProps): AccountFilters => {
-  const [search, setSearch] = useState('');
+export const useAccountFilters = (
+  context: BusinessAppContextProps
+): AccountFilters => {
+  const [search, setSearch] = useState("");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [createdAfter, setCreatedAfter] = useState<string | undefined>();
   const [createdBefore, setCreatedBefore] = useState<string | undefined>();
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
-  const filterGroups: FilterGroup[] = useMemo(() => [
-    // REMOVED: accountType filter - field does not exist in GraphQL schema
-    // {
-    //   id: 'accountType',
-    //   title: 'Account Type',
-    //   filters: [
-    //     { id: 'type-customer', label: 'Customer', value: 'Customer', selected: selectedFilters.includes('type-customer') },
-    //     { id: 'type-prospect', label: 'Prospect', value: 'Prospect', selected: selectedFilters.includes('type-prospect') },
-    //     { id: 'type-partner', label: 'Partner', value: 'Partner', selected: selectedFilters.includes('type-partner') },
-    //     { id: 'type-competitor', label: 'Competitor', value: 'Competitor', selected: selectedFilters.includes('type-competitor') }
-    //   ]
-    // },
-    {
-      id: 'industry',
-      title: 'Industry', // Changed from label to title
-      filters: [
-        { id: 'industry-technology', label: 'Technology', value: 'Technology', selected: selectedFilters.includes('industry-technology') },
-        { id: 'industry-finance', label: 'Finance', value: 'Finance', selected: selectedFilters.includes('industry-finance') },
-        { id: 'industry-healthcare', label: 'Healthcare', value: 'Healthcare', selected: selectedFilters.includes('industry-healthcare') },
-        { id: 'industry-manufacturing', label: 'Manufacturing', value: 'Manufacturing', selected: selectedFilters.includes('industry-manufacturing') },
-        { id: 'industry-retail', label: 'Retail', value: 'Retail', selected: selectedFilters.includes('industry-retail') }
-      ]
+  // Industry search state
+  const [industrySearch, setIndustrySearch] = useState("");
+
+  // Get industry data with search
+  const {
+    industryOptions,
+    isLoading: industryLoading,
+    error: industryError,
+  } = useGetIndustries(context, industrySearch);
+
+  // Initialize filters from URL parameters when industry options are loaded
+  useEffect(() => {
+    if (!filtersInitialized && !industryLoading) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const preselectedFilters: string[] = [];
+
+      // Only process URL filters if we have industry data loaded
+      if (industryOptions.length > 0) {
+        // Handle industry parameter: industry=Industry:v1:TECHNOLOGY
+        const industryParams = urlParams.getAll('industry');
+        industryParams.forEach(industryValue => {
+          const matchingIndustry = industryOptions.find(option => option.id === industryValue);
+          if (matchingIndustry) {
+            preselectedFilters.push(matchingIndustry.id);
+          }
+        });
+      }
+
+      if (preselectedFilters.length > 0) {
+        setSelectedFilters(preselectedFilters);
+      }
+      
+      // Always set initialized to true once loading is complete, regardless of whether data exists
+      setFiltersInitialized(true);
     }
-  ], [selectedFilters]);
+  }, [industryOptions, industryLoading, filtersInitialized]);
+
+  // Backend search function for industries
+  const getIndustryFilters = useCallback(
+    (search: string) => {
+      setIndustrySearch(search);
+
+      return {
+        filters: industryOptions.map((option) => ({
+          id: option.id,
+          label: option.name,
+          selected: selectedFilters.includes(option.id),
+        })),
+        loading: industryLoading,
+        error: industryError,
+      };
+    },
+    [industryOptions, selectedFilters, industryLoading, industryError]
+  );
+  const filterGroups: FilterGroup[] = useMemo(
+    () => [
+      {
+        id: "industry",
+        title: "Industry",
+        filters: industryOptions.map((option) => ({
+          id: option.id,
+          label: option.name,
+          value: option.name,
+          selected: selectedFilters.includes(option.id),
+        })),
+        backendSearch: getIndustryFilters,
+      },
+    ],
+    [industryOptions, selectedFilters, getIndustryFilters]
+  );
 
   const filterLabelMap: Record<string, string> = useMemo(() => {
     const map: Record<string, string> = {};
-    filterGroups.forEach(group => {
-      group.filters.forEach(filter => {
+    filterGroups.forEach((group) => {
+      group.filters.forEach((filter) => {
         map[filter.id] = filter.label;
       });
     });
@@ -64,7 +122,7 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
   }, [filterGroups]);
 
   const addFilter = useCallback((filterId: string) => {
-    setSelectedFilters(prev => {
+    setSelectedFilters((prev) => {
       if (!prev.includes(filterId)) {
         return [...prev, filterId];
       }
@@ -73,21 +131,24 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
   }, []);
 
   const removeFilter = useCallback((filterId: string) => {
-    setSelectedFilters(prev => prev.filter(id => id !== filterId));
+    setSelectedFilters((prev) => prev.filter((id) => id !== filterId));
   }, []);
 
   const clearAllFilters = useCallback(() => {
     setSelectedFilters([]);
   }, []);
 
-  const handleDateRangeChange = useCallback((after?: string, before?: string) => {
-    setCreatedAfter(after);
-    setCreatedBefore(before);
-  }, []);
+  const handleDateRangeChange = useCallback(
+    (after?: string, before?: string) => {
+      setCreatedAfter(after);
+      setCreatedBefore(before);
+    },
+    []
+  );
 
   const getFilters = useCallback(() => {
     const filters: any = {};
-    
+
     if (search) {
       filters.search = search;
     }
@@ -101,12 +162,11 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
     }
 
     // Process selected filters
-    selectedFilters.forEach(filterId => {
+    selectedFilters.forEach((filterId) => {
       for (const group of filterGroups) {
-        const filter = group.filters.find(f => f.id === filterId);
+        const filter = group.filters.find((f) => f.id === filterId);
         if (filter) {
-          // REMOVED: accountType processing - field does not exist in GraphQL schema
-          if (group.id === 'industry') {
+          if (group.id === "industry") {
             if (!filters.industries) filters.industries = [];
             filters.industries.push(filter.value);
           }
@@ -130,6 +190,9 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
     getFilters,
     createdAfter,
     createdBefore,
-    handleDateRangeChange
+    handleDateRangeChange,
+    filtersInitialized,
+    industrySearch,
+    setIndustrySearch,
   };
-}; 
+};

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Card, Statistic, Spin, Alert } from 'antd';
+import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system';
+import { getExpenseIconColor } from '../../utils/colorConstants';
 
 export interface TransferRequiredCardProps {
   loading: boolean;
@@ -8,34 +9,46 @@ export interface TransferRequiredCardProps {
 }
 
 const TransferRequiredCard: React.FC<TransferRequiredCardProps> = ({ loading, error, transferRequired }) => {
-  if (error) {
+  if (loading) {
     return (
-      <Card title="Transfer Required" style={{ height: '100%' }}>
-        <Alert message={`Error: ${error.message}`} type="error" showIcon />
-      </Card>
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-32" data-testid="transfer-required-loading">
+        <Spinner size="lg" />
+      </div>
     );
   }
 
-  return (
-    <Card title="Transfer Required" className="gba:bg-orange-50" style={{ height: '100%' }}>
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          <Spin size="large" />
-        </div>
-      ) : (
-        <>
-          <Statistic
-            value={transferRequired}
-            precision={2}
-            suffix="USD"
-            valueStyle={{ color: '#d46b08' }}
-          />
-          <div className="gba:mt-2 gba:text-sm gba:text-gray-600">
-            Approved expenses awaiting payment
+  if (error) {
+    return (
+      <div className="gba:p-4" data-testid="transfer-required-error">
+        <Alert variant="destructive">
+          <div>
+            <h4 className="gba:font-semibold">Transfer Required</h4>
+            <p className="gba:text-sm gba:mt-1">Error: {error.message}</p>
           </div>
-        </>
-      )}
-    </Card>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Create KPI card data
+  const kpiCardData: KpiCardData = {
+    id: 'transfer-required',
+    title: 'Transfer Required',
+    value: transferRequired.toString(),
+    suffix: 'USD',
+    decimalPlaces: 2,
+    footer: 'Approved expenses awaiting payment',
+    icon: 'dollar-sign',
+          iconColor: getExpenseIconColor.transferRequired()
+  };
+
+  return (
+    <div data-testid="transfer-required-card">
+      <SectionKpiCards 
+        cards={[kpiCardData]} 
+        data-testid="transfer-required-kpi-cards"
+      />
+    </div>
   );
 };
 

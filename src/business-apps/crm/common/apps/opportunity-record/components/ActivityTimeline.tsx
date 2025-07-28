@@ -1,23 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CalendarOutlined, CloudUploadOutlined } from '@ant-design/icons';
-import { Button, List, Avatar, Spin, Alert, Empty, Tag, message, Timeline, Typography, Modal } from 'antd';
+import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CloudUploadOutlined, RobotOutlined } from '@ant-design/icons';
+import { Button, List, Spin, Alert, Empty, message, Timeline, Typography, Modal } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { NotesSection } from './NotesSection';
 import { useGetSalesActivities, SalesActivityData } from '../queries/OpportunityActivityQueries';
 import { useGetCrmDocuments, CrmDocumentData } from '../queries/CrmDocumentQueries';
 import { useRestClient } from '@/common/network/rest/useRestClient';
-import { useFileClient } from '@/common/network/files/useFileClient';
 import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
+import { useAiSummary } from '../hooks/useAiSummary';
 
 const { Text } = Typography;
 
 interface ActivityTimelineProps {
-  opportunityId?: string;
+  opportunityId: string;
   context: BusinessAppContextProps;
 }
 
@@ -28,7 +28,7 @@ interface TranslatedActivity extends SalesActivityData {
 }
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityId, context }) => {
-  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'documents'>('activities');
+  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'documents' | 'ai-summary'>('activities');
   const [activities, setActivities] = useState<TranslatedActivity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
@@ -43,22 +43,22 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
   const { fetchSalesActivities } = useGetSalesActivities(context);
   const { fetchCrmDocuments } = useGetCrmDocuments(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const fileClient = useFileClient(context);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
+  const { state: aiSummaryState, generateSummary } = useAiSummary(opportunityId, context.accessToken);
 
   const loadActivities = async () => {
     if (!opportunityId) return;
-    
+
     setActivitiesLoading(true);
     setActivitiesError(null);
-    
+
     try {
       const result = await fetchSalesActivities({ opportunityId });
       // Sort activities by createdAt in descending order (newest first)
-      const sortedActivities = (result.SalesActivity || []).sort((a, b) => 
+      const sortedActivities = (result.SalesActivity || []).sort((a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-      
+
       // Store original activities for translation reference
       originalActivitiesRef.current = sortedActivities;
       setActivities(sortedActivities);
@@ -73,7 +73,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
   useEffect(() => {
     const translateActivities = async () => {
       const originalActivities = originalActivitiesRef.current;
-      
+
       if (selectedLanguage === 'Original' || originalActivities.length === 0) {
         // Reset to original text for Original language or no activities
         setActivities(originalActivities);
@@ -81,24 +81,24 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
       }
 
       setTranslating(true);
-      
+
       try {
         // Collect all text to translate from original activities
         const textsToTranslate: string[] = [];
         const activityMapping: Array<{ activityIndex: number, titleIndex: number, descriptionIndex: number }> = [];
-        
+
         originalActivities.forEach((activity, activityIndex) => {
           const titleIndex = textsToTranslate.length;
           textsToTranslate.push(activity.title);
-          
+
           const descriptionIndex = textsToTranslate.length;
           textsToTranslate.push(activity.description);
-          
+
           activityMapping.push({ activityIndex, titleIndex, descriptionIndex });
         });
 
         const translatedTexts = await translateMultipleTexts(textsToTranslate, selectedLanguage, context.accessToken);
-        
+
         const translatedActivities: TranslatedActivity[] = originalActivities.map((originalActivity, activityIndex) => {
           const mapping = activityMapping[activityIndex];
           return {
@@ -108,7 +108,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
             isTranslating: false
           };
         });
-        
+
         setActivities(translatedActivities);
       } catch (err) {
         console.error('Translation error:', err);
@@ -126,10 +126,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
 
   const loadDocuments = async () => {
     if (!opportunityId) return;
-    
+
     setDocumentsLoading(true);
     setDocumentsError(null);
-    
+
     try {
       const result = await fetchCrmDocuments({ opportunityId });
       setDocuments(result.CrmDocument || []);
@@ -182,7 +182,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
           loadActivities();
           loadDocuments();
           refreshNotes();
-          
+
           return
         }
       } catch (err) {
@@ -222,11 +222,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     eventNames.forEach(eventName => {
       window.addEventListener(eventName, handleProcessCompletion as EventListener);
     });
-    
+
     window.addEventListener('message', handlePostMessage);
 
     const originalDispatchEvent = window.dispatchEvent;
-    window.dispatchEvent = function(event: Event) {
+    window.dispatchEvent = function (event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
         handleAllEvents(event);
       }
@@ -238,7 +238,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
       window.removeEventListener('message', handlePostMessage);
-      
+
       window.dispatchEvent = originalDispatchEvent;
     };
   }, [opportunityId]);
@@ -288,15 +288,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
           }, {
             headers: { Authorization: `Bearer ${context.accessToken}` }
           });
-          
+
           // Remove the activity from both states
-          setActivities(prevActivities => 
+          setActivities(prevActivities =>
             prevActivities.filter(a => a.id !== activity.id)
           );
-          
+
           // Also remove from original activities ref
           originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== activity.id);
-          
+
           message.success('Activity deleted successfully');
         } catch (error) {
           console.error('Error deleting activity:', error);
@@ -336,12 +336,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
           }, {
             headers: { Authorization: `Bearer ${context.accessToken}` }
           });
-          
+
           // Remove the document from local state
-          setDocuments(prevDocuments => 
+          setDocuments(prevDocuments =>
             prevDocuments.filter(d => d.id !== document.id)
           );
-          
+
           message.success('Document deleted successfully');
         } catch (error) {
           console.error('Error deleting document:', error);
@@ -352,7 +352,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
   };
 
   return (
-    <div 
+    <div
       style={{
         backgroundColor: 'white',
         borderRadius: '8px',
@@ -362,7 +362,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
       }}
     >
       {/* Tab Navigation */}
-      <div 
+      <div
         style={{
           borderBottom: '1px solid #f0f0f0',
           backgroundColor: '#fafafa'
@@ -411,13 +411,27 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
           >
             Documents
           </div>
+          <div
+            style={{
+              padding: '12px 24px',
+              fontWeight: '500',
+              color: activeTab === 'ai-summary' ? '#1890ff' : '#8c8c8c',
+              backgroundColor: activeTab === 'ai-summary' ? 'white' : 'transparent',
+              flex: 1,
+              textAlign: 'center',
+              cursor: 'pointer'
+            }}
+            onClick={() => setActiveTab('ai-summary')}
+          >
+            AI Summary
+          </div>
         </div>
       </div>
 
       {/* Activities Tab Content */}
       {activeTab === 'activities' && (
         <div>
-          <div 
+          <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -426,8 +440,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div 
-                className="gba:activities-title" 
+              <div
+                className="gba:activities-title"
                 style={{ fontSize: '18px', fontWeight: '500' }}
               >
                 Activities
@@ -437,13 +451,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                 onChange={handleLanguageChange}
               />
               {translating && (
-                <Spin 
-                  indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} 
-                  size="small" 
+                <Spin
+                  indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />}
+                  size="small"
                 />
               )}
             </div>
-            <Button 
+            <Button
               type="primary"
               icon={<PlusCircleOutlined />}
               onClick={handleAddActivity}
@@ -504,11 +518,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                       </div>
                       {getActivityTypeValue(activity.activityType) && (
                         <div style={{ marginTop: '4px', marginBottom: '4px' }}>
-                          <span style={{ 
-                            backgroundColor: '#f0f0f0', 
-                            color: '#333', 
-                            padding: '2px 8px', 
-                            borderRadius: '4px', 
+                          <span style={{
+                            backgroundColor: '#f0f0f0',
+                            color: '#333',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
                             fontSize: '12px',
                             fontWeight: '500'
                           }}>
@@ -519,13 +533,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                       <div style={{ marginTop: '4px' }}>
                         <div>{activity.translatedDescription || activity.description}</div>
                       </div>
-                      <Button 
-                        type="text" 
-                        icon={<CloseOutlined />} 
+                      <Button
+                        type="text"
+                        icon={<CloseOutlined />}
                         size="small"
-                        style={{ 
-                          position: 'absolute', 
-                          right: 0, 
+                        style={{
+                          position: 'absolute',
+                          right: 0,
                           top: 0,
                           padding: '4px',
                           lineHeight: 1
@@ -550,7 +564,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
       {/* Documents Tab Content */}
       {activeTab === 'documents' && (
         <div>
-          <div 
+          <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -558,13 +572,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
               padding: '16px 24px'
             }}
           >
-            <div 
-              className="gba:documents-title" 
+            <div
+              className="gba:documents-title"
               style={{ fontSize: '18px', fontWeight: '500' }}
             >
               Documents
             </div>
-            <Button 
+            <Button
               type="primary"
               icon={<CloudUploadOutlined />}
               onClick={handleAddDocument}
@@ -630,13 +644,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                           </Text>
                         )}
                       </div>
-                      <Button 
-                        type="text" 
-                        icon={<CloseOutlined />} 
+                      <Button
+                        type="text"
+                        icon={<CloseOutlined />}
                         size="small"
-                        style={{ 
-                          position: 'absolute', 
-                          right: 0, 
+                        style={{
+                          position: 'absolute',
+                          right: 0,
                           top: 0,
                           padding: '4px',
                           lineHeight: 1
@@ -648,6 +662,146 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                   </Timeline.Item>
                 ))}
               </Timeline>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AI Summary Tab Content */}
+      {activeTab === 'ai-summary' && (
+        <div>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 24px'
+            }}
+          >
+            <div
+              className="gba:ai-summary-title"
+              style={{ fontSize: '18px', fontWeight: '500' }}
+            >
+              AI Summary
+            </div>
+            <Button
+              type="primary"
+              icon={<RobotOutlined />}
+              onClick={generateSummary}
+              loading={aiSummaryState?.type === 'loading'}
+              data-testid="generate-summary-button"
+            >
+              Generate Summary
+            </Button>
+          </div>
+
+          <div style={{ padding: '0 24px 24px' }}>
+            {aiSummaryState?.type === 'loading' && (
+              <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                <Spin size="large" />
+                <div style={{ marginTop: '16px', color: '#8c8c8c' }}>
+                  Generating AI summary...
+                </div>
+              </div>
+            )}
+
+            {aiSummaryState?.type === 'error' && (
+              <Alert
+                message="Error Generating Summary"
+                description="Failed to generate AI summary. Please try again."
+                type="error"
+                showIcon
+                style={{ marginBottom: '16px' }}
+                action={
+                  <Button size="small" onClick={generateSummary}>
+                    Retry
+                  </Button>
+                }
+              />
+            )}
+
+            {!aiSummaryState && (
+              <Empty
+                description="No summary generated yet"
+                style={{ padding: '40px 0' }}
+                data-testid="empty-ai-summary"
+              >
+                <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
+                  Click "Generate Summary" to create an AI-powered summary of this opportunity
+                </div>
+              </Empty>
+            )}
+
+            {aiSummaryState?.type === 'success' && (
+              <div>
+                {/* Executive Summary */}
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{
+                    fontSize: '16px',
+                    fontWeight: '500',
+                    marginBottom: '12px',
+                    color: '#262626'
+                  }}>
+                    Executive Summary
+                  </div>
+                  <div style={{
+                    fontSize: '14px',
+                    lineHeight: '1.6',
+                    color: '#595959',
+                    backgroundColor: '#fafafa',
+                    padding: '16px',
+                    borderRadius: '6px',
+                    border: '1px solid #f0f0f0'
+                  }}>
+                    {aiSummaryState.content.summary}
+                  </div>
+                </div>
+
+                {/* Key Insights */}
+                {aiSummaryState.content.keyInsights && aiSummaryState.content.keyInsights.length > 0 && (
+                  <div>
+                    <div style={{
+                      fontSize: '16px',
+                      fontWeight: '500',
+                      marginBottom: '12px',
+                      color: '#262626'
+                    }}>
+                      Key Insights & Next Steps
+                    </div>
+                    <List
+                      dataSource={aiSummaryState.content.keyInsights}
+                      renderItem={(insight, index) => (
+                        <List.Item style={{ padding: '8px 0', border: 'none' }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                            <div style={{
+                              minWidth: '20px',
+                              height: '20px',
+                              backgroundColor: '#1890ff',
+                              color: 'white',
+                              borderRadius: '50%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px',
+                              fontWeight: '500',
+                              marginTop: '2px'
+                            }}>
+                              {index + 1}
+                            </div>
+                            <div style={{
+                              fontSize: '14px',
+                              lineHeight: '1.5',
+                              color: '#595959'
+                            }}>
+                              {insight}
+                            </div>
+                          </div>
+                        </List.Item>
+                      )}
+                    />
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

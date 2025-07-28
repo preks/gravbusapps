@@ -31,6 +31,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   // Filters
   const opportunityFilters = useOpportunityFilters(context);
   const appliedFilters = opportunityFilters.getFilters();
+  const { filtersInitialized } = opportunityFilters;
   
   // Data hooks with all filter parameters
   const opportunityListData = useOpportunityListData({
@@ -42,6 +43,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
     stages: appliedFilters.stages,
     winningChanceRanges: appliedFilters.winningChanceRanges,
     amountRanges: appliedFilters.amountRanges,
+    statuses: appliedFilters.statuses,
     createdAfter: appliedFilters.createdAfter,
     createdBefore: appliedFilters.createdBefore
   });
@@ -53,16 +55,16 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
 
   // Initial load effect
   useEffect(() => {
-    if (!initialLoadDone.current && context.accessToken) {
+    if (!initialLoadDone.current && context.accessToken && filtersInitialized) {
       initialLoadDone.current = true;
       opportunityListData.loadPage(1, pageSize);
       opportunityStatistics.refetch();
     }
-  }, [context.accessToken, pageSize]); // Removed opportunityListData and opportunityStatistics from dependencies
+  }, [context.accessToken, pageSize, filtersInitialized]); // Removed opportunityListData and opportunityStatistics from dependencies
 
   // Effect to reload data when filters change
   useEffect(() => {
-    if (initialLoadDone.current) {
+    if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1); // Reset to first page when filters change
       opportunityListData.loadPage(1, pageSize);
     }
@@ -71,17 +73,19 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
     JSON.stringify(appliedFilters.stages), // Use JSON.stringify for array
     JSON.stringify(appliedFilters.winningChanceRanges), // Use JSON.stringify for array
     JSON.stringify(appliedFilters.amountRanges), // Use JSON.stringify for array
+    JSON.stringify(appliedFilters.statuses), // Use JSON.stringify for array
     appliedFilters.createdAfter,
     appliedFilters.createdBefore,
-    pageSize
+    pageSize,
+    filtersInitialized
   ]); // Removed opportunityListData from dependencies
 
   // Effect to reload data when sort changes
   useEffect(() => {
-    if (initialLoadDone.current) {
+    if (initialLoadDone.current && filtersInitialized) {
       opportunityListData.loadPage(currentPage, pageSize);
     }
-  }, [sortField, sortOrder, currentPage, pageSize]); // Removed opportunityListData from dependencies
+  }, [sortField, sortOrder, currentPage, pageSize, filtersInitialized]); // Removed opportunityListData from dependencies
 
   // Handlers
   const handleOpportunityClick = useCallback((opportunity: Opportunity) => {

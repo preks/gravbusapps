@@ -148,16 +148,20 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
       }
     };
     
-    // Only fetch if we haven't initialized yet or if the dependencies change
-    if (!isInitialized || !storeMostUsedCurrency) {
+    // Only fetch if we haven't initialized yet
+    // IMPORTANT: We removed the dependency on store values to prevent infinite loops
+    if (!isInitialized) {
       fetchCurrencyData();
     } else {
       // If already initialized, just update local state from store
+      // without triggering another fetch
       setLocalCurrencies(storeCurrencies);
       setLocalMostUsedCurrency(storeMostUsedCurrency);
       setIsLoading(false);
     }
-  }, [accessToken, managerId, graphQLClient, isUserSelected, setPrimaryCurrency, setStoreCurrencies, setInitialized, processCurrencyData, isInitialized, storeCurrencies, storeMostUsedCurrency, setMostUsedCurrency]);
+  // Remove storeCurrencies and storeMostUsedCurrency from dependencies to prevent infinite loop
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, managerId, graphQLClient, isUserSelected, setPrimaryCurrency, setStoreCurrencies, setInitialized, processCurrencyData, isInitialized, setMostUsedCurrency]);
   
   // Default to most used currency, fallback to primary currency from store
   const defaultCurrency = useMemo(() => {
