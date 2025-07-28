@@ -98,6 +98,85 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     error: ownerError,
   } = useGetLeadOwners(context, ownerSearch, ownerOffset);
 
+  // Initialize filters from URL parameters when all data is loaded
+  useEffect(() => {
+    if (!filtersInitialized && !leadStatusLoading && !leadRatingLoading && 
+        !leadSourceLoading && !industryLoading && !companySizeLoading && !ownerLoading) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const preselectedFilters: string[] = [];
+
+      // Handle leadStatus parameter: leadStatus=LEAD_NEW
+      const leadStatusParams = urlParams.getAll('leadStatus');
+      leadStatusParams.forEach(statusValue => {
+        if (['LEAD_NEW', 'LEAD_OPEN', 'LEAD_QUALIFIED', 'LEAD_CONVERTED', 'LEAD_LOST', 'UNKNOWN_LEAD_STATUS'].includes(statusValue)) {
+          preselectedFilters.push(statusValue);
+        }
+      });
+
+      // Handle leadRating parameter: leadRating=HOT_LEAD
+      const leadRatingParams = urlParams.getAll('leadRating');
+      leadRatingParams.forEach(ratingValue => {
+        if (['HOT_LEAD', 'WARM_LEAD', 'COLD_LEAD', 'UNKNOWN_LEAD_RATING'].includes(ratingValue)) {
+          preselectedFilters.push(ratingValue);
+        }
+      });
+
+      // Only process URL filters if we have data loaded
+      if (leadSourceOptions.length > 0) {
+        // Handle leadSource parameter: leadSource=LeadSource:v1:WEBSITE
+        const leadSourceParams = urlParams.getAll('leadSource');
+        leadSourceParams.forEach(sourceValue => {
+          const matchingSource = leadSourceOptions.find(option => option.id === sourceValue);
+          if (matchingSource) {
+            preselectedFilters.push(`source-${matchingSource.id}`);
+          }
+        });
+      }
+
+      if (industryOptions.length > 0) {
+        // Handle industry parameter: industry=Industry:v1:TECHNOLOGY
+        const industryParams = urlParams.getAll('industry');
+        industryParams.forEach(industryValue => {
+          const matchingIndustry = industryOptions.find(option => option.id === industryValue);
+          if (matchingIndustry) {
+            preselectedFilters.push(`industry-${matchingIndustry.id}`);
+          }
+        });
+      }
+
+      if (companySizeOptions.length > 0) {
+        // Handle companySize parameter: companySize=CompanySize:v1:SMALL
+        const companySizeParams = urlParams.getAll('companySize');
+        companySizeParams.forEach(sizeValue => {
+          const matchingSize = companySizeOptions.find(option => option.id === sizeValue);
+          if (matchingSize) {
+            preselectedFilters.push(`size-${matchingSize.id}`);
+          }
+        });
+      }
+
+      if (leadOwners.length > 0) {
+        // Handle leadOwner parameter: leadOwner=employee-123
+        const leadOwnerParams = urlParams.getAll('leadOwner');
+        leadOwnerParams.forEach(ownerValue => {
+          const matchingOwner = leadOwners.find(owner => owner.id === ownerValue);
+          if (matchingOwner) {
+            preselectedFilters.push(`owner-${matchingOwner.id}`);
+          }
+        });
+      }
+
+      if (preselectedFilters.length > 0) {
+        setSelectedFilters(preselectedFilters);
+      }
+      
+      // Always set initialized to true once loading is complete, regardless of whether data exists
+      setFiltersInitialized(true);
+    }
+  }, [leadStatusOptions, leadRatingOptions, leadSourceOptions, industryOptions, 
+      companySizeOptions, leadOwners, leadStatusLoading, leadRatingLoading,
+      leadSourceLoading, industryLoading, companySizeLoading, ownerLoading, filtersInitialized]);
+
   // Combined loading and error states
   const isLoading =
     leadStatusLoading ||

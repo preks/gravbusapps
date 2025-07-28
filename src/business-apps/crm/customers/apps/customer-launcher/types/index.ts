@@ -1,8 +1,10 @@
+import { Icon as PhosphorIcon } from '@phosphor-icons/react';
+
 export interface CrmArea {
   id: string;
   title: string;
   description: string;
-  icon: string;
+  icon: PhosphorIcon; // Changed from string to PhosphorIcon
   category: 'sales' | 'customer' | 'intelligence';
   path: string;
 }
@@ -10,7 +12,7 @@ export interface CrmArea {
 export interface QuickAction {
   id: string;
   label: string;
-  icon: string;
+  icon: PhosphorIcon; // Changed from string to PhosphorIcon
   action: string;
 }
 

@@ -21,30 +21,10 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import * as RemixIcons from '@remixicon/react';
 // Import PhosphorIcons for LauncherLayout
 import { 
-  UserPlus, 
-  Target, 
-  Building,
-  AddressBook,
-  FileText,
-  ChartBar,
-  Upload,
-  Wallet,
   TrendUp
 } from '@phosphor-icons/react';
 
 interface InvestmentLauncherProps extends BusinessAppContextProps {}
-
-// Map RemixIcon names to PhosphorIcon components
-const iconMap = {
-  'RiUserAddLine': UserPlus,
-  'RiTargetLine': Target,
-  'RiBuildingLine': Building,
-  'RiContactsLine': AddressBook,
-  'RiFileTextLine': FileText,
-  'RiBarChartLine': ChartBar,
-  'RiUploadLine': Upload,
-  'RiFundsLine': Wallet
-};
 
 const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
   const { stats, isLoading, error, refetch } = useInvestmentDashboardStats(context);
@@ -101,7 +81,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
     return investmentQuickActions.map(action => ({
       id: action.id,
       label: action.label,
-      icon: iconMap[action.icon as keyof typeof iconMap] || TrendUp,
+      icon: action.icon, // Now directly using PhosphorIcon components
       onClick: () => handleQuickAction(action),
       variant: 'secondary'
     }));
@@ -260,7 +240,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
                 onClick: () => {
                   const url = buildPlatformUrl('/platform/irm/investment-relations', { 
                     view: 'investments', 
-                    investmentType: 'equity' 
+                    subView: 'equity' 
                   });
                   navigateTo(url);
                 }
@@ -270,7 +250,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
                 onClick: () => {
                   const url = buildPlatformUrl('/platform/irm/investment-relations', { 
                     view: 'investments', 
-                    investmentType: 'private-equity' 
+                    subView: 'private-equity' 
                   });
                   navigateTo(url);
                 }
@@ -280,7 +260,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
                 onClick: () => {
                   const url = buildPlatformUrl('/platform/irm/investment-relations', { 
                     view: 'investments', 
-                    investmentType: 'liquid-funds' 
+                    subView: 'liquid-funds' 
                   });
                   navigateTo(url);
                 }
@@ -290,7 +270,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
                 onClick: () => {
                   const url = buildPlatformUrl('/platform/irm/investment-relations', { 
                     view: 'investments', 
-                    investmentType: 'real-estate' 
+                    subView: 'real-estate' 
                   });
                   navigateTo(url);
                 }
@@ -340,7 +320,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
         id: area.id,
         title: area.title,
         description: area.description,
-        icon: iconMap[area.icon as keyof typeof iconMap] || TrendUp,
+        icon: area.icon, // Now directly using PhosphorIcon components
         stats: areaStats,
         actions,
         primaryAction: {

@@ -48,6 +48,41 @@ export const useContactFilters = (
     error: jobTitlesError,
   } = useGetJobTitles(context, jobTitleSearch);
 
+  // Initialize filters from URL parameters when job title options are loaded
+  useEffect(() => {
+    if (!filtersInitialized && !isJobTitlesLoading) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const preselectedFilters: string[] = [];
+
+      // Only process URL filters if we have job title data loaded
+      if (jobTitleOptions.length > 0) {
+        // Handle jobTitle parameter: jobTitle=JobTitle:v1:MANAGER
+        const jobTitleParams = urlParams.getAll('jobTitle');
+        jobTitleParams.forEach(titleValue => {
+          const matchingTitle = jobTitleOptions.find(option => option.id === titleValue);
+          if (matchingTitle) {
+            preselectedFilters.push(`title-${matchingTitle.id}`);
+          }
+        });
+      }
+
+      // Handle contactType parameter: contactType=FOUNDER_CONTACT
+      const contactTypeParams = urlParams.getAll('contactType');
+      contactTypeParams.forEach(contactTypeValue => {
+        if (['FOUNDER_CONTACT', 'PRIMARY_CONTACT', 'SECONDARY_CONTACT', 'UNKNOWN_CONTACT'].includes(contactTypeValue)) {
+          preselectedFilters.push(contactTypeValue);
+        }
+      });
+
+      if (preselectedFilters.length > 0) {
+        setSelectedFilters(preselectedFilters);
+      }
+      
+      // Always set initialized to true once loading is complete, regardless of whether data exists
+      setFiltersInitialized(true);
+    }
+  }, [jobTitleOptions, isJobTitlesLoading, filtersInitialized]);
+
   // Backend search function for job titles
   const getJobTitleFilters = useCallback(
     (search: string) => {
