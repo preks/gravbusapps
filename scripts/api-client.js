@@ -362,7 +362,7 @@ async function addScreenConfigToScreenManagement(
           componentPath: `/${azureDestinationPath}`,
           version: buildNumber,
         },
-        release: buildNumber || false,
+        release: buildNumber || "false",
       },
     };
 
@@ -480,7 +480,7 @@ async function updateScreenConfigInScreenManagement(screenId, updateData, apiEnd
         appName: updateData.screenComponents?.appName,
         formDefinition: updateData.screenComponents?.formDefinition || {},
         flowIcon: updateData.screenComponents?.flowIcon || "",
-        release: updateData.screenComponents?.release || false,
+        release: updateData.screenComponents?.release || "true",
       },
     };
 
@@ -563,7 +563,7 @@ async function addFormAsLandingScreen(processName, azureDestinationPath, buildNu
           componentPath: `/${azureDestinationPath}`,
           version: buildNumber,
         },
-        release: buildNumber || false,
+        release: "true",
       },
     };
 
@@ -651,7 +651,7 @@ async function addFormAsUserTaskScreen(
           componentPath: `/${azureDestinationPath}`,
           version: buildNumber,
         },
-        release: buildNumber || false,
+        release: "true",
       },
     };
 
@@ -880,7 +880,7 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
             ...devScreen.screenComponents.formDefinition,
             version: buildVersion,
           },
-          release: buildVersion,
+          release: "true",
         },
       };
 
@@ -910,7 +910,7 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
             ...devScreen.screenComponents.formDefinition,
             version: buildVersion,
           },
-          release: buildVersion,
+          release: "true",
         },
       };
 

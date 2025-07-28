@@ -42,7 +42,8 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     initializeFromUrl,
     createdAfter: filterCreatedAfter,
     createdBefore: filterCreatedBefore,
-    handleDateRangeChange: filterHandleDateRangeChange
+    handleDateRangeChange: filterHandleDateRangeChange,
+    filtersInitialized
   } = useLeadFilters(props);
 
   // Get initial values from URL parameters using standard web APIs - ONLY ONCE
@@ -63,7 +64,6 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>(initialParams.sortOrder as 'ASC' | 'DESC');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const initialLoadDone = useRef(false);
-  const filtersInitialized = useRef(false);
 
   // Initialize search from URL if not already set - ONLY ONCE
   useEffect(() => {
@@ -72,18 +72,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     }
   }, []);
 
-  // Initialize filters from URL when filter options are loaded
-  useEffect(() => {
-    if (!filtersInitialized.current && filterGroups.length > 0 && initialParams.leadStatus) {
-      // Wait for leadStatusOptions to be loaded before initializing
-      const leadStatusGroup = filterGroups.find(group => group.id === 'leadStatuses');
-      if (leadStatusGroup && leadStatusGroup.filters.length > 0) {
-        const urlParams = new URLSearchParams(window.location.search);
-        initializeFromUrl(urlParams);
-        filtersInitialized.current = true;
-      }
-    }
-  }, [filterGroups, initializeFromUrl, initialParams.leadStatus]);
+
 
   // Update URL parameters using standard web APIs
   const updateURLParams = useCallback((params: {
@@ -218,30 +207,30 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     }
   }, [props.accessToken, fetchMostCommonLeadSource]);
   
-  // Trigger initial data loading when component mounts
+  // Trigger initial data loading when component mounts and filters are initialized
   useEffect(() => {
-    if (!initialLoadDone.current && accessToken) {
+    if (!initialLoadDone.current && accessToken && filtersInitialized) {
       initialLoadDone.current = true;
       loadPage(currentPage, pageSize);
     }
-  }, [accessToken, currentPage, pageSize]);
+  }, [accessToken, currentPage, pageSize, filtersInitialized]);
 
   // Trigger search when search term changes
   useEffect(() => {
-    if (initialLoadDone.current) {
+    if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1);
       updateURLParams({ search, page: 1 });
       loadPage(1, pageSize); // Reset to first page when search changes
     }
-  }, [search, pageSize]);
+  }, [search, pageSize, filtersInitialized]);
 
   // Trigger reload when filters change
   useEffect(() => {
-    if (initialLoadDone.current) {
+    if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1);
       loadPage(1, pageSize);
     }
-  }, [JSON.stringify(selectedFilters), filterCreatedAfter, filterCreatedBefore, pageSize]);
+  }, [JSON.stringify(selectedFilters), filterCreatedAfter, filterCreatedBefore, pageSize, filtersInitialized]);
 
   // Handle lead selection
   const handleSelectLead = useCallback((lead: Lead) => {

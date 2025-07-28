@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetJobTitles } from "./useGetJobTitles";
 
@@ -6,6 +6,11 @@ export interface FilterGroup {
   id: string;
   title: string; // Changed from label to title to match DataFilterGroup
   filters: Array<{ id: string; label: string; value: any; selected: boolean }>;
+  backendSearch?: (search: string) => {
+    filters: Array<{ id: string; label: string; selected: boolean }>;
+    loading: boolean;
+    error: any;
+  };
 }
 
 export interface ContactFilters {
@@ -23,6 +28,7 @@ export interface ContactFilters {
   handleDateRangeChange: (after?: string, before?: string) => void;
   jobTitleSearch: string;
   setJobTitleSearch: (search: string) => void;
+  filtersInitialized: boolean;
 }
 
 export const useContactFilters = (
@@ -34,6 +40,7 @@ export const useContactFilters = (
   const [createdBefore, setCreatedBefore] = useState<string | undefined>();
   // Separate state for job title search
   const [jobTitleSearch, setJobTitleSearch] = useState("");
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   const {
     jobTitleOptions,
@@ -41,8 +48,91 @@ export const useContactFilters = (
     error: jobTitlesError,
   } = useGetJobTitles(context, jobTitleSearch);
 
+  // Initialize filters from URL parameters when job title options are loaded
+  useEffect(() => {
+    if (!filtersInitialized && !isJobTitlesLoading) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const preselectedFilters: string[] = [];
+
+      // Only process URL filters if we have job title data loaded
+      if (jobTitleOptions.length > 0) {
+        // Handle jobTitle parameter: jobTitle=JobTitle:v1:MANAGER
+        const jobTitleParams = urlParams.getAll('jobTitle');
+        jobTitleParams.forEach(titleValue => {
+          const matchingTitle = jobTitleOptions.find(option => option.id === titleValue);
+          if (matchingTitle) {
+            preselectedFilters.push(`title-${matchingTitle.id}`);
+          }
+        });
+      }
+
+      // Handle contactType parameter: contactType=FOUNDER_CONTACT
+      const contactTypeParams = urlParams.getAll('contactType');
+      contactTypeParams.forEach(contactTypeValue => {
+        if (['FOUNDER_CONTACT', 'PRIMARY_CONTACT', 'SECONDARY_CONTACT', 'UNKNOWN_CONTACT'].includes(contactTypeValue)) {
+          preselectedFilters.push(contactTypeValue);
+        }
+      });
+
+      if (preselectedFilters.length > 0) {
+        setSelectedFilters(preselectedFilters);
+      }
+      
+      // Always set initialized to true once loading is complete, regardless of whether data exists
+      setFiltersInitialized(true);
+    }
+  }, [jobTitleOptions, isJobTitlesLoading, filtersInitialized]);
+
+  // Backend search function for job titles
+  const getJobTitleFilters = useCallback(
+    (search: string) => {
+      setJobTitleSearch(search);
+
+      return {
+        filters: jobTitleOptions.map((option) => ({
+          id: `title-${option.id}`,
+          label: option.name,
+          selected: selectedFilters.includes(`title-${option.id}`),
+        })),
+        loading: isJobTitlesLoading,
+        error: jobTitlesError,
+      };
+    },
+    [jobTitleOptions, selectedFilters, isJobTitlesLoading, jobTitlesError]
+  );
+
   const filterGroups: FilterGroup[] = useMemo(
     () => [
+      {
+        id: "contactType",
+        title: "Contact Type",
+        filters: [
+          {
+            id: "FOUNDER_CONTACT",
+            label: "Founder",
+            value: "FOUNDER_CONTACT",
+            selected: selectedFilters.includes("FOUNDER_CONTACT"),
+          },
+          {
+            id: "PRIMARY_CONTACT",
+            label: "Primary Contact",
+            value: "PRIMARY_CONTACT",
+            selected: selectedFilters.includes("PRIMARY_CONTACT"),
+          },
+          {
+            id: "SECONDARY_CONTACT",
+            label: "Secondary Contact",
+            value: "SECONDARY_CONTACT",
+            selected: selectedFilters.includes("SECONDARY_CONTACT"),
+          },
+          {
+            id: "UNKNOWN_CONTACT",
+            label: "Unknown",
+            value: "UNKNOWN_CONTACT",
+            selected: selectedFilters.includes("UNKNOWN_CONTACT"),
+          },
+        ],
+      },
       {
         id: "jobTitle",
         title: "Job Title",
@@ -52,9 +142,10 @@ export const useContactFilters = (
           value: option.name,
           selected: selectedFilters.includes(`title-${option.id}`),
         })),
+        backendSearch: getJobTitleFilters,
       },
     ],
-    [selectedFilters, jobTitleOptions]
+    [selectedFilters, jobTitleOptions, getJobTitleFilters]
   );
 
   const filterLabelMap: Record<string, string> = useMemo(() => {
@@ -112,7 +203,10 @@ export const useContactFilters = (
       for (const group of filterGroups) {
         const filter = group.filters.find((f) => f.id === filterId);
         if (filter) {
-          if (group.id === "jobTitle") {
+          if (group.id === "contactType") {
+            if (!filters.contactTypes) filters.contactTypes = [];
+            filters.contactTypes.push(filter.value);
+          } else if (group.id === "jobTitle") {
             if (!filters.jobTitles) filters.jobTitles = [];
             filters.jobTitles.push(filter.value);
           }
@@ -139,5 +233,6 @@ export const useContactFilters = (
     handleDateRangeChange,
     jobTitleSearch,
     setJobTitleSearch,
+    filtersInitialized,
   };
 };

@@ -23,8 +23,15 @@ html {
 @import "./business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css";
 @import "./business-apps/fin/expenses/forms/expense-item/ExpenseItem.css";
 @import "./business-apps/fin/expenses/forms/expense-request/ExpenseRequest.css";
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/SummaryScreen.css";
 @import "./business-apps/fin/expenses/forms/expense-request-invalid/ExpenseRequestInvalid.css";
 @import "./business-apps/fin/expenses/forms/expense-request/components/PlanCard.css";
+
+/* Expense Request Wizard CSS imports */
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/ExpenseRequestWizard.css";
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/components/LocationForm/LocationForm.css";
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/AllowanceScreen.css";
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/TripScreen.css";
 @import "@newwork/gravity-ui-catalog/dist/assets/style.no-base.css";
 @import "./business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css";
 @import "./business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css";

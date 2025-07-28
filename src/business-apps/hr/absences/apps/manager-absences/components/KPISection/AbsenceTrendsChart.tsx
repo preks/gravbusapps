@@ -78,7 +78,7 @@ export const AbsenceTrendsChart: React.FC<AbsenceTrendsChartProps> = ({
                           // Find the value for this type from the payload
                           const entry = payload?.find(p => p.dataKey === type);
                           const value = (entry?.value != null && entry.value !== undefined) ? entry.value : 0;
-                          const color = groupColors[type] || '#ccc';
+                          const color = groupColors[type] || undefined;
                           
                           return (
                             <div key={type} style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
@@ -104,7 +104,7 @@ export const AbsenceTrendsChart: React.FC<AbsenceTrendsChartProps> = ({
                 <Bar
                   key={group}
                   dataKey={group}
-                  fill={groupColors[group] || '#ccc'}
+                  fill={groupColors[group] || undefined}
                   stackId="a"
                   maxBarSize={40}
                 />
@@ -119,7 +119,7 @@ export const AbsenceTrendsChart: React.FC<AbsenceTrendsChartProps> = ({
             <div key={group} className="gba:flex gba:items-center gba:gap-2">
               <div 
                 className="gba:w-3 gba:h-3 gba:rounded-sm"
-                style={{ backgroundColor: groupColors[group] || '#ccc' }}
+                style={{ backgroundColor: groupColors[group] || undefined }}
               />
               <span className="gba:text-xs gba:text-gray-600">{group}</span>
             </div>

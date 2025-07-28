@@ -13,6 +13,7 @@ export interface ResourcePermissionMap {
   domain: string;
   resource: string;
   permission: string;
+  resourceId?: string;
   sections?: Record<string, { domain: string; resource: string; permission: string }>;
 }
 
@@ -50,11 +51,11 @@ export const usePermissionCheck = <T extends Record<string, ResourcePermissionMa
         const permissionRequests: CheckPermissionsRequestDTO[] = [];
         
         // Add resource permission requests
-        Object.entries(permissionMap).forEach(([key, { domain, resource, permission }]) => {
+        Object.entries(permissionMap).forEach(([key, { domain, resource, permission, resourceId: resourceIdFromMap }]) => {
           permissionRequests.push({
             domain,
             resource,
-            resourceId,
+            resourceId: resourceIdFromMap || resourceId,
             permissions: [permission]
           });
           
@@ -83,9 +84,8 @@ export const usePermissionCheck = <T extends Record<string, ResourcePermissionMa
           const permResponse = permissions.find(p => 
             p.domain === config.domain && 
             p.resource === config.resource &&
-            p.resourceId === resourceId
+            p.resourceId === (config.resourceId || resourceId)
           );
-          
           // Initialize permission object
           permissionResults[key] = {
             tabKey: key,

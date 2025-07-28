@@ -268,6 +268,7 @@ const crmDashboardTiles: Tile[] = [
 ]
 
 const TilesDashboard: React.FC<TilesDashboardProps> = ({ className }) => {
+
   return (
     <div className={className}>
       <TilesDashboardComponent 
