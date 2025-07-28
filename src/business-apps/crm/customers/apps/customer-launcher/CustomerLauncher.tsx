@@ -21,28 +21,10 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import * as RemixIcons from '@remixicon/react';
 // Import PhosphorIcons for LauncherLayout
 import { 
-  UserPlus, 
-  Target, 
-  Building,
-  AddressBook,
-  FileText,
-  ChartBar,
-  Upload,
   Users
 } from '@phosphor-icons/react';
 
 interface CustomerLauncherProps extends BusinessAppContextProps {}
-
-// Map RemixIcon names to PhosphorIcon components
-const iconMap = {
-  'RiUserAddLine': UserPlus,
-  'RiTargetLine': Target,
-  'RiBuildingLine': Building,
-  'RiContactsLine': AddressBook,
-  'RiFileTextLine': FileText,
-  'RiBarChartLine': ChartBar,
-  'RiUploadLine': Upload
-};
 
 const CustomerLauncher: React.FC<CustomerLauncherProps> = (context) => {
   const { stats, isLoading, error, refetch } = useCrmDashboardStats(context);
@@ -91,7 +73,7 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = (context) => {
     return quickActions.map(action => ({
       id: action.id,
       label: action.label,
-      icon: iconMap[action.icon as keyof typeof iconMap] || Users,
+      icon: action.icon, // Now directly using PhosphorIcon components
       onClick: () => handleQuickAction(action),
       variant: 'secondary'
     }));
@@ -298,7 +280,7 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = (context) => {
         id: area.id,
         title: area.title,
         description: area.description,
-        icon: iconMap[area.icon as keyof typeof iconMap] || Users,
+        icon: area.icon, // Now directly using PhosphorIcon components
         stats: areaStats,
         actions,
         primaryAction: {

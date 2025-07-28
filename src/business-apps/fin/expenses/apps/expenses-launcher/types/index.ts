@@ -1,8 +1,10 @@
+import { Icon as PhosphorIcon } from '@phosphor-icons/react';
+
 export interface ExpenseArea {
   id: string;
   title: string;
   description: string;
-  icon: string;
+  icon: PhosphorIcon; // Changed from string to PhosphorIcon
   category: 'core' | 'planning' | 'reporting' | 'manager';
   // Manager-specific features
   links?: Array<{
@@ -11,13 +13,13 @@ export interface ExpenseArea {
   }>;
   buttonLabel?: string;
   buttonAction?: string;
-  kpiType?: 'personal' | 'team' | 'analytics';
+  kpiType?: 'personal' | 'team' | 'analytics' | 'settings' | 'calendar'; // Added 'settings' and 'calendar'
 }
 
 export interface QuickAction {
   id: string;
   label: string;
-  icon: string;
+  icon: PhosphorIcon; // Changed from string to PhosphorIcon
   action: string;
 }
 
