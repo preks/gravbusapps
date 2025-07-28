@@ -18,26 +18,26 @@ export const SalesLeaderboard: React.FC<SalesLeaderboardProps> = ({
 }) => {
   const getRankIcon = (index: number) => {
     switch (index) {
-      case 0: return <CrownOutlined style={{ color: '#ffd700', fontSize: '16px' }} />;
-      case 1: return <TrophyOutlined style={{ color: '#c0c0c0', fontSize: '14px' }} />;
-      case 2: return <StarOutlined style={{ color: '#cd7f32', fontSize: '14px' }} />;
-      default: return <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>#{index + 1}</span>;
+      case 0: return <CrownOutlined style={{ color: 'var(--ext-5)', fontSize: '16px' }} />;
+      case 1: return <TrophyOutlined style={{ color: 'var(--muted-foreground)', fontSize: '14px' }} />;
+      case 2: return <StarOutlined style={{ color: 'var(--ext-6)', fontSize: '14px' }} />;
+      default: return <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--muted-foreground)' }}>#{index + 1}</span>;
     }
   };
 
   const getRankColor = (index: number) => {
     switch (index) {
-      case 0: return '#ffd700';
-      case 1: return '#c0c0c0';
-      case 2: return '#cd7f32';
-      default: return '#d9d9d9';
+      case 0: return 'var(--ext-5)';
+      case 1: return 'var(--muted-foreground)';
+      case 2: return 'var(--ext-6)';
+      default: return 'var(--muted)';
     }
   };
 
   const getPerformanceColor = (winRate: number) => {
-    if (winRate >= 70) return '#52c41a';
-    if (winRate >= 50) return '#faad14';
-    return '#ff4d4f';
+    if (winRate >= 70) return 'var(--success)';
+    if (winRate >= 50) return 'var(--warning)';
+    return 'var(--destructive)';
   };
 
   if (!leaderboard || leaderboard.length === 0) {
@@ -87,7 +87,7 @@ export const SalesLeaderboard: React.FC<SalesLeaderboardProps> = ({
               data-testid={`leaderboard-item-${rep.employeeId}`}
               style={{ 
                 padding: '12px 0',
-                borderBottom: index === topPerformers.length - 1 ? 'none' : '1px solid #f0f0f0'
+                borderBottom: index === topPerformers.length - 1 ? 'none' : '1px solid var(--border)'
               }}
             >
               <div style={{ width: '100%' }}>
@@ -99,15 +99,15 @@ export const SalesLeaderboard: React.FC<SalesLeaderboardProps> = ({
                         size="small" 
                         icon={<UserOutlined />}
                         style={{ 
-                          backgroundColor: index < 3 ? getRankColor(index) : '#f0f0f0',
-                          color: index < 3 ? '#fff' : '#666'
+                          backgroundColor: index < 3 ? getRankColor(index) : 'var(--muted)',
+                          color: index < 3 ? 'var(--primary-foreground)' : 'var(--muted-foreground)'
                         }}
                       />
                       <div style={{ 
                         position: 'absolute', 
                         top: '-4px', 
                         right: '-4px',
-                        background: '#fff',
+                        background: 'var(--background)',
                         borderRadius: '50%',
                         padding: '1px'
                       }}>
@@ -118,13 +118,13 @@ export const SalesLeaderboard: React.FC<SalesLeaderboardProps> = ({
                       <Text strong style={{ fontSize: '13px' }}>
                         {rep.displayName}
                       </Text>
-                      <div style={{ fontSize: '11px', color: '#666' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
                         {rep.dealsWon + rep.dealsLost} deals • {rep.activitiesCount} activities
                       </div>
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#1890ff' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--info)' }}>
                       {formatCurrency(rep.totalValue)}
                     </div>
                     <div style={{ fontSize: '11px', color: getPerformanceColor(rep.winRate) }}>
@@ -138,14 +138,14 @@ export const SalesLeaderboard: React.FC<SalesLeaderboardProps> = ({
                   <Progress
                     percent={progressPercent}
                     strokeColor={getRankColor(index)}
-                    trailColor="#f0f0f0"
+                    trailColor="var(--muted)"
                     size="small"
                     showInfo={false}
                   />
                 </div>
 
                 {/* Performance Details */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#999' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--muted-foreground)' }}>
                   <span>
                     Won: {rep.dealsWon} | Lost: {rep.dealsLost}
                   </span>
@@ -163,7 +163,7 @@ export const SalesLeaderboard: React.FC<SalesLeaderboardProps> = ({
       <div style={{ 
         marginTop: '16px', 
         padding: '12px', 
-        backgroundColor: '#f8f9fa',
+        backgroundColor: 'var(--muted)',
         borderRadius: '6px'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -171,21 +171,21 @@ export const SalesLeaderboard: React.FC<SalesLeaderboardProps> = ({
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
           <div>
-            <Text strong style={{ color: '#1890ff' }}>
+            <Text strong style={{ color: 'var(--info)' }}>
               {formatCurrency(topPerformers.reduce((sum, rep) => sum + rep.totalValue, 0))}
             </Text>
             <br />
             <Text type="secondary">Total Value</Text>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <Text strong style={{ color: '#52c41a' }}>
+            <Text strong style={{ color: 'var(--success)' }}>
               {topPerformers.reduce((sum, rep) => sum + rep.dealsWon, 0)}
             </Text>
             <br />
             <Text type="secondary">Deals Won</Text>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <Text strong style={{ color: '#fa8c16' }}>
+            <Text strong style={{ color: 'var(--warning)' }}>
               {formatPercentage(
                 topPerformers.length > 0 
                   ? topPerformers.reduce((sum, rep) => sum + rep.winRate, 0) / topPerformers.length 
