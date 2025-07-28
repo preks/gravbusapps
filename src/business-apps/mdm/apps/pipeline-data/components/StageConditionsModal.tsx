@@ -49,13 +49,35 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useForm } from 'react-hook-form';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useStageConditions } from '../hooks/useStageConditions';
+import { useMeasurementUnits, MeasurementUnit } from '../hooks/useMeasurementUnits';
 import { EnhancedSalesPipelineStage } from '../types';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+
+// Catalog constants
+const SALES_PIPELINE_STAGE_CONDITION_CATALOG = 'SalesPipelineStageCondition';
+const SALES_PIPELINE_STAGE_CONDITION_VERSION = 'v1';
+
+interface StageConditionObjectValue {
+  description?: string;
+  generateTask?: boolean;
+  check_type?: 'Automated' | 'User' | 'Manager' | 'Owner';
+  deadline_enabled?: boolean;
+  deadline_duration?: number;
+  deadline_duration_measurement_unit_ref?: string;
+}
 
 interface StageCondition {
   id: string;
   name: string;
   description: string;
   rank: number;
+  code: string;
+  alternativeCode: string;
+  objectValue: StageConditionObjectValue;
+  additionalValue1?: string;
+  additionalValue2?: string;
+  additionalValue3?: string;
   generateTask?: boolean;
   checkedType?: 'Automated' | 'User' | 'Manager' | 'Owner';
   deadlineEnabled?: boolean;
@@ -229,6 +251,14 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [conditionToDelete, setConditionToDelete] = useState<StageCondition | null>(null);
 
+  // Measurement units state
+  const [measurementUnits, setMeasurementUnits] = useState<MeasurementUnit[]>([]);
+  const [loadingMeasurementUnits, setLoadingMeasurementUnits] = useState(false);
+
+  const { fetchStageConditions } = useStageConditions(context);
+  const { fetchTimeMeasurementUnits } = useMeasurementUnits(context);
+  const catalogClient = useCatalogManagerClient(context.accessToken);
+
   const conditionForm = useForm<ConditionFormData>({
     defaultValues: {
       name: '',
@@ -254,12 +284,39 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
     })
   );
 
-  // Load conditions when stage changes (mock data for now)
+  // Load conditions when stage changes
   useEffect(() => {
     if (stage && visible) {
       loadConditions();
     }
   }, [stage, visible]);
+
+  // Load measurement units when modal becomes visible
+  useEffect(() => {
+    if (visible && measurementUnits.length === 0) {
+      loadMeasurementUnits();
+    }
+  }, [visible]);
+
+  // Load measurement units when condition modal becomes visible
+  useEffect(() => {
+    if (isConditionModalVisible && measurementUnits.length === 0) {
+      loadMeasurementUnits();
+    }
+  }, [isConditionModalVisible]);
+
+  const loadMeasurementUnits = async () => {
+    setLoadingMeasurementUnits(true);
+    try {
+      const units = await fetchTimeMeasurementUnits();
+      console.log('Loaded measurement units:', units);
+      setMeasurementUnits(units);
+    } catch (error) {
+      console.error('Error loading measurement units:', error);
+    } finally {
+      setLoadingMeasurementUnits(false);
+    }
+  };
 
   const loadConditions = async () => {
     if (!stage) return;
@@ -268,20 +325,67 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
     setError(null);
 
     try {
-      // TODO: Replace with real API call
-      // Mock data for demonstration
-      const mockConditions: StageCondition[] = [
-        { id: '1', name: 'Customer has valid budget confirmation', description: 'Verify the customer has allocated budget and decision authority for this purchase', rank: 1, generateTask: true, checkedType: 'User', deadlineEnabled: true, deadlineDuration: 3, deadlineUnit: 'Days' },
-        { id: '2', name: 'Decision maker identified and engaged', description: 'Ensure direct contact with the person who has final purchasing authority', rank: 2, generateTask: false, checkedType: 'Owner', deadlineEnabled: false },
-        { id: '3', name: 'Technical requirements documented', description: 'All technical specifications and integration requirements are clearly defined', rank: 3, generateTask: true, checkedType: 'User', deadlineEnabled: true, deadlineDuration: 5, deadlineUnit: 'Days' },
-        { id: '4', name: 'Proposal submitted and acknowledged', description: 'Formal proposal has been delivered and receipt confirmed by the customer', rank: 4, generateTask: false, checkedType: 'Owner', deadlineEnabled: true, deadlineDuration: 2, deadlineUnit: 'Weeks' },
-        { id: '5', name: 'Legal review completed', description: 'Legal teams from both sides have reviewed and approved all contract terms', rank: 5, generateTask: true, checkedType: 'Manager', deadlineEnabled: false },
-        { id: '6', name: 'Contract terms agreed upon', description: 'All commercial terms including pricing, payment, and delivery have been finalized', rank: 6, generateTask: false, checkedType: 'User', deadlineEnabled: true, deadlineDuration: 1, deadlineUnit: 'Weeks' },
-        { id: '7', name: 'Final approval received', description: 'All necessary approvals and sign-offs have been obtained from stakeholders', rank: 7, generateTask: true, checkedType: 'Manager', deadlineEnabled: true, deadlineDuration: 2, deadlineUnit: 'Days' },
-        { id: '8', name: 'Implementation timeline confirmed', description: 'Project timeline and key milestones have been agreed upon by all parties', rank: 8, generateTask: false, checkedType: 'Automated', deadlineEnabled: false }
-      ];
+      // Ensure measurement units are loaded first
+      if (measurementUnits.length === 0) {
+        await loadMeasurementUnits();
+      }
 
-      setConditions(mockConditions);
+      // Fetch real condition data from GraphQL
+      const conditionEntries = await fetchStageConditions(stage.code);
+      
+      // Transform GraphQL data to StageCondition format
+      const transformedConditions: StageCondition[] = conditionEntries.map((entry, index) => {
+        // Parse additional values for enhanced fields
+        const additionalValue1 = entry.additionalValue1 || '';
+        const additionalValue2 = entry.additionalValue2 || '';
+        const additionalValue3 = entry.additionalValue3 || '';
+        
+        // Try to parse objectValue for extended configuration
+        let objectValue: StageConditionObjectValue = {};
+        try {
+          objectValue = typeof entry.objectValue === 'string' 
+            ? JSON.parse(entry.objectValue) 
+            : entry.objectValue || {};
+          console.log('Parsed objectValue for condition:', entry.value, objectValue);
+        } catch (e) {
+          objectValue = {};
+          console.error('Error parsing objectValue for condition:', entry.value, e);
+        }
+
+        // Resolve measurement unit value from catalog
+        const measurementUnitRef = objectValue.deadline_duration_measurement_unit_ref;
+        let resolvedDeadlineUnit = 'Days'; // Default fallback
+        
+        if (measurementUnitRef && measurementUnits.length > 0) {
+          const foundUnit = measurementUnits.find(unit => unit.id === measurementUnitRef);
+          if (foundUnit) {
+            resolvedDeadlineUnit = foundUnit.value;
+          }
+        }
+
+        return {
+          id: entry.id,
+          name: entry.value || `Condition ${index + 1}`,
+          description: objectValue.description || additionalValue1 || 'No description provided',
+          rank: parseInt(additionalValue1) || index + 1, // Use additionalValue1 for rank, fallback to index
+          code: entry.code,
+          alternativeCode: entry.alternativeCode,
+          objectValue: objectValue,
+          additionalValue1: additionalValue1,
+          additionalValue2: additionalValue2,
+          additionalValue3: additionalValue3,
+          // Extract configuration from objectValue if available
+          generateTask: objectValue.generateTask || false,
+          checkedType: objectValue.check_type || 'User',
+          deadlineEnabled: objectValue.deadline_enabled || false,
+          deadlineDuration: objectValue.deadline_duration || 1,
+          deadlineUnit: resolvedDeadlineUnit
+        };
+      });
+
+      // Sort conditions by their rank
+      const sortedConditions = transformedConditions.sort((a, b) => a.rank - b.rank);
+      setConditions(sortedConditions);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to load stage conditions';
       setError(errorMsg);
@@ -323,12 +427,57 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
     }));
     setConditions(updatedConditions);
 
-    // TODO: Update condition ranks via API
-    console.log('Updated condition order:', updatedConditions);
+    // Update condition ranks via API
+    try {
+      setOperationLoading(true);
+      
+      if (!stage) {
+        throw new Error('Stage is required for updating conditions');
+      }
+      
+      console.log('Updating condition order:', updatedConditions.map(c => ({ id: c.id, name: c.name, rank: c.rank })));
+      
+      for (const condition of updatedConditions) {
+        const payload = {
+          id: condition.id,
+          code: condition.code,
+          value: condition.name,
+          alternativeCode: condition.alternativeCode,
+          parentEntryId: `SalesPipelineStage:v1:${stage.code}`, // Use correct stage ID format
+          additionalValue1: condition.rank.toString(), // Order stored here
+          objectValue: condition.objectValue as any, // Convert to JSONValue
+          translations: []
+        };
+
+        console.log(`Updating condition ${condition.name} with rank ${condition.rank}`);
+
+        await catalogClient.updateCatalogEntry(
+          SALES_PIPELINE_STAGE_CONDITION_CATALOG,
+          SALES_PIPELINE_STAGE_CONDITION_VERSION,
+          condition.id,
+          payload
+        );
+      }
+      
+      console.log('Condition order updated successfully');
+    } catch (error) {
+      console.error('Error updating condition order:', error);
+      // Reload conditions to reset to server state
+      await loadConditions();
+    } finally {
+      setOperationLoading(false);
+    }
   };
 
   const handleAddCondition = () => {
     if (!stage) return;
+    
+    console.log('Opening add condition modal, measurement units:', measurementUnits);
+    
+    // Ensure measurement units are loaded before opening modal
+    if (measurementUnits.length === 0) {
+      loadMeasurementUnits();
+    }
     
     setEditingCondition(null);
     conditionForm.reset({
@@ -345,15 +494,24 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
   };
 
   const handleEditCondition = (condition: StageCondition) => {
+    console.log('Opening edit condition modal, measurement units:', measurementUnits);
+    console.log('Condition deadline_duration_measurement_unit_ref:', condition.objectValue.deadline_duration_measurement_unit_ref);
+    console.log('Condition objectValue:', condition.objectValue);
+    
+    // Ensure measurement units are loaded before opening modal
+    if (measurementUnits.length === 0) {
+      loadMeasurementUnits();
+    }
+    
     setEditingCondition(condition);
     conditionForm.reset({
       name: condition.name,
       description: condition.description,
-      generate_task: false, // TODO: Add these fields to StageCondition interface
-      checked_type: 'User',
-      deadline_enabled: false,
-      deadline_duration: 1,
-      deadline_duration_measurement_unit_ref: '',
+      generate_task: condition.objectValue.generateTask || false,
+      checked_type: condition.objectValue.check_type || 'User',
+      deadline_enabled: condition.objectValue.deadline_enabled || false,
+      deadline_duration: condition.objectValue.deadline_duration || 1,
+      deadline_duration_measurement_unit_ref: condition.objectValue.deadline_duration_measurement_unit_ref || '',
       rank: condition.rank
     });
     setIsConditionModalVisible(true);
@@ -369,13 +527,21 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
     
     try {
       setOperationLoading(true);
-      // TODO: Delete condition via API
+      
+      await catalogClient.deleteCatalogEntry(
+        SALES_PIPELINE_STAGE_CONDITION_CATALOG,
+        SALES_PIPELINE_STAGE_CONDITION_VERSION,
+        conditionToDelete.id
+      );
+      
       console.log(`Condition "${conditionToDelete.name}" deleted successfully`);
       
       // Remove from local state
       setConditions(prev => prev.filter(c => c.id !== conditionToDelete.id));
     } catch (error) {
       console.error('Error deleting condition:', error);
+      // Reload conditions to reset to server state
+      await loadConditions();
     } finally {
       setOperationLoading(false);
       setDeleteDialogOpen(false);
@@ -391,31 +557,64 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
 
       if (editingCondition) {
         // Update existing condition
-        const updatedCondition = {
-          ...editingCondition,
-          name: values.name,
-          rank: values.rank
+        const payload = {
+          id: editingCondition.id,
+          code: editingCondition.code,
+          value: values.name,
+          alternativeCode: editingCondition.alternativeCode,
+          parentEntryId: `SalesPipelineStage:v1:${stage.code}`, // Use correct stage ID format
+          additionalValue1: values.rank.toString(),
+          objectValue: {
+            description: values.description,
+            generateTask: values.generate_task,
+            check_type: values.checked_type,
+            deadline_enabled: values.deadline_enabled,
+            deadline_duration: values.deadline_duration,
+            deadline_duration_measurement_unit_ref: values.deadline_duration_measurement_unit_ref
+          } as any,
+          translations: []
         };
-        
-        setConditions(prev => 
-          prev.map(c => c.id === editingCondition.id ? updatedCondition : c)
+
+        await catalogClient.updateCatalogEntry(
+          SALES_PIPELINE_STAGE_CONDITION_CATALOG,
+          SALES_PIPELINE_STAGE_CONDITION_VERSION,
+          editingCondition.id,
+          payload
         );
         
         console.log(`Condition "${values.name}" updated successfully`);
       } else {
         // Create new condition
-        const newCondition: StageCondition = {
-          id: Date.now().toString(), // Temporary ID
-          name: values.name,
-          description: 'Add description for this condition...', // TODO: Add description field to form
-          rank: values.rank
-        };
+        const code = `CONDITION_${Date.now()}`; // Generate a unique code
         
-        setConditions(prev => [...prev, newCondition].sort((a, b) => a.rank - b.rank));
+        const payload = {
+          code,
+          value: values.name,
+          alternativeCode: 'CONDITION',
+          parentEntryId: `SalesPipelineStage:v1:${stage.code}`, // Use correct stage ID format
+          additionalValue1: values.rank.toString(),
+          objectValue: {
+            description: values.description,
+            generateTask: values.generate_task,
+            check_type: values.checked_type,
+            deadline_enabled: values.deadline_enabled,
+            deadline_duration: values.deadline_duration,
+            deadline_duration_measurement_unit_ref: values.deadline_duration_measurement_unit_ref
+          } as any,
+          translations: []
+        };
+
+        await catalogClient.createCatalogEntry(
+          SALES_PIPELINE_STAGE_CONDITION_CATALOG,
+          SALES_PIPELINE_STAGE_CONDITION_VERSION,
+          payload
+        );
+        
         console.log(`Condition "${values.name}" created successfully`);
       }
 
       setIsConditionModalVisible(false);
+      await loadConditions(); // Reload conditions to get updated data
     } catch (error) {
       console.error('Error saving condition:', error);
     } finally {
@@ -502,10 +701,6 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
                     <p className="gba:text-gray-400 gba:mb-4">
                       Add the first condition to define requirements for this stage
                     </p>
-                    <Button onClick={handleAddCondition} className="gba:flex gba:items-center gba:gap-2">
-                      <Plus className="gba:w-4 gba:h-4" />
-                      Add Condition
-                    </Button>
                   </div>
                 </div>
               ) : (
@@ -578,251 +773,252 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
         data-testid={`${prefixDataTestId}-condition-modal`}
       >
         <div>
+          <Form {...conditionForm}>
+            <form onSubmit={conditionForm.handleSubmit(handleConditionModalSubmit)} className="gba:space-y-6">
+              {/* Basic Information Section */}
+              <div className="gba:space-y-4">
+                <h4 className="gba:font-medium gba:text-gray-900 gba:text-sm gba:border-b gba:border-gray-200 gba:pb-2">Basic Information</h4>
+                
+                <FormField
+                  control={conditionForm.control}
+                  name="name"
+                  rules={{ required: 'Please enter a condition name' }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Condition Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          placeholder="Please Enter..."
+                          data-testid={`${prefixDataTestId}-condition-name-input`}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <Form {...conditionForm}>
-              <form onSubmit={conditionForm.handleSubmit(handleConditionModalSubmit)} className="gba:space-y-6">
-                {/* Basic Information Section */}
-                <div className="gba:space-y-4">
-                  <h4 className="gba:font-medium gba:text-gray-900 gba:text-sm gba:border-b gba:border-gray-200 gba:pb-2">Basic Information</h4>
-                  
-                  <FormField
-                    control={conditionForm.control}
-                    name="name"
-                    rules={{ required: 'Please enter a condition name' }}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Condition Name</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            placeholder="Please Enter..."
-                            data-testid={`${prefixDataTestId}-condition-name-input`}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <FormField
+                  control={conditionForm.control}
+                  name="description"
+                  rules={{ required: 'Please enter a description' }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          {...field} 
+                          placeholder="Describe what this condition requires..."
+                          rows={3}
+                          data-testid={`${prefixDataTestId}-condition-description-input`}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-                  <FormField
-                    control={conditionForm.control}
-                    name="description"
-                    rules={{ required: 'Please enter a description' }}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            {...field} 
-                            placeholder="Describe what this condition requires..."
-                            rows={3}
-                            data-testid={`${prefixDataTestId}-condition-description-input`}
-                          />
-                        </FormControl>
+              {/* Task Configuration Section */}
+              <div className="gba:space-y-4 gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 gba:bg-gray-50">
+                <h4 className="gba:font-medium gba:text-gray-900 gba:text-sm">Task Configuration</h4>
+                
+                <FormField
+                  control={conditionForm.control}
+                  name="generate_task"
+                  render={({ field }) => (
+                    <FormItem className="gba:flex gba:flex-row gba:items-start gba:space-x-3 gba:space-y-0 gba:rounded-md gba:border gba:border-gray-200 gba:p-3 gba:bg-white">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid={`${prefixDataTestId}-condition-generate-task-checkbox`}
+                        />
+                      </FormControl>
+                      <div className="gba:space-y-1 gba:leading-none">
+                        <FormLabel className="gba:text-sm gba:font-medium">Generate Task</FormLabel>
+                        <p className="gba:text-xs gba:text-gray-500">
+                          Automatically create a task when this condition needs to be checked
+                        </p>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={conditionForm.control}
+                  name="checked_type"
+                  rules={{ required: 'Please select who checks this condition' }}
+                  render={({ field }) => (
+                    <FormItem className="gba:flex gba:items-center gba:gap-4">
+                      <FormLabel className="gba:w-24 gba:flex-shrink-0 gba:text-sm gba:font-medium">Checked By</FormLabel>
+                      <div className="gba:flex-1">
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid={`${prefixDataTestId}-condition-checked-type-select`}>
+                              <SelectValue placeholder="Select who checks this condition" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value={field.value}>{field.value}</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Deadline Configuration Section */}
+              <div className="gba:space-y-4 gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 gba:bg-gray-50">
+                <div>
+                  <h4 className="gba:font-medium gba:text-gray-900 gba:text-sm gba:mb-2">Deadline Configuration</h4>
+                  <p className="gba:text-xs gba:text-gray-600 gba:leading-relaxed">
+                    Deadlines are calculated from when the opportunity enters the current stage.<br/>Set a time limit for completing this condition.
+                  </p>
                 </div>
+                
+                <FormField
+                  control={conditionForm.control}
+                  name="deadline_enabled"
+                  render={({ field }) => (
+                    <FormItem className="gba:flex gba:flex-row gba:items-start gba:space-x-3 gba:space-y-0 gba:rounded-md gba:border gba:border-gray-200 gba:p-3 gba:bg-white">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid={`${prefixDataTestId}-condition-deadline-enabled-checkbox`}
+                        />
+                      </FormControl>
+                      <div className="gba:space-y-1 gba:leading-none">
+                        <FormLabel className="gba:text-sm gba:font-medium">Enable Deadline</FormLabel>
+                        <p className="gba:text-xs gba:text-gray-500">
+                          Set a deadline for completing this condition
+                        </p>
+                      </div>
+                    </FormItem>
+                  )}
+                />
 
-                {/* Task Configuration Section */}
-                <div className="gba:space-y-4 gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 gba:bg-gray-50">
-                  <h4 className="gba:font-medium gba:text-gray-900 gba:text-sm">Task Configuration</h4>
-                  
-                  <FormField
-                    control={conditionForm.control}
-                    name="generate_task"
-                    render={({ field }) => (
-                      <FormItem className="gba:flex gba:flex-row gba:items-start gba:space-x-3 gba:space-y-0 gba:rounded-md gba:border gba:border-gray-200 gba:p-3 gba:bg-white">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            data-testid={`${prefixDataTestId}-condition-generate-task-checkbox`}
-                          />
-                        </FormControl>
-                        <div className="gba:space-y-1 gba:leading-none">
-                          <FormLabel className="gba:text-sm gba:font-medium">Generate Task</FormLabel>
-                          <p className="gba:text-xs gba:text-gray-500">
-                            Automatically create a task when this condition needs to be checked
-                          </p>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={conditionForm.control}
-                    name="checked_type"
-                    rules={{ required: 'Please select who checks this condition' }}
-                    render={({ field }) => (
-                      <FormItem className="gba:flex gba:items-center gba:gap-4">
-                        <FormLabel className="gba:w-24 gba:flex-shrink-0 gba:text-sm gba:font-medium">Checked By</FormLabel>
-                        <div className="gba:flex-1">
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid={`${prefixDataTestId}-condition-checked-type-select`}>
-                                <SelectValue placeholder="Select who checks this condition" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Automated">Automated</SelectItem>
-                              <SelectItem value="User">User</SelectItem>
-                              <SelectItem value="Manager">Manager</SelectItem>
-                              <SelectItem value="Owner">Owner</SelectItem>
-                            </SelectContent>
-                          </Select>
+                {conditionForm.watch('deadline_enabled') && (
+                  <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:bg-white gba:p-3 gba:rounded-md gba:border gba:border-gray-200">
+                    <FormField
+                      control={conditionForm.control}
+                      name="deadline_duration"
+                      rules={{ required: 'Please enter deadline duration', min: { value: 1, message: 'Duration must be at least 1' } }}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Duration</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="number"
+                              min="1"
+                              placeholder="1"
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                              data-testid={`${prefixDataTestId}-condition-deadline-duration-input`}
+                            />
+                          </FormControl>
                           <FormMessage />
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                        </FormItem>
+                      )}
+                    />
 
-                {/* Deadline Configuration Section */}
-                <div className="gba:space-y-4 gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 gba:bg-gray-50">
-                  <div>
-                    <h4 className="gba:font-medium gba:text-gray-900 gba:text-sm gba:mb-2">Deadline Configuration</h4>
-                    <p className="gba:text-xs gba:text-gray-600 gba:leading-relaxed">
-                      Deadlines are calculated from when the opportunity enters the current stage.<br/>Set a time limit for completing this condition.
-                    </p>
-                  </div>
-                  
-                  <FormField
-                    control={conditionForm.control}
-                    name="deadline_enabled"
-                    render={({ field }) => (
-                      <FormItem className="gba:flex gba:flex-row gba:items-start gba:space-x-3 gba:space-y-0 gba:rounded-md gba:border gba:border-gray-200 gba:p-3 gba:bg-white">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            data-testid={`${prefixDataTestId}-condition-deadline-enabled-checkbox`}
-                          />
-                        </FormControl>
-                        <div className="gba:space-y-1 gba:leading-none">
-                          <FormLabel className="gba:text-sm gba:font-medium">Enable Deadline</FormLabel>
-                          <p className="gba:text-xs gba:text-gray-500">
-                            Set a deadline for completing this condition
-                          </p>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-
-                  {conditionForm.watch('deadline_enabled') && (
-                    <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:bg-white gba:p-3 gba:rounded-md gba:border gba:border-gray-200">
-                      <FormField
-                        control={conditionForm.control}
-                        name="deadline_duration"
-                        rules={{ required: 'Please enter deadline duration', min: { value: 1, message: 'Duration must be at least 1' } }}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Duration</FormLabel>
-                            <FormControl>
-                              <Input 
-                                {...field} 
-                                type="number"
-                                min="1"
-                                placeholder="1"
-                                onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                                data-testid={`${prefixDataTestId}-condition-deadline-duration-input`}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={conditionForm.control}
-                        name="deadline_duration_measurement_unit_ref"
-                        rules={{ required: 'Please select measurement unit' }}
-                        render={({ field }) => (
+                    <FormField
+                      control={conditionForm.control}
+                      name="deadline_duration_measurement_unit_ref"
+                      rules={{ required: 'Please select measurement unit' }}
+                      render={({ field }) => {
+                        console.log('Rendering measurement unit dropdown. Field value:', field.value, 'Available units:', measurementUnits);
+                        return (
                           <FormItem>
                             <FormLabel>Unit</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger data-testid={`${prefixDataTestId}-condition-measurement-unit-select`}>
-                                  <SelectValue placeholder="Select unit" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="MeasurementUnit:v1:HOURS">Hours</SelectItem>
-                                <SelectItem value="MeasurementUnit:v1:DAYS">Days</SelectItem>
-                                <SelectItem value="MeasurementUnit:v1:WEEKS">Weeks</SelectItem>
-                                <SelectItem value="MeasurementUnit:v1:MONTHS">Months</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <FormControl>
+                              <select
+                                value={field.value}
+                                onChange={field.onChange}
+                                className="gba:flex gba:h-10 gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:ring-offset-background gba:file:border-0 gba:file:bg-transparent gba:file:text-sm gba:file:font-medium gba:placeholder:text-muted-foreground gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring gba:focus-visible:ring-offset-2 gba:disabled:cursor-not-allowed gba:disabled:opacity-50"
+                                data-testid={`${prefixDataTestId}-condition-measurement-unit-select`}
+                              >
+                                <option value="">Select unit</option>
+                                {measurementUnits.map((unit) => (
+                                  <option key={unit.id} value={unit.id}>
+                                    {unit.value}
+                                  </option>
+                                ))}
+                              </select>
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
-                        )}
-                      />
-                    </div>
-                  )}
-                </div>
+                        );
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
 
-                <div className="gba:flex gba:gap-3 gba:pt-6 gba:border-t gba:border-gray-200">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsConditionModalVisible(false)}
-                    data-testid={`${prefixDataTestId}-condition-modal-cancel`}
-                    className="gba:flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={operationLoading}
-                    data-testid={`${prefixDataTestId}-condition-modal-submit`}
-                    className="gba:flex-1"
-                  >
-                    {operationLoading && <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />}
-                    {editingCondition ? 'Update Condition' : 'Create Condition'}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </div>
-        </Modal>
+              <div className="gba:flex gba:gap-3 gba:pt-6 gba:border-t gba:border-gray-200">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsConditionModalVisible(false)}
+                  data-testid={`${prefixDataTestId}-condition-modal-cancel`}
+                  className="gba:flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={operationLoading}
+                  data-testid={`${prefixDataTestId}-condition-modal-submit`}
+                  className="gba:flex-1"
+                >
+                  {operationLoading && <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />}
+                  {editingCondition ? 'Update Condition' : 'Create Condition'}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </div>
+      </Modal>
 
-        {/* Delete Confirmation Modal */}
-        <Modal
-          open={deleteDialogOpen}
-          onCancel={() => setDeleteDialogOpen(false)}
-          footer={null}
-          width={500}
-          centered
-          title="Delete Condition"
-          data-testid={`${prefixDataTestId}-delete-condition-confirmation`}
-        >
-          <div className="gba:py-4">
-            <p>
-              Are you sure you want to delete condition "{conditionToDelete?.name}"? 
-              This action cannot be undone.
-            </p>
-          </div>
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={deleteDialogOpen}
+        onCancel={() => setDeleteDialogOpen(false)}
+        footer={null}
+        width={500}
+        centered
+        title="Delete Condition"
+        data-testid={`${prefixDataTestId}-delete-condition-confirmation`}
+      >
+        <div className="gba:py-4">
+          <p>
+            Are you sure you want to delete condition "{conditionToDelete?.name}"? 
+            This action cannot be undone.
+          </p>
+        </div>
 
-          <div className="gba:flex gba:gap-2 gba:pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-              data-testid={`${prefixDataTestId}-delete-condition-cancel`}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDeleteCondition}
-              disabled={operationLoading}
-              data-testid={`${prefixDataTestId}-delete-condition-confirm`}
-            >
-              {operationLoading && <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />}
-              Delete
-            </Button>
-          </div>
-        </Modal>
+        <div className="gba:flex gba:gap-2 gba:pt-4">
+          <Button
+            variant="outline"
+            onClick={() => setDeleteDialogOpen(false)}
+            data-testid={`${prefixDataTestId}-delete-condition-cancel`}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={confirmDeleteCondition}
+            disabled={operationLoading}
+            data-testid={`${prefixDataTestId}-delete-condition-confirm`}
+          >
+            {operationLoading && <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />}
+            Delete
+          </Button>
+        </div>
+      </Modal>
     </Modal>
   );
-}; 
+};

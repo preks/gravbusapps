@@ -31,6 +31,8 @@ import {
 import { useForm } from 'react-hook-form';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { usePipelineDataIntegration } from '../hooks/usePipelineDataIntegration';
+import { useStageConditions } from '../hooks/useStageConditions';
+import { useSalesPipelineStages } from '../hooks/useSalesPipelineStages';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { SALES_PIPELINE_CATALOG, SALES_PIPELINE_VERSION } from '../hooks/useSalesPipelines';
 import {
@@ -63,6 +65,10 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pipelineToDelete, setPipelineToDelete] = useState<EnhancedSalesPipeline | null>(null);
   
+  // Pipeline condition counts state
+  const [pipelineConditionCounts, setPipelineConditionCounts] = useState<Record<string, number>>({});
+  const [loadingPipelineConditions, setLoadingPipelineConditions] = useState<Record<string, boolean>>({});
+  
   const pipelineForm = useForm<PipelineFormData>({
     defaultValues: {
       value: '',
@@ -72,7 +78,60 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
   });
 
   const { pipelines, isLoading, error, refetch } = usePipelineDataIntegration(props, { sourceApp });
+  const { fetchStageConditionsCount } = useStageConditions(props);
+  const { fetchSalesPipelineStagesByParent } = useSalesPipelineStages(props);
   const catalogClient = useCatalogManagerClient(props.accessToken);
+
+  // Load pipeline condition counts when pipelines change
+  React.useEffect(() => {
+    if (pipelines.length > 0) {
+      loadPipelineConditionCounts();
+    }
+  }, [pipelines]);
+
+  const loadPipelineConditionCounts = async () => {
+    const counts: Record<string, number> = {};
+    const loading: Record<string, boolean> = {};
+
+    // Set loading state for all pipelines
+    pipelines.forEach(pipeline => {
+      loading[pipeline.id] = true;
+    });
+    setLoadingPipelineConditions(loading);
+
+    // Fetch condition counts for each pipeline
+    const promises = pipelines.map(async (pipeline) => {
+      try {
+        // First, get all stages for this pipeline
+        const stagesResponse = await fetchSalesPipelineStagesByParent(pipeline.id);
+        const stages = stagesResponse.data.filter(entry => entry.parentEntryId === pipeline.id);
+        
+        // Then, get condition counts for each stage and sum them up
+        const conditionPromises = stages.map(stage => fetchStageConditionsCount(stage.code));
+        const stageCounts = await Promise.all(conditionPromises);
+        
+        // Sum all condition counts for this pipeline
+        const totalCount = stageCounts.reduce((sum, count) => sum + count, 0);
+        counts[pipeline.id] = totalCount;
+        loading[pipeline.id] = false;
+      } catch (error) {
+        console.error(`Error loading conditions for pipeline ${pipeline.value}:`, error);
+        counts[pipeline.id] = 0;
+        loading[pipeline.id] = false;
+      }
+    });
+
+    await Promise.all(promises);
+    
+    setPipelineConditionCounts(counts);
+    setLoadingPipelineConditions(loading);
+  };
+
+  // Combined refresh function for pipelines and their condition counts
+  const refreshPipelinesAndCounts = async () => {
+    await refetch();
+    // Note: condition counts will be automatically reloaded via useEffect when pipelines change
+  };
 
   // Pipelines are already filtered by sourceApp in the hook
 
@@ -117,7 +176,7 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
         pipelineToDelete.id
       );
       console.log(`Pipeline "${pipelineToDelete.value}" deleted successfully`);
-      await refetch();
+      await refreshPipelinesAndCounts();
     } catch (error) {
       console.error('Error deleting pipeline:', error);
     } finally {
@@ -178,7 +237,7 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
       }
 
       setIsPipelineModalVisible(false);
-      await refetch();
+      await refreshPipelinesAndCounts();
     } catch (error) {
       console.error('Error saving pipeline:', error);
     } finally {
@@ -231,7 +290,7 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={refetch}
+            onClick={refreshPipelinesAndCounts}
             className="gba:ml-2"
           >
             Retry
@@ -244,18 +303,10 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
   return (
     <div
       data-testid={`${prefixDataTestId}-PipelineOverview`}
-      className="gba:h-full"
+      className="gba:h-full gba:p-6"
     >
-      {/* Header */}
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6 gba:pb-4 gba:border-b gba:border-gray-200">
-        <div>
-          <h3 className="gba:text-2xl gba:font-semibold gba:mb-1">
-            {sourceApp === 'CRM' ? 'Sales' : 'Investment'} Pipeline Management
-          </h3>
-          <p className="gba:text-gray-600">
-            Manage your {sourceApp === 'CRM' ? 'sales' : 'investment'} pipelines and configure their stages
-          </p>
-        </div>
+      {/* Action Button */}
+      <div className="gba:flex gba:justify-end gba:mb-6">
         <Button
           onClick={handleAddPipeline}
           data-testid={`${prefixDataTestId}-add-pipeline-button`}
@@ -371,8 +422,11 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
                       className="gba:text-sm gba:font-semibold gba:text-orange-600"
                       data-testid={`${prefixDataTestId}-pipeline-condition-count-${pipeline.id}`}
                     >
-                      {/* TODO: Replace with real condition count */}
-                      12
+                      {loadingPipelineConditions[pipeline.id] ? (
+                        <Spinner className="gba:w-3 gba:h-3" />
+                      ) : (
+                        pipelineConditionCounts[pipeline.id] || 0
+                      )}
                     </span>
                   </div>
                 </div>
@@ -540,7 +594,7 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
         onClose={() => {
           setIsStagesModalVisible(false);
           setSelectedPipeline(null);
-          refetch();
+          refreshPipelinesAndCounts();
         }}
         prefixDataTestId={prefixDataTestId}
         {...props}

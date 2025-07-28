@@ -48,6 +48,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useForm } from 'react-hook-form';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useSalesPipelineStages } from '../hooks/useSalesPipelineStages';
+import { useStageConditions } from '../hooks/useStageConditions';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { SALES_PIPELINE_STAGE_CATALOG, SALES_PIPELINE_STAGE_VERSION } from '../hooks/useSalesPipelineStages';
 import {
@@ -95,10 +96,12 @@ const transformCatalogEntryToStage = (entry: CatalogEntry, pipeline: EnhancedSal
 const DraggableStageCard: React.FC<{
   stage: EnhancedSalesPipelineStage;
   prefixDataTestId?: string;
+  conditionCount: number;
+  isLoadingConditions: boolean;
   onEdit: (stage: EnhancedSalesPipelineStage) => void;
   onDelete: (stage: EnhancedSalesPipelineStage) => void;
   onViewConditions: (stage: EnhancedSalesPipelineStage) => void;
-}> = ({ stage, prefixDataTestId, onEdit, onDelete, onViewConditions }) => {
+}> = ({ stage, prefixDataTestId, conditionCount, isLoadingConditions, onEdit, onDelete, onViewConditions }) => {
   const {
     attributes,
     listeners,
@@ -219,12 +222,16 @@ const DraggableStageCard: React.FC<{
                 <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
                   <div className="gba:w-2 gba:h-2 gba:bg-orange-500 gba:rounded-full gba:flex-shrink-0"></div>
                   <span className="gba:text-xs gba:font-medium gba:text-gray-700 gba:flex-shrink-0">Conditions:</span>
-                  <span 
-                    className="gba:text-xs gba:font-semibold gba:text-orange-600"
-                    data-testid={`${prefixDataTestId}-stage-condition-count-${stage.id}`}
-                  >
-                    8
-                  </span>
+                  {isLoadingConditions ? (
+                    <Spinner className="gba:w-3 gba:h-3" />
+                  ) : (
+                    <span 
+                      className="gba:text-xs gba:font-semibold gba:text-orange-600"
+                      data-testid={`${prefixDataTestId}-stage-condition-count-${stage.id}`}
+                    >
+                      {conditionCount}
+                    </span>
+                  )}
                 </div>
                 
                 {/* View Conditions Button */}
@@ -263,6 +270,10 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [operationLoading, setOperationLoading] = useState(false);
 
+  // Condition counts state
+  const [conditionCounts, setConditionCounts] = useState<Record<string, number>>({});
+  const [loadingConditions, setLoadingConditions] = useState<Record<string, boolean>>({});
+
   // Stage modal states
   const [isStageModalVisible, setIsStageModalVisible] = useState(false);
   const [editingStage, setEditingStage] = useState<EnhancedSalesPipelineStage | null>(null);
@@ -287,6 +298,7 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
   const [activeStage, setActiveStage] = useState<EnhancedSalesPipelineStage | null>(null);
 
   const { fetchSalesPipelineStagesByParent } = useSalesPipelineStages(context);
+  const { fetchStageConditionsCount } = useStageConditions(context);
   const catalogClient = useCatalogManagerClient(context.accessToken);
 
   // Drag and drop sensors
@@ -304,6 +316,13 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
       loadStages();
     }
   }, [pipeline, visible]);
+
+  // Load condition counts when stages change
+  useEffect(() => {
+    if (stages.length > 0) {
+      loadConditionCounts();
+    }
+  }, [stages]);
 
   const loadStages = async () => {
     if (!pipeline) return;
@@ -334,6 +353,35 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const loadConditionCounts = async () => {
+    const counts: Record<string, number> = {};
+    const loading: Record<string, boolean> = {};
+
+    // Set loading state for all stages
+    stages.forEach(stage => {
+      loading[stage.id] = true;
+    });
+    setLoadingConditions(loading);
+
+    // Fetch condition counts for each stage
+    const promises = stages.map(async (stage) => {
+      try {
+        const count = await fetchStageConditionsCount(stage.code);
+        counts[stage.id] = count;
+        loading[stage.id] = false;
+      } catch (error) {
+        console.error(`Error loading conditions for stage ${stage.code}:`, error);
+        counts[stage.id] = 0;
+        loading[stage.id] = false;
+      }
+    });
+
+    await Promise.all(promises);
+    
+    setConditionCounts(counts);
+    setLoadingConditions(loading);
   };
 
   // Drag and drop handlers
@@ -647,6 +695,8 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
                                   <DraggableStageCard
                                     stage={stage}
                                     prefixDataTestId={prefixDataTestId}
+                                    conditionCount={conditionCounts[stage.id] || 0}
+                                    isLoadingConditions={loadingConditions[stage.id] || false}
                                     onEdit={handleEditStage}
                                     onDelete={handleDeleteStage}
                                     onViewConditions={handleViewConditions}
@@ -674,6 +724,8 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
                               <DraggableStageCard
                                 stage={activeStage}
                                 prefixDataTestId={prefixDataTestId}
+                                conditionCount={conditionCounts[activeStage.id] || 0}
+                                isLoadingConditions={loadingConditions[activeStage.id] || false}
                                 onEdit={() => {}}
                                 onDelete={() => {}}
                                 onViewConditions={() => {}}
@@ -827,9 +879,11 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
         <StageConditionsModal
           stage={selectedStageForConditions}
           visible={isConditionsModalVisible}
-          onClose={() => {
+          onClose={async () => {
             setIsConditionsModalVisible(false);
             setSelectedStageForConditions(null);
+            // Reload condition counts when modal is closed
+            await loadConditionCounts();
           }}
           prefixDataTestId={prefixDataTestId}
           {...context}
