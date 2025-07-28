@@ -257,6 +257,16 @@ if (globalThis.__APP_BUILD_INFO__) {
     },
   };
 
+  // Get all possible entries using our flexible pattern finder
+  const allPossibleEntriesRaw = getDynamicEntries(projectRootDir);
+  
+  // Convert absolute paths to relative paths for dynamic imports
+  const allPossibleEntries: Record<string, string> = {};
+  Object.entries(allPossibleEntriesRaw).forEach(([key, absolutePath]) => {
+    const relativePath = path.relative(projectRootDir, absolutePath).replace(/\\/g, '/');
+    allPossibleEntries[key] = relativePath;
+  });
+
   if (isBuildCommand && isSingleBuild) {
     // Single build mode - use only the specified entry
     dynamicEntries[targetEntryKey] = resolve(projectRootDir, targetEntryFile);
@@ -272,15 +282,18 @@ if (globalThis.__APP_BUILD_INFO__) {
         `[vite.config.ts] Dev server targeting specific entry: ${targetEntryKey}`
       );
     } else {
-      // In dev mode without specific target, use minimal entries to speed up startup
-      // Only discover entries when actually needed (lazy loading approach)
-      console.log("[vite.config.ts] Dev server: Using minimal entry discovery for faster startup");
-      dynamicEntries = {}; // Start with empty, will be populated on-demand
+      // For faster dev server startup, only load essential entries
+      // Business app screens will be loaded on-demand
+      console.log("[vite.config.ts] Dev server using minimal entries for fast startup");
+      console.log("[vite.config.ts] Business app screens will be loaded on-demand");
+      
+      // Don't load any business app entries initially - they'll be loaded dynamically
+      // This significantly improves dev server startup time
+      dynamicEntries = {};
     }
   } else {
     // Multi-build mode (default build) - use all discovered entries
-    const allPossibleEntries = getDynamicEntries(projectRootDir);
-    dynamicEntries = allPossibleEntries;
+    dynamicEntries = allPossibleEntriesRaw;
     console.log("[vite.config.ts] Multi-build: Generating all entries.");
     console.log(
       "[vite.config.ts] Generated entries for multi-build:",
@@ -316,6 +329,9 @@ if (globalThis.__APP_BUILD_INFO__) {
       if (id === "virtual:wrapped-entries") {
         return id;
       }
+      if (id === "virtual:dynamic-screen-loader") {
+        return id;
+      }
       return null;
     },
     load(id) {
@@ -343,6 +359,109 @@ if (globalThis.__APP_BUILD_INFO__) {
         );
         return code;
       }
+      
+      if (id === "virtual:dynamic-screen-loader") {
+        // Generate a module that can dynamically load any business app screen
+        const availableScreensJson = JSON.stringify(allPossibleEntries, null, 2);
+        
+        let code = "import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';\n\n";
+        code += "// Available screen entries for dynamic loading\n";
+        code += "const availableScreens = " + availableScreensJson + ";\n\n";
+        code += "// Cache for loaded screens with metadata\n";
+        code += "const screenCache = new Map();\n";
+        code += "const loadingPromises = new Map();\n\n";
+        code += "// Function to dynamically load a screen with optimized caching\n";
+        code += "export async function loadScreen(screenKey) {\n";
+        code += "  // Check cache first\n";
+        code += "  if (screenCache.has(screenKey)) {\n";
+        code += "    const cached = screenCache.get(screenKey);\n";
+        code += "    console.log(`[Dynamic Screen Loader] Using cached screen: ${screenKey}`);\n";
+        code += "    return cached.component;\n";
+        code += "  }\n";
+        code += "  \n";
+        code += "  // Check if already loading to prevent duplicate requests\n";
+        code += "  if (loadingPromises.has(screenKey)) {\n";
+        code += "    console.log(`[Dynamic Screen Loader] Waiting for existing load: ${screenKey}`);\n";
+        code += "    return loadingPromises.get(screenKey);\n";
+        code += "  }\n";
+        code += "  \n";
+        code += "  const screenPath = availableScreens[screenKey];\n";
+        code += "  if (!screenPath) {\n";
+        code += "    throw new Error(`Screen \"${screenKey}\" not found. Available screens: ${Object.keys(availableScreens).join(', ')}`);\n";
+        code += "  }\n";
+        code += "  \n";
+        code += "  // Create loading promise\n";
+        code += "  const loadingPromise = (async () => {\n";
+        code += "    try {\n";
+        code += "      const startTime = performance.now();\n";
+        code += "      \n";
+        code += "      // Dynamic import the screen (screenPath is already relative to project root)\n";
+        code += "      const importPath = screenPath.startsWith('./') ? screenPath : './' + screenPath;\n";
+        code += "      \n";
+        code += "      console.log(`[Dynamic Screen Loader] Loading screen: ${screenKey} from ${importPath}`);\n";
+        code += "      \n";
+        code += "      const module = await import(/* @vite-ignore */ importPath);\n";
+        code += "      const component = module.default;\n";
+        code += "      \n";
+        code += "      if (!component) {\n";
+        code += "        throw new Error(`Screen \"${screenKey}\" does not have a default export`);\n";
+        code += "      }\n";
+        code += "      \n";
+        code += "      // Wrap with UI catalog\n";
+        code += "      const wrappedComponent = wrapWithUiCatalog(component);\n";
+        code += "      \n";
+        code += "      const loadTime = performance.now() - startTime;\n";
+        code += "      \n";
+        code += "      // Cache the wrapped component with metadata\n";
+        code += "      screenCache.set(screenKey, {\n";
+        code += "        component: wrappedComponent,\n";
+        code += "        loadTime,\n";
+        code += "        loadedAt: Date.now()\n";
+        code += "      });\n";
+        code += "      \n";
+        code += "      console.log(`[Dynamic Screen Loader] Successfully loaded screen: ${screenKey} in ${loadTime.toFixed(2)}ms`);\n";
+        code += "      return wrappedComponent;\n";
+        code += "    } catch (error) {\n";
+        code += "      console.error(`[Dynamic Screen Loader] Failed to load screen \"${screenKey}\":`, error);\n";
+        code += "      throw error;\n";
+        code += "    } finally {\n";
+        code += "      // Remove from loading promises\n";
+        code += "      loadingPromises.delete(screenKey);\n";
+        code += "    }\n";
+        code += "  })();\n";
+        code += "  \n";
+        code += "  // Store loading promise\n";
+        code += "  loadingPromises.set(screenKey, loadingPromise);\n";
+        code += "  \n";
+        code += "  return loadingPromise;\n";
+        code += "}\n\n";
+        code += "// Function to preload a screen (optional)\n";
+        code += "export async function preloadScreen(screenKey) {\n";
+        code += "  return loadScreen(screenKey);\n";
+        code += "}\n\n";
+        code += "// Function to get all available screen keys\n";
+        code += "export function getAvailableScreens() {\n";
+        code += "  return Object.keys(availableScreens);\n";
+        code += "}\n\n";
+        code += "// Function to check if a screen is available\n";
+        code += "export function isScreenAvailable(screenKey) {\n";
+        code += "  return screenKey in availableScreens;\n";
+        code += "}\n\n";
+        code += "// Function to get screen info\n";
+        code += "export function getScreenInfo(screenKey) {\n";
+        code += "  return {\n";
+        code += "    key: screenKey,\n";
+        code += "    path: availableScreens[screenKey],\n";
+        code += "    isLoaded: screenCache.has(screenKey)\n";
+        code += "  };\n";
+        code += "}\n\n";
+        code += "// Export the screens map for debugging\n";
+        code += "export { availableScreens };\n";
+
+        console.log("[Dynamic Screen Loader] Created virtual module for on-demand screen loading");
+        return code;
+      }
+      
       return null;
     },
   };
@@ -363,48 +482,59 @@ if (globalThis.__APP_BUILD_INFO__) {
     },
   };
 
-  // Create wrapped versions of all entries
+  // Create wrapped versions of all entries (only for non-development builds)
   const wrappedEntries: Record<string, string> = {};
-  Object.keys(dynamicEntries).forEach((entryKey) => {
-    // Create a virtual entry file that imports the original component, wraps it, and re-exports it
-    const wrappedEntryPath = path.join(
-      projectRootDir,
-      `src/wrapped-entries/${entryKey}.ts`
-    );
-    // Ensure the directory exists
-    const wrappedEntryDir = path.dirname(wrappedEntryPath);
-    if (!fs.existsSync(wrappedEntryDir)) {
-      fs.mkdirSync(wrappedEntryDir, { recursive: true });
-    }
+  
+  if (command !== "serve" || Object.keys(dynamicEntries).length > 0) {
+    Object.keys(dynamicEntries).forEach((entryKey) => {
+      // Create a virtual entry file that imports the original component, wraps it, and re-exports it
+      const wrappedEntryPath = path.join(
+        projectRootDir,
+        `src/wrapped-entries/${entryKey}.ts`
+      );
+      // Ensure the directory exists
+      const wrappedEntryDir = path.dirname(wrappedEntryPath);
+      if (!fs.existsSync(wrappedEntryDir)) {
+        fs.mkdirSync(wrappedEntryDir, { recursive: true });
+      }
 
-    // Generate the wrapper module content
-    const originalEntryPath = dynamicEntries[entryKey];
-    const relativeEntryPath = path
-      .relative(path.dirname(wrappedEntryPath), originalEntryPath)
-      .replace(/\\/g, "/");
+      // Generate the wrapper module content
+      const originalEntryPath = dynamicEntries[entryKey];
+      const relativeEntryPath = path
+        .relative(path.dirname(wrappedEntryPath), originalEntryPath)
+        .replace(/\\/g, "/");
 
-    const wrapperContent = `// Auto-generated wrapper file
+      const wrapperContent = `// Auto-generated wrapper file
 import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';
 import OriginalComponent from '${
-      relativeEntryPath.startsWith(".")
-        ? relativeEntryPath
-        : "./" + relativeEntryPath
-    }';
+        relativeEntryPath.startsWith(".")
+          ? relativeEntryPath
+          : "./" + relativeEntryPath
+      }';
 
 // Re-export wrapped component
 export default wrapWithUiCatalog(OriginalComponent);
 `;
 
-    // Write the wrapper file
-    fs.writeFileSync(wrappedEntryPath, wrapperContent, "utf8");
+      // Write the wrapper file
+      fs.writeFileSync(wrappedEntryPath, wrapperContent, "utf8");
 
-    // Replace the original entry with our wrapped version
-    wrappedEntries[entryKey] = wrappedEntryPath;
-  });
+      // Replace the original entry with our wrapped version
+      wrappedEntries[entryKey] = wrappedEntryPath;
+    });
+  }
 
   console.log("[vite.config.ts] wrappedEntries:", wrappedEntries);
 
   return {
+    // Minimal dependency optimization - only exclude the heaviest chart libraries
+    optimizeDeps: {
+      // Optimize caching strategy
+      esbuildOptions: {
+        target: 'es2020'
+      }
+      // Let Vite automatically handle all other dependencies including React, antd, etc.
+    },
     plugins: [
       react(),
       tailwindCSS(),

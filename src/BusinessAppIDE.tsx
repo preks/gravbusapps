@@ -1,4 +1,3 @@
-import { UiCatalogProvider } from "@newwork/gravity-ui-catalog";
 import { useState, useEffect, createElement, useCallback } from "react";
 import {
   Layout,
@@ -10,6 +9,8 @@ import {
   Button,
   Tooltip,
   notification,
+  Spin,
+  Alert,
 } from "antd";
 import {
   SettingOutlined,
@@ -18,7 +19,6 @@ import {
   HomeOutlined,
 } from "@ant-design/icons";
 import {
-  BusinessAppContextProps,
   UserInfoProps,
 } from "./common/BusinessAppContext";
 import ProcessEventListener, {
@@ -27,9 +27,12 @@ import ProcessEventListener, {
 import { IDEStartScreen } from "./components/ide-start-screen";
 import HeaderLogo from "./assets/icons/header_logo.svg";
 import FeatureHubProvider from "./common/components/feature/FeatureHubProvider";
+import { useDynamicScreen } from "./common/hooks/useDynamicScreen";
+import { InfoCircleOutlined } from "@ant-design/icons";
 
-const modules = import.meta.glob("./business-apps/**/[A-Z]*.tsx", {
-  eager: true,
+// Get available modules without eagerly loading them
+const modulePatterns = import.meta.glob("./business-apps/**/index.ts", {
+  eager: false,
 });
 
 interface BusinessAppInfo {
@@ -37,12 +40,13 @@ interface BusinessAppInfo {
   path: string;
   module: string;
   subModule?: string;
-  component: React.ComponentType<BusinessAppContextProps>;
+  screenKey: string; // Key for dynamic loading
 }
 
 const businessApps: BusinessAppInfo[] = [];
 
-for (const path in modules) {
+// Build the businessApps array from index.ts files (matching getDynamicEntries logic)
+for (const path in modulePatterns) {
   if (
     path.includes("/opportunity-tabs/") ||
     path.includes("/oportunity-tabs/") ||
@@ -62,27 +66,52 @@ for (const path in modules) {
     continue;
   }
 
-  const match = path.match(/\/([A-Z][A-Za-z0-9]*)\.tsx$/);
-  if (match) {
-    const pathParts = path.split("/");
-    const moduleName = pathParts[2];
-    let subModule = "";
-
-    if (pathParts.length > 4) {
-      subModule = pathParts.slice(3, -1).join("/");
+  // Parse path: ./business-apps/module/sub-module/.../app-name/index.ts
+  const pathParts = path.split("/");
+  if (pathParts.length >= 3 && pathParts[pathParts.length - 1] === "index.ts") {
+    const moduleName = pathParts[2]; // business-apps is at index 1, module at index 2
+    const appName = pathParts[pathParts.length - 2]; // Directory containing index.ts
+    
+    // Skip non-app directories that have index.ts files
+    const nonAppDirectories = [
+      "components", "hooks", "types", "utils", "queries", "context", 
+      "services", "modals", "tabs", "views", "charts"
+    ];
+    
+    // Check if this is a non-app directory or if any parent directory is a non-app directory
+    const isNonApp = pathParts.some(part => nonAppDirectories.includes(part));
+    if (isNonApp) {
+      continue;
     }
 
+    // Only include paths that are actual apps (typically in "apps" or "forms" directories)
+    const hasAppsOrForms = pathParts.some(part => part === "apps" || part === "forms");
+    if (!hasAppsOrForms) {
+      continue;
+    }
+    
+    let subModule = "";
+    if (pathParts.length > 4) {
+      // Get everything between module and app-name (excluding both index.ts and app directory)
+      subModule = pathParts.slice(3, -2).join("/");
+    }
+
+    // Create screen key matching getDynamicEntries format
+    const screenKey = subModule 
+      ? `${moduleName}/${subModule}/${appName}`
+      : `${moduleName}/${appName}`;
+    
+    // Convert app-name to PascalCase for display
+    const displayName = appName.split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join('');
+
     businessApps.push({
-      name: match[1],
+      name: displayName,
       path,
       module: moduleName,
       subModule: subModule || undefined,
-      component: (props) =>
-        createElement(
-          UiCatalogProvider,
-          undefined,
-          createElement((modules[path] as any).default, props)
-        ),
+      screenKey,
     });
   }
 }
@@ -130,8 +159,77 @@ export interface BusinessAppIDEProps {
   readonly packageVersion: string;
 }
 
+// Dynamic component wrapper that loads components on demand
+const DynamicComponentWrapper: React.FC<{
+  app: BusinessAppInfo;
+  userInfo?: UserInfoProps;
+  accessToken?: string;
+  additionalData?: { [k: string]: any };
+}> = ({ app, userInfo, accessToken, additionalData }) => {
+  const { loadScreen, state, getScreenInfo } = useDynamicScreen();
+
+  useEffect(() => {
+    loadScreen(app.screenKey);
+  }, [app.screenKey, loadScreen]);
+
+  if (state.isLoading) {
+    const screenInfo = getScreenInfo(app.screenKey);
+    const isFromCache = screenInfo?.isCachedGlobally;
+    
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:min-h-[400px]">
+        <div className="gba:text-center">
+          <Spin size="large" />
+          <div className="gba:mt-4 gba:text-gray-600">
+            {isFromCache ? `Loading ${app.name} from cache...` : `Loading ${app.name}...`}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.error) {
+    return (
+      <div className="gba:p-6">
+        <Alert
+          message="Failed to Load Component"
+          description={
+            <div>
+              <div>{state.error}</div>
+              <div className="gba:mt-2 gba:text-xs gba:text-gray-500">
+                Screen: {app.screenKey}
+              </div>
+            </div>
+          }
+          type="error"
+          showIcon
+          action={
+            <Button 
+              size="small" 
+              onClick={() => loadScreen(app.screenKey)}
+            >
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (state.component) {
+    return createElement(state.component, {
+      userInfo,
+      accessToken,
+      additionalData,
+    });
+  }
+
+  return null;
+};
+
 export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
-  const { packageName, packageVersion } = props;
+  const { packageVersion } = props;
+  const { getPerformanceMetrics } = useDynamicScreen();
 
   const getAppByName = (name: string): BusinessAppInfo | null => {
     return businessApps.find((app) => app.name === name) || null;
@@ -151,6 +249,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   const [additionalData, setAdditionalData] = useState<string>("");
   const [additionalDataError, setAdditionalDataError] = useState<string>("");
   const [settingsModalVisible, setSettingsModalVisible] =
+    useState<boolean>(false);
+  const [performanceModalVisible, setPerformanceModalVisible] =
     useState<boolean>(false);
   const [collapsed, setCollapsed] = useState<boolean>(
     localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === "true"
@@ -215,9 +315,10 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       return;
     }
 
-    const businessAppPath = `/${app.module}/${app.subModule || ""}`;
+    // Construct the full path including the app name
+    const appPath = app.screenKey; // Use the screenKey which includes the full path
     const timestamp = Date.now();
-    const url = `https://${process.env.AZURE_STORAGE_ACCOUNT}.blob.core.windows.net/screens${businessAppPath}/index.js?t=${timestamp}`;
+    const url = `https://${process.env.AZURE_STORAGE_ACCOUNT}.blob.core.windows.net/screens/${appPath}/index.js?t=${timestamp}`;
 
     try {
       // Note: CORS must be enabled on Azure Storage to allow these requests
@@ -342,7 +443,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   };
 
   const createAppMenuItem = (app: BusinessAppInfo) => ({
-    key: app.name,
+    key: app.screenKey,
     label: (
       <a 
         href={createAppURL(app)}
@@ -545,6 +646,14 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
               style={{ fontSize: "16px" }}
             />
           </Tooltip>
+          <Tooltip title="Performance Metrics">
+            <Button
+              type="text"
+              icon={<InfoCircleOutlined />}
+              onClick={() => setPerformanceModalVisible(true)}
+              style={{ fontSize: "16px" }}
+            />
+          </Tooltip>
         </div>
       </Header>
 
@@ -577,7 +686,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
           >
             <Menu
               mode="inline"
-              selectedKeys={selectedApp ? [selectedApp.name] : ["home"]}
+              selectedKeys={selectedApp ? [selectedApp.screenKey] : ["home"]}
               style={{ borderRight: 0 }}
               items={getMenuItems()}
             />
@@ -626,14 +735,15 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
           >
             {selectedApp ? (
               <div className="gba:w-full gba:h-full gba:overflow-auto">
-                {createElement(selectedApp.component, {
-                  userInfo: parsedUserInfo(),
-                  accessToken: accessToken ?? undefined,
-                  additionalData: parsedAdditionalData(),
-                  key: `${selectedApp.name}-${JSON.stringify(
+                <DynamicComponentWrapper
+                  app={selectedApp}
+                  userInfo={parsedUserInfo()}
+                  accessToken={accessToken ?? undefined}
+                  additionalData={parsedAdditionalData()}
+                  key={`${selectedApp.name}-${JSON.stringify(
                     parsedUserInfo()
-                  )}-${accessToken}-${JSON.stringify(parsedAdditionalData())}`,
-                })}
+                  )}-${accessToken}-${JSON.stringify(parsedAdditionalData())}`}
+                />
               </div>
             ) : (
               <IDEStartScreen
@@ -698,6 +808,63 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             persisted between sessions. Additional Data is used to pass context information like employeeId, jobPositionId, etc.
           </Text>
         </Form>
+      </Modal>
+
+      <Modal
+        title="Dynamic Screen Loading Performance"
+        open={performanceModalVisible}
+        onCancel={() => setPerformanceModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setPerformanceModalVisible(false)}>
+            Close
+          </Button>
+        ]}
+        width={800}
+      >
+        <div className="gba:space-y-4">
+          <div className="gba:p-4 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg">
+            <h4 className="gba:text-green-800 gba:font-semibold gba:mb-2">
+              Performance Improvements
+            </h4>
+            <ul className="gba:text-green-700 gba:space-y-1">
+              <li>• Global caching: Components loaded once, reused across sessions</li>
+              <li>• Smart preloading: Common screens preloaded automatically</li>
+              <li>• Concurrent loading prevention: Multiple requests for same screen deduplicated</li>
+              <li>• Performance tracking: Load times monitored and optimized</li>
+            </ul>
+          </div>
+          
+          <div>
+            <h4 className="gba:font-semibold gba:mb-2">Screen Loading Statistics</h4>
+            <div className="gba:max-h-64 gba:overflow-y-auto gba:border gba:border-gray-200 gba:rounded-lg">
+              <table className="gba:w-full gba:text-sm">
+                <thead className="gba:bg-gray-50">
+                  <tr>
+                    <th className="gba:p-2 gba:text-left gba:font-medium">Screen</th>
+                    <th className="gba:p-2 gba:text-left gba:font-medium">Load Count</th>
+                    <th className="gba:p-2 gba:text-left gba:font-medium">Avg Time (ms)</th>
+                    <th className="gba:p-2 gba:text-left gba:font-medium">Last Load (ms)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from(getPerformanceMetrics().entries()).map(([screenKey, metrics]) => (
+                    <tr key={screenKey} className="gba:border-t gba:border-gray-200">
+                      <td className="gba:p-2 gba:font-mono gba:text-xs">{screenKey}</td>
+                      <td className="gba:p-2">{metrics.loadCount}</td>
+                      <td className="gba:p-2">{(metrics.loadTime / metrics.loadCount).toFixed(1)}</td>
+                      <td className="gba:p-2">{metrics.lastLoadTime.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {getPerformanceMetrics().size === 0 && (
+                <div className="gba:p-4 gba:text-center gba:text-gray-500">
+                  No screens loaded yet. Navigate to a screen to see performance data.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </Modal>
     </Layout>
   );

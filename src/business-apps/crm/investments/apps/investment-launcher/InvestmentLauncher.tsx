@@ -1,19 +1,17 @@
 import React, { useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
+  LauncherLayout, 
+  type LauncherSectionConfig, 
+  type NavigationCardData, 
+  type QuickActionData,
+  type KpiData,
   Spinner,
   Alert,
   AlertTitle,
   AlertDescription,
   Button
 } from '@newwork/nw-design-system';
-import { 
-  LauncherLayout, 
-  type LauncherSectionConfig, 
-  type NavigationCardData, 
-  type QuickActionData,
-  type KpiData 
-} from '@/business-apps/common/components/launcher-layout/LauncherLayout';
 import { investmentAreas, investmentQuickActions, categoryLabels, getInvestmentAreasByCategory } from './utils/investmentAreas';
 import { InvestmentArea, InvestmentQuickAction } from './types';
 import BackgroundImage from '@/assets/images/background.png';

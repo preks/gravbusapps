@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Typography, Button, Empty, Row, Col, Collapse, Tag } from 'antd';
-import { PlayCircleOutlined, FolderOpenOutlined, AppstoreOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, FolderOpenOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { PiSquaresFourDuotone, PiAppWindowBold, PiClockBold } from 'react-icons/pi';
 import BackgroundImage from '../../assets/images/background.png';
 import { PageLayout } from '../layout/pageLayout';
@@ -13,7 +13,7 @@ interface BusinessAppInfo {
     path: string;
     module: string;
     subModule?: string;
-    component: React.ComponentType<any>;
+    screenKey: string;
 }
 
 interface RecentlyUsedApp {

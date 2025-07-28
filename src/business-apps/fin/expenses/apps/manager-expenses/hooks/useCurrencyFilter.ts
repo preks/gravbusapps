@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useCurrencyStore } from '../store/useCurrencyStore';
 import type { DataFilterGroup, DataFilter } from '@/components/data-filter/DataFilter';
 import { useCurrencyData } from './useCurrencyData';
@@ -35,7 +35,7 @@ export const useCurrencyFilter = (accessToken?: string, managerId?: string): Use
   }, [availableCurrencies, isLoading]);
   
   // Use most used currency as default if available
-  useMemo(() => {
+  useEffect(() => {
     if (mostUsedCurrency && !isLoading) {
       setPrimaryCurrency(mostUsedCurrency);
     }

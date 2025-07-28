@@ -113,7 +113,9 @@ const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
 };
 
 const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
-  plan
+  plan,
+  onApprove,
+  onReject,
 }) => {
   // Use the currency store for global currency state management
   const { primaryCurrency } = useCurrencyStore();

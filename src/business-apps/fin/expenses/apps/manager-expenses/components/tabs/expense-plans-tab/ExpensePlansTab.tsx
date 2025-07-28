@@ -126,6 +126,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
           activeFilter={statusFilter}
           onFilterChange={(filter) => setStatusFilter(filter ? [filter as unknown as ExpenseStatus] : [])}
           currencyFilter={currencyFilter}
+          fetchPlanStatistics={() => {}}
         />
       </div>
 
