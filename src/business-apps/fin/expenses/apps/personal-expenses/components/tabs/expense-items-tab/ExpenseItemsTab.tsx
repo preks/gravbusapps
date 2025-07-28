@@ -6,8 +6,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { ExpenseStatus } from '../../../utils';
 import ExpenseItemStatistics from './ExpenseItemStatistics';
 import ExpenseItemsTable from './ExpenseItemsTable';
-import { useExpenseFilters } from '../../../hooks/useExpenseFilters';
-import { useExpenseItemsTabFilters } from '../../../hooks/useExpenseItemsTabFilters';
+import { useExpenseItemsFilters } from '../../../hooks/useExpenseItemsFilters';
 import { startProcess } from '@/common/utils/start-process';
 import { env } from '@/common/env/EnvUtils';
 
@@ -24,7 +23,23 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     additionalData: props.additionalData
   }), [props.accessToken, props.userInfo, props.additionalData]);
   
-  // Use our simplified expense filters hook
+  // Get all available statuses from the enum
+  const availableStatuses = useMemo(() => [
+    'PREPARED',
+    'CREATED', 
+    'ASSIGNED',
+    'PENDING',
+    'APPROVED',
+    'RETURNED',
+    'REJECTED',
+    'VERIFIED',
+    'BOOKED',
+    'PAID',
+    'CLOSED',
+    'TRANSFERRED'
+  ], []);
+  
+  // Use our expense items filters hook
   const {
     addFilter,
     removeFilter,
@@ -35,8 +50,11 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     getFilters,
     setFilters,
     setExpenseDateRange,
-    expenseDateRange
-  } = useExpenseFilters();
+    expenseDateRange,
+    amountRange,
+    setAmountRange,
+    onStatusFilterChange
+  } = useExpenseItemsFilters(availableStatuses);
 
   const [activeCard, setActiveCard] = useState<string | null>(null);
 
@@ -136,14 +154,8 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
 
 
 
-  // Handle status filter changes
-  const handleStatusFilterChange = useCallback((status: string, selected: boolean) => {
-    if (selected) {
-      addFilter(status.toLowerCase());
-    } else {
-      removeFilter(status.toLowerCase());
-    }
-  }, [addFilter, removeFilter]);
+  // Handle status filter changes - use the hook's function
+  const handleStatusFilterChange = onStatusFilterChange;
 
   // Handle clicking on missing receipts card
   const handleMissingReceiptsClick = useCallback(() => {
@@ -239,8 +251,24 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     fetchItemStatistics();
   }, [fetchItemStatistics]);
 
-  // Combine UI and card filters using the dedicated hook
-  const finalFilters = useExpenseItemsTabFilters(selectedFilters, activeCard);
+  // Combine UI and card filters
+  const finalFilters = useMemo(() => {
+    let filters = [...selectedFilters];
+    
+    // Map card keys to filter values as needed
+    if (activeCard === 'pending-reimbursement' && !filters.includes('pending')) {
+      filters.push('pending');
+    }
+    
+    if (activeCard === 'total-expenses') {
+      // Only filter paid or closed items for total expenses
+      filters = filters.filter(f => f !== 'pending' && f !== 'submitted' && f !== 'in progress');
+      if (!filters.includes('paid')) filters.push('paid');
+      if (!filters.includes('closed')) filters.push('closed');
+    }
+    
+    return filters;
+  }, [selectedFilters, activeCard]);
 
   // Create a custom getFilters function that includes date range parameters
   const getFiltersWithDateRange = useCallback((filtersToApply?: string[]) => {
@@ -412,15 +440,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     });
   }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
-  // Compute availableStatuses from allItems (unfiltered, for current search/page)
-  const availableStatuses = useMemo(() => {
-    const statusSet = new Set<string>();
-    allItems.forEach(item => {
-      if (item.status) statusSet.add(item.status);
-    });
-    return Array.from(statusSet);
-  }, [allItems]);
-
   return (
     <ExpenseItemsTable 
       {...contextProps}
@@ -435,6 +454,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       getFilters={getFiltersWithDateRange}
       setFilters={handleClearAllFilters}
       availableStatuses={availableStatuses}
+      amountRange={amountRange}
     />
   );
 };

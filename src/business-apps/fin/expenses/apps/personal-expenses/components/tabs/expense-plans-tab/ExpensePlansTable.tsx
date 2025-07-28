@@ -18,11 +18,16 @@ import {
   Button, 
   Badge, 
   Alert,
-  Checkbox 
+  Checkbox,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle
 } from '@newwork/nw-design-system';
 import { Modal } from 'antd';
-import { formatDate, formatNumberFunction } from '@/common/utils/windowUtils';
+import { formatDate, formatNumberFunction, getDateFormat } from '@/common/utils/windowUtils';
 import { PiFileText, PiArrowUp, PiArrowDown } from 'react-icons/pi';
+import dayjs from 'dayjs';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
@@ -412,8 +417,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                         >
                           <div className="gba:flex gba:justify-start gba:gap-2">
                             <AppActionButton
-                              data-testid={`actions-${record.id}`}
-                              onClick={(e) => e.stopPropagation()}
+                              data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-plan-button-${record.id}`}
+                              variant="secondary"
                               staticFlowData={[
                                 ...(record.status === 'CREATED' || record.status === 'REJECTED') ? [
                                   {
@@ -421,27 +426,18 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                     key: 'update-plan',
                                     label: 'Update Plan',
                                     onClick: () => {
-                                      const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
-                                      if (!employeeId) {
-                                        console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
-                                        // TODO: Replace with nw-design-system toast when available
-                                        console.warn('User information not loaded yet. Please wait a moment and try again.');
-                                        return;
-                                      }
-                                      
-                                      console.log('Starting update plan process for employeeId:', employeeId, 'expensePlanId:', record.id);
                                       startProcess({
                                         domain: 'employee-expense',
                                         processName: 'changeExpensePlan',
                                         payload: {
-                                          employeeId: employeeId,
+                                          employeeId:  contextProps.userInfo?.employeeDetails?.employeeId,
                                           expensePlanId: record.id
                                         },
                                       });
                                     }
                                   }
                                 ] : [],
-                                ...(record.status === 'APPROVED' || record.status === 'CLOSED' || record.employeeDocumentId !== null) ? [
+                                ...((record.status === 'APPROVED' || record.status === 'CLOSED') && (record.employeeDocument && record.employeeDocument.file && record.employeeDocument.file.trim() !== '')) ? [
                                   {
                                     category: 'Actions',
                                     key: 'print',
@@ -457,20 +453,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                     key: 'request-advance',
                                     label: 'Request Advance Payment',
                                     onClick: () => {
-                                      const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
-                                      if (!employeeId) {
-                                        console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
-                                        // TODO: Replace with nw-design-system toast when available
-                                        console.warn('User information not loaded yet. Please wait a moment and try again.');
-                                        return;
-                                      }
-                                      
-                                      console.log('Starting request advance payment process for employeeId:', employeeId, 'expensePlan:', record.id);
                                       startProcess({
                                         domain: 'employee-expense',
                                         processName: 'changeAdvancePayment',
                                         payload: {
-                                          employeeId: employeeId,
+                                          employeeId:  contextProps.userInfo?.employeeDetails?.employeeId,
                                           expensePlan: record.id
                                         },
                                       });
@@ -483,20 +470,12 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                     key: 'create-expense-request',
                                     label: 'Create Expense Request',
                                     onClick: () => {
-                                      const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
-                                      if (!employeeId) {
-                                        console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
-                                        // TODO: Replace with nw-design-system toast when available
-                                        console.warn('User information not loaded yet. Please wait a moment and try again.');
-                                        return;
-                                      }
-                                      
-                                      console.log('Starting create expense request process for employeeId:', employeeId, 'expensePlanId:', record.id);
+    
                                       startProcess({
                                         domain: 'employee-expense',
                                         processName: 'changeExpenseRequest',
                                         payload: {
-                                          employeeId: employeeId,
+                                            employeeId:  contextProps.userInfo?.employeeDetails?.employeeId,
                                           expensePlanId: record.id
                                         },
                                       });
@@ -524,8 +503,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                   }
                                 ] : [],
                               ]}
-                              portalContainer={document.body}
-                              size="md"
+                              prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-plan`}
+                              accessToken={contextProps.accessToken}
+                              emptyStateBehavior="disable"
+                              deferMainContextRequestsUntilClick
+                              onClick={(e) => e.stopPropagation()}
                             />
                           </div>
                         </TableCell>
@@ -544,8 +526,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                             <div className="gba:text-sm" data-testid="expense-plan-plan-date-cell">
                               {(() => {
                                 try {
-                                  const date = new Date(record.planDate);
-                                  return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+                                  return dayjs(record.planDate).format(getDateFormat('date.short'));
                                 } catch (error) {
                                   return 'N/A';
                                 }
@@ -562,8 +543,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                             <div className="gba:text-sm" data-testid="expense-plan-start-date-cell">
                               {(() => {
                                 try {
-                                  const date = new Date(record.startDate);
-                                  return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+                                  return dayjs(record.startDate).format(getDateFormat('date.short'));
                                 } catch (error) {
                                   return 'N/A';
                                 }
@@ -580,8 +560,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                             <div className="gba:text-sm" data-testid="expense-plan-end-date-cell">
                               {(() => {
                                 try {
-                                  const date = new Date(record.endDate);
-                                  return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+                                  return dayjs(record.endDate).format(getDateFormat('date.short'));
                                 } catch (error) {
                                   return 'N/A';
                                 }
@@ -716,34 +695,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
     );
   }, [sortedPlans, isLoading, selectedItem, handleSelectItem, contextProps.accessToken, totalCount, pageSize, currentPage, handlePaginationChange]);
 
-  const renderExpensePlanDetails = useMemo(() => {
-    if (!selectedItem) return null;
-
-    return (
-      <ExpensePlanDetails
-        selectedItem={selectedItem}
-        onClose={handleCloseDetails}
-        accessToken={props.accessToken}
-        userInfo={props.userInfo}
-      />
-    );
-  }, [selectedItem, handleCloseDetails, props.accessToken, props.userInfo]);
-
-  const renderExpenseRequestDetails = useMemo(() => {
-    if (!selectedExpenseRequest) return null;
-
-    return (
-      <ExpenseRequestDetails
-        selectedItem={selectedExpenseRequest}
-        onClose={handleCloseDetails}
-        accessToken={props.accessToken}
-        userInfo={props.userInfo}
-      />
-    );
-  }, [selectedExpenseRequest, handleCloseDetails, props.accessToken, props.userInfo]);
-  
-  
-
   return (
     <div>
       <DataContainer
@@ -766,21 +717,51 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
           onFilterChange: props.handleFilterChange,
         }}
         hideFilter={false}
-        floatingDetails={true}
         dataBody={renderDataBody}
         contentBackground="white"
-        dataDetails={selectedItem ? {
-          title: selectedItem.title,
-          icon: <PiFileText />,
-          content: renderExpensePlanDetails,
-          onClose: handleCloseDetails,
-        } : selectedExpenseRequest ? {
-          title: selectedExpenseRequest.title || 'Expense Request Details',
-          icon: <PiFileText />,
-          content: renderExpenseRequestDetails,
-          onClose: handleCloseDetails,
-        } : undefined}
       />
+
+      {/* Expense Plan Details Sheet */}
+      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()}>
+        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+          <SheetHeader>
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+              {selectedItem?.title || 'Expense Plan Details'}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+            {selectedItem && (
+              <ExpensePlanDetails
+                selectedItem={selectedItem}
+                onClose={handleCloseDetails}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Expense Request Details Sheet */}
+      <Sheet open={!!selectedExpenseRequest} onOpenChange={(open) => !open && handleCloseDetails()}>
+        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+          <SheetHeader>
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+              {selectedExpenseRequest?.title || 'Expense Request Details'}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+            {selectedExpenseRequest && (
+              <ExpenseRequestDetails
+                selectedItem={selectedExpenseRequest}
+                onClose={handleCloseDetails}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Print Modal */}
       <Modal

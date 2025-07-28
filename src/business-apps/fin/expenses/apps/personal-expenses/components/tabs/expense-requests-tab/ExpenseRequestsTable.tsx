@@ -10,7 +10,8 @@ import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import Pill, { PillType } from '@/components/pill';
 import ExpenseRequestDetails from './ExpenseRequestDetails';
-import { formatDate, formatNumberFunction } from '@/common/utils/windowUtils'
+import { formatDate, formatNumberFunction, getDateFormat } from '@/common/utils/windowUtils';
+import dayjs from 'dayjs';
 
 export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   items?: any[];
@@ -241,7 +242,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
               key: 'startDate',
               render: (startDate: string) => (
                 <div>
-                  {startDate ? formatDate(startDate, 'date.long') : '-'}
+                  {startDate ? dayjs(startDate).format(getDateFormat('date.short')) : '-'}
                 </div>
               )
             },
@@ -251,7 +252,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
               key: 'endDate',
               render: (endDate: string) => (
                 <div>
-                  {endDate ? formatDate(endDate, 'date.long') : '-'}
+                  {endDate ? dayjs(endDate).format(getDateFormat('date.short')) : '-'}
                 </div>
               )
             },

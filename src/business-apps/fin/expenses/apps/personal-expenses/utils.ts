@@ -30,6 +30,7 @@ export interface StatusDisplayConfig {
 
 /**
  * Maps technical expense item statuses to user-friendly display configurations
+ * Based on srn_expenseItemList status mapping
  * @param status - The technical status from the API
  * @returns StatusDisplayConfig with label and styling information
  */

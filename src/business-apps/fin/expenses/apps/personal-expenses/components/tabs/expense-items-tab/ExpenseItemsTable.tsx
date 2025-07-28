@@ -1,4 +1,4 @@
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel, formatDate, getDateFormat } from '@/common/utils/windowUtils';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Table, 
@@ -13,9 +13,14 @@ import {
   Button, 
   Badge, 
   Alert,
-  Checkbox 
+  Checkbox,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle
 } from '@newwork/nw-design-system';
 import { PiFileText, PiImage, PiArrowUp, PiArrowDown, PiCalendar, PiPlus } from 'react-icons/pi';
+import dayjs from 'dayjs';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { useGetExpenseItems, ExpenseFilter, ExpenseItem } from '../../../hooks/useGetExpenseItems';
@@ -67,6 +72,7 @@ export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   getFilters: (filtersToApply?: string[]) => ExpenseFilter;
   setFilters: (filters: string[]) => void;
   availableStatuses: string[];
+  amountRange?: { min?: number; max?: number } | null;
 }
 
 const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) => {
@@ -104,6 +110,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
 
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
@@ -125,6 +132,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
 
   const handleSelectItem = useCallback((item: any) => {
     setSelectedItem(item);
+    setIsSheetOpen(true);
   }, []);
 
   const handleRowSelectionChange = useCallback((itemId: string, checked: boolean) => {
@@ -148,6 +156,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null);
     setSelectedRowKeys([]);
+    setIsSheetOpen(false);
   }, []);
 
   // Handlers for the top buttons
@@ -166,6 +175,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
       return;
     }
     const expenseItems = selectedItems.map((element: any) => ({
+      
       itemId: element.id,
       currencyId: element.currencyId
     }));
@@ -266,7 +276,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
   }
 
   return (
-    <DataContainer
+    <>
+      <DataContainer
       dataControllerProps={{
         listTitle: 'Expense Items',
         listAmount: totalCount ? `${totalCount}` : undefined,
@@ -438,19 +449,64 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                             data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
                           >
                             <div className="gba:flex gba:justify-start gba:gap-2">
-                              <AppActionButton
-                                data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
-                                variant="secondary"
-                                contextsArray={[FlowContextName.expenseItems]}
-                                externalContextData={{
-                                  expenseItemId: record.id,
-                                }}
-                                prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-item`}
-                                accessToken={contextProps.accessToken}
-                                emptyStateBehavior="disable"
-                                deferMainContextRequestsUntilClick
-                                onClick={(e) => e.stopPropagation()}
-                              />
+                             <AppActionButton
+                              data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
+                              variant="secondary"
+                              staticFlowData={[
+                                ...(record.status === 'CREATED' || record.status === 'ASSIGNED') ? [
+                                {
+                                  category: 'Actions',
+                                  key: 'update-expense-item',
+                                  label: 'Update Expense Item',
+                                  onClick: () => {
+                                    startProcess({
+                                      domain: 'employee-expense',
+                                      processName: 'changeExpenseItem',
+                                      payload: {
+                                          psi_taskPayload: {
+                                           initialParameters: {
+                                            employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                                            expenseId: record.id
+                                          }
+                                      }
+                                     },
+                                      builderType: 'NATIVE_SCREEN'
+                                    });
+                                  }
+                                }]: [],
+                                ...(record.status === 'CREATED' || record.status === 'ASSIGNED') ? [
+                                {
+                                  category: 'Actions',
+                                  key: 'delete-expense-item',
+                                  label: 'Delete Expense Item',
+                                  onClick: () => {
+                                    startProcess({
+                                      domain: 'employee-expense',
+                                      processName: 'discardExpenseItems',
+                                      payload: {
+                                        employeeId:  contextProps.userInfo?.employeeDetails?.employeeId,
+                                        expenseItemsIds: [record.id]
+                                      },
+                                       builderType: 'NATIVE_SCREEN'
+                                    });
+                                  }
+                                }]: [],
+                                {
+                                  category: 'Navigations',
+                                  key: 'view-expense-item-details',
+                                  label: 'View Expense Item Details',
+                                  onClick: (e?: React.MouseEvent) => {
+                                    e?.stopPropagation();
+                                    handleSelectItem(record);
+                                  },
+                                },
+                              ]}
+                              prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-item`}
+                              accessToken={contextProps.accessToken}
+                              emptyStateBehavior="disable"
+                              deferMainContextRequestsUntilClick
+                              onClick={(e) => e.stopPropagation()}
+                            />
                             </div>
                           </TableCell>
                           <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-title-cell-${record.id}`}>
@@ -463,8 +519,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                               <div className="gba:text-sm" data-testid="expense-expense-date-cell">
                                 {(() => {
                                   try {
-                                    const date = new Date(record.expenseDate);
-                                    return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+                                    return dayjs(record.expenseDate).format(getDateFormat('dayjs.date.long'));
                                   } catch (error) {
                                     return 'N/A';
                                   }
@@ -595,20 +650,29 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
           </Card>
         </div>
       }
-      dataDetails={selectedItem ? {
-        title: selectedItem.title,
-        icon: <PiFileText />,
-        content: (
-          <ExpenseItemDetails
-            selectedItem={selectedItem}
-            onClose={handleCloseDetails}
-            accessToken={props.accessToken}
-            userInfo={props.userInfo}
-          />
-        ),
-        onClose: handleCloseDetails
-      } : undefined}
     />
+
+    {/* Sheet for details */}
+    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+      <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+        <SheetHeader>
+          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+            {selectedItem?.title || 'Expense Item Details'}
+          </SheetTitle>
+        </SheetHeader>
+        <div className="gba:mt-6 gba:px-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+          {selectedItem && (
+            <ExpenseItemDetails
+              selectedItem={selectedItem}
+              onClose={handleCloseDetails}
+              accessToken={props.accessToken}
+              userInfo={props.userInfo}
+            />
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  </>
   );
 });
 
