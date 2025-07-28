@@ -58,17 +58,17 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     
     // Map status values to their display labels
     const statusLabels = {
-      'prepared': 'Prepared',
-      'created': 'Draft (Created)',
-      'pending': 'In Approval (Pending)',
-      'assigned': 'Assigned',
-      'approved': 'Approved',
-      'rejected': 'Revision Required (Rejected)',
-      'verified': 'In Transit (Verified)',
-      'booked': 'In Transit (Booked)',
-      'paid': 'Paid',
-      'closed': 'Closed',
-      'transferred': 'In Transit (Transferred)',
+      'PREPARED': 'Prepared',
+      'CREATED': 'Draft (Created)',
+      'PENDING': 'In Approval (Pending)',
+      'ASSIGNED': 'Assigned',
+      'APPROVED': 'Approved',
+      'REJECTED': 'Revision Required (Rejected)',
+      'VERIFIED': 'In Transit (Verified)',
+      'BOOKED': 'In Transit (Booked)',
+      'PAID': 'Paid',
+      'CLSOED': 'Closed',
+      'TRANSFERRED': 'In Transit (Transferred)',
     };
     
     // Add all status mappings

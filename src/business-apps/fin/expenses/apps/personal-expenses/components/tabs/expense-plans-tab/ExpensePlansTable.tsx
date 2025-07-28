@@ -309,9 +309,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                     <TableHead
                       className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
-                    >
-                      ACTIONS
-                    </TableHead>
+                    />
                     <TableHead
                       className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                       onClick={() => handleSort('code')}

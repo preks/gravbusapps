@@ -28,7 +28,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   [items]);
   
   const pendingApproval = useMemo(() => 
-    items?.filter(request => request.status === 'Submitted').length ?? 0, 
+    items?.filter(request => request.status === 'PENDING').length ?? 0, 
   [items]);
   
   const reimbursableAmount = useMemo(() => 

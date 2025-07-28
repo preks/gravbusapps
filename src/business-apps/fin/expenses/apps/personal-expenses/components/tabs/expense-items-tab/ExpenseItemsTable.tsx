@@ -366,7 +366,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                         className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
                         data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                       >
-                        ACTIONS
+                        Actions
                       </TableHead>
                       <TableHead
                         className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"

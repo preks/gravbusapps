@@ -2,7 +2,19 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useDebounce } from '@/common/hooks/useDebounce';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Alert, Empty } from 'antd';
-import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
+import { 
+  Table, 
+  TableHeader, 
+  TableBody, 
+  TableHead, 
+  TableRow, 
+  TableCell, 
+  Card, 
+  CardContent, 
+  Spinner, 
+  Button, 
+  Badge 
+} from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests';
 import { useExpenseRequestFilters, ExpenseRequestFilter, ExpenseRequestStatus } from '../../../hooks/useExpenseRequestFilters';
@@ -12,6 +24,8 @@ import Pill, { PillType } from '@/components/pill';
 import ExpenseRequestDetails from './ExpenseRequestDetails';
 import { formatDate, formatNumberFunction, getDateFormat } from '@/common/utils/windowUtils';
 import dayjs from 'dayjs';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   items?: any[];
@@ -119,9 +133,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
 
   // Helper function to determine status display with memoization
   const getStatusDisplay = useCallback((status: string): { type: PillType; text: string } => {
+    // Use the same logic as the filter sidebar to get consistent labels
     const statusConfig = getExpenseRequestStatusDisplay(status);
-    return { type: statusConfig.type, text: statusConfig.label };
-  }, []);
+    // Only show backend status in parentheses if the label is different from the status
+    let displayText: string;
+    if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
+      displayText = statusConfig.label;
+    } else {
+      // Format backend status with only first letter uppercase
+      displayText = `${statusConfig.label}`;
+    }
+    return { type: statusConfig.type, text: displayText };
+  }, [])
 
   // Handle row selection change
   const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
@@ -165,153 +188,217 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
 
     return (
       <div className="expense-requests-table">
-        <DataTable
-          rowKey="id"
-          dataSource={items}
-          loading={isLoading}
-          pagination={paginationConfig}
-          onChange={handleEnhancedTableChange}
-          data-testid="expense-requests-data-table"
-          columns={[
-                        {
-              title: '',
-              key: 'actions',
-              width: 60,
-              align: 'center',
-              render: (_: any, record: any) => (
-                <ActionButton
-                  onClick={(e) => e.stopPropagation()}
-                  flowData={[
-                    {
-                      category: 'Actions',
-                      key: 'edit',
-                      label: 'Edit',
-                      onClick: (e?: React.MouseEvent) => {
-                        e?.stopPropagation();
-                        handleEditExpenseRequest(record as any);
-                      }
-                    },
-                    {
-                      category: 'Navigations',
-                      key: 'view',
-                      label: 'View Details',
-                      onClick: (e?: React.MouseEvent) => {
-                        e?.stopPropagation();
-                        handleSelectItem(record as any);
-                      }
-                    },
-                    {
-                      category: 'Actions',
-                      key: 'delete',
-                      label: 'Delete',
-                      onClick: (e?: React.MouseEvent) => {
-                        e?.stopPropagation();
-                        console.log('Delete expense request:', record.id);
-                      }
-                    }
-                  ]}
-                  portalContainer={document.body}
-                  data-testid={`actions-${record.id}`}
-                  size="md"
-                />
-              )
-            },
-            {
-              title: 'Request Number',
-              dataIndex: 'code',
-              key: 'code',
-              render: (code: string) => (
-                <div>
-                  {code || 'N/A'}
-                </div>
-              )
-            },
-            {
-              title: 'Title',
-              dataIndex: 'title',
-              key: 'title',
-              render: (text: string) => (
-                <div>
-                  {text}
-                </div>
-              )
-            },
-            {
-              title: 'Start Date',
-              dataIndex: 'startDate',
-              key: 'startDate',
-              render: (startDate: string) => (
-                <div>
-                  {startDate ? dayjs(startDate).format(getDateFormat('date.short')) : '-'}
-                </div>
-              )
-            },
-            {
-              title: 'End Date',
-              dataIndex: 'endDate',
-              key: 'endDate',
-              render: (endDate: string) => (
-                <div>
-                  {endDate ? dayjs(endDate).format(getDateFormat('date.short')) : '-'}
-                </div>
-              )
-            },
-            {
-              title: 'Status',
-              dataIndex: 'status',
-              key: 'status',
-              render: (status: any) => {
-                const { type, text } = getStatusDisplay(status);
-                return <Pill type={type} label={text} />;
-              }
-            },
-            {
-              title: 'Reimbursable Amount',
-              dataIndex: 'reimbursableAmount',
-              key: 'reimbursableAmount',
-              align: 'right',
-              render: (amount: number, record: any) => {
-                const currencyCode = record.currency?.code || '';
-                const formattedAmount = amount && amount !== 0 ? `${formatNumberFunction(String(amount ?? '0'))} ${currencyCode}` : '-';
-                
-                return (
-                  <div className="gba:text-right" data-testid={`reimbursable-amount-${record.id}`}>
-                    {formattedAmount}
-                  </div>
-                );
-              }
-            },
-            {
-              title: 'Advance',
-              dataIndex: 'advanceAmount',
-              key: 'advanceAmount',
-              align: 'right',
-              render: (amount: number, record: any) => {
-                const advanceAmountValue = record.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount;
-                const advanceAmount = advanceAmountValue && advanceAmountValue !== 0 ? advanceAmountValue : '-';
-                
-                // Use expense plan currency if available, otherwise fall back to main currency
-                const currencyCode = advanceAmountValue && advanceAmountValue !== 0 && record.expensePlan?.currency?.code ? record.expensePlan.currency.code : record.currency?.code || '';
-                const formattedAmount = `${formatNumberFunction(String(advanceAmount))} ${currencyCode}`;
-                
-                return (
-                  <div className="gba:text-right" data-testid={`total-amount-${record.id}`}>
-                    {formattedAmount}
-                  </div>
-                );
-              }
-            },
+        <Card data-testid="expense-requests-table-container">
+          <CardContent className="gba:p-0">
+            {isLoading && (
+              <div className="gba:flex gba:justify-center gba:p-4">
+                <Spinner />
+              </div>
+            )}
             
-          ]}
-          onRow={(record: any) => ({
-            onClick: () => handleSelectItem(record as any)
-          })}
-        />
+            <div className="gba:overflow-x-auto">
+              <Table data-testid="expense-requests-data-table">
+                <TableHeader>
+                  <TableRow className="gba:border-b gba:bg-gray-50">
+                    <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"/>
+                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      Request Number
+                    </TableHead>
+                    <TableHead className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      Title
+                    </TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      Start Date
+                    </TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      End Date
+                    </TableHead>
+                    <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      Status
+                    </TableHead>
+                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">
+                      Reimbursable Amount
+                    </TableHead>
+                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">
+                      Advance
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {!isLoading && (!items || items.length === 0) ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="gba:py-8 gba:text-center">
+                        <Empty 
+                          description="No expense requests found matching your criteria." 
+                          style={{ margin: '40px 0' }}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    items?.map((record: any) => (
+                      <TableRow 
+                        key={record.id} 
+                        className="gba:hover:bg-gray-50 gba:cursor-pointer"
+                        onClick={() => handleSelectItem(record)}
+                        data-testid={`expense-request-row-${record.id}`}
+                      >
+                        <TableCell className="gba:py-4 gba:px-3">
+                          <div className="gba:flex gba:justify-start gba:gap-2">
+                            <AppActionButton
+                              data-testid={`expense-request-update-button-${record.id}`}
+                              variant="secondary"
+                              staticFlowData={[
+                                {
+                                  category: 'Actions',
+                                  key: 'edit-expense-request',
+                                  label: 'Edit',
+                                  onClick: (e?: React.MouseEvent) => {
+                                    e?.stopPropagation();
+                                    handleEditExpenseRequest(record);
+                                  }
+                                },
+                                {
+                                  category: 'Navigations',
+                                  key: 'view-expense-request',
+                                  label: 'View Details',
+                                  onClick: (e?: React.MouseEvent) => {
+                                    e?.stopPropagation();
+                                    handleSelectItem(record);
+                                  }
+                                }
+                              ]}
+                              accessToken={contextProps.accessToken}
+                              emptyStateBehavior="disable"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell className="gba:py-4 gba:px-6">
+                          {record.code || 'N/A'}
+                        </TableCell>
+                        <TableCell className="gba:py-4 gba:px-6">
+                          {record.title}
+                        </TableCell>
+                        <TableCell className="gba:py-4 gba:px-6">
+                          {record.startDate ? dayjs(record.startDate).format(getDateFormat('date.short')) : '-'}
+                        </TableCell>
+                        <TableCell className="gba:py-4 gba:px-6">
+                          {record.endDate ? dayjs(record.endDate).format(getDateFormat('date.short')) : '-'}
+                        </TableCell>
+                        <TableCell className="gba:py-4 gba:px-6">
+                          {(() => {
+                            const { type, text } = getStatusDisplay(record.status);
+                            return <Pill type={type} label={text} />;
+                          })()}
+                        </TableCell>
+                        <TableCell className="gba:py-4 gba:px-6 gba:text-right">
+                          {(() => {
+                            const currencyCode = record.currency?.code || '';
+                            const formattedAmount = record.reimbursableAmount && record.reimbursableAmount !== 0 ? `${formatNumberFunction(String(record.reimbursableAmount ?? '0'))} ${currencyCode}` : '-';
+                            
+                            return (
+                              <div data-testid={`reimbursable-amount-${record.id}`}>
+                                {formattedAmount}
+                              </div>
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell className="gba:py-4 gba:px-6 gba:text-right">
+                          {(() => {
+                            const advanceAmountValue = record.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount;
+                            const advanceAmount = advanceAmountValue && advanceAmountValue !== 0 ? advanceAmountValue : '-';
+                            
+                            // Use expense plan currency if available, otherwise fall back to main currency
+                            const currencyCode = advanceAmountValue && advanceAmountValue !== 0  ?  record.currency?.code  : '';
+                            const formattedAmount = `${formatNumberFunction(String(advanceAmount))} ${currencyCode}`;
+                          
+                            return (
+                              <div data-testid={`total-amount-${record.id}`}>
+                                {formattedAmount}
+                              </div>
+                            );
+                          })()}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            
+            {/* Pagination - same pattern as other table components */}
+            {totalCount > pageSize && (
+              <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t" data-testid="expense-requests-pagination">
+                <div className="gba:text-sm gba:text-muted-foreground" data-testid="expense-requests-pagination-info">
+                  {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} expense requests`}
+                </div>
+                <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => handleEnhancedTableChange({ current: 1, pageSize: Number(e.target.value) }, {}, {})}
+                      className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                      data-testid="expense-requests-page-size-select"
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                  <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid="expense-requests-page-info">
+                    Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                  </div>
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => handleEnhancedTableChange({ current: 1, pageSize }, {}, {})}
+                      disabled={currentPage === 1}
+                      data-testid="expense-requests-first-page-button"
+                    >
+                      <span className="gba:sr-only">Go to first page</span>
+                      ⟨⟨
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize }, {}, {})}
+                      disabled={currentPage === 1}
+                      data-testid="expense-requests-previous-page-button"
+                    >
+                      <span className="gba:sr-only">Go to previous page</span>⟨
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize }, {}, {})}
+                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                      data-testid="expense-requests-next-page-button"
+                    >
+                      <span className="gba:sr-only">Go to next page</span>⟩
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => handleEnhancedTableChange({ current: Math.ceil(totalCount / pageSize), pageSize }, {}, {})}
+                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                      data-testid="expense-requests-last-page-button"
+                    >
+                      <span className="gba:sr-only">Go to last page</span>
+                      ⟩⟩
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     );
-  }, [items, isLoading, error, paginationConfig, 
-      handleEnhancedTableChange, selectedRowKeys, handleRowSelectionChange, 
-      handleEditExpenseRequest, handleSelectItem]);
+  }, [items, isLoading, error, currentPage, pageSize, totalCount, 
+      handleEnhancedTableChange, handleEditExpenseRequest, handleSelectItem, getStatusDisplay]);
 
   // Memoized details panel render function using the new component
   const renderExpenseRequestDetails = useCallback(() => {
@@ -331,20 +418,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
     setSearch: handleSearchChange,
     filter: selectedFilters,
     setFilter: (newFilters: string[]) => {
-      // Create a set of new filter IDs for easier comparison
-      const newFiltersSet = new Set(newFilters);
+      // Clear all current filters first
+      if (clearFilters) {
+        clearFilters();
+      }
       
-      // First, remove any filters that are not in the new filters
-      selectedFilters.forEach((filter: string) => {
-        if (!newFiltersSet.has(filter)) {
-          handleFilterChangeCallback(filter, false);
-        }
-      });
-      
-      // Then, add any new filters that aren't already selected
+      // Add each new filter
       newFilters.forEach((filter: string) => {
-        if (!selectedFilters.includes(filter)) {
-          handleFilterChangeCallback(filter, true);
+        if (handleFilterChange) {
+          handleFilterChange(filter, true);
         }
       });
     },
@@ -356,12 +438,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
     listTitle: "My Expense Requests",
     listAmount: totalCount ? `${totalCount}` : undefined,
     filterLabelMap: filterLabelMap,
-  }), [search, selectedFilters, handleSearchChange, handleFilterChangeCallback, totalCount, filterLabelMap, onAddExpenseRequest]);
+  }), [searchInput, selectedFilters, handleSearchChange, handleFilterChange, clearFilters, totalCount, filterLabelMap, onAddExpenseRequest]);
 
   const dataFilterProps = useMemo(() => ({
     filterGroups: filterGroups,
-    onFilterChange: handleFilterChangeCallback,
-  }), [filterGroups, handleFilterChangeCallback]);
+    onFilterChange: handleFilterChange,
+  }), [filterGroups, handleFilterChange]);
 
   const dataDetails = useMemo(() => {
     if (selectedItem) {

@@ -80,7 +80,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   const [endDateRange, setEndDateRange] = useState<[Date | null, Date | null] | null>(null);
 
   // Define these as constants for stable references
-  const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
+  // const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
   const REQUEST_TYPE_OPTIONS = ['general', 'trip'];
   
   // Helper function to get status display name with backend status in parentheses only when different
@@ -120,15 +120,15 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       }),
       hideSearch: true,
     },
-    {
-      id: 'timePeriod',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.period_title', 'Time Period'),
-      filters: [
-        { id: 'last30days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_30_days', 'Last 30 days'), selected: selectedFilters.includes('last30days') },
-        { id: 'last90days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_90_days', 'Last 90 days'), selected: selectedFilters.includes('last90days') },
-        { id: 'last180days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_180_days', 'Last 180 days'), selected: selectedFilters.includes('last180days') }
-      ]
-    },
+    // {
+    //   id: 'timePeriod',
+    //   title: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.period_title', 'Time Period'),
+    //   filters: [
+    //     { id: 'last30days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_30_days', 'Last 30 days'), selected: selectedFilters.includes('last30days') },
+    //     { id: 'last90days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_90_days', 'Last 90 days'), selected: selectedFilters.includes('last90days') },
+    //     { id: 'last180days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_180_days', 'Last 180 days'), selected: selectedFilters.includes('last180days') }
+    //   ]
+    // },
     {
       id: 'requestType',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type', 'Request Type'),
@@ -141,7 +141,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       id: 'status',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.status', 'Status'),
       filters: Object.values(ExpenseRequestStatus).map(status => {
-        const id = status.toLowerCase();
+        const id = status;
         return { 
           id, 
           label: getStatusDisplayName(status),
@@ -176,12 +176,12 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     
     setSelectedFilters(prev => {
       // Special handling for radio filter types (time period)
-      if (TIME_PERIOD_OPTIONS.includes(filterId)) {
-        // Remove any existing time period filter
-        const withoutTimePeriods = prev.filter(f => !TIME_PERIOD_OPTIONS.includes(f));
-        newFilters = [...withoutTimePeriods, filterId];
-        return newFilters;
-      }
+      // if (TIME_PERIOD_OPTIONS.includes(filterId)) {
+      //   // Remove any existing time period filter
+      //   const withoutTimePeriods = prev.filter(f => !TIME_PERIOD_OPTIONS.includes(f));
+      //   newFilters = [...withoutTimePeriods, filterId];
+      //   return newFilters;
+      // }
       // For multi-select filters, just add if not already selected
       if (prev.includes(filterId)) {
         newFilters = [...prev];
@@ -193,7 +193,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     });
     
     return newFilters;
-  }, [TIME_PERIOD_OPTIONS]);
+  }, []);
   
   // Remove filter with proper dependency handling - returns the new filters array for immediate use
   const removeFilter = useCallback((filterId: string): string[] => {

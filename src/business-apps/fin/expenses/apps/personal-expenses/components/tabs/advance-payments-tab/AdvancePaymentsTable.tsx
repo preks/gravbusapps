@@ -12,10 +12,14 @@ import {
   Button, 
   Badge, 
   Alert,
-  Checkbox 
+  Checkbox,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle
 } from '@newwork/nw-design-system';
 import { Modal, message } from 'antd';
-import { ActionButton } from '@newwork/gravity-ui-catalog';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { startProcess } from '@/common/utils/start-process';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -75,7 +79,7 @@ export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   removeFilter?: (filterId: string) => void;
 }
 
-const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = React.memo((props) => {
+const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTableProps>((props, ref) => {
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(() => ({
     accessToken: props.accessToken,
@@ -236,9 +240,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = React.memo((pr
                 <TableHead
                   className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
                   data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
-                >
-                  Actions
-                </TableHead>
+                />
                 <TableHead
                   className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
                   data-testid={`${DATA_TEST_ID_PREFIX}-expense-plan-header`}
@@ -303,9 +305,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = React.memo((pr
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
                     >
                       <div className="gba:flex gba:justify-start gba:gap-2">
-                        <ActionButton
-                          onClick={(e) => e.stopPropagation()}
-                          flowData={[
+                        <AppActionButton
+                          data-testid={`${DATA_TEST_ID_PREFIX}-action-button-${record.id}`}
+                          variant="secondary"
+                          staticFlowData={[
                             {
                               category: 'Navigations',
                               key: 'view-advance-payment',
@@ -334,9 +337,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = React.memo((pr
                               }
                             }] : [])
                           ]}
-                          portalContainer={document.body}
-                          size="md"
-                          data-testid={`${DATA_TEST_ID_PREFIX}-action-button-${record.id}`}
+                          accessToken={contextProps.accessToken}
+                          emptyStateBehavior="disable"
+                          deferMainContextRequestsUntilClick
+                          onClick={(e) => e.stopPropagation()}
                         />
                       </div>
                     </TableCell>
@@ -378,39 +382,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = React.memo((pr
         </div>
       </div>
     );
-  }, [items, isLoading, error, handleSelectItem, handleViewExpensePlanDetails, handleViewExpenseRequestDetails]);
-
-  // Render advance payment details panel
-  const renderAdvancePaymentDetails = useMemo(() => {
-    if (!selectedItem) return null;
-    return <AdvancePaymentDetails payment={selectedItem} onClose={handleCloseDetails} {...contextProps} />;
-  }, [selectedItem, handleCloseDetails, contextProps]);
-
-  // Render expense plan details panel
-  const renderExpensePlanDetails = useMemo(() => {
-    if (!selectedExpensePlan) return null;
-    return (
-      <ExpensePlanDetails
-        selectedItem={selectedExpensePlan}
-        onClose={handleCloseDetails}
-        accessToken={props.accessToken}
-        userInfo={props.userInfo}
-      />
-    );
-  }, [selectedExpensePlan, handleCloseDetails, props.accessToken, props.userInfo]);
-
-  // Render expense request details panel
-  const renderExpenseRequestDetails = useMemo(() => {
-    if (!selectedExpenseRequest) return null;
-    return (
-      <ExpenseRequestDetails
-        selectedItem={selectedExpenseRequest}
-        onClose={handleCloseDetails}
-        accessToken={props.accessToken}
-        userInfo={props.userInfo}
-      />
-    );
-  }, [selectedExpenseRequest, handleCloseDetails, props.accessToken, props.userInfo]);
+  }, [items, isLoading, error, handleSelectItem, handleViewExpensePlanDetails, handleViewExpenseRequestDetails, contextProps.accessToken]);
 
   // Memoize DataContainer props to prevent unnecessary re-renders
   const dataControllerProps = useMemo(() => ({
@@ -442,44 +414,80 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = React.memo((pr
     }
   }), [filterGroups, props.handleFilterChange]);
 
-  const dataDetails = useMemo(() => {
-    if (selectedItem) {
-      return {
-        title: selectedItem.expensePlan?.title ?? 'Advance Payment Details',
-        icon: <PiCurrencyDollar />,
-        content: renderAdvancePaymentDetails,
-        onClose: handleCloseDetails,
-        footer: null
-      };
-    } else if (selectedExpensePlan) {
-      return {
-        title: selectedExpensePlan.title || 'Expense Plan Details',
-        icon: <PiFileText />,
-        content: renderExpensePlanDetails,
-        onClose: handleCloseDetails,
-      };
-    } else if (selectedExpenseRequest) {
-      return {
-        title: selectedExpenseRequest.title || 'Expense Request Details',
-        icon: <PiFileText />,
-        content: renderExpenseRequestDetails,
-        onClose: handleCloseDetails,
-      };
-    }
-    return undefined;
-  }, [selectedItem, selectedExpensePlan, selectedExpenseRequest, renderAdvancePaymentDetails, renderExpensePlanDetails, renderExpenseRequestDetails, handleCloseDetails]);
-
   return (
-    <DataContainer
-      dataControllerProps={dataControllerProps}
-      dataFilterProps={dataFilterProps}
-      hideFilter={false}
-      dataBody={renderDataBody()}
-      contentBackground="white"
-      dataDetails={dataDetails}
-    />
+    <div ref={ref}>
+      <DataContainer
+        dataControllerProps={dataControllerProps}
+        dataFilterProps={dataFilterProps}
+        hideFilter={false}
+        dataBody={renderDataBody()}
+        contentBackground="white"
+      />
+
+      {/* Advance Payment Details Sheet */}
+      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()}>
+        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+          <SheetHeader>
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+              {selectedItem?.expensePlan?.title || 'Advance Payment Details'}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+            {selectedItem && (
+              <AdvancePaymentDetails 
+                payment={selectedItem} 
+                onClose={handleCloseDetails} 
+                {...contextProps} 
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Expense Plan Details Sheet */}
+      <Sheet open={!!selectedExpensePlan} onOpenChange={(open) => !open && handleCloseDetails()}>
+        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+          <SheetHeader>
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+              {selectedExpensePlan?.title || 'Expense Plan Details'}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+            {selectedExpensePlan && (
+              <ExpensePlanDetails
+                selectedItem={selectedExpensePlan}
+                onClose={handleCloseDetails}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Expense Request Details Sheet */}
+      <Sheet open={!!selectedExpenseRequest} onOpenChange={(open) => !open && handleCloseDetails()}>
+        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+          <SheetHeader>
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+              {selectedExpenseRequest?.title || 'Expense Request Details'}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+            {selectedExpenseRequest && (
+              <ExpenseRequestDetails
+                selectedItem={selectedExpenseRequest}
+                onClose={handleCloseDetails}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </div>
   );
 });
 
-export default AdvancePaymentsTable;
+export default React.memo(AdvancePaymentsTable);
 
