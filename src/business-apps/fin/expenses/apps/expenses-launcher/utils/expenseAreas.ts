@@ -1,46 +1,59 @@
 import { ExpenseArea, QuickAction } from '../types';
+import { 
+  Receipt, 
+  Article, 
+  CurrencyDollar,
+  FileText,
+  Calendar,
+  ChartLine,
+  User,
+  Users,
+  ChartBar,
+  ChartPie,
+  Plus
+} from '@phosphor-icons/react';
 
 export const expenseAreas: ExpenseArea[] = [
   {
     id: 'expense-items',
     title: 'Expense Items',
     description: 'Manage individual expense entries, receipts, and categorization',
-    icon: 'RiReceiptLine',
+    icon: Receipt,
     category: 'core'
   },
   {
     id: 'plans',
     title: 'Plans',
     description: 'Budget planning, expense forecasting, and financial planning',
-    icon: 'RiPlaneLine',
+    icon: Article,
     category: 'planning'
   },
   {
     id: 'advance-payments',
     title: 'Advance Payments',
     description: 'Request and manage advance payments for upcoming expenses',
-    icon: 'RiMoneyDollarCircleLine',
+    icon: CurrencyDollar,
     category: 'core'
   },
   {
     id: 'requests',
     title: 'Requests',
     description: 'Submit, track, and approve expense reimbursement requests',
-    icon: 'RiFileTextLine',
+    icon: FileText,
     category: 'core'
   },
   {
     id: 'calendar',
     title: 'Calendar',
     description: 'View expenses, plans, and events in a calendar timeline',
-    icon: 'RiCalendarLine',
+    icon: Calendar,
     category: 'reporting'
   },
   {
     id: 'analytics',
     title: 'Analytics',
     description: 'Advanced analytics, spending patterns, and trend analysis',
-    icon: 'RiLineChartLine',
+    icon: ChartLine,
     category: 'reporting'
   }
 ];
@@ -51,7 +64,7 @@ export const managerExpenseAreas: ExpenseArea[] = [
     id: 'personal-expenses',
     title: 'Personal Expenses',
     description: 'Manage your own expense submissions and track spending',
-    icon: 'RiUser3Line',
+    icon: User,
     category: 'manager',
     kpiType: 'personal',
     links: [
@@ -67,7 +80,7 @@ export const managerExpenseAreas: ExpenseArea[] = [
     id: 'team-expenses',
     title: 'Team Expenses',
     description: 'Review and manage your team members expense submissions',
-    icon: 'RiTeamLine',
+    icon: Users,
     category: 'manager',
     kpiType: 'team',
     links: [
@@ -83,7 +96,7 @@ export const managerExpenseAreas: ExpenseArea[] = [
     id: 'my-expense-analytics',
     title: 'My Expense Analytics',
     description: 'Personal spending insights, trends, and budget analysis',
-    icon: 'RiBarChart2Line',
+    icon: ChartBar,
     category: 'manager',
     kpiType: 'analytics',
     buttonLabel: 'View My Analytics',
@@ -93,7 +106,7 @@ export const managerExpenseAreas: ExpenseArea[] = [
     id: 'team-expense-analytics',
     title: 'Team Expense Analytics',
     description: 'Team spending insights, budget tracking, and performance metrics',
-    icon: 'RiPieChart2Line',
+    icon: ChartPie,
     category: 'manager',
     kpiType: 'analytics',
     buttonLabel: 'View Team Analytics',
@@ -105,25 +118,25 @@ export const quickActions: QuickAction[] = [
   {
     id: 'add-expense-item',
     label: 'Add Expense Item',
-    icon: 'RiPlusLine',
+    icon: Plus,
     action: 'create-expense-item'
   },
   {
     id: 'create-plan',
     label: 'Create Plan',
-    icon: 'RiPlusLine',
+    icon: Plus,
     action: 'create-plan'
   },
   {
     id: 'request-advance',
     label: 'Request Advance',
-    icon: 'RiPlusLine',
+    icon: Plus,
     action: 'request-advance'
   },
   {
     id: 'submit-request',
     label: 'Submit Request',
-    icon: 'RiPlusLine',
+    icon: Plus,
     action: 'submit-request'
   }
 ];

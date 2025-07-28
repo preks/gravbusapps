@@ -675,6 +675,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             bottom: 0,
             boxShadow: "2px 0 8px rgba(0,0,0,0.05)",
             overflow: "hidden",
+            zIndex: 1000,
           }}
         >
           <div

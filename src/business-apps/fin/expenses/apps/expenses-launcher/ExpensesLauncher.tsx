@@ -40,22 +40,6 @@ import {
 
 interface ExpensesLauncherProps extends BusinessAppContextProps {}
 
-// Map RemixIcon names to PhosphorIcon components
-const iconMap = {
-  'RiUser3Line': User,
-  'RiSettings3Line': Gear,
-  'RiBarChart2Line': ChartBar,
-  'RiLineChartLine': ChartLine,
-  'RiTeamLine': Users,
-  'RiPieChart2Line': ChartPie,
-  'RiReceiptLine': Receipt,
-  'RiPlaneLine': Article,
-  'RiMoneyDollarCircleLine': CurrencyDollar,
-  'RiFileTextLine': FileText,
-  'RiCalendarLine': Calendar,
-  'Sliders': Sliders
-};
-
 const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
   const { stats, isLoading, error, refetch } = useExpenseDashboardStats(context);
   const { 
@@ -172,7 +156,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
     return quickActions.map(action => ({
       id: action.id,
       label: action.label,
-      icon: iconMap[action.icon as keyof typeof iconMap] || Plus,
+      icon: action.icon, // Now directly using PhosphorIcon components
       onClick: () => handleQuickAction(action),
       variant: 'secondary'
     }));
@@ -202,7 +186,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
           id: 'personal-expenses',
           title: 'Personal Expenses',
           description: 'Manage your own expense submissions and track spending',
-          icon: 'RiUser3Line',
+          icon: User, // Now directly using PhosphorIcon components
           category: 'manager',
           kpiType: 'personal',
           links: [
@@ -220,7 +204,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         id: 'expense-management',
         title: 'Expense Management',
         description: 'Comprehensive expense oversight and policy management',
-        icon: 'RiSettings3Line',
+        icon: Gear, // Now directly using PhosphorIcon components
         category: 'manager',
         kpiType: 'team',
         links: [
@@ -235,7 +219,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         id: 'finance-settings',
         title: 'Finance Settings',
         description: 'Manage expense calculation rules, mileage policies, and travel regulations',
-        icon: 'Sliders',
+        icon: Sliders, // Now directly using PhosphorIcon components
         category: 'manager',
         kpiType: 'settings',
         links: [
@@ -252,7 +236,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         id: 'calendar-view',
         title: 'Calendar',
         description: 'View expenses, plans, and events in a calendar timeline',
-        icon: 'Calendar',
+        icon: Calendar, // Now directly using PhosphorIcon components
         category: 'reporting',
         kpiType: 'calendar',
         buttonLabel: 'View Calendar',
@@ -263,7 +247,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         id: 'my-expense-analytics',
         title: 'My Expense Analytics',
         description: 'Personal spending insights, trends, and budget analysis',
-        icon: 'RiBarChart2Line',
+        icon: ChartBar, // Now directly using PhosphorIcon components
         category: 'manager',
         kpiType: 'analytics',
         buttonLabel: 'View My Analytics',
@@ -274,7 +258,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         id: 'advanced-expense-analytics',
         title: 'Advanced Expense Analytics',
         description: 'Enterprise spending insights, budget tracking, and performance metrics',
-        icon: 'RiLineChartLine',
+        icon: ChartLine, // Now directly using PhosphorIcon components
         category: 'reporting',
         kpiType: 'analytics',
         buttonLabel: 'View Advanced Analytics',
@@ -287,7 +271,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
           id: 'personal-expenses',
           title: 'Personal Expenses',
           description: 'Manage your own expense submissions and track spending',
-          icon: 'RiUser3Line',
+          icon: User, // Now directly using PhosphorIcon components
           category: 'manager',
           kpiType: 'personal',
           links: [
@@ -306,7 +290,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
           id: 'team-expenses',
           title: 'Team Expenses',
           description: 'Review and manage your team members expense submissions',
-          icon: 'RiTeamLine',
+          icon: Users, // Now directly using PhosphorIcon components
           category: 'manager',
           kpiType: 'team',
           links: [
@@ -324,7 +308,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         id: 'finance-settings',
         title: 'Finance Settings',
         description: 'Manage expense calculation rules, mileage policies, and travel regulations',
-        icon: 'Sliders',
+        icon: Sliders, // Now directly using PhosphorIcon components
         category: 'manager',
         kpiType: 'settings',
         links: [
@@ -341,7 +325,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         id: 'calendar-view',
         title: 'Calendar',
         description: 'View expenses, plans, and events in a calendar timeline',
-        icon: 'Calendar',
+        icon: Calendar, // Now directly using PhosphorIcon components
         category: 'reporting',
         kpiType: 'calendar',
         buttonLabel: 'View Calendar',
@@ -352,7 +336,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         id: 'my-expense-analytics',
         title: 'My Expense Analytics',
         description: 'Personal spending insights, trends, and budget analysis',
-        icon: 'RiBarChart2Line',
+        icon: ChartBar, // Now directly using PhosphorIcon components
         category: 'manager',
         kpiType: 'analytics',
         buttonLabel: 'View My Analytics',
@@ -364,7 +348,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
           id: 'team-expense-analytics',
           title: 'Team Expense Analytics',
           description: 'Team spending insights, budget tracking, and performance metrics',
-          icon: 'RiPieChart2Line',
+          icon: ChartPie, // Now directly using PhosphorIcon components
           category: 'manager',
           kpiType: 'analytics',
           buttonLabel: 'View Team Analytics',
@@ -377,7 +361,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
           id: 'expense-items',
           title: 'Expense Items',
           description: 'Manage individual expense entries, receipts, and categorization',
-          icon: 'RiReceiptLine',
+          icon: Receipt, // Now directly using PhosphorIcon components
           category: 'core'
         });
       }
@@ -386,7 +370,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         id: 'plans',
         title: 'Plans',
         description: 'Budget planning, expense forecasting, and financial planning',
-        icon: 'RiPlaneLine',
+        icon: Article, // Now directly using PhosphorIcon components
         category: 'planning'
       });
 
@@ -394,7 +378,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         id: 'advance-payments',
         title: 'Advance Payments',
         description: 'Request and manage advance payments for upcoming expenses',
-        icon: 'RiMoneyDollarCircleLine',
+        icon: CurrencyDollar, // Now directly using PhosphorIcon components
         category: 'core'
       });
 
@@ -402,7 +386,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         id: 'requests',
         title: 'Requests',
         description: 'Submit, track, and approve expense reimbursement requests',
-        icon: 'RiFileTextLine',
+        icon: FileText, // Now directly using PhosphorIcon components
         category: 'core'
       });
 
@@ -410,7 +394,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         id: 'calendar',
         title: 'Calendar',
         description: 'View expenses, plans, and events in a calendar timeline',
-        icon: 'RiCalendarLine',
+        icon: Calendar, // Now directly using PhosphorIcon components
         category: 'reporting'
       });
 
@@ -418,7 +402,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         id: 'analytics',
         title: 'Analytics',
         description: 'Personal spending analysis, trends, and insights',
-        icon: 'RiLineChartLine',
+        icon: ChartLine, // Now directly using PhosphorIcon components
         category: 'reporting'
       });
     }
@@ -524,7 +508,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         id: area.id,
         title: area.title,
         description: area.description,
-        icon: iconMap[area.icon as keyof typeof iconMap] || Wallet,
+        icon: area.icon, // Now directly using PhosphorIcon components
         stats: areaStats,
         actions,
         primaryAction: {

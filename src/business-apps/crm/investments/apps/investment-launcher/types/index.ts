@@ -1,8 +1,10 @@
+import { Icon as PhosphorIcon } from '@phosphor-icons/react';
+
 export interface InvestmentArea {
   id: string;
   title: string;
   description: string;
-  icon: string;
+  icon: PhosphorIcon; // Changed from string to PhosphorIcon
   category: 'crm' | 'portfolio' | 'analytics';
   path: string;
 }
@@ -10,7 +12,7 @@ export interface InvestmentArea {
 export interface InvestmentQuickAction {
   id: string;
   label: string;
-  icon: string;
+  icon: PhosphorIcon; // Changed from string to PhosphorIcon
   action: string;
 }
 
