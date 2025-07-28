@@ -39,6 +39,8 @@ import { env } from '@/common/env/EnvUtils';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { ResponseType } from '@/common/network/rest/RestClient';
 import { Modal } from 'antd';
+import { startProcess } from '@/common/utils/start-process';
+import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils';
 
 
 function debounce<T extends (...args: any[]) => any>(
@@ -456,10 +458,38 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     }
   }, [restClient, props.accessToken]);
 
-  const handleUpdateExpenseRequest = useCallback((record: ExpenseData) => {
-  }, []);
 
-  const handleTriggerCSV = useCallback((record: ExpenseData) => {
+  const handleTriggerCSV = useCallback(async (record: ExpenseData) => {
+    try {
+      await startProcess({
+        domain: 'cs-selgros',
+        processName: 'createSelgrosExpenseSheetManualTrigger',
+        payload: {
+          employeeId: record.employeeId,
+          expenseRequestId: record.id
+        }
+      });
+      
+      // Show success toast
+      showToast(
+        getTranslationFromI18nKeyAndLabel(
+          'expense.request.csv.trigger.success',
+          'CSV was generated successfully'
+        ),
+        'success'
+      );
+    } catch (error) {
+      console.error('Failed to trigger CSV process:', error);
+      
+      // Show error toast
+      showToast(
+        getTranslationFromI18nKeyAndLabel(
+          'expense.request.csv.trigger.error',
+          'Failed to generate CSV. Please try again.'
+        ),
+        'error'
+      );
+    }
   }, []);
 
   const handlePrintExpenseRequest = useCallback(async (record: ExpenseData) => {
