@@ -1,5 +1,5 @@
 import React from 'react';
-import { TableCell, TableRow } from '@newwork/nw-design-system';
+import { TableCell, TableRow, Checkbox } from '@newwork/nw-design-system';
 import { formatNumberFunction, formatDate } from '@/common/utils/windowUtils';
 import { getExpenseRequestStatusDisplay } from '../../../../utils/utils';
 import Pill from '@/components/pill/Pill';
@@ -14,6 +14,8 @@ interface ExpenseRequestTableRowProps {
   onTriggerCSV: (record: ExpenseData) => void;
   onPrintExpenseRequest: (record: ExpenseData) => void;
   onTransferPayment: (record: ExpenseData) => void;
+  isSelected?: boolean;
+  onSelectRecord?: (record: ExpenseData, checked: boolean) => void;
 }
 
 const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
@@ -23,13 +25,25 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
   onDownloadAccountingNote,
   onTriggerCSV,
   onPrintExpenseRequest,
-  onTransferPayment
+  onTransferPayment,
+  isSelected = false,
+  onSelectRecord
 }) => {
   return (
     <TableRow 
       onClick={() => onRowClick(record)}
       className="gba:cursor-pointer gba:hover:bg-gray-50"
     >
+      <TableCell className="gba:w-[50px]">
+        {onSelectRecord && (
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={(checked) => onSelectRecord(record, checked as boolean)}
+            onClick={(e) => e.stopPropagation()}
+            data-testid={`select-record-checkbox-${record.id}`}
+          />
+        )}
+      </TableCell>
       <TableCell className="gba:w-[60px]">
         <ExpenseRequestTableActions
           record={record}

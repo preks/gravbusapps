@@ -14,7 +14,9 @@ import {
   TableRow,
   TableCell,
   Alert, 
-  Spinner
+  Spinner,
+  Button,
+  Checkbox
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
@@ -68,6 +70,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const [searchText, setSearchText] = useState<string>(search ?? initialParams.search);
   const [selectedExpense, setSelectedExpense] = useState<ExpenseData | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [selectedRecords, setSelectedRecords] = useState<ExpenseData[]>([]);
   const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
 
   const updateURLParams = useCallback((params: {
@@ -161,7 +164,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   } = useExpenseRequestActions(props);
 
   const {
-    handleTransferPayment
+    handleTransferPayment,
+    handleBulkTransferPayment
   } = useExpenseRequestTransfer(props);
 
   const {
@@ -249,6 +253,55 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     setSelectedExpense(null);
     setSelectedRowKeys([]);
   }, []);
+
+  // Bulk selection handlers
+  const handleSelectRecord = useCallback((record: ExpenseData, checked: boolean) => {
+    if (checked) {
+      setSelectedRecords(prev => [...prev, record]);
+      setSelectedRowKeys(prev => [...prev, record.id]);
+    } else {
+      setSelectedRecords(prev => prev.filter(r => r.id !== record.id));
+      setSelectedRowKeys(prev => prev.filter(key => key !== record.id));
+    }
+  }, []);
+
+  const handleSelectAllRecords = useCallback((checked: boolean) => {
+    if (checked) {
+      const bookableRecords = expenses?.filter(expense => expense.status === 'BOOKED') || [];
+      setSelectedRecords(bookableRecords);
+      setSelectedRowKeys(bookableRecords.map(record => record.id));
+    } else {
+      setSelectedRecords([]);
+      setSelectedRowKeys([]);
+    }
+  }, [expenses]);
+
+  const handleBulkTransfer = useCallback(() => {
+    if (selectedRecords.length > 0) {
+      const bookableRecords = selectedRecords.filter(record => record.status === 'BOOKED');
+      if (bookableRecords.length > 0) {
+        handleBulkTransferPayment(bookableRecords);
+      }
+    }
+  }, [selectedRecords, handleBulkTransferPayment]);
+
+  // Check if any selected records are bookable
+  const hasBookableSelected = useMemo(() => {
+    return selectedRecords.some(record => record.status === 'BOOKED');
+  }, [selectedRecords]);
+
+  // Check if all visible records are bookable
+  const allBookableSelected = useMemo(() => {
+    const bookableRecords = expenses?.filter(expense => expense.status === 'BOOKED') || [];
+    return selectedRecords.length > 0 && 
+           selectedRecords.length === bookableRecords.length &&
+           selectedRecords.every(record => record.status === 'BOOKED');
+  }, [selectedRecords, expenses]);
+
+  // Count of bookable records
+  const bookableRecordsCount = useMemo(() => {
+    return expenses?.filter(expense => expense.status === 'BOOKED').length || 0;
+  }, [expenses]);
 
   const filterGroups: DataFilterGroup[] = useMemo(() => {
     return [
@@ -365,7 +418,16 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
             employee: employeeFilter ? `Employee: ${selectedEmployees.map(e => e.name).join(', ')}` : 'Employee: All',
             amount: `Amount: ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
           },
-          actions: [],
+          actions: hasBookableSelected ? (
+            <Button
+              onClick={handleBulkTransfer}
+              data-testid="bulk-transfer-payment-button"
+              variant="outline"
+              size="sm"
+            >
+              Transfer Payment ({selectedRecords.filter(r => r.status === 'BOOKED').length} selected)
+            </Button>
+          ) : undefined,
         }}
         dataFilterProps={{
           filterGroups: filterGroups,
@@ -416,6 +478,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="gba:w-[50px]">
+                      {bookableRecordsCount > 0 && (
+                        <Checkbox
+                          checked={allBookableSelected}
+                          onCheckedChange={handleSelectAllRecords}
+                          data-testid="select-all-records-checkbox"
+                        />
+                      )}
+                    </TableHead>
                     <TableHead className="gba:w-[60px]">Actions</TableHead>
                     <TableHead>Employee</TableHead>
                     <TableHead>Employee Code</TableHead>
@@ -441,6 +512,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       onTriggerCSV={handleTriggerCSV}
                       onPrintExpenseRequest={handlePrintExpenseRequest}
                       onTransferPayment={handleTransferPayment}
+                      isSelected={selectedRowKeys.includes(record.id)}
+                      onSelectRecord={handleSelectRecord}
                     />
                   ))}
                 </TableBody>

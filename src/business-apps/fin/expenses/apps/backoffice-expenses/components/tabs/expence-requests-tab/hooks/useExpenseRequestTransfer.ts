@@ -27,7 +27,6 @@ export const useExpenseRequestTransfer = (props: BusinessAppContextProps) => {
         ],
       };
 
-      // Try direct REST call first
       try {
         await restClient.post(
           `/employee-expense/temporaryTransferExpenseRequest`,
@@ -47,7 +46,6 @@ export const useExpenseRequestTransfer = (props: BusinessAppContextProps) => {
           "success"
         );
       } catch (restError) {
-        // Fallback to event system
         startProcess({
           domain: "employee-expense",
           processName: "temporaryTransferExpenseRequest",
@@ -65,7 +63,6 @@ export const useExpenseRequestTransfer = (props: BusinessAppContextProps) => {
     } catch (error) {
       console.error("Failed to start transfer payment process:", error);
 
-      // Show error toast
       showToast(
         getTranslationFromI18nKeyAndLabel(
           "expense.request.transfer.error",
@@ -76,7 +73,70 @@ export const useExpenseRequestTransfer = (props: BusinessAppContextProps) => {
     }
   }, []);
 
+  const handleBulkTransferPayment = useCallback(
+    async (records: ExpenseData[]) => {
+      try {
+        const payload = {
+          expenseRequests: records.map((record) => ({
+            id: record.id || "",
+            version: record.version || "",
+            currencyRef: record.currencyRef || "",
+            status: record.status || "",
+            requestTypeRef: record.requestTypeRef || "",
+            employee: record.employeeId || "",
+          })),
+        };
+
+        try {
+          await restClient.post(
+            `/employee-expense/temporaryTransferExpenseRequest`,
+            payload,
+            {
+              headers: {
+                Authorization: `Bearer ${props.accessToken}`,
+              },
+            }
+          );
+
+          showToast(
+            getTranslationFromI18nKeyAndLabel(
+              "expense.request.bulk.transfer.success",
+              `Transfer payment process started successfully for ${records.length} expense requests`
+            ),
+            "success"
+          );
+        } catch (restError) {
+          startProcess({
+            domain: "employee-expense",
+            processName: "temporaryTransferExpenseRequest",
+            payload,
+          });
+
+          showToast(
+            getTranslationFromI18nKeyAndLabel(
+              "expense.request.bulk.transfer.success",
+              `Transfer payment process started successfully for ${records.length} expense requests`
+            ),
+            "success"
+          );
+        }
+      } catch (error) {
+        console.error("Failed to start bulk transfer payment process:", error);
+
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            "expense.request.bulk.transfer.error",
+            "Failed to start bulk transfer payment process. Please try again."
+          ),
+          "error"
+        );
+      }
+    },
+    []
+  );
+
   return {
     handleTransferPayment,
+    handleBulkTransferPayment,
   };
 };
