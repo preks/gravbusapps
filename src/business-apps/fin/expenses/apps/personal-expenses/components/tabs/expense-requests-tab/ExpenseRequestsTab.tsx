@@ -365,13 +365,9 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
           filter: selectedFilters,
           setSearch: handleSearchChange,
           setFilter: (newFilters) => {
-            // PERFORMANCE OPTIMIZATION: Use requestAnimationFrame to ensure the filter change
-            // happens immediately without waiting for animations to complete
             requestAnimationFrame(() => {
-              console.log('Filter change detected, processing immediately');
               console.time('filter-processing');
               
-              // Handle filter removal when X is clicked or filters are cleared
               const filtersToRemove = selectedFilters.filter(f => !newFilters.includes(f));
               filtersToRemove.forEach(filterId => removeFilter(filterId));
               

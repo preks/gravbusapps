@@ -41,6 +41,7 @@ import { ResponseType } from '@/common/network/rest/RestClient';
 import { Modal } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils';
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 
 
 function debounce<T extends (...args: any[]) => any>(
@@ -274,17 +275,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     onSearchChange?.(value);
   }, [handleSearch, onSearchChange]);
 
-  const handleRowSelection = useCallback((selectedRowKeys: React.Key[], selectedRows: any[]) => {
-    setSelectedRowKeys(selectedRowKeys);
-    if (selectedRows.length === 1) {
-      setSelectedExpense(selectedRows[0] as ExpenseData);
-    } else {
-      setSelectedExpense(null);
-    }
-  }, []);
-
   const handleRowClick = useCallback((record: any) => {
     setSelectedExpense(record as ExpenseData);
+  }, []);
+
+  const handleNavigateToExpenseRequest = useCallback((record: ExpenseData) => {
+    const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', { 
+      expenseRequestId: record.id 
+    });
+    navigateTo(url);
   }, []);
 
   const handleCloseDetails = useCallback(() => {
@@ -652,7 +651,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() => handleRowClick(record)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleNavigateToExpenseRequest(record);
+                                }}
                                 data-testid={`view-expense-request-${record.id}`}
                               >
                                 View Expense Request Details
@@ -811,7 +813,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         }
         dataDetails={
           selectedExpense ? {
-            title: getTranslationFromI18nKeyAndLabel('expense.request.details.title', 'Expense Request Details'),
+            title: selectedExpense.title || getTranslationFromI18nKeyAndLabel('expense.request.details.title', 'Expense Request Details'),
             content: (
               <div className="gba:p-4">
                 <div className="gba:mb-4">

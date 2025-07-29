@@ -34,6 +34,7 @@ import { MoreHorizontal } from 'lucide-react';
 import { getAdvancePaymentStatusDisplay } from '../../../utils/utils';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 import Pill from '@/components/pill/Pill';
 import { FileTextOutlined } from '@ant-design/icons';
 
@@ -85,6 +86,31 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   const [selectedActionType, setSelectedActionType] = useState<'advance-payment' | 'plan' | 'request'>('advance-payment');
 
   const { payments, totalCount, isLoading, error, fetchPayments, searchReporters, searchStatuses } = useAdvancePayments(context);
+
+  // Navigation handler for plan details
+  const handleNavigateToPlanDetails = useCallback((record: any) => {
+    if (record.expensePlan?.id) {
+      const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
+        expensePlanId: record.expensePlan.id
+      });
+      navigateTo(url);
+    }
+  }, []);
+
+  // Navigation handler for request details
+  const handleNavigateToRequestDetails = useCallback((record: any) => {
+    // Check if expenseRequest is an array and has elements
+    const expenseRequest = Array.isArray(record.expensePlan?.expenseRequest) 
+      ? record.expensePlan.expenseRequest[0] 
+      : record.expensePlan?.expenseRequest;
+    
+    if (expenseRequest?.id) {
+      const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
+        expenseRequestId: expenseRequest.id
+      });
+      navigateTo(url);
+    }
+  }, []);
 
   // Debounced search for reporters
   const debouncedSearchReporters = useMemo(() => 
@@ -239,8 +265,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   key: 'view-plan',
                   label: 'View Plan Details',
                   onClick: () => {
-                    setSelectedItem(record);
-                    setSelectedActionType('plan');
+                    handleNavigateToPlanDetails(record);
                   }
                 },
                 ...(hasExpenseRequest ? [{
@@ -248,8 +273,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   key: 'view-request',
                   label: 'View Request Details',
                   onClick: () => {
-                    setSelectedItem(record);
-                    setSelectedActionType('request');
+                    handleNavigateToRequestDetails(record);
                   }
                 }] : [])
               ];
@@ -291,8 +315,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
-                              setSelectedItem(record);
-                              setSelectedActionType('plan');
+                              handleNavigateToPlanDetails(record);
                             }}
                             data-testid={`view-plan-${record.id}`}
                           >
@@ -301,8 +324,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                           {hasExpenseRequest && (
                             <DropdownMenuItem
                               onClick={() => {
-                                setSelectedItem(record);
-                                setSelectedActionType('request');
+                                handleNavigateToRequestDetails(record);
                               }}
                               data-testid={`view-request-${record.id}`}
                             >
