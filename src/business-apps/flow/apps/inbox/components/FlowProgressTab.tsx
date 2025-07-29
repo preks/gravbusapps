@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Progress, Tag, Timeline, Spin, Alert, Button } from 'antd';
-import { 
-  PlayCircleOutlined, 
-  CheckCircleOutlined, 
-  ClockCircleOutlined,
-  PauseCircleOutlined,
-  ReloadOutlined,
-  WarningOutlined
-} from '@ant-design/icons';
+import { Card, Timeline, Spin, Alert, Button, Tag, Progress, Statistic, Row, Col, Typography } from 'antd';
+import { CheckCircleOutlined, PlayCircleOutlined, ClockCircleOutlined, PauseCircleOutlined, ReloadOutlined, WarningOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { env } from '@/common/env/EnvUtils';
 
@@ -69,21 +62,106 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId }) => 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProgressData = async () => {
+  const fetchProgressData = async (forceRefresh = false) => {
+    if (!flowId) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
     try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Use the new enhanced progress API with the correct base URL
       const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api';
-      const response = await fetch(`${API_BASE}/flow/${flowId}/progress/enhanced`);
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch progress data: ${response.statusText}`);
+      // Add cache-busting parameter when forcing refresh
+      const cacheBuster = forceRefresh ? `?_=${Date.now()}` : '';
+      
+      const [progressResponse, stepsResponse] = await Promise.all([
+        fetch(`${API_BASE}/flow/${flowId}/progress${cacheBuster}`),
+        fetch(`${API_BASE}/flow/${flowId}/progress/steps${cacheBuster}`)
+      ]);
+      
+      if (!progressResponse.ok) {
+        throw new Error(`Failed to fetch progress data: ${progressResponse.statusText}`);
       }
       
-      const data = await response.json();
-      setProgressData(data);
+      if (!stepsResponse.ok) {
+        throw new Error(`Failed to fetch steps data: ${stepsResponse.statusText}`);
+      }
+      
+      const [progressData, stepsData] = await Promise.all([
+        progressResponse.json(),
+        stepsResponse.json()
+      ]);
+      
+      console.log('Debug - Raw steps data:', stepsData.data?.steps); // Debug logging
+      
+      // Transform API response to match component expectations
+      if (progressData.status === 'success' && progressData.data?.flow) {
+        const flowData = progressData.data.flow;
+        
+        // Transform step data from /progress/steps endpoint
+        let transformedSteps: StepData[] = [];
+        let actualCompletedSteps = 0;
+        if (stepsData.status === 'success' && stepsData.data?.steps) {
+          transformedSteps = stepsData.data.steps.map((step: any, index: number) => {
+            console.log(`Debug - Step ${index}:`, { title: step.rootTaskTitle, status: step.stepStatus }); // Debug logging
+            
+            return {
+              stepIndex: step.rootTaskIndex,
+              title: step.rootTaskTitle,
+              type: 'TASK', // Default type, could be enhanced with more API data
+              assignmentMode: step.assignmentMode,
+              allowReassignment: true, // Default, could be enhanced with more API data
+              status: step.stepStatus as 'COMPLETED' | 'IN_PROGRESS' | 'SCHEDULED' | 'QUEUED',
+              isFuture: step.stepStatus === 'QUEUED' || step.stepStatus === 'SCHEDULED',
+              isActive: step.stepStatus === 'IN_PROGRESS',
+              // Optional fields - would need more API data to populate these properly
+              assignedTo: undefined,
+              completedAt: undefined,
+              completedBy: undefined,
+              startedAt: undefined,
+              dueDate: undefined,
+              scheduledAt: undefined,
+              expectedStartAt: undefined,
+              expectedFinishAt: undefined,
+              dueInMinutes: undefined,
+              message: undefined,
+              inputs: undefined,
+              links: undefined
+            };
+          });
+          
+          // Count actual completed steps from step data
+          actualCompletedSteps = transformedSteps.filter(step => step.status === 'COMPLETED').length;
+        }
+        
+        const transformedData = {
+          flowId: flowData.rootWorkflowId,
+          templateId: flowData.templateId,
+          name: flowData.rootWorkflowName,
+          status: flowData.workflowStatus,
+          createdAt: new Date().toISOString(), // Fallback since API doesn't provide this
+          progress: {
+            currentStep: actualCompletedSteps, // Use actual completed count
+            percentage: flowData.userTaskProgressPercentage,
+            completedSteps: actualCompletedSteps, // Use actual completed count instead of API value
+            totalSteps: flowData.totalSteps,
+            stepCounts: {
+              total: flowData.totalUserTasks || transformedSteps.length,
+              completed: flowData.completedUserTasks || actualCompletedSteps,
+              inProgress: flowData.inProgressUserTasks || transformedSteps.filter(s => s.status === 'IN_PROGRESS').length,
+              scheduled: Math.max(0, (flowData.totalUserTasks || transformedSteps.length) - (flowData.completedUserTasks + flowData.inProgressUserTasks)),
+              queued: flowData.queuedUserTasks || transformedSteps.filter(s => s.status === 'QUEUED').length,
+            },
+            upcomingSteps: Math.max(0, flowData.totalSteps - actualCompletedSteps) // Use actual completed count
+          },
+          steps: transformedSteps
+        };
+        
+        console.log('Debug - Transformed data:', transformedData); // Debug logging
+        setProgressData(transformedData);
+      } else {
+        throw new Error(progressData.message || 'Invalid API response format');
+      }
     } catch (err) {
       console.error('Error fetching progress data:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -92,11 +170,18 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId }) => 
     }
   };
 
+  // Initial load when flowId changes
   useEffect(() => {
     if (flowId) {
-      fetchProgressData();
+      console.log('Debug - Loading progress for flowId:', flowId); // Debug logging
+      fetchProgressData(true); // Always use cache-busting for initial load
     }
   }, [flowId]);
+
+  // Manual refresh function
+  const handleRefresh = () => {
+    fetchProgressData(true);
+  };
 
   const getStepIcon = (status: string, isActive: boolean) => {
     switch (status) {
@@ -174,7 +259,7 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId }) => 
         type="error"
         showIcon
         action={
-          <Button size="small" onClick={fetchProgressData} icon={<ReloadOutlined />}>
+          <Button size="small" onClick={() => fetchProgressData(true)} icon={<ReloadOutlined />}>
             Retry
           </Button>
         }
@@ -223,7 +308,19 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId }) => 
       </Card>
 
       {/* Step Progress Section */}
-      <Card title="Step Progress">
+      <Card 
+        title="Step Progress"
+        extra={
+          <Button 
+            size="small" 
+            icon={<ReloadOutlined />} 
+            onClick={() => fetchProgressData(true)}
+            loading={isLoading}
+          >
+            Refresh
+          </Button>
+        }
+      >
         <Timeline>
           {progressData.steps.map((step) => (
             <Timeline.Item

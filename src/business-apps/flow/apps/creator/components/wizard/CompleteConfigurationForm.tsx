@@ -92,7 +92,7 @@ export const CompleteConfigurationForm: React.FC<CompleteConfigurationFormProps>
       type: 'TEMPLATE',
       name: '',
       description: '',
-      assignmentMode: AssignmentMode.CLAIM,
+      version: 1,  // Required field
       steps: [] 
     });
   };

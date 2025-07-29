@@ -1,16 +1,8 @@
 import React, { useState, useEffect } from 'react';
-// Using inline type definition since we can't resolve the import
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 // Import centralized mock users data
 import { mockUsers } from '../../data/mockUsers';
 import { env } from '@/common/env/EnvUtils';
-
-interface BusinessAppContextProps {
-  accessToken: string;
-  user: any;
-  userInfo: any;
-  employeeId: string;
-  'data-testid'?: string;
-}
 
 // FlowTemplate interface matching the custom flow engine API
 interface FlowTemplate {
@@ -51,11 +43,13 @@ interface ExecutionAssignment {
 /**
  * Flow Launcher App component for launching published workflow templates
  */
-export const FlowLauncher: React.FC<BusinessAppContextProps> = ({ 
+interface FlowLauncherProps extends BusinessAppContextProps {
+  'data-testid'?: string;
+}
+
+export const FlowLauncher: React.FC<FlowLauncherProps> = ({ 
   accessToken,
-  user,
   userInfo,
-  employeeId,
   'data-testid': testId = 'flow-launcher'
 }) => {
   // API client functions
@@ -155,8 +149,12 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
 
   // Load templates on component mount
   useEffect(() => {
+    console.log('FlowLauncher: accessToken =', accessToken ? 'PRESENT' : 'MISSING');
     if (accessToken) {
+      console.log('FlowLauncher: Making API call to load templates');
       loadPublishedTemplates();
+    } else {
+      console.log('FlowLauncher: No accessToken, skipping API call');
     }
   }, [accessToken]);
 
@@ -208,10 +206,10 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
       // Prepare execution parameters for the custom flow engine API
       const executionParams = {
         runtimeParameters: launchParameters,
-        initiator: user?.id || employeeId,
+        initiator: userInfo?.id || userInfo?.employeeDetails?.employeeId || 'unknown',
         context: {
           flowInstanceId: `flow_instance_${Date.now()}`,
-          launchedBy: user?.name || user?.id || employeeId,
+          launchedBy: userInfo?.userName || userInfo?.id || userInfo?.employeeDetails?.employeeId || 'unknown',
           launchedAt: new Date().toISOString(),
           templateTitle: selectedTemplate.name
         },
@@ -269,10 +267,10 @@ export const FlowLauncher: React.FC<BusinessAppContextProps> = ({
       // Prepare execution parameters for the custom flow engine API
       const executionParams = {
         runtimeParameters: launchParameters,
-        initiator: user?.id || employeeId,
+        initiator: userInfo?.id || userInfo?.employeeDetails?.employeeId || 'unknown',
         context: {
           flowInstanceId: `flow_instance_${Date.now()}`,
-          launchedBy: user?.name || user?.id || employeeId,
+          launchedBy: userInfo?.userName || userInfo?.id || userInfo?.employeeDetails?.employeeId || 'unknown',
           launchedAt: new Date().toISOString(),
           templateTitle: selectedTemplate.name
         },

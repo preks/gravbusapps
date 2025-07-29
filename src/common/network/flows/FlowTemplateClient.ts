@@ -55,8 +55,8 @@ export interface AssignmentTarget {
 }
 
 export interface TaskAssignment {
-  targets?: AssignmentTarget | null; // Single target object, null/undefined for flexible assignment
-  assignmentMode?: AssignmentMode; // CLAIM or ASSIGN mode  
+  targets: AssignmentTarget | null; // Required in backend - null indicates runtime assignment
+  assignmentMode: AssignmentMode; // Required - CLAIM or ASSIGN mode  
   allowReassignment?: boolean;
 }
 
@@ -66,9 +66,10 @@ export interface FlowStep {
   title: string;
   message?: string;
   dueInMinutes?: number;
-  inputs?: InputBlock[];
+  form?: InputBlock[];  // Backend uses 'form'
+  inputs?: InputBlock[];  // Legacy field for backward compatibility
   links?: Link[];
-  assignment?: TaskAssignment;
+  assignment: TaskAssignment;  // Required to match backend API
 }
 
 // Simplified init step for self-service flows
@@ -76,7 +77,8 @@ export interface InitStep {
   title: string;
   message?: string;
   links?: Link[];
-  inputs?: InputBlock[];
+  form?: InputBlock[];  // Backend uses 'form'
+  inputs?: InputBlock[];  // Legacy field for backward compatibility
 }
 
 export interface FlowTemplate {
@@ -84,8 +86,7 @@ export interface FlowTemplate {
   type: 'TEMPLATE' | 'SELF_SERVICE';
   name: string;
   description?: string;
-  version?: number;
-  assignmentMode?: AssignmentMode;
+  version: number;  // Required to match backend API
   steps: FlowStep[];
   
   // Self-service specific: simplified to just the init step

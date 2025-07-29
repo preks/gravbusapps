@@ -97,11 +97,12 @@ export const TaskListCard: React.FC<TaskListCardProps<any>> = ({
             
             {hasInputBlocks && (
               <Tag color="orange" style={{ fontSize: '11px' }}>
-                <FormOutlined /> {task.inputs!.length} Fields
+                <FormOutlined /> {(task.form || task.inputs)!.length} Fields
               </Tag>
             )}
+            
             {hasLinks && (
-              <Tag color="cyan" style={{ fontSize: '11px' }}>
+              <Tag color="purple" style={{ fontSize: '11px' }}>
                 <LinkOutlined /> {task.links!.length} Links
               </Tag>
             )}

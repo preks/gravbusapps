@@ -27,6 +27,8 @@ export const InputFieldsTrigger: React.FC<InputFieldsTriggerProps> = ({
   testId,
   onUpdateStep
 }) => {
+  const inputs = step.form || step.inputs || [];  // Handle both form and inputs
+  
   return (
     <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
       <div className="gba:flex gba:items-center gba:gap-2">
@@ -34,9 +36,9 @@ export const InputFieldsTrigger: React.FC<InputFieldsTriggerProps> = ({
         {getTranslationFromI18nKeyAndLabel('flow.creator.inputFields', 'Input Fields')}
       </div>
       <div className="gba:flex gba:items-center gba:gap-2">
-        {step.inputs && step.inputs.length > 0 && (
+        {inputs && inputs.length > 0 && (
           <span className="gba:text-xs gba:bg-purple-100 gba:text-purple-800 gba:px-2 gba:py-1 gba:rounded">
-            {step.inputs.length} {step.inputs.length === 1 ? 'field' : 'fields'}
+            {inputs.length} {inputs.length === 1 ? 'field' : 'fields'}
           </span>
         )}
       </div>
@@ -49,7 +51,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
   testId,
   onUpdateStep
 }) => {
-  const inputs = step.inputs || [];
+  const inputs = step.form || step.inputs || [];  // Handle both form and inputs
 
   const handleAddInput = () => {
     const newInputs = [...inputs, { 
@@ -59,7 +61,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
       label: 'New Field',
       required: false
     }];
-    onUpdateStep({ inputs: newInputs });
+    onUpdateStep({ form: newInputs });  // Use 'form' to match backend
   };
 
   const handleUpdateInput = (index: number, field: string, value: any) => {
@@ -71,12 +73,12 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
       delete newInputs[index].options;
     }
     
-    onUpdateStep({ inputs: newInputs });
+    onUpdateStep({ form: newInputs });  // Use 'form' to match backend
   };
 
   const handleRemoveInput = (index: number) => {
     const newInputs = inputs.filter((_: any, i: number) => i !== index);
-    onUpdateStep({ inputs: newInputs });
+    onUpdateStep({ form: newInputs });  // Use 'form' to match backend
   };
 
   const handleAddOption = (inputIndex: number) => {
@@ -86,7 +88,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
       ...newInputs[inputIndex], 
       options: [...options, { label: '', value: '' }]
     };
-    onUpdateStep({ inputs: newInputs });
+    onUpdateStep({ form: newInputs });  // Use 'form' to match backend
   };
 
   const handleUpdateOption = (inputIndex: number, optionIndex: number, field: string, value: string) => {
@@ -94,7 +96,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
     const options = [...(newInputs[inputIndex].options || [])];
     options[optionIndex] = { ...options[optionIndex], [field]: value };
     newInputs[inputIndex] = { ...newInputs[inputIndex], options };
-    onUpdateStep({ inputs: newInputs });
+    onUpdateStep({ form: newInputs });  // Use 'form' to match backend
   };
 
   const handleRemoveOption = (inputIndex: number, optionIndex: number) => {

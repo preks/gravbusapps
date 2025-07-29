@@ -34,7 +34,8 @@ interface Task {
   title?: string;
   message?: string;
   stepIndex?: number;
-  inputs?: any[];
+  form?: any[];  // Backend uses 'form'
+  inputs?: any[];  // Legacy field for backward compatibility
   links?: any[];
   taskCategory?: string;
   dueDate?: string;
@@ -170,7 +171,11 @@ const getDueDateTag = (task: Task): React.ReactNode => {
 // Import mock users data
 import { mockUsers, type User as MockUser } from '../../data/mockUsers';
 
-const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', ...context }) => {
+const TaskInbox: React.FC<TaskInboxProps> = ({ 
+  prefixDataTestId = 'TaskInbox', 
+  accessToken,
+  ...context 
+}) => {
   const [selectedUserId, setSelectedUserId] = useState<string>('user-001');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [taskStats, setTaskStats] = useState<TaskStats | null>(null);
@@ -192,9 +197,14 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
     setError(null);
 
     try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+      };
+
       const [tasksResponse, statsResponse] = await Promise.all([
-        fetch(`${API_BASE}/tasks/user/${userId}`),
-        fetch(`${API_BASE}/tasks/user/${userId}/stats`)
+        fetch(`${API_BASE}/tasks/user/${userId}`, { headers }),
+        fetch(`${API_BASE}/tasks/user/${userId}/stats`, { headers })
       ]);
 
       if (tasksResponse.ok) {
@@ -262,9 +272,14 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
         body.comment = rejectionComment.trim();
       }
 
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+      };
+
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(body)
       });
 
@@ -297,7 +312,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
     setIsTaskModalVisible(true);
     
     const initialFormData: any = {};
-    task.inputs?.forEach((input: any) => {
+            (task.form || task.inputs)?.forEach((input: any) => {
       initialFormData[input.name] = input.type === 'CHECKBOX' ? [] : '';
     });
     setTaskFormData(initialFormData);
@@ -360,42 +375,30 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
     setRejectionComment,
   };
 
-  // Filter and sort tasks
-  const assignedTasks = tasks.filter(task => 
-    task.assignment?.isUserOwner || 
-    task.assignment?.currentStatus === 'assigned' || 
-    task.assignment?.currentStatus === 'claimed'
+  // Filter and sort tasks - Backend handles filtering, frontend just separates by type
+  const assignedTasks = tasks.filter((task: any) => 
+    task.assignment?.assignedTo === selectedUserId
   );
   
-  const claimableTasks = tasks.filter(task => 
-    task.availableActions?.canClaim && 
-    !task.assignment?.assignedTo
+  const claimableTasks = tasks.filter((task: any) => 
+    task.availableActions?.canClaim === true
   );
 
-  const sortTasksByDueDate = (tasks: Task[]): Task[] => {
-    return [...tasks].sort((a, b) => {
-      const aOverdue = isTaskOverdue(a.dueDate);
-      const bOverdue = isTaskOverdue(b.dueDate);
-      if (aOverdue && !bOverdue) return -1;
-      if (!aOverdue && bOverdue) return 1;
-      
-      const aDueSoon = isTaskDueSoon(a.dueDate);
-      const bDueSoon = isTaskDueSoon(b.dueDate);
-      if (aDueSoon && !bDueSoon) return -1;
-      if (!aDueSoon && bDueSoon) return 1;
-      
-      if (a.dueDate && b.dueDate) {
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      }
-      if (a.dueDate && !b.dueDate) return -1;
-      if (!a.dueDate && b.dueDate) return 1;
-      
-      return (a.stepIndex || 0) - (b.stepIndex || 0);
-    });
-  };
+  // Sort assigned tasks by due date
+  const sortedAssignedTasks = [...assignedTasks].sort((a: any, b: any) => {
+    if (!a.dueDate && !b.dueDate) return 0;
+    if (!a.dueDate) return 1;
+    if (!b.dueDate) return -1;
+    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+  });
 
-  const sortedAssignedTasks = sortTasksByDueDate(assignedTasks);
-  const sortedClaimableTasks = sortTasksByDueDate(claimableTasks);
+  // Sort claimable tasks by due date  
+  const sortedClaimableTasks = [...claimableTasks].sort((a: any, b: any) => {
+    if (!a.dueDate && !b.dueDate) return 0;
+    if (!a.dueDate) return 1;
+    if (!b.dueDate) return -1;
+    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+  });
 
   return (
     <div 
@@ -522,7 +525,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                     task={task}
                     stepType={task.type}
                     assignmentStatus={task.assignment?.currentStatus}
-                    hasInputBlocks={!!(task.inputs && task.inputs.length > 0)}
+                    hasInputBlocks={!!((task.form || task.inputs) && (task.form || task.inputs)!.length > 0)}
                     hasLinks={!!(task.links && task.links.length > 0)}
                     actionLoading={actionLoading}
                     prefixDataTestId={prefixDataTestId}
@@ -536,6 +539,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                     isTaskOverdue={isTaskOverdue}
                     isTaskDueSoon={isTaskDueSoon}
                     formatDueDate={formatDueDate}
+                    accessToken={accessToken}
                     {...context}
                   />
                 )}
@@ -569,7 +573,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                     task={task}
                     stepType={task.type}
                     assignmentStatus={task.assignment?.currentStatus}
-                    hasInputBlocks={!!(task.inputs && task.inputs.length > 0)}
+                    hasInputBlocks={!!((task.form || task.inputs) && (task.form || task.inputs)!.length > 0)}
                     hasLinks={!!(task.links && task.links.length > 0)}
                     actionLoading={actionLoading}
                     prefixDataTestId={prefixDataTestId}
@@ -583,6 +587,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                     isTaskOverdue={isTaskOverdue}
                     isTaskDueSoon={isTaskDueSoon}
                     formatDueDate={formatDueDate}
+                    accessToken={accessToken}
                     {...context}
                   />
                 )}
@@ -629,7 +634,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                     task={selectedTask}
                     stepType={selectedTask.type}
                     hasLinks={!!(selectedTask.links && selectedTask.links.length > 0)}
-                    hasInputBlocks={!!(selectedTask.inputs && selectedTask.inputs.length > 0)}
+                    hasInputBlocks={!!((selectedTask.form || selectedTask.inputs) && (selectedTask.form || selectedTask.inputs)!.length > 0)}
                     taskFormData={taskFormData}
                     reassignUserId={reassignUserId}
                     rejectionComment={rejectionComment}
@@ -663,6 +668,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                   <FlowDataTab
                     task={selectedTask}
                     prefixDataTestId={prefixDataTestId}
+                    accessToken={accessToken}
                     {...context}
                   />
                 )
@@ -674,6 +680,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                   <FlowProgressTab
                     taskId={selectedTask.id}
                     flowId={selectedTask.flowId}
+                    accessToken={accessToken}
                     {...context}
                   />
                 )
@@ -686,6 +693,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', .
                     task={selectedTask}
                     getAssignmentStatusColor={getAssignmentStatusColor}
                     prefixDataTestId={prefixDataTestId}
+                    accessToken={accessToken}
                     {...context}
                   />
                 )

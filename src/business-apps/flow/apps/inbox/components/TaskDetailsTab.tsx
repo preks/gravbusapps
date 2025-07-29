@@ -35,7 +35,8 @@ interface Task {
     rootWorkflowId: string;
   };
   links?: any[];
-  inputs?: any[];
+  form?: any[];  // Backend uses 'form'
+  inputs?: any[];  // Legacy field for backward compatibility
   availableActions?: {
     canComplete?: boolean;
     canClaim?: boolean;
@@ -176,7 +177,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               setTaskFormData(allValues);
             }}
           >
-            {task.inputs!.map((input: any, index: number) => (
+            {(task.form || task.inputs)!.map((input: any, index: number) => (
               <InputRenderer 
                 key={index}
                 input={input}

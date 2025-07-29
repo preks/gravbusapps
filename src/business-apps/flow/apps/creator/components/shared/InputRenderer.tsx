@@ -1,5 +1,5 @@
 import React from 'react';
-import { Form, Input, Select, Upload, Button, Checkbox } from 'antd';
+import { Form, Input, Select, Upload, Button, Checkbox, Radio } from 'antd';
 import { PaperClipOutlined } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { InputType } from '../../types/flowTemplate';
@@ -54,6 +54,23 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
           </Select>
         );
         
+      case InputType.RADIO:
+      case 'radio': // Handle lowercase for backward compatibility
+        return (
+          <Radio.Group
+            data-testid={`${testId}-input-${index}`}
+            disabled={readOnly}
+          >
+            {input.options?.map((option: any, optIndex: number) => (
+              <div key={optIndex} style={{ marginBottom: '8px' }}>
+                <Radio value={option.value} disabled={readOnly}>
+                  {option.label}
+                </Radio>
+              </div>
+            ))}
+          </Radio.Group>
+        );
+        
       case InputType.NUMBER:
         return (
           <Input
@@ -63,6 +80,7 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
             disabled={readOnly}
           />
         );
+
         
       case InputType.FILE:
         return (

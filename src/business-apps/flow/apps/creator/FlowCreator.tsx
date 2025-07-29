@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// Using inline type definition since we can't resolve the import
-interface BusinessAppContextProps {
-  accessToken: string;
-  user: any;
-  userInfo: any;
-  employeeId: string;
-  'data-testid'?: string;
-};
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { FlowTemplateList } from './components/FlowTemplateList';
 import { FlowWizardDialog } from './components/wizard/FlowWizardDialog';
@@ -20,11 +13,13 @@ import { MockDataProvider } from '../../providers/MockDataProvider';
 /**
  * Flow Creator App component for defining workflow templates
  */
-export const FlowCreator: React.FC<BusinessAppContextProps> = ({ 
+interface FlowCreatorProps extends BusinessAppContextProps {
+  'data-testid'?: string;
+}
+
+export const FlowCreator: React.FC<FlowCreatorProps> = ({ 
   accessToken,
-  user,
   userInfo,
-  employeeId,
   'data-testid': testId = 'flow-creator'
 }) => {
   // API Integration
@@ -58,8 +53,12 @@ export const FlowCreator: React.FC<BusinessAppContextProps> = ({
 
   // Load templates on component mount
   useEffect(() => {
+    console.log('FlowCreator: accessToken =', accessToken ? 'PRESENT' : 'MISSING');
     if (accessToken) {
+      console.log('FlowCreator: Making API call to load templates');
       loadTemplates();
+    } else {
+      console.log('FlowCreator: No accessToken, skipping API call');
     }
   }, [accessToken]);
 
