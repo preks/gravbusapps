@@ -32,6 +32,62 @@ interface EmployeeAbsence {
   status: string
 }
 
+interface OrganizationalUnit {
+  id: string
+  name: string
+}
+
+interface Employee {
+  id: string
+  firstName: string
+  lastName: string
+  pictureThumbnail?: string
+  employeePosition: {
+    organizationalUnit: {
+      name: string
+    }
+  }
+}
+
+interface EmployeePositionResponse {
+  EmployeePosition: Array<{
+    employee: {
+      id: string
+      firstName: string
+      lastName: string
+      pictureThumbnail?: string
+    }
+    organizationalUnit: {
+      name: string
+    }
+  }>
+}
+
+interface EmployeeWithAbsencesResponse {
+  EmployeePosition: Array<{
+    employee: {
+      id: string
+      firstName: string
+      lastName: string
+      pictureThumbnail?: string
+      employeeAbsences: EmployeeAbsence[]
+    }
+    organizationalUnit: {
+      name: string
+    }
+  }>
+}
+
+interface AbsenceResponse {
+  EmployeeAbsence: EmployeeAbsence[]
+}
+
+interface SelectFieldValue {
+  value?: string | number | boolean | object | Date | null
+  name?: string
+  label?: string
+}
+
 // Query all 2025 absences (like manager-absences does)
 const ABSENCE_QUERY_2025 = `
   query GetAllAbsences2025 {
@@ -84,7 +140,60 @@ const ABSENCE_QUERY_2025 = `
   }
 `;
 
-// Query all employees from EmployeePosition table (only employees with positions)
+// Optimized query to get employees with their 2025 absences in a single request
+const buildOptimizedEmployeeQuery = (isAllDepartments: boolean, departmentNames?: string[]) => {
+  const departmentFilter = isAllDepartments 
+    ? '' 
+    : `organizationalUnit: { name: { _in: [${departmentNames?.map(name => `"${name}"`).join(', ')}] } }`;
+    
+  return `
+    query GetEmployeesWithAbsences {
+      EmployeePosition(
+        where: {
+          employee: { isDeleted: { _eq: false } }
+          ${departmentFilter}
+        }
+        limit: 1000
+        order_by: { employee: { lastName: asc } }
+      ) {
+        employee {
+          id
+          firstName
+          lastName
+          pictureThumbnail
+          employeeAbsences(
+            where: {
+              _and: [
+                { isDeleted: { _eq: false } },
+                { startDate: { _gte: "2025-01-01T00:00:00Z" } },
+                { endDate: { _lte: "2025-12-31T23:59:59Z" } }
+              ]
+            }
+            order_by: { startDate: asc }
+          ) {
+            id
+            startDate
+            endDate
+            status
+            calendarDays
+            effectiveDays
+            type {
+              objectValue
+              id
+              value
+              parentEntryId
+            }
+          }
+        }
+        organizationalUnit {
+          name
+        }
+      }
+    }
+  `;
+};
+
+// Query all employees from EmployeePosition table (only employees with positions) - for org units
 const GetAllEmployeesFromPositions = `
   query GetAllEmployeesFromPositions {
     EmployeePosition(
@@ -114,7 +223,7 @@ interface OrganizationalUnit {
 const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const graphQLClient = useGraphQLClient(accessToken)
   const [employeeAbsences, setEmployeeAbsences] = useState<EmployeeAbsence[]>([])
-  const [allEmployees, setAllEmployees] = useState<any[]>([])
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([])
   const [organizationalUnits, setOrganizationalUnits] = useState<OrganizationalUnit[]>([])
   const [selectedOrgUnits, setSelectedOrgUnits] = useState<string[]>(
     userInfo?.employeeDetails?.organizationalUnit?.name 
@@ -184,11 +293,11 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       }
 
       // Fetch employees from EmployeePosition table
-      const employeeResult = await graphQLClient.request(employeesQuery);
+      const employeeResult = await graphQLClient.request<EmployeePositionResponse>(employeesQuery);
       const employeePositions = employeeResult?.EmployeePosition || [];
       
       // Transform EmployeePosition data to Employee format with org unit info
-      const employees = employeePositions.map((position: any) => ({
+      const employees: Employee[] = employeePositions.map((position) => ({
         id: position.employee.id,
         firstName: position.employee.firstName,
         lastName: position.employee.lastName,
@@ -211,7 +320,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       // Build absence query filtered by employee IDs
       let absenceQuery = ABSENCE_QUERY_2025;
       if (employees.length > 0) {
-        const employeeIds = employees.map((emp: any) => `"${emp.id}"`).join(', ');
+        const employeeIds = employees.map((emp) => `"${emp.id}"`).join(', ');
         absenceQuery = `
           query GetAbsencesForEmployees {
             EmployeeAbsence(
@@ -266,10 +375,10 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       }
 
       // Fetch absences for the filtered employees
-      const absenceResult = await graphQLClient.request(absenceQuery);
-      const absences = absenceResult?.EmployeeAbsence || [];
-      setEmployeeAbsences(absences);
-      console.log('Fetched absences for employees:', absences.length);
+              const absenceResult = await graphQLClient.request<AbsenceResponse>(absenceQuery);
+        const absences = absenceResult?.EmployeeAbsence || [];
+        setEmployeeAbsences(absences);
+        console.log('Fetched absences for employees:', absences.length);
       
     } catch (err) {
       console.error('Error fetching data:', err)
@@ -292,12 +401,12 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       
       try {
         // Always fetch ALL employees to get complete org unit list for filter
-        const result = await graphQLClient.request(GetAllEmployeesFromPositions);
+        const result = await graphQLClient.request<EmployeePositionResponse>(GetAllEmployeesFromPositions);
         const allEmployeePositions = result?.EmployeePosition || [];
         
-        const orgUnitsMap = new Map<string, { id: string; name: string }>();
+        const orgUnitsMap = new Map<string, OrganizationalUnit>();
         
-        allEmployeePositions.forEach((position: any) => {
+        allEmployeePositions.forEach((position) => {
           if (position.organizationalUnit?.name) {
             const orgUnitName = position.organizationalUnit.name;
             orgUnitsMap.set(orgUnitName, {
@@ -459,20 +568,37 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
         <Select
           value={selectedOrgUnits}
           mode="multiple"
-          onChange={(values: any) => {
+          onChange={(values: string[]) => {
             console.log('=== MULTI-SELECT DEBUG ===');
             console.log('Selected values:', values);
+            console.log('Type of values:', typeof values);
+            console.log('Is array:', Array.isArray(values));
             console.log('==============================');
             
-            // Handle multi-select with "All Departments" as exclusive
+            // Handle edge cases from Ant Design Select
             if (!values || values.length === 0) {
               // If nothing selected, default to "All Departments"
+              console.log('Empty selection - setting to All Departments');
+              setSelectedOrgUnits(['--- All Departments']);
+              return;
+            }
+            
+            // Filter out invalid values that might come from clear operations
+            const validValues = values.filter(value => 
+              value && 
+              typeof value === 'string' && 
+              value !== 'department' && 
+              value.trim() !== ''
+            );
+            
+            if (validValues.length === 0) {
+              console.log('No valid values - setting to All Departments');
               setSelectedOrgUnits(['--- All Departments']);
               return;
             }
             
             // Check if "All Departments" is being selected
-            const allDepartmentsSelected = values.includes('--- All Departments');
+            const allDepartmentsSelected = validValues.includes('--- All Departments');
             
             if (allDepartmentsSelected) {
               // "All Departments" is exclusive - clear other selections
@@ -480,8 +606,8 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
               setSelectedOrgUnits(['--- All Departments']);
             } else {
               // Regular multi-select behavior
-              console.log('Setting selected departments:', values);
-              setSelectedOrgUnits(values);
+              console.log('Setting selected departments:', validValues);
+              setSelectedOrgUnits(validValues);
             }
           }}
           onClear={() => {
