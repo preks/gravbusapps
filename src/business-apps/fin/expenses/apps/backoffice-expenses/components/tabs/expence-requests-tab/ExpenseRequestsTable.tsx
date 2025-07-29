@@ -10,50 +10,34 @@ import {
   Table, 
   TableHeader, 
   TableBody, 
-  TableHead, 
-  TableRow, 
+  TableHead,
+  TableRow,
   TableCell,
   Alert, 
-  Spinner,
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  Button
+  Spinner
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, formatDate, formatNumberFunction } from '@/common/utils/windowUtils';
 import { ExpenseData } from '../../../types';
 import { getExpenseRequestStatusDisplay } from '../../../utils/utils';
-import Pill from '@/components/pill/Pill';
-import { MoreHorizontal } from 'lucide-react';
-import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService';
-import { env } from '@/common/env/EnvUtils';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { ResponseType } from '@/common/network/rest/RestClient';
-import { Modal } from 'antd';
-import { startProcess } from '@/common/utils/start-process';
-import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 
+// Import new components
+import {
+  ExpenseRequestPdfModal,
+  EmployeeSearchFilter,
+  AmountFilter,
+  ExpenseRequestTableRow,
+  ExpenseRequestPagination
+} from './components';
 
-function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-}
+// Import new hooks
+import {
+  useExpenseRequestFilters,
+  useExpenseRequestPdf,
+  useExpenseRequestActions
+} from './hooks';
 
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   search?: string;
@@ -83,11 +67,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const [searchText, setSearchText] = useState<string>(search ?? initialParams.search);
   const [selectedExpense, setSelectedExpense] = useState<ExpenseData | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  
-  const [isPdfModalVisible, setIsPdfModalVisible] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState<string>('');
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [pdfError, setPdfError] = useState<string>('');
+  const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
 
   const updateURLParams = useCallback((params: {
     search?: string;
@@ -142,7 +122,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     window.history.replaceState({}, '', newURL);
   }, []);
 
-
   const { 
     expenses, 
     totalItems, 
@@ -163,8 +142,51 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     amountMaxFilter,
   } = useExpenseRequests(contextProps);
 
-  const { printExpenseRequest } = useExpenseRequestFileService(props);
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  // Use custom hooks
+  const {
+    isPdfModalVisible,
+    pdfUrl,
+    pdfLoading,
+    pdfError,
+    handlePrintExpenseRequest,
+    handleClosePdfModal
+  } = useExpenseRequestPdf(props);
+
+  const {
+    handleDownloadAccountingNote,
+    handleTriggerCSV
+  } = useExpenseRequestActions(props);
+
+  const {
+    employeeFilter,
+    setEmployeeFilter,
+    employeeSearchText,
+    setEmployeeSearchText,
+    showEmployeeDropdown,
+    setShowEmployeeDropdown,
+    employeeSearchResults,
+    employeeSearchLoading,
+    selectedEmployees,
+    setSelectedEmployees,
+    debouncedSearchEmployees,
+    statusFilter,
+    setStatusFilter,
+    handleStatusFilterChange,
+    localAmountMin,
+    setLocalAmountMin,
+    localAmountMax,
+    setLocalAmountMax,
+    debouncedAmountFilter,
+    clearAllFilters
+  } = useExpenseRequestFilters({
+    searchEmployees,
+    handleEmployeeFilter,
+    handleStatusFilter,
+    handleAmountFilter,
+    amountMinFilter,
+    amountMaxFilter,
+    availableStatuses
+  });
 
   useEffect(() => {
     const loadAvailableStatuses = async () => {
@@ -186,76 +208,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
 
     loadAvailableStatuses();
   }, [searchStatuses]);
-
-
-  const [employeeFilter, setEmployeeFilter] = useState('');
-  const [employeeSearchText, setEmployeeSearchText] = useState('');
-  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
-  const [employeeSearchResults, setEmployeeSearchResults] = useState<Array<{id: string, name: string}>>([]);
-  const [employeeSearchLoading, setEmployeeSearchLoading] = useState(false);
-  const [selectedEmployees, setSelectedEmployees] = useState<Array<{id: string, name: string}>>([]);
-
-  const [statusFilter, setStatusFilter] = useState<string[]>(['BOOKED']);
-  const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
-
-  const [localAmountMin, setLocalAmountMin] = useState(amountMinFilter);
-  const [localAmountMax, setLocalAmountMax] = useState(amountMaxFilter);
-
-
-  const debouncedSearchEmployees = useMemo(() => 
-    debounce(async (searchText: string) => {
-      if (searchText.trim().length >= 2) {
-        setEmployeeSearchLoading(true);
-        try {
-          const results = await searchEmployees(searchText);
-          setEmployeeSearchResults(results);
-        } catch (error) {
-          console.error('Error searching employees:', error);
-          setEmployeeSearchResults([]);
-        } finally {
-          setEmployeeSearchLoading(false);
-        }
-      } else {
-        setEmployeeSearchResults([]);
-      }
-    }, 300), 
-    [searchEmployees]
-  );
-
-  const debouncedAmountFilter = useMemo(() => 
-    debounce((min: string, max: string) => {
-      handleAmountFilter(min, max);
-    }, 500), 
-    [handleAmountFilter]
-  );
-
-  useEffect(() => {
-    setLocalAmountMin(amountMinFilter);
-    setLocalAmountMax(amountMaxFilter);
-  }, [amountMinFilter, amountMaxFilter]);
-
-  const handleStatusFilterChange = useCallback((status: string, selected: boolean) => {
-    const newStatusFilter = selected
-      ? [...statusFilter, status]
-      : statusFilter.filter(s => s !== status);
-    
-    setStatusFilter(newStatusFilter);
-    handleStatusFilter(newStatusFilter.join(','));
-  }, [statusFilter, handleStatusFilter]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest('.employee-search-container')) {
-        setShowEmployeeDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
 
   useEffect(() => {
     if (contextProps.accessToken) {
@@ -308,57 +260,19 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         title: getTranslationFromI18nKeyAndLabel('expense.request.filter.employee', 'Employee'),
         type: 'custom',
         customComponent: (
-          <div className="employee-search-container gba:relative gba:p-2">
-            <input
-              type="text"
-              value={employeeSearchText}
-              onChange={(e) => {
-                setEmployeeSearchText(e.target.value);
-                setShowEmployeeDropdown(true);
-                debouncedSearchEmployees(e.target.value);
-              }}
-              onFocus={() => setShowEmployeeDropdown(true)}
-              className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder="Search employee..."
-              data-testid="employee-search-input"
-            />
-            
-            {/* Dropdown with search results */}
-            {showEmployeeDropdown && employeeSearchText.trim() && (
-              <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-white gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
-                {employeeSearchLoading ? (
-                  <div className="gba:p-2 gba:text-sm gba:text-gray-500">
-                    Loading employees...
-                  </div>
-                ) : employeeSearchResults.length === 0 ? (
-                  <div className="gba:p-2 gba:text-sm gba:text-gray-500">
-                    No employees found
-                  </div>
-                ) : (
-                  employeeSearchResults.map((employee) => (
-                    <button
-                      key={employee.id}
-                      className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-gray-100 gba:transition-colors ${
-                        selectedEmployees.some(e => e.id === employee.id) ? 'gba:bg-blue-50 gba:text-blue-700' : 'gba:text-gray-700'
-                      }`}
-                      onClick={() => {
-                        const newSelected = selectedEmployees.some(e => e.id === employee.id)
-                          ? selectedEmployees.filter(e => e.id !== employee.id)
-                          : [...selectedEmployees, employee];
-                        setSelectedEmployees(newSelected);
-                        setEmployeeFilter(newSelected.map(e => e.id).join(','));
-                        
-                        handleEmployeeFilter(newSelected.map(e => e.id).join(','));
-                      }}
-                      data-testid={`employee-option-${employee.id}`}
-                    >
-                      {employee.name}
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
+          <EmployeeSearchFilter
+            employeeSearchText={employeeSearchText}
+            setEmployeeSearchText={setEmployeeSearchText}
+            showEmployeeDropdown={showEmployeeDropdown}
+            setShowEmployeeDropdown={setShowEmployeeDropdown}
+            employeeSearchResults={employeeSearchResults}
+            employeeSearchLoading={employeeSearchLoading}
+            selectedEmployees={selectedEmployees}
+            setSelectedEmployees={setSelectedEmployees}
+            setEmployeeFilter={setEmployeeFilter}
+            handleEmployeeFilter={handleEmployeeFilter}
+            debouncedSearchEmployees={debouncedSearchEmployees}
+          />
         )
       },
       {
@@ -366,46 +280,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         title: getTranslationFromI18nKeyAndLabel('expense.request.filter.amount', 'Amount'),
         type: 'custom',
         customComponent: (
-          <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2" onClick={(e) => e.stopPropagation()}>
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-sm gba:text-gray-600 gba:w-8">Min</span>
-              <input
-                type="number"
-                value={localAmountMin}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  const value = e.target.value;
-                  setLocalAmountMin(value);
-                  debouncedAmountFilter(value, localAmountMax);
-                }}
-                onFocus={(e) => e.stopPropagation()}
-                className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                placeholder="Min"
-                data-testid="amount-min-filter-input"
-              />
-            </div>
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-sm gba:text-gray-600 gba:w-8">Max</span>
-              <input
-                type="number"
-                value={localAmountMax}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  const value = e.target.value;
-                  setLocalAmountMax(value);
-                  debouncedAmountFilter(localAmountMin, value);
-                }}
-                onFocus={(e) => e.stopPropagation()}
-                className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                placeholder="Max"
-                data-testid="amount-max-filter-input"
-              />
-            </div>
-          </div>
+          <AmountFilter
+            localAmountMin={localAmountMin}
+            setLocalAmountMin={setLocalAmountMin}
+            localAmountMax={localAmountMax}
+            setLocalAmountMax={setLocalAmountMax}
+            debouncedAmountFilter={debouncedAmountFilter}
+          />
         )
       }
     ];
-  }, [availableStatuses, statusFilter, employeeSearchText, showEmployeeDropdown, employeeSearchResults, employeeSearchLoading, selectedEmployees, handleEmployeeFilter, handleAmountFilter, amountMinFilter, amountMaxFilter, localAmountMin, localAmountMax, debouncedAmountFilter]);
+  }, [availableStatuses, statusFilter, employeeSearchText, showEmployeeDropdown, employeeSearchResults, employeeSearchLoading, selectedEmployees, handleEmployeeFilter, debouncedSearchEmployees, localAmountMin, setLocalAmountMin, localAmountMax, setLocalAmountMax, debouncedAmountFilter]);
 
   const getFilters = useCallback((filtersToApply?: string[]) => {
     const filters: Record<string, any> = {};
@@ -427,101 +312,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   }, [handleEmployeeFilter, handleStatusFilter, handleAmountFilter]);
 
 
-  const handleEnhancedTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
-    handleTableChange(pagination, _filters, sorter);
+  const handleEnhancedTableChange = useCallback((pagination: any) => {
+    handleTableChange(pagination, {}, {});
   }, [handleTableChange]);
 
-  const handleDownloadAccountingNote = useCallback(async (record: ExpenseData) => {
-    try {
-      const response = await restClient.get(`/cs-selgros/expense-sheets/expense-request/${record.id}/csv`, {
-        responseType: ResponseType.TEXT,
-        headers: {
-          Authorization: `Bearer ${props.accessToken}`,
-        },
-      });
-      
-      const originalName = record.employeeDocument?.name || `accounting-note-${record.code}`;
-      const csvFileName = originalName.replace(/\.[^/.]+$/, '.csv');
-      
-      const blob = new Blob([response], { type: 'text/csv;charset=utf-8' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = csvFileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error downloading accounting note:', error);
-    }
-  }, [restClient, props.accessToken]);
 
-
-  const handleTriggerCSV = useCallback(async (record: ExpenseData) => {
-    try {
-      await startProcess({
-        domain: 'cs-selgros',
-        processName: 'createSelgrosExpenseSheetManualTrigger',
-        payload: {
-          employeeId: record.employeeId,
-          expenseRequestId: record.id
-        }
-      });
-      
-      // Show success toast
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'expense.request.csv.trigger.success',
-          'CSV was generated successfully'
-        ),
-        'success'
-      );
-    } catch (error) {
-      console.error('Failed to trigger CSV process:', error);
-      
-      // Show error toast
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'expense.request.csv.trigger.error',
-          'Failed to generate CSV. Please try again.'
-        ),
-        'error'
-      );
-    }
-  }, []);
-
-  const handlePrintExpenseRequest = useCallback(async (record: ExpenseData) => {
-    setPdfLoading(true);
-    setPdfError('');
-    setPdfUrl('');
-    
-    try {
-      const result = await printExpenseRequest(record);
-      
-      if (result.success && result.pdfUrl) {
-        setPdfUrl(result.pdfUrl);
-        setIsPdfModalVisible(true);
-      } else {
-        setPdfError(result.error || 'Failed to load PDF');
-        setIsPdfModalVisible(true);
-      }
-    } catch (error) {
-      setPdfError(error instanceof Error ? error.message : 'Unknown error occurred');
-      setIsPdfModalVisible(true);
-    } finally {
-      setPdfLoading(false);
-    }
-  }, [printExpenseRequest]);
-
-  const handleClosePdfModal = useCallback(() => {
-    setIsPdfModalVisible(false);
-    setPdfUrl('');
-    setPdfError('');
-    if (pdfUrl) {
-      URL.revokeObjectURL(pdfUrl);
-    }
-  }, [pdfUrl]);
 
   if (loading && expenses.length === 0) {
     return (
@@ -630,184 +425,26 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                 </TableHeader>
                 <TableBody>
                   {expenses.map((record: ExpenseData) => (
-                    <TableRow 
+                    <ExpenseRequestTableRow
                       key={record.id}
-                      onClick={() => handleRowClick(record)}
-                      className="gba:cursor-pointer gba:hover:bg-gray-50"
-                    >
-                      <TableCell className="gba:w-[60px]">
-                        <div className="gba:flex gba:justify-start gba:gap-2">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                className="gba:h-8 gba:w-8 p-0"
-                                data-testid={`expense-request-actions-${record.id}`}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <span className="gba:sr-only">Open menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleNavigateToExpenseRequest(record);
-                                }}
-                                data-testid={`view-expense-request-${record.id}`}
-                              >
-                                View Expense Request Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDownloadAccountingNote(record);
-                                }}
-                                data-testid={`download-accounting-note-${record.id}`}
-                              >
-                                Download Accounting Note
-                              </DropdownMenuItem>
-                              
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleTriggerCSV(record);
-                                }}
-                                data-testid={`trigger-csv-${record.id}`}
-                              >
-                                Trigger CSV
-                              </DropdownMenuItem>
-                              {((record.status === 'PAID' ||
-                                 record.status === 'BOOKED' ||
-                                 record.status === 'APPROVED' ||
-                                 record.status === 'VERIFIED' ||
-                                 record.status === 'TRANSFERRED') &&
-                                record.employeeDocumentId !== null) && (
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handlePrintExpenseRequest(record);
-                                  }}
-                                  data-testid={`print-expense-request-${record.id}`}
-                                >
-                                  Print
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-employee-${record.id}`}>
-                          {record.employee}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-employee-code-${record.id}`}>
-                          {record.employeeCode}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-sap-number-${record.id}`}>
-                          {record.sapNumber}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-code-${record.id}`}>
-                          {record.code}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-title-${record.id}`}>
-                          {record.title}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-start-date-${record.id}`}>
-                          {record.startDate && record.startDate !== 'N/A' ? formatDate(record.startDate, 'date.short') : '-'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-end-date-${record.id}`}>
-                          {record.endDate && record.endDate !== 'N/A' ? formatDate(record.endDate, 'date.short') : '-'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-creation-date-${record.id}`}>
-                          {record.creationDate && record.creationDate !== 'N/A' ? formatDate(record.creationDate, 'date.short') : '-'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-status-${record.id}`}>
-                          <Pill
-                            label={getExpenseRequestStatusDisplay(record.status).label}
-                            type={getExpenseRequestStatusDisplay(record.status).type}
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:text-right">
-                        <span data-testid={`expense-request-remaining-amount-${record.id}`}>
-                          {(() => {
-                            const remainingAmount = Number(record.totalRemainingAmount) || 0;
-                            const currencyCode = record.currency?.code || '';
-                            return remainingAmount > 0 ? `${formatNumberFunction(String(remainingAmount))} ${currencyCode}` : '-';
-                          })()}
-                        </span>
-                      </TableCell>
-                      <TableCell className="gba:text-right">
-                        <span data-testid={`expense-request-total-amount-${record.id}`}>
-                          {formatNumberFunction(String(record.totalAmount))} {record.currency?.code || ''}
-                        </span>
-                      </TableCell>
-                    </TableRow>
+                      record={record}
+                      onRowClick={handleRowClick}
+                      onNavigateToExpenseRequest={handleNavigateToExpenseRequest}
+                      onDownloadAccountingNote={handleDownloadAccountingNote}
+                      onTriggerCSV={handleTriggerCSV}
+                      onPrintExpenseRequest={handlePrintExpenseRequest}
+                    />
                   ))}
                 </TableBody>
               </Table>
               
               {/* Pagination */}
-              {totalItems > 0 && (
-                <div className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4">
-                  <div className="gba:text-sm gba:text-gray-600">
-                    {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalItems)} of ${totalItems} items`}
-                  </div>
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious 
-                          onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize }, {}, {})}
-                          className={currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
-                        />
-                      </PaginationItem>
-                      {Array.from({ length: Math.ceil(totalItems / pageSize) }, (_, i) => i + 1)
-                        .filter(page => page === 1 || page === Math.ceil(totalItems / pageSize) || Math.abs(page - currentPage) <= 1)
-                        .map((page, index, array) => (
-                          <React.Fragment key={page}>
-                            {index > 0 && array[index - 1] !== page - 1 && (
-                              <PaginationItem>
-                                <span className="gba:px-2">...</span>
-                              </PaginationItem>
-                            )}
-                            <PaginationItem>
-                              <PaginationLink
-                                onClick={() => handleEnhancedTableChange({ current: page, pageSize }, {}, {})}
-                                className={page === currentPage ? 'gba:bg-blue-500 gba:text-white' : 'gba:cursor-pointer'}
-                              >
-                                {page}
-                              </PaginationLink>
-                            </PaginationItem>
-                          </React.Fragment>
-                        ))}
-                      <PaginationItem>
-                        <PaginationNext 
-                          onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize }, {}, {})}
-                          className={currentPage >= Math.ceil(totalItems / pageSize) ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                </div>
-              )}
+              <ExpenseRequestPagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={handleEnhancedTableChange}
+              />
             </div>
           )
         }
@@ -881,40 +518,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       />
       
       {/* PDF Modal */}
-      <Modal
-        title="Expense Request Document"
-        open={isPdfModalVisible}
-        onCancel={handleClosePdfModal}
-        footer={null}
-        width="80%"
-        style={{ top: 20 }}
-        data-testid="expense-request-pdf-modal"
-      >
-        {pdfLoading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-            <Spinner size="lg" />
-            <div>Loading PDF...</div>
-          </div>
-        ) : pdfError ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-            <Alert variant="destructive">
-              <div className="gba:font-medium">Error Loading PDF</div>
-              <div className="gba:text-sm">{pdfError}</div>
-            </Alert>
-          </div>
-        ) : pdfUrl ? (
-          <iframe
-            src={pdfUrl}
-            style={{ width: '100%', height: '70vh', border: 'none' }}
-            title="Expense Request PDF"
-            data-testid="expense-request-pdf-iframe"
-          />
-        ) : (
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-            <div>No PDF URL available</div>
-          </div>
-        )}
-      </Modal>
+      <ExpenseRequestPdfModal
+        isVisible={isPdfModalVisible}
+        pdfUrl={pdfUrl}
+        pdfLoading={pdfLoading}
+        pdfError={pdfError}
+        onClose={handleClosePdfModal}
+      />
     </>
   );
 };
